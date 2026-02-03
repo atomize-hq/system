@@ -1,0 +1,18 @@
+---
+kind: pipeline
+id: pipeline.release
+version: 0.1.0
+title: "Release Planning Pipeline"
+description: >
+  Creates a release queue + multi-sprint intent. Assumes Charter exists.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.01_release_plan
+    file: core/stages/01_release_plan.md

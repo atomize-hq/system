@@ -1,0 +1,61 @@
+kind: schema
+id: schema.release
+version: 0.1.0
+
+describes:
+  kind: release
+
+required:
+  - kind
+  - version
+  - id
+  - type
+  - selected_items
+  - sprint_slots
+
+fields:
+  kind: {type: string, const: release}
+  version: {type: string}
+  id: {type: string}
+  type: {type: string}
+  refs:
+    type: object
+    optional: true
+    fields:
+      charter: {type: string, optional: true}
+      project_context: {type: string, optional: true}
+      foundation_strategy: {type: string, optional: true}
+      work_catalog: {type: string, optional: true}
+  goal:
+    type: string
+    optional: true
+  definition_of_done:
+    type: array
+    optional: true
+    items: {type: string}
+  selected_items:
+    type: array
+    items: {type: string}
+  sprint_slots:
+    type: array
+    items:
+      type: object
+      required: [id, focus_items]
+      fields:
+        id: {type: string}
+        goal: {type: string, optional: true}
+        focus_items:
+          type: array
+          items: {type: string}
+        required_task_types:
+          type: array
+          optional: true
+          items: {type: string}
+        expected_deliverables:
+          type: array
+          optional: true
+          items: {type: string}
+  release_gates:
+    type: array
+    optional: true
+    items: {type: string}

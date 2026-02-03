@@ -1,0 +1,71 @@
+# Sprint Plan — {{SPRINT_ID}}
+
+- Sprint ID: {{SPRINT_ID}}
+- Release ID: {{RELEASE_ID}}
+- Release Slot: {{SPRINT_SLOT_ID}}
+- Created (UTC): {{NOW_UTC}}
+- Owner: {{OWNER}}
+- Team: {{TEAM}}
+- Repo / Project: {{REPO_OR_PROJECT_REF}}
+- Charter Ref: {{CHARTER_REF}}
+- Release Ref: {{RELEASE_REF}}
+- Work Catalog Ref: {{WORK_CATALOG_REF_OR_NONE}}
+- Previous Sprint Report Ref: {{PREV_SPRINT_REPORT_REF_OR_NONE}}
+
+## 1) Sprint goal (from release slot + updated by reality)
+{{SPRINT_GOAL_ONE_PARAGRAPH}}
+
+## 2) Sprint definition of done (exit criteria)
+> Sprint cannot close unless these are met.
+
+- {{SPRINT_DOD_1}}
+- {{SPRINT_DOD_2}}
+- {{SPRINT_DOD_3}}
+
+## 3) Focus work items (must be from Release selection)
+{{FOCUS_ITEM_IDS_LIST}}
+
+## 4) Plan inputs
+### Release intent
+- Slot goal: {{RELEASE_SLOT_GOAL}}
+- Required task types: {{RELEASE_REQUIRED_TASK_TYPES}}
+
+### Previous sprint reality (if any)
+- Summary: {{PREV_SPRINT_SUMMARY_OR_NONE}}
+- Carry-over items: {{PREV_SPRINT_CARRYOVER_OR_NONE}}
+
+## 5) Lanes (optional)
+{{LANES_SECTION_OR_NONE}}
+
+<!-- Example lanes section:
+### Lane: discovery
+- Goal: ...
+- Focus items: [FEAT-001]
+
+### Lane: delivery
+- Goal: ...
+- Focus items: [FEAT-001, BUG-002]
+
+### Lane: integration
+- Goal: ...
+- Focus items: [FEAT-001]
+-->
+
+## 6) Task plan (summary)
+> Detailed tasks live in `tasks.yaml`. This section is a human index.
+
+- Planning gate: {{PLANNING_GATE_TASK_ID}}
+- Integration gate: {{INTEGRATION_GATE_TASK_ID_OR_NONE}}
+- Other key tasks:
+  - {{KEY_TASK_1}}
+  - {{KEY_TASK_2}}
+  - {{KEY_TASK_3}}
+
+## 7) Notes
+- Risks: {{RISKS_OR_NONE}}
+- Dependencies: {{DEPENDENCIES_OR_NONE}}
+- Open questions: {{OPEN_QUESTIONS_OR_NONE}}
+
+## 8) Traceability
+- Release slot → tasks.yaml: {{TRACE_RELEASE_SLOT_TO_TASKS}}
+- Work items → tasks.yaml: {{TRACE_WORK_ITEMS_TO_TASKS}}

@@ -1,0 +1,107 @@
+schema_version: 0.1.0
+
+project:
+  name: "Acme Ops API"
+  classification: greenfield
+  team_size: 2
+  users: internal
+  expected_lifetime: years
+  surfaces: ["api"]
+  runtime_environments: ["server", "cloud"]
+  constraints:
+    deadline: "4 weeks to pilot"
+    budget: "small"
+    experience_notes: "Team is strong in Python; limited infra experience."
+    must_use_tech: ["python", "postgres"]
+  operational_reality:
+    in_production_today: false
+    prod_users_or_data: ""
+    external_contracts_to_preserve: []
+    uptime_expectations: "best effort during pilot; improve before GA"
+  default_implications:
+    backward_compatibility: not_required
+    migration_planning: not_required
+    rollout_controls: lightweight
+    deprecation_policy: not_required_yet
+    observability_threshold: standard
+
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 3
+  baseline_rationale:
+    - "Internal users, but expected to live for years."
+    - "Optimize for maintainability without heavy process."
+
+domains:
+  - name: "auth"
+    blast_radius: high
+    touches: ["internal_users", "secrets"]
+    constraints: ["no hardcoded credentials", "least privilege"]
+
+dimensions:
+  - name: "speed_vs_quality"
+    level: null
+    default_stance: "Default to balanced delivery; prefer small slices and steady quality gates."
+    raise_the_bar_triggers:
+      - "If a change touches auth or secrets, add extra review + tests."
+      - "If a change impacts data integrity, add migration checks and rollback plan."
+    allowed_shortcuts:
+      - "If behind a feature flag and internal-only, allow temporary TODOs with an issue link."
+      - "If spike is time-boxed (<1 day), allow minimal tests but label as experimental."
+    red_lines:
+      - "Never merge with failing gates."
+      - "Never log secrets or tokens."
+    domain_overrides: []
+
+  - name: "type_safety_static_analysis"
+    level: 3
+    default_stance: "Use typed interfaces for public modules; keep typing pragmatic."
+    raise_the_bar_triggers:
+      - "If a module becomes a shared library, increase typing coverage and strictness."
+    allowed_shortcuts:
+      - "Allow untyped glue code at boundaries with clear TODO + owner."
+    red_lines:
+      - "No disabling type checks repo-wide to unblock a PR."
+    domain_overrides: []
+
+  - name: "testing_rigor"
+    level: 3
+    default_stance: "Unit tests for core logic; a small set of integration tests for DB interactions."
+    raise_the_bar_triggers:
+      - "If a change affects auth or data writes, add integration coverage."
+    allowed_shortcuts:
+      - "Allow skipping integration tests for pure refactors with unchanged behavior."
+    red_lines:
+      - "No shipping unauthenticated endpoints."
+    domain_overrides: []
+
+  - name: "security_privacy"
+    level: 4
+    default_stance: "Treat internal data as sensitive; enforce least privilege and secure defaults."
+    raise_the_bar_triggers:
+      - "If any PII is introduced, add redaction + access auditability."
+    allowed_shortcuts:
+      - "Allow weaker threat model during pilot, but never for secrets handling."
+    red_lines:
+      - "No hardcoded secrets."
+      - "No bypassing auth checks."
+    domain_overrides:
+      - domain: "auth"
+        level: 5
+        note: "Auth changes require extra review, tests, and explicit rollout plan."
+
+exceptions:
+  approvers: ["project_owner"]
+  record_location: "CHARTER.md#exceptions"
+  minimum_fields: ["what", "why", "scope", "risk", "owner", "expiry_or_revisit_date"]
+
+debt_tracking:
+  system: "issues"
+  labels: ["debt"]
+  review_cadence: "monthly"
+
+decision_records:
+  enabled: true
+  path: "docs/decisions"
+  format: "md"
+

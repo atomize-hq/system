@@ -1,0 +1,41 @@
+kind: release
+version: 0.1.0
+
+id: {{RELEASE_ID}}
+type: {{RELEASE_TYPE}}  # minor | major | hardening | other
+
+refs:
+  charter: {{CHARTER_REF}}
+  project_context: {{PROJECT_CONTEXT_REF_OR_NONE}}
+  foundation_strategy: {{FOUNDATION_STRATEGY_REF}}
+  work_catalog: {{WORK_CATALOG_REF_OR_NONE}}
+
+goal: {{RELEASE_GOAL_ONE_LINE}}
+
+definition_of_done:
+  - {{RELEASE_DOD_1}}
+  - {{RELEASE_DOD_2}}
+
+selected_items:
+  - {{ITEM_1_ID}}
+  - {{ITEM_2_ID}}
+  - {{ITEM_3_ID}}
+
+sprint_slots:
+  - id: {{SLOT_1_ID}}
+    goal: {{SLOT_1_GOAL_ONE_LINE}}
+    focus_items: {{SLOT_1_FOCUS_IDS_LIST}}  # e.g. [FEAT-001, BUG-002]
+    required_task_types: {{SLOT_1_REQUIRED_TASK_TYPES_LIST}}  # e.g. [planning_gate, research_discovery, execution_slice]
+    expected_deliverables:
+      - {{SLOT_1_DELIVERABLE_1}}
+
+  - id: {{SLOT_2_ID}}
+    goal: {{SLOT_2_GOAL_ONE_LINE}}
+    focus_items: {{SLOT_2_FOCUS_IDS_LIST}}
+    required_task_types: {{SLOT_2_REQUIRED_TASK_TYPES_LIST}}
+    expected_deliverables:
+      - {{SLOT_2_DELIVERABLE_1}}
+
+release_gates:
+  - {{RELEASE_GATE_1}}
+  - {{RELEASE_GATE_2}}

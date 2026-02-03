@@ -1,0 +1,60 @@
+# Test Strategy Brief — {{PROJECT_NAME}}
+
+> **File:** `TEST_STRATEGY_BRIEF.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}  
+> **Charter Ref:** {{CHARTER_REF}}  
+> **Project Context Ref:** {{PROJECT_CONTEXT_REF_OR_NONE}}  
+> **Profile:** {{PROFILE_ID_OR_TBD}}
+
+## 1) Intent
+A project-specific testing strategy that aligns with Charter testing rigor and risk flags.
+This doc defines what tests we write, where they live, and what gates must pass.
+
+## 2) Charter alignment
+- Testing rigor target level (from Charter): {{LVL_TESTING}}
+- Key risk flags affecting tests: {{RISK_FLAGS_RELEVANT_TO_TESTING}}
+
+## 3) Test layers (what we prioritize)
+- Unit tests: {{UNIT_TESTS_POLICY}}
+- Integration tests: {{INTEGRATION_TESTS_POLICY}}
+- End-to-end tests (if applicable): {{E2E_POLICY_OR_NA}}
+- Negative tests: {{NEGATIVE_TESTS_POLICY}}
+- Performance tests (if applicable): {{PERF_TESTS_POLICY_OR_NA}}
+
+## 4) Boundary rules (prevents useless tests)
+- Do not test standard library or trivial glue.
+- Prefer business-logic-focused assertions.
+- Mocking policy (stack-agnostic):
+  - Allowed: pure unit isolation of external services/contracts
+  - Avoid: mocking the system under test or “fake green” integration paths
+  - For integration tests: prefer real dependencies in a controlled environment when feasible
+
+## 5) Coverage posture
+- Coverage target: {{COVERAGE_TARGET_OR_POLICY}}
+- What must be covered:
+  - Security/auth/validation paths (if applicable)
+  - Core business logic
+  - Error handling and “red line” behavior
+
+## 6) Test data and fixtures
+- Fixtures policy: {{FIXTURES_POLICY}}
+- Seed data policy (if any): {{SEED_DATA_POLICY_OR_NA}}
+- Determinism requirements: {{DETERMINISM_REQUIREMENTS}}
+
+## 7) CI / gate coupling (profile-driven)
+Do not hardcode commands here; reference profile keys.
+
+Required gates for tests:
+- Primary test command key: {{PROFILE_CMD_TESTS_KEY}}  <!-- e.g., commands.tests -->
+- Optional additional test commands: {{PROFILE_CMD_TESTS_EXTRA_KEYS_OR_NONE}}
+
+## 8) Fast feedback loops
+- Local “quick check” set: {{QUICK_CHECK_GATES}}
+- Full validation set: {{FULL_CHECK_GATES}}
+
+## 9) Known testing risks
+- {{TEST_RISK_1_OR_NONE}}
+- {{TEST_RISK_2_OR_NONE}}

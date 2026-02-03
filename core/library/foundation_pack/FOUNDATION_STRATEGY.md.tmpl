@@ -1,0 +1,101 @@
+# Foundation Strategy — {{PROJECT_NAME}}
+
+> **File:** `FOUNDATION_STRATEGY.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}  
+> **Charter Ref:** {{CHARTER_REF}}  
+> **Project Context Ref:** {{PROJECT_CONTEXT_REF_OR_NONE}}
+
+## 1) What this is
+A project-specific strategy layer derived from Charter + Project Context.
+It defines the default planning posture and the “don’t invent work” guardrails for this project.
+
+## 1.1) Project intent (high-level)
+- **One-paragraph purpose:** {{PROJECT_INTENT_ONE_PARAGRAPH}}
+- **Primary surface:** {{PRIMARY_SURFACE}}
+  <!-- Examples: CLI, API/service, library, web app, desktop app, infra/tooling, mixed -->
+- **Secondary surfaces (if any):** {{SECONDARY_SURFACES_OR_NONE}}
+- **Top success signals (1–3):**
+  - {{SUCCESS_SIGNAL_1}}
+  - {{SUCCESS_SIGNAL_2}}
+  - {{SUCCESS_SIGNAL_3}}
+
+
+## 2) Inputs used
+- Charter: {{CHARTER_REF}}
+- Project Context: {{PROJECT_CONTEXT_REF_OR_NONE}}
+- Selected Profile(s): {{SELECTED_PROFILE_IDS_OR_TBD}}
+- Runner: {{RUNNER_ID}}
+
+## 3) Project classification (drives planning defaults)
+- Project type (from Charter): {{PROJECT_TYPE}}
+- Operational reality (from Context): {{OPERATIONAL_REALITY_SUMMARY_OR_UNKNOWN}}
+- Implications:
+  - Backward compatibility: {{BACKCOMPAT_REQUIRED_YES_NO_NA}}
+  - Migration planning: {{MIGRATIONS_REQUIRED_YES_NO_NA}}
+  - Deprecation policy: {{DEPRECATION_REQUIRED_YES_NO_NA}}
+  - Rollout controls (flags/canary): {{ROLLOUT_CONTROLS_REQUIRED_YES_NO_NA}}
+
+## 4) Charter posture translation (what this changes in practice)
+Baseline level: {{CHARTER_BASELINE_LEVEL}} — {{CHARTER_BASELINE_LABEL}}
+
+### Dimension impacts (inherit by default)
+List only the dimensions that materially affect how we build for this project:
+- Security & privacy: {{DIM_SECURITY_IMPACT}}
+- Testing rigor: {{DIM_TESTING_IMPACT}}
+- Reliability & operability: {{DIM_RELIABILITY_IMPACT}}
+- Observability: {{DIM_OBSERVABILITY_IMPACT}}
+- Type safety / analysis: {{DIM_TYPE_SAFETY_IMPACT}}
+- Speed vs quality: {{DIM_SPEED_QUALITY_IMPACT}}
+
+### Charter red lines we must never violate
+- {{REDLINE_1}}
+- {{REDLINE_2}}
+- {{REDLINE_3}}
+
+## 5) Profile selection (tooling + commands, not architecture)
+Chosen profile: {{PROFILE_ID_OR_TBD}}
+- Rationale: {{PROFILE_SELECTION_RATIONALE}}
+- Any overrides (paths/commands): {{PROFILE_OVERRIDES_OR_NONE}}
+
+## 6) Default planning guardrails (anti-waste rules)
+- If Greenfield and nothing is live: migration/back-compat sections should be “Not applicable” unless explicitly introduced.
+- If Brownfield: any behavior changes must include compatibility + rollout notes.
+- If Integrations exist: every feature spec must name integration touchpoints and failure modes.
+- No invented environment: any env var/service/port/runtime assumption must already exist in ENVIRONMENT_INVENTORY.md or be explicitly proposed and recorded as a planned addition.
+- If risk flags include auth/payments/PII/regulated data: security gates are mandatory and stricter.
+
+## 7) Context pack policy (what every task gets)
+Required baseline context pack includes:
+- CHARTER.md
+- {{PROJECT_CONTEXT_INCLUDE_RULE}}  <!-- “Include PROJECT_CONTEXT.md if present; otherwise note missing.” -->
+- FOUNDATION_STRATEGY.md
+- TECH_ARCH_BRIEF.md
+- TEST_STRATEGY_BRIEF.md
+- QUALITY_GATES_SPEC.md
+- ENVIRONMENT_INVENTORY.md
+- quality_gates.yaml (for automation)
+
+Optional context pack additions (only when relevant):
+- Domain model docs
+- Service isolation overlay
+- Performance / load testing overlay
+- Migration plan docs (brownfield only)
+
+## 8) Decisions that require ADRs (do not spam ADRs)
+Create an ADR only when:
+- changing an external contract/integration boundary
+- introducing persistent storage schema decisions
+- introducing new security/privacy threat surface
+- changing deployment topology or operational SLO expectations
+- deviating from Charter red lines or posture (requires exception record)
+
+## 9) Known unknowns that must be resolved
+- {{UNKNOWN_1_OR_NONE}}
+- {{UNKNOWN_2_OR_NONE}}
+
+## 10) Exception process (pointer only)
+Exceptions MUST follow Charter’s exception process and be recorded at:
+- {{EXCEPTION_RECORD_LOCATION_FROM_CHARTER}}

@@ -1,0 +1,47 @@
+kind: schema
+id: schema.sprint
+version: 0.1.0
+
+describes:
+  kind: sprint
+
+required:
+  - kind
+  - version
+  - id
+  - release_id
+  - release_slot
+  - focus_items
+  - exit_criteria
+  - tasks_ref
+
+fields:
+  kind: {type: string, const: sprint}
+  version: {type: string}
+  id: {type: string}
+  release_id: {type: string}
+  release_slot: {type: string}
+  refs:
+    type: object
+    optional: true
+    fields:
+      charter: {type: string, optional: true}
+      release_yaml: {type: string, optional: true}
+      work_catalog: {type: string, optional: true}
+      prev_sprint_report: {type: string, optional: true}
+  goal: {type: string, optional: true}
+  focus_items:
+    type: array
+    items: {type: string}
+  lanes:
+    type: array
+    optional: true
+    items:
+      type: object
+      required: [id]
+      fields:
+        id: {type: string}
+  exit_criteria:
+    type: array
+    items: {type: string}
+  tasks_ref: {type: string}

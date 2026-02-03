@@ -1,0 +1,29 @@
+---
+kind: pipeline
+id: pipeline.foundation
+version: 0.1.0
+title: "Foundation Pipeline (Base → Charter → Context? → Foundation Pack)"
+description: >
+  Bootstraps project posture + reality + deterministic quality gates.
+  This pipeline stops after the Foundation Pack.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.05_charter_interview
+    file: core/stages/05_charter_interview.md
+    sets:
+      - needs_project_context
+  - id: stage.06_project_context_interview
+    file: core/stages/06_project_context_interview.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+  - id: stage.07_foundation_pack
+    file: core/stages/07_foundation_pack.md

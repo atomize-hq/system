@@ -1,0 +1,31 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Backlog
+
+type: object
+required: [kind, version, items]
+properties:
+  kind:
+    const: backlog
+  version:
+    type: string
+  project:
+    type: string
+  updated_utc:
+    type: string
+  items:
+    type: array
+    items:
+      type: object
+      required: [id, kind, title]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [feature, bug, chore, tech_debt]
+        title: { type: string }
+        summary: { type: string }
+        ref: { type: string }
+        status:
+          type: string
+          enum: [idea, candidate, planned, in_progress, done, blocked]
+        notes: { type: string }

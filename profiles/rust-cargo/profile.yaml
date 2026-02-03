@@ -1,0 +1,26 @@
+kind: profile
+id: rust-cargo
+version: 0.1.0
+title: "Rust (cargo)"
+description: >
+  Rust projects managed with cargo. Assumes rustfmt + clippy and cargo test.
+
+compatibility:
+  languages: ["rust"]
+  package_managers: ["cargo"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  code_dirs: ["src"]
+  test_dirs: ["tests"]
+  config_files:
+    - Cargo.toml
+    - Cargo.lock
+
+gates:
+  required: ["format", "lint", "tests"]
+  optional: ["security", "docs", "coverage"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 120

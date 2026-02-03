@@ -1,0 +1,19 @@
+---
+kind: pipeline
+id: pipeline.sprint
+version: 0.1.0
+title: "Sprint Planning Pipeline"
+description: >
+  Turns release intent + prior sprint reality into a sprint plan + typed tasks.
+  Assumes a release plan exists.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.02_sprint_plan
+    file: core/stages/02_sprint_plan.md

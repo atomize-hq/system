@@ -1,0 +1,9 @@
+commands:
+  install: "go mod download"
+  format: "gofmt -w ."
+  format_check: 'test -z "$(gofmt -l .)"'
+  lint: "go vet ./..."
+  staticcheck: "staticcheck ./..."
+  tests: "go test ./..."
+  coverage: "go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out"
+  security: "govulncheck ./..."

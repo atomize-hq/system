@@ -1,0 +1,45 @@
+# Base Context — {{PROJECT_NAME}}
+
+> **File:** `BASE_CONTEXT.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}
+
+## 1) What this is
+A small, stable baseline artifact that anchors this pipeline run:
+- which runner/profile we are using
+- where the repo root is
+- what artifacts will be produced and where
+It prevents downstream stages from guessing foundational metadata.
+
+## 2) Pipeline run configuration
+- Pipeline ID: {{PIPELINE_ID}}
+- Runner: {{RUNNER}}
+- Profile: {{PROFILE}}
+- Repo root: {{REPO_ROOT}}
+- Run mode (invocation): {{RUN_MODE}}  
+  (bootstrap = new repo setup, onboard = existing repo, hotfix = urgent fix, unknown = not specified)
+
+## 3) Defaults and flags
+- enable_complexity: {{ENABLE_COMPLEXITY_TRUE_FALSE}}
+- needs_project_context (default): {{NEEDS_PROJECT_CONTEXT_DEFAULT_FALSE}}
+- notes:
+  - {{BASE_NOTES_1}}
+  - {{BASE_NOTES_2}}
+
+## 4) Expected artifact outputs (locations)
+- Charter: `artifacts/charter/CHARTER.md`
+- Project Context (optional): `artifacts/project_context/PROJECT_CONTEXT.md`
+- Foundation Pack: `artifacts/foundation/…`
+- Feature Spec: `artifacts/feature_spec/FEATURE_SPEC.md`
+
+## 5) Stage sequence (high level)
+1) 05 Charter Interview → CHARTER.md
+2) 06 Project Context Interview (optional) → PROJECT_CONTEXT.md
+3) 07 Foundation Pack Synthesis → FOUNDATION_STRATEGY / TECH_ARCH_BRIEF / TEST_STRATEGY / QUALITY_GATES
+4) 10 Feature Spec → FEATURE_SPEC.md
+
+## 6) Open items (known unknowns at baseline)
+- {{OPEN_ITEM_1_OR_NONE}}
+- {{OPEN_ITEM_2_OR_NONE}}

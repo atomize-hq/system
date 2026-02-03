@@ -1,0 +1,18 @@
+# ---
+# kind: schema
+# id: schema.slice
+# version: 0.1.0
+# title: "Slice"
+# description: Canonical slice structure used across projects/languages.
+# ---
+
+type: object
+required: [slice_id, goal, scope, integration, acceptance, gates]
+properties:
+  slice_id: { type: string }
+  goal: { type: string }
+  scope: { type: object }
+  integration: { type: object }
+  acceptance: { type: array }
+  gates: { type: object }
+

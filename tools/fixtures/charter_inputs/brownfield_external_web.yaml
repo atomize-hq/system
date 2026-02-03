@@ -1,0 +1,71 @@
+schema_version: 0.1.0
+
+project:
+  name: "Customer Portal Refresh"
+  classification: brownfield
+  team_size: 4
+  users: external
+  expected_lifetime: years
+  surfaces: ["web_app", "api"]
+  runtime_environments: ["browser", "server", "cloud"]
+  constraints:
+    deadline: "8 weeks to ship MVP"
+    budget: "fixed"
+    experience_notes: "Mixed experience; new on-call rotation."
+    must_use_tech: ["typescript", "postgres"]
+  operational_reality:
+    in_production_today: true
+    prod_users_or_data: "Existing portal with active users and customer data."
+    external_contracts_to_preserve: ["public API routes used by mobile app"]
+    uptime_expectations: "99.9% during business hours"
+  default_implications:
+    backward_compatibility: required
+    migration_planning: required
+    rollout_controls: required
+    deprecation_policy: required
+    observability_threshold: high
+
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 4
+  baseline_rationale:
+    - "Existing users and customer data."
+    - "Breaking changes have high support cost."
+
+domains:
+  - name: "billing"
+    blast_radius: high
+    touches: ["money", "customer_accounts"]
+    constraints: ["auditability", "no silent failures"]
+
+dimensions:
+  - name: "reliability_operability"
+    level: 4
+    default_stance: "Treat deploys as risky; prefer safe rollouts with monitoring and rollback."
+    raise_the_bar_triggers:
+      - "If touching billing or auth, require staged rollout + on-call signoff."
+    allowed_shortcuts:
+      - "Allow faster iteration in non-prod environments with seeded data."
+    red_lines:
+      - "No deploy without rollback plan."
+      - "No disabling alerts to reduce noise."
+    domain_overrides:
+      - domain: "billing"
+        level: 5
+        note: "Billing requires strict testing, monitoring, and post-deploy verification."
+
+exceptions:
+  approvers: ["engineering_manager", "tech_lead"]
+  record_location: "CHARTER.md#exceptions"
+  minimum_fields: ["what", "why", "scope", "risk", "owner", "expiry_or_revisit_date"]
+
+debt_tracking:
+  system: "issues"
+  labels: ["debt", "risk"]
+  review_cadence: "biweekly"
+
+decision_records:
+  enabled: true
+  path: "docs/decisions"
+  format: "md"
+

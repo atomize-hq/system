@@ -1,0 +1,11 @@
+commands:
+  install: "poetry install --sync"
+  format: "poetry run ruff format {code_dirs} {test_dirs}"
+  format_check: "poetry run ruff format --check {code_dirs} {test_dirs}"
+  lint: "poetry run ruff check {code_dirs} {test_dirs}"
+  typecheck: "poetry run mypy {code_dirs}"
+  tests: "poetry run pytest -q"
+  coverage: "poetry run pytest --cov={code_dirs} --cov-report=term-missing --cov-fail-under={coverage_min}"
+  docs: "poetry run ruff check --select D {code_dirs}"
+  security: "poetry run pip-audit && poetry run bandit -r {code_dirs}"
+  complexity: "poetry run ruff check --select C90 {code_dirs}"

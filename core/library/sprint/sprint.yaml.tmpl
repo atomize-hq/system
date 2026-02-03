@@ -1,0 +1,33 @@
+kind: sprint
+version: 0.1.0
+id: {{SPRINT_ID}}
+release_id: {{RELEASE_ID}}
+slot_id: {{SPRINT_SLOT}}
+title: {{SPRINT_TITLE}}
+created_utc: {{NOW_UTC}}
+
+refs:
+  charter: {{CHARTER_REF}}
+  foundation:
+    quality_gates_yaml: artifacts/foundation/quality_gates.yaml
+  release_yaml: artifacts/releases/{{RELEASE_ID}}/release.yaml
+
+intent:
+  goal: {{SPRINT_GOAL}}
+  target_item_ids: [{{TARGET_ITEM_IDS_CSV}}]
+
+lanes:
+  - id: {{LANE_1_ID}}
+    purpose: {{LANE_1_PURPOSE}}
+    target_item_ids: [{{LANE_1_TARGETS_CSV}}]
+  - id: {{LANE_2_ID}}
+    purpose: {{LANE_2_PURPOSE}}
+    target_item_ids: [{{LANE_2_TARGETS_CSV}}]
+
+tasks_file: tasks.yaml
+
+close_policy:
+  blocks_on_gate_tasks: true
+  required_gate_types:
+    - gate.planning
+    - gate.quality

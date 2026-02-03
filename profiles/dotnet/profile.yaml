@@ -1,0 +1,26 @@
+kind: profile
+id: dotnet
+version: 0.1.0
+title: ".NET (dotnet CLI)"
+description: >
+  .NET projects using dotnet CLI. Assumes dotnet format and dotnet test.
+
+compatibility:
+  languages: ["csharp", "fsharp"]
+  package_managers: ["nuget"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  code_dirs: ["."]
+  test_dirs: ["."]
+  config_files:
+    - "*.sln"
+    - "*.csproj"
+
+gates:
+  required: ["format", "lint", "tests", "build"]
+  optional: ["security"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 160

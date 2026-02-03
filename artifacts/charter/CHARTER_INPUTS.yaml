@@ -1,0 +1,30 @@
+schema_version: 0.1.0
+project:
+  name: InputsFlow
+  classification: greenfield
+  team_size: 2
+  users: internal
+  expected_lifetime: years
+  surfaces: [api]
+  runtime_environments: [server]
+  constraints: {deadline: "", budget: "", experience_notes: "", must_use_tech: []}
+  operational_reality:
+    in_production_today: false
+    prod_users_or_data: ""
+    external_contracts_to_preserve: []
+    uptime_expectations: "best effort"
+  default_implications:
+    backward_compatibility: not_required
+    migration_planning: not_required
+    rollout_controls: lightweight
+    deprecation_policy: not_required_yet
+    observability_threshold: standard
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 3
+  baseline_rationale: ["balanced quality vs speed"]
+domains: []
+dimensions: []
+exceptions: {approvers: [project_owner], record_location: "CHARTER.md#exceptions", minimum_fields: [what, why, scope, risk, owner, expiry_or_revisit_date]}
+debt_tracking: {system: issues, labels: [debt], review_cadence: monthly}
+decision_records: {enabled: true, path: "docs/decisions", format: md}

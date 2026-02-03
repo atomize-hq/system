@@ -1,0 +1,10 @@
+commands:
+  install: "pnpm install"
+  format: "pnpm -s format"
+  format_check: "pnpm -s format:check"
+  lint: "pnpm -s lint"
+  typecheck: "pnpm -s typecheck"
+  tests: "pnpm -s test"
+  coverage: "pnpm -s test:coverage"
+  build: "pnpm -s build"
+  security: "pnpm -s audit --audit-level=high"

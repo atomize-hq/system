@@ -1,0 +1,7 @@
+commands:
+  install: "dotnet restore"
+  build: "dotnet build -c Release"
+  format: "dotnet format"
+  lint: "dotnet format --verify-no-changes"
+  tests: "dotnet test -c Release"
+  security: "dotnet list package --vulnerable"

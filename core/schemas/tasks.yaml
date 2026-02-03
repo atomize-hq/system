@@ -1,0 +1,33 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Sprint Tasks
+
+type: object
+required: [version, sprint_id, release_id, tasks]
+properties:
+  version: { type: string }
+  sprint_id: { type: string }
+  release_id: { type: string }
+  updated_utc: { type: string }
+  tasks:
+    type: array
+    items:
+      type: object
+      required: [id, type, title, lane, blocks_close, upstream_item_ids]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        title: { type: string }
+        lane: { type: string }
+        blocks_close: { type: boolean }
+        upstream_item_ids:
+          type: array
+          items: { type: string }
+        feature_refs:
+          type: array
+          items: { type: string }
+        acceptance:
+          type: array
+          items: { type: string }
+        outputs:
+          type: array
+          items: { type: string }

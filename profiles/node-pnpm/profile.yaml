@@ -1,0 +1,27 @@
+kind: profile
+id: node-pnpm
+version: 0.1.0
+title: "Node.js (pnpm)"
+description: >
+  Node.js projects managed with pnpm. Assumes prettier/eslint for style, and TypeScript typecheck when applicable.
+
+compatibility:
+  languages: ["javascript", "typescript"]
+  package_managers: ["pnpm"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  node_requires: ">=20"
+  code_dirs: ["src"]
+  test_dirs: ["test", "tests"]
+  config_files:
+    - package.json
+    - pnpm-lock.yaml
+
+gates:
+  required: ["format", "lint", "tests"]
+  optional: ["typecheck", "security", "coverage", "build"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 120

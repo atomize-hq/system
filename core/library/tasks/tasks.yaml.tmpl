@@ -1,0 +1,41 @@
+version: 0.1.0
+sprint_id: {{SPRINT_ID}}
+release_id: {{RELEASE_ID}}
+updated_utc: {{NOW_UTC}}
+
+# Tasks are the unit of work for the sprint. Gates are tasks with `blocks_close: true`.
+# Every task must reference at least one upstream work item id from the release.
+
+tasks:
+  - id: GATE-PLAN
+    type: gate.planning
+    title: Sprint opening planning gate
+    lane: meta
+    blocks_close: true
+    upstream_item_ids: [{{TARGET_ITEM_IDS_CSV}}]
+    acceptance:
+      - tasks.yaml matches sprint.yaml lanes + slot scope
+      - all tasks have ids, types, lanes, and upstream_item_ids
+      - unknowns are turned into research/discovery tasks
+
+  - id: T-RESEARCH-1
+    type: research.discovery
+    title: {{RESEARCH_TASK_TITLE}}
+    lane: {{LANE_1_ID}}
+    blocks_close: false
+    upstream_item_ids: [{{TARGET_ITEM_IDS_CSV}}]
+    outputs:
+      - {{RESEARCH_OUTPUT_PATH}}
+    acceptance:
+      - capture findings + links/evidence
+      - propose concrete next-step tasks
+
+  - id: GATE-QUALITY
+    type: gate.quality
+    title: Sprint quality gates
+    lane: meta
+    blocks_close: true
+    upstream_item_ids: [{{TARGET_ITEM_IDS_CSV}}]
+    acceptance:
+      - required profile gates pass (format/lint/tests, plus charter/foundation additions)
+      - evidence captured per Evidence Policy

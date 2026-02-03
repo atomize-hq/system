@@ -1,0 +1,18 @@
+kind: backlog
+version: 0.1.0
+project: {{PROJECT_NAME}}
+updated_utc: {{NOW_UTC}}
+
+# Discovery happens outside the primary pipelines.
+# This file is the queue of candidate work items for release planning.
+
+items:
+  - id: {{ITEM_ID_1}}
+    kind: feature  # feature|bug|chore|tech_debt
+    title: {{ITEM_TITLE_1}}
+    summary: {{ITEM_SUMMARY_1}}
+    # Optional: path to a real spec/card doc. If absent, release/sprint planning must not invent details.
+    ref: {{ITEM_REF_PATH_OR_EMPTY}}
+    notes: {{ITEM_NOTES_OR_EMPTY}}
+    priority_hint: {{P0_P1_P2_OR_EMPTY}}
+

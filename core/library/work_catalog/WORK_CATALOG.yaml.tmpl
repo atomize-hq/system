@@ -1,0 +1,32 @@
+# Work Catalog (machine-readable)
+#
+# Canonical inventory of work items (features/bugs/chores). Release + Sprint planning MUST reference
+# item IDs from this catalog to avoid hallucinated scope.
+
+kind: work_catalog
+version: 0.1.0
+
+project:
+  name: {{PROJECT_NAME}}
+  repo_or_project_ref: {{REPO_OR_PROJECT_REF}}
+
+items:
+  # ---- Examples (delete/replace) ----
+  - id: FEAT-001
+    type: feature
+    title: "Example feature"
+    status: backlog  # backlog | planned | in_progress | done | dropped
+    priority: medium # low | medium | high | critical
+    refs:
+      feature_spec: ""  # optional path/link to a feature spec
+      issue: ""         # optional link/id
+    notes: ""
+
+  - id: BUG-001
+    type: bug
+    title: "Example bug"
+    status: backlog
+    priority: low
+    refs:
+      issue: ""
+    notes: ""

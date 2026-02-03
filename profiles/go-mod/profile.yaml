@@ -1,0 +1,26 @@
+kind: profile
+id: go-mod
+version: 0.1.0
+title: "Go (modules)"
+description: >
+  Go projects using modules. Assumes gofmt + govet + go test. Staticcheck optional.
+
+compatibility:
+  languages: ["go"]
+  package_managers: ["go-mod"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  code_dirs: ["."]
+  test_dirs: ["."]
+  config_files:
+    - go.mod
+    - go.sum
+
+gates:
+  required: ["format", "lint", "tests"]
+  optional: ["security", "coverage", "staticcheck"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 120

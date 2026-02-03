@@ -1,0 +1,27 @@
+kind: profile
+id: python-poetry
+version: 0.1.0
+title: "Python (Poetry)"
+description: >
+  Python projects managed with Poetry. Assumes ruff for lint/format, mypy for typing, pytest for tests.
+
+compatibility:
+  languages: ["python"]
+  package_managers: ["poetry"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  python_requires: ">=3.11"
+  code_dirs: ["src"]
+  test_dirs: ["tests"]
+  config_files:
+    - pyproject.toml
+    - poetry.lock
+
+gates:
+  required: ["format", "lint", "tests"]
+  optional: ["typecheck", "security", "docs", "complexity", "coverage"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 80

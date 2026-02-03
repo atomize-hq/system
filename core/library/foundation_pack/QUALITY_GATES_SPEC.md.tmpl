@@ -1,0 +1,105 @@
+# Quality Gates Specification — {{PROJECT_NAME}}
+
+> **File:** `QUALITY_GATES_SPEC.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}  
+> **Charter Ref:** {{CHARTER_REF}}  
+> **Project Context Ref:** {{PROJECT_CONTEXT_REF_OR_NONE}}  
+> **Profile:** {{PROFILE_ID_OR_TBD}}
+
+## 1) Intent (automation-first)
+This document defines the **complete, explicit, machine-enforceable** quality gates for this project.
+No gate may depend on human judgment or an AI agent’s opinion to pass/fail.
+
+All required gates MUST be:
+- executable by automation (local + CI)
+- deterministically pass/fail via exit codes and/or parse rules
+- enforced as merge blockers (unless an explicit exception is approved and recorded)
+
+## 2) Inputs that determine strictness
+- Charter baseline posture: Level {{CHARTER_BASELINE_LEVEL}} — {{CHARTER_BASELINE_LABEL}}
+- Relevant dimension targets:
+  - Security: {{LVL_SECURITY}}
+  - Testing: {{LVL_TESTING}}
+  - Reliability: {{LVL_RELIABILITY}}
+  - Observability: {{LVL_OBSERVABILITY}}
+  - Type safety: {{LVL_TYPE_SAFETY}}
+- Project classification implications:
+  - Back-compat: {{BACKCOMPAT_REQUIRED_YES_NO_NA}}
+  - Migrations: {{MIGRATIONS_REQUIRED_YES_NO_NA}}
+  - Live/prod reality: {{OPERATIONAL_REALITY_SUMMARY_OR_UNKNOWN}}
+
+## 3) Enforcement surfaces (no “paper green”)
+### Local developer enforcement
+- Entry point(s): {{LOCAL_GATE_ENTRYPOINTS}}  <!-- e.g., make quality / task check / scripts/quality.sh -->
+- Pre-commit hooks: {{PRECOMMIT_POLICY_OR_NONE}}
+- What must run before commit: {{LOCAL_REQUIRED_PRECOMMIT_GATES}}
+
+### CI enforcement (merge blockers)
+- CI pipeline: {{CI_SYSTEM_OR_NONE}}
+- Required status checks: {{REQUIRED_STATUS_CHECKS}}
+- Policy: merges are blocked unless ALL required gates pass.
+
+### Exception/override policy
+Exceptions are allowed only via Charter exception process:
+- Approver: {{EXCEPTION_APPROVER}}
+- Record location: {{EXCEPTION_RECORD_LOCATION}}
+- Required fields: what/why/scope/risk/expiry/owner
+
+## 4) Gate catalog (exhaustive)
+> Each gate must specify:
+> - ID
+> - Purpose
+> - Command reference (profile key) and resolved command (optional)
+> - Scope (paths/modules)
+> - Pass criteria (exit code, parse rules)
+> - Failure action
+
+### Gate Table (authoritative)
+| Gate ID | Required | Purpose | Profile command key | Scope | Pass criteria | Notes |
+|---|---:|---|---|---|---|---|
+| {{GATE_1_ID}} | {{GATE_1_REQUIRED}} | {{GATE_1_PURPOSE}} | {{GATE_1_CMD_KEY}} | {{GATE_1_SCOPE}} | {{GATE_1_PASS}} | {{GATE_1_NOTES}} |
+| {{GATE_2_ID}} | {{GATE_2_REQUIRED}} | {{GATE_2_PURPOSE}} | {{GATE_2_CMD_KEY}} | {{GATE_2_SCOPE}} | {{GATE_2_PASS}} | {{GATE_2_NOTES}} |
+| {{GATE_3_ID}} | {{GATE_3_REQUIRED}} | {{GATE_3_PURPOSE}} | {{GATE_3_CMD_KEY}} | {{GATE_3_SCOPE}} | {{GATE_3_PASS}} | {{GATE_3_NOTES}} |
+
+## 5) Standard required gates (baseline set)
+> Tailor required/optional based on Charter dimension targets and profile capabilities.
+
+- Tests (required): {{GATE_TESTS_POLICY}}
+- Lint (required): {{GATE_LINT_POLICY}}
+- Format (required): {{GATE_FORMAT_POLICY}}
+- Typecheck (required/optional): {{GATE_TYPECHECK_POLICY}}
+- Security scan (required/optional): {{GATE_SECURITY_POLICY}}
+- Complexity (required/optional): {{GATE_COMPLEXITY_POLICY}}
+- Docs/docstrings (required/optional): {{GATE_DOCS_POLICY}}
+- Coverage (required/optional): {{GATE_COVERAGE_POLICY}}
+- Build/package verification (required/optional): {{GATE_BUILD_POLICY}}
+
+## 6) Evidence requirements (mandatory for any “PASS” claim)
+A gate is only considered PASS if:
+- command executed
+- exit code captured
+- output excerpt captured (tail or failure snippet)
+- timestamp recorded
+
+Evidence is stored at:
+- {{EVIDENCE_LOG_PATH}}  <!-- e.g., artifacts/execution/<slice>/evidence.jsonl or artifacts/foundation/gates_evidence.jsonl -->
+
+## 7) How gates run (order + optimization)
+- Fast set (developer loop): {{FAST_GATE_SET}}
+- Full set (CI / pre-merge): {{FULL_GATE_SET}}
+- Order (recommended): format → lint → typecheck → tests → security → complexity → docs → coverage → build
+
+## 8) Non-negotiable alignment to Charter red lines
+List any Charter red lines that map directly to gates:
+- {{REDLINE_GATE_MAPPING_1}}
+- {{REDLINE_GATE_MAPPING_2}}
+
+## 9) Outputs (machine config)
+This spec is paired with a machine-readable gate config:
+- `quality_gates.yaml`
+
+That file is the automation source of truth for gate execution.
+This doc explains rationale and enforcement, but automation uses the YAML.

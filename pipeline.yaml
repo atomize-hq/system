@@ -1,0 +1,72 @@
+---
+kind: pipeline
+id: pipeline.default
+version: 0.1.2
+title: "Default Roadmap\u2192Feature\u2192Slice Pipeline"
+description:
+  "Orchestrates the full workflow from project foundation through executed
+  slices. Project Context is optional and only runs when Charter leaves planning-impacting
+  unknowns.
+
+  "
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+artifacts:
+  charter: artifacts/charter/CHARTER.md
+  project_context: artifacts/project_context/PROJECT_CONTEXT.md
+  feature_spec: artifacts/feature_spec/FEATURE_SPEC.md
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.05_charter_interview
+    file: core/stages/05_charter_interview.md
+    outputs:
+      - artifacts/charter/CHARTER.md
+    sets:
+      - needs_project_context
+  - id: stage.06_project_context_interview
+    file: core/stages/06_project_context_interview.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+    inputs:
+      - artifacts/charter/CHARTER.md
+    outputs:
+      - artifacts/project_context/PROJECT_CONTEXT.md
+  - id: stage.07_foundation_pack
+    file: core/stages/07_foundation_pack.md
+    inputs:
+      - artifacts/charter/CHARTER.md
+      - artifacts/project_context/PROJECT_CONTEXT.md?
+    outputs:
+      - artifacts/foundation/FOUNDATION_STRATEGY.md
+      - artifacts/foundation/TECH_ARCH_BRIEF.md
+      - artifacts/foundation/TEST_STRATEGY_BRIEF.md
+      - artifacts/foundation/QUALITY_GATES_SPEC.md
+      - artifacts/foundation/quality_gates.yaml
+      - artifacts/foundation/ENVIRONMENT_INVENTORY.md
+  - id: stage.10_feature_spec
+    file: core/stages/10_feature_spec.md
+    inputs:
+      - artifacts/charter/CHARTER.md
+      - artifacts/project_context/PROJECT_CONTEXT.md?
+  - id: stage.20_phase_decomp
+    file: core/stages/20_phase_decomp.md
+  - id: stage.30_slice_gen
+    file: core/stages/30_slice_gen.md
+  - id: stage.40_slice_check
+    file: core/stages/40_slice_check.md
+    on_fail:
+      goto: stage.50_slice_refine
+      max_loops: 2
+  - id: stage.50_slice_refine
+    file: core/stages/50_slice_refine.md
+    then: stage.40_slice_check
+  - id: stage.60_slice_execute
+    file: core/stages/60_slice_execute.md
+  - id: stage.70_quality_gate
+    file: core/stages/70_quality_gate.md
