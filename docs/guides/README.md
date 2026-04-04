@@ -1,5 +1,13 @@
 # Guides
 
+## Legacy Status
+
+These guides document the human-in-the-loop Python harness workflow that still exists in the repo.
+
+- They are legacy reference guides.
+- They do not define the reviewed Rust-first reduced-v1 product path.
+- Do not treat the Python workflow described here as the long-term supported implementation direction.
+
 This folder is meant to be dropped into your system `docs/` directory:
 
 - `docs/guides/` — workflow how-tos and “how the system works” explanations.

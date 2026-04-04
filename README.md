@@ -1,5 +1,17 @@
 # Prompt Pipeline System (Scaffold)
 
+## Current Status
+
+This repo is in transition.
+
+- The reviewed v1 direction is a **Rust-first context compiler CLI**.
+- The current Python harness remains in the repo as **legacy reference material only**.
+- Python is not the supported product path, not a compatibility wrapper, and will be archived, then removed.
+- The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
+- Live slice lineage and live execution packets are deferred. Any v1 execution packet work is fixture-backed only.
+
+The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md). The reviewed design lives at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md).
+
 This repo is a **human-in-the-loop** prompt pipeline that produces structured artifacts
 (Charter, Project Context, Foundation Pack, Feature Specs, etc.) using a selected **profile** (stack pack)
 and **runner** (how the agent interacts with the repo).
@@ -7,7 +19,9 @@ and **runner** (how the agent interacts with the repo).
 It intentionally does **not** call any LLM APIs. You copy/paste prompts into your LLM of choice and paste
 the outputs back into the harness.
 
-## Quick start
+## Legacy Quick Start
+
+The steps below describe the legacy Python harness that still exists in the repo today. They do **not** describe the reviewed Rust-first product path.
 
 ### 1) Pick a profile + runner
 Profiles live in `profiles/<profile-id>/` (commands + conventions).

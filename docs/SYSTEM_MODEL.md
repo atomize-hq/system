@@ -1,5 +1,13 @@
 # System Model
 
+## Legacy Scope
+
+This document explains the mechanisms that work **today** in the legacy Python harness path.
+
+- It is accurate as a description of the current scaffold.
+- It is **not** the reviewed Rust-first target architecture for reduced v1.
+- The target v1 is a Rust CLI that resolves planning packets over live project + feature artifacts, with fixture-backed execution demos only.
+
 This doc explains the **mechanisms that work today**: pipeline config, stages, includes, profiles, overlays, work levels, and outputs.
 
 If you want stage-by-stage behavior, see [`docs/stages/`](stages/README.md).

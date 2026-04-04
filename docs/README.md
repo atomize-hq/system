@@ -1,5 +1,14 @@
 # System Docs
 
+## Status
+
+These docs primarily describe the **legacy Python harness path that works today** in this repo.
+
+- They are useful reference material for the current scaffold.
+- They are **not** the reviewed reduced-v1 target architecture.
+- The reviewed v1 direction is a Rust-first context compiler CLI over live project + feature artifacts.
+- The next artifact is the implementation plan at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md).
+
 These docs describe **what is working today** in this repository’s human‑in‑the‑loop prompt pipeline.
 
 - The harness **does not call any LLM APIs**.
@@ -7,6 +16,8 @@ These docs describe **what is working today** in this repository’s human‑in�
 - You paste model output back into the harness; it writes files under `artifacts/` (and some repo‑root docs).
 
 ## Start here
+
+If you want the reviewed v1 decisions first, read the design doc at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md) before using the legacy harness references below.
 
 - [Harness](HARNESS.md)
 - [System model](SYSTEM_MODEL.md)

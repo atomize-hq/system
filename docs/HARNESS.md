@@ -1,5 +1,13 @@
 # Harness
 
+## Legacy Status
+
+This document describes the current Python harness mechanics that still exist in the repo.
+
+- It is **legacy reference material**, not the supported v1 product path.
+- The reviewed v1 direction is a Rust CLI context compiler.
+- Python is not a compatibility wrapper and should not be extended as if it were the long-term runtime.
+
 The harness is the executable glue for this repo’s **human‑in‑the‑loop** workflow.
 
 It does two jobs:
@@ -16,6 +24,8 @@ The harness does **not** call any LLM APIs.
 For “what should I run next?” see the [Stage reference](stages/README.md).
 
 ## Commands
+
+These commands are for the legacy harness workflow only.
 
 All commands are run from `system/`:
 

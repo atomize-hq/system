@@ -1,5 +1,13 @@
 # Stage Reference (Implemented)
 
+## Legacy Scope
+
+This reference documents stages implemented in the current Python harness scaffold.
+
+- It is useful for understanding what exists today.
+- It is **not** proof that the reviewed Rust-first v1 already supports those same flows.
+- In particular, slice and execution stages are still scaffolds, not live product capability.
+
 This directory documents the stages that are **implemented and runnable today**.
 
 All stages are executed via the harness:

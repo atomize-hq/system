@@ -4,6 +4,13 @@ Heres the updated North Star / Vision summary with your clarification baked in  
 
 # North Star Vision for System
 
+## Review Status
+
+This file is a broad vision statement.
+
+- For the reviewed reduced-v1 implementation boundary, use the design doc at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md).
+- The reviewed v1 is narrower than this vision: Rust-first, live `project + feature` planning packets, fixture-backed execution packet demo only, then implementation planning next.
+
 ## Purpose
 
 Build a **modular, deterministic context + posture generation system** that enables AI agents to plan and execute work with **minimal human involvement** after initial project setup.
@@ -151,4 +158,3 @@ This keeps the system continuously operational with minimal human involvement be
 If you want, I can also rewrite this into a shorter SYSTEM_VISION.md (1 page, tighter language) optimized to paste as an execution-agent system prompt.
 
 One quick note: some earlier uploaded files from the chat have expired on my side. If you want the execution agent summary to include direct quotes or exact structures from those files, re-upload them and Ill fold them in verbatim where helpful.
-
