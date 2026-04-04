@@ -25,3 +25,15 @@
 **Effort:** M
 **Priority:** P2
 **Depends on:** Stable v1 packet resolver, shared metadata schema, artifact index, refusal-path tests
+
+### Live Slice Lineage And Execution Packets
+
+**What:** Add live slice lineage and real execution packet generation after the reduced v1 planning-packet wedge ships.
+
+**Why:** The product promise is still planning plus execution packets, but reduced v1 intentionally proves the compiler first and only demos execution packets from fixtures.
+
+**Context:** The current repo has implemented project and feature planning surfaces, but the slice stages listed in `pipeline.yaml` are still empty placeholders and `docs/stages/README.md` only documents stages through feature spec as implemented. The eng review narrowed v1 so execution packets are fixture-backed only, not a live supported flow. This follow-on should start once the Rust packet core, project/feature metadata contract, manifest/freshness logic, and planning-packet path are stable enough that a real `project -> feature -> slice` lineage can land without reopening the whole wedge.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Stable Rust packet core, stable project/feature metadata contract, manifest/freshness logic, successful v1 planning packet adoption
