@@ -2,9 +2,9 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-4`
-- Next seam: `SEAM-5`
-- Future seams: `SEAM-6` through `SEAM-7`
+- Active seam: `SEAM-5`
+- Next seam: `SEAM-6`
+- Future seams: `SEAM-7`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
