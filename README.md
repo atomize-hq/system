@@ -7,10 +7,13 @@ This repo is in transition.
 - The reviewed v1 direction is a **Rust-first context compiler CLI**.
 - The current Python harness remains in the repo as **legacy reference material only**.
 - Python is not the supported product path, not a compatibility wrapper, and will be archived during cutover, then removed.
+- The governing repo-surface truth is [C-01 Approved Repo-Surface Contract](docs/contracts/C-01-approved-repo-surface.md).
 - The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
 - Live slice lineage and live execution packets are deferred. Any v1 execution packet work is fixture-backed only.
 
-The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md). The reviewed design lives at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md). The repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
+Until Rust setup exists, the legacy harness may still be used to establish canonical artifacts; once Rust setup exists, the Rust CLI becomes the supported packet-resolution authority.
+
+The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md). The reviewed design lives at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md).
 
 This repo is a **human-in-the-loop** prompt pipeline that produces structured artifacts
 (Charter, Project Context, Foundation Pack, Feature Specs, etc.) using a selected **profile** (stack pack)
