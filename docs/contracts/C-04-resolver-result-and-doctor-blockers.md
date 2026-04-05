@@ -205,6 +205,7 @@ Allowed refusal categories include:
 - `SystemRootNotDir`
 - `SystemRootSymlinkNotAllowed`
 - `RequiredArtifactMissing`
+- `RequiredArtifactEmpty`
 - `ArtifactReadError`
 - `FreshnessInvalid`
 - `BudgetRefused`
@@ -218,6 +219,7 @@ Allowed blocker categories include:
 - `SystemRootNotDir`
 - `SystemRootSymlinkNotAllowed`
 - `RequiredArtifactMissing`
+- `RequiredArtifactEmpty`
 - `ArtifactReadError`
 - `FreshnessInvalid`
 - `BudgetRefused`
@@ -234,10 +236,11 @@ When multiple refusal candidates exist, refusal ordering MUST be deterministic a
 | 2 | `SystemRootSymlinkNotAllowed` |
 | 3 | `SystemRootNotDir` |
 | 4 | `RequiredArtifactMissing` |
-| 5 | `ArtifactReadError` |
-| 6 | `FreshnessInvalid` |
-| 7 | `BudgetRefused` |
-| 8 | `UnsupportedRequest` |
+| 5 | `RequiredArtifactEmpty` |
+| 6 | `ArtifactReadError` |
+| 7 | `FreshnessInvalid` |
+| 8 | `BudgetRefused` |
+| 9 | `UnsupportedRequest` |
 
 When multiple blockers exist, blocker ordering MUST be deterministic and MUST use this priority order (lowest number = highest priority):
 
@@ -247,10 +250,11 @@ When multiple blockers exist, blocker ordering MUST be deterministic and MUST us
 | 1 | `SystemRootSymlinkNotAllowed` |
 | 2 | `SystemRootNotDir` |
 | 3 | `RequiredArtifactMissing` |
-| 4 | `ArtifactReadError` |
-| 5 | `FreshnessInvalid` |
-| 6 | `BudgetRefused` |
-| 7 | `UnsupportedRequest` |
+| 4 | `RequiredArtifactEmpty` |
+| 5 | `ArtifactReadError` |
+| 6 | `FreshnessInvalid` |
+| 7 | `BudgetRefused` |
+| 8 | `UnsupportedRequest` |
 
 ### Tie-break rules (stable ordering within a category)
 

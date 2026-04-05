@@ -4,6 +4,19 @@ fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
 }
 
+fn binary_in(dir: &std::path::Path) -> Command {
+    let mut cmd = binary();
+    cmd.current_dir(dir);
+    cmd
+}
+
+fn write_file(path: &std::path::Path, contents: &[u8]) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).expect("mkdirs");
+    }
+    std::fs::write(path, contents).expect("write");
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary()
@@ -29,8 +42,25 @@ fn setup_prints_placeholder_and_fails() {
 }
 
 #[test]
-fn generate_prints_placeholder_and_fails() {
-    assert_placeholder("generate", "reserved packet generation command");
+fn generate_refuses_when_system_root_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let output = binary_in(dir.path())
+        .arg("generate")
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("REFUSED"), "expected refusal header: {stdout}");
+    assert!(
+        stdout.contains("SystemRootMissing"),
+        "expected SystemRootMissing category: {stdout}"
+    );
+    assert!(
+        stdout.contains("NEXT ACTION:"),
+        "expected next action line: {stdout}"
+    );
 }
 
 #[test]
@@ -41,6 +71,39 @@ fn inspect_prints_placeholder_and_fails() {
 #[test]
 fn doctor_prints_placeholder_and_fails() {
     assert_placeholder("doctor", "reserved recovery and diagnosis command");
+}
+
+#[test]
+fn generate_resolves_but_remains_unimplemented_when_ready() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        b"charter",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+
+    let output = binary_in(root)
+        .arg("generate")
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("RESOLVED"), "expected resolved header: {stdout}");
+    assert!(
+        stdout.contains("PACKET ID: planning.packet"),
+        "expected packet id: {stdout}"
+    );
+    assert!(
+        stdout.contains("packet rendering is not implemented yet"),
+        "expected honest note: {stdout}"
+    );
 }
 
 fn assert_placeholder(command: &str, expected_phrase: &str) {

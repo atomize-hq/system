@@ -11,7 +11,9 @@ pub mod resolver;
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
 };
-pub use budget::{BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason, NextSafeAction};
+pub use budget::{
+    BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason, NextSafeAction as BudgetNextSafeAction,
+};
 pub use canonical_artifacts::{
     ArtifactIngestError, ArtifactPresence, CanonicalArtifact, CanonicalArtifactIdentity,
     CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
@@ -24,7 +26,7 @@ pub use freshness::{
     MANIFEST_GENERATION_VERSION,
 };
 pub use packet_result::PacketResult;
-pub use refusal::RefusalPlaceholder;
+pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use resolver::{resolve, PacketSelection, PacketSelectionStatus, ResolverResult, ResolveRequest};
 
 pub fn workspace_contract_version() -> &'static str {
