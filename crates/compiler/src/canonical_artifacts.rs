@@ -1,6 +1,5 @@
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalArtifactKind {
@@ -28,6 +27,14 @@ impl CanonicalArtifactKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemRootStatus {
+    Ok,
+    Missing,
+    NotDir,
+    SymlinkNotAllowed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArtifactPresence {
     Missing,
     PresentEmpty,
@@ -42,7 +49,6 @@ pub struct CanonicalArtifactIdentity {
     pub presence: ArtifactPresence,
     pub byte_len: Option<u64>,
     pub content_sha256: Option<String>,
-    pub last_modified: Option<SystemTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,6 +59,7 @@ pub struct CanonicalArtifact {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalArtifacts {
+    pub system_root_status: SystemRootStatus,
     pub charter: CanonicalArtifact,
     pub project_context: CanonicalArtifact,
     pub feature_spec: CanonicalArtifact,
@@ -63,11 +70,17 @@ impl CanonicalArtifacts {
         let repo_root = repo_root.as_ref();
         let system_root = repo_root.join(".system");
 
-        let system_meta = match std::fs::symlink_metadata(&system_root) {
-            Ok(meta) => meta,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                return Err(ArtifactIngestError::SystemRootMissing { system_root });
+        let system_root_status = match std::fs::symlink_metadata(&system_root) {
+            Ok(meta) => {
+                if meta.file_type().is_symlink() {
+                    SystemRootStatus::SymlinkNotAllowed
+                } else if !meta.is_dir() {
+                    SystemRootStatus::NotDir
+                } else {
+                    SystemRootStatus::Ok
+                }
             }
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => SystemRootStatus::Missing,
             Err(err) => {
                 return Err(ArtifactIngestError::ReadFailure {
                     path: system_root,
@@ -76,18 +89,21 @@ impl CanonicalArtifacts {
             }
         };
 
-        if system_meta.file_type().is_symlink() {
-            return Err(ArtifactIngestError::SystemRootSymlinkNotAllowed { system_root });
-        }
-        if !system_meta.is_dir() {
-            return Err(ArtifactIngestError::SystemRootNotDir { system_root });
-        }
-
-        let charter = load_one(repo_root, CanonicalArtifactKind::Charter)?;
-        let project_context = load_one(repo_root, CanonicalArtifactKind::ProjectContext)?;
-        let feature_spec = load_one(repo_root, CanonicalArtifactKind::FeatureSpec)?;
+        let (charter, project_context, feature_spec) = match system_root_status {
+            SystemRootStatus::Ok => (
+                load_one(repo_root, CanonicalArtifactKind::Charter)?,
+                load_one(repo_root, CanonicalArtifactKind::ProjectContext)?,
+                load_one(repo_root, CanonicalArtifactKind::FeatureSpec)?,
+            ),
+            SystemRootStatus::Missing | SystemRootStatus::NotDir | SystemRootStatus::SymlinkNotAllowed => (
+                missing_one(CanonicalArtifactKind::Charter),
+                missing_one(CanonicalArtifactKind::ProjectContext),
+                missing_one(CanonicalArtifactKind::FeatureSpec),
+            ),
+        };
 
         Ok(Self {
+            system_root_status,
             charter,
             project_context,
             feature_spec,
@@ -169,24 +185,9 @@ fn load_one(repo_root: &Path, kind: CanonicalArtifactKind) -> Result<CanonicalAr
 
     let required = kind.required();
     if meta.is_none() {
-        if required {
-            return Err(ArtifactIngestError::RequiredArtifactMissing { kind, path });
-        }
-        return Ok(CanonicalArtifact {
-            identity: CanonicalArtifactIdentity {
-                kind,
-                relative_path,
-                required,
-                presence: ArtifactPresence::Missing,
-                byte_len: None,
-                content_sha256: None,
-                last_modified: None,
-            },
-            bytes: None,
-        });
+        return Ok(missing_one(kind));
     }
 
-    let meta = meta.expect("meta present");
     let bytes = std::fs::read(&path).map_err(|err| ArtifactIngestError::ReadFailure {
         path: path.clone(),
         source: err,
@@ -200,7 +201,6 @@ fn load_one(repo_root: &Path, kind: CanonicalArtifactKind) -> Result<CanonicalAr
     };
 
     let content_sha256 = Some(sha256_hex(&bytes));
-    let last_modified = meta.modified().ok();
 
     Ok(CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
@@ -210,10 +210,24 @@ fn load_one(repo_root: &Path, kind: CanonicalArtifactKind) -> Result<CanonicalAr
             presence,
             byte_len: Some(byte_len),
             content_sha256,
-            last_modified,
         },
         bytes: Some(bytes),
     })
+}
+
+fn missing_one(kind: CanonicalArtifactKind) -> CanonicalArtifact {
+    let required = kind.required();
+    CanonicalArtifact {
+        identity: CanonicalArtifactIdentity {
+            kind,
+            relative_path: kind.relative_path(),
+            required,
+            presence: ArtifactPresence::Missing,
+            byte_len: None,
+            content_sha256: None,
+        },
+        bytes: None,
+    }
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

@@ -1,5 +1,3 @@
-use std::time::{Duration, SystemTime};
-
 use system_compiler::{
     compute_freshness, ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind,
     FreshnessIssueKind, FreshnessStatus, InheritedDependency, OverrideTarget, OverrideWithRationale,
@@ -11,7 +9,6 @@ fn identity(
     presence: ArtifactPresence,
     content_sha256: Option<&str>,
     byte_len: Option<u64>,
-    last_modified: Option<SystemTime>,
 ) -> CanonicalArtifactIdentity {
     let relative_path = match kind {
         CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
@@ -31,7 +28,6 @@ fn identity(
         presence,
         byte_len,
         content_sha256: content_sha256.map(|s| s.to_string()),
-        last_modified,
     }
 }
 
@@ -42,21 +38,18 @@ fn fingerprint_excludes_diagnostics_and_is_order_invariant() {
         ArtifactPresence::PresentNonEmpty,
         Some("aaa"),
         Some(123),
-        Some(SystemTime::UNIX_EPOCH),
     );
     let b1 = identity(
         CanonicalArtifactKind::ProjectContext,
         ArtifactPresence::Missing,
         None,
         None,
-        None,
     );
     let c1 = identity(
         CanonicalArtifactKind::FeatureSpec,
-        ArtifactPresence::PresentEmpty,
+        ArtifactPresence::PresentNonEmpty,
         Some("ccc"),
         Some(0),
-        Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1)),
     );
 
     let a2 = identity(
@@ -64,21 +57,18 @@ fn fingerprint_excludes_diagnostics_and_is_order_invariant() {
         ArtifactPresence::PresentNonEmpty,
         Some("aaa"),
         Some(999999),
-        Some(SystemTime::UNIX_EPOCH + Duration::from_secs(999)),
     );
     let b2 = identity(
         CanonicalArtifactKind::ProjectContext,
         ArtifactPresence::Missing,
         None,
         Some(42),
-        Some(SystemTime::UNIX_EPOCH),
     );
     let c2 = identity(
         CanonicalArtifactKind::FeatureSpec,
-        ArtifactPresence::PresentEmpty,
+        ArtifactPresence::PresentNonEmpty,
         Some("ccc"),
         Some(1234),
-        None,
     );
 
     let deps_a = vec![
@@ -112,12 +102,10 @@ fn dependency_identity_changes_fingerprint() {
         ArtifactPresence::PresentNonEmpty,
         Some("aaa"),
         None,
-        None,
     );
     let project_context = identity(
         CanonicalArtifactKind::ProjectContext,
         ArtifactPresence::Missing,
-        None,
         None,
         None,
     );
@@ -125,7 +113,6 @@ fn dependency_identity_changes_fingerprint() {
         CanonicalArtifactKind::FeatureSpec,
         ArtifactPresence::PresentNonEmpty,
         Some("ccc"),
-        None,
         None,
     );
 
@@ -153,12 +140,10 @@ fn override_targeting_canonical_artifact_is_forbidden_and_recorded() {
         ArtifactPresence::PresentNonEmpty,
         Some("aaa"),
         None,
-        None,
     );
     let project_context = identity(
         CanonicalArtifactKind::ProjectContext,
         ArtifactPresence::Missing,
-        None,
         None,
         None,
     );
@@ -166,7 +151,6 @@ fn override_targeting_canonical_artifact_is_forbidden_and_recorded() {
         CanonicalArtifactKind::FeatureSpec,
         ArtifactPresence::PresentNonEmpty,
         Some("ccc"),
-        None,
         None,
     );
 
@@ -196,4 +180,3 @@ fn override_targeting_canonical_artifact_is_forbidden_and_recorded() {
     assert_ne!(no_override.fingerprint_sha256, with_override_a.fingerprint_sha256);
     assert_ne!(with_override_a.fingerprint_sha256, with_override_b.fingerprint_sha256);
 }
-

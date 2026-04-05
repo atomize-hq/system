@@ -66,6 +66,8 @@ pub enum FreshnessStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FreshnessIssueKind {
+    RequiredArtifactMissing,
+    RequiredArtifactEmpty,
     ForbiddenOverride,
 }
 
@@ -136,6 +138,36 @@ pub fn compute_freshness(
                     ),
                 });
             }
+        }
+    }
+
+    for artifact in &sorted_artifacts {
+        if !artifact.required {
+            continue;
+        }
+
+        match artifact.presence {
+            ArtifactPresence::Missing => {
+                issues.push(FreshnessIssue {
+                    kind: FreshnessIssueKind::RequiredArtifactMissing,
+                    detail: format!(
+                        "required canonical artifact missing: {:?} at {}",
+                        artifact.kind,
+                        artifact.relative_path
+                    ),
+                });
+            }
+            ArtifactPresence::PresentEmpty => {
+                issues.push(FreshnessIssue {
+                    kind: FreshnessIssueKind::RequiredArtifactEmpty,
+                    detail: format!(
+                        "required canonical artifact empty: {:?} at {}",
+                        artifact.kind,
+                        artifact.relative_path
+                    ),
+                });
+            }
+            ArtifactPresence::PresentNonEmpty => {}
         }
     }
     issues.sort();
@@ -236,7 +268,9 @@ fn override_target_sort_key(target: OverrideTarget) -> u8 {
 
 fn freshness_issue_kind_sort_key(kind: FreshnessIssueKind) -> u8 {
     match kind {
-        FreshnessIssueKind::ForbiddenOverride => 0,
+        FreshnessIssueKind::RequiredArtifactMissing => 0,
+        FreshnessIssueKind::RequiredArtifactEmpty => 1,
+        FreshnessIssueKind::ForbiddenOverride => 2,
     }
 }
 
@@ -288,4 +322,3 @@ impl Encoder {
         }
     }
 }
-

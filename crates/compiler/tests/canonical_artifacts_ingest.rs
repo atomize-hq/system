@@ -1,4 +1,6 @@
-use system_compiler::{ArtifactIngestError, ArtifactPresence, CanonicalArtifacts, CanonicalArtifactKind};
+use system_compiler::{
+    ArtifactPresence, CanonicalArtifacts, CanonicalArtifactKind, SystemRootStatus,
+};
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -8,7 +10,7 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 }
 
 #[test]
-fn required_artifact_missing_errors() {
+fn required_artifact_missing_is_reported_as_presence_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
@@ -21,13 +23,11 @@ fn required_artifact_missing_errors() {
         b"spec",
     );
 
-    let err = CanonicalArtifacts::load(repo_root).expect_err("should fail");
-    match err {
-        ArtifactIngestError::RequiredArtifactMissing { kind, .. } => {
-            assert_eq!(kind, CanonicalArtifactKind::Charter);
-        }
-        other => panic!("unexpected error: {other:?}"),
-    }
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(artifacts.charter.identity.kind, CanonicalArtifactKind::Charter);
+    assert_eq!(artifacts.charter.identity.presence, ArtifactPresence::Missing);
+    assert!(artifacts.charter.bytes.is_none());
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn whitespace_only_counts_as_non_empty() {
 
 #[cfg(unix)]
 #[test]
-fn system_root_symlink_is_refused() {
+fn system_root_symlink_is_not_followed_and_is_reported() {
     use std::os::unix::fs::symlink;
 
     let dir = tempfile::tempdir().expect("tempdir");
@@ -119,9 +119,8 @@ fn system_root_symlink_is_refused() {
 
     symlink(&real_system, repo_root.join(".system")).expect("symlink");
 
-    let err = CanonicalArtifacts::load(repo_root).expect_err("should fail");
-    match err {
-        ArtifactIngestError::SystemRootSymlinkNotAllowed { .. } => {}
-        other => panic!("unexpected error: {other:?}"),
-    }
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::SymlinkNotAllowed);
+    assert_eq!(artifacts.charter.identity.presence, ArtifactPresence::Missing);
+    assert_eq!(artifacts.feature_spec.identity.presence, ArtifactPresence::Missing);
 }

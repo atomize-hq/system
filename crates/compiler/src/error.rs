@@ -1,6 +1,7 @@
-use crate::RefusalPlaceholder;
+use crate::{ManifestError, RefusalPlaceholder};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum CompilerError {
+    Manifest(ManifestError),
     Refusal(RefusalPlaceholder),
 }
