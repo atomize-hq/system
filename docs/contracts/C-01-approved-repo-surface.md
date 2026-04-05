@@ -76,6 +76,7 @@ This contract defines the reduced-v1 repo-surface truth for `SEAM-1`. It is the 
 - [ ] No supported-path doc says the current Python harness is the supported runtime path.
 - [ ] No supported-path doc says anything under `archived/` is executable, importable, or wrapped.
 - [ ] `./tools/harness.sh --help` emits a legacy-only banner and a contract pointer.
-- [ ] A narrow archive-boundary guardrail script exists and fails on supported-path references into `archived/`.
+- [ ] `python3 tools/check_archive_boundary.py` exits `0` when no `crates/` tree exists yet.
+- [ ] `python3 tools/check_archive_boundary.py --self-test` proves the guardrail rejects a supported-path fixture that references `archived/`.
 - [ ] A cold reader can identify the supported path, the legacy-only status, and the archive boundary in under 30 seconds.
 - [ ] Downstream seams `SEAM-2` and `SEAM-7` can revalidate against this contract without needing hidden context.
