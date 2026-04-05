@@ -1,0 +1,11 @@
+[package]
+name = "system-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "system"
+path = "src/main.rs"
+
+[dependencies]
+system-compiler = { path = "../compiler" }

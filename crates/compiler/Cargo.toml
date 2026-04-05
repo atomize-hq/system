@@ -1,0 +1,10 @@
+[package]
+name = "system-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "system_compiler"
+path = "src/lib.rs"
+
+[dependencies]
