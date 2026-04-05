@@ -31,6 +31,12 @@ ROOT = Path(__file__).resolve().parents[1]  # system/
 DIST_DIR = ROOT / "dist"
 ARTIFACTS_DIR = ROOT / "artifacts"
 
+HELP_BANNER = (
+    "Legacy reference material only.\n"
+    "Rust-first is the supported direction. See docs/contracts/C-01-approved-repo-surface.md.\n"
+    "Allowed changes: bug fixes, link corrections, and narrow wording fixes only until cutover."
+)
+
 
 FRONT_MATTER_RE = re.compile(r"^---\s*$", re.M)
 
@@ -1036,7 +1042,11 @@ def cmd_overlays(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="harness.py")
+    parser = argparse.ArgumentParser(
+        prog="harness.py",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=HELP_BANNER,
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_list = sub.add_parser("list", help="List pipeline stages")
