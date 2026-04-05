@@ -1,5 +1,6 @@
 pub mod decision_log;
 pub mod artifact_manifest;
+pub mod blocker;
 pub mod budget;
 pub mod canonical_artifacts;
 pub mod error;
@@ -11,6 +12,7 @@ pub mod resolver;
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
 };
+pub use blocker::{blocker_category_priority, Blocker, BlockerCategory};
 pub use budget::{
     BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason, NextSafeAction as BudgetNextSafeAction,
 };

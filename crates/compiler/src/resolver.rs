@@ -1,10 +1,12 @@
 use crate::budget::evaluate_budget;
 use crate::{
-    ArtifactManifest, BudgetDisposition, BudgetOutcome, BudgetPolicy, CompilerError, DecisionLog,
-    BudgetNextSafeAction, FreshnessIssueKind, FreshnessStatus, ManifestInputs, NextSafeAction,
-    Refusal, RefusalCategory, SubjectRef, SystemRootStatus,
+    blocker_category_priority, ArtifactManifest, Blocker, BlockerCategory, BudgetDisposition,
+    BudgetOutcome, BudgetPolicy, BudgetNextSafeAction, CanonicalArtifactKind, CompilerError,
+    DecisionLog, FreshnessIssueKind, FreshnessStatus, ManifestInputs, NextSafeAction, Refusal,
+    RefusalCategory, SubjectRef, SystemRootStatus,
 };
 use std::path::Path;
+use std::cmp::Ordering;
 
 const C04_RESULT_VERSION: &str = "reduced-v1";
 const DEFAULT_PACKET_ID: &str = "planning.packet";
@@ -38,11 +40,6 @@ pub struct PacketSelection {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BlockerPlaceholder {
-    pub summary: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolverResult {
     pub c04_result_version: String,
     pub c03_schema_version: String,
@@ -52,7 +49,7 @@ pub struct ResolverResult {
     pub budget_outcome: BudgetOutcome,
     pub selection: PacketSelection,
     pub refusal: Option<Refusal>,
-    pub blockers: Vec<BlockerPlaceholder>,
+    pub blockers: Vec<Blocker>,
 }
 
 pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<ResolverResult, CompilerError> {
@@ -113,9 +110,18 @@ pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<R
         ));
     }
 
+    let blockers = compute_blockers(&manifest, &budget_outcome);
+    for blocker in &blockers {
+        decision_log.entries.push(format!(
+            "blocker category={:?} subject={:?} next_safe_action={:?}",
+            blocker.category, blocker.subject, blocker.next_safe_action
+        ));
+    }
+
     let selection_status = if manifest.freshness.status == FreshnessStatus::Ok
         && budget_outcome.disposition != BudgetDisposition::Refuse
         && refusal.is_none()
+        && blockers.is_empty()
     {
         PacketSelectionStatus::Selected
     } else {
@@ -139,7 +145,7 @@ pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<R
             status: selection_status,
         },
         refusal,
-        blockers: Vec::new(),
+        blockers,
     })
 }
 
@@ -150,8 +156,8 @@ fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) 
             return Some(Refusal {
                 category: RefusalCategory::SystemRootMissing,
                 summary: "missing canonical .system root".to_string(),
-                broken_subject: SubjectRef::SystemRoot {
-                    canonical_repo_relative_path: SYSTEM_ROOT_PATH,
+                broken_subject: SubjectRef::Policy {
+                    policy_id: "system_root",
                 },
                 next_safe_action: NextSafeAction::CreateSystemRoot {
                     canonical_repo_relative_path: SYSTEM_ROOT_PATH,
@@ -162,8 +168,8 @@ fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) 
             return Some(Refusal {
                 category: RefusalCategory::SystemRootNotDir,
                 summary: "canonical .system root is not a directory".to_string(),
-                broken_subject: SubjectRef::SystemRoot {
-                    canonical_repo_relative_path: SYSTEM_ROOT_PATH,
+                broken_subject: SubjectRef::Policy {
+                    policy_id: "system_root",
                 },
                 next_safe_action: NextSafeAction::EnsureSystemRootIsDirectory {
                     canonical_repo_relative_path: SYSTEM_ROOT_PATH,
@@ -174,8 +180,8 @@ fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) 
             return Some(Refusal {
                 category: RefusalCategory::SystemRootSymlinkNotAllowed,
                 summary: "canonical .system root must not be a symlink".to_string(),
-                broken_subject: SubjectRef::SystemRoot {
-                    canonical_repo_relative_path: SYSTEM_ROOT_PATH,
+                broken_subject: SubjectRef::Policy {
+                    policy_id: "system_root",
                 },
                 next_safe_action: NextSafeAction::RemoveSystemRootSymlink {
                     canonical_repo_relative_path: SYSTEM_ROOT_PATH,
@@ -221,18 +227,21 @@ fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) 
     }
 
     if manifest.freshness.status == FreshnessStatus::Invalid {
-        let issue_kind = manifest
+        let has_forbidden_override = manifest
             .freshness
             .issues
             .iter()
-            .map(|issue| issue.kind)
-            .find(|kind| matches!(kind, FreshnessIssueKind::ForbiddenOverride))
-            .unwrap_or(FreshnessIssueKind::ForbiddenOverride);
-
+            .any(|issue| matches!(issue.kind, FreshnessIssueKind::ForbiddenOverride));
         return Some(Refusal {
             category: RefusalCategory::FreshnessInvalid,
-            summary: "freshness truth is invalid".to_string(),
-            broken_subject: SubjectRef::FreshnessIssue { kind: issue_kind },
+            summary: if has_forbidden_override {
+                "freshness truth is invalid (forbidden override)".to_string()
+            } else {
+                "freshness truth is invalid".to_string()
+            },
+            broken_subject: SubjectRef::Policy {
+                policy_id: "freshness",
+            },
             next_safe_action: NextSafeAction::RunDoctor,
         });
     }
@@ -256,4 +265,180 @@ fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) 
     }
 
     None
+}
+
+fn compute_blockers(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) -> Vec<Blocker> {
+    let mut blockers = Vec::new();
+
+    match manifest.system_root_status {
+        SystemRootStatus::Ok => {}
+        SystemRootStatus::Missing => blockers.push(Blocker {
+            category: BlockerCategory::SystemRootMissing,
+            subject: SubjectRef::Policy {
+                policy_id: "system_root",
+            },
+            summary: "missing canonical .system root".to_string(),
+            next_safe_action: NextSafeAction::CreateSystemRoot {
+                canonical_repo_relative_path: SYSTEM_ROOT_PATH,
+            },
+        }),
+        SystemRootStatus::NotDir => blockers.push(Blocker {
+            category: BlockerCategory::SystemRootNotDir,
+            subject: SubjectRef::Policy {
+                policy_id: "system_root",
+            },
+            summary: "canonical .system root is not a directory".to_string(),
+            next_safe_action: NextSafeAction::EnsureSystemRootIsDirectory {
+                canonical_repo_relative_path: SYSTEM_ROOT_PATH,
+            },
+        }),
+        SystemRootStatus::SymlinkNotAllowed => blockers.push(Blocker {
+            category: BlockerCategory::SystemRootSymlinkNotAllowed,
+            subject: SubjectRef::Policy {
+                policy_id: "system_root",
+            },
+            summary: "canonical .system root must not be a symlink".to_string(),
+            next_safe_action: NextSafeAction::RemoveSystemRootSymlink {
+                canonical_repo_relative_path: SYSTEM_ROOT_PATH,
+            },
+        }),
+    }
+
+    if blockers.is_empty() {
+        for artifact in &manifest.artifacts {
+            if !artifact.required {
+                continue;
+            }
+
+            match artifact.presence {
+                crate::ArtifactPresence::Missing => blockers.push(Blocker {
+                    category: BlockerCategory::RequiredArtifactMissing,
+                    subject: SubjectRef::CanonicalArtifact {
+                        kind: artifact.kind,
+                        canonical_repo_relative_path: artifact.relative_path,
+                    },
+                    summary: "missing required canonical artifact".to_string(),
+                    next_safe_action: NextSafeAction::CreateCanonicalArtifact {
+                        canonical_repo_relative_path: artifact.relative_path,
+                    },
+                }),
+                crate::ArtifactPresence::PresentEmpty => blockers.push(Blocker {
+                    category: BlockerCategory::RequiredArtifactEmpty,
+                    subject: SubjectRef::CanonicalArtifact {
+                        kind: artifact.kind,
+                        canonical_repo_relative_path: artifact.relative_path,
+                    },
+                    summary: "required canonical artifact is empty".to_string(),
+                    next_safe_action: NextSafeAction::FillCanonicalArtifact {
+                        canonical_repo_relative_path: artifact.relative_path,
+                    },
+                }),
+                crate::ArtifactPresence::PresentNonEmpty => {}
+            }
+        }
+    }
+
+    let has_forbidden_override = manifest
+        .freshness
+        .issues
+        .iter()
+        .any(|issue| matches!(issue.kind, FreshnessIssueKind::ForbiddenOverride));
+    if has_forbidden_override {
+        blockers.push(Blocker {
+            category: BlockerCategory::FreshnessInvalid,
+            subject: SubjectRef::Policy {
+                policy_id: "freshness",
+            },
+            summary: "freshness truth is invalid (forbidden override)".to_string(),
+            next_safe_action: NextSafeAction::RunDoctor,
+        });
+    }
+
+    if budget_outcome.disposition == BudgetDisposition::Refuse {
+        let canonical_repo_relative_path = match budget_outcome.next_safe_action.as_ref() {
+            Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
+                canonical_repo_relative_path,
+            }) => *canonical_repo_relative_path,
+            None => SYSTEM_ROOT_PATH,
+        };
+
+        blockers.push(Blocker {
+            category: BlockerCategory::BudgetRefused,
+            subject: SubjectRef::Policy { policy_id: "budget" },
+            summary: "budget refused packet generation".to_string(),
+            next_safe_action: NextSafeAction::ReduceCanonicalArtifactSize {
+                canonical_repo_relative_path,
+            },
+        });
+    }
+
+    blockers.sort_by(|a, b| {
+        let cat = blocker_category_priority(a.category).cmp(&blocker_category_priority(b.category));
+        if cat != Ordering::Equal {
+            return cat;
+        }
+
+        let subj = cmp_subject(&a.subject, &b.subject);
+        if subj != Ordering::Equal {
+            return subj;
+        }
+
+        a.summary.cmp(&b.summary)
+    });
+    blockers
+}
+
+fn cmp_subject(a: &SubjectRef, b: &SubjectRef) -> Ordering {
+    let kind_a = subject_kind_priority(a);
+    let kind_b = subject_kind_priority(b);
+    let kind_cmp = kind_a.cmp(&kind_b);
+    if kind_cmp != Ordering::Equal {
+        return kind_cmp;
+    }
+
+    match (a, b) {
+        (
+            SubjectRef::CanonicalArtifact {
+                kind: kind_a,
+                canonical_repo_relative_path: path_a,
+            },
+            SubjectRef::CanonicalArtifact {
+                kind: kind_b,
+                canonical_repo_relative_path: path_b,
+            },
+        ) => (canonical_artifact_kind_priority(*kind_a), path_a).cmp(&(
+            canonical_artifact_kind_priority(*kind_b),
+            path_b,
+        )),
+        (
+            SubjectRef::InheritedDependency {
+                dependency_id: id_a,
+                version: ver_a,
+            },
+            SubjectRef::InheritedDependency {
+                dependency_id: id_b,
+                version: ver_b,
+            },
+        ) => (id_a, ver_a).cmp(&(id_b, ver_b)),
+        (SubjectRef::Policy { policy_id: id_a }, SubjectRef::Policy { policy_id: id_b }) => {
+            id_a.cmp(id_b)
+        }
+        _ => Ordering::Equal,
+    }
+}
+
+fn subject_kind_priority(subject: &SubjectRef) -> u8 {
+    match subject {
+        SubjectRef::CanonicalArtifact { .. } => 0,
+        SubjectRef::InheritedDependency { .. } => 1,
+        SubjectRef::Policy { .. } => 2,
+    }
+}
+
+fn canonical_artifact_kind_priority(kind: CanonicalArtifactKind) -> u8 {
+    match kind {
+        CanonicalArtifactKind::Charter => 0,
+        CanonicalArtifactKind::ProjectContext => 1,
+        CanonicalArtifactKind::FeatureSpec => 2,
+    }
 }

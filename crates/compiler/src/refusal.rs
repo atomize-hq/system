@@ -1,4 +1,4 @@
-use crate::{CanonicalArtifactKind, FreshnessIssueKind};
+use crate::CanonicalArtifactKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RefusalCategory {
@@ -20,9 +20,11 @@ pub enum SubjectRef {
         kind: CanonicalArtifactKind,
         canonical_repo_relative_path: &'static str,
     },
-    FreshnessIssue { kind: FreshnessIssueKind },
+    InheritedDependency {
+        dependency_id: String,
+        version: Option<String>,
+    },
     Policy { policy_id: &'static str },
-    SystemRoot { canonical_repo_relative_path: &'static str },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

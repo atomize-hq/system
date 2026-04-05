@@ -46,7 +46,7 @@ impl Command {
             Command::Setup => placeholder_exit("setup", "reserved setup entrypoint"),
             Command::Generate => generate(),
             Command::Inspect => placeholder_exit("inspect", "reserved proof-surface command"),
-            Command::Doctor => placeholder_exit("doctor", "reserved recovery and diagnosis command"),
+            Command::Doctor => doctor(),
         }
     }
 }
@@ -91,6 +91,41 @@ fn placeholder_exit(command: &str, description: &str) -> ExitCode {
     println!(
         "system CLI scaffold (contract {contract_version}): `{command}` is a {description}; reduced v1 behavior is not implemented yet."
     );
+    ExitCode::from(1)
+}
+
+fn doctor() -> ExitCode {
+    let repo_root = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("BLOCKED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let result = match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default())
+    {
+        Ok(result) => result,
+        Err(err) => {
+            println!("BLOCKED: resolver error: {err:?}");
+            return ExitCode::from(1);
+        }
+    };
+
+    if result.blockers.is_empty() {
+        println!("READY");
+        return ExitCode::SUCCESS;
+    }
+
+    println!("BLOCKED");
+    for blocker in result.blockers {
+        println!("CATEGORY: {:?}", blocker.category);
+        println!("SUMMARY: {}", blocker.summary);
+        println!("SUBJECT: {:?}", blocker.subject);
+        println!("NEXT ACTION: {:?}", blocker.next_safe_action);
+        println!();
+    }
+
     ExitCode::from(1)
 }
 
