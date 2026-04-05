@@ -10,7 +10,7 @@ It is derived from:
 - CEO review decisions embedded in that design
 - engineering review decisions recorded in that design's `## GSTACK REVIEW REPORT`
 
-This plan is the current execution source of truth for repo shape, migration order, and milestone sequencing.
+This plan is the current execution source of truth for repo shape, migration order, and milestone sequencing. The canonical repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
 
 ## Locked Decisions
 

@@ -8,6 +8,7 @@ These docs primarily describe the **legacy Python harness path that works today*
 - They are **not** the reviewed reduced-v1 target architecture.
 - The reviewed v1 direction is a Rust-first context compiler CLI over live project + feature artifacts.
 - The next artifact is the implementation plan at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md).
+- The authoritative repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
 
 These docs describe **what is working today** in this repository’s human‑in‑the‑loop prompt pipeline.
 
@@ -17,7 +18,7 @@ These docs describe **what is working today** in this repository’s human‑in�
 
 ## Start here
 
-If you want the reviewed v1 decisions first, read the design doc at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md) before using the legacy harness references below.
+If you want the reviewed v1 decisions first, read the design doc at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md) and the C-01 contract before using the legacy harness references below.
 
 - [Harness](HARNESS.md)
 - [System model](SYSTEM_MODEL.md)
