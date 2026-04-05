@@ -2,7 +2,7 @@
 seam_id: SEAM-3
 seam_slug: canonical-artifact-manifest-contract
 type: integration
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:
@@ -18,8 +18,8 @@ basis:
     - Any change to `.system/` as the canonical project-truth location.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
+    review: passed
+    contract: passed
     revalidation: passed
   post_exec:
     landing: pending
@@ -83,8 +83,8 @@ open_remediations: []
   - Ignore unsupported artifacts explicitly rather than implicitly.
   - Keep manifest persistence request-scoped and in-memory by default.
 - **Downstream decomposition context**:
-  - This seam is `future` because its contract depends on the landed workspace and CLI shape before deeper planning is safe.
-  - `THR-03` is the dominant thread and likely needs `S00` for contract definition when seam-local planning begins.
+  - This seam is `active` and eligible for execution now that `SEAM-2` has published `C-02` / `THR-02` (crate ownership + CLI posture).
+  - `THR-03` is the dominant outbound thread and reserves `S00` for defining the concrete `C-03` baseline plus verification checklist.
   - First seam-local review should focus on canonical-vs-derived truth, freshness semantics, and override-with-rationale precision.
 - **Expected seam-exit concerns**:
   - Contracts likely to publish:

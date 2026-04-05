@@ -53,11 +53,12 @@ flowchart LR
 
 ## Pre-exec gate disposition
 
-- **Review gate**: pending
-- **Contract gate concerns**:
+- **Review gate**: passed
+- **Contract gate focus**:
   - `C-03` must name all direct inputs and refusal sources explicitly (no “implied” inputs).
   - `C-03` must define deterministic freshness computation and a clear versioning policy.
   - `C-03` must define override-with-rationale rules that cannot hide or falsify freshness truth.
+- **Contract gate**: passed (contract-definition slice `S00` carries the concrete `C-03` baseline work plan and verification checklist requirements).
 - **Revalidation**: passed (revalidated against `SEAM-2` closeout and published `C-02` / `THR-02`).
 - **Opened remediations**: none
 

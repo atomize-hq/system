@@ -3,7 +3,7 @@ slice_id: S00
 seam_id: SEAM-3
 slice_kind: contract_definition
 execution_horizon: active
-status: decomposed
+status: exec-ready
 plan_version: v1
 basis:
   currentness: current
@@ -65,7 +65,7 @@ For `C-03`, the contract must be concrete enough that the producer seam can late
 
 #### S00.T1 - Choose the canonical contract artifact location and format
 
-- **Outcome**: `C-03` has one repo-relative home (example: `docs/contracts/C-03-canonical-artifact-manifest.md`) and is referenced where drift would otherwise occur (threading contract registry, docs index, and/or CLI/help text pointers as appropriate).
+- **Outcome**: `C-03` has one repo-relative home: `docs/contracts/C-03-canonical-artifact-manifest-contract.md`, and is referenced where drift would otherwise occur (threading contract registry, docs index, and/or CLI/help text pointers as appropriate).
 - **Thread/contract refs**: `THR-03`, `C-03` (and boundary constraints from `C-01`, `C-02`)
 
 #### S00.T2 - Write the contract rules (normative)
@@ -83,7 +83,12 @@ For `C-03`, the contract must be concrete enough that the producer seam can late
     - what can be overridden, what cannot, and how rationale is recorded
     - forbidden patterns (silent override, override that hides freshness truth, override that introduces a new input surface)
   - freshness fields:
-    - required fields (e.g. presence state, content identity, last-modified, derived version stamps) and deterministic computation rules
+    - required fields:
+      - presence state (required/optional + present/missing + empty/non-empty distinction)
+      - content identity (hash-based; never “best effort”)
+      - last-modified (filesystem timestamp as a diagnostic field only; not the primary identity)
+      - schema version and manifest generation version (distinct, monotonic, and explicit)
+      - freshness status + reasons (deterministic, stable ordering)
     - explicit distinction between schema version and manifest generation version
   - refusal sources:
     - what conditions are treated as “missing”, “stale”, “contradictory”, or “unsupported” inputs (to be consumed by `SEAM-4`)

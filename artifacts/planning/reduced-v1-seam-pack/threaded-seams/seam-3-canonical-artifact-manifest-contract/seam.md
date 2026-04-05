@@ -1,7 +1,7 @@
 ---
 seam_id: SEAM-3
 seam_slug: canonical-artifact-manifest-contract
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:
@@ -17,8 +17,8 @@ basis:
     - Any change to `.system/` as the canonical project-truth location.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
+    review: passed
+    contract: passed
     revalidation: passed
   post_exec:
     landing: pending

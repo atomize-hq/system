@@ -4,7 +4,7 @@
 
 - Active seam: `SEAM-3`
 - Next seam: `SEAM-4`
-- Future seams: `SEAM-4` through `SEAM-7`
+- Future seams: `SEAM-5` through `SEAM-7`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
@@ -21,7 +21,7 @@
 - **Contract ID**: `C-02`
   - **Type**: `API`
   - **Owner seam**: `SEAM-2`
-  - **Direct consumers**: `SEAM-4`, `SEAM-5`, `SEAM-7`
+  - **Direct consumers**: `SEAM-3`, `SEAM-4`, `SEAM-5`, `SEAM-7`
   - **Derived consumers**: `SEAM-6`
   - **Thread IDs**: `THR-02`
   - **Definition**: Rust workspace and CLI command-surface contract defining crate split, command hierarchy, help posture, and the supported verbs `setup`, `generate`, `inspect`, and `doctor`.
@@ -86,7 +86,7 @@
 
 - **Thread ID**: `THR-02`
   - **Producer seam**: `SEAM-2`
-  - **Consumer seam(s)**: `SEAM-4`, `SEAM-5`, `SEAM-7`
+  - **Consumer seam(s)**: `SEAM-3`, `SEAM-4`, `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-02`
   - **Purpose**: Publish the Rust workspace and CLI verb hierarchy that every downstream capability seam consumes.
   - **State**: `published`
