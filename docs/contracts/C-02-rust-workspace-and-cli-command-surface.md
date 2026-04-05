@@ -4,7 +4,7 @@ seam_id: SEAM-2
 owner_seam: SEAM-2
 version: reduced-v1
 currentness: current
-status: draft
+status: published
 revalidation_triggers:
   - Any change to the supported verb set or help hierarchy in README.md, PLAN.md, docs/README.md, or this contract.
   - Any change to the workspace member list, crate ownership boundaries, or the location of CLI entrypoints.
