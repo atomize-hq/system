@@ -39,11 +39,185 @@ This plan is the current execution source of truth for repo shape, migration ord
 
 Ship a reduced v1 that proves the product honestly:
 
+- guided project setup remains the true front door to the product because it establishes `CHARTER`, posture docs, and the canonical artifact base that every later command depends on
 - live planning packet generation over existing project + feature artifacts
 - fixture-backed execution packet demo only
 - explicit refusal for unsupported live slice execution requests
 - explicit `doctor` guidance for stale, missing, or contradictory packet inputs
 - Rust CLI as the only supported product path
+
+## Operator Experience Architecture
+
+The product journey starts before packet generation.
+
+Reduced v1 still centers implementation on Rust packet resolution over existing artifacts, but the operator's mental model must stay explicit:
+
+- first they establish project posture and standards through guided setup that produces `CHARTER` and the rest of the canonical artifact base
+- then they use packet generation and inspect surfaces to request the minimum correct context for planning work
+- when context is stale, missing, or contradictory, `doctor` is the canonical recovery surface that explains what is wrong and how to repair it
+
+Reduced v1 does not need to re-implement the entire setup flow in Rust, but docs, help text, and command hierarchy must present setup as stage zero of the supported experience rather than pretending packet generation is the beginning of the story.
+
+The honest framing for reduced v1 is:
+
+- setup is the true product entrypoint and remains supported because the product cannot work without canonical posture and standards artifacts
+- the current guided setup flow may still be powered by the existing scaffold while the Rust replacement is not ready
+- the reduced v1 Rust CLI owns packet resolution, inspect, and doctor truth after setup artifacts exist
+- docs and help text must never blur "supported workflow" with "already reimplemented in Rust"
+
+### Operator Flow
+
+```text
+new repo or new project
+    |
+    v
+guided setup / refresh existing setup
+    |
+    v
+canonical artifacts exist
+(`CHARTER`, optional `PROJECT_CONTEXT`, `FEATURE_SPEC`, inherited posture docs)
+    |
+    +--> generate planning packet
+    |
+    +--> inspect packet composition and decision log
+    |
+    +--> doctor when artifacts are stale, missing, contradictory, or unsupported
+```
+
+### CLI Surface Hierarchy
+
+| Surface | Job | When the operator reaches for it | Required first impression |
+|---------|-----|----------------------------------|---------------------------|
+| Setup / setup refresh | Establish or refresh canonical project posture and standards | New repo, changed architecture, stale posture docs | "You are establishing the truth this system will trust later." |
+| `generate` | Produce the minimum correct planning packet from established artifacts | Normal repeat-use path after setup exists | "Here is the packet, what was included, and why it is safe to trust." |
+| `inspect` | Explain inclusion, exclusion, lineage, freshness, and budget decisions | User wants proof, debugging, or teaching | "Here is how the resolver thought." |
+| `doctor` | Diagnose blockers and give safe next actions | `generate` or setup/refresh cannot proceed cleanly | "Here is what is wrong, whether it is safe to continue, and what to do next." |
+
+Setup-specific support note:
+
+- until Rust setup exists, the supported docs path must explicitly send the operator through the existing guided setup flow to establish canonical artifacts
+- once those artifacts exist, the Rust CLI becomes the supported packet-resolution authority
+- setup refresh messaging must distinguish "refresh your canonical artifacts" from "generate a packet"
+
+### Information Hierarchy Rules
+
+- README and help text must present setup first, packet generation second, and repair third.
+- Successful `generate` output must show packet identity first, then included sources, then omission and budget notes, then next actions.
+- Refusal output must show the blocking reason first, then the exact artifact or dependency at fault, then the safe repair command or workflow.
+- `inspect` must read as a proof surface, not a dump of internal structs.
+- `doctor` must aggregate blockers into one view so the operator does not play command whack-a-mole.
+- `health` may exist only as an alias or later summary surface, never as a competing canonical recovery command in docs, help text, or examples.
+
+## Interaction State Coverage
+
+Reduced v1 must specify operator-visible states for setup, generation, proof, and recovery surfaces. The user experience goal is simple: every command should either complete with useful output or fail in a way that names the exact blocker and the exact next action.
+
+### State Table
+
+| Surface | Loading / in-progress | Empty / missing setup | Error / stale / contradictory | Success | Partial / unsupported |
+|---------|------------------------|------------------------|-------------------------------|---------|-----------------------|
+| Setup / setup refresh | Explain which artifact is being established or refreshed and what remains | Tell the operator which canonical artifact does not exist yet and why it matters | Name the artifact or dependency that cannot be established and the safe retry path | Confirm the canonical artifacts that are now trusted for later packet requests | If only some setup artifacts are refreshed, mark which truths are current and which still block packet generation |
+| `generate` | Show requested packet identity and the lineage scope being resolved | Refuse compactly, name the missing canonical artifact, and point to setup or setup refresh | Refuse compactly, name the stale or contradictory artifact or dependency, and point to the exact `doctor` or refresh action | Show packet identity first, then included sources, then omission/budget notes, then next actions | Unsupported live slice requests refuse explicitly and explain that reduced v1 only supports live planning packets plus fixture-backed execution demos |
+| `inspect` | Show that the resolver is loading decision evidence, not generating a new packet | Explain that there is no trusted packet basis to inspect yet and point to setup | Show the broken lineage, freshness, or policy rule with proof-friendly wording | Show inclusion, exclusion, freshness, and budget reasoning in a human-readable proof order | For zero-content outcomes, show the reason category and whether refusal thresholds were crossed |
+| `doctor` | Show which checks are running and whether safe auto-repair is being attempted | Summarize all missing artifacts in one report and show the safest setup path | Summarize all stale, contradictory, or invalid inputs in one report with safe next actions | Confirm packet-readiness status, current trusted artifacts, and whether `generate` is safe to retry | If auto-repair fixes some issues but not all, show fixed items first, remaining blockers second, and the next safe action last |
+
+### Refusal And Recovery Rules
+
+- `generate` must not expand into a full diagnostic dump on failure.
+- `generate` refusal must stay compact and structured: blocker summary, broken artifact or dependency, exact next action.
+- The default next action is the narrowest safe path, either setup/setup refresh when canonical truth is missing or `doctor` when deeper diagnosis is needed.
+- `doctor` owns the full blocker report and may aggregate multiple issues in one view.
+- Retrying after repair must be clean. The operator should not have to infer whether stale negative state is still cached.
+
+## User Journey And Emotional Arc
+
+Reduced v1 is a trust product. The operator should feel three things in sequence:
+
+- confidence during setup because the system is establishing durable truth rather than asking the same questions forever
+- momentum during packet generation because the system returns a tight, useful packet without extra archaeology
+- controlled caution during refusal and repair because the system stops unsafe work but immediately points to the fastest safe recovery path
+
+The tone for refusal and repair is strict but guided. The system should refuse when trust is broken, but it should never make the operator guess what failed or what to do next.
+
+### Journey Storyboard
+
+| Step | User does | User feels | Plan must support |
+|------|-----------|------------|-------------------|
+| 1 | Starts with a new repo or project | "I need to establish truth once, not feed context forever." | Setup is clearly presented as the real front door and explains which canonical artifacts will exist after completion |
+| 2 | Runs guided setup or refreshes stale setup | "This is work, but it should pay off later." | Each setup step names what artifact is being established and why later commands depend on it |
+| 3 | Runs `generate` for planning work | "Give me the minimum correct context fast." | Success output is concise, trustworthy, and explicit about included sources and omissions |
+| 4 | Uses `inspect` to verify why a packet looks the way it does | "Prove it." | Inspect reads as a human-auditable explanation of inclusion, exclusion, freshness, and budget decisions |
+| 5 | Hits stale, missing, or contradictory context | "Stop me if this is unsafe, but do not waste my time." | Refusal copy is strict but guided: blocker first, exact artifact or dependency second, exact recovery action third |
+| 6 | Runs `doctor` and repairs the issue | "Tell me everything relevant once so I can fix it cleanly." | The recovery report aggregates blockers, highlights safe auto-fixes first, and ends with the next safe retry action |
+| 7 | Re-runs `generate` after repair | "I should be back on track, not in a loop." | Retry-clean behavior is explicit and avoids stale negative state or repeated hidden blockers |
+
+### Time-Horizon Design
+
+- First 5 seconds: the operator must understand whether they are in setup, generation, proof, or repair.
+- First 5 minutes: the operator must complete one meaningful task without reading internal architecture docs.
+- Long-term relationship: the system earns trust by refusing unsafe requests consistently and by making repair feel procedural rather than mysterious.
+
+## Design System Alignment
+
+No `DESIGN.md` exists in this repo. Reduced v1 should therefore use a small explicit CLI interaction language so docs, help text, examples, and rendered outputs do not drift into mixed product vocabularies.
+
+### CLI Design Language
+
+- One canonical recovery verb: `doctor`.
+- One canonical generation verb: `generate`.
+- One canonical proof verb: `inspect`.
+- Use "setup" and "setup refresh" for posture-establishing flows. Do not rename the same workflow as bootstrap, init, hydrate, or health repair in other surfaces.
+- Use "canonical artifacts" for trusted project truth and "derived views" for human-facing copies.
+- Use "refusal" when the system stops unsafe work. Do not soften this into vague words like warning or issue when the command is actually blocked.
+- Use "next safe action" for the recovery handoff line. This keeps repair output action-oriented.
+
+### Copy And Output Rules
+
+- Command help and README examples must use the same verbs and nouns as runtime output.
+- Default output tone is strict but guided, never chatty and never cryptic.
+- Success output should read like an operator summary, not a celebratory message.
+- Failure output should avoid generic filler such as "something went wrong" or "unable to process request" when the exact artifact, dependency, or policy rule is known.
+- Inspect output should privilege evidence order over internal module order.
+
+## Responsive And Accessibility
+
+Reduced v1 is a CLI product, so responsive design means terminal width, text density, screen-reader order, keyboard-only operation, and color independence. The output should remain readable in a normal narrow terminal without hiding the most important truth behind formatting.
+
+### Output Layout Rules
+
+- Default output strategy is adaptive but narrow-first.
+- On narrow terminals, commands should use stacked summaries with one fact per line in stable order.
+- On wider terminals, commands may use aligned sections or compact tables only when the same information remains readable if wrapped.
+- Dense or multi-item evidence views must always have a machine-readable fallback such as JSON or inspect-friendly line output.
+- The first three lines of any command result must still work when read aloud by a screen reader: outcome, object of interest, next action.
+
+### Accessibility Rules
+
+- Never rely on color alone to communicate refusal, success, or warning state.
+- Important state changes must be labeled with words like `REFUSED`, `READY`, `STALE`, or `NEXT SAFE ACTION`.
+- Output order must remain stable so keyboard users and screen readers do not need to rediscover where blockers or next steps appear.
+- Help text and examples must assume keyboard-only use.
+- Touch nothing fancy in v1 that breaks copy/paste, piping, or text selection for terminal users.
+- If output is too dense for narrow terminals, the product should prefer truncating secondary detail and pointing to `inspect` or JSON rather than wrapping primary facts into noise.
+
+## Resolved Design Decisions
+
+| Decision | Chosen direction | Why |
+|----------|------------------|-----|
+| True front door | Guided project setup / setup refresh | The product depends on canonical posture artifacts before packet generation can be trusted |
+| Reduced v1 setup framing | Setup remains supported, but reduced v1 stays explicit that the current guided setup flow may still use the existing scaffold until Rust replacement exists | Keeps the workflow honest without pretending the Rust rewrite already owns setup |
+| `generate` failure behavior | Compact structured refusal plus exact repair handoff | Preserves packet-shrinking discipline even on the failure path |
+| Refusal tone | Strict but guided | Trust products should stop unsafe work without making users do archaeology |
+| Canonical recovery command | `doctor` | One memorable recovery verb beats split naming |
+| Output layout strategy | Adaptive, narrow-first summaries with machine-readable fallbacks | CLI accessibility matters as much as visual responsiveness does on the web |
+| `generate` default success surface | Short trust header, then full human-readable planning packet | The packet is the product, not a receipt pointing elsewhere |
+
+## Remaining Design Constraints For Implementation
+
+- `generate` should print a short trust header before the packet body rather than burying trust metadata after the content.
+- JSON stays opt-in for dense machine-readable workflows, not the primary default for human operators.
+- `inspect` remains the deep proof surface, not a second default packet renderer.
+- Runtime help text, README examples, and test fixtures must use the same command vocabulary established above.
 
 ## What Already Exists
 
@@ -432,7 +606,7 @@ Mitigation:
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 5 proposals, 4 accepted, 1 deferred |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | CLEAR | 15 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 5/10 → 9/10, 7 decisions |
 
 **UNRESOLVED:** 0
-**VERDICT:** CEO + ENG CLEARED — ready to implement.
+**VERDICT:** CEO + ENG + DESIGN CLEARED — ready to implement.
