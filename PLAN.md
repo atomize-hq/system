@@ -89,6 +89,7 @@ canonical artifacts exist in `.system/`
 ### CLI Surface Hierarchy
 
 The reduced-v1 command-surface contract is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
+The reduced-v1 canonical `.system/` manifest + freshness contract is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
 
 | Surface | Job | When the operator reaches for it | Required first impression |
 |---------|-----|----------------------------------|---------------------------|

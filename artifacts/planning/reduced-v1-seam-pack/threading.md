@@ -33,6 +33,7 @@
   - **Direct consumers**: `SEAM-4`, `SEAM-7`
   - **Derived consumers**: `SEAM-5`, `SEAM-6`
   - **Thread IDs**: `THR-03`
+  - **Canonical artifact**: `docs/contracts/C-03-canonical-artifact-manifest-contract.md`
   - **Definition**: Canonical artifact manifest contract for `.system/charter/CHARTER.md`, optional `.system/project_context/PROJECT_CONTEXT.md`, `.system/feature_spec/FEATURE_SPEC.md`, inherited posture dependencies, override-with-rationale handling, and deterministic freshness fields.
   - **Versioning / compat**: Schema version plus manifest generation version; any new live input or refusal source requires an explicit contract update.
 
