@@ -58,3 +58,12 @@ fn placeholder_exit(command: &str, description: &str) -> ExitCode {
     );
     ExitCode::from(1)
 }
+
+const _: () = {
+    let _ = (
+        std::mem::size_of::<system_compiler::DecisionLog>(),
+        std::mem::size_of::<system_compiler::PacketResult>(),
+        std::mem::size_of::<system_compiler::CompilerError>(),
+        std::mem::size_of::<system_compiler::RefusalPlaceholder>(),
+    );
+};
