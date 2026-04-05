@@ -111,7 +111,7 @@
   - **Consumer seam(s)**: `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-04`
   - **Purpose**: Publish the typed resolver result, refusal structure, and `doctor` blocker taxonomy.
-  - **State**: `identified`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to budget policy, blocker categories, decision-log fields, or refusal ordering.
   - **Satisfied by**: `SEAM-4` closeout records landed resolver outputs, blocker/report parity evidence, and outbound thread publication for proof and conformance seams.
   - **Notes**: `SEAM-5` and `SEAM-7` should not finalize output or golden expectations until this thread is published.
