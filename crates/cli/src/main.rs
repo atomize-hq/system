@@ -45,7 +45,7 @@ impl Command {
         match self {
             Command::Setup => placeholder_exit("setup", "reserved setup entrypoint"),
             Command::Generate => generate(),
-            Command::Inspect => placeholder_exit("inspect", "reserved proof-surface command"),
+            Command::Inspect => inspect(),
             Command::Doctor => doctor(),
         }
     }
@@ -122,6 +122,44 @@ fn doctor() -> ExitCode {
     }
 
     ExitCode::from(1)
+}
+
+fn inspect() -> ExitCode {
+    let repo_root = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("BLOCKED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let result =
+        match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
+            Ok(result) => result,
+            Err(err) => {
+                println!("BLOCKED: resolver error: {err:?}");
+                return ExitCode::from(1);
+            }
+        };
+
+    let model = match system_compiler::build_output_model(&result) {
+        Ok(model) => model,
+        Err(err) => {
+            println!("PRESENTATION FAILURE: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    println!("{}", system_compiler::render_inspect(&model));
+
+    if model.packet_status == system_compiler::PacketSelectionStatus::Selected
+        && model.refusal.is_none()
+        && model.blockers.is_empty()
+    {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    }
 }
 
 const _: () = {

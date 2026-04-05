@@ -1,5 +1,5 @@
 use super::error::RenderError;
-use crate::{Blocker, PacketSelectionStatus, Refusal, ResolverResult};
+use crate::{Blocker, BudgetOutcome, PacketSelectionStatus, Refusal, ResolverResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderSurface {
@@ -34,6 +34,7 @@ pub struct RenderOutputModel {
     pub c03_fingerprint_sha256: String,
     pub packet_id: String,
     pub packet_status: PacketSelectionStatus,
+    pub budget_outcome: BudgetOutcome,
     pub decision_log_entries: Vec<String>,
     pub refusal: Option<Refusal>,
     pub blockers: Vec<Blocker>,
@@ -62,6 +63,7 @@ pub fn build_output_model(result: &ResolverResult) -> Result<RenderOutputModel, 
         c03_fingerprint_sha256: result.c03_fingerprint_sha256.clone(),
         packet_id: result.selection.packet_id.clone(),
         packet_status: result.selection.status,
+        budget_outcome: result.budget_outcome.clone(),
         decision_log_entries: result.decision_log.entries.clone(),
         refusal: result.refusal.clone(),
         blockers: result.blockers.clone(),

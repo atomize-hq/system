@@ -72,8 +72,25 @@ fn generate_refuses_when_system_root_missing() {
 }
 
 #[test]
-fn inspect_prints_placeholder_and_fails() {
-    assert_placeholder("inspect", "reserved proof-surface command");
+fn inspect_refuses_when_system_root_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let output = binary_in(dir.path())
+        .arg("inspect")
+        .output()
+        .expect("inspect should run");
+
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ],
+    );
+    assert!(stdout.contains("## JSON FALLBACK"), "expected JSON fallback: {stdout}");
 }
 
 #[test]
@@ -157,6 +174,39 @@ fn doctor_reports_ready_when_required_artifacts_present() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(stdout.contains("READY"), "expected ready header: {stdout}");
+}
+
+#[test]
+fn inspect_reports_ready_when_required_artifacts_present() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        b"charter",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+
+    let output = binary_in(root)
+        .arg("inspect")
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should succeed when ready");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+        ],
+    );
+    assert!(stdout.contains("## JSON FALLBACK"), "expected JSON fallback: {stdout}");
 }
 
 fn assert_placeholder(command: &str, expected_phrase: &str) {
