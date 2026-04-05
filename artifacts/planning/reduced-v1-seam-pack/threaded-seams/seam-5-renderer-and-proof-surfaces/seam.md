@@ -1,7 +1,7 @@
 ---
 seam_id: SEAM-5
 seam_slug: renderer-and-proof-surfaces
-status: decomposed
+status: landed
 execution_horizon: active
 plan_version: v1
 basis:
@@ -17,16 +17,16 @@ basis:
     - Any change to JSON fallback requirements for dense evidence views.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
+  status: passed
 open_remediations: []
 ---
 
@@ -52,6 +52,21 @@ open_remediations: []
   - Outputs: `C-05`
   - Threads: `THR-05`
 
+## Review bundle
+
+- `review.md` is the authoritative artifact for `gates.pre_exec.review`.
+
+## Seam-exit gate plan
+
+- **Planned location**: `S99`
+- **Expected contracts to publish**: `C-05`
+- **Expected threads to publish / advance**: `THR-05`
+- **Likely downstream stale triggers**:
+  - Any change to trust header order or wording.
+  - Any change to inspect proof ordering or JSON fallback behavior.
+  - Any change to refusal or blocker rendering copy requirements (without changing `C-04` semantics).
+  - Any change to renderer failure isolation boundaries.
+
 ## Slice index
 
 - `S00` -> `slice-00-c-05-renderer-and-proof-surfaces-contract.md`
@@ -60,3 +75,7 @@ open_remediations: []
 - `S3` -> `slice-3-json-and-inspect-proof-surfaces.md`
 - `S99` -> `slice-99-seam-exit-gate.md`
 
+## Governance pointers
+
+- Pack remediation log: `../../governance/remediation-log.md`
+- Seam closeout: `../../governance/seam-5-closeout.md`
