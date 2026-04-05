@@ -60,14 +60,14 @@ fn generate() -> ExitCode {
         }
     };
 
-    let result = match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default())
-    {
-        Ok(result) => result,
-        Err(err) => {
-            println!("REFUSED: resolver error: {err:?}");
-            return ExitCode::from(1);
-        }
-    };
+    let result =
+        match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
+            Ok(result) => result,
+            Err(err) => {
+                println!("REFUSED: resolver error: {err:?}");
+                return ExitCode::from(1);
+            }
+        };
 
     if let Some(refusal) = result.refusal {
         println!("REFUSED");
@@ -78,11 +78,14 @@ fn generate() -> ExitCode {
         return ExitCode::from(1);
     }
 
-    // Until SEAM-5 lands, this command remains honest about rendering being unimplemented, but it
-    // can still prove deterministic packet resolution at the contract level.
+    let render_result = system_compiler::build_output_model(&result);
+
     println!("RESOLVED");
     println!("PACKET ID: {}", result.selection.packet_id);
     println!("NOTE: packet rendering is not implemented yet (owned by SEAM-5).");
+    if let Err(err) = render_result {
+        println!("NOTE: render failure: {err}");
+    }
     ExitCode::from(1)
 }
 
@@ -103,14 +106,14 @@ fn doctor() -> ExitCode {
         }
     };
 
-    let result = match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default())
-    {
-        Ok(result) => result,
-        Err(err) => {
-            println!("BLOCKED: resolver error: {err:?}");
-            return ExitCode::from(1);
-        }
-    };
+    let result =
+        match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
+            Ok(result) => result,
+            Err(err) => {
+                println!("BLOCKED: resolver error: {err:?}");
+                return ExitCode::from(1);
+            }
+        };
 
     if result.blockers.is_empty() {
         println!("READY");
