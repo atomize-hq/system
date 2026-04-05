@@ -6,205 +6,281 @@ version: reduced-v1
 currentness: current
 status: published
 revalidation_triggers:
-  - Any change to the resolver result top-level fields, field meanings, or ordering guarantees.
-  - Any change to the refusal categories, refusal required fields, or refusal selection priority rules.
-  - Any change to the blocker categories, blocker required fields, or blocker ordering rules.
-  - Any change to the decision-log entry kinds, required fields, or deterministic ordering guarantees.
-  - Any change to budget outcome kinds, budget policy fields, or “exact next safe action” rules.
-  - Any change to packet identity fields or selection-reason semantics.
+  - Any change to determinism guarantees (ordering, tie-breaks, stable IDs).
+  - Any change to the rule that `generate` and `doctor` share one typed resolver result (single-truth invariant).
+  - Any change to the C-03 input confinement rule (canonical `.system/` + manifest truth only; no derived docs).
+  - Any change to budget policy semantics or budget outcome variants (keep/summarize/exclude/refuse) or their required fields.
+  - Any change to refusal categories, refusal required fields, or refusal ordering/priority rules.
+  - Any change to blocker categories, blocker required fields, or blocker ordering/priority rules.
+  - Any change to decision-log entry kinds, required fields, or ordering rules.
 ---
 
 # C-04 Resolver Result and Doctor Blockers Contract
 
 ## Purpose
 
-This contract defines the typed resolver result produced by the Rust compiler core and consumed by both `generate` and `doctor`.
+This contract defines the reduced-v1 typed resolver result produced by `SEAM-4` and the blocker/refusal semantics that both `generate` and `doctor` must share.
 
-It exists to prevent drift:
-
-- `generate` and `doctor` MUST be views over one shared typed resolver truth.
-- Downstream seams (`SEAM-5`, `SEAM-7`) MUST NOT need to infer semantics by parsing renderer strings.
+It exists so downstream seams (notably `SEAM-5` renderers and `SEAM-7` conformance) can treat packet identity, decision evidence, budget outcomes, refusals, and doctor-ready blockers as one explicit, versioned truth without parsing freeform strings or relying on incidental iteration order.
 
 ## Canonical Location
 
 - Canonical artifact: `docs/contracts/C-04-resolver-result-and-doctor-blockers.md`
-- Upstream contracts consumed by this seam: `C-01`, `C-02`, `C-03`
 - Downstream seams that consume this contract: `SEAM-5`, `SEAM-7`
+- Derived consumers (read-only): `SEAM-6`
 
 ## Owned Surface
 
-`C-04` is authoritative about:
+`C-04` is authoritative about the **shape and semantics** of the resolver result and its ordered evidence:
 
-- The *typed* resolver result shape.
-- Deterministic ordering rules for decision logs, refusals, and blockers.
-- Refusal taxonomy and compact refusal structure for `generate`.
-- Blocker taxonomy and “exact next safe action” semantics for `doctor`.
-- Budget outcome shape and how budget refusal is represented.
-- The rule that callers do not bypass resolver guardrails (no parallel blocker computation in the CLI).
+- Packet identity (stable, deterministic) and selection reasons.
+- An ordered decision log that explains resolver choices.
+- Typed budget policy outcomes (including exact recovery action when refusing).
+- Typed refusal structure for `generate` (compact, action-oriented).
+- Typed blocker structure for `doctor` (ordered, action-oriented).
+- Deterministic ordering rules and tie-breaks for all ordered lists.
 
-`C-04` is *not* authoritative about:
-
-- Renderer formatting, phrasing, or output ordering for human-readable proof surfaces (`SEAM-5`).
-- Fixture execution demo boundaries (`SEAM-6`).
-- Conformance rails, golden tests, and docs cutover (`SEAM-7`).
+`C-04` is **not** authoritative about renderer wording, formatting, or presentation order (owned by `SEAM-5`), and it is not authoritative about conformance rails (owned by `SEAM-7`).
 
 ## Normative Rules
 
-### Single truth: `generate` and `doctor` must not drift
+### Single-truth invariant (generate + doctor)
 
-- `generate` and `doctor` MUST both call the same resolver entrypoint and consume the same typed resolver result.
-- `doctor` MUST NOT compute blockers independently from `generate` (no separate “doctor-only” blocker logic branches).
-- Any blocker/refusal semantics MUST be represented as typed data in the resolver result, not in CLI-only branching.
+- The system MUST produce one typed resolver result per request.
+- `generate` and `doctor` MUST be views over the same typed resolver result.
+- `doctor` MUST NOT compute blockers independently from the resolver truth used by `generate`.
+- If the resolver produces a refusal outcome, `doctor` MUST surface the corresponding blockers and next actions from the same result (not by re-running divergent logic).
 
-### Determinism (same inputs → same outputs)
+### Input confinement (consume C-03 only)
 
-For identical canonical inputs (as defined by `C-03`) and identical request parameters:
+- Resolver inputs MUST be confined to:
+  - a request (what packet is being requested and with what policy parameters), and
+  - canonical manifest + freshness truth produced under `C-03`.
+- Resolver logic MUST treat repo-local `.system/` as the only canonical project-truth input surface, as defined by `C-03`.
+- Resolver logic MUST NOT treat derived views as canonical inputs, including (non-exhaustive):
+  - `README.md`, `PLAN.md`, any doc under `docs/` other than referenced contracts
+  - any renderer outputs (`inspect`, markdown, JSON)
+  - `dist/` and `artifacts/`
+- Resolver logic MUST NOT read wall-clock time or ambient environment state as a source of selection, refusal, budget, or blocker decisions.
 
-- The resolver MUST yield identical outcomes:
-  - selected packet identity (or refusal)
-  - decision-log entry ordering
-  - refusal selection (when refusing)
-  - blocker list ordering (when blocking)
-  - budget outcome classification
+### Determinism (same inputs -> same outputs)
+
+For identical inputs (request + C-03 manifest truth):
+
+- The resolver MUST produce identical:
+  - packet identity selection (or refusal)
+  - decision-log content and ordering
+  - budget outcome and ordering of any budget-related lists
+  - refusal category and refusal ordering rules (when multiple refusal candidates exist)
+  - blocker set and blocker ordering
 - Ordering MUST NOT depend on:
-  - hash map / set iteration order
+  - hash map iteration order
   - filesystem traversal order
-  - wall-clock time
-  - locale-specific formatting
+  - non-deterministic set ordering
+  - system time
 
-### Input confinement
+### Versioning and compatibility
 
-- The resolver MUST treat the `C-03` manifest + freshness truth as its canonical input truth.
-- The resolver MUST NOT treat derived views as canonical inputs (examples: `README.md`, `PLAN.md`, any `dist/` output, any `artifacts/` planning docs).
+The resolver result MUST carry an explicit `c04_result_version` field.
 
-### Action-oriented failure
+- The version MUST be a stable identifier for the meaning of the result fields and ordering rules.
+- Any change to:
+  - the meaning of a field,
+  - required field presence,
+  - enum variants (adding, removing, renaming),
+  - or ordering/priority rules
+  MUST be treated as a contract revision requiring downstream revalidation.
 
-- Every refusal and every blocker MUST contain exactly one “next safe action”.
-- `next_safe_action` MUST be safe to follow and MUST NOT require guessing (no “do something” wording).
-- Refusal and blocker categories MUST be typed enums; semantics MUST NOT be encoded only in freeform strings.
+## Data Model (Contract Shape)
 
-## Resolver Result Data Model (contract-level)
+This contract specifies field **semantics**. Concrete Rust type names are implementation detail, but the result MUST faithfully represent the following records and fields.
 
-This section defines the required fields and their meaning. It is not a Rust signature; it is the contract shape.
+### Subject references (shared)
 
-### Top-level: `ResolverResult`
+Any refusal or blocker MUST reference a **subject** using contract-defined identifiers, not freeform text.
 
-Required fields:
+A subject reference MUST be one of:
 
-- `c04_version`: string (MUST equal this contract’s `version` value, e.g. `reduced-v1`)
-- `manifest_ref`:
-  - `c03_schema_version`: string
-  - `manifest_generation_version`: integer
-  - `fingerprint_sha256`: string
-- `status`: enum `{ ready, refused }`
-- `packet`:
-  - When `status == ready`: MUST be present.
-  - When `status == refused`: MUST be absent.
-- `decision_log`: ordered list of decision-log entries (see below)
-- `budget`: typed budget outcome (see below)
-- `refusal`:
-  - When `status == refused`: MUST be present.
-  - When `status == ready`: MUST be absent.
+- `CanonicalArtifact`:
+  - `kind`: `{ charter, project_context, feature_spec }` (aligned with `C-03`)
+  - `canonical_repo_relative_path`: the exact path from `C-03` (for example `.system/charter/CHARTER.md`)
+- `InheritedDependency`:
+  - `dependency_id`: stable string identifier
+  - `version`: optional string
+- `Policy`:
+  - `policy_id`: stable string identifier (for example `budget`)
 
-Optional (reserved for downstream seams):
+### Resolver result (top-level)
 
-- `blockers[]`: ordered list of blockers (doctor uses these; if present, it is authoritative and deterministic)
+The resolver result MUST include:
 
-### Packet selection
+- `c04_result_version`: string (see Versioning)
+- `c03_schema_version`: string (copied from C-03 manifest truth)
+- `c03_manifest_generation_version`: integer (copied from C-03 manifest truth)
+- `c03_fingerprint_sha256`: string (copied from C-03 manifest truth)
+- `packet_identity`:
+  - `packet_id`: stable string identifier for the selected packet
+  - `selection_reasons[]`: ordered list of selection-reason records (see Ordering)
+- `decision_log`: a decision-log record (see below)
+- `budget`: a budget outcome record (see below)
+- exactly one of:
+  - `refusal`: a refusal record (generate-facing failure path), or
+  - `refusal` absent and the result is not refused
+- `blockers[]`: ordered list of blockers (doctor-facing; may be empty)
 
-Packet identity fields MUST be stable and renderer-independent:
+The resolver result MAY include additional fields as long as:
 
-- `packet.packet_id`: stable identifier string (example: `planning.v1`)
-- `packet.selection_reason`: typed reason kind (enum) plus stable detail fields (no freeform-only semantics)
+- they do not broaden inputs beyond `C-03` + request
+- they do not introduce non-deterministic ordering
+- they preserve backward compatibility expectations for downstream consumers
 
 ### Decision log
 
-- `decision_log.entries[]` MUST be deterministic and stable for identical inputs.
-- Each entry MUST contain:
-  - `kind`: enum
-  - `summary`: short renderer-neutral string
-  - `subject`: stable subject reference (canonical artifact, freshness issue, or budget domain)
+The decision log MUST be an ordered list of typed entries.
+
+Each entry MUST include:
+
+- `kind`: a value from the Decision Entry Kind enum
+- `summary`: short human-readable string
+- `subject`: optional subject reference (when the entry applies to a specific artifact/dependency/policy)
+
+The decision log MUST be stable and deterministic in ordering.
+
+#### Decision entry kinds (initial)
+
+The decision log `kind` MUST be one of (initial set; additions require revalidation):
+
+- `Ingest`
+- `Freshness`
+- `Selection`
+- `Budget`
+- `Refusal`
+- `Blocker`
 
 ### Budget outcome
 
-Budget is a typed phase of resolution:
+Budget must be represented as typed data.
 
-- `budget.kind`: enum `{ within_budget, summarize, exclude, refuse, not_evaluated }`
-- `budget.summary`: short renderer-neutral string
-- `budget.next_safe_action`: exactly one action (same rule as refusals/blockers)
+The budget outcome MUST include:
+
+- `policy_id`: stable identifier (for example `budget`)
+- `outcome`: one of `{ Keep, Summarize, Exclude, Refuse }`
+- `reason`: short human-readable string
+- `next_safe_action`: present when `outcome` is `Refuse`, absent otherwise
+
+If budget produces any ordered lists (for example, ordered omissions), those lists MUST have contract-defined ordering and explicit tie-breaks.
 
 ### Refusal (generate)
 
-Refusals MUST be compact and typed:
+The refusal record MUST be compact and action-oriented.
 
-- `refusal.category`: one of the refusal categories defined below
-- `refusal.summary`: short renderer-neutral summary
-- `refusal.broken_subject`: subject reference (canonical artifact, `.system` root, freshness, or budget)
-- `refusal.next_safe_action`: exactly one safe next action
+The refusal MUST include:
 
-## Refusal Categories (generate)
+- `category`: one of the Refusal Category enum values
+- `summary`: short human-readable string
+- `broken_subject`: subject reference
+- `next_safe_action`: exactly one explicit recovery action
 
-The refusal categories are:
+### Blockers (doctor)
+
+The blocker record MUST be compact and action-oriented.
+
+Each blocker MUST include:
+
+- `category`: one of the Blocker Category enum values
+- `subject`: subject reference
+- `summary`: short human-readable string
+- `next_safe_action`: exactly one explicit recovery action
+
+## Categories and Ordering Rules
+
+This section defines the initial category enums and their ordering priorities.
+
+### Refusal categories (generate) (initial)
+
+Allowed refusal categories include:
+
+- `NonCanonicalInputAttempt`
+- `SystemRootMissing`
+- `SystemRootNotDir`
+- `SystemRootSymlinkNotAllowed`
+- `RequiredArtifactMissing`
+- `ArtifactReadError`
+- `FreshnessInvalid`
+- `BudgetRefused`
+- `UnsupportedRequest`
+
+### Blocker categories (doctor) (initial)
+
+Allowed blocker categories include:
 
 - `SystemRootMissing`
 - `SystemRootNotDir`
 - `SystemRootSymlinkNotAllowed`
 - `RequiredArtifactMissing`
-- `RequiredArtifactEmpty`
+- `ArtifactReadError`
 - `FreshnessInvalid`
 - `BudgetRefused`
 - `UnsupportedRequest`
 
-### Refusal selection priority (deterministic)
+### Category priority tables
 
-When multiple refusal causes apply, the resolver MUST pick exactly one refusal using this deterministic priority order:
+When multiple refusal candidates exist, refusal ordering MUST be deterministic and MUST use this priority order (lowest number = highest priority):
 
-1. `.system` root problems (`SystemRootMissing`, `SystemRootNotDir`, `SystemRootSymlinkNotAllowed`)
-2. required artifact presence problems (`RequiredArtifactMissing`, then `RequiredArtifactEmpty`) in canonical artifact order:
-   1. `CHARTER`
-   2. `PROJECT_CONTEXT` (optional; MUST NOT trigger required-artifact refusal)
-   3. `FEATURE_SPEC`
-3. `FreshnessInvalid`
-4. `BudgetRefused`
-5. `UnsupportedRequest`
+| Priority | Refusal category |
+|---:|---|
+| 0 | `NonCanonicalInputAttempt` |
+| 1 | `SystemRootMissing` |
+| 2 | `SystemRootSymlinkNotAllowed` |
+| 3 | `SystemRootNotDir` |
+| 4 | `RequiredArtifactMissing` |
+| 5 | `ArtifactReadError` |
+| 6 | `FreshnessInvalid` |
+| 7 | `BudgetRefused` |
+| 8 | `UnsupportedRequest` |
 
-Tie-breakers MUST be deterministic and MUST be defined by contract order and stable fields (no freeform string comparisons).
+When multiple blockers exist, blocker ordering MUST be deterministic and MUST use this priority order (lowest number = highest priority):
 
-## Blocker Categories (doctor)
+| Priority | Blocker category |
+|---:|---|
+| 0 | `SystemRootMissing` |
+| 1 | `SystemRootSymlinkNotAllowed` |
+| 2 | `SystemRootNotDir` |
+| 3 | `RequiredArtifactMissing` |
+| 4 | `ArtifactReadError` |
+| 5 | `FreshnessInvalid` |
+| 6 | `BudgetRefused` |
+| 7 | `UnsupportedRequest` |
 
-Blockers use the same action-oriented structure as refusals, but are an ordered list.
+### Tie-break rules (stable ordering within a category)
 
-Initial blocker categories (v1):
+Within the same category, ordering MUST be deterministic.
 
-- `SystemRootMissing`
-- `SystemRootNotDir`
-- `SystemRootSymlinkNotAllowed`
-- `RequiredArtifactMissing`
-- `RequiredArtifactEmpty`
-- `FreshnessInvalid`
-- `BudgetRefused`
-- `UnsupportedRequest`
+Tie-break MUST be applied in this order:
 
-### Blocker ordering (deterministic)
-
-Blockers MUST be ordered deterministically using:
-
-1. blocker category priority (same order as refusal selection priority above)
-2. canonical subject order for artifact subjects (CHARTER, PROJECT_CONTEXT, FEATURE_SPEC)
-3. stable, contract-defined tie-break fields (no hash order; no wall-clock)
+1. Subject kind order:
+   - For `CanonicalArtifact`: `{ charter, project_context, feature_spec }` (aligned with `C-03`)
+   - For `InheritedDependency`: lexical by `dependency_id`, then by `version`
+   - For `Policy`: lexical by `policy_id`
+2. Subject path (for canonical artifacts): lexical by `canonical_repo_relative_path`
+3. Summary: lexical by `summary`
 
 ## Compatibility and Downstream Revalidation
 
-- Any change to refusal categories, blocker categories, decision-log entry kinds, ordering rules, budget kinds, or required fields is a contract change and requires downstream revalidation (`SEAM-5` through `SEAM-7`).
-- Adding a new refusal category, budget kind, or blocker category MUST be treated as a contract bump.
+- Downstream seams MUST treat category enums and required fields as authoritative contract surface.
+- Downstream seams MUST NOT parse semantics out of freeform strings to recover meaning that should be represented by categories or structured fields.
+- Adding a new refusal category, blocker category, budget outcome, or decision entry kind MUST trigger downstream revalidation.
+- Changing any priority table or tie-break rule MUST trigger downstream revalidation.
 
 ## Verification Checklist
 
-- [ ] `docs/contracts/C-04-resolver-result-and-doctor-blockers.md` exists and is cited as canonical by downstream seams.
-- [ ] `generate` and `doctor` both consume the same typed resolver result and do not compute blockers in parallel.
-- [ ] Resolver determinism is defined: same inputs → same outcomes including ordering.
-- [ ] Refusal structure is compact and typed, includes exactly one next safe action.
-- [ ] Refusal selection priority is explicit and deterministic.
-- [ ] Blocker structure is typed, ordered deterministically, and includes exactly one next safe action per blocker.
-- [ ] Budget outcome is typed and carries exactly one next safe action.
-- [ ] Derived views are explicitly non-canonical inputs.
+- [ ] A resolver result carries `c04_result_version` and C-03 provenance (`schema_version`, `manifest_generation_version`, `fingerprint_sha256`).
+- [ ] `generate` and `doctor` are views over one typed resolver result; `doctor` does not compute blockers separately.
+- [ ] Inputs are confined to the request plus C-03 manifest/freshness truth; derived docs are never canonical inputs.
+- [ ] All ordered lists (decision log, selection reasons, refusals, blockers) have explicit deterministic ordering and tie-break rules.
+- [ ] Budget outcomes are typed (`Keep`, `Summarize`, `Exclude`, `Refuse`) and budget refusal includes exactly one next safe action.
+- [ ] Refusals are compact and always include: category, summary, broken subject, and exactly one next safe action.
+- [ ] Blockers are compact and always include: category, subject, summary, and exactly one next safe action.
+- [ ] Refusal categories and blocker categories match the initial enums in this contract and are ordered by the priority tables.
+- [ ] Any change to budget/refusal/blocker semantics is captured as a contract revision and triggers downstream revalidation.
+- [ ] `artifacts/planning/reduced-v1-seam-pack/threading.md` describes `C-04` in the same nouns as this contract.
