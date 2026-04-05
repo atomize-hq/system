@@ -43,6 +43,7 @@
   - **Direct consumers**: `SEAM-5`, `SEAM-7`
   - **Derived consumers**: `SEAM-6`
   - **Thread IDs**: `THR-04`
+  - **Canonical artifact**: `docs/contracts/C-04-resolver-result-and-doctor-blockers.md`
   - **Definition**: Typed resolver result and decision-log contract covering packet identity, inclusion/exclusion decisions, freshness truth, budget outcomes, refusal structure, and packet-readiness status surfaced by `doctor`.
   - **Versioning / compat**: Resolver result version; downstream seams must revalidate if budget policy, refusal shape, or blocker taxonomy changes.
 
