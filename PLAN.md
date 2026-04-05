@@ -88,6 +88,8 @@ canonical artifacts exist in `.system/`
 
 ### CLI Surface Hierarchy
 
+The reduced-v1 command-surface contract is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
+
 | Surface | Job | When the operator reaches for it | Required first impression |
 |---------|-----|----------------------------------|---------------------------|
 | Setup / setup refresh | Establish or refresh canonical project posture and standards | New repo, changed architecture, stale posture docs | "You are establishing the truth this system will trust later." |

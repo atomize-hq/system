@@ -9,6 +9,7 @@ These docs primarily describe the **legacy Python harness path that works today*
 - The reviewed v1 direction is a Rust-first context compiler CLI over live project + feature artifacts.
 - The next artifact is the implementation plan at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md).
 - The authoritative repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
+- The Rust workspace and CLI command-surface contract lives at [docs/contracts/C-02-rust-workspace-and-cli-command-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 
 These docs describe **what is working today** in this repository’s human‑in‑the‑loop prompt pipeline.
 

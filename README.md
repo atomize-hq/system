@@ -8,6 +8,7 @@ This repo is in transition.
 - The current Python harness remains in the repo as **legacy reference material only**.
 - Python is not the supported product path, not a compatibility wrapper, and will be archived during cutover, then removed.
 - The governing repo-surface truth is [C-01 Approved Repo-Surface Contract](docs/contracts/C-01-approved-repo-surface.md).
+- The command-surface truth for the Rust workspace and CLI is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 - The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
 - Live slice lineage and live execution packets are deferred. Any v1 execution packet work is fixture-backed only.
 
