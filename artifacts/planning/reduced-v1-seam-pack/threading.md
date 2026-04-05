@@ -2,8 +2,8 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-5`
-- Next seam: `SEAM-6`
+- Active seam: `SEAM-6`
+- Next seam: `SEAM-7`
 - Future seams: `SEAM-7`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
@@ -111,20 +111,20 @@
   - **Consumer seam(s)**: `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-04`
   - **Purpose**: Publish the typed resolver result, refusal structure, and `doctor` blocker taxonomy.
-  - **State**: `published`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to budget policy, blocker categories, decision-log fields, or refusal ordering.
   - **Satisfied by**: `SEAM-4` closeout records landed resolver outputs, blocker/report parity evidence, and outbound thread publication for proof and conformance seams.
-  - **Notes**: `SEAM-5` and `SEAM-7` should not finalize output or golden expectations until this thread is published.
+  - **Notes**: `SEAM-5` has revalidated and landed against `C-04`; `SEAM-7` still must revalidate for conformance.
 
 - **Thread ID**: `THR-05`
   - **Producer seam**: `SEAM-5`
   - **Consumer seam(s)**: `SEAM-7`
   - **Carried contract IDs**: `C-05`
   - **Purpose**: Carry proof-surface ordering and wording into docs, help text, and golden tests.
-  - **State**: `identified`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to trust header order, inspect proof ordering, JSON fallbacks, or compact refusal copy.
   - **Satisfied by**: `SEAM-5` closeout records renderer evidence, golden output baselines, and output-surface publication.
-  - **Notes**: This thread remains blocked on `THR-04`.
+  - **Notes**: Published by `SEAM-5` landing + closeout; downstream conformance must revalidate.
 
 - **Thread ID**: `THR-06`
   - **Producer seam**: `SEAM-6`

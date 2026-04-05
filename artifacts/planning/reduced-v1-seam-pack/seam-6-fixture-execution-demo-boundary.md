@@ -2,11 +2,11 @@
 seam_id: SEAM-6
 seam_slug: fixture-execution-demo-boundary
 type: risk
-status: proposed
-execution_horizon: next
+status: decomposed
+execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts:

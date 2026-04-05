@@ -2,7 +2,26 @@
 
 ## Open remediations
 
-None at extraction time.
+```yaml
+remediation_id: REM-002
+origin_phase: pre_exec
+source_gate: contract
+related_seam: SEAM-6
+related_slice: S1
+related_thread: THR-06
+related_contract: C-06
+related_artifact: artifacts/planning/reduced-v1-seam-pack/seam-6-fixture-execution-demo-boundary.md
+severity: blocking
+status: open
+owner_seam: SEAM-6
+blocked_targets:
+  - seam: SEAM-6
+    field: status
+    value: exec-ready
+summary: Demo invocation surface is not yet concrete enough for conformance.
+required_fix: Choose and document the execution-demo request surface (CLI flag vs tooling vs test-only), then pin deterministic fixture lineage rules and explicit live-refusal wording in `C-06` and seam-local slices.
+resolution_evidence: []
+```
 
 New remediation entries must use this schema:
 
@@ -37,4 +56,3 @@ Rules:
 ## Resolved remediations
 
 None yet.
-

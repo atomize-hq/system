@@ -1,7 +1,7 @@
 ---
 seam_id: SEAM-5
 review_phase: pre_exec
-execution_horizon: active
+execution_horizon: future
 basis_ref: seam.md#basis
 ---
 
@@ -21,4 +21,3 @@ This artifact feeds `gates.pre_exec.review`.
 - Renderers MUST be pure views over the typed resolver result (`C-04`).
 - Renderers MUST NOT recompute refusals, blockers, or budget decisions.
 - Output ordering MUST be deterministic and derived from explicit ordering rules and stable sort keys.
-

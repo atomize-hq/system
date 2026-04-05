@@ -1,7 +1,7 @@
 ---
 seam_id: SEAM-4
 review_phase: pre_exec
-execution_horizon: active
+execution_horizon: future
 basis_ref: seam.md#basis
 ---
 

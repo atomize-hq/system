@@ -3,7 +3,7 @@ seam_id: SEAM-7
 seam_slug: conformance-rails-and-docs-cutover
 type: conformance
 status: proposed
-execution_horizon: future
+execution_horizon: next
 plan_version: v1
 basis:
   currentness: provisional

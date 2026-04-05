@@ -2,7 +2,7 @@
 seam_id: SEAM-5
 seam_slug: renderer-and-proof-surfaces
 status: landed
-execution_horizon: active
+execution_horizon: future
 plan_version: v1
 basis:
   currentness: current

@@ -2,7 +2,7 @@
 seam_id: SEAM-4
 seam_slug: planning-packet-resolver-and-doctor
 status: landed
-execution_horizon: active
+execution_horizon: future
 plan_version: v1
 basis:
   currentness: current

@@ -4,8 +4,8 @@ pack_version: v1
 pack_status: extracted
 source_ref: PLAN.md
 execution_horizon:
-  active_seam: SEAM-4
-  next_seam: SEAM-5
+  active_seam: SEAM-6
+  next_seam: SEAM-7
 ---
 
 # Scope Brief - Reduced V1 Rust-First CLI Cutover
