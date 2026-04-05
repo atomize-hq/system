@@ -2,8 +2,8 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-1`
-- Next seam: `SEAM-2`
+- Active seam: `SEAM-2`
+- Next seam: `SEAM-3`
 - Future seams: `SEAM-3` through `SEAM-7`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
@@ -79,7 +79,7 @@
   - **Consumer seam(s)**: `SEAM-2`, `SEAM-7`
   - **Carried contract IDs**: `C-01`
   - **Purpose**: Publish the approved repo boundary so downstream implementation and cutover work stop treating Python as a supported runtime path.
-  - **State**: `defined`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to root layout rules, archive timing, supported-path messaging, or runtime-boundary policy in `PLAN.md`, README, or root docs.
   - **Satisfied by**: `SEAM-1` closeout records landed repo-surface changes, archive/runtime boundary evidence, and a passed seam-exit record for `C-01`.
   - **Notes**: This is the first critical-path thread and must publish before `SEAM-2` can treat the workspace as the supported root surface.
@@ -92,7 +92,7 @@
   - **State**: `defined`
   - **Revalidation trigger**: Any rename of supported verbs, crate ownership, package layout, or CLI help hierarchy.
   - **Satisfied by**: `SEAM-2` closeout records landed workspace scaffold, CLI help evidence, and published command-surface decisions.
-  - **Notes**: `SEAM-2` is next, not active, because it depends on `THR-01` landing cleanly.
+  - **Notes**: `SEAM-2` is active now that `THR-01` has been revalidated; this thread remains gated on `SEAM-2` landing and closeout.
 
 - **Thread ID**: `THR-03`
   - **Producer seam**: `SEAM-3`
@@ -182,4 +182,3 @@ flowchart LR
 - **WS-Conformance**
   - Seams: `SEAM-7`
   - Why: collects tests, CI, install smoke, docs parity, and cutover evidence once upstream contracts are published
-

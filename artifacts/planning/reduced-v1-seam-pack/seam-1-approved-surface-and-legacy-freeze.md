@@ -2,11 +2,11 @@
 seam_id: SEAM-1
 seam_slug: approved-surface-and-legacy-freeze
 type: platform
-status: proposed
-execution_horizon: active
+status: closed
+execution_horizon: future
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts: []
@@ -15,16 +15,16 @@ basis:
     - Any change to the approved root surface, archive timing, or supported-runtime wording in PLAN.md or root docs.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
+  status: passed
 open_remediations: []
 ---
 
@@ -83,7 +83,7 @@ open_remediations: []
   - Keep Python runnable as reference material until Rust planning packet parity exists.
   - Do not move legacy runtime files into `archived/` prematurely if it would remove reference behavior needed during migration.
 - **Downstream decomposition context**:
-  - This seam is `active` because every later seam inherits its support and runtime-boundary truth.
+- This seam was `active` because every later seam inherits its support and runtime-boundary truth.
   - `THR-01` is the primary control thread.
   - First seam-local review should focus on wording drift, root-surface enforcement, and whether any supported-path examples still imply Python ownership.
 - **Expected seam-exit concerns**:
@@ -97,4 +97,3 @@ open_remediations: []
     - `SEAM-2`
     - `SEAM-7`
   - Accepted or published owned-contract artifacts belong here and in closeout evidence, not in pre-exec verification for the producing seam.
-

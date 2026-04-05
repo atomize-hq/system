@@ -51,7 +51,7 @@ flowchart TB
 
 ## Pre-exec gate disposition
 
-- **Review gate**: pending
+- **Review gate**: passed
 - **Contract gate concerns**: `C-01` must be concrete (rules + verification checklist) before `SEAM-1` can become `exec-ready`.
 - **Revalidation prerequisites**:
   - Once `C-01` lands, `SEAM-2` and `SEAM-7` basis must revalidate against the published repo-surface truth.

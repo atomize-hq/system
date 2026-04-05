@@ -2,11 +2,11 @@
 seam_id: SEAM-2
 seam_slug: rust-workspace-and-cli-skeleton
 type: platform
-status: proposed
-execution_horizon: next
+status: exec-ready
+execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts:
@@ -18,9 +18,9 @@ basis:
     - Any change to the desired crate split or local-install target matrix in PLAN.md.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
@@ -85,7 +85,7 @@ open_remediations: []
   - Introduce the Rust workspace without advertising unsupported behavior.
   - Preserve narrow install targets and avoid premature packaging/distribution commitments.
 - **Downstream decomposition context**:
-  - This seam is `next` because it is the first seam after the repo-boundary contract lands and because every later implementation seam consumes its ownership map.
+- This seam is `active` because it is the first seam after the repo-boundary contract landed and because every later implementation seam consumes its ownership map.
   - `THR-02` is the dominant thread, with `THR-01` as an upstream dependency.
   - First seam-local review should focus on crate ownership, command vocabulary drift, and whether setup/generate/inspect/doctor hierarchy remains explicit.
 - **Expected seam-exit concerns**:
@@ -101,4 +101,3 @@ open_remediations: []
     - `SEAM-5`
     - `SEAM-7`
   - Accepted or published owned-contract artifacts belong here and in closeout evidence, not in pre-exec verification for the producing seam.
-

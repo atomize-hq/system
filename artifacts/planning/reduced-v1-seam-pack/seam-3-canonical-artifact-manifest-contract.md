@@ -3,7 +3,7 @@ seam_id: SEAM-3
 seam_slug: canonical-artifact-manifest-contract
 type: integration
 status: proposed
-execution_horizon: future
+execution_horizon: next
 plan_version: v1
 basis:
   currentness: provisional
@@ -97,4 +97,3 @@ open_remediations: []
     - `SEAM-4`
     - `SEAM-7`
   - Accepted or published owned-contract artifacts belong here and in closeout evidence, not in pre-exec verification for the producing seam.
-
