@@ -3,7 +3,7 @@ seam_id: SEAM-5
 seam_slug: renderer-and-proof-surfaces
 type: capability
 status: proposed
-execution_horizon: future
+execution_horizon: next
 plan_version: v1
 basis:
   currentness: provisional
@@ -93,4 +93,3 @@ open_remediations: []
   - Downstream seams most likely to require revalidation:
     - `SEAM-7`
   - Accepted or published owned-contract artifacts belong here and in closeout evidence, not in pre-exec verification for the producing seam.
-

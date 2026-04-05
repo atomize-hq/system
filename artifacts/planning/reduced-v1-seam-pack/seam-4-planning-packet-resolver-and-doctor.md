@@ -2,11 +2,11 @@
 seam_id: SEAM-4
 seam_slug: planning-packet-resolver-and-doctor
 type: capability
-status: proposed
-execution_horizon: next
+status: exec-ready
+execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts:
@@ -20,9 +20,9 @@ basis:
     - Any change to refusal copy requirements or `doctor` as the canonical recovery verb.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
