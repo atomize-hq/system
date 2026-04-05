@@ -22,10 +22,12 @@ This plan is the current execution source of truth for repo shape, migration ord
 - Live v1 packet resolution is scoped to existing `project + feature` artifacts.
 - V1 execution packets are fixture-backed demos only.
 - Live slice lineage and live execution packets are deferred.
-- Canonical live packet inputs live under `artifact_inputs/`.
+- Canonical project truth for managed repos lives under a hidden repo-local `.system/` directory, not under user-home state.
 - V1 direct packet inputs are `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`.
 - `FOUNDATION_STRATEGY`, `TECH_ARCH_BRIEF`, `TEST_STRATEGY_BRIEF`, `QUALITY_GATES_SPEC`, and `ENVIRONMENT_INVENTORY` are inherited posture dependencies. Lower-level artifacts may override them only with explicit rationale captured in artifact content and the decision log.
 - Repo-facing copies may exist for humans, but they are derived views, not runtime inputs.
+- CLI-owned templates and static prompt assets live in the `system` product repo, not in each managed project repo unless they are intentionally materialized there.
+- User-level hidden state may exist later for cache, config, or diagnostics, but never for canonical project truth.
 - V1 metadata/schema work is limited to those direct packet inputs plus inherited posture dependencies and one request-scoped derived manifest.
 - V1 freshness is deterministic: file presence, file hash, schema version, manifest generation version, and declared dependency checks.
 - V1 manifest state is request-scoped and in-memory by default. Persist detailed diagnostics only on request or on failure.
@@ -74,7 +76,7 @@ new repo or new project
 guided setup / refresh existing setup
     |
     v
-canonical artifacts exist
+canonical artifacts exist in `.system/`
 (`CHARTER`, optional `PROJECT_CONTEXT`, `FEATURE_SPEC`, inherited posture docs)
     |
     +--> generate planning packet
@@ -227,6 +229,15 @@ Reduced v1 is a CLI product, so responsive design means terminal width, text den
 - The repo already documents that pipeline artifacts are the deterministic truth source and repo-facing copies are for human-facing durability.
 - The current docs already distinguish implemented stages from placeholder slice/execution scaffolding.
 
+## Storage Model
+
+Reduced v1 needs a clean split between product code, managed-project truth, and optional machine-local state.
+
+- Canonical project truth lives inside the managed project repo under `.system/`.
+- Root-facing docs may exist for humans, but they are derived views and are never the runtime source of truth.
+- The `system` product repo contains the CLI/library source, packaged templates, and tests.
+- User-home hidden state such as `~/.system/` is reserved for non-canonical cache, config, diagnostics, or telemetry only. It must never become the only copy of project posture or planning truth.
+
 ## NOT in scope
 
 - Do not preserve Python as a supported runtime path.
@@ -274,19 +285,18 @@ Files or ideas may move from `archived/` back into the approved surface only whe
 - The supported runtime path must not import, shell out to, or wrap anything in `archived/`.
 - `archived/` is evidence and reference material, not an execution dependency.
 
-## Target Repo Shape
+## Repo Shapes
+
+### `system` Product Repo Shape
 
 ```text
 system/
-├── artifact_inputs/
-│   ├── charter/
-│   ├── project_context/
-│   └── feature_spec/
 ├── archived/
 │   └── python-harness/
 ├── crates/
 │   ├── compiler/
 │   └── cli/
+├── templates/
 ├── tests/
 │   ├── fixtures/
 │   └── golden/
@@ -296,6 +306,28 @@ system/
 ├── PLAN.md
 ├── README.md
 └── canonical artifacts retained at root only if explicitly approved
+```
+
+### Managed Project Repo Shape
+
+```text
+my-project/
+├── .system/
+│   ├── charter/
+│   │   └── CHARTER.md
+│   ├── project_context/
+│   │   └── PROJECT_CONTEXT.md
+│   ├── feature_spec/
+│   │   └── FEATURE_SPEC.md
+│   └── foundation/
+│       ├── FOUNDATION_STRATEGY.md
+│       ├── TECH_ARCH_BRIEF.md
+│       ├── TEST_STRATEGY_BRIEF.md
+│       ├── QUALITY_GATES_SPEC.md
+│       └── ENVIRONMENT_INVENTORY.md
+├── src/...
+├── README.md
+└── root-facing derived docs only if explicitly approved
 ```
 
 ## Milestones
@@ -349,13 +381,14 @@ Outcome:
 
 Work:
 
-- define typed ingest for `artifact_inputs/charter/CHARTER.md`, optional `artifact_inputs/project_context/PROJECT_CONTEXT.md`, and `artifact_inputs/feature_spec/FEATURE_SPEC.md`
-- define source-of-truth rules for canonical `artifact_inputs/` versus derived repo-facing copies
+- define typed ingest for `.system/charter/CHARTER.md`, optional `.system/project_context/PROJECT_CONTEXT.md`, and `.system/feature_spec/FEATURE_SPEC.md`
+- define source-of-truth rules for canonical `.system/` artifacts versus derived repo-facing copies
 - define inherited posture dependency handling for `FOUNDATION_STRATEGY`, `TECH_ARCH_BRIEF`, `TEST_STRATEGY_BRIEF`, `QUALITY_GATES_SPEC`, and `ENVIRONMENT_INVENTORY`
 - define explicit override-with-rationale rules for lower-level artifacts that diverge from inherited posture
 - define request-scoped derived manifest shape
 - define deterministic freshness fields
 - define supported target matrix for local installation: `macOS arm64` and `Linux x86_64`
+- define how packaged templates in the `system` product repo materialize canonical `.system/` artifacts without becoming runtime project truth themselves
 - document explicit triggers for expanding metadata/schema to more artifacts
 
 Expansion triggers:
@@ -447,7 +480,7 @@ Work:
 - golden tests for markdown, JSON, and inspect outputs
 - fixture-backed execution packet tests
 - CLI E2E tests for install, help, non-repo-root invocation, `doctor`, and refusal flows
-- drift tests for canonical `artifact_inputs/` versus derived published docs
+- drift tests for canonical `.system/` artifacts versus derived published docs
 - cutover regression tests proving Python is not advertised as supported
 - CI workflow for format, lint, test, and install smoke on `macOS arm64` and `Linux x86_64`
 
