@@ -2,9 +2,9 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-2`
-- Next seam: `SEAM-3`
-- Future seams: `SEAM-3` through `SEAM-7`
+- Active seam: `SEAM-3`
+- Next seam: `SEAM-4`
+- Future seams: `SEAM-4` through `SEAM-7`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
@@ -89,10 +89,10 @@
   - **Consumer seam(s)**: `SEAM-4`, `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-02`
   - **Purpose**: Publish the Rust workspace and CLI verb hierarchy that every downstream capability seam consumes.
-  - **State**: `defined`
+  - **State**: `published`
   - **Revalidation trigger**: Any rename of supported verbs, crate ownership, package layout, or CLI help hierarchy.
   - **Satisfied by**: `SEAM-2` closeout records landed workspace scaffold, CLI help evidence, and published command-surface decisions.
-  - **Notes**: `SEAM-2` is active now that `THR-01` has been revalidated; this thread remains gated on `SEAM-2` landing and closeout.
+  - **Notes**: Published by `SEAM-2` landing + closeout; downstream seams must revalidate if `C-02` changes.
 
 - **Thread ID**: `THR-03`
   - **Producer seam**: `SEAM-3`
