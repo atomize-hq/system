@@ -100,9 +100,9 @@
   - **Consumer seam(s)**: `SEAM-4`, `SEAM-7`
   - **Carried contract IDs**: `C-03`
   - **Purpose**: Carry the canonical artifact manifest and freshness contract into resolver behavior and conformance rails.
-  - **State**: `defined`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to direct packet inputs, inherited posture dependencies, override-with-rationale rules, or manifest versioning/freshness fields.
-  - **Satisfied by**: `SEAM-3` closeout records the concrete schema, accepted artifact rules, and published freshness semantics consumed by downstream seams.
+  - **Satisfied by**: `SEAM-3` closeout at `artifacts/planning/reduced-v1-seam-pack/governance/seam-3-closeout.md` records the concrete schema, accepted artifact rules, and published freshness semantics consumed by downstream seams.
   - **Notes**: This thread is contract-defining and will likely reserve `S00` when seam-local planning begins.
 
 - **Thread ID**: `THR-04`
