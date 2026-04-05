@@ -11,6 +11,8 @@ These docs primarily describe the **legacy Python harness path that works today*
 - The authoritative repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
 - The Rust workspace and CLI command-surface contract lives at [docs/contracts/C-02-rust-workspace-and-cli-command-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 - The canonical `.system/` manifest + freshness contract lives at [docs/contracts/C-03-canonical-artifact-manifest-contract.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-03-canonical-artifact-manifest-contract.md).
+- The resolver-result and doctor-blockers contract lives at [docs/contracts/C-04-resolver-result-and-doctor-blockers.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-04-resolver-result-and-doctor-blockers.md).
+- The renderer and proof-surfaces contract lives at [docs/contracts/C-05-renderer-and-proof-surfaces.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-05-renderer-and-proof-surfaces.md).
 
 These docs describe **what is working today** in this repository’s human‑in‑the‑loop prompt pipeline.
 
