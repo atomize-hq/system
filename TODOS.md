@@ -37,3 +37,27 @@
 **Effort:** M
 **Priority:** P2
 **Depends on:** Stable Rust packet core, stable project/feature metadata contract, manifest/freshness logic, successful v1 planning packet adoption
+
+### Persisted Derived State After Profiling
+
+**What:** Add persisted derived state or an on-disk manifest only if real usage or profiling shows the in-memory v1 path is insufficient.
+
+**Why:** The review accepted request-scoped, in-memory manifest generation for v1 to avoid premature state-machine complexity, but repeated inspect or health workflows may later justify persisted derived state.
+
+**Context:** Reduced v1 is intentionally small: a few canonical `artifact_inputs/`, deterministic freshness, and request-scoped packet resolution. Adding saved derived state now would create rebuild, cleanup, and concurrency complexity before there is evidence it helps. Revisit this only after stable v1 adoption or profiling shows repeated packet inspection and health checks are materially slowed by recomputing the same derived view.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Stable v1 packet resolver, real usage data, profiling evidence
+
+### Public CLI Distribution
+
+**What:** Add public CLI distribution and release packaging after the local install path is stable.
+
+**Why:** V1 only commits to explicit local installation on supported development targets, but a real CLI product will eventually need repeatable release artifacts, installation instructions, and update mechanics.
+
+**Context:** The review locked v1 distribution to local Rust CLI installation on `macOS arm64` and `Linux x86_64`, with package-manager and public publishing work explicitly deferred. Once CLI UX and install smoke are stable, the next step is defining release artifacts, supported targets, checksums, and a boring installation/update path that does not require cloning the repo.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Stable CLI UX, stable install smoke on supported targets, release channel decision

@@ -16,17 +16,24 @@ This plan is the current execution source of truth for repo shape, migration ord
 
 - Rust is the only supported packet-resolution authority for v1.
 - The current Python harness is legacy reference material only.
-- Legacy Python moves under `archived/` before new Rust implementation work begins in earnest.
+- Legacy Python stays frozen and clearly labeled in place until the Rust planning packet path is proven. The physical move under `archived/` happens during cutover, not before.
 - The repo root becomes approved surface only.
 - Nothing under `archived/` is imported, executed, or wrapped by the supported runtime path.
 - Live v1 packet resolution is scoped to existing `project + feature` artifacts.
 - V1 execution packets are fixture-backed demos only.
 - Live slice lineage and live execution packets are deferred.
-- V1 metadata/schema work is limited to `CHARTER`, optional `PROJECT_CONTEXT`, `FEATURE_SPEC`, and one derived manifest.
+- Canonical live packet inputs live under `artifact_inputs/`.
+- V1 direct packet inputs are `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`.
+- `FOUNDATION_STRATEGY`, `TECH_ARCH_BRIEF`, `TEST_STRATEGY_BRIEF`, `QUALITY_GATES_SPEC`, and `ENVIRONMENT_INVENTORY` are inherited posture dependencies. Lower-level artifacts may override them only with explicit rationale captured in artifact content and the decision log.
+- Repo-facing copies may exist for humans, but they are derived views, not runtime inputs.
+- V1 metadata/schema work is limited to those direct packet inputs plus inherited posture dependencies and one request-scoped derived manifest.
 - V1 freshness is deterministic: file presence, file hash, schema version, manifest generation version, and declared dependency checks.
+- V1 manifest state is request-scoped and in-memory by default. Persist detailed diagnostics only on request or on failure.
 - Renderers are pure views over one typed resolver result plus typed decision log.
+- `doctor` or `health` is a required v1 command surface, not a post-v1 nicety.
+- Packet budgets are a first-class typed policy contract with deterministic keep, summarize, exclude, and refuse behavior.
 - V1 performance stays simple until measurement proves otherwise.
-- V1 distribution is a Rust CLI with CI validation for build, lint, test, and install smoke.
+- V1 distribution is a Rust CLI with explicit local install support for `macOS arm64` and `Linux x86_64`. Public package-manager and release publishing are deferred.
 
 ## Goal
 
@@ -35,16 +42,26 @@ Ship a reduced v1 that proves the product honestly:
 - live planning packet generation over existing project + feature artifacts
 - fixture-backed execution packet demo only
 - explicit refusal for unsupported live slice execution requests
+- explicit `doctor` guidance for stale, missing, or contradictory packet inputs
 - Rust CLI as the only supported product path
 
-## Non-Goals
+## What Already Exists
+
+- `pipeline.yaml` already declares the live artifact graph for `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`.
+- `tools/harness.py` already implements include resolution, artifact input loading, output routing, and stage assembly as legacy reference behavior.
+- `core/stages/10_feature_spec.md` already declares a concrete feature-spec output plus optional inherited posture inputs from foundation artifacts.
+- The repo already documents that pipeline artifacts are the deterministic truth source and repo-facing copies are for human-facing durability.
+- The current docs already distinguish implemented stages from placeholder slice/execution scaffolding.
+
+## NOT in scope
 
 - Do not preserve Python as a supported runtime path.
 - Do not build live `project -> feature -> slice` lineage in v1.
 - Do not build review/fix packets in v1.
 - Do not build MCP UI in v1.
 - Do not normalize every existing artifact into the metadata system in v1.
-- Do not introduce incremental caching or semantic freshness in v1.
+- Do not add an on-disk derived-state cache or semantic freshness layer in v1.
+- Do not do public package-manager or release publishing in v1.
 
 ## Repo Migration Contract
 
@@ -87,6 +104,10 @@ Files or ideas may move from `archived/` back into the approved surface only whe
 
 ```text
 system/
+├── artifact_inputs/
+│   ├── charter/
+│   ├── project_context/
+│   └── feature_spec/
 ├── archived/
 │   └── python-harness/
 ├── crates/
@@ -105,18 +126,18 @@ system/
 
 ## Milestones
 
-### M1. Archive The Legacy Scaffold
+### M1. Freeze The Legacy Scaffold
 
 Outcome:
 
-- legacy Python scaffold moved under `archived/python-harness/`
-- root clearly communicates Rust-first direction
+- legacy Python scaffold clearly reads as frozen reference material
+- root clearly communicates Rust-first direction without losing the executable reference surface too early
 - no ambiguity about supported vs legacy paths
 
 Work:
 
-- move Python harness code and wrappers under `archived/python-harness/`
-- move or relabel legacy docs so the root docs do not present Python as the active product path
+- relabel legacy docs so the root docs do not present Python as the active product path
+- freeze Python harness mechanics in place as reference-only behavior
 - leave only approved root docs and canonical artifacts in place
 - update references so `PLAN.md` and the reviewed design are easy to find
 
@@ -124,6 +145,7 @@ Exit criteria:
 
 - a new contributor can tell in under 30 seconds that Python is legacy
 - nothing at the root implies Python is the supported runtime
+- the legacy harness remains runnable as a reference surface until Rust planning packet parity exists
 
 ### M2. Scaffold The Rust Workspace
 
@@ -153,10 +175,13 @@ Outcome:
 
 Work:
 
-- define typed ingest for `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`
-- define source-of-truth rules for each
-- define derived manifest shape
+- define typed ingest for `artifact_inputs/charter/CHARTER.md`, optional `artifact_inputs/project_context/PROJECT_CONTEXT.md`, and `artifact_inputs/feature_spec/FEATURE_SPEC.md`
+- define source-of-truth rules for canonical `artifact_inputs/` versus derived repo-facing copies
+- define inherited posture dependency handling for `FOUNDATION_STRATEGY`, `TECH_ARCH_BRIEF`, `TEST_STRATEGY_BRIEF`, `QUALITY_GATES_SPEC`, and `ENVIRONMENT_INVENTORY`
+- define explicit override-with-rationale rules for lower-level artifacts that diverge from inherited posture
+- define request-scoped derived manifest shape
 - define deterministic freshness fields
+- define supported target matrix for local installation: `macOS arm64` and `Linux x86_64`
 - document explicit triggers for expanding metadata/schema to more artifacts
 
 Expansion triggers:
@@ -170,6 +195,7 @@ Exit criteria:
 
 - manifest can be built deterministically from approved live inputs
 - unsupported artifacts are ignored explicitly, not implicitly
+- inherited posture dependencies can mark packets stale without becoming mandatory packet body inputs
 
 ### M4. Implement Planning Packet Resolution
 
@@ -183,13 +209,17 @@ Work:
 - implement manifest build
 - implement deterministic freshness checks
 - implement planning packet selection
+- implement typed budget policy with deterministic keep, summarize, exclude, and refuse behavior
 - implement typed decision log
 - implement explicit refusal behavior
+- implement `doctor` or `health` for blockers, stale reasons, safe next actions, and packet-readiness status
 
 Exit criteria:
 
 - same inputs yield same packet and same decision log
 - stale or missing required inputs refuse clearly
+- `doctor` reports the same blocker and freshness truth that packet generation uses
+- budget behavior is deterministic and inspectable
 
 ### M5. Implement Renderers
 
@@ -203,6 +233,7 @@ Work:
 - add JSON renderer
 - add inspect renderer
 - prove no renderer changes packet selection logic
+- prove inspect output reflects the same decision log and budget policy as markdown and JSON
 
 Exit criteria:
 
@@ -235,19 +266,23 @@ Outcome:
 Work:
 
 - unit tests for ingest, metadata validation, manifest build, freshness checks, and refusal logic
+- unit tests for inherited posture dependency freshness and override-with-rationale rules
+- unit tests for budget policy: keep, summarize, exclude, and refuse
+- unit tests for renderer failure isolation
 - integration tests for planning packet resolution
 - golden tests for markdown, JSON, and inspect outputs
 - fixture-backed execution packet tests
-- CLI E2E tests for install, help, non-repo-root invocation, and refusal flows
+- CLI E2E tests for install, help, non-repo-root invocation, `doctor`, and refusal flows
+- drift tests for canonical `artifact_inputs/` versus derived published docs
 - cutover regression tests proving Python is not advertised as supported
-- CI workflow for format, lint, test, and install smoke
+- CI workflow for format, lint, test, and install smoke on `macOS arm64` and `Linux x86_64`
 
 Exit criteria:
 
 - `cargo fmt --check`
 - `cargo clippy -- -D warnings`
 - `cargo test`
-- install smoke passes in CI on at least one target
+- install smoke passes in CI on both supported targets
 
 ### M8. Docs And Cutover
 
@@ -261,6 +296,7 @@ Work:
 - keep legacy docs under clearly marked legacy/archive locations
 - document how to use the Rust CLI for reduced v1
 - document what is deferred
+- move the frozen Python harness under `archived/python-harness/` once Rust planning packet parity and cutover validation are complete
 
 Exit criteria:
 
@@ -333,13 +369,13 @@ Depends on:
 
 ## Risks
 
-### Risk: Archive Move Leaves Too Much At Root
+### Risk: Legacy Freeze Leaves Support Messaging Ambiguous
 
 Mitigation:
 
-- be aggressive
-- root should contain approved surface only
-- if unsure, move to `archived/`
+- relabel aggressively now
+- keep one obvious Rust-first story in root docs
+- do the physical archive move only after the Rust path is proven
 
 ### Risk: Python Patterns Leak Back Into Runtime Design
 
@@ -367,9 +403,10 @@ Mitigation:
 ## Deliverables
 
 - `PLAN.md`
-- archived legacy scaffold under `archived/python-harness/`
+- frozen legacy scaffold clearly labeled as reference-only, then archived under `archived/python-harness/` at cutover
 - Rust workspace at root
 - planning packet resolver
+- `doctor` or `health` command
 - fixture-backed execution packet demo
 - tests and CI
 - updated docs
@@ -377,10 +414,25 @@ Mitigation:
 ## Definition Of Done For Reduced V1
 
 - root repo shape reflects the approved Rust-first direction
-- legacy Python lives under `archived/`
+- legacy Python is clearly labeled as frozen during implementation, then lives under `archived/` at cutover
 - Rust CLI is the only supported product path
 - live planning packets work over approved project + feature inputs
+- inherited posture dependency freshness and override rationale are enforced
+- packet budgets behave deterministically and are explained by inspect output
+- `doctor` reports blockers and safe next actions
 - execution packet demo works from fixtures only
 - unsupported live slice requests refuse clearly
 - docs and help text match reality
-- CI validates build, lint, test, and install smoke
+- CI validates build, lint, test, and install smoke on both supported targets
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 5 proposals, 4 accepted, 1 deferred |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | CLEAR | 15 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+
+**UNRESOLVED:** 0
+**VERDICT:** CEO + ENG CLEARED — ready to implement.
