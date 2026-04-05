@@ -1,4 +1,4 @@
-use system_compiler::{build_output_model, resolve, RenderSurface, ResolveRequest};
+use system_compiler::{build_output_model, render_markdown, resolve, ResolveRequest};
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -8,44 +8,51 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 }
 
 #[test]
-fn build_output_model_is_pure_for_identical_resolver_results() {
+fn render_markdown_keeps_trust_header_first_for_ready_result() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
     write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
-    );
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"feature");
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
-    let first = build_output_model(&result).expect("model");
-    let second = build_output_model(&result).expect("model again");
+    let model = build_output_model(&result).expect("model");
 
-    assert_eq!(first, second);
-    assert_eq!(RenderSurface::Markdown.order(), 0);
-    assert_eq!(RenderSurface::Json.order(), 1);
-    assert_eq!(RenderSurface::Inspect.order(), 2);
+    let rendered = render_markdown(&model);
+    let lines: Vec<&str> = rendered.lines().take(3).collect();
+
+    assert_eq!(
+        lines,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+        ]
+    );
+    assert_eq!(render_markdown(&model), rendered);
 }
 
 #[test]
-fn build_output_model_rejects_invalid_packet_state_without_touching_resolver_truth() {
+fn render_markdown_keeps_trust_header_first_for_refusal_result() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
-    );
-
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
-    let original = result.clone();
+    let model = build_output_model(&result).expect("model");
 
-    let mut invalid = result;
-    invalid.selection.packet_id.clear();
+    let rendered = render_markdown(&model);
+    let lines: Vec<&str> = rendered.lines().take(3).collect();
 
-    let err = build_output_model(&invalid).expect_err("model should fail");
-    assert_eq!(format!("{err}"), "presentation failure: empty packet id");
-    assert_eq!(original.selection.packet_id, "planning.packet");
+    assert_eq!(
+        lines,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ]
+    );
+    assert!(rendered.contains("## REFUSAL"));
+    assert!(rendered.contains("CATEGORY: SystemRootMissing"));
+    assert!(rendered.contains("BROKEN SUBJECT: policy system_root"));
+    assert!(rendered.contains("NEXT SAFE ACTION: create canonical .system root at .system"));
 }

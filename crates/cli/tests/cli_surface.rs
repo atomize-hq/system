@@ -52,14 +52,22 @@ fn generate_refuses_when_system_root_missing() {
     assert!(!output.status.success(), "generate should return nonzero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("REFUSED"), "expected refusal header: {stdout}");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ],
+    );
+    assert!(stdout.contains("## REFUSAL"), "expected refusal section: {stdout}");
     assert!(
-        stdout.contains("SystemRootMissing"),
+        stdout.contains("CATEGORY: SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
     );
     assert!(
-        stdout.contains("NEXT ACTION:"),
-        "expected next action line: {stdout}"
+        stdout.contains("BROKEN SUBJECT: policy system_root"),
+        "expected broken subject line: {stdout}"
     );
 }
 
@@ -108,13 +116,20 @@ fn generate_resolves_but_remains_unimplemented_when_ready() {
     assert!(!output.status.success(), "generate should return nonzero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("RESOLVED"), "expected resolved header: {stdout}");
-    assert!(
-        stdout.contains("PACKET ID: planning.packet"),
-        "expected packet id: {stdout}"
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+        ],
     );
     assert!(
-        stdout.contains("packet rendering is not implemented yet"),
+        stdout.contains("## PACKET BODY"),
+        "expected packet body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("Packet body rendering is not implemented yet"),
         "expected honest note: {stdout}"
     );
 }
@@ -185,4 +200,9 @@ fn command_section_lines(help: &str) -> Vec<&str> {
     }
 
     lines
+}
+
+fn assert_first_three_lines(stdout: &str, expected: [&str; 3]) {
+    let lines: Vec<&str> = stdout.lines().take(3).collect();
+    assert_eq!(lines, expected, "unexpected trust header: {stdout}");
 }

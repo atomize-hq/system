@@ -69,23 +69,15 @@ fn generate() -> ExitCode {
             }
         };
 
-    if let Some(refusal) = result.refusal {
-        println!("REFUSED");
-        println!("SUMMARY: {}", refusal.summary);
-        println!("CATEGORY: {:?}", refusal.category);
-        println!("BROKEN: {:?}", refusal.broken_subject);
-        println!("NEXT ACTION: {:?}", refusal.next_safe_action);
-        return ExitCode::from(1);
+    match system_compiler::build_output_model(&result) {
+        Ok(model) => {
+            println!("{}", system_compiler::render_markdown(&model));
+        }
+        Err(err) => {
+            println!("PRESENTATION FAILURE: {err}");
+        }
     }
 
-    let render_result = system_compiler::build_output_model(&result);
-
-    println!("RESOLVED");
-    println!("PACKET ID: {}", result.selection.packet_id);
-    println!("NOTE: packet rendering is not implemented yet (owned by SEAM-5).");
-    if let Err(err) = render_result {
-        println!("NOTE: render failure: {err}");
-    }
     ExitCode::from(1)
 }
 

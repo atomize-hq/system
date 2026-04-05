@@ -31,7 +31,7 @@ pub use freshness::{
 };
 pub use packet_result::PacketResult;
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
-pub use rendering::{build_output_model, RenderError, RenderOutputModel, RenderSurface};
+pub use rendering::{build_output_model, render_markdown, RenderError, RenderOutputModel, RenderSurface};
 pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
 };
