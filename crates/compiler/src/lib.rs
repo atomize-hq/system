@@ -1,10 +1,14 @@
 pub mod decision_log;
+pub mod artifact_manifest;
 pub mod canonical_artifacts;
 pub mod error;
 pub mod freshness;
 pub mod packet_result;
 pub mod refusal;
 
+pub use artifact_manifest::{
+    ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
+};
 pub use canonical_artifacts::{
     ArtifactIngestError, ArtifactPresence, CanonicalArtifact, CanonicalArtifactIdentity,
     CanonicalArtifactKind, CanonicalArtifacts,
