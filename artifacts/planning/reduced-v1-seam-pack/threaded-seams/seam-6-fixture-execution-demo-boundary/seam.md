@@ -1,8 +1,8 @@
 ---
 seam_id: SEAM-6
 seam_slug: fixture-execution-demo-boundary
-status: exec-ready
-execution_horizon: active
+status: landed
+execution_horizon: future
 plan_version: v1
 basis:
   currentness: current
@@ -20,14 +20,13 @@ gates:
     contract: passed
     revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
-open_remediations:
-  - REM-002
+  status: passed
+open_remediations: []
 ---
 
 # SEAM-6 - Fixture Execution Demo Boundary
