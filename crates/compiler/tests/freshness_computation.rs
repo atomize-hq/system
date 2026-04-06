@@ -1,7 +1,7 @@
 use system_compiler::{
     compute_freshness, ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind,
-    FreshnessIssueKind, FreshnessStatus, InheritedDependency, OverrideTarget, OverrideWithRationale,
-    C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
+    FreshnessIssueKind, FreshnessStatus, InheritedDependency, OverrideTarget,
+    OverrideWithRationale, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
 };
 
 fn identity(
@@ -89,7 +89,10 @@ fn fingerprint_excludes_diagnostics_and_is_order_invariant() {
     let truth_2 = compute_freshness(&[c2, a2, b2], &deps_b, &[]);
 
     assert_eq!(truth_1.schema_version, C03_SCHEMA_VERSION);
-    assert_eq!(truth_1.manifest_generation_version, MANIFEST_GENERATION_VERSION);
+    assert_eq!(
+        truth_1.manifest_generation_version,
+        MANIFEST_GENERATION_VERSION
+    );
     assert_eq!(truth_1.fingerprint_sha256, truth_2.fingerprint_sha256);
     assert_eq!(truth_1.status, FreshnessStatus::Ok);
     assert!(truth_1.issues.is_empty());
@@ -127,7 +130,15 @@ fn dependency_identity_changes_fingerprint() {
         content_sha256: None,
     };
 
-    let t1 = compute_freshness(&[charter.clone(), project_context.clone(), feature_spec.clone()], &[dep_v1], &[]);
+    let t1 = compute_freshness(
+        &[
+            charter.clone(),
+            project_context.clone(),
+            feature_spec.clone(),
+        ],
+        &[dep_v1],
+        &[],
+    );
     let t2 = compute_freshness(&[charter, project_context, feature_spec], &[dep_v2], &[]);
 
     assert_ne!(t1.fingerprint_sha256, t2.fingerprint_sha256);
@@ -154,7 +165,15 @@ fn override_targeting_canonical_artifact_is_forbidden_and_recorded() {
         None,
     );
 
-    let no_override = compute_freshness(&[charter.clone(), project_context.clone(), feature_spec.clone()], &[], &[]);
+    let no_override = compute_freshness(
+        &[
+            charter.clone(),
+            project_context.clone(),
+            feature_spec.clone(),
+        ],
+        &[],
+        &[],
+    );
 
     let override_a = OverrideWithRationale {
         target: OverrideTarget::CanonicalArtifact(CanonicalArtifactKind::Charter),
@@ -166,17 +185,34 @@ fn override_targeting_canonical_artifact_is_forbidden_and_recorded() {
     };
 
     let with_override_a = compute_freshness(
-        &[charter.clone(), project_context.clone(), feature_spec.clone()],
+        &[
+            charter.clone(),
+            project_context.clone(),
+            feature_spec.clone(),
+        ],
         &[],
         &[override_a],
     );
-    let with_override_b = compute_freshness(&[charter, project_context, feature_spec], &[], &[override_b]);
+    let with_override_b = compute_freshness(
+        &[charter, project_context, feature_spec],
+        &[],
+        &[override_b],
+    );
 
     assert_eq!(with_override_a.status, FreshnessStatus::Invalid);
     assert_eq!(with_override_a.override_records.len(), 1);
     assert_eq!(with_override_a.issues.len(), 1);
-    assert_eq!(with_override_a.issues[0].kind, FreshnessIssueKind::ForbiddenOverride);
+    assert_eq!(
+        with_override_a.issues[0].kind,
+        FreshnessIssueKind::ForbiddenOverride
+    );
 
-    assert_ne!(no_override.fingerprint_sha256, with_override_a.fingerprint_sha256);
-    assert_ne!(with_override_a.fingerprint_sha256, with_override_b.fingerprint_sha256);
+    assert_ne!(
+        no_override.fingerprint_sha256,
+        with_override_a.fingerprint_sha256
+    );
+    assert_ne!(
+        with_override_a.fingerprint_sha256,
+        with_override_b.fingerprint_sha256
+    );
 }

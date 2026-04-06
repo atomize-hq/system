@@ -26,7 +26,10 @@ pub fn render_markdown(model: &RenderOutputModel) -> String {
             push_line(&mut output, format!("SUMMARY: {}", refusal.summary));
             push_line(
                 &mut output,
-                format!("BROKEN SUBJECT: {}", render_subject_ref(&refusal.broken_subject)),
+                format!(
+                    "BROKEN SUBJECT: {}",
+                    render_subject_ref(&refusal.broken_subject)
+                ),
             );
             push_line(
                 &mut output,

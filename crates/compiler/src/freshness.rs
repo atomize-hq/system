@@ -13,16 +13,11 @@ pub struct InheritedDependency {
 
 impl Ord for InheritedDependency {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (
-            &self.id,
-            &self.version,
-            &self.content_sha256,
-        )
-            .cmp(&(
-                &other.id,
-                &other.version,
-                &other.content_sha256,
-            ))
+        (&self.id, &self.version, &self.content_sha256).cmp(&(
+            &other.id,
+            &other.version,
+            &other.content_sha256,
+        ))
     }
 }
 
@@ -45,10 +40,8 @@ pub struct OverrideWithRationale {
 
 impl Ord for OverrideWithRationale {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (override_target_sort_key(self.target), &self.rationale).cmp(&(
-            override_target_sort_key(other.target),
-            &other.rationale,
-        ))
+        (override_target_sort_key(self.target), &self.rationale)
+            .cmp(&(override_target_sort_key(other.target), &other.rationale))
     }
 }
 
@@ -79,10 +72,8 @@ pub struct FreshnessIssue {
 
 impl Ord for FreshnessIssue {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (freshness_issue_kind_sort_key(self.kind), &self.detail).cmp(&(
-            freshness_issue_kind_sort_key(other.kind),
-            &other.detail,
-        ))
+        (freshness_issue_kind_sort_key(self.kind), &self.detail)
+            .cmp(&(freshness_issue_kind_sort_key(other.kind), &other.detail))
     }
 }
 
@@ -110,14 +101,8 @@ pub fn compute_freshness(
 ) -> FreshnessTruth {
     let mut sorted_artifacts: Vec<&CanonicalArtifactIdentity> = artifacts.iter().collect();
     sorted_artifacts.sort_by(|a, b| {
-        (
-            canonical_artifact_kind_sort_key(a.kind),
-            a.relative_path,
-        )
-            .cmp(&(
-                canonical_artifact_kind_sort_key(b.kind),
-                b.relative_path,
-            ))
+        (canonical_artifact_kind_sort_key(a.kind), a.relative_path)
+            .cmp(&(canonical_artifact_kind_sort_key(b.kind), b.relative_path))
     });
 
     let mut sorted_deps = inherited_dependencies.to_vec();
@@ -152,8 +137,7 @@ pub fn compute_freshness(
                     kind: FreshnessIssueKind::RequiredArtifactMissing,
                     detail: format!(
                         "required canonical artifact missing: {:?} at {}",
-                        artifact.kind,
-                        artifact.relative_path
+                        artifact.kind, artifact.relative_path
                     ),
                 });
             }
@@ -162,8 +146,7 @@ pub fn compute_freshness(
                     kind: FreshnessIssueKind::RequiredArtifactEmpty,
                     detail: format!(
                         "required canonical artifact empty: {:?} at {}",
-                        artifact.kind,
-                        artifact.relative_path
+                        artifact.kind, artifact.relative_path
                     ),
                 });
             }

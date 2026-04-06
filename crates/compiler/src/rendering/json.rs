@@ -1,8 +1,8 @@
 use super::model::RenderOutputModel;
 use super::shared::{
-    json_string, render_blocker_category, render_budget_disposition, render_budget_next_safe_action,
-    render_budget_reason, render_canonical_artifact_kind, render_packet_status,
-    render_refusal_category,
+    json_string, render_blocker_category, render_budget_disposition,
+    render_budget_next_safe_action, render_budget_reason, render_canonical_artifact_kind,
+    render_packet_status, render_refusal_category,
 };
 use crate::{Blocker, Refusal, SubjectRef};
 use std::fmt::Write;
@@ -198,13 +198,7 @@ fn render_subject_json(subject: &SubjectRef) -> String {
     }
 }
 
-fn write_line(
-    output: &mut String,
-    indent: usize,
-    key: &str,
-    value: &str,
-    trailing_comma: bool,
-) {
+fn write_line(output: &mut String, indent: usize, key: &str, value: &str, trailing_comma: bool) {
     for _ in 0..indent {
         output.push_str("  ");
     }

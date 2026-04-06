@@ -32,10 +32,7 @@ fn resolver_is_deterministic_for_identical_inputs() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
-        b"c",
-    );
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"c");
     write_file(
         &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"f",
@@ -53,10 +50,7 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
-        b"c",
-    );
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"c");
     write_file(
         &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"f",
@@ -75,7 +69,10 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
         ..ResolveRequest::default()
     };
     let summarize = resolve(repo_root, summarize_req).expect("resolve summarize");
-    assert_eq!(summarize.budget_outcome.disposition, BudgetDisposition::Summarize);
+    assert_eq!(
+        summarize.budget_outcome.disposition,
+        BudgetDisposition::Summarize
+    );
     assert!(summarize.budget_outcome.next_safe_action.is_none());
 
     // Exclude optional.
@@ -87,7 +84,10 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
         ..ResolveRequest::default()
     };
     let exclude = resolve(repo_root, exclude_req).expect("resolve exclude");
-    assert_eq!(exclude.budget_outcome.disposition, BudgetDisposition::Exclude);
+    assert_eq!(
+        exclude.budget_outcome.disposition,
+        BudgetDisposition::Exclude
+    );
     assert!(exclude.budget_outcome.next_safe_action.is_none());
 
     // Refuse required.
@@ -102,4 +102,3 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     assert_eq!(refuse.budget_outcome.disposition, BudgetDisposition::Refuse);
     assert!(refuse.budget_outcome.next_safe_action.is_some());
 }
-

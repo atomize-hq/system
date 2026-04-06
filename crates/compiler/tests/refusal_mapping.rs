@@ -72,7 +72,10 @@ fn refusal_unsupported_request_is_selected_for_live_execution_packet_when_other_
     let root = dir.path();
 
     write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"feature");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
 
     let request = ResolveRequest {
         budget_policy: BudgetPolicy::default(),

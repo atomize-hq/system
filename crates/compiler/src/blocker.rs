@@ -34,4 +34,3 @@ pub fn blocker_category_priority(category: BlockerCategory) -> u8 {
         BlockerCategory::UnsupportedRequest => 8,
     }
 }
-

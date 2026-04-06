@@ -95,7 +95,9 @@ impl CanonicalArtifacts {
                 load_one(repo_root, CanonicalArtifactKind::ProjectContext)?,
                 load_one(repo_root, CanonicalArtifactKind::FeatureSpec)?,
             ),
-            SystemRootStatus::Missing | SystemRootStatus::NotDir | SystemRootStatus::SymlinkNotAllowed => (
+            SystemRootStatus::Missing
+            | SystemRootStatus::NotDir
+            | SystemRootStatus::SymlinkNotAllowed => (
                 missing_one(CanonicalArtifactKind::Charter),
                 missing_one(CanonicalArtifactKind::ProjectContext),
                 missing_one(CanonicalArtifactKind::FeatureSpec),
@@ -121,21 +123,34 @@ impl CanonicalArtifacts {
 
 #[derive(Debug)]
 pub enum ArtifactIngestError {
-    SystemRootMissing { system_root: PathBuf },
-    SystemRootNotDir { system_root: PathBuf },
-    SystemRootSymlinkNotAllowed { system_root: PathBuf },
+    SystemRootMissing {
+        system_root: PathBuf,
+    },
+    SystemRootNotDir {
+        system_root: PathBuf,
+    },
+    SystemRootSymlinkNotAllowed {
+        system_root: PathBuf,
+    },
     RequiredArtifactMissing {
         kind: CanonicalArtifactKind,
         path: PathBuf,
     },
-    ReadFailure { path: PathBuf, source: std::io::Error },
+    ReadFailure {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 }
 
 impl std::fmt::Display for ArtifactIngestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ArtifactIngestError::SystemRootMissing { system_root } => {
-                write!(f, "missing canonical .system root at {}", system_root.display())
+                write!(
+                    f,
+                    "missing canonical .system root at {}",
+                    system_root.display()
+                )
             }
             ArtifactIngestError::SystemRootNotDir { system_root } => write!(
                 f,
@@ -153,7 +168,11 @@ impl std::fmt::Display for ArtifactIngestError {
                 path.display()
             ),
             ArtifactIngestError::ReadFailure { path, source } => {
-                write!(f, "failed to read canonical artifact at {}: {source}", path.display())
+                write!(
+                    f,
+                    "failed to read canonical artifact at {}: {source}",
+                    path.display()
+                )
             }
         }
     }
@@ -168,19 +187,17 @@ impl std::error::Error for ArtifactIngestError {
     }
 }
 
-fn load_one(repo_root: &Path, kind: CanonicalArtifactKind) -> Result<CanonicalArtifact, ArtifactIngestError> {
+fn load_one(
+    repo_root: &Path,
+    kind: CanonicalArtifactKind,
+) -> Result<CanonicalArtifact, ArtifactIngestError> {
     let relative_path = kind.relative_path();
     let path = repo_root.join(relative_path);
 
     let meta = match std::fs::metadata(&path) {
         Ok(meta) => Some(meta),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
-        Err(err) => {
-            return Err(ArtifactIngestError::ReadFailure {
-                path,
-                source: err,
-            })
-        }
+        Err(err) => return Err(ArtifactIngestError::ReadFailure { path, source: err }),
     };
 
     let required = kind.required();

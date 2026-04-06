@@ -11,7 +11,10 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
 
     push_line(
         &mut output,
-        format!("OUTCOME: {}", render_outcome(model.packet_status, model.refusal.is_some())),
+        format!(
+            "OUTCOME: {}",
+            render_outcome(model.packet_status, model.refusal.is_some())
+        ),
     );
     push_line(&mut output, format!("OBJECT: {}", model.packet_id));
     push_line(
@@ -39,7 +42,10 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
     );
     push_line(
         &mut output,
-        format!("REASON: {}", render_budget_reason(&model.budget_outcome.reason)),
+        format!(
+            "REASON: {}",
+            render_budget_reason(&model.budget_outcome.reason)
+        ),
     );
     if model.budget_outcome.targets.is_empty() {
         push_line(&mut output, "TARGETS: NONE");
@@ -75,7 +81,10 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
             push_line(&mut output, format!("SUMMARY: {}", refusal.summary));
             push_line(
                 &mut output,
-                format!("BROKEN SUBJECT: {}", render_subject_ref(&refusal.broken_subject)),
+                format!(
+                    "BROKEN SUBJECT: {}",
+                    render_subject_ref(&refusal.broken_subject)
+                ),
             );
             push_line(
                 &mut output,

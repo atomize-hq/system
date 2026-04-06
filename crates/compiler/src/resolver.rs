@@ -1,12 +1,12 @@
 use crate::budget::evaluate_budget;
 use crate::{
     blocker_category_priority, ArtifactManifest, Blocker, BlockerCategory, BudgetDisposition,
-    BudgetOutcome, BudgetPolicy, BudgetNextSafeAction, CanonicalArtifactKind, CompilerError,
+    BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifactKind, CompilerError,
     DecisionLog, FreshnessIssueKind, FreshnessStatus, ManifestInputs, NextSafeAction, Refusal,
     RefusalCategory, SubjectRef, SystemRootStatus,
 };
-use std::path::Path;
 use std::cmp::Ordering;
+use std::path::Path;
 
 const C04_RESULT_VERSION: &str = "reduced-v1";
 const DEFAULT_PACKET_ID: &str = "planning.packet";
@@ -53,15 +53,21 @@ pub struct ResolverResult {
     pub blockers: Vec<Blocker>,
 }
 
-pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<ResolverResult, CompilerError> {
+pub fn resolve(
+    repo_root: impl AsRef<Path>,
+    request: ResolveRequest,
+) -> Result<ResolverResult, CompilerError> {
     let manifest = ArtifactManifest::generate(repo_root.as_ref(), ManifestInputs::default())
         .map_err(CompilerError::Manifest)?;
 
-    let mut decision_log = DecisionLog { entries: Vec::new() };
+    let mut decision_log = DecisionLog {
+        entries: Vec::new(),
+    };
 
-    decision_log
-        .entries
-        .push(format!("c03.system_root status={:?}", manifest.system_root_status));
+    decision_log.entries.push(format!(
+        "c03.system_root status={:?}",
+        manifest.system_root_status
+    ));
 
     decision_log.entries.push(format!(
         "c03.provenance schema_version={} manifest_generation_version={} fingerprint_sha256={}",
@@ -262,7 +268,9 @@ fn compute_refusal(
         return Some(Refusal {
             category: RefusalCategory::BudgetRefused,
             summary: "budget refused packet generation".to_string(),
-            broken_subject: SubjectRef::Policy { policy_id: "budget" },
+            broken_subject: SubjectRef::Policy {
+                policy_id: "budget",
+            },
             next_safe_action: NextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             },
@@ -388,7 +396,9 @@ fn compute_blockers(
 
         blockers.push(Blocker {
             category: BlockerCategory::BudgetRefused,
-            subject: SubjectRef::Policy { policy_id: "budget" },
+            subject: SubjectRef::Policy {
+                policy_id: "budget",
+            },
             summary: "budget refused packet generation".to_string(),
             next_safe_action: NextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
@@ -445,10 +455,8 @@ fn cmp_subject(a: &SubjectRef, b: &SubjectRef) -> Ordering {
                 kind: kind_b,
                 canonical_repo_relative_path: path_b,
             },
-        ) => (canonical_artifact_kind_priority(*kind_a), path_a).cmp(&(
-            canonical_artifact_kind_priority(*kind_b),
-            path_b,
-        )),
+        ) => (canonical_artifact_kind_priority(*kind_a), path_a)
+            .cmp(&(canonical_artifact_kind_priority(*kind_b), path_b)),
         (
             SubjectRef::InheritedDependency {
                 dependency_id: id_a,

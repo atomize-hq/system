@@ -1,6 +1,6 @@
 use system_compiler::{
-    ArtifactManifest, CanonicalArtifactKind, C03_SCHEMA_VERSION, InheritedDependency,
-    MANIFEST_GENERATION_VERSION, ManifestInputs, OverrideTarget, OverrideWithRationale,
+    ArtifactManifest, CanonicalArtifactKind, InheritedDependency, ManifestInputs, OverrideTarget,
+    OverrideWithRationale, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -14,10 +14,7 @@ fn make_repo_with_required_system_artifacts() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(
-        &root.join(".system/charter/CHARTER.md"),
-        b"charter",
-    );
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -29,7 +26,8 @@ fn make_repo_with_required_system_artifacts() -> tempfile::TempDir {
 #[test]
 fn manifest_artifacts_are_in_contract_order() {
     let dir = make_repo_with_required_system_artifacts();
-    let manifest = ArtifactManifest::generate(dir.path(), ManifestInputs::default()).expect("manifest");
+    let manifest =
+        ArtifactManifest::generate(dir.path(), ManifestInputs::default()).expect("manifest");
 
     let kinds: Vec<CanonicalArtifactKind> = manifest.artifacts.iter().map(|a| a.kind).collect();
     assert_eq!(
@@ -45,7 +43,8 @@ fn manifest_artifacts_are_in_contract_order() {
 #[test]
 fn manifest_versions_match_freshness_versions() {
     let dir = make_repo_with_required_system_artifacts();
-    let manifest = ArtifactManifest::generate(dir.path(), ManifestInputs::default()).expect("manifest");
+    let manifest =
+        ArtifactManifest::generate(dir.path(), ManifestInputs::default()).expect("manifest");
 
     assert_eq!(manifest.version.schema.contract_id, "C-03");
     assert_eq!(manifest.version.schema.version, C03_SCHEMA_VERSION);
@@ -121,4 +120,3 @@ fn freshness_issues_have_deterministic_order() {
     assert!(details[1].contains("FeatureSpec"));
     assert!(details[1].ends_with(": b"));
 }
-

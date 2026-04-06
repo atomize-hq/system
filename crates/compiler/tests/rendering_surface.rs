@@ -15,7 +15,10 @@ fn render_markdown_keeps_trust_header_first_for_ready_result() {
     let root = dir.path();
 
     write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"feature");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let model = build_output_model(&result).expect("model");

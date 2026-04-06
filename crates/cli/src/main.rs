@@ -127,8 +127,7 @@ fn ensure_dir(path: &Path, what: &str) -> Result<(), String> {
 }
 
 fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
-    let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id)
-        .join(".system");
+    let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id).join(".system");
 
     let project_context = base.join("project_context/PROJECT_CONTEXT.md");
 
@@ -218,20 +217,19 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let result =
-        match system_compiler::resolve(
-            &compiler_root,
-            system_compiler::ResolveRequest {
-                packet_id: packet_id.as_str(),
-                ..system_compiler::ResolveRequest::default()
-            },
-        ) {
-            Ok(result) => result,
-            Err(err) => {
-                println!("REFUSED: resolver error: {err:?}");
-                return ExitCode::from(1);
-            }
-        };
+    let result = match system_compiler::resolve(
+        &compiler_root,
+        system_compiler::ResolveRequest {
+            packet_id: packet_id.as_str(),
+            ..system_compiler::ResolveRequest::default()
+        },
+    ) {
+        Ok(result) => result,
+        Err(err) => {
+            println!("REFUSED: resolver error: {err:?}");
+            return ExitCode::from(1);
+        }
+    };
 
     match system_compiler::build_output_model(&result) {
         Ok(model) => {
@@ -342,20 +340,19 @@ fn inspect(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let result =
-        match system_compiler::resolve(
-            &compiler_root,
-            system_compiler::ResolveRequest {
-                packet_id: packet_id.as_str(),
-                ..system_compiler::ResolveRequest::default()
-            },
-        ) {
-            Ok(result) => result,
-            Err(err) => {
-                println!("BLOCKED: resolver error: {err:?}");
-                return ExitCode::from(1);
-            }
-        };
+    let result = match system_compiler::resolve(
+        &compiler_root,
+        system_compiler::ResolveRequest {
+            packet_id: packet_id.as_str(),
+            ..system_compiler::ResolveRequest::default()
+        },
+    ) {
+        Ok(result) => result,
+        Err(err) => {
+            println!("BLOCKED: resolver error: {err:?}");
+            return ExitCode::from(1);
+        }
+    };
 
     let model = match system_compiler::build_output_model(&result) {
         Ok(model) => model,

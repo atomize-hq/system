@@ -158,4 +158,3 @@ pub fn evaluate_budget(
         next_safe_action: None,
     }
 }
-

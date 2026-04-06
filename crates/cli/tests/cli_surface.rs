@@ -40,21 +40,34 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 
 #[test]
 fn help_lists_setup_first() {
-    let output = binary()
-        .arg("--help")
-        .output()
-        .expect("help should run");
+    let output = binary().arg("--help").output().expect("help should run");
 
     assert!(output.status.success(), "help should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("help is utf-8");
     let command_lines = command_section_lines(&stdout);
 
-    assert_eq!(command_lines.len(), 4, "expected four command lines in help");
-    assert!(command_lines[0].starts_with("setup "), "setup should be first: {command_lines:?}");
-    assert!(command_lines[1].starts_with("generate "), "generate should be second: {command_lines:?}");
-    assert!(command_lines[2].starts_with("inspect "), "inspect should be third: {command_lines:?}");
-    assert!(command_lines[3].starts_with("doctor "), "doctor should be fourth: {command_lines:?}");
+    assert_eq!(
+        command_lines.len(),
+        4,
+        "expected four command lines in help"
+    );
+    assert!(
+        command_lines[0].starts_with("setup "),
+        "setup should be first: {command_lines:?}"
+    );
+    assert!(
+        command_lines[1].starts_with("generate "),
+        "generate should be second: {command_lines:?}"
+    );
+    assert!(
+        command_lines[2].starts_with("inspect "),
+        "inspect should be third: {command_lines:?}"
+    );
+    assert!(
+        command_lines[3].starts_with("doctor "),
+        "doctor should be fourth: {command_lines:?}"
+    );
 }
 
 #[test]
@@ -81,7 +94,10 @@ fn generate_refuses_when_system_root_missing() {
             "NEXT SAFE ACTION: create canonical .system root at .system",
         ],
     );
-    assert!(stdout.contains("## REFUSAL"), "expected refusal section: {stdout}");
+    assert!(
+        stdout.contains("## REFUSAL"),
+        "expected refusal section: {stdout}"
+    );
     assert!(
         stdout.contains("CATEGORY: SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
@@ -111,7 +127,10 @@ fn inspect_refuses_when_system_root_missing() {
             "NEXT SAFE ACTION: create canonical .system root at .system",
         ],
     );
-    assert!(stdout.contains("## JSON FALLBACK"), "expected JSON fallback: {stdout}");
+    assert!(
+        stdout.contains("## JSON FALLBACK"),
+        "expected JSON fallback: {stdout}"
+    );
 }
 
 #[test]
@@ -122,10 +141,16 @@ fn doctor_blocks_when_system_root_missing() {
         .output()
         .expect("doctor should run");
 
-    assert!(!output.status.success(), "doctor should return nonzero when blocked");
+    assert!(
+        !output.status.success(),
+        "doctor should return nonzero when blocked"
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"), "expected blocked header: {stdout}");
+    assert!(
+        stdout.contains("BLOCKED"),
+        "expected blocked header: {stdout}"
+    );
     assert!(
         stdout.contains("SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
@@ -137,10 +162,7 @@ fn generate_resolves_but_remains_unimplemented_when_ready() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(
-        &root.join(".system/charter/CHARTER.md"),
-        b"charter",
-    );
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -177,10 +199,7 @@ fn doctor_reports_ready_when_required_artifacts_present() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(
-        &root.join(".system/charter/CHARTER.md"),
-        b"charter",
-    );
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -202,10 +221,7 @@ fn inspect_reports_ready_when_required_artifacts_present() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(
-        &root.join(".system/charter/CHARTER.md"),
-        b"charter",
-    );
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -227,7 +243,10 @@ fn inspect_reports_ready_when_required_artifacts_present() {
             "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
         ],
     );
-    assert!(stdout.contains("## JSON FALLBACK"), "expected JSON fallback: {stdout}");
+    assert!(
+        stdout.contains("## JSON FALLBACK"),
+        "expected JSON fallback: {stdout}"
+    );
 }
 
 #[test]
@@ -380,7 +399,10 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
     let root = dir.path();
 
     write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"feature");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
 
     let output = binary_in(root)
         .args(["generate", "--packet", "execution.live.packet"])
@@ -409,10 +431,7 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
 }
 
 fn assert_placeholder(command: &str, expected_phrase: &str) {
-    let output = binary()
-        .arg(command)
-        .output()
-        .expect("command should run");
+    let output = binary().arg(command).output().expect("command should run");
 
     assert!(!output.status.success(), "{command} should return nonzero");
 
