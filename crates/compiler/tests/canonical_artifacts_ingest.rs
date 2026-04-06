@@ -1,5 +1,6 @@
 use system_compiler::{
-    ArtifactPresence, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
+    ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind, CanonicalArtifacts,
+    SystemRootStatus,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -134,5 +135,40 @@ fn system_root_symlink_is_not_followed_and_is_reported() {
     assert_eq!(
         artifacts.feature_spec.identity.presence,
         ArtifactPresence::Missing
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn canonical_artifact_symlink_is_not_followed_and_is_recorded_as_ingest_issue() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("mkdirs");
+
+    let real = repo_root.join("real_charter.md");
+    write_file(&real, b"charter");
+    symlink(&real, repo_root.join(".system/charter/CHARTER.md")).expect("symlink charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"spec",
+    );
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert!(
+        artifacts.ingest_issues.iter().any(|issue| {
+            issue.kind == ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed
+                && issue.canonical_repo_relative_path == ".system/charter/CHARTER.md"
+        }),
+        "expected symlink ingest issue, got: {:?}",
+        artifacts.ingest_issues
     );
 }

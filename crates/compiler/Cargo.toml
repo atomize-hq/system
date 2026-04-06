@@ -8,6 +8,7 @@ name = "system_compiler"
 path = "src/lib.rs"
 
 [dependencies]
+libc = "0.2"
 sha2 = "0.10"
 
 [dev-dependencies]

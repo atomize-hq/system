@@ -1,9 +1,9 @@
 use crate::budget::evaluate_budget;
 use crate::{
-    blocker_category_priority, ArtifactManifest, Blocker, BlockerCategory, BudgetDisposition,
-    BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifactKind, CompilerError,
-    DecisionLog, FreshnessIssueKind, FreshnessStatus, ManifestInputs, NextSafeAction, Refusal,
-    RefusalCategory, SubjectRef, SystemRootStatus,
+    blocker_category_priority, ArtifactIngestIssueKind, ArtifactManifest, Blocker, BlockerCategory,
+    BudgetDisposition, BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifactKind,
+    CompilerError, DecisionLog, FreshnessIssueKind, FreshnessStatus, ManifestInputs,
+    NextSafeAction, Refusal, RefusalCategory, SubjectRef, SystemRootStatus,
 };
 use std::cmp::Ordering;
 use std::path::Path;
@@ -85,6 +85,13 @@ pub fn resolve(
             artifact.byte_len,
             artifact.content_sha256.as_deref(),
             artifact.relative_path
+        ));
+    }
+
+    for issue in &manifest.ingest_issues {
+        decision_log.entries.push(format!(
+            "c03.ingest.issue kind={:?} required={} path={}",
+            issue.kind, issue.required, issue.canonical_repo_relative_path
         ));
     }
 
@@ -201,8 +208,16 @@ fn compute_refusal(
         }
     }
 
+    if let Some(refusal) = refusal_for_ingest_issues(manifest) {
+        return Some(refusal);
+    }
+
     for artifact in &manifest.artifacts {
         if !artifact.required {
+            continue;
+        }
+
+        if ingest_issue_for_path(manifest, artifact.relative_path).is_some() {
             continue;
         }
 
@@ -295,12 +310,96 @@ fn compute_refusal(
     None
 }
 
+fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<Refusal> {
+    let mut first_symlink_issue = None;
+    let mut first_required_read_issue = None;
+
+    for issue in &manifest.ingest_issues {
+        match issue.kind {
+            ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed => {
+                first_symlink_issue.get_or_insert(issue);
+            }
+            ArtifactIngestIssueKind::CanonicalArtifactReadError => {
+                if issue.required {
+                    first_required_read_issue.get_or_insert(issue);
+                }
+            }
+        }
+    }
+
+    if let Some(issue) = first_symlink_issue {
+        let kind = issue.artifact_kind;
+        let canonical_repo_relative_path = issue.canonical_repo_relative_path;
+        return Some(Refusal {
+            category: RefusalCategory::NonCanonicalInputAttempt,
+            summary: "canonical artifact path must not be a symlink".to_string(),
+            broken_subject: SubjectRef::CanonicalArtifact {
+                kind,
+                canonical_repo_relative_path,
+            },
+            next_safe_action: NextSafeAction::CreateCanonicalArtifact {
+                canonical_repo_relative_path,
+            },
+        });
+    }
+
+    if let Some(issue) = first_required_read_issue {
+        let kind = issue.artifact_kind;
+        let canonical_repo_relative_path = issue.canonical_repo_relative_path;
+        return Some(Refusal {
+            category: RefusalCategory::ArtifactReadError,
+            summary: "failed to read canonical artifact".to_string(),
+            broken_subject: SubjectRef::CanonicalArtifact {
+                kind,
+                canonical_repo_relative_path,
+            },
+            next_safe_action: NextSafeAction::CreateCanonicalArtifact {
+                canonical_repo_relative_path,
+            },
+        });
+    }
+
+    None
+}
+
+fn ingest_issue_for_path(
+    manifest: &ArtifactManifest,
+    canonical_repo_relative_path: &'static str,
+) -> Option<ArtifactIngestIssueKind> {
+    manifest
+        .ingest_issues
+        .iter()
+        .find(|issue| issue.canonical_repo_relative_path == canonical_repo_relative_path)
+        .map(|issue| issue.kind)
+}
+
 fn compute_blockers(
     manifest: &ArtifactManifest,
     budget_outcome: &BudgetOutcome,
     request: &ResolveRequest,
 ) -> Vec<Blocker> {
     let mut blockers = Vec::new();
+
+    for issue in &manifest.ingest_issues {
+        blockers.push(Blocker {
+            category: BlockerCategory::ArtifactReadError,
+            subject: SubjectRef::CanonicalArtifact {
+                kind: issue.artifact_kind,
+                canonical_repo_relative_path: issue.canonical_repo_relative_path,
+            },
+            summary: match issue.kind {
+                ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed => {
+                    "canonical artifact path must not be a symlink".to_string()
+                }
+                ArtifactIngestIssueKind::CanonicalArtifactReadError => {
+                    "failed to read canonical artifact".to_string()
+                }
+            },
+            next_safe_action: NextSafeAction::CreateCanonicalArtifact {
+                canonical_repo_relative_path: issue.canonical_repo_relative_path,
+            },
+        });
+    }
 
     match manifest.system_root_status {
         SystemRootStatus::Ok => {}
@@ -339,6 +438,10 @@ fn compute_blockers(
     if blockers.is_empty() {
         for artifact in &manifest.artifacts {
             if !artifact.required {
+                continue;
+            }
+
+            if ingest_issue_for_path(manifest, artifact.relative_path).is_some() {
                 continue;
             }
 

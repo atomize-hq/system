@@ -38,21 +38,12 @@ pub struct BudgetOutcome {
     pub next_safe_action: Option<NextSafeAction>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Default to "effectively unlimited" so budget policy does not accidentally refuse on normal
+/// repos until the contract hardens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BudgetPolicy {
     pub max_total_bytes: Option<u64>,
     pub max_per_artifact_bytes: Option<u64>,
-}
-
-impl Default for BudgetPolicy {
-    fn default() -> Self {
-        // Default to "effectively unlimited" so budget policy does not
-        // accidentally refuse on normal repos until the contract hardens.
-        Self {
-            max_total_bytes: None,
-            max_per_artifact_bytes: None,
-        }
-    }
 }
 
 pub fn evaluate_budget(

@@ -57,9 +57,9 @@ pub fn render_json(model: &RenderOutputModel) -> String {
     output.push_str(",\n");
     output.push_str("  \"decision_log_entries\": [\n");
     for (index, entry) in model.decision_log_entries.iter().enumerate() {
-        write!(
+        writeln!(
             &mut output,
-            "    {}{}\n",
+            "    {}{}",
             json_string(entry),
             if index + 1 == model.decision_log_entries.len() {
                 ""

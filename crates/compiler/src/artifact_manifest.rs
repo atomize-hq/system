@@ -1,7 +1,7 @@
 use crate::{
-    compute_freshness, ArtifactIngestError, CanonicalArtifactIdentity, CanonicalArtifacts,
-    FreshnessTruth, InheritedDependency, OverrideWithRationale, SystemRootStatus,
-    C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
+    compute_freshness, ArtifactIngestError, ArtifactIngestIssue, CanonicalArtifactIdentity,
+    CanonicalArtifacts, FreshnessTruth, InheritedDependency, OverrideWithRationale,
+    SystemRootStatus, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
 };
 use std::path::Path;
 
@@ -28,6 +28,7 @@ pub struct ArtifactManifest {
     pub version: ManifestVersion,
     pub system_root_status: SystemRootStatus,
     pub artifacts: Vec<CanonicalArtifactIdentity>,
+    pub ingest_issues: Vec<ArtifactIngestIssue>,
     pub freshness: FreshnessTruth,
 }
 
@@ -40,6 +41,7 @@ impl ArtifactManifest {
             CanonicalArtifacts::load(repo_root.as_ref()).map_err(ManifestError::Ingest)?;
 
         let system_root_status = artifacts.system_root_status;
+        let ingest_issues = artifacts.ingest_issues.clone();
         let ordered_identities = artifacts
             .identities()
             .map(|identity| identity.clone())
@@ -61,6 +63,7 @@ impl ArtifactManifest {
             },
             system_root_status,
             artifacts: ordered_identities,
+            ingest_issues,
             freshness,
         })
     }

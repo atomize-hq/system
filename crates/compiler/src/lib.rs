@@ -19,8 +19,9 @@ pub use budget::{
     NextSafeAction as BudgetNextSafeAction,
 };
 pub use canonical_artifacts::{
-    ArtifactIngestError, ArtifactPresence, CanonicalArtifact, CanonicalArtifactIdentity,
-    CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
+    ArtifactIngestError, ArtifactIngestIssue, ArtifactIngestIssueKind, ArtifactPresence,
+    CanonicalArtifact, CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts,
+    SystemRootStatus,
 };
 pub use decision_log::DecisionLog;
 pub use error::CompilerError;

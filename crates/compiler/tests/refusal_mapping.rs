@@ -1,4 +1,7 @@
-use system_compiler::{resolve, BudgetDisposition, BudgetPolicy, RefusalCategory, ResolveRequest};
+use system_compiler::{
+    resolve, BudgetDisposition, BudgetPolicy, CanonicalArtifactKind, RefusalCategory,
+    ResolveRequest, SubjectRef,
+};
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -26,6 +29,34 @@ fn refusal_required_artifact_missing() {
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let refusal = result.refusal.expect("refusal");
     assert_eq!(refusal.category, RefusalCategory::RequiredArtifactMissing);
+}
+
+#[cfg(unix)]
+#[test]
+fn refusal_non_canonical_input_attempt_is_selected_for_symlinked_canonical_artifact() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    std::fs::create_dir_all(root.join(".system/charter")).expect("mkdirs");
+    std::fs::create_dir_all(root.join(".system/feature_spec")).expect("mkdirs");
+
+    let real = root.join("real_charter.md");
+    write_file(&real, b"charter");
+    symlink(&real, root.join(".system/charter/CHARTER.md")).expect("symlink charter");
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"spec");
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(refusal.category, RefusalCategory::NonCanonicalInputAttempt);
+    assert_eq!(
+        refusal.broken_subject,
+        SubjectRef::CanonicalArtifact {
+            kind: CanonicalArtifactKind::Charter,
+            canonical_repo_relative_path: ".system/charter/CHARTER.md",
+        }
+    );
 }
 
 #[test]

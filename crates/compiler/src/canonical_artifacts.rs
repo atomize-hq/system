@@ -1,4 +1,6 @@
 use sha2::{Digest, Sha256};
+#[cfg(unix)]
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +65,7 @@ pub struct CanonicalArtifacts {
     pub charter: CanonicalArtifact,
     pub project_context: CanonicalArtifact,
     pub feature_spec: CanonicalArtifact,
+    pub ingest_issues: Vec<ArtifactIngestIssue>,
 }
 
 impl CanonicalArtifacts {
@@ -89,11 +92,25 @@ impl CanonicalArtifacts {
             }
         };
 
+        let mut ingest_issues = Vec::new();
+
         let (charter, project_context, feature_spec) = match system_root_status {
             SystemRootStatus::Ok => (
-                load_one(repo_root, CanonicalArtifactKind::Charter)?,
-                load_one(repo_root, CanonicalArtifactKind::ProjectContext)?,
-                load_one(repo_root, CanonicalArtifactKind::FeatureSpec)?,
+                load_one(
+                    repo_root,
+                    CanonicalArtifactKind::Charter,
+                    &mut ingest_issues,
+                ),
+                load_one(
+                    repo_root,
+                    CanonicalArtifactKind::ProjectContext,
+                    &mut ingest_issues,
+                ),
+                load_one(
+                    repo_root,
+                    CanonicalArtifactKind::FeatureSpec,
+                    &mut ingest_issues,
+                ),
             ),
             SystemRootStatus::Missing
             | SystemRootStatus::NotDir
@@ -109,6 +126,7 @@ impl CanonicalArtifacts {
             charter,
             project_context,
             feature_spec,
+            ingest_issues,
         })
     }
 
@@ -187,28 +205,108 @@ impl std::error::Error for ArtifactIngestError {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArtifactIngestIssueKind {
+    CanonicalArtifactSymlinkNotAllowed,
+    CanonicalArtifactReadError,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArtifactIngestIssue {
+    pub kind: ArtifactIngestIssueKind,
+    pub artifact_kind: CanonicalArtifactKind,
+    pub canonical_repo_relative_path: &'static str,
+    pub required: bool,
+}
+
+fn record_ingest_issue(
+    issues: &mut Vec<ArtifactIngestIssue>,
+    kind: ArtifactIngestIssueKind,
+    artifact_kind: CanonicalArtifactKind,
+    canonical_repo_relative_path: &'static str,
+) {
+    issues.push(ArtifactIngestIssue {
+        kind,
+        artifact_kind,
+        canonical_repo_relative_path,
+        required: artifact_kind.required(),
+    });
+}
+
 fn load_one(
     repo_root: &Path,
     kind: CanonicalArtifactKind,
-) -> Result<CanonicalArtifact, ArtifactIngestError> {
+    issues: &mut Vec<ArtifactIngestIssue>,
+) -> CanonicalArtifact {
     let relative_path = kind.relative_path();
     let path = repo_root.join(relative_path);
 
-    let meta = match std::fs::metadata(&path) {
+    let required = kind.required();
+
+    let meta = match std::fs::symlink_metadata(&path) {
         Ok(meta) => Some(meta),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
-        Err(err) => return Err(ArtifactIngestError::ReadFailure { path, source: err }),
+        Err(_err) => {
+            record_ingest_issue(
+                issues,
+                ArtifactIngestIssueKind::CanonicalArtifactReadError,
+                kind,
+                relative_path,
+            );
+            return missing_one(kind);
+        }
     };
 
-    let required = kind.required();
     if meta.is_none() {
-        return Ok(missing_one(kind));
+        return missing_one(kind);
     }
 
-    let bytes = std::fs::read(&path).map_err(|err| ArtifactIngestError::ReadFailure {
-        path: path.clone(),
-        source: err,
-    })?;
+    let meta = meta.expect("meta");
+    if meta.file_type().is_symlink() {
+        record_ingest_issue(
+            issues,
+            ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
+            kind,
+            relative_path,
+        );
+        return missing_one(kind);
+    }
+    if !meta.is_file() {
+        record_ingest_issue(
+            issues,
+            ArtifactIngestIssueKind::CanonicalArtifactReadError,
+            kind,
+            relative_path,
+        );
+        return missing_one(kind);
+    }
+
+    if let Some(parent) = path.parent() {
+        if let Ok(parent_meta) = std::fs::symlink_metadata(parent) {
+            if parent_meta.file_type().is_symlink() {
+                record_ingest_issue(
+                    issues,
+                    ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
+                    kind,
+                    relative_path,
+                );
+                return missing_one(kind);
+            }
+        }
+    }
+
+    let bytes = match read_bytes_no_follow(&path) {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            record_ingest_issue(
+                issues,
+                ArtifactIngestIssueKind::CanonicalArtifactReadError,
+                kind,
+                relative_path,
+            );
+            return missing_one(kind);
+        }
+    };
 
     let byte_len = bytes.len() as u64;
     let presence = if byte_len == 0 {
@@ -219,7 +317,7 @@ fn load_one(
 
     let content_sha256 = Some(sha256_hex(&bytes));
 
-    Ok(CanonicalArtifact {
+    CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
             kind,
             relative_path,
@@ -229,7 +327,28 @@ fn load_one(
             content_sha256,
         },
         bytes: Some(bytes),
-    })
+    }
+}
+
+fn read_bytes_no_follow(path: &Path) -> std::io::Result<Vec<u8>> {
+    #[cfg(unix)]
+    {
+        use std::fs::OpenOptions;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let mut file = OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(path)?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::read(path)
+    }
 }
 
 fn missing_one(kind: CanonicalArtifactKind) -> CanonicalArtifact {
