@@ -2,8 +2,8 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-6`
-- Next seam: `SEAM-7`
+- Active seam: `SEAM-7`
+- Next seam: none
 - Future seams: none
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
@@ -131,10 +131,10 @@
   - **Consumer seam(s)**: `SEAM-7`
   - **Carried contract IDs**: `C-06`
   - **Purpose**: Publish the honest fixture-demo boundary and live-slice refusal semantics into tests and docs.
-  - **State**: `identified`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to execution demo scope, fixture lineage, or unsupported live execution behavior.
   - **Satisfied by**: `SEAM-6` closeout records demo evidence, refusal examples, and explicit boundary publication for downstream conformance.
-  - **Notes**: This isolates a major product-trust risk instead of letting it blur into the main resolver seam.
+  - **Notes**: Published by `SEAM-6` landing + closeout; downstream conformance must revalidate.
 
 - **Thread ID**: `THR-07`
   - **Producer seam**: `SEAM-7`
