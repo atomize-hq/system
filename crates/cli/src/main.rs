@@ -4,6 +4,7 @@ use std::process::ExitCode;
 
 const PACKET_PLANNING_ID: &str = "planning.packet";
 const PACKET_EXECUTION_DEMO_ID: &str = "execution.demo.packet";
+const PACKET_EXECUTION_LIVE_ID: &str = "execution.live.packet";
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -69,6 +70,7 @@ struct RequestArgs {
 enum PacketId {
     Planning,
     ExecutionDemo,
+    ExecutionLive,
 }
 
 impl PacketId {
@@ -76,6 +78,7 @@ impl PacketId {
         match self {
             PacketId::Planning => PACKET_PLANNING_ID,
             PacketId::ExecutionDemo => PACKET_EXECUTION_DEMO_ID,
+            PacketId::ExecutionLive => PACKET_EXECUTION_LIVE_ID,
         }
     }
 }
@@ -85,8 +88,9 @@ fn parse_packet_id(packet: &str) -> Result<PacketId, String> {
     match packet {
         PACKET_PLANNING_ID => Ok(PacketId::Planning),
         PACKET_EXECUTION_DEMO_ID => Ok(PacketId::ExecutionDemo),
+        PACKET_EXECUTION_LIVE_ID => Ok(PacketId::ExecutionLive),
         _ => Err(format!(
-            "unsupported --packet {packet:?} (allowed: {PACKET_PLANNING_ID:?}, {PACKET_EXECUTION_DEMO_ID:?})"
+            "unsupported --packet {packet:?} (allowed: {PACKET_PLANNING_ID:?}, {PACKET_EXECUTION_DEMO_ID:?}, {PACKET_EXECUTION_LIVE_ID:?})"
         )),
     }
 }
@@ -145,6 +149,7 @@ fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<Strin
 
 fn fixture_section_for_demo(repo_root: &Path, fixture_set_id: &str) -> String {
     let mut out = String::new();
+    out.push_str("MODE: fixture-backed execution demo\n");
     out.push_str("## FIXTURE DEMO\n");
     out.push_str(&format!("FIXTURE SET: {fixture_set_id}\n"));
     out.push_str(&format!(
@@ -184,8 +189,8 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let compiler_root = match packet_id {
-        PacketId::Planning => repo_root.clone(),
+    let (compiler_root, demo_fixture_set_id) = match packet_id {
+        PacketId::Planning | PacketId::ExecutionLive => (repo_root.clone(), None),
         PacketId::ExecutionDemo => {
             let fixture_set_id = match args.fixture_set.as_deref() {
                 Some(id) => id.trim(),
@@ -209,7 +214,7 @@ fn generate(args: RequestArgs) -> ExitCode {
                 println!("REFUSED: {err}");
                 return ExitCode::from(1);
             }
-            fixture_set_dir
+            (fixture_set_dir, Some(fixture_set_id.to_string()))
         }
     };
 
@@ -230,7 +235,13 @@ fn generate(args: RequestArgs) -> ExitCode {
 
     match system_compiler::build_output_model(&result) {
         Ok(model) => {
-            println!("{}", system_compiler::render_markdown(&model));
+            let rendered = system_compiler::render_markdown(&model);
+            if let Some(fixture_set_id) = demo_fixture_set_id.as_deref() {
+                let section = fixture_section_for_demo(&repo_root, fixture_set_id);
+                println!("{}", inject_after_first_three_lines(&rendered, &section));
+            } else {
+                println!("{rendered}");
+            }
         }
         Err(err) => {
             println!("PRESENTATION FAILURE: {err}");
@@ -301,7 +312,7 @@ fn inspect(args: RequestArgs) -> ExitCode {
     };
 
     let (compiler_root, demo_fixture_set_id) = match packet_id {
-        PacketId::Planning => (repo_root.clone(), None),
+        PacketId::Planning | PacketId::ExecutionLive => (repo_root.clone(), None),
         PacketId::ExecutionDemo => {
             let fixture_set_id = match args.fixture_set.as_deref() {
                 Some(id) => id.trim(),

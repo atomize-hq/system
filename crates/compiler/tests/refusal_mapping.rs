@@ -66,3 +66,30 @@ fn refusal_budget_refused_is_selected_when_other_inputs_ok() {
     assert_eq!(refusal.category, RefusalCategory::BudgetRefused);
 }
 
+#[test]
+fn refusal_unsupported_request_is_selected_for_live_execution_packet_when_other_inputs_ok() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"feature");
+
+    let request = ResolveRequest {
+        budget_policy: BudgetPolicy::default(),
+        packet_id: "execution.live.packet",
+    };
+
+    let result = resolve(root, request).expect("resolve");
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(refusal.category, RefusalCategory::UnsupportedRequest);
+    assert!(
+        refusal.summary.contains("fixture-backed"),
+        "expected boundary statement mentioning fixture-backed demos: {:?}",
+        refusal.summary
+    );
+    assert!(
+        refusal.summary.contains("planning"),
+        "expected boundary statement mentioning planning packets: {:?}",
+        refusal.summary
+    );
+}

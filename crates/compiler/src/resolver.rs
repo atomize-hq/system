@@ -10,6 +10,7 @@ use std::cmp::Ordering;
 
 const C04_RESULT_VERSION: &str = "reduced-v1";
 const DEFAULT_PACKET_ID: &str = "planning.packet";
+const LIVE_EXECUTION_PACKET_ID: &str = "execution.live.packet";
 const SYSTEM_ROOT_PATH: &str = ".system";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,7 +103,7 @@ pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<R
         budget_outcome.next_safe_action.is_some()
     ));
 
-    let refusal = compute_refusal(&manifest, &budget_outcome);
+    let refusal = compute_refusal(&manifest, &budget_outcome, &request);
     if let Some(refusal) = &refusal {
         decision_log.entries.push(format!(
             "refusal category={:?} broken_subject={:?} next_safe_action={:?}",
@@ -110,7 +111,7 @@ pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<R
         ));
     }
 
-    let blockers = compute_blockers(&manifest, &budget_outcome);
+    let blockers = compute_blockers(&manifest, &budget_outcome, &request);
     for blocker in &blockers {
         decision_log.entries.push(format!(
             "blocker category={:?} subject={:?} next_safe_action={:?}",
@@ -149,7 +150,11 @@ pub fn resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<R
     })
 }
 
-fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) -> Option<Refusal> {
+fn compute_refusal(
+    manifest: &ArtifactManifest,
+    budget_outcome: &BudgetOutcome,
+    request: &ResolveRequest,
+) -> Option<Refusal> {
     match manifest.system_root_status {
         SystemRootStatus::Ok => {}
         SystemRootStatus::Missing => {
@@ -264,10 +269,29 @@ fn compute_refusal(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) 
         });
     }
 
+    if request.packet_id == LIVE_EXECUTION_PACKET_ID {
+        return Some(Refusal {
+            category: RefusalCategory::UnsupportedRequest,
+            summary:
+                "unsupported live slice execution request: reduced v1 supports live planning packets plus fixture-backed execution demos only"
+                    .to_string(),
+            broken_subject: SubjectRef::Policy {
+                policy_id: "packet_id",
+            },
+            next_safe_action: NextSafeAction::RunGenerate {
+                packet_id: DEFAULT_PACKET_ID,
+            },
+        });
+    }
+
     None
 }
 
-fn compute_blockers(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome) -> Vec<Blocker> {
+fn compute_blockers(
+    manifest: &ArtifactManifest,
+    budget_outcome: &BudgetOutcome,
+    request: &ResolveRequest,
+) -> Vec<Blocker> {
     let mut blockers = Vec::new();
 
     match manifest.system_root_status {
@@ -368,6 +392,21 @@ fn compute_blockers(manifest: &ArtifactManifest, budget_outcome: &BudgetOutcome)
             summary: "budget refused packet generation".to_string(),
             next_safe_action: NextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
+            },
+        });
+    }
+
+    if blockers.is_empty() && request.packet_id == LIVE_EXECUTION_PACKET_ID {
+        blockers.push(Blocker {
+            category: BlockerCategory::UnsupportedRequest,
+            subject: SubjectRef::Policy {
+                policy_id: "packet_id",
+            },
+            summary:
+                "unsupported live slice execution request: reduced v1 supports live planning packets plus fixture-backed execution demos only"
+                    .to_string(),
+            next_safe_action: NextSafeAction::RunGenerate {
+                packet_id: DEFAULT_PACKET_ID,
             },
         });
     }

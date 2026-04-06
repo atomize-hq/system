@@ -152,6 +152,9 @@ fn render_next_safe_action_value(action: &NextSafeAction) -> String {
         NextSafeAction::ReduceCanonicalArtifactSize {
             canonical_repo_relative_path,
         } => format!("reduce canonical artifact size at {canonical_repo_relative_path}"),
+        NextSafeAction::RunGenerate { packet_id } => {
+            format!("run `system generate --packet {packet_id}`")
+        }
         NextSafeAction::RunDoctor => "run `doctor`".to_string(),
     }
 }

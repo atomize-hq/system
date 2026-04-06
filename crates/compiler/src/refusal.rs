@@ -35,6 +35,7 @@ pub enum NextSafeAction {
     CreateCanonicalArtifact { canonical_repo_relative_path: &'static str },
     FillCanonicalArtifact { canonical_repo_relative_path: &'static str },
     ReduceCanonicalArtifactSize { canonical_repo_relative_path: &'static str },
+    RunGenerate { packet_id: &'static str },
     RunDoctor,
 }
 

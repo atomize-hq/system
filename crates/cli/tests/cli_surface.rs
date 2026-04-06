@@ -283,6 +283,10 @@ fn generate_resolves_execution_demo_packet_from_fixture_set() {
         stdout.contains("## PACKET BODY"),
         "expected packet body section: {stdout}"
     );
+    assert!(
+        stdout.contains("MODE: fixture-backed execution demo"),
+        "expected fixture-backed label near top: {stdout}"
+    );
 }
 
 #[test]
@@ -326,6 +330,10 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         "expected fixture section: {stdout}"
     );
     assert!(
+        stdout.contains("MODE: fixture-backed execution demo"),
+        "expected fixture-backed label near top: {stdout}"
+    );
+    assert!(
         stdout.contains("FIXTURE SET: demo1"),
         "expected fixture set id: {stdout}"
     );
@@ -342,6 +350,40 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
     assert!(
         pos_charter < pos_feature,
         "expected deterministic ordering (charter before feature): {stdout}"
+    );
+}
+
+#[test]
+fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"feature");
+
+    let output = binary_in(root)
+        .args(["generate", "--packet", "execution.live.packet"])
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: execution.live.packet",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+        ],
+    );
+    assert!(
+        stdout.contains("CATEGORY: UnsupportedRequest"),
+        "expected UnsupportedRequest category: {stdout}"
+    );
+    assert!(
+        stdout.contains("fixture-backed execution demos"),
+        "expected boundary statement to mention fixture-backed demos: {stdout}"
     );
 }
 
