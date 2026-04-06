@@ -98,6 +98,9 @@ The harness filters these blocks when compiling prompts, which keeps context pac
 lean while still enforcing strict execution/merge discipline.
 
 ## Repo outputs vs pipeline artifacts
+
+> NOTE: `artifacts/` is legacy-harness output. A snapshot of legacy generated outputs is kept under `archived/legacy-generated-artifacts/` to keep the repo easier to navigate during the Rust-first transition.
+
 Some stages write a canonical document **into the project repo** (via `${repo_root}/...`)
 and also keep a pipeline copy under `artifacts/...` for traceability.
 
