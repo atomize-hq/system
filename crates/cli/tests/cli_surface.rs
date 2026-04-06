@@ -209,6 +209,142 @@ fn inspect_reports_ready_when_required_artifacts_present() {
     assert!(stdout.contains("## JSON FALLBACK"), "expected JSON fallback: {stdout}");
 }
 
+#[test]
+fn generate_refuses_when_demo_packet_selected_without_fixture_set() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let output = binary_in(dir.path())
+        .args(["generate", "--packet", "execution.demo.packet"])
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("--fixture-set is required"),
+        "expected explicit missing fixture-set refusal: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_blocks_when_demo_packet_selected_without_fixture_set() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let output = binary_in(dir.path())
+        .args(["inspect", "--packet", "execution.demo.packet"])
+        .output()
+        .expect("inspect should run");
+
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("--fixture-set is required"),
+        "expected explicit missing fixture-set refusal: {stdout}"
+    );
+}
+
+#[test]
+fn generate_resolves_execution_demo_packet_from_fixture_set() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("tests/fixtures/execution_demo/demo1/.system/charter/CHARTER.md"),
+        b"fixture charter",
+    );
+    write_file(
+        &root.join("tests/fixtures/execution_demo/demo1/.system/feature_spec/FEATURE_SPEC.md"),
+        b"fixture feature",
+    );
+
+    let output = binary_in(root)
+        .args([
+            "generate",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "demo1",
+        ])
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: execution.demo.packet",
+            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+        ],
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body section: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_includes_fixture_section_for_execution_demo_packet() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("tests/fixtures/execution_demo/demo1/.system/charter/CHARTER.md"),
+        b"fixture charter",
+    );
+    write_file(
+        &root.join("tests/fixtures/execution_demo/demo1/.system/feature_spec/FEATURE_SPEC.md"),
+        b"fixture feature",
+    );
+
+    let output = binary_in(root)
+        .args([
+            "inspect",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "demo1",
+        ])
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should succeed when ready");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: execution.demo.packet",
+            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+        ],
+    );
+    assert!(
+        stdout.contains("## FIXTURE DEMO"),
+        "expected fixture section: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE SET: demo1"),
+        "expected fixture set id: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE LINEAGE:"),
+        "expected fixture lineage list: {stdout}"
+    );
+    let pos_charter = stdout
+        .find("tests/fixtures/execution_demo/demo1/.system/charter/CHARTER.md")
+        .expect("charter should be listed");
+    let pos_feature = stdout
+        .find("tests/fixtures/execution_demo/demo1/.system/feature_spec/FEATURE_SPEC.md")
+        .expect("feature spec should be listed");
+    assert!(
+        pos_charter < pos_feature,
+        "expected deterministic ordering (charter before feature): {stdout}"
+    );
+}
+
 fn assert_placeholder(command: &str, expected_phrase: &str) {
     let output = binary()
         .arg(command)
