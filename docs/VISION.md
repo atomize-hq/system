@@ -8,7 +8,7 @@ Heres the updated North Star / Vision summary with your clarification baked in  
 
 This file is a broad vision statement.
 
-- For the reviewed reduced-v1 implementation boundary, use the design doc at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md).
+- For the reviewed reduced-v1 implementation boundary, use the reduced-v1 seam pack at [artifacts/planning/reduced-v1-seam-pack/README.md](../artifacts/planning/reduced-v1-seam-pack/README.md).
 - The reviewed v1 is narrower than this vision: Rust-first, live `project + feature` planning packets, fixture-backed execution packet demo only, then implementation planning next.
 
 ## Purpose

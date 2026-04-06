@@ -7,12 +7,14 @@ These docs primarily describe the **legacy Python harness path that works today*
 - They are useful reference material for the current scaffold.
 - They are **not** the reviewed reduced-v1 target architecture.
 - The reviewed v1 direction is a Rust-first context compiler CLI over live project + feature artifacts.
-- The next artifact is the implementation plan at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md).
-- The authoritative repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
-- The Rust workspace and CLI command-surface contract lives at [docs/contracts/C-02-rust-workspace-and-cli-command-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
-- The canonical `.system/` manifest + freshness contract lives at [docs/contracts/C-03-canonical-artifact-manifest-contract.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-03-canonical-artifact-manifest-contract.md).
-- The resolver-result and doctor-blockers contract lives at [docs/contracts/C-04-resolver-result-and-doctor-blockers.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-04-resolver-result-and-doctor-blockers.md).
-- The renderer and proof-surfaces contract lives at [docs/contracts/C-05-renderer-and-proof-surfaces.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-05-renderer-and-proof-surfaces.md).
+- The next artifact is the implementation plan at [PLAN.md](../PLAN.md).
+- The authoritative repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](contracts/C-01-approved-repo-surface.md).
+- The Rust workspace and CLI command-surface contract lives at [docs/contracts/C-02-rust-workspace-and-cli-command-surface.md](contracts/C-02-rust-workspace-and-cli-command-surface.md).
+- The canonical `.system/` manifest + freshness contract lives at [docs/contracts/C-03-canonical-artifact-manifest-contract.md](contracts/C-03-canonical-artifact-manifest-contract.md).
+- The resolver-result and doctor-blockers contract lives at [docs/contracts/C-04-resolver-result-and-doctor-blockers.md](contracts/C-04-resolver-result-and-doctor-blockers.md).
+- The renderer and proof-surfaces contract lives at [docs/contracts/C-05-renderer-and-proof-surfaces.md](contracts/C-05-renderer-and-proof-surfaces.md).
+- The fixture-backed execution demo boundary contract lives at [docs/contracts/C-06-fixture-execution-demo-boundary.md](contracts/C-06-fixture-execution-demo-boundary.md).
+- The conformance rails and docs cutover contract lives at [docs/contracts/C-07-conformance-rails-and-docs-cutover.md](contracts/C-07-conformance-rails-and-docs-cutover.md).
 
 These docs describe **what is working today** in this repository’s human‑in‑the‑loop prompt pipeline.
 
@@ -22,7 +24,7 @@ These docs describe **what is working today** in this repository’s human‑in�
 
 ## Start here
 
-If you want the reviewed v1 decisions first, read the design doc at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md) and the [C-01 contract](docs/contracts/C-01-approved-repo-surface.md) before using the legacy harness references below.
+If you want the reviewed v1 decisions first, read the reduced-v1 seam pack at [artifacts/planning/reduced-v1-seam-pack/README.md](../artifacts/planning/reduced-v1-seam-pack/README.md) and the [C-01 contract](contracts/C-01-approved-repo-surface.md) before using the legacy harness references below.
 
 - [Harness](HARNESS.md)
 - [System model](SYSTEM_MODEL.md)

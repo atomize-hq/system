@@ -6,11 +6,11 @@ This is the implementation plan for the reviewed reduced v1 wedge.
 
 It is derived from:
 
-- [reviewed design doc](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md)
-- CEO review decisions embedded in that design
-- engineering review decisions recorded in that design's `## GSTACK REVIEW REPORT`
+- [reviewed reduced-v1 seam pack](artifacts/planning/reduced-v1-seam-pack/README.md)
+- CEO review decisions embedded in that seam pack
+- engineering review decisions recorded in that seam pack's `## GSTACK REVIEW REPORT`
 
-This plan is the current execution source of truth for repo shape, migration order, and milestone sequencing. The canonical repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-01-approved-repo-surface.md).
+This plan is the current execution source of truth for repo shape, migration order, and milestone sequencing. The canonical repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](docs/contracts/C-01-approved-repo-surface.md).
 
 ## Locked Decisions
 

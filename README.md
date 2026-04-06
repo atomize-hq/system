@@ -15,7 +15,7 @@ This repo is in transition.
 
 Until Rust setup exists, the legacy harness may still be used to establish canonical artifacts; once Rust setup exists, the Rust CLI becomes the supported packet-resolution authority.
 
-The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md). The reviewed design lives at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md).
+The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](PLAN.md). The reviewed reduced-v1 seam pack lives at [artifacts/planning/reduced-v1-seam-pack/README.md](artifacts/planning/reduced-v1-seam-pack/README.md).
 
 This repo is a **human-in-the-loop** prompt pipeline that produces structured artifacts
 (Charter, Project Context, Foundation Pack, Feature Specs, etc.) using a selected **profile** (stack pack)

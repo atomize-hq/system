@@ -1,0 +1,16 @@
+Rust CLI scaffold for the reduced v1 system. Commands are reserved placeholders only, and the setup-first help ordering is pinned to the reviewed command surface.
+
+Usage: system [COMMAND]
+
+Commands:
+  setup     Reserved setup entrypoint for the reduced v1 trust flow
+  generate  Reserved packet generation command
+  inspect   Reserved proof-surface command
+  doctor    Reserved recovery and diagnosis command
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
