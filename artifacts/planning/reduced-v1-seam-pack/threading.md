@@ -2,7 +2,7 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-7`
+- Active seam: none
 - Next seam: none
 - Future seams: none
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
@@ -141,7 +141,7 @@
   - **Consumer seam(s)**: none
   - **Carried contract IDs**: `C-01`, `C-02`, `C-03`, `C-04`, `C-05`, `C-06`, `C-07`
   - **Purpose**: Close the pack by proving that repo shape, behavior, docs, and validation rails all reflect the published reduced v1 truth.
-  - **State**: `identified`
+  - **State**: `published`
   - **Revalidation trigger**: Any upstream contract publication or stale trigger from `SEAM-1` through `SEAM-6`.
   - **Satisfied by**: `SEAM-7` closeout records passing test/CI/install smoke evidence, doc/help alignment, and final cutover readiness.
   - **Notes**: This thread cannot close until the upstream seams publish the contracts it verifies.

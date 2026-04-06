@@ -1,10 +1,10 @@
 ---
 seam_id: SEAM-7
-status: landed
+status: closed
 closeout_version: v0
 seam_exit_gate:
   source_ref: "threaded-seams/seam-7-conformance-rails-and-docs-cutover/slice-99-seam-exit-gate.md"
-  status: landed
+  status: passed
   promotion_readiness: ready
 basis:
   currentness: current

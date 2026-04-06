@@ -13,7 +13,7 @@ This pack captures seam briefs, authoritative threading, pack-level review surfa
 
 Execution horizon:
 
-- Active seam: `SEAM-7`
+- Active seam: none
 - Next seam: none
 
 Policy:

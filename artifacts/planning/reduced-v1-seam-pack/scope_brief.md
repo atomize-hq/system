@@ -1,10 +1,10 @@
 ---
 pack_id: reduced-v1-seam-pack
 pack_version: v1
-pack_status: extracted
+pack_status: closed
 source_ref: PLAN.md
 execution_horizon:
-  active_seam: SEAM-7
+  active_seam: null
   next_seam: null
 ---
 
