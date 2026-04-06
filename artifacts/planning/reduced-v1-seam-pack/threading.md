@@ -91,7 +91,7 @@
   - **Consumer seam(s)**: `SEAM-3`, `SEAM-4`, `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-02`
   - **Purpose**: Publish the Rust workspace and CLI verb hierarchy that every downstream capability seam consumes.
-  - **State**: `published`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any rename of supported verbs, crate ownership, package layout, or CLI help hierarchy.
   - **Satisfied by**: `SEAM-2` closeout records landed workspace scaffold, CLI help evidence, and published command-surface decisions.
   - **Notes**: Published by `SEAM-2` landing + closeout; downstream seams must revalidate if `C-02` changes.
@@ -101,7 +101,7 @@
   - **Consumer seam(s)**: `SEAM-4`, `SEAM-7`
   - **Carried contract IDs**: `C-03`
   - **Purpose**: Carry the canonical artifact manifest and freshness contract into resolver behavior and conformance rails.
-  - **State**: `published`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to direct packet inputs, inherited posture dependencies, override-with-rationale rules, or manifest versioning/freshness fields.
   - **Satisfied by**: `SEAM-3` closeout at `artifacts/planning/reduced-v1-seam-pack/governance/seam-3-closeout.md` records the concrete schema, accepted artifact rules, and published freshness semantics consumed by downstream seams.
   - **Notes**: This thread is contract-defining and will likely reserve `S00` when seam-local planning begins.
@@ -121,7 +121,7 @@
   - **Consumer seam(s)**: `SEAM-7`
   - **Carried contract IDs**: `C-05`
   - **Purpose**: Carry proof-surface ordering and wording into docs, help text, and golden tests.
-  - **State**: `published`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to trust header order, inspect proof ordering, JSON fallbacks, or compact refusal copy.
   - **Satisfied by**: `SEAM-5` closeout records renderer evidence, golden output baselines, and output-surface publication.
   - **Notes**: Published by `SEAM-5` landing + closeout; downstream conformance must revalidate.
@@ -131,7 +131,7 @@
   - **Consumer seam(s)**: `SEAM-7`
   - **Carried contract IDs**: `C-06`
   - **Purpose**: Publish the honest fixture-demo boundary and live-slice refusal semantics into tests and docs.
-  - **State**: `published`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to execution demo scope, fixture lineage, or unsupported live execution behavior.
   - **Satisfied by**: `SEAM-6` closeout records demo evidence, refusal examples, and explicit boundary publication for downstream conformance.
   - **Notes**: Published by `SEAM-6` landing + closeout; downstream conformance must revalidate.

@@ -3,7 +3,7 @@ slice_id: S1
 seam_id: SEAM-7
 slice_kind: conformance
 execution_horizon: active
-status: decomposed
+status: exec-ready
 plan_version: v1
 basis:
   currentness: current
@@ -14,7 +14,7 @@ gates:
   pre_exec:
     review: inherited
     contract: inherited
-    revalidation: pending
+    revalidation: inherited
   post_exec:
     landing: pending
     closeout: pending
@@ -42,3 +42,21 @@ open_remediations: []
   - Out:
     - redefining upstream contract semantics
 
+- **Acceptance criteria**:
+  - Conformance tests exist that fail on drift against `C-04` and `C-05` (trust header + proof ordering + refusal semantics).
+  - Install smoke exists for `system` on `macOS arm64` and `Linux x86_64` (at minimum: `cargo install --path crates/cli` + `system --help`).
+  - CI runs the required check suite deterministically (fmt + tests + smoke).
+
+#### Execution checklist (planning-only)
+
+- Add compiler- or CLI-surface tests that pin:
+  - trust header ordering/wording (`C-05`)
+  - refusal category and next-safe-action wording intent (`C-04`)
+  - demo-boundary labeling and live refusal semantics (`C-06`)
+- Add install-smoke steps that:
+  - install `system` from `crates/cli`
+  - run `system --help` and verb-level help without panicking
+- Ensure the CI rail runs at least:
+  - `cargo fmt --all -- --check`
+  - `cargo test --workspace`
+  - install smoke for supported targets

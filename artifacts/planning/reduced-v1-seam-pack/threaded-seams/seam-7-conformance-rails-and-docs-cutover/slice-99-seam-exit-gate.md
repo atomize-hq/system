@@ -3,7 +3,7 @@ slice_id: S99
 seam_id: SEAM-7
 slice_kind: seam_exit_gate
 execution_horizon: active
-status: decomposed
+status: exec-ready
 plan_version: v1
 basis:
   currentness: current
@@ -36,3 +36,18 @@ open_remediations: []
   - Out:
     - starting a new seam without an explicit seam-exit record
 
+- **Acceptance criteria**:
+  - `slice-99` captures the final evidence set (tests, CI equivalence, install smoke, docs/help parity) and names any stale triggers raised.
+  - `governance/seam-7-closeout.md` includes a concrete `seam_exit_gate` record pointing at this artifact and states promotion readiness truthfully.
+
+#### Execution checklist (planning-only)
+
+- Record verification evidence:
+  - `cargo fmt --all -- --check`
+  - `cargo test --workspace`
+  - install smoke on supported targets (at minimum: `cargo install --path crates/cli` + `system --help`)
+  - demo happy-path + live refusal evidence (per `C-06`)
+- Record docs/help parity evidence:
+  - where the supported story is stated (and why it matches `C-01`)
+  - the contract links used as authoritative references
+- Capture any stale triggers discovered (and attach them to the closeout basis).

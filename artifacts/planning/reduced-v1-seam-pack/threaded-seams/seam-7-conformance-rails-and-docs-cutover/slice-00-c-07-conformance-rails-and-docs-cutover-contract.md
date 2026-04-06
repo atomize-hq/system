@@ -3,7 +3,7 @@ slice_id: S00
 seam_id: SEAM-7
 slice_kind: contract_definition
 execution_horizon: active
-status: decomposed
+status: exec-ready
 plan_version: v1
 basis:
   currentness: current
@@ -13,7 +13,7 @@ basis:
 gates:
   pre_exec:
     review: inherited
-    contract: pending
+    contract: inherited
     revalidation: inherited
   post_exec:
     landing: pending
@@ -36,5 +36,10 @@ open_remediations: []
 
 - **User/system value**: Downstream maintenance can rely on one explicit statement of what “conformance” means for reduced v1 (tests, CI, install smoke, and docs/help alignment).
 - **Acceptance criteria**:
-  - `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` exists and is concrete about required rails and verification.
+  - `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` is published and concrete about required rails, supported install-smoke targets, and verification.
 
+#### Execution checklist (planning-only)
+
+- Ensure `C-07` explicitly binds to `C-01..C-06` without redefining their semantics.
+- Ensure `C-07` names deterministic local commands and the minimum install-smoke sequence for `system`.
+- Ensure `C-07` includes a drift-focused checklist (trust header, refusal semantics, demo-boundary copy, supported-story docs/help).

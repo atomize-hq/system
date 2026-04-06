@@ -2,7 +2,7 @@
 seam_id: SEAM-7
 seam_slug: conformance-rails-and-docs-cutover
 type: conformance
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:
@@ -28,9 +28,9 @@ basis:
     - Any supported target or CI/install-smoke requirement changes.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
