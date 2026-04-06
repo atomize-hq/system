@@ -1,35 +1,23 @@
 # System Docs
 
-## Status
+## Start Here (Supported)
 
-These docs primarily describe the **legacy Python harness path that works today** in this repo.
+Reduced v1 is a **Rust-first context compiler CLI**.
 
-- They are useful reference material for the current scaffold.
-- They are **not** the reviewed reduced-v1 target architecture.
-- The reviewed v1 direction is a Rust-first context compiler CLI over live project + feature artifacts.
-- The next artifact is the implementation plan at [PLAN.md](../PLAN.md).
-- The authoritative repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](contracts/C-01-approved-repo-surface.md).
-- The Rust workspace and CLI command-surface contract lives at [docs/contracts/C-02-rust-workspace-and-cli-command-surface.md](contracts/C-02-rust-workspace-and-cli-command-surface.md).
-- The canonical `.system/` manifest + freshness contract lives at [docs/contracts/C-03-canonical-artifact-manifest-contract.md](contracts/C-03-canonical-artifact-manifest-contract.md).
-- The resolver-result and doctor-blockers contract lives at [docs/contracts/C-04-resolver-result-and-doctor-blockers.md](contracts/C-04-resolver-result-and-doctor-blockers.md).
-- The renderer and proof-surfaces contract lives at [docs/contracts/C-05-renderer-and-proof-surfaces.md](contracts/C-05-renderer-and-proof-surfaces.md).
-- The fixture-backed execution demo boundary contract lives at [docs/contracts/C-06-fixture-execution-demo-boundary.md](contracts/C-06-fixture-execution-demo-boundary.md).
-- The conformance rails and docs cutover contract lives at [docs/contracts/C-07-conformance-rails-and-docs-cutover.md](contracts/C-07-conformance-rails-and-docs-cutover.md).
+- Start here: [`docs/START_HERE.md`](START_HERE.md)
+- Command surface: [`docs/SUPPORTED_COMMANDS.md`](SUPPORTED_COMMANDS.md)
+- Implementation plan: [`PLAN.md`](../PLAN.md)
+- Contracts (source of truth): [`docs/contracts/`](contracts/)
+- Vision (broader, non-binding): [`docs/VISION.md`](VISION.md)
+- Glossary: [`docs/GLOSSARY.md`](GLOSSARY.md)
 
-These docs describe **what is working today** in this repository’s human‑in‑the‑loop prompt pipeline.
+## Legacy (Reference Only)
 
-- The harness **does not call any LLM APIs**.
-- You **copy/paste** compiled prompts into your LLM of choice.
-- You paste model output back into the harness; it writes files under `artifacts/` (and some repo‑root docs).
+The Python harness and its stage-based workflow remain in the repo as frozen reference material until cutover.
 
-## Start here
+All legacy reference docs are under:
 
-If you want the reviewed v1 decisions first, read the reduced-v1 seam pack at [artifacts/planning/reduced-v1-seam-pack/README.md](../artifacts/planning/reduced-v1-seam-pack/README.md) and the [C-01 contract](contracts/C-01-approved-repo-surface.md) before using the legacy harness references below.
-
-- [Harness](HARNESS.md)
-- [System model](SYSTEM_MODEL.md)
-- [Glossary](GLOSSARY.md)
-- [Stage reference](stages/README.md)
+- [`docs/legacy/`](legacy/README.md)
 
 ## What this system is
 

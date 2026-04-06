@@ -10,9 +10,9 @@ These guides document the human-in-the-loop Python harness workflow that still e
 
 This folder is meant to be dropped into your system `docs/` directory:
 
-- `docs/guides/` — workflow how-tos and “how the system works” explanations.
-- `docs/guides/workflows/` — step-by-step command recipes.
-- `docs/guides/mechanisms/` — one page per mechanism: what it is, why it exists, how to use it, and how to create your own.
+- `docs/legacy/guides/` — workflow how-tos and “how the system works” explanations.
+- `docs/legacy/guides/workflows/` — step-by-step command recipes.
+- `docs/legacy/guides/mechanisms/` — one page per mechanism: what it is, why it exists, how to use it, and how to create your own.
 
 > **Scope note (important):** These guides describe what is intended to work **today** in the human-in-the-loop workflow:
 > - compile prompts to `dist/`

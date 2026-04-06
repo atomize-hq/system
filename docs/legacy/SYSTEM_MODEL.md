@@ -10,7 +10,7 @@ This document explains the mechanisms that work **today** in the legacy Python h
 
 This doc explains the **mechanisms that work today**: pipeline config, stages, includes, profiles, overlays, work levels, and outputs.
 
-If you want stage-by-stage behavior, see [`docs/stages/`](stages/README.md).
+If you want stage-by-stage behavior, see [`docs/legacy/stages/`](stages/README.md).
 
 ## Pipeline (`pipeline.yaml`)
 
