@@ -1,13 +1,13 @@
 ---
 seam_id: SEAM-6
-status: landed
+status: exec-ready
 closeout_version: v0
 seam_exit_gate:
   source_ref: ""
   status: pending
   promotion_readiness: blocked
 basis:
-  currentness: stale
+  currentness: current
   upstream_closeouts:
     - SEAM-4
   required_threads:
@@ -18,7 +18,8 @@ gates:
   post_exec:
     landing: pending
     closeout: pending
-open_remediations: []
+open_remediations:
+  - REM-002
 ---
 
 # Closeout - SEAM-6 Fixture Execution Demo Boundary
@@ -29,8 +30,8 @@ This is a post-exec scaffold. Do not treat it as landed evidence until the seam 
 
 - **Source artifact**:
 - **Landed evidence**:
-- **Contracts published or changed**: `C-06`
-- **Threads published / advanced**: `THR-06`
+- **Expected contracts to publish**: `C-06`
+- **Expected threads to publish / advance**: `THR-06`
 - **Review-surface delta**:
 - **Planned-vs-landed delta**:
 - **Downstream stale triggers raised**:
@@ -44,4 +45,3 @@ This is a post-exec scaffold. Do not treat it as landed evidence until the seam 
 - **Closeout gate**: pending
 - **Unresolved remediations**:
 - **Carried-forward remediations**:
-

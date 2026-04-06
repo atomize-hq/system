@@ -2,7 +2,7 @@
 seam_id: SEAM-6
 seam_slug: fixture-execution-demo-boundary
 type: risk
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:
@@ -17,9 +17,9 @@ basis:
     - Any change to fixture lineage assumptions, unsupported live execution scope, or refusal wording.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
@@ -27,7 +27,8 @@ seam_exit_gate:
   required: true
   planned_location: S99
   status: pending
-open_remediations: []
+open_remediations:
+  - REM-002
 ---
 
 # SEAM-6 - Fixture Execution Demo Boundary
@@ -78,7 +79,7 @@ open_remediations: []
   - Default to refusal for anything that smells like live slice execution.
   - Keep the demo path narrow and easy to audit.
 - **Downstream decomposition context**:
-  - This seam is `future` because it depends on the landed resolver result and refusal model.
+  - This seam is `active` and `exec-ready`; remaining work is implementation plus post-exec evidence capture (demo boundary + refusal copy) rather than additional contract ambiguity resolution.
   - `THR-06` is the dominant downstream thread.
   - First seam-local review should focus on product-trust risk, unsupported-path wording, and evidence that the demo cannot be confused with live execution.
 - **Expected seam-exit concerns**:

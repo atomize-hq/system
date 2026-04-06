@@ -4,7 +4,7 @@
 
 - Active seam: `SEAM-6`
 - Next seam: `SEAM-7`
-- Future seams: `SEAM-7`
+- Future seams: none
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
