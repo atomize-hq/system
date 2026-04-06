@@ -11,16 +11,22 @@ related_slice: S1
 related_thread: THR-06
 related_contract: C-06
 related_artifact: artifacts/planning/reduced-v1-seam-pack/seam-6-fixture-execution-demo-boundary.md
-severity: blocking
+severity: material
 status: open
 owner_seam: SEAM-6
-blocked_targets:
-  - seam: SEAM-6
-    field: status
-    value: exec-ready
-summary: Demo invocation surface is not yet concrete enough for conformance.
-required_fix: Choose and document the execution-demo request surface (CLI flag vs tooling vs test-only), then pin deterministic fixture lineage rules and explicit live-refusal wording in `C-06` and seam-local slices.
-resolution_evidence: []
+blocked_targets: []
+summary: Contract baseline for the fixture-backed execution demo boundary is now explicit; remaining work is implementation and conformance evidence.
+required_fix: |
+  Implement the `C-06` contract baseline by wiring the selected request surface (packet id + CLI flags), enforcing deterministic fixture lineage ordering, and surfacing explicit refusal copy for unsupported live slice execution requests.
+
+  Evidence and decision baseline:
+  - `docs/contracts/C-06-fixture-execution-demo-boundary.md`
+  - `artifacts/planning/reduced-v1-seam-pack/threaded-seams/seam-6-fixture-execution-demo-boundary/slice-1-fixture-lineage-and-demo-request-surface.md`
+  - `artifacts/planning/reduced-v1-seam-pack/threaded-seams/seam-6-fixture-execution-demo-boundary/slice-2-live-refusal-and-demo-proof-surfaces.md`
+resolution_evidence:
+  - docs/contracts/C-06-fixture-execution-demo-boundary.md
+  - artifacts/planning/reduced-v1-seam-pack/threaded-seams/seam-6-fixture-execution-demo-boundary/slice-1-fixture-lineage-and-demo-request-surface.md
+  - artifacts/planning/reduced-v1-seam-pack/threaded-seams/seam-6-fixture-execution-demo-boundary/slice-2-live-refusal-and-demo-proof-surfaces.md
 ```
 
 New remediation entries must use this schema:

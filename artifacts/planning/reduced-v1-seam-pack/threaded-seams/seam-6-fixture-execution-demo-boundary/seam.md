@@ -1,7 +1,7 @@
 ---
 seam_id: SEAM-6
 seam_slug: fixture-execution-demo-boundary
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:
@@ -16,9 +16,9 @@ basis:
     - Any change to fixture lineage assumptions, unsupported live execution scope, or refusal wording.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending

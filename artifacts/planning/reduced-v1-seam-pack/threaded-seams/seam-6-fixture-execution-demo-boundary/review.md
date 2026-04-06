@@ -32,14 +32,15 @@ This artifact feeds `gates.pre_exec.review`.
 
 ## Pre-exec findings
 
-- `REM-002` blocks contract readiness until the demo invocation surface and refusal UX are made concrete.
+- `REM-002` no longer blocks contract readiness: the invocation surface, fixture determinism rules, and refusal wording baseline are now explicit in `C-06`.
+- Remaining `REM-002` work is implementation + conformance evidence (tests/docs), not contract ambiguity.
 
 ## Pre-exec gate disposition
 
 - **Review gate**: passed (risk and falsification surfaces are explicit)
-- **Contract gate**: blocked (see `REM-002`)
-- **Revalidation**: pending (requires the contract baseline to lock the invocation surface and refusal semantics)
-- **Opened remediations**: `REM-002`
+- **Contract gate**: passed (`C-06` defines the demo boundary and refusal baseline)
+- **Revalidation**: passed (upstream closeouts/threads already landed; only the demo-boundary semantics remain to execute)
+- **Opened remediations**: `REM-002` (material; implementation evidence)
 
 ## Planned seam-exit gate focus
 
