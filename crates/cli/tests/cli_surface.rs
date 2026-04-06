@@ -10,6 +10,27 @@ fn binary_in(dir: &std::path::Path) -> Command {
     cmd
 }
 
+fn workspace_root() -> std::path::PathBuf {
+    let start = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for ancestor in start.ancestors() {
+        let cargo_toml = ancestor.join("Cargo.toml");
+        if !cargo_toml.is_file() {
+            continue;
+        }
+        let Ok(contents) = std::fs::read_to_string(&cargo_toml) else {
+            continue;
+        };
+        if contents.contains("[workspace]") {
+            return ancestor.to_path_buf();
+        }
+    }
+
+    panic!(
+        "failed to locate workspace root from CARGO_MANIFEST_DIR={}",
+        env!("CARGO_MANIFEST_DIR")
+    );
+}
+
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("mkdirs");
@@ -245,25 +266,25 @@ fn inspect_blocks_when_demo_packet_selected_without_fixture_set() {
 
 #[test]
 fn generate_resolves_execution_demo_packet_from_fixture_set() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
-
-    write_file(
-        &root.join("tests/fixtures/execution_demo/demo1/.system/charter/CHARTER.md"),
-        b"fixture charter",
+    let root = workspace_root();
+    assert!(
+        root.join("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md")
+            .is_file(),
+        "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
-    write_file(
-        &root.join("tests/fixtures/execution_demo/demo1/.system/feature_spec/FEATURE_SPEC.md"),
-        b"fixture feature",
+    assert!(
+        root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+            .is_file(),
+        "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
 
-    let output = binary_in(root)
+    let output = binary_in(&root)
         .args([
             "generate",
             "--packet",
             "execution.demo.packet",
             "--fixture-set",
-            "demo1",
+            "basic",
         ])
         .output()
         .expect("generate should run");
@@ -291,25 +312,25 @@ fn generate_resolves_execution_demo_packet_from_fixture_set() {
 
 #[test]
 fn inspect_includes_fixture_section_for_execution_demo_packet() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
-
-    write_file(
-        &root.join("tests/fixtures/execution_demo/demo1/.system/charter/CHARTER.md"),
-        b"fixture charter",
+    let root = workspace_root();
+    assert!(
+        root.join("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md")
+            .is_file(),
+        "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
-    write_file(
-        &root.join("tests/fixtures/execution_demo/demo1/.system/feature_spec/FEATURE_SPEC.md"),
-        b"fixture feature",
+    assert!(
+        root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+            .is_file(),
+        "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
 
-    let output = binary_in(root)
+    let output = binary_in(&root)
         .args([
             "inspect",
             "--packet",
             "execution.demo.packet",
             "--fixture-set",
-            "demo1",
+            "basic",
         ])
         .output()
         .expect("inspect should run");
@@ -334,7 +355,7 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         "expected fixture-backed label near top: {stdout}"
     );
     assert!(
-        stdout.contains("FIXTURE SET: demo1"),
+        stdout.contains("FIXTURE SET: basic"),
         "expected fixture set id: {stdout}"
     );
     assert!(
@@ -342,10 +363,10 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         "expected fixture lineage list: {stdout}"
     );
     let pos_charter = stdout
-        .find("tests/fixtures/execution_demo/demo1/.system/charter/CHARTER.md")
+        .find("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md")
         .expect("charter should be listed");
     let pos_feature = stdout
-        .find("tests/fixtures/execution_demo/demo1/.system/feature_spec/FEATURE_SPEC.md")
+        .find("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
         .expect("feature spec should be listed");
     assert!(
         pos_charter < pos_feature,
