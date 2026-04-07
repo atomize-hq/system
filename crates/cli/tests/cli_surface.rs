@@ -983,8 +983,10 @@ fn assert_placeholder(command: &str, expected_phrase: &str) {
         "expected placeholder phrase in stdout for {command}: {stdout}"
     );
     assert!(
-        stdout.contains("reduced v1 behavior is not implemented yet"),
-        "expected honest non-implementation message for {command}: {stdout}"
+        stdout.contains(
+            "planning packet generation, `inspect`, and `doctor` are implemented in reduced v1"
+        ),
+        "expected honest placeholder-only message for {command}: {stdout}"
     );
 }
 

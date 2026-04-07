@@ -277,7 +277,7 @@ fn generate(args: RequestArgs) -> ExitCode {
 fn placeholder_exit(command: &str, description: &str) -> ExitCode {
     let contract_version = system_compiler::workspace_contract_version();
     println!(
-        "system CLI placeholder (contract {contract_version}): `{command}` is a {description}; reduced v1 behavior is not implemented yet."
+        "system CLI placeholder (contract {contract_version}): `{command}` is a {description}; planning packet generation, `inspect`, and `doctor` are implemented in reduced v1."
     );
     ExitCode::from(1)
 }
