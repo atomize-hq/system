@@ -1177,6 +1177,15 @@ Finding:
 | 6 | Eng | Define "supported planning packet generation" as zero-exit, non-placeholder packet body, with matching docs/help | Mechanical | Explicit over clever | Current ready-path behavior is not honest enough to call supported | Continue claiming support based on metadata-only readiness |
 | 7 | Eng | Add repo-discovery, malformed-input, and retry-after-repair transitions to the required test plan | Mechanical | Choose completeness | Current tests are good on static states and weak on recovery transitions | Keep only current happy-path and refusal coverage |
 
+### User Override (2026-04-06)
+
+The user chose the complete path for the main taste decision:
+
+- prioritize finishing the ready-path packet body first
+- then reconcile docs/help/runtime support language around the finished behavior
+
+This overrides the lighter recommendation to narrow support claims first.
+
 ### Review Verdict
 
 - This repo is farther along than the base plan says.

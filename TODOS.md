@@ -72,7 +72,7 @@
 
 **Effort:** S
 **Priority:** P1
-**Depends on:** Decision on whether to narrow claims or finish the ready-path packet body
+**Depends on:** Finished ready-path packet body
 
 ### Setup Ownership And Entry Routing
 
@@ -92,7 +92,9 @@
 
 **Effort:** M
 **Priority:** P1
-**Depends on:** Support-boundary reconciliation
+**Depends on:** None
+
+**Chosen direction (2026-04-06):** Finish the ready-path packet body first. This is the selected path from the post-implementation `/autoplan` review.
 
 ### Repo Discovery And Recovery Transition Tests
 
