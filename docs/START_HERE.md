@@ -28,4 +28,3 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - Conformance + docs/help parity rails: [`C-07`](contracts/C-07-conformance-rails-and-docs-cutover.md)
 
 Legacy reference docs (Python harness, stage reference, old workflow guides) live under [`docs/legacy/`](legacy/README.md).
-

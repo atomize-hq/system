@@ -18,4 +18,3 @@ If you want the supported reduced-v1 path, start with:
 - [System model (legacy)](SYSTEM_MODEL.md)
 - [Stage reference (legacy)](stages/README.md)
 - [Workflow guides (legacy)](guides/README.md)
-

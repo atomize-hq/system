@@ -10,14 +10,22 @@ From repo root:
 
 ```bash
 cargo run -p system-cli -- --help
-cargo run -p system-cli -- doctor
-cargo run -p system-cli -- inspect
+cargo run -p system-cli -- setup
 cargo run -p system-cli -- generate
+cargo run -p system-cli -- inspect
+cargo run -p system-cli -- doctor
 ```
 
-## What to expect
+## Current command meanings
 
-- If `.system/` is missing, commands refuse or block with a deterministic “next safe action”.
+- `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow.
+- `generate` produces the packet surface and refuses compactly when canonical `.system/` inputs are missing or unsupported.
+- `inspect` is the proof surface for packet composition and decision evidence.
+- `doctor` is the recovery surface for blockers and safe next actions.
+
+## What to expect right now
+
+- `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
+- If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
 - Once `.system/` canonical artifacts exist, planning packet resolution becomes available.
 - Execution packets are only supported as fixture-backed demos, live execution is refused.
-
