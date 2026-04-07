@@ -47,10 +47,14 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 
 - The supported reduced-v1 verb surface MUST include only `setup`, `generate`, `inspect`, and `doctor`.
 - Help text MUST present the verbs in setup-first order: `setup`, then `generate`, then `inspect`, then `doctor`.
-- Help text MUST make clear that setup establishes or refreshes canonical truth, packet generation comes after setup, inspection is a proof surface, and doctor is the recovery surface.
-- Help text and placeholder output MUST avoid implying that resolver, renderer, or execution-demo behavior has already landed when it has not.
-- `generate` MUST fail with an explicit unimplemented or unsupported placeholder until downstream seams provide real packet behavior.
-- `inspect` and `doctor` MUST remain honest placeholders until their owning seams land, but their names and rough operator intent MUST stay stable.
+- Help text MUST make clear that `setup` is still a placeholder entrypoint, packet generation comes after setup, `inspect` is the proof surface, and `doctor` is the recovery surface.
+- Help text and command-surface copy MUST match the shipped reduced-v1 boundary without underclaiming or overclaiming support.
+- `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
+- `inspect` MUST be the supported proof surface for packet composition and decision evidence.
+- `doctor` MUST be the supported recovery surface for blockers and next safe actions.
+- `setup` MUST remain explicitly placeholder-only until a real Rust setup flow lands.
+- Fixture-backed execution demo support MUST remain scoped to the existing `generate` / `inspect` request surface and defer detailed boundary semantics to [`C-06`](C-06-fixture-execution-demo-boundary.md).
+- Packet body structure, proof ordering, and renderer-specific output guarantees are owned by [`C-05`](C-05-renderer-and-proof-surfaces.md), not this contract.
 
 ### Runtime boundary
 
@@ -76,7 +80,11 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
 - [ ] `crates/compiler` owns shared types and compiler-core logic.
 - [ ] `--help` shows `setup`, `generate`, `inspect`, and `doctor` in setup-first order.
-- [ ] Help and placeholder output do not overclaim resolver, renderer, or execution-demo behavior.
+- [ ] Help text matches the supported reduced-v1 command story and keeps `setup` explicitly placeholder-only.
+- [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
+- [ ] `inspect` is documented as the proof surface.
+- [ ] `doctor` is documented as the recovery surface.
+- [ ] Fixture-backed execution demo support is described only at the command-surface level here and defers detailed boundary semantics to `C-06`.
 - [ ] The Rust CLI does not invoke the legacy Python harness as a supported runtime dependency.
 - [ ] The reduced-v1 local install targets are explicitly limited to `macOS arm64` and `Linux x86_64`.
 - [ ] `README.md`, `PLAN.md`, and `docs/README.md` each point to this contract.
