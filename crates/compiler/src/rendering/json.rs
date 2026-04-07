@@ -6,7 +6,7 @@ use super::shared::{
 };
 use crate::packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
-    PacketSection, PacketSourceSummary,
+    PacketSection, PacketSectionMode, PacketSourceSummary,
 };
 use crate::{ArtifactPresence, Blocker, Refusal, SubjectRef};
 use std::fmt::Write;
@@ -250,10 +250,14 @@ fn render_packet_sections_json(sections: &[PacketSection]) -> String {
     for (index, section) in sections.iter().enumerate() {
         write!(
             &mut output,
-            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"title\": {},\n        \"contents\": {}\n      }}{}\n",
+            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"title\": {},\n        \"mode\": {},\n        \"contents\": {}\n      }}{}\n",
             json_string(render_canonical_artifact_kind(section.kind)),
             json_string(section.canonical_repo_relative_path),
             json_string(&section.title),
+            json_string(match section.mode {
+                PacketSectionMode::Verbatim => "Verbatim",
+                PacketSectionMode::Summary => "Summary",
+            }),
             json_string(&section.contents),
             if index + 1 == sections.len() { "" } else { "," }
         )

@@ -1,5 +1,6 @@
 use system_compiler::{
-    build_output_model, render_inspect, render_json, render_markdown, resolve, ResolveRequest,
+    build_output_model, render_inspect, render_json, render_markdown, resolve, BudgetPolicy,
+    ResolveRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -210,4 +211,75 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
     assert!(rendered.contains("### CHARTER (.system/charter/CHARTER.md)"));
     assert!(rendered.contains("demo charter"));
     assert!(rendered.contains("demo feature"));
+}
+
+#[test]
+fn render_markdown_marks_budget_summarized_sections_without_leaking_body() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project-context-oversized",
+    );
+
+    let result = resolve(
+        root,
+        ResolveRequest {
+            budget_policy: BudgetPolicy {
+                max_total_bytes: None,
+                max_per_artifact_bytes: Some(10),
+            },
+            ..ResolveRequest::default()
+        },
+    )
+    .expect("resolve");
+    let model = build_output_model(&result).expect("model");
+
+    let rendered = render_markdown(&model);
+    assert!(rendered.contains("### PROJECT_CONTEXT (.system/project_context/PROJECT_CONTEXT.md)"));
+    assert!(rendered.contains("MODE: summarized due to budget"));
+    assert!(rendered.contains("budget summary: full contents omitted"));
+    assert!(!rendered.contains("project-context-oversized"));
+}
+
+#[test]
+fn render_markdown_omits_budget_excluded_optional_sections() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project-context-oversized",
+    );
+
+    let result = resolve(
+        root,
+        ResolveRequest {
+            budget_policy: BudgetPolicy {
+                max_total_bytes: Some(12),
+                max_per_artifact_bytes: None,
+            },
+            ..ResolveRequest::default()
+        },
+    )
+    .expect("resolve");
+    let model = build_output_model(&result).expect("model");
+
+    let rendered = render_markdown(&model);
+    assert!(!rendered.contains("ProjectContext [.system/project_context/PROJECT_CONTEXT.md]"));
+    assert!(!rendered.contains("### PROJECT_CONTEXT (.system/project_context/PROJECT_CONTEXT.md)"));
+    assert!(rendered.contains(
+        "optional source excluded due to budget: .system/project_context/PROJECT_CONTEXT.md"
+    ));
 }

@@ -126,6 +126,16 @@ fn ensure_dir(path: &Path, what: &str) -> Result<(), String> {
     }
 }
 
+fn discover_managed_repo_root(start: &Path) -> PathBuf {
+    for candidate in start.ancestors() {
+        if std::fs::symlink_metadata(candidate.join(".system")).is_ok() {
+            return candidate.to_path_buf();
+        }
+    }
+
+    start.to_path_buf()
+}
+
 fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
     let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id).join(".system");
 
@@ -172,7 +182,7 @@ fn inject_after_first_three_lines(rendered: &str, injection: &str) -> String {
 }
 
 fn generate(args: RequestArgs) -> ExitCode {
-    let repo_root = match std::env::current_dir() {
+    let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(err) => {
             println!("REFUSED: failed to determine repo root: {err}");
@@ -186,6 +196,11 @@ fn generate(args: RequestArgs) -> ExitCode {
             println!("REFUSED: {err}");
             return ExitCode::from(1);
         }
+    };
+
+    let repo_root = match packet_id {
+        PacketId::Planning | PacketId::ExecutionLive => discover_managed_repo_root(&cwd),
+        PacketId::ExecutionDemo => cwd.clone(),
     };
 
     let compiler_root = match packet_id {
@@ -260,13 +275,14 @@ fn placeholder_exit(command: &str, description: &str) -> ExitCode {
 }
 
 fn doctor() -> ExitCode {
-    let repo_root = match std::env::current_dir() {
+    let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(err) => {
             println!("BLOCKED: failed to determine repo root: {err}");
             return ExitCode::from(1);
         }
     };
+    let repo_root = discover_managed_repo_root(&cwd);
 
     let result =
         match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
@@ -295,7 +311,7 @@ fn doctor() -> ExitCode {
 }
 
 fn inspect(args: RequestArgs) -> ExitCode {
-    let repo_root = match std::env::current_dir() {
+    let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(err) => {
             println!("BLOCKED: failed to determine repo root: {err}");
@@ -309,6 +325,11 @@ fn inspect(args: RequestArgs) -> ExitCode {
             println!("BLOCKED: {err}");
             return ExitCode::from(1);
         }
+    };
+
+    let repo_root = match packet_id {
+        PacketId::Planning | PacketId::ExecutionLive => discover_managed_repo_root(&cwd),
+        PacketId::ExecutionDemo => cwd.clone(),
     };
 
     let (compiler_root, demo_fixture_set_id) = match packet_id {

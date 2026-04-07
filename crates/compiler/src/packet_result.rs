@@ -36,6 +36,12 @@ pub enum PacketBodyNoteKind {
     InheritedDependency,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PacketSectionMode {
+    Verbatim,
+    Summary,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacketBodyNote {
     pub kind: PacketBodyNoteKind,
@@ -47,6 +53,7 @@ pub struct PacketSection {
     pub kind: CanonicalArtifactKind,
     pub canonical_repo_relative_path: &'static str,
     pub title: String,
+    pub mode: PacketSectionMode,
     pub contents: String,
 }
 

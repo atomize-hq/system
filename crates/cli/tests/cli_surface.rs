@@ -38,6 +38,22 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn planning_ready_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+
+    let nested = root.join("work/nested");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+
+    (dir, nested)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -235,6 +251,40 @@ fn generate_emits_real_packet_body_when_ready() {
 }
 
 #[test]
+fn generate_succeeds_from_nested_directory_inside_ready_repo() {
+    let (_dir, nested) = planning_ready_repo_with_nested_cwd();
+
+    let output = binary_in(&nested)
+        .arg("generate")
+        .output()
+        .expect("generate should run");
+
+    assert!(output.status.success(), "generate should return zero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+        ],
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body: {stdout}"
+    );
+    assert!(
+        stdout.contains("charter"),
+        "expected charter contents: {stdout}"
+    );
+    assert!(
+        stdout.contains("feature"),
+        "expected feature contents: {stdout}"
+    );
+}
+
+#[test]
 fn doctor_reports_ready_when_required_artifacts_present() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -246,6 +296,21 @@ fn doctor_reports_ready_when_required_artifacts_present() {
     );
 
     let output = binary_in(root)
+        .arg("doctor")
+        .output()
+        .expect("doctor should run");
+
+    assert!(output.status.success(), "doctor should succeed when ready");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("READY"), "expected ready header: {stdout}");
+}
+
+#[test]
+fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
+    let (_dir, nested) = planning_ready_repo_with_nested_cwd();
+
+    let output = binary_in(&nested)
         .arg("doctor")
         .output()
         .expect("doctor should run");
@@ -306,6 +371,36 @@ fn inspect_reports_ready_when_required_artifacts_present() {
     assert!(
         stdout.contains("selection packet_id=planning.packet status=Selected"),
         "expected selected decision summary: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
+    let (_dir, nested) = planning_ready_repo_with_nested_cwd();
+
+    let output = binary_in(&nested)
+        .arg("inspect")
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should return zero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+        ],
+    );
+    assert!(
+        stdout.contains("## JSON FALLBACK"),
+        "expected JSON fallback: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body: {stdout}"
     );
 }
 

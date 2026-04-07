@@ -3,7 +3,7 @@ use crate::{
     budget::{BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction},
     packet_result::{
         PacketBodyNote, PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection,
-        PacketSourceSummary, PacketVariant,
+        PacketSectionMode, PacketSourceSummary, PacketVariant,
     },
     refusal::{NextSafeAction, RefusalCategory, SubjectRef},
     BlockerCategory, CanonicalArtifactKind, PacketSelectionStatus,
@@ -118,6 +118,9 @@ pub fn render_packet_section(output: &mut String, section: &PacketSection) {
             section.title, section.canonical_repo_relative_path
         ),
     );
+    if section.mode == PacketSectionMode::Summary {
+        push_line(output, "MODE: summarized due to budget");
+    }
     output.push_str("```text\n");
     output.push_str(&section.contents);
     if !section.contents.ends_with('\n') {

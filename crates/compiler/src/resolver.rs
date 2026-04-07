@@ -1,7 +1,7 @@
 use crate::budget::evaluate_budget;
 use crate::packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
-    PacketSection, PacketSourceSummary, PacketVariant,
+    PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
 };
 use crate::{
     blocker_category_priority, ArtifactIngestIssueKind, ArtifactManifest, Blocker, BlockerCategory,
@@ -198,9 +198,9 @@ fn build_packet_result(
     decision_log_entries: usize,
 ) -> PacketResult {
     let variant = packet_variant_for(request.packet_id);
-    let included_sources = included_sources_for(artifacts);
+    let included_sources = included_sources_for(artifacts, budget_outcome);
     let notes = packet_notes_for(manifest, budget_outcome, artifacts);
-    let sections = packet_sections_for(artifacts);
+    let sections = packet_sections_for(artifacts, budget_outcome);
     let fixture_context = fixture_context_for(repo_root, request.packet_id, artifacts);
 
     let summary_line = if selection_status == PacketSelectionStatus::Selected {
@@ -269,7 +269,19 @@ fn packet_variant_for(packet_id: &str) -> PacketVariant {
     }
 }
 
-fn included_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummary> {
+fn included_sources_for(
+    artifacts: &CanonicalArtifacts,
+    budget_outcome: &BudgetOutcome,
+) -> Vec<PacketSourceSummary> {
+    present_sources_for(artifacts)
+        .into_iter()
+        .filter(|source| {
+            !should_exclude_artifact(source.canonical_repo_relative_path, budget_outcome)
+        })
+        .collect()
+}
+
+fn present_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummary> {
     artifacts
         .identities()
         .into_iter()
@@ -304,6 +316,32 @@ fn packet_notes_for(
         });
     }
 
+    match budget_outcome.disposition {
+        BudgetDisposition::Summarize => {
+            for target in &budget_outcome.targets {
+                notes.push(PacketBodyNote {
+                    kind: PacketBodyNoteKind::Budget,
+                    text: format!(
+                        "optional source summarized due to budget: {}",
+                        target.canonical_repo_relative_path
+                    ),
+                });
+            }
+        }
+        BudgetDisposition::Exclude => {
+            for target in &budget_outcome.targets {
+                notes.push(PacketBodyNote {
+                    kind: PacketBodyNoteKind::Omission,
+                    text: format!(
+                        "optional source excluded due to budget: {}",
+                        target.canonical_repo_relative_path
+                    ),
+                });
+            }
+        }
+        BudgetDisposition::Keep | BudgetDisposition::Refuse => {}
+    }
+
     let budget_text = format!(
         "budget: {:?}/{:?} across {} tracked canonical artifacts",
         budget_outcome.disposition,
@@ -318,11 +356,24 @@ fn packet_notes_for(
     notes
 }
 
-fn packet_sections_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSection> {
+fn packet_sections_for(
+    artifacts: &CanonicalArtifacts,
+    budget_outcome: &BudgetOutcome,
+) -> Vec<PacketSection> {
     let mut sections = Vec::new();
-    push_packet_section(&mut sections, &artifacts.charter, "CHARTER");
-    push_packet_section(&mut sections, &artifacts.project_context, "PROJECT_CONTEXT");
-    push_packet_section(&mut sections, &artifacts.feature_spec, "FEATURE_SPEC");
+    push_packet_section(&mut sections, &artifacts.charter, "CHARTER", budget_outcome);
+    push_packet_section(
+        &mut sections,
+        &artifacts.project_context,
+        "PROJECT_CONTEXT",
+        budget_outcome,
+    );
+    push_packet_section(
+        &mut sections,
+        &artifacts.feature_spec,
+        "FEATURE_SPEC",
+        budget_outcome,
+    );
     sections
 }
 
@@ -330,23 +381,75 @@ fn push_packet_section(
     sections: &mut Vec<PacketSection>,
     artifact: &CanonicalArtifact,
     title: &str,
+    budget_outcome: &BudgetOutcome,
 ) {
     if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
         return;
     }
 
-    let contents = artifact
-        .bytes
-        .as_ref()
-        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
-        .unwrap_or_default();
+    if should_exclude_artifact(artifact.identity.relative_path, budget_outcome) {
+        return;
+    }
+
+    let (mode, contents) =
+        if should_summarize_artifact(artifact.identity.relative_path, budget_outcome) {
+            (PacketSectionMode::Summary, summarize_artifact(artifact))
+        } else {
+            let contents = artifact
+                .bytes
+                .as_ref()
+                .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+                .unwrap_or_default();
+            (PacketSectionMode::Verbatim, contents)
+        };
 
     sections.push(PacketSection {
         kind: artifact.identity.kind,
         canonical_repo_relative_path: artifact.identity.relative_path,
         title: title.to_string(),
+        mode,
         contents,
     });
+}
+
+fn should_summarize_artifact(
+    canonical_repo_relative_path: &str,
+    budget_outcome: &BudgetOutcome,
+) -> bool {
+    budget_outcome.disposition == BudgetDisposition::Summarize
+        && budget_targets_artifact(canonical_repo_relative_path, budget_outcome)
+}
+
+fn should_exclude_artifact(
+    canonical_repo_relative_path: &str,
+    budget_outcome: &BudgetOutcome,
+) -> bool {
+    budget_outcome.disposition == BudgetDisposition::Exclude
+        && budget_targets_artifact(canonical_repo_relative_path, budget_outcome)
+}
+
+fn budget_targets_artifact(
+    canonical_repo_relative_path: &str,
+    budget_outcome: &BudgetOutcome,
+) -> bool {
+    budget_outcome
+        .targets
+        .iter()
+        .any(|target| target.canonical_repo_relative_path == canonical_repo_relative_path)
+}
+
+fn summarize_artifact(artifact: &CanonicalArtifact) -> String {
+    let byte_len = artifact.identity.byte_len.unwrap_or(0);
+    let sha256 = artifact
+        .identity
+        .content_sha256
+        .as_deref()
+        .unwrap_or("unavailable");
+
+    format!(
+        "budget summary: full contents omitted for {} ({} bytes, sha256={})",
+        artifact.identity.relative_path, byte_len, sha256
+    )
 }
 
 fn fixture_context_for(
@@ -381,7 +484,7 @@ fn fixture_context_for(
     Some(PacketFixtureContext {
         fixture_set_id,
         fixture_basis_root,
-        fixture_lineage: included_sources_for(artifacts),
+        fixture_lineage: present_sources_for(artifacts),
     })
 }
 

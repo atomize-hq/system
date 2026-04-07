@@ -1,5 +1,6 @@
 use system_compiler::{
-    resolve, BudgetDisposition, BudgetPolicy, PacketSelectionStatus, ResolveRequest,
+    packet_result::PacketSectionMode, resolve, BudgetDisposition, BudgetPolicy,
+    PacketSelectionStatus, ResolveRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -104,6 +105,109 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
 }
 
 #[test]
+fn budget_summarize_replaces_optional_body_with_summary() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project-context-oversized",
+    );
+
+    let summarize_req = ResolveRequest {
+        budget_policy: BudgetPolicy {
+            max_total_bytes: None,
+            max_per_artifact_bytes: Some(10),
+        },
+        ..ResolveRequest::default()
+    };
+    let result = resolve(repo_root, summarize_req).expect("resolve summarize");
+
+    assert_eq!(
+        result.budget_outcome.disposition,
+        BudgetDisposition::Summarize
+    );
+    assert_eq!(result.packet_result.included_sources.len(), 3);
+    let summarized_section = result
+        .packet_result
+        .sections
+        .iter()
+        .find(|section| section.title == "PROJECT_CONTEXT")
+        .expect("project context section");
+    assert_eq!(summarized_section.mode, PacketSectionMode::Summary);
+    assert!(
+        summarized_section
+            .contents
+            .contains("budget summary: full contents omitted"),
+        "expected budget summary stub: {:?}",
+        summarized_section.contents
+    );
+    assert!(
+        !summarized_section
+            .contents
+            .contains("project-context-oversized"),
+        "full optional contents should not leak once summarized: {:?}",
+        summarized_section.contents
+    );
+}
+
+#[test]
+fn budget_exclude_removes_optional_body_from_packet() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project-context-oversized",
+    );
+
+    let exclude_req = ResolveRequest {
+        budget_policy: BudgetPolicy {
+            max_total_bytes: Some(12),
+            max_per_artifact_bytes: None,
+        },
+        ..ResolveRequest::default()
+    };
+    let result = resolve(repo_root, exclude_req).expect("resolve exclude");
+
+    assert_eq!(
+        result.budget_outcome.disposition,
+        BudgetDisposition::Exclude
+    );
+    assert_eq!(result.packet_result.included_sources.len(), 2);
+    assert!(
+        result
+            .packet_result
+            .included_sources
+            .iter()
+            .all(|source| source.canonical_repo_relative_path
+                != ".system/project_context/PROJECT_CONTEXT.md"),
+        "excluded sources should not be listed as included: {:?}",
+        result.packet_result.included_sources
+    );
+    assert_eq!(result.packet_result.sections.len(), 2);
+    assert!(
+        result
+            .packet_result
+            .sections
+            .iter()
+            .all(|section| section.title != "PROJECT_CONTEXT"),
+        "excluded optional section should be absent from packet body: {:?}",
+        result.packet_result.sections
+    );
+}
+
+#[test]
 fn resolver_builds_typed_packet_body_for_planning_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -131,6 +235,10 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     assert_eq!(result.packet_result.sections[0].title, "CHARTER");
     assert_eq!(result.packet_result.sections[1].title, "PROJECT_CONTEXT");
     assert_eq!(result.packet_result.sections[2].title, "FEATURE_SPEC");
+    assert_eq!(
+        result.packet_result.sections[0].mode,
+        PacketSectionMode::Verbatim
+    );
     assert_eq!(result.packet_result.sections[0].contents, "charter body");
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
