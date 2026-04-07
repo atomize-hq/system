@@ -133,15 +133,33 @@ fn path_is_dir_or_file(path: &Path) -> bool {
     }
 }
 
-fn discover_managed_repo_root(start: &Path) -> PathBuf {
+fn discover_enclosing_git_root(start: &Path) -> Option<PathBuf> {
+    for candidate in start.ancestors() {
+        if path_is_dir_or_file(&candidate.join(".git")) {
+            return Some(candidate.to_path_buf());
+        }
+    }
+
+    None
+}
+
+fn discover_nearest_managed_root(start: &Path) -> Option<PathBuf> {
     for candidate in start.ancestors() {
         if std::fs::symlink_metadata(candidate.join(".system")).is_ok() {
-            return candidate.to_path_buf();
+            return Some(candidate.to_path_buf());
         }
+    }
 
-        if path_is_dir_or_file(&candidate.join(".git")) {
-            return candidate.to_path_buf();
-        }
+    None
+}
+
+fn discover_managed_repo_root(start: &Path) -> PathBuf {
+    if let Some(git_root) = discover_enclosing_git_root(start) {
+        return git_root;
+    }
+
+    if let Some(managed_root) = discover_nearest_managed_root(start) {
+        return managed_root;
     }
 
     start.to_path_buf()

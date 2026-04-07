@@ -92,6 +92,10 @@ fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathB
     (dir, nested)
 }
 
+fn committed_execution_demo_fixture_dir() -> std::path::PathBuf {
+    workspace_root().join("tests/fixtures/execution_demo/basic")
+}
+
 fn repair_to_ready(root: &std::path::Path) {
     write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
     write_file(
@@ -1071,6 +1075,157 @@ fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
     assert!(
         stdout.contains("### FEATURE_SPEC"),
         "expected feature body section: {stdout}"
+    );
+}
+
+#[test]
+fn generate_from_committed_fixture_dir_refuses_against_git_root() {
+    let fixture_dir = committed_execution_demo_fixture_dir();
+
+    let output = binary_in(&fixture_dir)
+        .arg("generate")
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ],
+    );
+    assert!(
+        stdout.contains("CATEGORY: SystemRootMissing"),
+        "expected git-root refusal instead of fixture-root success: {stdout}"
+    );
+    assert!(
+        !stdout.contains("Fixture demo charter (basic)"),
+        "planning flow should not read fixture bodies as live inputs: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_from_committed_fixture_dir_refuses_against_git_root() {
+    let fixture_dir = committed_execution_demo_fixture_dir();
+
+    let output = binary_in(&fixture_dir)
+        .arg("inspect")
+        .output()
+        .expect("inspect should run");
+
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ],
+    );
+    assert!(
+        stdout.contains("CATEGORY: SystemRootMissing"),
+        "expected git-root refusal instead of fixture-root success: {stdout}"
+    );
+    assert!(
+        !stdout.contains("Fixture demo charter (basic)"),
+        "planning flow should not read fixture bodies as live inputs: {stdout}"
+    );
+}
+
+#[test]
+fn doctor_from_committed_fixture_dir_blocks_against_git_root() {
+    let fixture_dir = committed_execution_demo_fixture_dir();
+
+    let output = binary_in(&fixture_dir)
+        .arg("doctor")
+        .output()
+        .expect("doctor should run");
+
+    assert!(!output.status.success(), "doctor should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("BLOCKED"), "expected blocked header: {stdout}");
+    assert!(
+        stdout.contains("SystemRootMissing"),
+        "expected git-root blocker instead of fixture-root success: {stdout}"
+    );
+}
+
+#[test]
+fn generate_resolves_execution_demo_packet_from_committed_fixture_dir() {
+    let fixture_dir = committed_execution_demo_fixture_dir();
+
+    let output = binary_in(&fixture_dir)
+        .args([
+            "generate",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "basic",
+        ])
+        .output()
+        .expect("generate should run");
+
+    assert!(output.status.success(), "generate should return zero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: execution.demo.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+        ],
+    );
+    assert!(
+        stdout.contains("## FIXTURE DEMO"),
+        "expected fixture demo section: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.system/"),
+        "expected fixture basis root to resolve exactly once: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_resolves_execution_demo_packet_from_committed_fixture_dir() {
+    let fixture_dir = committed_execution_demo_fixture_dir();
+
+    let output = binary_in(&fixture_dir)
+        .args([
+            "inspect",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "basic",
+        ])
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should return zero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: execution.demo.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+        ],
+    );
+    assert!(
+        stdout.contains("## FIXTURE DEMO"),
+        "expected fixture section: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.system/"),
+        "expected fixture basis root to resolve exactly once: {stdout}"
     );
 }
 
