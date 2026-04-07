@@ -143,6 +143,36 @@ fn render_json_is_deterministic_for_identical_models() {
 }
 
 #[test]
+fn render_json_redacts_packet_body_for_refused_live_execution_requests() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let result = resolve(
+        root,
+        ResolveRequest {
+            packet_id: "execution.live.packet",
+            ..Default::default()
+        },
+    )
+    .expect("resolve");
+    let model = build_output_model(&result).expect("model");
+
+    let rendered = render_json(&model);
+
+    assert!(rendered.contains("\"packet_result\""));
+    assert!(rendered.contains("\"sections\": [\n    ]"));
+    assert!(rendered.contains("\"packet body omitted because request is not ready\""));
+    assert!(!rendered.contains("\"contents\": \"charter-body\""));
+    assert!(!rendered.contains("\"contents\": \"feature-body\""));
+}
+
+#[test]
 fn render_inspect_is_deterministic_and_includes_json_fallback() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();

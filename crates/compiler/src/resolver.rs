@@ -157,17 +157,17 @@ pub fn resolve(
         request.packet_id, selection_status
     ));
 
-    let packet_result = build_packet_result(
-        repo_root.as_ref(),
-        &request,
-        &canonical_artifacts,
-        &manifest,
-        &budget_outcome,
+    let packet_result = build_packet_result(BuildPacketResultInput {
+        repo_root: repo_root.as_ref(),
+        request: &request,
+        artifacts: &canonical_artifacts,
+        manifest: &manifest,
+        budget_outcome: &budget_outcome,
         selection_status,
-        refusal.as_ref(),
-        &blockers,
-        decision_log.entries.len(),
-    );
+        refusal: refusal.as_ref(),
+        blockers: &blockers,
+        decision_log_entries: decision_log.entries.len(),
+    });
 
     Ok(ResolverResult {
         c04_result_version: C04_RESULT_VERSION.to_string(),
@@ -186,21 +186,41 @@ pub fn resolve(
     })
 }
 
-fn build_packet_result(
-    repo_root: &Path,
-    request: &ResolveRequest,
-    artifacts: &CanonicalArtifacts,
-    manifest: &ArtifactManifest,
-    budget_outcome: &BudgetOutcome,
+struct BuildPacketResultInput<'a> {
+    repo_root: &'a Path,
+    request: &'a ResolveRequest,
+    artifacts: &'a CanonicalArtifacts,
+    manifest: &'a ArtifactManifest,
+    budget_outcome: &'a BudgetOutcome,
     selection_status: PacketSelectionStatus,
-    refusal: Option<&Refusal>,
-    blockers: &[Blocker],
+    refusal: Option<&'a Refusal>,
+    blockers: &'a [Blocker],
     decision_log_entries: usize,
-) -> PacketResult {
+}
+
+fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
+    let BuildPacketResultInput {
+        repo_root,
+        request,
+        artifacts,
+        manifest,
+        budget_outcome,
+        selection_status,
+        refusal,
+        blockers,
+        decision_log_entries,
+    } = input;
+
     let variant = packet_variant_for(request.packet_id);
     let included_sources = included_sources_for(artifacts, budget_outcome);
-    let notes = packet_notes_for(manifest, budget_outcome, artifacts);
-    let sections = packet_sections_for(artifacts, budget_outcome);
+    let packet_body_ready =
+        selection_status == PacketSelectionStatus::Selected && refusal.is_none() && blockers.is_empty();
+    let notes = packet_notes_for(manifest, budget_outcome, artifacts, packet_body_ready);
+    let sections = if packet_body_ready {
+        packet_sections_for(artifacts, budget_outcome)
+    } else {
+        Vec::new()
+    };
     let fixture_context = fixture_context_for(repo_root, request.packet_id, artifacts);
 
     let summary_line = if selection_status == PacketSelectionStatus::Selected {
@@ -306,6 +326,7 @@ fn packet_notes_for(
     manifest: &ArtifactManifest,
     budget_outcome: &BudgetOutcome,
     artifacts: &CanonicalArtifacts,
+    packet_body_ready: bool,
 ) -> Vec<PacketBodyNote> {
     let mut notes = Vec::new();
 
@@ -340,6 +361,13 @@ fn packet_notes_for(
             }
         }
         BudgetDisposition::Keep | BudgetDisposition::Refuse => {}
+    }
+
+    if !packet_body_ready {
+        notes.push(PacketBodyNote {
+            kind: PacketBodyNoteKind::Omission,
+            text: "packet body omitted because request is not ready".to_string(),
+        });
     }
 
     let budget_text = format!(

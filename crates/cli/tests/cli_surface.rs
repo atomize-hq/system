@@ -665,6 +665,40 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
     );
 }
 
+#[test]
+fn inspect_redacts_packet_body_for_live_execution_refusal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = binary_in(root)
+        .args(["inspect", "--packet", "execution.live.packet"])
+        .output()
+        .expect("inspect should run");
+
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: execution.live.packet",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+        ],
+    );
+    assert!(stdout.contains("## JSON FALLBACK"));
+    assert!(stdout.contains("\"packet_result\""));
+    assert!(stdout.contains("\"packet body omitted because request is not ready\""));
+    assert!(!stdout.contains("charter-body"));
+    assert!(!stdout.contains("feature-body"));
+}
+
 fn assert_placeholder(command: &str, expected_phrase: &str) {
     let output = binary().arg(command).output().expect("command should run");
 

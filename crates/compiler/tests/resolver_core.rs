@@ -21,6 +21,10 @@ fn resolver_returns_typed_result_when_system_root_missing() {
     assert_eq!(result.c03_schema_version, "reduced-v1");
     assert_eq!(result.c03_manifest_generation_version, 1);
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    assert!(result.packet_result.sections.is_empty());
+    assert!(result.packet_result.notes.iter().any(|note| {
+        note.text == "packet body omitted because request is not ready"
+    }));
     assert_eq!(result.c03_fingerprint_sha256.len(), 64);
     assert!(result
         .c03_fingerprint_sha256
@@ -304,4 +308,32 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
         result.packet_result.decision_summary.ready_next_safe_action,
         "run `system inspect --packet execution.demo.packet --fixture-set basic` for proof"
     );
+}
+
+#[test]
+fn resolver_redacts_packet_body_for_unsupported_live_execution_requests() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter body");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature body",
+    );
+
+    let result = resolve(
+        root,
+        ResolveRequest {
+            packet_id: "execution.live.packet",
+            ..ResolveRequest::default()
+        },
+    )
+    .expect("resolve");
+
+    assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    assert!(result.refusal.is_some());
+    assert!(result.packet_result.sections.is_empty());
+    assert!(result.packet_result.notes.iter().any(|note| {
+        note.text == "packet body omitted because request is not ready"
+    }));
 }

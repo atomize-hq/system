@@ -76,6 +76,10 @@ It exists so downstream seams, especially `SEAM-7`, can treat markdown, JSON, an
 - JSON output MUST preserve the same typed meaning as the markdown and inspect views.
 - JSON output MUST be stable across identical inputs, including the ordering of ordered collections and proof payloads.
 - JSON output MUST provide a machine-readable fallback when dense evidence would make a terminal-friendly surface insufficient on its own.
+- JSON output MUST keep `packet_result` present for ready and non-ready outcomes alike.
+- Packet body sections inside `packet_result` MUST be serialized only for ready outcomes.
+- For blocked or refused outcomes, JSON output MUST redact packet body sections rather than serializing body contents through the fallback surface.
+- Non-ready redaction MUST preserve refusal, blocker, budget, and packet metadata evidence so clients can explain why no packet body is available.
 
 ### Inspect surface
 
