@@ -330,11 +330,14 @@ fn packet_notes_for(
     packet_body_ready: bool,
 ) -> Vec<PacketBodyNote> {
     let mut notes = Vec::new();
+    let project_context_path = artifacts.project_context.identity.relative_path;
 
-    if artifacts.project_context.identity.presence == crate::ArtifactPresence::Missing {
+    if artifacts.project_context.identity.presence == crate::ArtifactPresence::Missing
+        && ingest_issue_for_path(manifest, project_context_path).is_none()
+    {
         notes.push(PacketBodyNote {
             kind: PacketBodyNoteKind::Omission,
-            text: "optional source omitted: .system/project_context/PROJECT_CONTEXT.md".to_string(),
+            text: format!("optional source omitted: {project_context_path}"),
         });
     }
 

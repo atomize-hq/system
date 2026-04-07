@@ -58,6 +58,18 @@ fn optional_artifact_read_error_blocks_without_refusal() {
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
     assert!(result.refusal.is_none());
     assert!(result.packet_result.sections.is_empty());
+    assert!(
+        !result.packet_result.notes.iter().any(|note| {
+            note.text == "optional source omitted: .system/project_context/PROJECT_CONTEXT.md"
+        }),
+        "read errors must not be mislabeled as benign omissions: {:?}",
+        result.packet_result.notes
+    );
+    assert!(result
+        .packet_result
+        .notes
+        .iter()
+        .any(|note| { note.text == "packet body omitted because request is not ready" }));
     assert!(result
         .blockers
         .iter()
@@ -69,6 +81,25 @@ fn optional_artifact_read_error_blocks_without_refusal() {
                     ..
                 }
             )));
+}
+
+#[test]
+fn missing_optional_project_context_emits_omission_note() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+
+    let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
+
+    assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
+    assert!(result.packet_result.notes.iter().any(|note| {
+        note.text == "optional source omitted: .system/project_context/PROJECT_CONTEXT.md"
+    }));
 }
 
 #[test]

@@ -173,6 +173,32 @@ fn render_json_redacts_packet_body_for_refused_live_execution_requests() {
 }
 
 #[test]
+fn render_json_does_not_mislabel_optional_read_error_as_omission() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+    std::fs::create_dir_all(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        .expect("project_context dir");
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+    let model = build_output_model(&result).expect("model");
+
+    let rendered = render_json(&model);
+
+    assert!(rendered.contains("\"packet_result\""));
+    assert!(rendered.contains("\"packet body omitted because request is not ready\""));
+    assert!(rendered.contains("\"category\": \"ArtifactReadError\""));
+    assert!(!rendered.contains(
+        "\"text\": \"optional source omitted: .system/project_context/PROJECT_CONTEXT.md\""
+    ));
+}
+
+#[test]
 fn render_inspect_is_deterministic_and_includes_json_fallback() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
