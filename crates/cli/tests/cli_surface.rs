@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::process::{Command, Output};
 
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
@@ -8,6 +8,13 @@ fn binary_in(dir: &std::path::Path) -> Command {
     let mut cmd = binary();
     cmd.current_dir(dir);
     cmd
+}
+
+fn run_in(dir: &std::path::Path, args: &[&str]) -> Output {
+    binary_in(dir)
+        .args(args)
+        .output()
+        .unwrap_or_else(|err| panic!("run `{}`: {err}", args.join(" ")))
 }
 
 fn workspace_root() -> std::path::PathBuf {
@@ -85,6 +92,31 @@ fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathB
     (dir, nested)
 }
 
+fn repair_to_ready(root: &std::path::Path) {
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+}
+
+fn partial_system_repo() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write_file(dir.path().join(".system/charter/CHARTER.md").as_path(), b"charter");
+    dir
+}
+
+fn malformed_optional_project_context_repo() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    repair_to_ready(root);
+    std::fs::create_dir_all(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        .expect("project_context directory");
+
+    dir
+}
+
 fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf)
 {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -144,6 +176,96 @@ fn setup_prints_placeholder_and_fails() {
 }
 
 #[test]
+fn generate_retry_after_repair_clears_missing_root_refusal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    let first = run_in(root, &["generate"]);
+    assert!(!first.status.success(), "initial generate should fail");
+    let first_stdout = String::from_utf8(first.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &first_stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ],
+    );
+
+    repair_to_ready(root);
+
+    let second = run_in(root, &["generate"]);
+    assert!(second.status.success(), "generate should succeed after repair");
+    let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &second_stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+        ],
+    );
+    assert!(second_stdout.contains("## PACKET BODY"));
+    assert!(second_stdout.contains("### CHARTER"));
+    assert!(second_stdout.contains("### FEATURE_SPEC"));
+}
+
+#[test]
+fn inspect_retry_after_repair_clears_missing_root_refusal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    let first = run_in(root, &["inspect"]);
+    assert!(!first.status.success(), "initial inspect should fail");
+    let first_stdout = String::from_utf8(first.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &first_stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical .system root at .system",
+        ],
+    );
+
+    repair_to_ready(root);
+
+    let second = run_in(root, &["inspect"]);
+    assert!(second.status.success(), "inspect should succeed after repair");
+    let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &second_stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+        ],
+    );
+    assert!(second_stdout.contains("## JSON FALLBACK"));
+    assert!(second_stdout.contains("## PACKET BODY"));
+    assert!(second_stdout.contains("### CHARTER"));
+    assert!(second_stdout.contains("### FEATURE_SPEC"));
+}
+
+#[test]
+fn doctor_retry_after_repair_reports_ready_after_repair() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    let first = run_in(root, &["doctor"]);
+    assert!(!first.status.success(), "initial doctor should fail");
+    let first_stdout = String::from_utf8(first.stdout).expect("stdout is utf-8");
+    assert!(first_stdout.contains("BLOCKED"));
+    assert!(first_stdout.contains("SystemRootMissing"));
+
+    repair_to_ready(root);
+
+    let second = run_in(root, &["doctor"]);
+    assert!(second.status.success(), "doctor should succeed after repair");
+    let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
+    assert_eq!(second_stdout.trim(), "READY");
+}
+
+#[test]
 fn generate_refuses_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let output = binary_in(dir.path())
@@ -177,6 +299,25 @@ fn generate_refuses_when_system_root_missing() {
 }
 
 #[test]
+fn generate_refuses_when_feature_spec_missing_in_partial_system_tree() {
+    let dir = partial_system_repo();
+
+    let output = run_in(dir.path(), &["generate"]);
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: RequiredArtifactMissing"));
+}
+
+#[test]
 fn inspect_refuses_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let output = binary_in(dir.path())
@@ -202,6 +343,25 @@ fn inspect_refuses_when_system_root_missing() {
 }
 
 #[test]
+fn inspect_refuses_when_feature_spec_missing_in_partial_system_tree() {
+    let dir = partial_system_repo();
+
+    let output = run_in(dir.path(), &["inspect"]);
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: RequiredArtifactMissing"));
+}
+
+#[test]
 fn doctor_blocks_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let output = binary_in(dir.path())
@@ -223,6 +383,19 @@ fn doctor_blocks_when_system_root_missing() {
         stdout.contains("SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
     );
+}
+
+#[test]
+fn doctor_blocks_when_feature_spec_missing_in_partial_system_tree() {
+    let dir = partial_system_repo();
+
+    let output = run_in(dir.path(), &["doctor"]);
+    assert!(!output.status.success(), "doctor should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("BLOCKED"));
+    assert!(stdout.contains("RequiredArtifactMissing"));
+    assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"));
 }
 
 #[test]
@@ -970,6 +1143,60 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
     assert!(stdout.contains("\"packet body omitted because request is not ready\""));
     assert!(!stdout.contains("charter-body"));
     assert!(!stdout.contains("feature-body"));
+}
+
+#[test]
+fn generate_blocks_when_optional_project_context_path_is_malformed() {
+    let dir = malformed_optional_project_context_repo();
+
+    let output = run_in(dir.path(), &["generate"]);
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: BLOCKED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical artifact at .system/project_context/PROJECT_CONTEXT.md",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: ArtifactReadError"));
+    assert!(!stdout.contains("## PACKET BODY"));
+}
+
+#[test]
+fn inspect_blocks_when_optional_project_context_path_is_malformed() {
+    let dir = malformed_optional_project_context_repo();
+
+    let output = run_in(dir.path(), &["inspect"]);
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: BLOCKED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: create canonical artifact at .system/project_context/PROJECT_CONTEXT.md",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: ArtifactReadError"));
+    assert!(stdout.contains("## JSON FALLBACK"));
+    assert!(!stdout.contains("## PACKET BODY"));
+}
+
+#[test]
+fn doctor_blocks_when_optional_project_context_path_is_malformed() {
+    let dir = malformed_optional_project_context_repo();
+
+    let output = run_in(dir.path(), &["doctor"]);
+    assert!(!output.status.success(), "doctor should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("BLOCKED"));
+    assert!(stdout.contains("ArtifactReadError"));
+    assert!(stdout.contains(".system/project_context/PROJECT_CONTEXT.md"));
 }
 
 fn assert_placeholder(command: &str, expected_phrase: &str) {

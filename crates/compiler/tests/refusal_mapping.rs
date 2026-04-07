@@ -73,6 +73,26 @@ fn refusal_required_artifact_empty() {
 }
 
 #[test]
+fn refusal_required_artifact_read_error_is_selected_for_malformed_required_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    std::fs::create_dir_all(root.join(".system/charter/CHARTER.md")).expect("charter dir");
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"spec");
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(refusal.category, RefusalCategory::ArtifactReadError);
+    assert_eq!(
+        refusal.broken_subject,
+        SubjectRef::CanonicalArtifact {
+            kind: CanonicalArtifactKind::Charter,
+            canonical_repo_relative_path: ".system/charter/CHARTER.md",
+        }
+    );
+}
+
+#[test]
 fn refusal_budget_refused_is_selected_when_other_inputs_ok() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();

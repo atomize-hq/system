@@ -107,6 +107,61 @@ fn whitespace_only_counts_as_non_empty() {
     assert_eq!(artifacts.project_context.identity.byte_len, Some(3));
 }
 
+#[test]
+fn required_artifact_directory_is_recorded_as_read_error_and_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/charter/CHARTER.md")).expect("charter dir");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"spec",
+    );
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(artifacts.charter.identity.presence, ArtifactPresence::Missing);
+    assert!(artifacts.charter.bytes.is_none());
+    assert!(
+        artifacts.ingest_issues.iter().any(|issue| {
+            issue.kind == ArtifactIngestIssueKind::CanonicalArtifactReadError
+                && issue.canonical_repo_relative_path == ".system/charter/CHARTER.md"
+        }),
+        "expected read-error ingest issue, got: {:?}",
+        artifacts.ingest_issues
+    );
+}
+
+#[test]
+fn optional_artifact_directory_is_recorded_as_read_error_and_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"spec",
+    );
+    std::fs::create_dir_all(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        .expect("project_context dir");
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.project_context.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert!(artifacts.project_context.bytes.is_none());
+    assert!(
+        artifacts.ingest_issues.iter().any(|issue| {
+            issue.kind == ArtifactIngestIssueKind::CanonicalArtifactReadError
+                && issue.canonical_repo_relative_path == ".system/project_context/PROJECT_CONTEXT.md"
+        }),
+        "expected read-error ingest issue, got: {:?}",
+        artifacts.ingest_issues
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn system_root_symlink_is_not_followed_and_is_reported() {

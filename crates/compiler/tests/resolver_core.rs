@@ -1,5 +1,5 @@
 use system_compiler::{
-    packet_result::PacketSectionMode, resolve, BudgetDisposition, BudgetPolicy,
+    packet_result::PacketSectionMode, resolve, BlockerCategory, BudgetDisposition, BudgetPolicy,
     PacketSelectionStatus, ResolveRequest,
 };
 
@@ -38,6 +38,37 @@ fn resolver_returns_typed_result_when_system_root_missing() {
         .c03_fingerprint_sha256
         .chars()
         .all(|c| c.is_ascii_hexdigit()));
+}
+
+#[test]
+fn optional_artifact_read_error_blocks_without_refusal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    std::fs::create_dir_all(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        .expect("project_context dir");
+
+    let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
+
+    assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    assert!(result.refusal.is_none());
+    assert!(result.packet_result.sections.is_empty());
+    assert!(result
+        .blockers
+        .iter()
+        .any(|blocker| blocker.category == BlockerCategory::ArtifactReadError
+            && matches!(
+                blocker.subject,
+                system_compiler::SubjectRef::CanonicalArtifact {
+                    canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
+                    ..
+                }
+            )));
 }
 
 #[test]
