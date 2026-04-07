@@ -33,13 +33,10 @@ pub struct ArtifactManifest {
 }
 
 impl ArtifactManifest {
-    pub fn generate(
-        repo_root: impl AsRef<Path>,
+    pub fn from_canonical_artifacts(
+        artifacts: &CanonicalArtifacts,
         inputs: ManifestInputs,
-    ) -> Result<Self, ManifestError> {
-        let artifacts =
-            CanonicalArtifacts::load(repo_root.as_ref()).map_err(ManifestError::Ingest)?;
-
+    ) -> Self {
         let system_root_status = artifacts.system_root_status;
         let ingest_issues = artifacts.ingest_issues.clone();
         let ordered_identities = artifacts
@@ -53,7 +50,7 @@ impl ArtifactManifest {
             &inputs.overrides,
         );
 
-        Ok(Self {
+        Self {
             version: ManifestVersion {
                 schema: SchemaVersion {
                     contract_id: "C-03",
@@ -65,7 +62,17 @@ impl ArtifactManifest {
             artifacts: ordered_identities,
             ingest_issues,
             freshness,
-        })
+        }
+    }
+
+    pub fn generate(
+        repo_root: impl AsRef<Path>,
+        inputs: ManifestInputs,
+    ) -> Result<Self, ManifestError> {
+        let artifacts =
+            CanonicalArtifacts::load(repo_root.as_ref()).map_err(ManifestError::Ingest)?;
+
+        Ok(Self::from_canonical_artifacts(&artifacts, inputs))
     }
 }
 

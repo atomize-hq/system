@@ -67,8 +67,8 @@ pub fn resolve(
     let canonical_artifacts = CanonicalArtifacts::load(repo_root.as_ref())
         .map_err(|err| CompilerError::Manifest(crate::ManifestError::Ingest(err)))?;
 
-    let manifest = ArtifactManifest::generate(repo_root.as_ref(), ManifestInputs::default())
-        .map_err(CompilerError::Manifest)?;
+    let manifest =
+        ArtifactManifest::from_canonical_artifacts(&canonical_artifacts, ManifestInputs::default());
 
     let mut decision_log = DecisionLog {
         entries: Vec::new(),

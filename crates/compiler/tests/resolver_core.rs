@@ -10,6 +10,12 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+
+    format!("{:x}", Sha256::digest(bytes))
+}
+
 #[test]
 fn resolver_returns_typed_result_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -259,6 +265,47 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
         "expected ready summary line: {:?}",
         result.packet_result.decision_summary.summary_line
     );
+}
+
+#[test]
+fn ready_packet_sections_match_included_source_metadata() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter body");
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project context body",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature spec body",
+    );
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+
+    for section in result
+        .packet_result
+        .sections
+        .iter()
+        .filter(|section| section.mode == PacketSectionMode::Verbatim)
+    {
+        let source = result
+            .packet_result
+            .included_sources
+            .iter()
+            .find(|source| {
+                source.canonical_repo_relative_path == section.canonical_repo_relative_path
+            })
+            .expect("matching included source");
+
+        let bytes = section.contents.as_bytes();
+        assert_eq!(source.byte_len, Some(bytes.len() as u64));
+        assert_eq!(
+            source.content_sha256.as_deref(),
+            Some(sha256_hex(bytes).as_str())
+        );
+    }
 }
 
 #[test]

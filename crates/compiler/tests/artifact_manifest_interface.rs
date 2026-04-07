@@ -1,6 +1,7 @@
 use system_compiler::{
-    ArtifactManifest, CanonicalArtifactKind, InheritedDependency, ManifestInputs, OverrideTarget,
-    OverrideWithRationale, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
+    ArtifactManifest, CanonicalArtifactKind, CanonicalArtifacts, InheritedDependency,
+    ManifestInputs, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,
+    MANIFEST_GENERATION_VERSION,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -21,6 +22,12 @@ fn make_repo_with_required_system_artifacts() -> tempfile::TempDir {
     );
 
     dir
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 #[test]
@@ -119,4 +126,31 @@ fn freshness_issues_have_deterministic_order() {
     assert!(details[0].ends_with(": a"));
     assert!(details[1].contains("FeatureSpec"));
     assert!(details[1].ends_with(": b"));
+}
+
+#[test]
+fn manifest_from_snapshot_keeps_pre_mutation_identity() {
+    let dir = make_repo_with_required_system_artifacts();
+    let root = dir.path();
+    let original_bytes = b"charter".to_vec();
+
+    let artifacts = CanonicalArtifacts::load(root).expect("artifacts");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        b"charter changed after snapshot",
+    );
+
+    let manifest =
+        ArtifactManifest::from_canonical_artifacts(&artifacts, ManifestInputs::default());
+    let charter = manifest
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.kind == CanonicalArtifactKind::Charter)
+        .expect("charter identity");
+
+    assert_eq!(charter.byte_len, Some(original_bytes.len() as u64));
+    assert_eq!(
+        charter.content_sha256.as_deref(),
+        Some(sha256_hex(&original_bytes).as_str())
+    );
 }
