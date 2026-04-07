@@ -61,3 +61,45 @@
 **Effort:** M
 **Priority:** P3
 **Depends on:** Stable CLI UX, stable install smoke on supported targets, release channel decision
+
+## Post-Implementation Audit Follow-Ups
+
+### Support Boundary Reconciliation
+
+**What:** Reconcile `PLAN.md`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, CLI help, and runtime behavior so reduced v1 does not claim supported planning packet generation before `system generate` exits `0` with a non-placeholder packet body.
+
+**Why:** The current repo is caught between underclaim and overclaim. Docs say live planning packet resolution is supported, while CLI help still describes a scaffold and the ready path still returns placeholder body text.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Decision on whether to narrow claims or finish the ready-path packet body
+
+### Setup Ownership And Entry Routing
+
+**What:** Define one canonical setup ownership boundary and one startup routing model for new repo, initialized repo, stale repo, and unsupported repo.
+
+**Why:** The current plan and docs split setup authority between the legacy scaffold and the Rust CLI, which leaves the operator without one obvious front door.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Support-boundary reconciliation
+
+### Packet Body Contract
+
+**What:** Add a typed packet-body contract to the compiler output model, or explicitly narrow reduced-v1 claims until that contract exists.
+
+**Why:** The current rendering model carries trust metadata, decision evidence, refusals, and blockers, but not the actual planning packet body that docs imply is already supported.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** Support-boundary reconciliation
+
+### Repo Discovery And Recovery Transition Tests
+
+**What:** Define repo discovery semantics and add tests for retry-after-repair, partial `.system/` trees, malformed inputs, and docs/help/runtime vocabulary drift.
+
+**Why:** Current coverage is strong on deterministic static states, but weak on state transitions and normal operator invocation paths.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Setup ownership decision, packet body contract direction
