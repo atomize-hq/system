@@ -70,17 +70,15 @@ fn optional_artifact_read_error_blocks_without_refusal() {
         .notes
         .iter()
         .any(|note| { note.text == "packet body omitted because request is not ready" }));
-    assert!(result
-        .blockers
-        .iter()
-        .any(|blocker| blocker.category == BlockerCategory::ArtifactReadError
-            && matches!(
-                blocker.subject,
-                system_compiler::SubjectRef::CanonicalArtifact {
-                    canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
-                    ..
-                }
-            )));
+    assert!(result.blockers.iter().any(|blocker| blocker.category
+        == BlockerCategory::ArtifactReadError
+        && matches!(
+            blocker.subject,
+            system_compiler::SubjectRef::CanonicalArtifact {
+                canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
+                ..
+            }
+        )));
 }
 
 #[test]

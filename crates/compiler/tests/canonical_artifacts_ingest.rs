@@ -120,7 +120,10 @@ fn required_artifact_directory_is_recorded_as_read_error_and_missing() {
 
     let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
     assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
-    assert_eq!(artifacts.charter.identity.presence, ArtifactPresence::Missing);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
     assert!(artifacts.charter.bytes.is_none());
     assert!(
         artifacts.ingest_issues.iter().any(|issue| {
@@ -155,7 +158,8 @@ fn optional_artifact_directory_is_recorded_as_read_error_and_missing() {
     assert!(
         artifacts.ingest_issues.iter().any(|issue| {
             issue.kind == ArtifactIngestIssueKind::CanonicalArtifactReadError
-                && issue.canonical_repo_relative_path == ".system/project_context/PROJECT_CONTEXT.md"
+                && issue.canonical_repo_relative_path
+                    == ".system/project_context/PROJECT_CONTEXT.md"
         }),
         "expected read-error ingest issue, got: {:?}",
         artifacts.ingest_issues

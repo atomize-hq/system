@@ -106,7 +106,10 @@ fn repair_to_ready(root: &std::path::Path) {
 
 fn partial_system_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
-    write_file(dir.path().join(".system/charter/CHARTER.md").as_path(), b"charter");
+    write_file(
+        dir.path().join(".system/charter/CHARTER.md").as_path(),
+        b"charter",
+    );
     dir
 }
 
@@ -199,7 +202,10 @@ fn generate_retry_after_repair_clears_missing_root_refusal() {
     repair_to_ready(root);
 
     let second = run_in(root, &["generate"]);
-    assert!(second.status.success(), "generate should succeed after repair");
+    assert!(
+        second.status.success(),
+        "generate should succeed after repair"
+    );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
         &second_stdout,
@@ -234,7 +240,10 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
     repair_to_ready(root);
 
     let second = run_in(root, &["inspect"]);
-    assert!(second.status.success(), "inspect should succeed after repair");
+    assert!(
+        second.status.success(),
+        "inspect should succeed after repair"
+    );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
         &second_stdout,
@@ -264,7 +273,10 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     repair_to_ready(root);
 
     let second = run_in(root, &["doctor"]);
-    assert!(second.status.success(), "doctor should succeed after repair");
+    assert!(
+        second.status.success(),
+        "doctor should succeed after repair"
+    );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
     assert_eq!(second_stdout.trim(), "READY");
 }
@@ -1150,7 +1162,10 @@ fn doctor_from_committed_fixture_dir_blocks_against_git_root() {
     assert!(!output.status.success(), "doctor should return nonzero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"), "expected blocked header: {stdout}");
+    assert!(
+        stdout.contains("BLOCKED"),
+        "expected blocked header: {stdout}"
+    );
     assert!(
         stdout.contains("SystemRootMissing"),
         "expected git-root blocker instead of fixture-root success: {stdout}"
