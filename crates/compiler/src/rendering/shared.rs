@@ -1,6 +1,10 @@
 use crate::{
     blocker::Blocker,
     budget::{BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction},
+    packet_result::{
+        PacketBodyNote, PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection,
+        PacketSourceSummary, PacketVariant,
+    },
     refusal::{NextSafeAction, RefusalCategory, SubjectRef},
     BlockerCategory, CanonicalArtifactKind, PacketSelectionStatus,
 };
@@ -22,6 +26,7 @@ pub fn render_outcome(packet_status: PacketSelectionStatus, refusal_present: boo
 }
 
 pub fn render_next_safe_action_from_model(
+    packet: &PacketResult,
     refusal: Option<&crate::Refusal>,
     blockers: &[Blocker],
 ) -> String {
@@ -33,7 +38,167 @@ pub fn render_next_safe_action_from_model(
         return render_next_safe_action_value(&blocker.next_safe_action);
     }
 
-    "render packet body once implemented (SEAM-5)".to_string()
+    if packet.is_ready() {
+        return packet.decision_summary.ready_next_safe_action.clone();
+    }
+
+    "run `doctor`".to_string()
+}
+
+pub fn render_packet_variant(variant: PacketVariant) -> &'static str {
+    variant.as_str()
+}
+
+pub fn render_packet_source_summary(summary: &PacketSourceSummary) -> String {
+    let presence = match summary.presence {
+        crate::ArtifactPresence::Missing => "missing",
+        crate::ArtifactPresence::PresentEmpty => "empty",
+        crate::ArtifactPresence::PresentNonEmpty => "present",
+    };
+
+    let bytes = match summary.byte_len {
+        Some(len) => format!("{len} bytes"),
+        None => "byte length unavailable".to_string(),
+    };
+
+    let hash = summary
+        .content_sha256
+        .as_ref()
+        .map(|value| format!(", sha256={value}"))
+        .unwrap_or_default();
+
+    format!(
+        "{} [{}] ({presence}, {bytes}{hash})",
+        render_canonical_artifact_kind(summary.kind),
+        summary.canonical_repo_relative_path
+    )
+}
+
+pub fn render_packet_note(note: &PacketBodyNote) -> String {
+    let kind = match note.kind {
+        PacketBodyNoteKind::Omission => "OMISSION",
+        PacketBodyNoteKind::Budget => "BUDGET",
+        PacketBodyNoteKind::InheritedDependency => "INHERITED DEPENDENCY",
+    };
+
+    format!("{kind}: {}", note.text)
+}
+
+pub fn render_packet_fixture_context(context: &PacketFixtureContext) -> String {
+    let mut output = String::new();
+    push_line(&mut output, "## FIXTURE DEMO");
+    push_line(&mut output, "MODE: fixture-backed execution demo");
+    push_line(
+        &mut output,
+        format!("FIXTURE SET: {}", context.fixture_set_id),
+    );
+    push_line(
+        &mut output,
+        format!("FIXTURE BASIS ROOT: {}", context.fixture_basis_root),
+    );
+    push_line(&mut output, "FIXTURE LINEAGE:");
+    if context.fixture_lineage.is_empty() {
+        push_line(&mut output, "NONE");
+    } else {
+        for (index, source) in context.fixture_lineage.iter().enumerate() {
+            push_line(
+                &mut output,
+                format!("{}. {}", index + 1, render_packet_source_summary(source)),
+            );
+        }
+    }
+    output
+}
+
+pub fn render_packet_section(output: &mut String, section: &PacketSection) {
+    push_line(
+        output,
+        format!(
+            "### {} ({})",
+            section.title, section.canonical_repo_relative_path
+        ),
+    );
+    output.push_str("```text\n");
+    output.push_str(&section.contents);
+    if !section.contents.ends_with('\n') {
+        output.push('\n');
+    }
+    output.push_str("```\n");
+}
+
+pub fn render_packet_body(output: &mut String, packet: &PacketResult) {
+    if let Some(context) = packet.fixture_context.as_ref() {
+        output.push_str(&render_packet_fixture_context(context));
+        output.push('\n');
+    }
+
+    push_line(output, "## INCLUDED SOURCES");
+    if packet.included_sources.is_empty() {
+        push_line(output, "NONE");
+    } else {
+        for (index, source) in packet.included_sources.iter().enumerate() {
+            push_line(
+                output,
+                format!("{}. {}", index + 1, render_packet_source_summary(source)),
+            );
+        }
+    }
+
+    output.push('\n');
+    push_line(output, "## OMISSIONS AND BUDGET");
+    if packet.notes.is_empty() {
+        push_line(output, "NONE");
+    } else {
+        for (index, note) in packet.notes.iter().enumerate() {
+            push_line(
+                output,
+                format!("{}. {}", index + 1, render_packet_note(note)),
+            );
+        }
+    }
+
+    output.push('\n');
+    push_line(output, "## DECISION SUMMARY");
+    push_line(
+        output,
+        format!(
+            "STATUS: {}",
+            render_packet_status(packet.decision_summary.packet_status)
+        ),
+    );
+    push_line(
+        output,
+        format!(
+            "BUDGET: {}/{}",
+            render_budget_disposition(packet.decision_summary.budget_disposition),
+            render_budget_reason(&packet.decision_summary.budget_reason)
+        ),
+    );
+    push_line(
+        output,
+        format!(
+            "DECISION LOG ENTRIES: {}",
+            packet.decision_summary.decision_log_entries
+        ),
+    );
+    push_line(
+        output,
+        format!("SUMMARY: {}", packet.decision_summary.summary_line),
+    );
+
+    output.push('\n');
+    push_line(output, "## PACKET BODY");
+    if packet.sections.is_empty() {
+        push_line(output, "NONE");
+    } else {
+        for section in &packet.sections {
+            if !output.ends_with('\n') {
+                output.push('\n');
+            }
+            render_packet_section(output, section);
+            output.push('\n');
+        }
+    }
 }
 
 pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {

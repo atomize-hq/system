@@ -1,12 +1,12 @@
-Rust CLI scaffold for the reduced v1 system. Commands are reserved placeholders only, and the setup-first help ordering is pinned to the reviewed command surface.
+Rust CLI for the reduced v1 system. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface. `setup` is still a placeholder.
 
 Usage: system [COMMAND]
 
 Commands:
-  setup     Reserved setup entrypoint for the reduced v1 trust flow
-  generate  Reserved packet generation command
-  inspect   Reserved proof-surface command
-  doctor    Reserved recovery and diagnosis command
+  setup     Placeholder setup entrypoint
+  generate  Generate a reduced-v1 packet
+  inspect   Inspect packet composition and decision evidence
+  doctor    Diagnose blockers and safe next actions
 
 Options:
   -h, --help

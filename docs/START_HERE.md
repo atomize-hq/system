@@ -12,9 +12,11 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/feature_spec/FEATURE_SPEC.md`
   - Optional:
     - `.system/project_context/PROJECT_CONTEXT.md`
-- **Planning packet resolution** (live) is supported once canonical inputs exist.
-- **Execution packet generation** is fixture-backed demo only, live execution is explicitly refused.
+- **Planning packet generation** is supported from canonical repo-local `.system/`.
+- **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
+- **`inspect`** is the proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
+- **`setup`** is still a placeholder entrypoint and is not yet a real Rust setup flow.
 
 ## How to navigate this repo
 

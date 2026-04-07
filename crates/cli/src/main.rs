@@ -25,8 +25,8 @@ fn main() -> ExitCode {
     name = "system",
     version,
     disable_help_subcommand = true,
-    about = "Rust CLI scaffold for the reduced v1 system.",
-    long_about = "Rust CLI scaffold for the reduced v1 system. Commands are reserved placeholders only, and the setup-first help ordering is pinned to the reviewed command surface."
+    about = "Rust CLI for the reduced v1 system: planning packet generation from canonical repo-local `.system/` inputs, fixture-backed execution demo via `execution.demo.packet`, live execution is explicitly refused, `inspect` is the proof surface, `doctor` is the recovery surface, and `setup` is still a placeholder.",
+    long_about = "Rust CLI for the reduced v1 system. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface. `setup` is still a placeholder."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -35,20 +35,20 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Reserved setup entrypoint for the reduced v1 trust flow.
+    /// Placeholder setup entrypoint.
     Setup,
-    /// Reserved packet generation command.
+    /// Generate a reduced-v1 packet.
     Generate(RequestArgs),
-    /// Reserved proof-surface command.
+    /// Inspect packet composition and decision evidence.
     Inspect(RequestArgs),
-    /// Reserved recovery and diagnosis command.
+    /// Diagnose blockers and safe next actions.
     Doctor,
 }
 
 impl Command {
     fn run(self) -> ExitCode {
         match self {
-            Command::Setup => placeholder_exit("setup", "reserved setup entrypoint"),
+            Command::Setup => placeholder_exit("setup", "placeholder-only entrypoint"),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
             Command::Doctor => doctor(),
@@ -188,8 +188,8 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let (compiler_root, demo_fixture_set_id) = match packet_id {
-        PacketId::Planning | PacketId::ExecutionLive => (repo_root.clone(), None),
+    let compiler_root = match packet_id {
+        PacketId::Planning | PacketId::ExecutionLive => repo_root.clone(),
         PacketId::ExecutionDemo => {
             let fixture_set_id = match args.fixture_set.as_deref() {
                 Some(id) => id.trim(),
@@ -213,7 +213,7 @@ fn generate(args: RequestArgs) -> ExitCode {
                 println!("REFUSED: {err}");
                 return ExitCode::from(1);
             }
-            (fixture_set_dir, Some(fixture_set_id.to_string()))
+            fixture_set_dir
         }
     };
 
@@ -231,28 +231,30 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    match system_compiler::build_output_model(&result) {
-        Ok(model) => {
-            let rendered = system_compiler::render_markdown(&model);
-            if let Some(fixture_set_id) = demo_fixture_set_id.as_deref() {
-                let section = fixture_section_for_demo(&repo_root, fixture_set_id);
-                println!("{}", inject_after_first_three_lines(&rendered, &section));
-            } else {
-                println!("{rendered}");
-            }
-        }
+    let model = match system_compiler::build_output_model(&result) {
+        Ok(model) => model,
         Err(err) => {
             println!("PRESENTATION FAILURE: {err}");
+            return ExitCode::from(1);
         }
-    }
+    };
 
-    ExitCode::from(1)
+    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+        && model.refusal.is_none()
+        && model.blockers.is_empty();
+
+    println!("{}", system_compiler::render_markdown(&model));
+    if ready {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    }
 }
 
 fn placeholder_exit(command: &str, description: &str) -> ExitCode {
     let contract_version = system_compiler::workspace_contract_version();
     println!(
-        "system CLI scaffold (contract {contract_version}): `{command}` is a {description}; reduced v1 behavior is not implemented yet."
+        "system CLI placeholder (contract {contract_version}): `{command}` is a {description}; reduced v1 behavior is not implemented yet."
     );
     ExitCode::from(1)
 }
@@ -362,18 +364,23 @@ fn inspect(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let rendered = system_compiler::render_inspect(&model);
-    if let Some(fixture_set_id) = demo_fixture_set_id.as_deref() {
-        let section = fixture_section_for_demo(&repo_root, fixture_set_id);
-        println!("{}", inject_after_first_three_lines(&rendered, &section));
+    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+        && model.refusal.is_none()
+        && model.blockers.is_empty();
+
+    if ready {
+        println!("{}", system_compiler::render_inspect(&model));
     } else {
-        println!("{rendered}");
+        let rendered = system_compiler::render_inspect(&model);
+        if let Some(fixture_set_id) = demo_fixture_set_id.as_deref() {
+            let section = fixture_section_for_demo(&repo_root, fixture_set_id);
+            println!("{}", inject_after_first_three_lines(&rendered, &section));
+        } else {
+            println!("{rendered}");
+        }
     }
 
-    if model.packet_status == system_compiler::PacketSelectionStatus::Selected
-        && model.refusal.is_none()
-        && model.blockers.is_empty()
-    {
+    if ready {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)

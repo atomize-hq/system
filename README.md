@@ -11,7 +11,11 @@ This repo is in transition.
 - The command-surface truth for the Rust workspace and CLI is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 - The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
 - The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
-- Live slice lineage and live execution packets are deferred. Any v1 execution packet work is fixture-backed only.
+- Planning packet generation is supported from canonical repo-local `.system/`.
+- Fixture-backed execution demo generation is supported via `execution.demo.packet`.
+- Live slice lineage and live execution packets are deferred. Live execution is explicitly refused.
+- `inspect` is the proof surface and `doctor` is the recovery surface.
+- `setup` is still a placeholder entrypoint until Rust setup exists.
 
 Until Rust setup exists, the legacy harness may still be used to establish canonical artifacts; once Rust setup exists, the Rust CLI becomes the supported packet-resolution authority.
 

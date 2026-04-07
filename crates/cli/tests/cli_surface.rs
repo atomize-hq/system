@@ -72,7 +72,7 @@ fn help_lists_setup_first() {
 
 #[test]
 fn setup_prints_placeholder_and_fails() {
-    assert_placeholder("setup", "reserved setup entrypoint");
+    assert_placeholder("setup", "placeholder-only entrypoint");
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn doctor_blocks_when_system_root_missing() {
 }
 
 #[test]
-fn generate_resolves_but_remains_unimplemented_when_ready() {
+fn generate_emits_real_packet_body_when_ready() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -173,7 +173,7 @@ fn generate_resolves_but_remains_unimplemented_when_ready() {
         .output()
         .expect("generate should run");
 
-    assert!(!output.status.success(), "generate should return nonzero");
+    assert!(output.status.success(), "generate should return zero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
@@ -181,16 +181,56 @@ fn generate_resolves_but_remains_unimplemented_when_ready() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
         ],
     );
     assert!(
-        stdout.contains("## PACKET BODY"),
-        "expected packet body section: {stdout}"
+        stdout.contains("## INCLUDED SOURCES"),
+        "expected included-sources section: {stdout}"
     );
     assert!(
-        stdout.contains("Packet body rendering is not implemented yet"),
-        "expected honest note: {stdout}"
+        stdout.contains("## OMISSIONS AND BUDGET"),
+        "expected omissions section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## DECISION SUMMARY"),
+        "expected decision-summary section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET OVERVIEW"),
+        "expected packet overview section: {stdout}"
+    );
+    assert!(
+        stdout.contains("PACKET VARIANT: planning.packet"),
+        "expected packet variant line: {stdout}"
+    );
+    assert!(
+        stdout.contains("STATUS: Selected"),
+        "expected selected status: {stdout}"
+    );
+    assert!(
+        stdout.contains("SUMMARY: READY planning.packet:"),
+        "expected ready summary line: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet-body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### CHARTER"),
+        "expected charter body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("charter"),
+        "expected charter contents: {stdout}"
+    );
+    assert!(
+        stdout.contains("### FEATURE_SPEC"),
+        "expected feature body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("feature"),
+        "expected feature contents: {stdout}"
     );
 }
 
@@ -240,12 +280,32 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
         ],
     );
     assert!(
         stdout.contains("## JSON FALLBACK"),
         "expected JSON fallback: {stdout}"
+    );
+    assert!(
+        stdout.contains("## DECISION LOG"),
+        "expected decision log section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## BUDGET OUTCOME"),
+        "expected budget outcome section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### CHARTER"),
+        "expected charter body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("selection packet_id=planning.packet status=Selected"),
+        "expected selected decision summary: {stdout}"
     );
 }
 
@@ -308,7 +368,7 @@ fn generate_resolves_execution_demo_packet_from_fixture_set() {
         .output()
         .expect("generate should run");
 
-    assert!(!output.status.success(), "generate should return nonzero");
+    assert!(output.status.success(), "generate should return zero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
@@ -316,16 +376,56 @@ fn generate_resolves_execution_demo_packet_from_fixture_set() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
         ],
+    );
+    assert!(
+        stdout.contains("## FIXTURE DEMO"),
+        "expected fixture demo section: {stdout}"
+    );
+    assert!(
+        stdout.contains("MODE: fixture-backed execution demo"),
+        "expected fixture-backed label near top: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE SET: basic"),
+        "expected fixture set id: {stdout}"
+    );
+    assert!(
+        stdout.contains("## INCLUDED SOURCES"),
+        "expected included-sources section: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE LINEAGE:"),
+        "expected fixture lineage block: {stdout}"
     );
     assert!(
         stdout.contains("## PACKET BODY"),
         "expected packet body section: {stdout}"
     );
     assert!(
-        stdout.contains("MODE: fixture-backed execution demo"),
-        "expected fixture-backed label near top: {stdout}"
+        stdout.contains("### CHARTER"),
+        "expected charter body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### FEATURE_SPEC"),
+        "expected feature body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET OVERVIEW"),
+        "expected packet overview section: {stdout}"
+    );
+    assert!(
+        stdout.contains("PACKET VARIANT: execution.demo.packet"),
+        "expected packet variant line: {stdout}"
+    );
+    assert!(
+        stdout.contains("STATUS: Selected"),
+        "expected selected status: {stdout}"
+    );
+    assert!(
+        stdout.contains("SUMMARY: READY execution.demo.packet"),
+        "expected ready summary line: {stdout}"
     );
 }
 
@@ -362,12 +462,20 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: render packet body once implemented (SEAM-5)",
+            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
         ],
     );
     assert!(
         stdout.contains("## FIXTURE DEMO"),
         "expected fixture section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## DECISION LOG"),
+        "expected decision log section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## BUDGET OUTCOME"),
+        "expected budget outcome section: {stdout}"
     );
     assert!(
         stdout.contains("MODE: fixture-backed execution demo"),
@@ -381,11 +489,43 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         stdout.contains("FIXTURE LINEAGE:"),
         "expected fixture lineage list: {stdout}"
     );
+    assert!(
+        stdout.contains("## INCLUDED SOURCES"),
+        "expected included-sources section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### CHARTER"),
+        "expected charter body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### FEATURE_SPEC"),
+        "expected feature body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET OVERVIEW"),
+        "expected packet overview section: {stdout}"
+    );
+    assert!(
+        stdout.contains("PACKET VARIANT: execution.demo.packet"),
+        "expected packet variant line: {stdout}"
+    );
+    assert!(
+        stdout.contains("STATUS: Selected"),
+        "expected selected status: {stdout}"
+    );
+    assert!(
+        stdout.contains("SUMMARY: READY execution.demo.packet"),
+        "expected ready summary line: {stdout}"
+    );
     let pos_charter = stdout
-        .find("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md")
+        .find("Charter [.system/charter/CHARTER.md]")
         .expect("charter should be listed");
     let pos_feature = stdout
-        .find("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+        .find("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]")
         .expect("feature spec should be listed");
     assert!(
         pos_charter < pos_feature,

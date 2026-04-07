@@ -18,8 +18,8 @@ cargo run -p system-cli -- doctor
 
 ## Current command meanings
 
-- `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow.
-- `generate` produces the packet surface and refuses compactly when canonical `.system/` inputs are missing or unsupported.
+- `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
+- `generate` produces planning packets from canonical repo-local `.system/` inputs and supports the fixture-backed execution demo via `execution.demo.packet`.
 - `inspect` is the proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.
 
@@ -27,5 +27,5 @@ cargo run -p system-cli -- doctor
 
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
 - If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
-- Once `.system/` canonical artifacts exist, planning packet resolution becomes available.
-- Execution packets are only supported as fixture-backed demos, live execution is refused.
+- Once `.system/` canonical artifacts exist, planning packet generation is supported.
+- Execution packets are only supported as fixture-backed demos via `execution.demo.packet`, and live execution is explicitly refused.

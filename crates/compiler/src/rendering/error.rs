@@ -8,6 +8,7 @@ pub enum RenderError {
     },
     EmptyPacketId,
     EmptyDecisionLog,
+    EmptyPacketBody,
 }
 
 impl Display for RenderError {
@@ -21,6 +22,9 @@ impl Display for RenderError {
             }
             RenderError::EmptyDecisionLog => {
                 write!(f, "presentation failure: empty decision log")
+            }
+            RenderError::EmptyPacketBody => {
+                write!(f, "presentation failure: empty packet body")
             }
         }
     }

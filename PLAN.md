@@ -1191,3 +1191,9 @@ This overrides the lighter recommendation to narrow support claims first.
 - This repo is farther along than the base plan says.
 - Reduced v1 is not blocked on core Rust scaffolding anymore.
 - Reduced v1 is blocked on truthfulness: the project must either narrow its support claims or finish the packet-body and setup-ownership surfaces it already advertises.
+
+### P1 Closeout (2026-04-07)
+
+- `system generate` now exits `0` on the ready path with a non-placeholder packet body for `planning.packet` and the fixture-backed demo packet.
+- CLI help and support-facing docs were reconciled to the shipped reduced-v1 boundary.
+- `Packet Body Contract` and `Support Boundary Reconciliation` were completed in `TODOS.md` without reopening historical milestones.

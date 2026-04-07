@@ -102,3 +102,98 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     assert_eq!(refuse.budget_outcome.disposition, BudgetDisposition::Refuse);
     assert!(refuse.budget_outcome.next_safe_action.is_some());
 }
+
+#[test]
+fn resolver_builds_typed_packet_body_for_planning_packet() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter body");
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project context body",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature spec body",
+    );
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+
+    assert!(result.packet_result.is_ready());
+    assert_eq!(
+        result.packet_result.variant,
+        system_compiler::packet_result::PacketVariant::Planning
+    );
+    assert!(result.packet_result.fixture_context.is_none());
+    assert_eq!(result.packet_result.included_sources.len(), 3);
+    assert_eq!(result.packet_result.sections.len(), 3);
+    assert_eq!(result.packet_result.sections[0].title, "CHARTER");
+    assert_eq!(result.packet_result.sections[1].title, "PROJECT_CONTEXT");
+    assert_eq!(result.packet_result.sections[2].title, "FEATURE_SPEC");
+    assert_eq!(result.packet_result.sections[0].contents, "charter body");
+    assert_eq!(
+        result.packet_result.decision_summary.ready_next_safe_action,
+        "run `system inspect --packet planning.packet` for proof"
+    );
+    assert!(
+        result
+            .packet_result
+            .decision_summary
+            .summary_line
+            .contains("READY planning.packet"),
+        "expected ready summary line: {:?}",
+        result.packet_result.decision_summary.summary_line
+    );
+}
+
+#[test]
+fn resolver_builds_fixture_context_for_execution_demo_packets() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().join("tests/fixtures/execution_demo/basic");
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        b"demo charter body",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"demo feature body",
+    );
+
+    let request = ResolveRequest {
+        packet_id: "execution.demo.packet",
+        ..ResolveRequest::default()
+    };
+
+    let result = resolve(&root, request).expect("resolve");
+
+    assert!(result.packet_result.is_ready());
+    assert_eq!(
+        result.packet_result.variant,
+        system_compiler::packet_result::PacketVariant::ExecutionDemo
+    );
+    let fixture_context = result
+        .packet_result
+        .fixture_context
+        .as_ref()
+        .expect("fixture context");
+    assert_eq!(fixture_context.fixture_set_id, "basic");
+    assert_eq!(
+        fixture_context.fixture_basis_root,
+        "tests/fixtures/execution_demo/basic/.system/"
+    );
+    assert_eq!(fixture_context.fixture_lineage.len(), 2);
+    assert_eq!(
+        fixture_context.fixture_lineage[0].canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        fixture_context.fixture_lineage[1].canonical_repo_relative_path,
+        ".system/feature_spec/FEATURE_SPEC.md"
+    );
+    assert_eq!(
+        result.packet_result.decision_summary.ready_next_safe_action,
+        "run `system inspect --packet execution.demo.packet --fixture-set basic` for proof"
+    );
+}

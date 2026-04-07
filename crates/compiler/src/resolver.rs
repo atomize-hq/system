@@ -1,15 +1,21 @@
 use crate::budget::evaluate_budget;
+use crate::packet_result::{
+    PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
+    PacketSection, PacketSourceSummary, PacketVariant,
+};
 use crate::{
     blocker_category_priority, ArtifactIngestIssueKind, ArtifactManifest, Blocker, BlockerCategory,
-    BudgetDisposition, BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifactKind,
-    CompilerError, DecisionLog, FreshnessIssueKind, FreshnessStatus, ManifestInputs,
-    NextSafeAction, Refusal, RefusalCategory, SubjectRef, SystemRootStatus,
+    BudgetDisposition, BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifact,
+    CanonicalArtifactKind, CanonicalArtifacts, CompilerError, DecisionLog, FreshnessIssueKind,
+    FreshnessStatus, ManifestInputs, NextSafeAction, Refusal, RefusalCategory, SubjectRef,
+    SystemRootStatus,
 };
 use std::cmp::Ordering;
 use std::path::Path;
 
 const C04_RESULT_VERSION: &str = "reduced-v1";
 const DEFAULT_PACKET_ID: &str = "planning.packet";
+const DEMO_EXECUTION_PACKET_ID: &str = "execution.demo.packet";
 const LIVE_EXECUTION_PACKET_ID: &str = "execution.live.packet";
 const SYSTEM_ROOT_PATH: &str = ".system";
 
@@ -46,6 +52,7 @@ pub struct ResolverResult {
     pub c03_schema_version: String,
     pub c03_manifest_generation_version: u32,
     pub c03_fingerprint_sha256: String,
+    pub packet_result: PacketResult,
     pub decision_log: DecisionLog,
     pub budget_outcome: BudgetOutcome,
     pub selection: PacketSelection,
@@ -57,6 +64,9 @@ pub fn resolve(
     repo_root: impl AsRef<Path>,
     request: ResolveRequest,
 ) -> Result<ResolverResult, CompilerError> {
+    let canonical_artifacts = CanonicalArtifacts::load(repo_root.as_ref())
+        .map_err(|err| CompilerError::Manifest(crate::ManifestError::Ingest(err)))?;
+
     let manifest = ArtifactManifest::generate(repo_root.as_ref(), ManifestInputs::default())
         .map_err(CompilerError::Manifest)?;
 
@@ -147,11 +157,24 @@ pub fn resolve(
         request.packet_id, selection_status
     ));
 
+    let packet_result = build_packet_result(
+        repo_root.as_ref(),
+        &request,
+        &canonical_artifacts,
+        &manifest,
+        &budget_outcome,
+        selection_status,
+        refusal.as_ref(),
+        &blockers,
+        decision_log.entries.len(),
+    );
+
     Ok(ResolverResult {
         c04_result_version: C04_RESULT_VERSION.to_string(),
         c03_schema_version: manifest.version.schema.version.to_string(),
         c03_manifest_generation_version: manifest.version.generation,
         c03_fingerprint_sha256: manifest.freshness.fingerprint_sha256.clone(),
+        packet_result,
         decision_log,
         budget_outcome,
         selection: PacketSelection {
@@ -161,6 +184,228 @@ pub fn resolve(
         refusal,
         blockers,
     })
+}
+
+fn build_packet_result(
+    repo_root: &Path,
+    request: &ResolveRequest,
+    artifacts: &CanonicalArtifacts,
+    manifest: &ArtifactManifest,
+    budget_outcome: &BudgetOutcome,
+    selection_status: PacketSelectionStatus,
+    refusal: Option<&Refusal>,
+    blockers: &[Blocker],
+    decision_log_entries: usize,
+) -> PacketResult {
+    let variant = packet_variant_for(request.packet_id);
+    let included_sources = included_sources_for(artifacts);
+    let notes = packet_notes_for(manifest, budget_outcome, artifacts);
+    let sections = packet_sections_for(artifacts);
+    let fixture_context = fixture_context_for(repo_root, request.packet_id, artifacts);
+
+    let summary_line = if selection_status == PacketSelectionStatus::Selected {
+        let fixture_suffix = fixture_context
+            .as_ref()
+            .map(|context| format!(" (fixture set {})", context.fixture_set_id))
+            .unwrap_or_default();
+        format!(
+            "READY {}{}: {} included sources, budget {:?}/{:?}, {} decision log entries",
+            request.packet_id,
+            fixture_suffix,
+            included_sources.len(),
+            budget_outcome.disposition,
+            budget_outcome.reason,
+            decision_log_entries
+        )
+    } else if let Some(refusal) = refusal {
+        format!(
+            "REFUSED {}: category={:?}, blockers={}, budget {:?}/{:?}, {} decision log entries",
+            request.packet_id,
+            refusal.category,
+            blockers.len(),
+            budget_outcome.disposition,
+            budget_outcome.reason,
+            decision_log_entries
+        )
+    } else {
+        format!(
+            "BLOCKED {}: blockers={}, budget {:?}/{:?}, {} decision log entries",
+            request.packet_id,
+            blockers.len(),
+            budget_outcome.disposition,
+            budget_outcome.reason,
+            decision_log_entries
+        )
+    };
+
+    let ready_next_safe_action =
+        next_safe_action_for_ready_packet(request.packet_id, variant, fixture_context.as_ref());
+
+    PacketResult {
+        packet_id: request.packet_id.to_string(),
+        variant,
+        fixture_context,
+        included_sources,
+        notes,
+        decision_summary: PacketDecisionSummary {
+            packet_status: selection_status,
+            budget_disposition: budget_outcome.disposition,
+            budget_reason: budget_outcome.reason.clone(),
+            decision_log_entries,
+            summary_line,
+            ready_next_safe_action,
+        },
+        sections,
+    }
+}
+
+fn packet_variant_for(packet_id: &str) -> PacketVariant {
+    if packet_id == DEMO_EXECUTION_PACKET_ID {
+        PacketVariant::ExecutionDemo
+    } else if packet_id == LIVE_EXECUTION_PACKET_ID {
+        PacketVariant::ExecutionLive
+    } else {
+        PacketVariant::Planning
+    }
+}
+
+fn included_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummary> {
+    artifacts
+        .identities()
+        .into_iter()
+        .filter_map(|identity| {
+            if matches!(identity.presence, crate::ArtifactPresence::Missing) {
+                None
+            } else {
+                Some(PacketSourceSummary {
+                    kind: identity.kind,
+                    canonical_repo_relative_path: identity.relative_path,
+                    required: identity.required,
+                    presence: identity.presence,
+                    byte_len: identity.byte_len,
+                    content_sha256: identity.content_sha256.clone(),
+                })
+            }
+        })
+        .collect()
+}
+
+fn packet_notes_for(
+    manifest: &ArtifactManifest,
+    budget_outcome: &BudgetOutcome,
+    artifacts: &CanonicalArtifacts,
+) -> Vec<PacketBodyNote> {
+    let mut notes = Vec::new();
+
+    if artifacts.project_context.identity.presence == crate::ArtifactPresence::Missing {
+        notes.push(PacketBodyNote {
+            kind: PacketBodyNoteKind::Omission,
+            text: "optional source omitted: .system/project_context/PROJECT_CONTEXT.md".to_string(),
+        });
+    }
+
+    let budget_text = format!(
+        "budget: {:?}/{:?} across {} tracked canonical artifacts",
+        budget_outcome.disposition,
+        budget_outcome.reason,
+        manifest.artifacts.len()
+    );
+    notes.push(PacketBodyNote {
+        kind: PacketBodyNoteKind::Budget,
+        text: budget_text,
+    });
+
+    notes
+}
+
+fn packet_sections_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSection> {
+    let mut sections = Vec::new();
+    push_packet_section(&mut sections, &artifacts.charter, "CHARTER");
+    push_packet_section(&mut sections, &artifacts.project_context, "PROJECT_CONTEXT");
+    push_packet_section(&mut sections, &artifacts.feature_spec, "FEATURE_SPEC");
+    sections
+}
+
+fn push_packet_section(
+    sections: &mut Vec<PacketSection>,
+    artifact: &CanonicalArtifact,
+    title: &str,
+) {
+    if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
+        return;
+    }
+
+    let contents = artifact
+        .bytes
+        .as_ref()
+        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+        .unwrap_or_default();
+
+    sections.push(PacketSection {
+        kind: artifact.identity.kind,
+        canonical_repo_relative_path: artifact.identity.relative_path,
+        title: title.to_string(),
+        contents,
+    });
+}
+
+fn fixture_context_for(
+    repo_root: &Path,
+    packet_id: &str,
+    artifacts: &CanonicalArtifacts,
+) -> Option<PacketFixtureContext> {
+    if packet_variant_for(packet_id) != PacketVariant::ExecutionDemo {
+        return None;
+    }
+
+    let fixture_set_id = repo_root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_string())?;
+
+    let parent = repo_root.parent()?;
+    let grandparent = parent.parent()?;
+    let great_grandparent = grandparent.parent()?;
+    if parent.file_name().and_then(|name| name.to_str())? != "execution_demo"
+        || grandparent.file_name().and_then(|name| name.to_str())? != "fixtures"
+        || great_grandparent
+            .file_name()
+            .and_then(|name| name.to_str())?
+            != "tests"
+    {
+        return None;
+    }
+
+    let fixture_basis_root = format!("tests/fixtures/execution_demo/{fixture_set_id}/.system/");
+
+    Some(PacketFixtureContext {
+        fixture_set_id,
+        fixture_basis_root,
+        fixture_lineage: included_sources_for(artifacts),
+    })
+}
+
+fn next_safe_action_for_ready_packet(
+    packet_id: &str,
+    variant: PacketVariant,
+    fixture_context: Option<&PacketFixtureContext>,
+) -> String {
+    match variant {
+        PacketVariant::ExecutionLive => "run `doctor`".to_string(),
+        PacketVariant::Planning => {
+            format!("run `system inspect --packet {packet_id}` for proof")
+        }
+        PacketVariant::ExecutionDemo => {
+            if let Some(context) = fixture_context {
+                format!(
+                    "run `system inspect --packet {packet_id} --fixture-set {}` for proof",
+                    context.fixture_set_id
+                )
+            } else {
+                format!("run `system inspect --packet {packet_id}` for proof")
+            }
+        }
+    }
 }
 
 fn compute_refusal(

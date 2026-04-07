@@ -50,12 +50,10 @@ pub fn render_markdown(model: &RenderOutputModel) -> String {
             }
         }
         None => {
-            output.push('\n');
-            push_line(&mut output, "## PACKET BODY".to_string());
-            push_line(
-                &mut output,
-                "Packet body rendering is not implemented yet (owned by SEAM-5).".to_string(),
-            );
+            if model.packet_result.is_ready() {
+                output.push('\n');
+                render_body(&mut output, model);
+            }
         }
     }
 
@@ -82,7 +80,28 @@ fn render_next_safe_action(model: &RenderOutputModel) -> String {
         return render_next_safe_action_value(&blocker.next_safe_action);
     }
 
-    "render packet body once implemented (SEAM-5)".to_string()
+    super::shared::render_next_safe_action_from_model(&model.packet_result, None, &[])
+}
+
+fn render_body(output: &mut String, model: &RenderOutputModel) {
+    push_line(output, "## PACKET OVERVIEW".to_string());
+    push_line(
+        output,
+        format!(
+            "PACKET VARIANT: {}",
+            super::shared::render_packet_variant(model.packet_result.variant)
+        ),
+    );
+    push_line(
+        output,
+        format!(
+            "SUMMARY: {}",
+            model.packet_result.decision_summary.summary_line
+        ),
+    );
+
+    output.push('\n');
+    super::shared::render_packet_body(output, &model.packet_result);
 }
 
 fn render_refusal_category(category: RefusalCategory) -> &'static str {

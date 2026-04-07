@@ -21,7 +21,11 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
         &mut output,
         format!(
             "NEXT SAFE ACTION: {}",
-            render_next_safe_action_from_model(model.refusal.as_ref(), &model.blockers)
+            render_next_safe_action_from_model(
+                &model.packet_result,
+                model.refusal.as_ref(),
+                &model.blockers
+            )
         ),
     );
 
@@ -123,6 +127,27 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
                 ),
             );
         }
+    }
+
+    if model.packet_result.is_ready() {
+        output.push('\n');
+        push_line(&mut output, "## PACKET OVERVIEW");
+        push_line(
+            &mut output,
+            format!(
+                "PACKET VARIANT: {}",
+                super::shared::render_packet_variant(model.packet_result.variant)
+            ),
+        );
+        push_line(
+            &mut output,
+            format!(
+                "SUMMARY: {}",
+                model.packet_result.decision_summary.summary_line
+            ),
+        );
+        output.push('\n');
+        super::shared::render_packet_body(&mut output, &model.packet_result);
     }
 
     output.push('\n');

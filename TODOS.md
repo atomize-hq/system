@@ -73,6 +73,7 @@
 **Effort:** S
 **Priority:** P1
 **Depends on:** Finished ready-path packet body
+**Status:** Complete (2026-04-07)
 
 ### Setup Ownership And Entry Routing
 
@@ -95,6 +96,7 @@
 **Depends on:** None
 
 **Chosen direction (2026-04-06):** Finish the ready-path packet body first. This is the selected path from the post-implementation `/autoplan` review.
+**Status:** Complete (2026-04-07)
 
 ### Repo Discovery And Recovery Transition Tests
 

@@ -2,9 +2,13 @@ use super::model::RenderOutputModel;
 use super::shared::{
     json_string, render_blocker_category, render_budget_disposition,
     render_budget_next_safe_action, render_budget_reason, render_canonical_artifact_kind,
-    render_packet_status, render_refusal_category,
+    render_packet_status, render_packet_variant, render_refusal_category,
 };
-use crate::{Blocker, Refusal, SubjectRef};
+use crate::packet_result::{
+    PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
+    PacketSection, PacketSourceSummary,
+};
+use crate::{ArtifactPresence, Blocker, Refusal, SubjectRef};
 use std::fmt::Write;
 
 pub fn render_json(model: &RenderOutputModel) -> String {
@@ -52,6 +56,9 @@ pub fn render_json(model: &RenderOutputModel) -> String {
         &json_string(render_packet_status(model.packet_status)),
         true,
     );
+    output.push_str("  \"packet_result\": ");
+    output.push_str(&render_packet_result_json(&model.packet_result));
+    output.push_str(",\n");
     output.push_str("  \"budget_outcome\": ");
     output.push_str(&render_budget_outcome_json(model));
     output.push_str(",\n");
@@ -76,6 +83,183 @@ pub fn render_json(model: &RenderOutputModel) -> String {
     output.push_str("  \"blockers\": ");
     output.push_str(&render_blockers_json(&model.blockers));
     output.push_str("\n}\n");
+    output
+}
+
+fn render_packet_result_json(packet: &PacketResult) -> String {
+    let mut output = String::from("{\n");
+    write_line(
+        &mut output,
+        2,
+        "\"packet_id\":",
+        &json_string(&packet.packet_id),
+        true,
+    );
+    write_line(
+        &mut output,
+        2,
+        "\"variant\":",
+        &json_string(render_packet_variant(packet.variant)),
+        true,
+    );
+    output.push_str("    \"fixture_context\": ");
+    match packet.fixture_context.as_ref() {
+        Some(context) => output.push_str(&render_packet_fixture_context_json(context)),
+        None => output.push_str("null"),
+    }
+    output.push_str(",\n");
+    output.push_str("    \"included_sources\": ");
+    output.push_str(&render_packet_sources_json(&packet.included_sources));
+    output.push_str(",\n");
+    output.push_str("    \"notes\": ");
+    output.push_str(&render_packet_notes_json(&packet.notes));
+    output.push_str(",\n");
+    output.push_str("    \"decision_summary\": ");
+    output.push_str(&render_packet_decision_summary_json(
+        &packet.decision_summary,
+    ));
+    output.push_str(",\n");
+    output.push_str("    \"sections\": ");
+    output.push_str(&render_packet_sections_json(&packet.sections));
+    output.push_str("\n  }");
+    output
+}
+
+fn render_packet_fixture_context_json(context: &PacketFixtureContext) -> String {
+    let mut output = String::from("{\n");
+    write_line(
+        &mut output,
+        3,
+        "\"fixture_set_id\":",
+        &json_string(&context.fixture_set_id),
+        true,
+    );
+    write_line(
+        &mut output,
+        3,
+        "\"fixture_basis_root\":",
+        &json_string(&context.fixture_basis_root),
+        true,
+    );
+    output.push_str("      \"fixture_lineage\": ");
+    output.push_str(&render_packet_sources_json(&context.fixture_lineage));
+    output.push_str("\n    }");
+    output
+}
+
+fn render_packet_sources_json(sources: &[PacketSourceSummary]) -> String {
+    let mut output = String::from("[\n");
+    for (index, source) in sources.iter().enumerate() {
+        write!(
+            &mut output,
+            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"required\": {},\n        \"presence\": {},\n        \"byte_len\": {},\n        \"content_sha256\": {}\n      }}{}\n",
+            json_string(render_canonical_artifact_kind(source.kind)),
+            json_string(source.canonical_repo_relative_path),
+            source.required,
+            json_string(match source.presence {
+                ArtifactPresence::Missing => "Missing",
+                ArtifactPresence::PresentEmpty => "PresentEmpty",
+                ArtifactPresence::PresentNonEmpty => "PresentNonEmpty",
+            }),
+            match source.byte_len {
+                Some(len) => len.to_string(),
+                None => "null".to_string(),
+            },
+            match source.content_sha256.as_ref() {
+                Some(value) => json_string(value),
+                None => "null".to_string(),
+            },
+            if index + 1 == sources.len() { "" } else { "," }
+        )
+        .expect("packet sources json");
+    }
+    output.push_str("    ]");
+    output
+}
+
+fn render_packet_notes_json(notes: &[PacketBodyNote]) -> String {
+    let mut output = String::from("[\n");
+    for (index, note) in notes.iter().enumerate() {
+        write!(
+            &mut output,
+            "      {{\n        \"kind\": {},\n        \"text\": {}\n      }}{}\n",
+            json_string(match note.kind {
+                PacketBodyNoteKind::Omission => "Omission",
+                PacketBodyNoteKind::Budget => "Budget",
+                PacketBodyNoteKind::InheritedDependency => "InheritedDependency",
+            }),
+            json_string(&note.text),
+            if index + 1 == notes.len() { "" } else { "," }
+        )
+        .expect("packet notes json");
+    }
+    output.push_str("    ]");
+    output
+}
+
+fn render_packet_decision_summary_json(summary: &PacketDecisionSummary) -> String {
+    let mut output = String::from("{\n");
+    write_line(
+        &mut output,
+        3,
+        "\"packet_status\":",
+        &json_string(render_packet_status(summary.packet_status)),
+        true,
+    );
+    write_line(
+        &mut output,
+        3,
+        "\"budget_disposition\":",
+        &json_string(render_budget_disposition(summary.budget_disposition)),
+        true,
+    );
+    write_line(
+        &mut output,
+        3,
+        "\"budget_reason\":",
+        &json_string(render_budget_reason(&summary.budget_reason)),
+        true,
+    );
+    write_line(
+        &mut output,
+        3,
+        "\"decision_log_entries\":",
+        &summary.decision_log_entries.to_string(),
+        true,
+    );
+    write_line(
+        &mut output,
+        3,
+        "\"summary_line\":",
+        &json_string(&summary.summary_line),
+        true,
+    );
+    write_line(
+        &mut output,
+        3,
+        "\"ready_next_safe_action\":",
+        &json_string(&summary.ready_next_safe_action),
+        false,
+    );
+    output.push_str("    }");
+    output
+}
+
+fn render_packet_sections_json(sections: &[PacketSection]) -> String {
+    let mut output = String::from("[\n");
+    for (index, section) in sections.iter().enumerate() {
+        write!(
+            &mut output,
+            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"title\": {},\n        \"contents\": {}\n      }}{}\n",
+            json_string(render_canonical_artifact_kind(section.kind)),
+            json_string(section.canonical_repo_relative_path),
+            json_string(&section.title),
+            json_string(&section.contents),
+            if index + 1 == sections.len() { "" } else { "," }
+        )
+        .expect("packet sections json");
+    }
+    output.push_str("    ]");
     output
 }
 
