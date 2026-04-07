@@ -134,19 +134,17 @@ fn path_is_dir_or_file(path: &Path) -> bool {
 }
 
 fn discover_managed_repo_root(start: &Path) -> PathBuf {
-    let mut git_root = None;
-
     for candidate in start.ancestors() {
         if std::fs::symlink_metadata(candidate.join(".system")).is_ok() {
             return candidate.to_path_buf();
         }
 
-        if git_root.is_none() && path_is_dir_or_file(&candidate.join(".git")) {
-            git_root = Some(candidate.to_path_buf());
+        if path_is_dir_or_file(&candidate.join(".git")) {
+            return candidate.to_path_buf();
         }
     }
 
-    git_root.unwrap_or_else(|| start.to_path_buf())
+    start.to_path_buf()
 }
 
 fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {

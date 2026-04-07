@@ -85,6 +85,27 @@ fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathB
     (dir, nested)
 }
 
+fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf)
+{
+    let dir = tempfile::tempdir().expect("tempdir");
+    let parent = dir.path().join("parent");
+    let child = parent.join("child");
+    let nested = child.join("work/nested");
+
+    write_file(
+        &parent.join(".system/charter/CHARTER.md"),
+        b"parent charter",
+    );
+    write_file(
+        &parent.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"parent feature",
+    );
+    std::fs::create_dir_all(child.join(".git")).expect("child git root");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+
+    (dir, nested)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -281,6 +302,31 @@ fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root(
     assert!(
         stdout.contains("SystemRootNotDir"),
         "expected SystemRootNotDir category: {stdout}"
+    );
+}
+
+#[test]
+fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
+    let (_dir, nested) = nested_git_repo_inside_managed_parent_with_nested_cwd();
+
+    let output = binary_in(&nested)
+        .arg("doctor")
+        .output()
+        .expect("doctor should run");
+
+    assert!(
+        !output.status.success(),
+        "doctor should block against the child repo root"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("BLOCKED"),
+        "expected blocked header: {stdout}"
+    );
+    assert!(
+        stdout.contains("SystemRootMissing"),
+        "expected SystemRootMissing category: {stdout}"
     );
 }
 
