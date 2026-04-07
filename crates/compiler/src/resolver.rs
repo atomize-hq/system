@@ -213,8 +213,9 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
 
     let variant = packet_variant_for(request.packet_id);
     let included_sources = included_sources_for(artifacts, budget_outcome);
-    let packet_body_ready =
-        selection_status == PacketSelectionStatus::Selected && refusal.is_none() && blockers.is_empty();
+    let packet_body_ready = selection_status == PacketSelectionStatus::Selected
+        && refusal.is_none()
+        && blockers.is_empty();
     let notes = packet_notes_for(manifest, budget_outcome, artifacts, packet_body_ready);
     let sections = if packet_body_ready {
         packet_sections_for(artifacts, budget_outcome)

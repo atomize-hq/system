@@ -26,6 +26,7 @@ cargo run -p system-cli -- doctor
 ## What to expect right now
 
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
+- For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
 - If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
 - Once `.system/` canonical artifacts exist, planning packet generation is supported.
 - Execution packets are only supported as fixture-backed demos via `execution.demo.packet`, and live execution is explicitly refused.

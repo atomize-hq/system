@@ -126,14 +126,27 @@ fn ensure_dir(path: &Path, what: &str) -> Result<(), String> {
     }
 }
 
+fn path_is_dir_or_file(path: &Path) -> bool {
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) => meta.is_dir() || meta.is_file(),
+        Err(_) => false,
+    }
+}
+
 fn discover_managed_repo_root(start: &Path) -> PathBuf {
+    let mut git_root = None;
+
     for candidate in start.ancestors() {
         if std::fs::symlink_metadata(candidate.join(".system")).is_ok() {
             return candidate.to_path_buf();
         }
+
+        if git_root.is_none() && path_is_dir_or_file(&candidate.join(".git")) {
+            git_root = Some(candidate.to_path_buf());
+        }
     }
 
-    start.to_path_buf()
+    git_root.unwrap_or_else(|| start.to_path_buf())
 }
 
 fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
@@ -198,10 +211,7 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let repo_root = match packet_id {
-        PacketId::Planning | PacketId::ExecutionLive => discover_managed_repo_root(&cwd),
-        PacketId::ExecutionDemo => cwd.clone(),
-    };
+    let repo_root = discover_managed_repo_root(&cwd);
 
     let compiler_root = match packet_id {
         PacketId::Planning | PacketId::ExecutionLive => repo_root.clone(),
@@ -327,10 +337,7 @@ fn inspect(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let repo_root = match packet_id {
-        PacketId::Planning | PacketId::ExecutionLive => discover_managed_repo_root(&cwd),
-        PacketId::ExecutionDemo => cwd.clone(),
-    };
+    let repo_root = discover_managed_repo_root(&cwd);
 
     let (compiler_root, demo_fixture_set_id) = match packet_id {
         PacketId::Planning | PacketId::ExecutionLive => (repo_root.clone(), None),

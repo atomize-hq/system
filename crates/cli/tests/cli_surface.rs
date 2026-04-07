@@ -54,6 +54,37 @@ fn planning_ready_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathB
     (dir, nested)
 }
 
+fn nested_git_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    std::fs::create_dir_all(root.join(".git")).expect("git root");
+    let nested = root.join("work/nested");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+
+    (dir, nested)
+}
+
+fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    std::fs::create_dir_all(root.join(".git")).expect("git root");
+    write_file(
+        &root.join("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md"),
+        b"demo charter",
+    );
+    write_file(
+        &root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md"),
+        b"demo feature",
+    );
+
+    let nested = root.join("work/nested");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+
+    (dir, nested)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -170,6 +201,86 @@ fn doctor_blocks_when_system_root_missing() {
     assert!(
         stdout.contains("SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
+    );
+}
+
+#[test]
+fn generate_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
+    let (_dir, nested) = nested_git_repo_with_nested_cwd();
+    write_file(&nested.join("../../.system"), b"not a directory");
+
+    let output = binary_in(&nested)
+        .arg("generate")
+        .output()
+        .expect("generate should run");
+
+    assert!(!output.status.success(), "generate should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: ensure canonical .system root is a directory at .system",
+        ],
+    );
+    assert!(
+        stdout.contains("CATEGORY: SystemRootNotDir"),
+        "expected SystemRootNotDir category: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
+    let (_dir, nested) = nested_git_repo_with_nested_cwd();
+    write_file(&nested.join("../../.system"), b"not a directory");
+
+    let output = binary_in(&nested)
+        .arg("inspect")
+        .output()
+        .expect("inspect should run");
+
+    assert!(!output.status.success(), "inspect should return nonzero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: ensure canonical .system root is a directory at .system",
+        ],
+    );
+    assert!(
+        stdout.contains("CATEGORY: SystemRootNotDir"),
+        "expected SystemRootNotDir category: {stdout}"
+    );
+}
+
+#[test]
+fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
+    let (_dir, nested) = nested_git_repo_with_nested_cwd();
+    write_file(&nested.join("../../.system"), b"not a directory");
+
+    let output = binary_in(&nested)
+        .arg("doctor")
+        .output()
+        .expect("doctor should run");
+
+    assert!(
+        !output.status.success(),
+        "doctor should return nonzero when blocked"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("BLOCKED"),
+        "expected blocked header: {stdout}"
+    );
+    assert!(
+        stdout.contains("SystemRootNotDir"),
+        "expected SystemRootNotDir category: {stdout}"
     );
 }
 
@@ -525,6 +636,62 @@ fn generate_resolves_execution_demo_packet_from_fixture_set() {
 }
 
 #[test]
+fn generate_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
+    let (_dir, nested) = execution_demo_repo_with_nested_cwd();
+
+    let output = binary_in(&nested)
+        .args([
+            "generate",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "basic",
+        ])
+        .output()
+        .expect("generate should run");
+
+    assert!(output.status.success(), "generate should return zero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: execution.demo.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+        ],
+    );
+    assert!(
+        stdout.contains("## FIXTURE DEMO"),
+        "expected fixture demo section: {stdout}"
+    );
+    assert!(
+        stdout.contains("MODE: fixture-backed execution demo"),
+        "expected fixture-backed label near top: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE SET: basic"),
+        "expected fixture set id: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE LINEAGE:"),
+        "expected fixture lineage block: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### CHARTER"),
+        "expected charter body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### FEATURE_SPEC"),
+        "expected feature body section: {stdout}"
+    );
+}
+
+#[test]
 fn inspect_includes_fixture_section_for_execution_demo_packet() {
     let root = workspace_root();
     assert!(
@@ -625,6 +792,66 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
     assert!(
         pos_charter < pos_feature,
         "expected deterministic ordering (charter before feature): {stdout}"
+    );
+}
+
+#[test]
+fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
+    let (_dir, nested) = execution_demo_repo_with_nested_cwd();
+
+    let output = binary_in(&nested)
+        .args([
+            "inspect",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "basic",
+        ])
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should return zero");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: execution.demo.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+        ],
+    );
+    assert!(
+        stdout.contains("## FIXTURE DEMO"),
+        "expected fixture section: {stdout}"
+    );
+    assert!(
+        stdout.contains("MODE: fixture-backed execution demo"),
+        "expected fixture-backed label near top: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE SET: basic"),
+        "expected fixture set id: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE LINEAGE:"),
+        "expected fixture lineage list: {stdout}"
+    );
+    assert!(
+        stdout.contains("## JSON FALLBACK"),
+        "expected JSON fallback: {stdout}"
+    );
+    assert!(
+        stdout.contains("## PACKET BODY"),
+        "expected packet body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### CHARTER"),
+        "expected charter body section: {stdout}"
+    );
+    assert!(
+        stdout.contains("### FEATURE_SPEC"),
+        "expected feature body section: {stdout}"
     );
 }
 

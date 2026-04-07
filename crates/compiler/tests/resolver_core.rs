@@ -22,9 +22,11 @@ fn resolver_returns_typed_result_when_system_root_missing() {
     assert_eq!(result.c03_manifest_generation_version, 1);
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
     assert!(result.packet_result.sections.is_empty());
-    assert!(result.packet_result.notes.iter().any(|note| {
-        note.text == "packet body omitted because request is not ready"
-    }));
+    assert!(result
+        .packet_result
+        .notes
+        .iter()
+        .any(|note| { note.text == "packet body omitted because request is not ready" }));
     assert_eq!(result.c03_fingerprint_sha256.len(), 64);
     assert!(result
         .c03_fingerprint_sha256
@@ -333,7 +335,9 @@ fn resolver_redacts_packet_body_for_unsupported_live_execution_requests() {
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
     assert!(result.refusal.is_some());
     assert!(result.packet_result.sections.is_empty());
-    assert!(result.packet_result.notes.iter().any(|note| {
-        note.text == "packet body omitted because request is not ready"
-    }));
+    assert!(result
+        .packet_result
+        .notes
+        .iter()
+        .any(|note| { note.text == "packet body omitted because request is not ready" }));
 }
