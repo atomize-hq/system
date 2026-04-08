@@ -62,6 +62,18 @@
 **Priority:** P3
 **Depends on:** Stable CLI UX, stable install smoke on supported targets, release channel decision
 
+### CLI Release Workflow
+
+**What:** Add a GitHub Actions release workflow that builds and publishes versioned CLI artifacts for the supported targets.
+
+**Why:** The Rust CLI now ships as a real product surface, but this branch intentionally deferred distribution automation. Without a release workflow, users still need the repo and local toolchain to install it.
+
+**Context:** `/ship` detected the new standalone CLI surface and the existing CI only validates build quality. It does not publish downloadable artifacts, checksums, or tagged releases. The local install smoke is now in place, so the next concrete step is a boring release workflow that packages the CLI for `macOS arm64` and `Linux x86_64` and attaches those artifacts to tagged releases.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Stable install smoke, release artifact naming, version tag convention
+
 ## Post-Implementation Audit Follow-Ups
 
 ### Support Boundary Reconciliation
