@@ -10,6 +10,7 @@ This repo is in transition.
 - The governing repo-surface truth is [C-01 Approved Repo-Surface Contract](docs/contracts/C-01-approved-repo-surface.md).
 - The command-surface truth for the Rust workspace and CLI is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 - The operator-facing product language is locked in [CLI Product Vocabulary](docs/CLI_PRODUCT_VOCABULARY.md).
+- The front door and steady-state routing model is locked in [CLI Command Hierarchy And Front Door](docs/CLI_COMMAND_HIERARCHY.md).
 - The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
 - The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
 - Planning packet generation is supported from canonical repo-local `.system/`.

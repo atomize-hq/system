@@ -120,6 +120,7 @@
 **Effort:** S
 **Priority:** P1
 **Depends on:** D1
+**Status:** Complete (2026-04-08)
 
 ### Phase 2
 

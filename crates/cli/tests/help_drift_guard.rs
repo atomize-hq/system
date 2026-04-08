@@ -180,6 +180,30 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
     }
 }
 
+#[test]
+fn cli_command_hierarchy_doc_locks_front_door_rules() {
+    let root = workspace_root();
+    let hierarchy_path = root.join("docs/CLI_COMMAND_HIERARCHY.md");
+    let hierarchy_text = fs::read_to_string(&hierarchy_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", hierarchy_path.display(), err));
+
+    let required_phrases = [
+        "The front door is a guided setup experience.",
+        "The stable operation name remains `setup`.",
+        "`generate` is the default ready-path command.",
+        "Commands anchor to the enclosing git root when one exists.",
+        "A nested git repo boundary wins over a parent managed repo.",
+        "`doctor` is the recovery and readiness command",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            hierarchy_text.contains(phrase),
+            "CLI command hierarchy doc missing phrase `{phrase}`"
+        );
+    }
+}
+
 fn workspace_root() -> PathBuf {
     let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in start.ancestors() {
