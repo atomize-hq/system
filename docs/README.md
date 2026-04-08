@@ -7,6 +7,7 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - Start here: [`docs/START_HERE.md`](START_HERE.md)
 - CLI product vocabulary: [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
 - CLI command hierarchy and front door: [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
+- CLI tone rules: [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
 - Command surface: [`docs/SUPPORTED_COMMANDS.md`](SUPPORTED_COMMANDS.md)
 - Implementation plan: [`PLAN.md`](../PLAN.md)
 - Repo surface contract: [`C-01`](contracts/C-01-approved-repo-surface.md)

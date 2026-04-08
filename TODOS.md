@@ -144,6 +144,7 @@
 **Effort:** S
 **Priority:** P1
 **Depends on:** D1, D2
+**Status:** Complete (2026-04-08)
 
 #### D4: Output Anatomy For Success, Refusal, Proof, And Recovery
 

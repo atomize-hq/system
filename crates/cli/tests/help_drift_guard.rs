@@ -204,6 +204,32 @@ fn cli_command_hierarchy_doc_locks_front_door_rules() {
     }
 }
 
+#[test]
+fn cli_tone_rules_doc_locks_core_tone() {
+    let root = workspace_root();
+    let tone_path = root.join("docs/CLI_TONE_RULES.md");
+    let tone_text =
+        fs::read_to_string(&tone_path).unwrap_or_else(|err| panic!("read {}: {}", tone_path.display(), err));
+
+    let required_phrases = [
+        "The default tone is **strict but guided**.",
+        "Do not use:",
+        "something went wrong",
+        "unable to process request",
+        "Do not celebrate normal success.",
+        "Refusal output should:",
+        "Proof output should:",
+        "Recovery output should:",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            tone_text.contains(phrase),
+            "CLI tone rules doc missing phrase `{phrase}`"
+        );
+    }
+}
+
 fn workspace_root() -> PathBuf {
     let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in start.ancestors() {
