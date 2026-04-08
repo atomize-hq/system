@@ -32,7 +32,7 @@
 
 **Why:** The product promise is still planning plus execution packets, but reduced v1 intentionally proves the compiler first and only demos execution packets from fixtures.
 
-**Context:** The current repo has implemented project and feature planning surfaces, but the slice stages listed in `pipeline.yaml` are still empty placeholders and `docs/stages/README.md` only documents stages through feature spec as implemented. The eng review narrowed v1 so execution packets are fixture-backed only, not a live supported flow. This follow-on should start once the Rust packet core, project/feature metadata contract, manifest/freshness logic, and planning-packet path are stable enough that a real `project -> feature -> slice` lineage can land without reopening the whole wedge.
+**Context:** The current repo has implemented project and feature planning surfaces, but the slice stages listed in `pipeline.yaml` are still empty placeholders and `docs/legacy/stages/README.md` only documents stages through feature spec as implemented. The eng review narrowed v1 so execution packets are fixture-backed only, not a live supported flow. This follow-on should start once the Rust packet core, project/feature metadata contract, manifest/freshness logic, and planning-packet path are stable enough that a real `project -> feature -> slice` lineage can land without reopening the whole wedge.
 
 **Effort:** M
 **Priority:** P2
@@ -61,3 +61,61 @@
 **Effort:** M
 **Priority:** P3
 **Depends on:** Stable CLI UX, stable install smoke on supported targets, release channel decision
+
+### CLI Release Workflow
+
+**What:** Add a GitHub Actions release workflow that builds and publishes versioned CLI artifacts for the supported targets.
+
+**Why:** The Rust CLI now ships as a real product surface, but this branch intentionally deferred distribution automation. Without a release workflow, users still need the repo and local toolchain to install it.
+
+**Context:** `/ship` detected the new standalone CLI surface and the existing CI only validates build quality. It does not publish downloadable artifacts, checksums, or tagged releases. The local install smoke is now in place, so the next concrete step is a boring release workflow that packages the CLI for `macOS arm64` and `Linux x86_64` and attaches those artifacts to tagged releases.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Stable install smoke, release artifact naming, version tag convention
+
+## Post-Implementation Audit Follow-Ups
+
+### Support Boundary Reconciliation
+
+**What:** Reconcile `PLAN.md`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, CLI help, and runtime behavior so reduced v1 does not claim supported planning packet generation before `system generate` exits `0` with a non-placeholder packet body.
+
+**Why:** The current repo is caught between underclaim and overclaim. Docs say live planning packet resolution is supported, while CLI help still describes a scaffold and the ready path still returns placeholder body text.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Finished ready-path packet body
+**Status:** Complete (2026-04-07)
+
+### Setup Ownership And Entry Routing
+
+**What:** Define one canonical setup ownership boundary and one startup routing model for new repo, initialized repo, stale repo, and unsupported repo.
+
+**Why:** The current plan and docs split setup authority between the legacy scaffold and the Rust CLI, which leaves the operator without one obvious front door.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Support-boundary reconciliation
+
+### Packet Body Contract
+
+**What:** Add a typed packet-body contract to the compiler output model, or explicitly narrow reduced-v1 claims until that contract exists.
+
+**Why:** The current rendering model carries trust metadata, decision evidence, refusals, and blockers, but not the actual planning packet body that docs imply is already supported.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** None
+
+**Chosen direction (2026-04-06):** Finish the ready-path packet body first. This is the selected path from the post-implementation `/autoplan` review.
+**Status:** Complete (2026-04-07)
+
+### Repo Discovery And Recovery Transition Tests
+
+**What:** Define repo discovery semantics and add tests for retry-after-repair, partial `.system/` trees, malformed inputs, and docs/help/runtime vocabulary drift.
+
+**Why:** Current coverage is strong on deterministic static states, but weak on state transitions and normal operator invocation paths.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Setup ownership decision, packet body contract direction

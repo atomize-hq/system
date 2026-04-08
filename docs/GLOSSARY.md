@@ -3,7 +3,7 @@
 This is an index of the mechanisms that are **actually in use today** in the `system/` repo.
 It’s written to be practical: each entry names the thing, what it’s for, and where it lives on disk.
 
-> Tip: If you’re trying to understand “what runs when,” start with [`pipeline.yaml`](../pipeline.yaml) and then the stage reference in `docs/stages/`.
+> Tip: If you’re trying to understand the legacy stage runner (“what runs when”), start with [`pipeline.yaml`](../pipeline.yaml) and then the stage reference in `docs/legacy/stages/`.
 
 ---
 

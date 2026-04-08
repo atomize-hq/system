@@ -2,11 +2,11 @@
 seam_id: SEAM-7
 seam_slug: conformance-rails-and-docs-cutover
 type: conformance
-status: proposed
+status: closed
 execution_horizon: future
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts:
@@ -28,16 +28,16 @@ basis:
     - Any supported target or CI/install-smoke requirement changes.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
+  status: passed
 open_remediations: []
 ---
 
@@ -102,7 +102,7 @@ open_remediations: []
   - Defer the physical archive move until parity and cutover validation pass.
   - Prefer failing tests/docs checks over silently shipping inconsistent support messaging.
 - **Downstream decomposition context**:
-  - This seam is `future` because it is meaningful only after upstream seams publish the contracts it validates.
+  - This seam is now `active` and decomposed; pre-exec review should revalidate that each conformance surface maps directly to published upstream contracts.
   - `THR-07` is the dominant closure thread.
   - First seam-local review should focus on whether each test/doc/help surface maps to a specific published contract and whether any stale trigger from upstream remains unresolved.
 - **Expected seam-exit concerns**:

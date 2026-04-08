@@ -1,14 +1,14 @@
 # Pack Closeout - Reduced V1 Rust-First CLI Cutover
 
 - **Remaining open seams**:
-  - `SEAM-1` through `SEAM-7`; this pack is extracted but not yet executed
+  - none (all seams executed; `SEAM-7` closeout is recorded)
 - **Open remediations still blocking pack closeout**:
-  - none at extraction time
+  - none
 - **Threads still not closed**:
-  - `THR-01` through `THR-07`
+  - none inside this pack (final publication recorded in `threading.md`)
 - **Downstream stale triggers still requiring attention**:
-  - all seam-local stale triggers remain provisional until the active seam lands and downstream seams revalidate against published closeouts
+  - none observed in `SEAM-7` seam-exit evidence
 - **Evidence summary**:
-  - extraction completed from `PLAN.md`
-  - execution horizon set to `SEAM-1` active and `SEAM-2` next
-  - pack-level review surfaces, threading, seam briefs, and governance scaffolds are present
+  - all required seams closed and the pack is marked closed in `scope_brief.md`
+  - conformance rails exist and pass locally: `cargo fmt --check`, `cargo test --workspace`, and `tools/ci/install-smoke.sh`
+  - CI rails exist at `.github/workflows/ci.yml` (Linux x86_64 + macOS arm64)

@@ -1,11 +1,11 @@
 ---
 pack_id: reduced-v1-seam-pack
 pack_version: v1
-pack_status: extracted
+pack_status: closed
 source_ref: PLAN.md
 execution_horizon:
-  active_seam: SEAM-1
-  next_seam: SEAM-2
+  active_seam: null
+  next_seam: null
 ---
 
 # Scope Brief - Reduced V1 Rust-First CLI Cutover
@@ -56,4 +56,3 @@ execution_horizon:
   - seam extraction is workflow-first because the operator journey and repo migration order are the dominant organizing axes in `PLAN.md`
   - the execution horizon is inferred from the critical path: lock the repo/support boundary first, then scaffold the Rust workspace and CLI surface
   - seam-exit concerns are inferred from the plan’s explicit contracts, milestones, and cutover rules rather than additional user input
-

@@ -7,20 +7,20 @@ the result down with validation and docs cutover.
 
 ## Horizon policy
 
-- Active seam: `SEAM-1` because milestone `M1` is the explicit first move and unblocks every later seam by fixing supported-vs-legacy truth at the repo boundary.
-- Next seam: `SEAM-2` because milestone `M2` starts immediately after `M1` and publishes the CLI and workspace contract that downstream resolver seams consume.
-- Future seams: `SEAM-3` through `SEAM-7`; they remain seam briefs only in this extractor pass.
+- Active seam: `SEAM-2` because milestone `M2` publishes the CLI and workspace contract that downstream resolver seams consume.
+- Next seam: `SEAM-3` because milestone `M3` defines the canonical artifact manifest and freshness contract required by the resolver.
+- Future seams: `SEAM-4` through `SEAM-7`.
 - Only the active seam is eligible for authoritative deep planning by default.
-- The next seam may later receive seam-local review and slices, but only provisional deeper planning until its basis is revalidated against the landed `SEAM-1` closeout.
-- No slices or standalone subslices are created in this pack.
+- The next seam may later receive seam-local review and slices, but only provisional deeper planning until its basis is revalidated against the landed upstream closeout it depends on.
+- Seam-local slices exist for seams in the forward window; future seams remain seam briefs until promoted.
 
 ## Seam summary
 
 | Seam | Name | Type | Horizon | Primary value | Key contracts | Primary touch surface |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SEAM-1` | Approved Surface and Legacy Freeze | `platform` | `active` | Makes the repo tell one supported Rust-first story and freezes Python as reference-only | `C-01` | root docs, `tools/`, future `archived/python-harness/`, repo layout |
-| `SEAM-2` | Rust Workspace and CLI Skeleton | `platform` | `next` | Creates the Rust workspace, crate split, and verb surface downstream seams rely on | `C-02` | `Cargo.toml`, `crates/cli`, `crates/compiler`, CLI help |
-| `SEAM-3` | Canonical Artifact Manifest Contract | `integration` | `future` | Defines trusted `.system/` inputs, inherited posture dependencies, freshness, and override rationale | `C-03` | ingest types, manifest schema, canonical artifact rules |
+| `SEAM-1` | Approved Surface and Legacy Freeze | `platform` | `future` | Makes the repo tell one supported Rust-first story and freezes Python as reference-only | `C-01` | root docs, `tools/`, future `archived/python-harness/`, repo layout |
+| `SEAM-2` | Rust Workspace and CLI Skeleton | `platform` | `active` | Creates the Rust workspace, crate split, and verb surface downstream seams rely on | `C-02` | `Cargo.toml`, `crates/cli`, `crates/compiler`, CLI help |
+| `SEAM-3` | Canonical Artifact Manifest Contract | `integration` | `next` | Defines trusted `.system/` inputs, inherited posture dependencies, freshness, and override rationale | `C-03` | ingest types, manifest schema, canonical artifact rules |
 | `SEAM-4` | Planning Packet Resolver and Doctor | `capability` | `future` | Produces deterministic planning packets, budget decisions, refusal semantics, and blocker diagnosis | `C-04` | resolver core, decision log, refusal policy, `doctor` |
 | `SEAM-5` | Renderer and Proof Surfaces | `capability` | `future` | Turns one typed resolver result into human and machine proof surfaces without changing selection logic | `C-05` | markdown/JSON/inspect renderers, output ordering, proof copy |
 | `SEAM-6` | Fixture Execution Demo Boundary | `risk` | `future` | Demonstrates execution packets honestly while refusing unsupported live slice execution | `C-06` | demo lineage, refusal messaging, fixture path |

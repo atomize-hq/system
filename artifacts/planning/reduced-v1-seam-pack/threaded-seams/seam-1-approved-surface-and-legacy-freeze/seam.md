@@ -1,8 +1,8 @@
 ---
 seam_id: SEAM-1
 seam_slug: approved-surface-and-legacy-freeze
-status: decomposed
-execution_horizon: active
+status: closed
+execution_horizon: future
 plan_version: v1
 basis:
   currentness: current
@@ -14,16 +14,16 @@ basis:
     - Any change to the approved root surface, archive timing, or supported-runtime wording in PLAN.md or root docs.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
+  status: passed
 open_remediations: []
 ---
 
@@ -91,4 +91,3 @@ open_remediations: []
 
 - Pack remediation log: `../../governance/remediation-log.md`
 - Seam closeout: `../../governance/seam-1-closeout.md`
-

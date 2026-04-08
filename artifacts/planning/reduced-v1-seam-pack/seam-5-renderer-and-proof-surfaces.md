@@ -2,11 +2,11 @@
 seam_id: SEAM-5
 seam_slug: renderer-and-proof-surfaces
 type: capability
-status: proposed
+status: landed
 execution_horizon: future
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts:
@@ -18,16 +18,16 @@ basis:
     - Any change to JSON fallback requirements for dense evidence views.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
+  status: passed
 open_remediations: []
 ---
 
@@ -93,4 +93,3 @@ open_remediations: []
   - Downstream seams most likely to require revalidation:
     - `SEAM-7`
   - Accepted or published owned-contract artifacts belong here and in closeout evidence, not in pre-exec verification for the producing seam.
-

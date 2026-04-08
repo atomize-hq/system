@@ -2,9 +2,9 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-1`
-- Next seam: `SEAM-2`
-- Future seams: `SEAM-3` through `SEAM-7`
+- Active seam: none
+- Next seam: none
+- Future seams: none
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
@@ -21,7 +21,7 @@
 - **Contract ID**: `C-02`
   - **Type**: `API`
   - **Owner seam**: `SEAM-2`
-  - **Direct consumers**: `SEAM-4`, `SEAM-5`, `SEAM-7`
+  - **Direct consumers**: `SEAM-3`, `SEAM-4`, `SEAM-5`, `SEAM-7`
   - **Derived consumers**: `SEAM-6`
   - **Thread IDs**: `THR-02`
   - **Definition**: Rust workspace and CLI command-surface contract defining crate split, command hierarchy, help posture, and the supported verbs `setup`, `generate`, `inspect`, and `doctor`.
@@ -33,6 +33,7 @@
   - **Direct consumers**: `SEAM-4`, `SEAM-7`
   - **Derived consumers**: `SEAM-5`, `SEAM-6`
   - **Thread IDs**: `THR-03`
+  - **Canonical artifact**: `docs/contracts/C-03-canonical-artifact-manifest-contract.md`
   - **Definition**: Canonical artifact manifest contract for `.system/charter/CHARTER.md`, optional `.system/project_context/PROJECT_CONTEXT.md`, `.system/feature_spec/FEATURE_SPEC.md`, inherited posture dependencies, override-with-rationale handling, and deterministic freshness fields.
   - **Versioning / compat**: Schema version plus manifest generation version; any new live input or refusal source requires an explicit contract update.
 
@@ -42,6 +43,7 @@
   - **Direct consumers**: `SEAM-5`, `SEAM-7`
   - **Derived consumers**: `SEAM-6`
   - **Thread IDs**: `THR-04`
+  - **Canonical artifact**: `docs/contracts/C-04-resolver-result-and-doctor-blockers.md`
   - **Definition**: Typed resolver result and decision-log contract covering packet identity, inclusion/exclusion decisions, freshness truth, budget outcomes, refusal structure, and packet-readiness status surfaced by `doctor`.
   - **Versioning / compat**: Resolver result version; downstream seams must revalidate if budget policy, refusal shape, or blocker taxonomy changes.
 
@@ -79,29 +81,29 @@
   - **Consumer seam(s)**: `SEAM-2`, `SEAM-7`
   - **Carried contract IDs**: `C-01`
   - **Purpose**: Publish the approved repo boundary so downstream implementation and cutover work stop treating Python as a supported runtime path.
-  - **State**: `defined`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to root layout rules, archive timing, supported-path messaging, or runtime-boundary policy in `PLAN.md`, README, or root docs.
   - **Satisfied by**: `SEAM-1` closeout records landed repo-surface changes, archive/runtime boundary evidence, and a passed seam-exit record for `C-01`.
   - **Notes**: This is the first critical-path thread and must publish before `SEAM-2` can treat the workspace as the supported root surface.
 
 - **Thread ID**: `THR-02`
   - **Producer seam**: `SEAM-2`
-  - **Consumer seam(s)**: `SEAM-4`, `SEAM-5`, `SEAM-7`
+  - **Consumer seam(s)**: `SEAM-3`, `SEAM-4`, `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-02`
   - **Purpose**: Publish the Rust workspace and CLI verb hierarchy that every downstream capability seam consumes.
-  - **State**: `defined`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any rename of supported verbs, crate ownership, package layout, or CLI help hierarchy.
   - **Satisfied by**: `SEAM-2` closeout records landed workspace scaffold, CLI help evidence, and published command-surface decisions.
-  - **Notes**: `SEAM-2` is next, not active, because it depends on `THR-01` landing cleanly.
+  - **Notes**: Published by `SEAM-2` landing + closeout; downstream seams must revalidate if `C-02` changes.
 
 - **Thread ID**: `THR-03`
   - **Producer seam**: `SEAM-3`
   - **Consumer seam(s)**: `SEAM-4`, `SEAM-7`
   - **Carried contract IDs**: `C-03`
   - **Purpose**: Carry the canonical artifact manifest and freshness contract into resolver behavior and conformance rails.
-  - **State**: `defined`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to direct packet inputs, inherited posture dependencies, override-with-rationale rules, or manifest versioning/freshness fields.
-  - **Satisfied by**: `SEAM-3` closeout records the concrete schema, accepted artifact rules, and published freshness semantics consumed by downstream seams.
+  - **Satisfied by**: `SEAM-3` closeout at `artifacts/planning/reduced-v1-seam-pack/governance/seam-3-closeout.md` records the concrete schema, accepted artifact rules, and published freshness semantics consumed by downstream seams.
   - **Notes**: This thread is contract-defining and will likely reserve `S00` when seam-local planning begins.
 
 - **Thread ID**: `THR-04`
@@ -109,37 +111,37 @@
   - **Consumer seam(s)**: `SEAM-5`, `SEAM-7`
   - **Carried contract IDs**: `C-04`
   - **Purpose**: Publish the typed resolver result, refusal structure, and `doctor` blocker taxonomy.
-  - **State**: `identified`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to budget policy, blocker categories, decision-log fields, or refusal ordering.
   - **Satisfied by**: `SEAM-4` closeout records landed resolver outputs, blocker/report parity evidence, and outbound thread publication for proof and conformance seams.
-  - **Notes**: `SEAM-5` and `SEAM-7` should not finalize output or golden expectations until this thread is published.
+  - **Notes**: `SEAM-5` has revalidated and landed against `C-04`; `SEAM-7` still must revalidate for conformance.
 
 - **Thread ID**: `THR-05`
   - **Producer seam**: `SEAM-5`
   - **Consumer seam(s)**: `SEAM-7`
   - **Carried contract IDs**: `C-05`
   - **Purpose**: Carry proof-surface ordering and wording into docs, help text, and golden tests.
-  - **State**: `identified`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to trust header order, inspect proof ordering, JSON fallbacks, or compact refusal copy.
   - **Satisfied by**: `SEAM-5` closeout records renderer evidence, golden output baselines, and output-surface publication.
-  - **Notes**: This thread remains blocked on `THR-04`.
+  - **Notes**: Published by `SEAM-5` landing + closeout; downstream conformance must revalidate.
 
 - **Thread ID**: `THR-06`
   - **Producer seam**: `SEAM-6`
   - **Consumer seam(s)**: `SEAM-7`
   - **Carried contract IDs**: `C-06`
   - **Purpose**: Publish the honest fixture-demo boundary and live-slice refusal semantics into tests and docs.
-  - **State**: `identified`
+  - **State**: `revalidated`
   - **Revalidation trigger**: Any change to execution demo scope, fixture lineage, or unsupported live execution behavior.
   - **Satisfied by**: `SEAM-6` closeout records demo evidence, refusal examples, and explicit boundary publication for downstream conformance.
-  - **Notes**: This isolates a major product-trust risk instead of letting it blur into the main resolver seam.
+  - **Notes**: Published by `SEAM-6` landing + closeout; downstream conformance must revalidate.
 
 - **Thread ID**: `THR-07`
   - **Producer seam**: `SEAM-7`
   - **Consumer seam(s)**: none
   - **Carried contract IDs**: `C-01`, `C-02`, `C-03`, `C-04`, `C-05`, `C-06`, `C-07`
   - **Purpose**: Close the pack by proving that repo shape, behavior, docs, and validation rails all reflect the published reduced v1 truth.
-  - **State**: `identified`
+  - **State**: `published`
   - **Revalidation trigger**: Any upstream contract publication or stale trigger from `SEAM-1` through `SEAM-6`.
   - **Satisfied by**: `SEAM-7` closeout records passing test/CI/install smoke evidence, doc/help alignment, and final cutover readiness.
   - **Notes**: This thread cannot close until the upstream seams publish the contracts it verifies.
@@ -182,4 +184,3 @@ flowchart LR
 - **WS-Conformance**
   - Seams: `SEAM-7`
   - Why: collects tests, CI, install smoke, docs parity, and cutover evidence once upstream contracts are published
-

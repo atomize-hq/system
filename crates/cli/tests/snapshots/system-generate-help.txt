@@ -1,0 +1,8 @@
+Generate a reduced-v1 packet
+
+Usage: system generate [OPTIONS]
+
+Options:
+      --packet <PACKET>            Packet identity to generate or inspect [default: planning.packet]
+      --fixture-set <FIXTURE_SET>  Fixture set id (required for `execution.demo.packet`)
+  -h, --help                       Print help

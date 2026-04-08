@@ -1,0 +1,15 @@
+[package]
+name = "system-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "system_compiler"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"

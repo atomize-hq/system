@@ -6,11 +6,20 @@ This repo is in transition.
 
 - The reviewed v1 direction is a **Rust-first context compiler CLI**.
 - The current Python harness remains in the repo as **legacy reference material only**.
-- Python is not the supported product path, not a compatibility wrapper, and will be archived, then removed.
+- Python is not the supported product path, not a compatibility wrapper, and will be archived during cutover, then removed.
+- The governing repo-surface truth is [C-01 Approved Repo-Surface Contract](docs/contracts/C-01-approved-repo-surface.md).
+- The command-surface truth for the Rust workspace and CLI is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
+- The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
 - The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
-- Live slice lineage and live execution packets are deferred. Any v1 execution packet work is fixture-backed only.
+- Planning packet generation is supported from canonical repo-local `.system/`.
+- Fixture-backed execution demo generation is supported via `execution.demo.packet`.
+- Live slice lineage and live execution packets are deferred. Live execution is explicitly refused.
+- `inspect` is the proof surface and `doctor` is the recovery surface.
+- `setup` is still a placeholder entrypoint until Rust setup exists.
 
-The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md). The reviewed design lives at [spensermcconnell-main-design-20260403-110234.md](/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-design-20260403-110234.md).
+Until Rust setup exists, the legacy harness may still be used to establish canonical artifacts; once Rust setup exists, the Rust CLI becomes the supported packet-resolution authority.
+
+The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](PLAN.md). The reviewed reduced-v1 seam pack lives at [artifacts/planning/reduced-v1-seam-pack/README.md](artifacts/planning/reduced-v1-seam-pack/README.md).
 
 This repo is a **human-in-the-loop** prompt pipeline that produces structured artifacts
 (Charter, Project Context, Foundation Pack, Feature Specs, etc.) using a selected **profile** (stack pack)
@@ -93,6 +102,9 @@ The harness filters these blocks when compiling prompts, which keeps context pac
 lean while still enforcing strict execution/merge discipline.
 
 ## Repo outputs vs pipeline artifacts
+
+> NOTE: `artifacts/` is legacy-harness output. A snapshot of legacy generated outputs is kept under `archived/legacy-generated-artifacts/` to keep the repo easier to navigate during the Rust-first transition.
+
 Some stages write a canonical document **into the project repo** (via `${repo_root}/...`)
 and also keep a pipeline copy under `artifacts/...` for traceability.
 
