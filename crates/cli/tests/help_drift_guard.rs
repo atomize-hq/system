@@ -230,6 +230,56 @@ fn cli_tone_rules_doc_locks_core_tone() {
     }
 }
 
+#[test]
+fn cli_output_anatomy_doc_locks_section_order_rules() {
+    let root = workspace_root();
+    let anatomy_path = root.join("docs/CLI_OUTPUT_ANATOMY.md");
+    let anatomy_text = fs::read_to_string(&anatomy_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", anatomy_path.display(), err));
+
+    let required_phrases = [
+        "`generate` and `inspect` start with the same three-line trust header:",
+        "## `generate` Anatomy",
+        "## `inspect` Anatomy",
+        "`doctor` is still transitional.",
+        "docs must not claim that it already shares the full trust-header anatomy",
+        "`setup` is placeholder-only in current reduced v1.",
+        "## Presentation Failure And Parse-Validation Output",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            anatomy_text.contains(phrase),
+            "CLI output anatomy doc missing phrase `{phrase}`"
+        );
+    }
+}
+
+#[test]
+fn design_doc_locks_cli_interaction_contract() {
+    let root = workspace_root();
+    let design_path = root.join("DESIGN.md");
+    let design_text = fs::read_to_string(&design_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", design_path.display(), err));
+
+    let required_phrases = [
+        "This file is the canonical interaction contract for the reduced-v1 CLI product.",
+        "the packet is the product",
+        "`doctor` is the only canonical recovery verb",
+        "`setup` remains placeholder-only in the Rust CLI",
+        "`doctor` still uses a transitional output anatomy",
+        "`inspect` currently emits a self-referential ready-path next action",
+        "update the relevant D1-D4 source document",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            design_text.contains(phrase),
+            "DESIGN.md missing phrase `{phrase}`"
+        );
+    }
+}
+
 fn workspace_root() -> PathBuf {
     let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in start.ancestors() {

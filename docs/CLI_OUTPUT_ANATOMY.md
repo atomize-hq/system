@@ -1,0 +1,200 @@
+# CLI Output Anatomy (Reduced v1)
+
+## Purpose
+
+This document defines the operator-facing output anatomy for reduced-v1 success, refusal, proof, and recovery surfaces.
+
+It exists so docs, fixtures, tests, and future output work all agree on section order, compactness rules, and what belongs in the first lines versus deeper sections.
+
+This document depends on:
+
+- [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
+- [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
+- [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
+- [`docs/contracts/C-04-resolver-result-and-doctor-blockers.md`](contracts/C-04-resolver-result-and-doctor-blockers.md)
+- [`docs/contracts/C-05-renderer-and-proof-surfaces.md`](contracts/C-05-renderer-and-proof-surfaces.md)
+
+## Global Rules
+
+- `generate` and `inspect` start with the same three-line trust header:
+  1. `OUTCOME`
+  2. `OBJECT`
+  3. `NEXT SAFE ACTION`
+- The trust header comes before any other section.
+- Ready-path output keeps the useful result as the main event.
+- Refusal-path output stays compact.
+- Proof output is allowed to be denser, but section ordering stays stable.
+- `doctor` is a special case in current reduced v1: its shipped anatomy is still transitional and does not yet use the same trust-header shape as `generate` and `inspect`.
+- `setup` is also a special case in current reduced v1: it is placeholder-only and therefore has placeholder anatomy, not full reduced-v1 runtime anatomy.
+
+## `generate` Anatomy
+
+### Ready
+
+First three lines:
+
+1. `OUTCOME: READY`
+2. `OBJECT: <packet_id>`
+3. Current shipped behavior: `NEXT SAFE ACTION: run \`system inspect ...\` for proof`
+
+Section order after the trust header:
+
+1. `## PACKET OVERVIEW`
+2. `## INCLUDED SOURCES`
+3. `## OMISSIONS AND BUDGET`
+4. `## DECISION SUMMARY`
+5. `## PACKET BODY`
+
+Notes:
+
+- The packet body is the product, not a receipt.
+- Fixture-backed execution demo output may include fixture context in the body path.
+- Budget summarize/exclude behavior must preserve the same section order without leaking omitted content.
+
+### Refused
+
+First three lines:
+
+1. `OUTCOME: REFUSED`
+2. `OBJECT: <packet_id>`
+3. `NEXT SAFE ACTION: <exact repair action>`
+
+Section order after the trust header:
+
+1. `## REFUSAL`
+2. `CATEGORY`
+3. `SUMMARY`
+4. `BROKEN SUBJECT`
+5. `NEXT SAFE ACTION`
+
+Rules:
+
+- Do not print packet body sections on refusal.
+- Do not expand into a full diagnostic dump.
+- One refusal section, one broken subject, one exact next safe action.
+
+## `inspect` Anatomy
+
+### Ready
+
+First three lines:
+
+1. `OUTCOME: READY`
+2. `OBJECT: <packet_id>`
+3. `NEXT SAFE ACTION: run \`system inspect ...\` for proof`
+
+Section order after the trust header:
+
+1. `## DECISION LOG`
+2. `## BUDGET OUTCOME`
+3. `## REFUSAL`
+4. `## BLOCKERS`
+5. `## PACKET OVERVIEW`
+6. `## PACKET BODY`
+7. `## JSON FALLBACK`
+
+Rules:
+
+- `## REFUSAL` and `## BLOCKERS` still appear on the ready path and may contain `NONE`.
+- `## JSON FALLBACK` always appears.
+- Proof order privileges evidence review over narrative prose.
+- The current ready-path `NEXT SAFE ACTION` is self-referential and should be treated as a shipped quirk, not the ideal long-term inspect design.
+
+### Blocked or refused
+
+First three lines:
+
+1. `OUTCOME: REFUSED` or `OUTCOME: BLOCKED`
+2. `OBJECT: <packet_id>`
+3. `NEXT SAFE ACTION: <exact repair action>`
+
+Section order after the trust header:
+
+1. `## DECISION LOG`
+2. `## BUDGET OUTCOME`
+3. `## REFUSAL`
+4. `## BLOCKERS`
+5. `## JSON FALLBACK`
+
+Conditional rule:
+
+- For non-ready fixture-backed execution demo requests, fixture context may be injected immediately after the trust header so the operator still sees the demo basis before the deeper proof sections.
+
+## `doctor` Anatomy
+
+### Current shipped reduced-v1 anatomy
+
+`doctor` is still transitional.
+
+Current ready shape:
+
+1. `READY`
+
+Current blocked shape:
+
+1. `BLOCKED`
+2. repeated blocker groups with:
+   - `CATEGORY`
+   - `SUMMARY`
+   - `SUBJECT`
+   - `NEXT ACTION`
+
+Important honesty rule:
+
+- Until `doctor` is upgraded, docs must not claim that it already shares the full trust-header anatomy used by `generate` and `inspect`.
+
+### Required future alignment
+
+The long-term anatomy should converge on:
+
+1. `OUTCOME`
+2. `OBJECT`
+3. `NEXT SAFE ACTION`
+4. `## BLOCKERS`
+5. readiness or retry guidance
+
+But that is not the full shipped shape today.
+
+## `setup` Anatomy
+
+### Current shipped reduced-v1 anatomy
+
+`setup` is placeholder-only in current reduced v1.
+
+Current shape:
+
+1. one placeholder line naming the contract version
+2. the fact that `setup` is a placeholder-only entrypoint
+3. the fact that planning packet generation, `inspect`, and `doctor` are implemented in reduced v1
+
+Important honesty rule:
+
+- Do not document `setup` as if it already has the full guided runtime anatomy. Today it is a placeholder entrypoint plus an external guided setup story.
+
+## Presentation Failure And Parse-Validation Output
+
+These are narrow exception paths, not primary product surfaces.
+
+Rules:
+
+- Keep them terse.
+- Name the failure type directly.
+- Do not pretend they are packet or proof output.
+- Do not let them redefine the normal anatomy for `generate`, `inspect`, `doctor`, or `setup`.
+
+## Stable First-Impression Rules
+
+For any surface that has the full reduced-v1 anatomy:
+
+- the first lines answer what happened
+- what object that applies to
+- what to do next
+
+For surfaces that are still transitional (`doctor`, `setup`), docs must say so explicitly rather than silently implying parity.
+
+## Downstream Dependencies
+
+This document should be treated as an input to:
+
+- `D5` `DESIGN.md` as the CLI interaction contract
+- `D6` operator-journey conformance review

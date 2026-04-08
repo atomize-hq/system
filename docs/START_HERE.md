@@ -21,9 +21,11 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 ## How to navigate this repo
 
 - Supported architecture + cutover plan: [`PLAN.md`](../PLAN.md)
+- CLI interaction contract: [`DESIGN.md`](../DESIGN.md)
 - Operator-facing vocabulary: [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
 - Front door and command hierarchy: [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
 - Tone rules for docs/help/runtime: [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
+- Output anatomy for success, refusal, proof, and recovery: [`docs/CLI_OUTPUT_ANATOMY.md`](CLI_OUTPUT_ANATOMY.md)
 - Contracts (the authoritative truth): [`docs/contracts/`](contracts/)
 - CLI command surface and wording: [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md)
 - Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)

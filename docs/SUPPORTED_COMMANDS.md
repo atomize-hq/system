@@ -6,6 +6,7 @@ For the authoritative command surface and help ordering, see [`C-02`](contracts/
 For the canonical operator-facing product language, see [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md).
 For the front door and repo-state routing model, see [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md).
 For operator-facing tone rules, see [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md).
+For section ordering and output-shape rules, see [`docs/CLI_OUTPUT_ANATOMY.md`](CLI_OUTPUT_ANATOMY.md).
 
 ## Local invocation (development)
 

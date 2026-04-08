@@ -166,6 +166,7 @@
 **Effort:** M
 **Priority:** P1
 **Depends on:** D1, D2, D3
+**Status:** Complete (2026-04-08)
 
 #### D5: CLI Interaction Contract (`DESIGN.md`)
 
@@ -187,6 +188,7 @@
 **Effort:** S
 **Priority:** P1
 **Depends on:** D1, D2, D3, D4
+**Status:** Complete (2026-04-08)
 
 ### Phase 3
 
