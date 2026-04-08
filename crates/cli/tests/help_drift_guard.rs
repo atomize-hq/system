@@ -154,6 +154,32 @@ fn support_story_docs_match_help_snapshots() {
     }
 }
 
+#[test]
+fn cli_product_vocabulary_doc_locks_core_terms() {
+    let root = workspace_root();
+    let vocab_path = root.join("docs/CLI_PRODUCT_VOCABULARY.md");
+    let vocab_text = fs::read_to_string(&vocab_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", vocab_path.display(), err));
+
+    let required_phrases = [
+        "planning packet generation",
+        "canonical repo-local `.system/` inputs",
+        "`inspect` is the proof surface",
+        "`doctor` is the recovery surface",
+        "`setup` is still a placeholder",
+        "next safe action",
+        "bootstrap",
+        "hydrate",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            vocab_text.contains(phrase),
+            "CLI vocabulary doc missing phrase `{phrase}`"
+        );
+    }
+}
+
 fn workspace_root() -> PathBuf {
     let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in start.ancestors() {

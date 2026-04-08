@@ -3,6 +3,7 @@
 The supported reduced-v1 entrypoint is the Rust CLI (crate `system-cli`, binary `system`).
 
 For the authoritative command surface and help ordering, see [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md).
+For the canonical operator-facing product language, see [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md).
 
 ## Local invocation (development)
 
