@@ -14,6 +14,7 @@ This repo is in transition.
 - The operator-facing tone rules live in [CLI Tone Rules](docs/CLI_TONE_RULES.md).
 - The output-shape and section-order rules live in [CLI Output Anatomy](docs/CLI_OUTPUT_ANATOMY.md).
 - The composed CLI interaction contract lives in [DESIGN.md](DESIGN.md).
+- The shipped journey and revision findings live in [CLI Operator Journey And Conformance Review](docs/CLI_OPERATOR_JOURNEY.md).
 - The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
 - The reduced live v1 scope is **planning packet generation over existing project + feature artifacts**.
 - Planning packet generation is supported from canonical repo-local `.system/`.

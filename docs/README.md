@@ -10,6 +10,7 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - CLI command hierarchy and front door: [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
 - CLI tone rules: [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
 - CLI output anatomy: [`docs/CLI_OUTPUT_ANATOMY.md`](CLI_OUTPUT_ANATOMY.md)
+- CLI operator journey and conformance review: [`docs/CLI_OPERATOR_JOURNEY.md`](CLI_OPERATOR_JOURNEY.md)
 - Command surface: [`docs/SUPPORTED_COMMANDS.md`](SUPPORTED_COMMANDS.md)
 - Implementation plan: [`PLAN.md`](../PLAN.md)
 - Repo surface contract: [`C-01`](contracts/C-01-approved-repo-surface.md)

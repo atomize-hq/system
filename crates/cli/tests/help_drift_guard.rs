@@ -280,6 +280,31 @@ fn design_doc_locks_cli_interaction_contract() {
     }
 }
 
+#[test]
+fn cli_operator_journey_doc_locks_revision_findings() {
+    let root = workspace_root();
+    let journey_path = root.join("docs/CLI_OPERATOR_JOURNEY.md");
+    let journey_text = fs::read_to_string(&journey_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", journey_path.display(), err));
+
+    let required_phrases = [
+        "Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc",
+        "The command is functionally correct and productically wrong.",
+        "The front door is named correctly, but the shipped command still stops one step before usefulness.",
+        "## Revision Backlog",
+        "R1, Align `doctor` to the interaction contract",
+        "R2, Fix `inspect` ready-path next-action semantics",
+        "R3, Make the setup placeholder hand off to a real guided entry path",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            journey_text.contains(phrase),
+            "CLI operator journey doc missing phrase `{phrase}`"
+        );
+    }
+}
+
 fn workspace_root() -> PathBuf {
     let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in start.ancestors() {

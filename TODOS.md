@@ -212,6 +212,39 @@
 **Effort:** M
 **Priority:** P1
 **Depends on:** D1, D2, D3, D4, D5
+**Status:** Complete (2026-04-08)
+
+### D6 Revision Backlog
+
+#### R1: Align `doctor` To The CLI Interaction Contract
+
+**What:** Replace the current raw debug-shaped `doctor` output with the trust-header, shared-language recovery surface described by D3-D5.
+
+**Why:** `doctor` is the clearest shipped mismatch against the CLI interaction contract. It is functionally correct, but it still prints implementation-shaped subject and next-action data instead of a finished recovery experience.
+
+**Effort:** M
+**Priority:** P1
+**Depends on:** D6 findings
+
+#### R2: Fix `inspect` Ready-Path Next Action
+
+**What:** Replace the current self-referential ready-path next action in `inspect` with a semantically correct handoff.
+
+**Why:** `inspect` currently tells the operator to run `inspect` for proof while they are already in `inspect`. The rest of the proof surface is strong, but that line makes the product feel templated instead of intentional.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** D6 findings
+
+#### R3: Make `setup` Hand Off To The Guided Setup Path
+
+**What:** Keep `setup` as the stable operation name, but make the placeholder surface hand the operator to the exact current guided setup experience until Rust setup exists.
+
+**Why:** The front door is named correctly, but the shipped placeholder still dead-ends instead of routing the operator into the real setup path.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Existing setup ownership and entry routing work, D6 findings
 
 ## Post-Implementation Audit Follow-Ups
 
