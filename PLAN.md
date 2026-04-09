@@ -1,509 +1,421 @@
-<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/system/main-autoplan-restore-20260406-212846.md -->
+<!-- previous reduced-v1 baseline archived at .implemented/PLAN-20260409-144209-reduced-v1-baseline.md -->
 # PLAN
 
 ## Status
 
-This is the implementation plan for the reviewed reduced v1 wedge.
-
-It is derived from:
-
-- [reviewed reduced-v1 seam pack](artifacts/planning/reduced-v1-seam-pack/README.md)
-- CEO review decisions embedded in that seam pack
-- engineering review decisions recorded in that seam pack's `## GSTACK REVIEW REPORT`
-
-This plan is the current execution source of truth for the remaining reduced-v1 closure work: repo shape, cutover order, and operator-surface completion. The canonical repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](docs/contracts/C-01-approved-repo-surface.md).
-
-## Locked Decisions
-
-- Rust is the only supported packet-resolution authority for v1.
-- The current Python harness is legacy reference material only.
-- Legacy Python stays frozen and clearly labeled in place until the Rust planning packet path is proven. The physical move under `archived/` happens during cutover, not before.
-- The repo root becomes approved surface only.
-- Nothing under `archived/` is imported, executed, or wrapped by the supported runtime path.
-- Live v1 packet resolution is scoped to existing `project + feature` artifacts.
-- V1 execution packets are fixture-backed demos only.
-- Live slice lineage and live execution packets are deferred.
-- Canonical project truth for managed repos lives under a hidden repo-local `.system/` directory, not under user-home state.
-- V1 direct packet inputs are `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`.
-- `FOUNDATION_STRATEGY`, `TECH_ARCH_BRIEF`, `TEST_STRATEGY_BRIEF`, `QUALITY_GATES_SPEC`, and `ENVIRONMENT_INVENTORY` are inherited posture dependencies. Lower-level artifacts may override them only with explicit rationale captured in artifact content and the decision log.
-- Repo-facing copies may exist for humans, but they are derived views, not runtime inputs.
-- CLI-owned templates and static prompt assets live in the `system` product repo, not in each managed project repo unless they are intentionally materialized there.
-- User-level hidden state may exist later for cache, config, or diagnostics, but never for canonical project truth.
-- V1 metadata/schema work is limited to those direct packet inputs plus inherited posture dependencies and one request-scoped derived manifest.
-- V1 freshness is deterministic: file presence, file hash, schema version, manifest generation version, and declared dependency checks.
-- V1 manifest state is request-scoped and in-memory by default. Persist detailed diagnostics only on request or on failure.
-- Renderers are pure views over one typed resolver result plus typed decision log.
-- `doctor` is the required v1 recovery surface, not a post-v1 nicety.
-- Packet budgets are a first-class typed policy contract with deterministic keep, summarize, exclude, and refuse behavior.
-- V1 performance stays simple until measurement proves otherwise.
-- V1 distribution is a Rust CLI with explicit local install support for `macOS arm64` and `Linux x86_64`. Public package-manager and release publishing are deferred.
-
-## Goal
-
-Ship a reduced v1 that proves the product honestly:
-
-- guided project setup remains the true front door to the product because it establishes `CHARTER`, posture docs, and the canonical artifact base that every later command depends on
-- live planning packet generation over existing project + feature artifacts
-- fixture-backed execution packet demo only
-- explicit refusal for unsupported live slice execution requests
-- explicit `doctor` guidance for stale, missing, or contradictory packet inputs
-- Rust CLI as the only supported product path
-
-## Operator Experience Architecture
-
-The product journey starts before packet generation.
-
-Reduced v1 still centers implementation on Rust packet resolution over existing artifacts, but the operator's mental model must stay explicit:
-
-- first they establish project posture and standards through guided setup that produces `CHARTER` and the rest of the canonical artifact base
-- then they use packet generation and inspect surfaces to request the minimum correct context for planning work
-- when context is stale, missing, or contradictory, `doctor` is the canonical recovery surface that explains what is wrong and how to repair it
-
-Reduced v1 does not need to re-implement the entire setup flow in Rust, but docs, help text, and command hierarchy must present setup as stage zero of the supported experience rather than pretending packet generation is the beginning of the story.
-
-The honest framing for reduced v1 is:
-
-- setup is the true product entrypoint and remains supported because the product cannot work without canonical posture and standards artifacts
-- the current guided setup flow may still be powered by the existing scaffold while the Rust replacement is not ready
-- the reduced v1 Rust CLI owns packet resolution, inspect, and doctor truth after setup artifacts exist
-- docs and help text must never blur "supported workflow" with "already reimplemented in Rust"
+This is the active execution source of truth for `system`.
 
-### Operator Flow
+The old reduced-v1 packet-baseline plan is preserved as historical evidence at:
 
-```text
-new repo or new project
-    |
-    v
-guided setup / refresh existing setup
-    |
-    v
-canonical artifacts exist in `.system/`
-(`CHARTER`, optional `PROJECT_CONTEXT`, `FEATURE_SPEC`, inherited posture docs)
-    |
-    +--> generate planning packet
-    |
-    +--> inspect packet composition and decision log
-    |
-    +--> doctor when artifacts are stale, missing, contradictory, or unsupported
-```
-
-### CLI Surface Hierarchy
-
-The reduced-v1 command-surface contract is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
-The reduced-v1 canonical `.system/` manifest + freshness contract is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
+- [.implemented/PLAN-20260409-144209-reduced-v1-baseline.md](.implemented/PLAN-20260409-144209-reduced-v1-baseline.md)
 
-| Surface | Job | When the operator reaches for it | Required first impression |
-|---------|-----|----------------------------------|---------------------------|
-| Setup / setup refresh | Establish or refresh canonical project posture and standards | New repo, changed architecture, stale posture docs | "You are establishing the truth this system will trust later." |
-| `generate` | Produce the minimum correct planning packet from established artifacts | Normal repeat-use path after setup exists | "Here is the packet, what was included, and why it is safe to trust." |
-| `inspect` | Explain inclusion, exclusion, lineage, freshness, and budget decisions | User wants proof, debugging, or teaching | "Here is how the resolver thought." |
-| `doctor` | Diagnose blockers and give safe next actions | `generate` or setup/refresh cannot proceed cleanly | "Here is what is wrong, whether it is safe to continue, and what to do next." |
+That archived plan explains why the current Rust CLI looks the way it does. It is no longer the active objective.
 
-Setup-specific support note:
+## Active Objective
 
-- until Rust setup exists, the supported docs path must explicitly send the operator through the existing guided setup flow to establish canonical artifacts
-- once those artifacts exist, the Rust CLI becomes the supported packet-resolution authority
-- setup refresh messaging must distinguish "refresh your canonical artifacts" from "generate a packet"
+Make the Rust version recover the useful planning-generation behavior the legacy Python harness already had.
 
-### Information Hierarchy Rules
+This repo remains exclusively the generator/compiler layer for a larger agent workflow stack.
 
-- README and help text must present setup first, packet generation second, and repair third.
-- Successful `generate` output must show packet identity first, then included sources, then omission and budget notes, then next actions.
-- Refusal output must show the blocking reason first, then the exact artifact or dependency at fault, then the safe repair command or workflow.
-- `inspect` must read as a proof surface, not a dump of internal structs.
-- `doctor` must aggregate blockers into one view so the operator does not play command whack-a-mole.
-- `health` may exist only as an alias or later summary surface, never as a competing canonical recovery command in docs, help text, or examples.
+The first job is not:
 
-## Interaction State Coverage
+- build the whole agent platform
+- widen into runtime orchestration
+- invent a prettier future architecture before the useful behavior exists
 
-Reduced v1 must specify operator-visible states for setup, generation, proof, and recovery surfaces. The user experience goal is simple: every command should either complete with useful output or fail in a way that names the exact blocker and the exact next action.
+The first job is:
 
-### State Table
+- stop repeated repo research
+- stop manual context shuttling
+- stop inconsistent planning outputs
+- stop operator babysitting loops
 
-| Surface | Loading / in-progress | Empty / missing setup | Error / stale / contradictory | Success | Partial / unsupported |
-|---------|------------------------|------------------------|-------------------------------|---------|-----------------------|
-| Setup / setup refresh | Explain which artifact is being established or refreshed and what remains | Tell the operator which canonical artifact does not exist yet and why it matters | Name the artifact or dependency that cannot be established and the safe retry path | Confirm the canonical artifacts that are now trusted for later packet requests | If only some setup artifacts are refreshed, mark which truths are current and which still block packet generation |
-| `generate` | Show requested packet identity and the lineage scope being resolved | Refuse compactly, name the missing canonical artifact, and point to setup or setup refresh | Refuse compactly, name the stale or contradictory artifact or dependency, and point to the exact `doctor` or refresh action | Show packet identity first, then included sources, then omission/budget notes, then next actions | Unsupported live slice requests refuse explicitly and explain that reduced v1 only supports live planning packets plus fixture-backed execution demos |
-| `inspect` | Show that the resolver is loading decision evidence, not generating a new packet | Explain that there is no trusted packet basis to inspect yet and point to setup | Show the broken lineage, freshness, or policy rule with proof-friendly wording | Show inclusion, exclusion, freshness, and budget reasoning in a human-readable proof order | For zero-content outcomes, show the reason category and whether refusal thresholds were crossed |
-| `doctor` | Show which checks are running and whether safe auto-repair is being attempted | Summarize all missing artifacts in one report and show the safest setup path | Summarize all stale, contradictory, or invalid inputs in one report with safe next actions | Confirm packet-readiness status, current trusted artifacts, and whether `generate` is safe to retry | If auto-repair fixes some issues but not all, show fixed items first, remaining blockers second, and the next safe action last |
+by making Rust do the useful planning-generation work that Python currently still does.
 
-### Refusal And Recovery Rules
+## Problem Statement
 
-- `generate` must not expand into a full diagnostic dump on failure.
-- `generate` refusal must stay compact and structured: blocker summary, broken artifact or dependency, exact next action.
-- The default next action is the narrowest safe path, either setup/setup refresh when canonical truth is missing or `doctor` when deeper diagnosis is needed.
-- `doctor` owns the full blocker report and may aggregate multiple issues in one view.
-- Retrying after repair must be clean. The operator should not have to infer whether stale negative state is still cached.
+Today the operator can get useful planning behavior only by chaining together:
 
-## User Journey And Emotional Arc
+- legacy harness mechanics
+- staged planning docs
+- pre-planning packs
+- seam extraction, decomposition, promotion, execution, and unblock skills
 
-Reduced v1 is a trust product. The operator should feel three things in sequence:
+That works, but it forces repeated repo grounding and repeated copy/paste context movement across multiple loops.
 
-- confidence during setup because the system is establishing durable truth rather than asking the same questions forever
-- momentum during packet generation because the system returns a tight, useful packet without extra archaeology
-- controlled caution during refusal and repair because the system stops unsafe work but immediately points to the fastest safe recovery path
+The current Rust CLI proves part of the right long-term posture:
 
-The tone for refusal and repair is strict but guided. The system should refuse when trust is broken, but it should never make the operator guess what failed or what to do next.
+- trust-heavy CLI surface
+- planning packet generation from canonical repo-local inputs
+- `inspect` proof output
+- `doctor` recovery posture
 
-### Journey Storyboard
+But it does not yet recover the planning-generation capabilities that actually remove the operator tax.
 
-| Step | User does | User feels | Plan must support |
-|------|-----------|------------|-------------------|
-| 1 | Starts with a new repo or project | "I need to establish truth once, not feed context forever." | Setup is clearly presented as the real front door and explains which canonical artifacts will exist after completion |
-| 2 | Runs guided setup or refreshes stale setup | "This is work, but it should pay off later." | Each setup step names what artifact is being established and why later commands depend on it |
-| 3 | Runs `generate` for planning work | "Give me the minimum correct context fast." | Success output is concise, trustworthy, and explicit about included sources and omissions |
-| 4 | Uses `inspect` to verify why a packet looks the way it does | "Prove it." | Inspect reads as a human-auditable explanation of inclusion, exclusion, freshness, and budget decisions |
-| 5 | Hits stale, missing, or contradictory context | "Stop me if this is unsafe, but do not waste my time." | Refusal copy is strict but guided: blocker first, exact artifact or dependency second, exact recovery action third |
-| 6 | Runs `doctor` and repairs the issue | "Tell me everything relevant once so I can fix it cleanly." | The recovery report aggregates blockers, highlights safe auto-fixes first, and ends with the next safe retry action |
-| 7 | Re-runs `generate` after repair | "I should be back on track, not in a loop." | Retry-clean behavior is explicit and avoids stale negative state or repeated hidden blockers |
+## Scope
 
-### Time-Horizon Design
+### In scope
 
-- First 5 seconds: the operator must understand whether they are in setup, generation, proof, or repair.
-- First 5 minutes: the operator must complete one meaningful task without reading internal architecture docs.
-- Long-term relationship: the system earns trust by refusing unsafe requests consistently and by making repair feel procedural rather than mysterious.
+- Rust parity for the useful legacy planning-generation behavior
+- Rust planning-generation from already-populated canonical project documents
+- parity inventory tied to concrete proof files and commands
+- the minimum end-to-end planning-generation flow that removes the most manual babysitting
+- stable outputs that downstream planning and execution consumers can reuse
+- preserving the trust-heavy CLI posture already defined in [DESIGN.md](DESIGN.md)
 
-## Design System Alignment
+### Out of scope for this plan
 
-No `DESIGN.md` exists in this repo. Reduced v1 should therefore use a small explicit CLI interaction language so docs, help text, examples, and rendered outputs do not drift into mixed product vocabularies.
+- rebuilding the entire downstream seam-skill ecosystem inside this repo
+- rebuilding the front-door onboarding or intake chat flow first
+- new public release/distribution work
+- thin MCP/UI companion work
+- review/fix packet family
+- live slice lineage and live execution packet generation
+- broad architecture cleanup that does not reduce operator pain
 
-### CLI Design Language
+Those can come back only after Rust parity proves it can replace the legacy planning path for real work.
 
-- One canonical recovery verb: `doctor`.
-- One canonical generation verb: `generate`.
-- One canonical proof verb: `inspect`.
-- Use "setup" and "setup refresh" for posture-establishing flows. Do not rename the same workflow as bootstrap, init, hydrate, or health repair in other surfaces.
-- Use "canonical artifacts" for trusted project truth and "derived views" for human-facing copies.
-- Use "refusal" when the system stops unsafe work. Do not soften this into vague words like warning or issue when the command is actually blocked.
-- Use "next safe action" for the recovery handoff line. This keeps repair output action-oriented.
+## Operator And Wedge
 
-### Copy And Output Rules
+Primary operator:
 
-- Command help and README examples must use the same verbs and nouns as runtime output.
-- Default output tone is strict but guided, never chatty and never cryptic.
-- Success output should read like an operator summary, not a celebratory message.
-- Failure output should avoid generic filler such as "something went wrong" or "unable to process request" when the exact artifact, dependency, or policy rule is known.
-- Inspect output should privilege evidence order over internal module order.
+- the planning/orchestration operator in a complex repo, initially you
 
-## Responsive And Accessibility
+What they need:
 
-Reduced v1 is a CLI product, so responsive design means terminal width, text density, screen-reader order, keyboard-only operation, and color independence. The output should remain readable in a normal narrow terminal without hiding the most important truth behind formatting.
+- turn repo truth plus feature inputs into useful planning artifacts without redoing repo archaeology
+- keep planning just in time so it does not rot before execution
+- feed downstream seam/execution skills with smaller, more consistent grounding
+- manage multiple projects without babysitting long-running loops
 
-### Output Layout Rules
+Current failure mode:
 
-- Default output strategy is adaptive but narrow-first.
-- On narrow terminals, commands should use stacked summaries with one fact per line in stable order.
-- On wider terminals, commands may use aligned sections or compact tables only when the same information remains readable if wrapped.
-- Dense or multi-item evidence views must always have a machine-readable fallback such as JSON or inspect-friendly line output.
-- The first three lines of any command result must still work when read aloud by a screen reader: outcome, object of interest, next action.
+- inconsistent output
+- brain-dead copy/paste and wait loops
+- reduced parallel project capacity because the human must keep stitching context back together
 
-### Accessibility Rules
+## Assumed Inputs For Parity
 
-- Never rely on color alone to communicate refusal, success, or warning state.
-- Important state changes must be labeled with words like `REFUSED`, `READY`, `STALE`, or `NEXT SAFE ACTION`.
-- Output order must remain stable so keyboard users and screen readers do not need to rediscover where blockers or next steps appear.
-- Help text and examples must assume keyboard-only use.
-- Touch nothing fancy in v1 that breaks copy/paste, piping, or text selection for terminal users.
-- If output is too dense for narrow terminals, the product should prefer truncating secondary detail and pointing to `inspect` or JSON rather than wrapping primary facts into noise.
+Parity starts after the front-door onboarding work has already happened.
 
-## Resolved Design Decisions
+For this plan, assume the canonical project documents already exist and are rich enough to be useful:
 
-| Decision | Chosen direction | Why |
-|----------|------------------|-----|
-| True front door | Guided project setup / setup refresh | The product depends on canonical posture artifacts before packet generation can be trusted |
-| Reduced v1 setup framing | Setup remains supported, but reduced v1 stays explicit that the current guided setup flow may still use the existing scaffold until Rust replacement exists | Keeps the workflow honest without pretending the Rust rewrite already owns setup |
-| `generate` failure behavior | Compact structured refusal plus exact repair handoff | Preserves packet-shrinking discipline even on the failure path |
-| Refusal tone | Strict but guided | Trust products should stop unsafe work without making users do archaeology |
-| Canonical recovery command | `doctor` | One memorable recovery verb beats split naming |
-| Output layout strategy | Adaptive, narrow-first summaries with machine-readable fallbacks | CLI accessibility matters as much as visual responsiveness does on the web |
-| `generate` default success surface | Short trust header, then full human-readable planning packet | The packet is the product, not a receipt pointing elsewhere |
+- charter
+- project context
+- foundation/posture docs
+- feature-level planning inputs
 
-## Remaining Design Constraints For Implementation
+The onboarding flow that chats with an AI agent and populates those documents is a real part of the eventual product, but it is not the first implementation target in this plan.
 
-- `generate` should print a short trust header before the packet body rather than burying trust metadata after the content.
-- JSON stays opt-in for dense machine-readable workflows, not the primary default for human operators.
-- `inspect` remains the deep proof surface, not a second default packet renderer.
-- Runtime help text, README examples, and test fixtures must use the same command vocabulary established above.
-
-## What Already Exists
-
-- `pipeline.yaml` already declares the live artifact graph for `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`.
-- `tools/harness.py` already implements include resolution, artifact input loading, output routing, and stage assembly as legacy reference behavior.
-- `core/stages/10_feature_spec.md` already declares a concrete feature-spec output plus optional inherited posture inputs from foundation artifacts.
-- The repo already documents that pipeline artifacts are the deterministic truth source and repo-facing copies are for human-facing durability.
-- The current docs already distinguish implemented stages from placeholder slice/execution scaffolding.
-
-## Storage Model
-
-Reduced v1 needs a clean split between product code, managed-project truth, and optional machine-local state.
-
-- Canonical project truth lives inside the managed project repo under `.system/`.
-- Root-facing docs may exist for humans, but they are derived views and are never the runtime source of truth.
-- The `system` product repo contains the CLI/library source, packaged templates, and tests.
-- User-home hidden state such as `~/.system/` is reserved for non-canonical cache, config, diagnostics, or telemetry only. It must never become the only copy of project posture or planning truth.
-
-## NOT in scope
-
-- Do not preserve Python as a supported runtime path.
-- Do not build live `project -> feature -> slice` lineage in v1.
-- Do not build review/fix packets in v1.
-- Do not build MCP UI in v1.
-- Do not normalize every existing artifact into the metadata system in v1.
-- Do not add an on-disk derived-state cache or semantic freshness layer in v1.
-- Do not do public package-manager or release publishing in v1.
-
-## Repo Migration Contract
-
-### Root Rule
-
-The repository root is the approved product surface only.
-
-Anything in the root must satisfy one of these:
-
-- part of the supported Rust CLI/compiler path
-- a canonical artifact intentionally kept at root
-- repo infrastructure required to build, test, validate, or document the supported path
-
-### Archive Rule
-
-Legacy Python scaffold material moves under `archived/`.
-
-That includes:
-
-- Python harness code
-- legacy harness shell wrappers
-- legacy harness docs that describe the supported runtime as Python
-- legacy generated prompt scaffolding that is retained only for reference
-
-### Promotion Rule
-
-Files or ideas may move from `archived/` back into the approved surface only when they meet all of these:
-
-- they are needed by the reviewed reduced v1 scope
-- they are rewritten or re-approved intentionally
-- they do not pull Python runtime coupling back into the supported path
-- their role is documented in this plan or the reviewed design
-
-### Runtime Boundary
-
-- The supported runtime path must not import, shell out to, or wrap anything in `archived/`.
-- `archived/` is evidence and reference material, not an execution dependency.
-
-## Repo Shapes
-
-### `system` Product Repo Shape
-
-```text
-system/
-├── archived/
-│   └── python-harness/
-├── crates/
-│   ├── compiler/
-│   └── cli/
-├── templates/
-├── tests/
-│   ├── fixtures/
-│   └── golden/
-├── docs/
-├── Cargo.toml
-├── Cargo.lock
-├── PLAN.md
-├── README.md
-└── canonical artifacts retained at root only if explicitly approved
-```
-
-### Managed Project Repo Shape
-
-```text
-my-project/
-├── .system/
-│   ├── charter/
-│   │   └── CHARTER.md
-│   ├── project_context/
-│   │   └── PROJECT_CONTEXT.md
-│   ├── feature_spec/
-│   │   └── FEATURE_SPEC.md
-│   └── foundation/
-│       ├── FOUNDATION_STRATEGY.md
-│       ├── TECH_ARCH_BRIEF.md
-│       ├── TEST_STRATEGY_BRIEF.md
-│       ├── QUALITY_GATES_SPEC.md
-│       └── ENVIRONMENT_INVENTORY.md
-├── src/...
-├── README.md
-└── root-facing derived docs only if explicitly approved
-```
-
-## Current Implementation Snapshot
-
-The old milestone tree is no longer the active execution plan.
-
-These parts of reduced v1 are already implemented and intentionally removed from active planning scope:
-
-- root Rust workspace with `crates/cli` and `crates/compiler`
-- reduced-v1 command surface: `setup`, `generate`, `inspect`, `doctor`
-- canonical `.system/` ingest for `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`
-- deterministic manifest generation, freshness truth, budget policy, refusal logic, blocker aggregation, and decision logging
-- markdown, JSON, and inspect renderers driven by one typed resolver result
-- ready-path planning packet generation with a real packet body
-- fixture-backed execution demo generation and explicit live execution refusal
-- nested-repo resolution and retry-after-repair behavior
-- CI rails for `fmt`, `clippy`, `cargo test`, archive-boundary checks, and install smoke on `macOS arm64` and `Linux x86_64`
-- reduced-v1 contracts, docs, CLI vocabulary, tone rules, output anatomy, operator journey review, and `DESIGN.md`
-
-This file now tracks only the unfinished work required to close reduced v1 honestly.
-
-## Remaining Reduced-v1 Work
-
-### R1. Make `setup` a real handoff surface
-
-Outcome:
-
-- `system setup` remains placeholder-only, but no longer dead-ends
-- the command names one exact current guided setup path
-- the front door feels incomplete only once, not ambiguous every time
-
-Work:
-
-- update `system setup` output so it points to the current guided setup entry path directly
-- align `README.md`, `docs/START_HERE.md`, and `docs/SUPPORTED_COMMANDS.md` with the same handoff wording
-- add coverage that proves the handoff stays explicit in runtime output and docs
+The parity question for this phase is narrower:
+
+- given realistic canonical inputs that already exist, can Rust generate useful planning artifacts and reusable grounding without manual context shuttling?
+
+## Guardrails
+
+These rules are active for every later session that touches this plan:
+
+1. Do not widen the repo objective beyond the generator/compiler layer.
+2. Do not treat the archived reduced-v1 plan as the active north star.
+3. Do not delete useful historical evidence just to simplify the story.
+4. Do not call parity "done" by feature count alone. Measure it by removed operator pain.
+5. Do not rebuild all legacy behavior blindly. Recover only the behavior that materially removes repeated grounding and manual shuttling.
+6. Do not block parity on final canonical storage debates if a compatibility path can prove the workflow sooner.
+7. Keep the existing downstream planning skills as consumers of compiler outputs unless and until a separate plan changes that.
+8. Do not treat the onboarding/intake flow as a prerequisite for proving planning-generation parity.
+9. Do not use toy one-paragraph fixtures as parity evidence. Use realistic demo project artifacts that look like actual project truth.
+
+## Sources Of Truth For Parity
+
+Legacy behavior proof lives in:
+
+- [tools/harness.py](tools/harness.py)
+- [docs/legacy/HARNESS.md](docs/legacy/HARNESS.md)
+- [docs/legacy/SYSTEM_MODEL.md](docs/legacy/SYSTEM_MODEL.md)
+- [docs/legacy/stages/README.md](docs/legacy/stages/README.md)
+- [profiles/](profiles/)
+- [pipelines/](pipelines/)
+- [core/stages/](core/stages/)
+- [core/rules/](core/rules/)
+- [core/overlays/](core/overlays/)
+
+Current Rust baseline proof lives in:
+
+- [README.md](README.md)
+- [docs/START_HERE.md](docs/START_HERE.md)
+- [DESIGN.md](DESIGN.md)
+- [docs/contracts/](docs/contracts/)
+- [crates/cli/src/main.rs](crates/cli/src/main.rs)
+- [crates/compiler/](crates/compiler/)
+
+Fixture and demo-corpus evidence should come from:
+
+- realistic archived planning artifacts under [archived/legacy-generated-artifacts/](archived/legacy-generated-artifacts/)
+- real-world-looking demo packs and charters that use the established templates and document shapes
+
+If an archived artifact is too thin to prove usefulness, treat it as shape reference only, not as parity proof.
+
+## Parity Ledger
+
+The table below is the active parity inventory. It is intentionally behavior-first, not architecture-first.
+
+| ID | Legacy behavior to recover | Proof | Current pain when missing in Rust | Priority | Target milestone |
+| --- | --- | --- | --- | --- | --- |
+| PL-01 | Pipeline selection and deterministic stage order | `tools/harness.py`, `pipelines/*.yaml`, `docs/legacy/HARNESS.md` | The operator has to remember and reconstruct the planning path manually instead of invoking one compiler-owned flow | P0 | M1 |
+| PL-02 | Stage activation and post-capture routing variables such as `needs_project_context` | `tools/harness.py`, `pipelines/foundation.yaml`, `pipelines/foundation_inputs.yaml`, `docs/legacy/SYSTEM_MODEL.md` | Conditional planning paths are recreated by hand, which causes repeated repo research and inconsistent branching | P0 | M1 |
+| PL-03 | Prompt compilation from stage front matter, includes, profile docs, runner docs, library inputs, and upstream artifacts | `tools/harness.py`, `core/stages/`, `core/rules/`, `runners/`, `profiles/`, `docs/legacy/HARNESS.md` | The same repo truth is reassembled over and over in manual planning sessions | P0 | M2 |
+| PL-04 | Profile-aware command and convention injection | `profiles/*/profile.yaml`, `profiles/*/commands.yaml`, `profiles/*/conventions.md`, `docs/legacy/SYSTEM_MODEL.md` | Planning outputs drift because stack-specific commands and conventions are not compiler-owned | P0 | M2 |
+| PL-05 | Scoped-rule filtering by work level | `tools/harness.py`, `core/rules/p0_absolute.md`, `docs/legacy/SYSTEM_MODEL.md` | Early planning gets bloated or later execution lacks the strict guidance it needs | P1 | M2 |
+| PL-06 | State persistence for planning variables and re-entry | `artifacts/_harness_state.yaml` behavior in `tools/harness.py`, `docs/legacy/HARNESS.md` | Multi-step planning loops lose routing state and force the operator to restitch context and choices manually | P0 | M3 |
+| PL-07 | Single-file and multi-file output capture, including exact `--- FILE:` block handling | `tools/harness.py`, `docs/legacy/HARNESS.md` | Even when prompts are correct, outputs still need manual sorting and writing | P0 | M3 |
+| PL-08 | Writing artifact outputs plus canonical repo-file outputs when declared | `tools/harness.py`, `docs/legacy/SYSTEM_MODEL.md` | The compiler cannot become the real planning authority if it cannot materialize the planning artifacts and canonical docs | P0 | M3 |
+| PL-09 | Minimum useful end-to-end foundation planning flow, not just isolated packet generation | `pipelines/foundation_inputs.yaml`, `pipelines/foundation.yaml`, `core/stages/00_base.md`, `core/stages/04_charter_inputs.md`, `core/stages/05_charter_interview.md`, `core/stages/05_charter_synthesize.md`, `core/stages/06_project_context_interview.md`, `core/stages/07_foundation_pack.md` | The operator still falls back to manual planning chains because Rust only covers one narrow packet wedge | P0 | M4 |
+| PL-10 | Reusable compiler-owned grounding for downstream planning consumers | current downstream skill workflow plus compiled outputs from PL-01 through PL-09 | Seam extraction and execution still repeat repo grounding because Rust outputs are not yet the thing downstream workflows trust | P0 | M5 |
+| PL-11 | Legacy compatibility cleanup and cutover boundaries | `README.md`, `docs/START_HERE.md`, archive plan, legacy docs | Later sessions drift back into "Python is still fine for now" instead of finishing replacement | P1 | M6 |
+| PL-12 | Realistic demo corpus quality for parity proof | archived artifacts, established templates, demo project docs with substantial content | Thin one- or two-sentence fixtures can make compilation appear to work while proving nothing about usefulness | P0 | M1-M4 |
+
+## Ordered Milestones
+
+### M0. Control-plane reset
+
+Status: complete
+
+- archive the old reduced-v1 baseline plan
+- make this file the only active root plan
+- stop later sessions from following the wrong source of truth
+
+### M1. Pipeline And Routing Parity
+
+Goal:
+
+- recover compiler ownership of planning path selection and conditional routing
+
+Legacy proof surface:
+
+- [tools/harness.py](tools/harness.py)
+  - `resolve_pipeline_path(...)`
+  - `load_pipeline(...)`
+  - `eval_activation(...)`
+  - `_update_state_after_capture(...)`
+  - `cmd_compile(...)`
+  - `cmd_capture(...)`
+  - `cmd_run(...)`
+- [pipelines/foundation.yaml](pipelines/foundation.yaml)
+- [pipelines/foundation_inputs.yaml](pipelines/foundation_inputs.yaml)
+- [docs/legacy/HARNESS.md](docs/legacy/HARNESS.md)
+- [docs/legacy/SYSTEM_MODEL.md](docs/legacy/SYSTEM_MODEL.md)
+- [core/stages/00_base.md](core/stages/00_base.md)
+- [core/stages/04_charter_inputs.md](core/stages/04_charter_inputs.md)
+- [core/stages/05_charter_interview.md](core/stages/05_charter_interview.md)
+- [core/stages/05_charter_synthesize.md](core/stages/05_charter_synthesize.md)
+- [core/stages/06_project_context_interview.md](core/stages/06_project_context_interview.md)
+- [core/stages/07_foundation_pack.md](core/stages/07_foundation_pack.md)
+- [docs/legacy/guides/workflows/01_foundation_test_mode_charter.md](docs/legacy/guides/workflows/01_foundation_test_mode_charter.md)
+- [docs/legacy/guides/workflows/02_foundation_real_project.md](docs/legacy/guides/workflows/02_foundation_real_project.md)
+- [docs/legacy/guides/workflows/09_foundation_inputs_charter.md](docs/legacy/guides/workflows/09_foundation_inputs_charter.md)
+
+Must prove:
+
+- Rust can load a planning pipeline definition
+- Rust can select a deterministic stage order
+- Rust can evaluate stage activation
+- Rust can persist and reuse the small routing state needed for multi-step planning flows
+- the chosen test corpus uses realistic canonical docs, not toy placeholder text
+
+Minimum acceptable wedge:
+
+- one foundation-style flow with `needs_project_context`-style branching
+- canonical docs are assumed to be pre-populated before the flow starts
+
+Implementation checklist:
+
+1. Define the Rust data model for pipeline loading.
+   - Support the current two-document YAML shape used by the pipeline files.
+   - Preserve defaults plus ordered `stages`.
+   - Preserve stage-local `sets` and `activation`.
+2. Reproduce pipeline path resolution.
+   - Default to the root pipeline when no override is provided.
+   - Allow relative pipeline paths rooted at the repo root.
+   - Allow absolute pipeline paths.
+3. Reproduce deterministic stage selection.
+   - `list`-style enumeration in declared order.
+   - `--until`-style partial selection in declared order.
+   - single-stage selection without disturbing canonical ordering rules.
+4. Reproduce activation evaluation.
+   - Support `activation.when.any` and `activation.when.all`.
+   - Support the current literal comparisons the Python harness uses:
+     - booleans
+     - quoted strings
+     - numbers
+   - Preserve the foundation and foundation-inputs branching behavior for `needs_project_context` and `charter_gaps_detected`.
+5. Reproduce planning state persistence.
+   - Maintain a small state file equivalent to `artifacts/_harness_state.yaml`.
+   - Persist the minimal routing variables required for multi-stage re-entry.
+   - Do not widen this into a new general state machine.
+6. Reproduce post-capture routing updates.
+   - Setting `needs_project_context` from capture-time flow decisions.
+   - Preserving references like charter or project-context pointers only if they are required by the Rust planning path.
+   - Keep this narrow and evidence-driven.
+7. Define the Rust CLI proof surface for M1.
+   - There must be a visible way to show the loaded pipeline, selected stages, activation result, and saved routing state.
+   - Do not force users to inspect debug internals just to prove routing behavior.
+
+Proof commands for M1 completion:
+
+- load and inspect the default foundation pipeline
+- load and inspect `pipelines/foundation_inputs.yaml`
+- show ordered stages for `foundation` and `foundation_inputs`
+- run a dry routing pass where `needs_project_context=false` and confirm stage 06 is skipped
+- run a dry routing pass where `needs_project_context=true` and confirm stage 06 is included
+- run a dry routing pass for `foundation_inputs` where `charter_gaps_detected=true` and confirm stage 06 is included
+- persist routing state, re-run the same selection, and confirm the same route is chosen without manual re-entry
 
 Exit criteria:
 
-- a new operator can run `system setup` and know the exact next safe action without reading repo internals
-- no support-facing doc implies that Rust setup already exists
-- the handoff wording is stable across help text, docs, and runtime output
+- the two foundation-family pipeline files can be parsed by Rust
+- stage order is byte-for-byte deterministic for the chosen foundation proof outputs
+- the two foundation-family branches behave the same way they do in Python
+- routing state survives enough to continue a multi-step planning flow
+- the proof corpus uses realistic pre-populated canonical docs rather than toy fixtures
 
-### R2. Finish the `doctor` product surface
+Non-goals inside M1:
 
-Outcome:
+- no prompt compilation yet, other than whatever minimal shape is required to prove stage selection
+- no artifact writing yet
+- no onboarding chat flow
+- no downstream seam-skill integration yet
+- no release or sprint pipeline parity work yet
 
-- `doctor` reads like a finished recovery surface instead of an implementation dump
-- blocked and ready states match the CLI interaction contract
+### M2. Compilation Parity
 
-Work:
+Goal:
 
-- replace debug-shaped blocker rendering with human-facing trust-header output
-- use stable operator language, especially `NEXT SAFE ACTION`
-- make ready output say what is ready and why retrying `generate` is safe
-- align `doctor` anatomy with [`docs/CLI_OUTPUT_ANATOMY.md`](docs/CLI_OUTPUT_ANATOMY.md) and [`DESIGN.md`](DESIGN.md)
+- recover the actual prompt-compilation behavior that keeps repo research from being repeated
 
-Exit criteria:
+Must prove:
 
-- `doctor` blocked output leads with outcome, object, and next safe action
-- `doctor` no longer exposes raw debug formatting in operator-facing output
-- ready output is informative enough that an operator can confidently retry `generate`
+- Rust can compile one stage from front matter, includes, profiles, runner guidance, and upstream artifacts
+- scoped rules still filter correctly by work level
+- stack-specific commands and conventions come from profiles, not hardcoded ad hoc prompts
+- compiled output remains useful when source artifacts contain real-world-looking detail rather than toy fixture text
 
-### R3. Fix `inspect` ready-path handoff semantics
+Minimum acceptable wedge:
 
-Outcome:
+- one compiled stage that matches the useful content classes the Python harness currently assembles
 
-- `inspect` remains the proof surface
-- the ready-path next action is intentional instead of self-referential
+### M3. Output Materialization Parity
 
-Work:
+Goal:
 
-- replace the current ready-path next action with a non-self-referential handoff
-- keep inspect dense and auditable
-- add a regression test for the ready-path next-action wording
+- recover writing behavior so the compiler owns both prompt generation and artifact emission
 
-Exit criteria:
+Must prove:
 
-- `inspect` never tells the operator to run `inspect` while already in `inspect`
-- proof ordering remains unchanged apart from the corrected handoff
+- Rust can capture single-file outputs
+- Rust can capture multi-file `--- FILE:` outputs exactly
+- Rust can write both artifact outputs and canonical repo-file outputs
+- re-entry state survives enough to continue a multi-stage planning flow without manual bookkeeping
 
-### R4. Complete physical legacy cutover
+Minimum acceptable wedge:
 
-Outcome:
+- one multi-file planning stage plus one canonical repo-file mirror
 
-- repo root reflects the approved product surface only
-- legacy harness code and wrappers no longer live on the active root path
+### M4. End-to-End Planning Flow Parity
 
-Work:
+Goal:
 
-- move the frozen Python harness and wrappers under an explicit archived location
-- update any remaining references that still assume the legacy harness lives at the root
-- keep legacy material runnable as reference-only, but off the supported product surface
+- replace one real planning-generation path that the operator actually uses
 
-Exit criteria:
+Must prove:
 
-- the repo root reads as the Rust product surface plus approved docs and build infrastructure
-- legacy Python remains available only as archived reference material
-- no supported runtime path imports, shells out to, or wraps archived legacy code
+- the operator can complete one useful planning-generation flow through Rust without copy/paste context shuttling between phases
+- the result is stable enough to trust as the generated planning basis
+- the source corpus looks like a believable real project, not a synthetic two-line demo
 
-## Workstreams
+Preferred first flow:
 
-### Lane A: CLI interaction closure
+- foundation-inputs through feature-spec-grade planning, because it captures branching, compilation, and output materialization together
 
-Scope:
+Important clarification:
 
-- `setup` handoff
-- `doctor` surface alignment
-- `inspect` next-action fix
+- this does **not** mean Rust must own the initial onboarding chat first
+- it means Rust must prove it can take already-populated canonical docs and generate the useful planning outputs from them
 
-Depends on:
+### M5. Downstream Consumer Handoff
 
-- current Rust CLI surface
-- current interaction docs and contracts
+Goal:
 
-### Lane B: docs and cutover cleanup
+- make Rust outputs useful to the downstream seam and execution workflow, not just locally correct
 
-Scope:
+Must prove:
 
-- support-story parity
-- legacy archive move
-- root cleanup
+- at least one downstream planning consumer can use Rust-generated artifacts without redoing the same repo research
+- output size and structure reduce token bloat instead of amplifying it
+- provenance and freshness are explicit enough that downstream consumers know what they can trust
 
-Depends on:
+This is where parity starts paying back the operator tax for real.
 
-- Lane A wording decisions
+### M6. Cutover And Cleanup
 
-## Execution Order
+Goal:
 
-1. Finish `setup` handoff first so the front door becomes honest and actionable.
-2. Finish `doctor` next because recovery is the largest remaining product gap.
-3. Fix `inspect` ready-path handoff once the shared next-action language is final.
-4. Do the physical legacy archive move after the supported operator story is fully closed.
+- make Rust the real planning-generation authority and reduce Python to historical reference
 
-## Risks
+Must prove:
 
-### Risk: the front door still feels fake
+- the chosen parity flow is fully replaced in practice
+- docs and entrypoints no longer push users back to the legacy harness for that flow
+- the remaining legacy surface is explicitly historical or still-needed-only, not vaguely half-supported
 
-Mitigation:
+## What Already Exists And Must Be Preserved
 
-- make `system setup` name one exact current guided path
-- keep docs and help text verbatim-aligned with that path
+The Rust baseline already bought some useful product decisions. Do not throw these away while chasing parity:
 
-### Risk: `doctor` keeps leaking implementation shape into product output
+- trust-heavy CLI posture
+- small stable verb surface
+- provenance-aware packet thinking
+- `inspect` as proof surface
+- `doctor` as recovery surface
+- progressive disclosure as a product principle
 
-Mitigation:
+Parity work should absorb and extend these, not bulldoze them.
 
-- route output through the shared interaction contract
-- add regression coverage for blocked and ready states
+## Deferred Work
 
-### Risk: legacy root clutter keeps confusing contributors
+These items are explicitly deferred behind parity:
 
-Mitigation:
+- thin MCP/UI companion from [TODOS.md](TODOS.md)
+- review/fix packet family from [TODOS.md](TODOS.md)
+- live slice lineage and live execution packets from [TODOS.md](TODOS.md)
+- public CLI distribution from [TODOS.md](TODOS.md)
+- CLI release workflow from [TODOS.md](TODOS.md)
 
-- move legacy harness material out of the active root surface once CLI interaction closure lands
-- keep archived material clearly labeled as reference-only
+If a session proposes one of these before parity proves replacement value, the answer should usually be "not yet."
 
-## Deliverables
+## Success Criteria
 
-- updated `PLAN.md` that reflects only unfinished reduced-v1 work
-- explicit `setup` handoff wording in runtime output and docs
-- `doctor` output aligned with the CLI interaction contract
-- corrected `inspect` ready-path next action
-- legacy harness moved under an archived location at cutover
+Parity is only real when all of the following are true for the chosen first flow:
 
-## Definition Of Done For Reduced V1
+1. the operator does not repeat the same repo research at multiple planning stages
+2. the operator does not manually shuttle context between compiler-owned steps
+3. outputs are consistent across repeated runs
+4. downstream planning/execution consumers receive smaller, more trustworthy grounding
+5. the operator can handle more concurrent work because babysitting is reduced
+6. the proof corpus is rich enough that success actually demonstrates usefulness, not just parser correctness
 
-- `system setup` names the exact current guided setup path
-- `generate` remains the supported live planning packet surface
-- `inspect` remains the proof surface without self-referential ready-path guidance
-- `doctor` reports blockers and readiness using finished operator-facing output
-- execution packet demo remains fixture-backed only
-- unsupported live execution requests refuse clearly
-- docs, help text, and runtime output match reality
-- repo root reflects the approved Rust-first product surface
+## Immediate Next Work
+
+1. Turn the parity ledger above into a concrete implementation checklist with proof commands and target test coverage.
+2. Pick the first end-to-end planning flow to replace.
+3. Define the acceptance test for "Rust now does the useful thing Python did" in operator terms, not internal architecture terms.
+4. Start M1 only after the chosen first flow and acceptance checks are written down.
+
+## Explicit Non-Goals For The Next Session
+
+- do not redesign the whole compiler architecture
+- do not reopen the archived reduced-v1 baseline as the active plan
+- do not start with public release packaging
+- do not add UI wrappers
+- do not widen into all downstream seam skills
+
+Stay on the parity path until the operator pain is materially reduced.
