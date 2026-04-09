@@ -190,6 +190,25 @@ Goal:
 
 - recover compiler ownership of planning path selection and conditional routing
 
+Command-shape decision:
+
+- keep the existing four top-level verbs
+- `generate` owns the foundation-family planning-generation path
+- `inspect` owns the dry-run and proof view for pipeline loading, stage selection, activation, and routing state
+- `setup` does **not** absorb this parity work yet, because the real onboarding/front-door flow is still out of scope for this phase
+
+In plain English:
+
+- verbs stay stable
+- nouns become `pipeline` and `stage`
+- `generate` produces
+- `inspect` explains
+
+This avoids two bad outcomes:
+
+- overloading `setup` before the real onboarding flow exists
+- adding a migration-only top-level command that would need to be deleted later
+
 Legacy proof surface:
 
 - [tools/harness.py](tools/harness.py)
@@ -259,6 +278,10 @@ Implementation checklist:
 7. Define the Rust CLI proof surface for M1.
    - There must be a visible way to show the loaded pipeline, selected stages, activation result, and saved routing state.
    - Do not force users to inspect debug internals just to prove routing behavior.
+   - The proof surface should live under `inspect`, not under a temporary migration verb.
+8. Define the Rust generation surface for the foundation-family path.
+   - The generation surface should live under `generate`, not `setup`.
+   - It should be able to target the base/charter/project-context/foundation family without implying that the onboarding chat is already implemented.
 
 Proof commands for M1 completion:
 
@@ -285,6 +308,7 @@ Non-goals inside M1:
 - no onboarding chat flow
 - no downstream seam-skill integration yet
 - no release or sprint pipeline parity work yet
+- no new top-level CLI verb for parity work
 
 ### M2. Compilation Parity
 
