@@ -11,7 +11,7 @@ It is derived from:
 - CEO review decisions embedded in that seam pack
 - engineering review decisions recorded in that seam pack's `## GSTACK REVIEW REPORT`
 
-This plan is the current execution source of truth for repo shape, migration order, and milestone sequencing. The canonical repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](docs/contracts/C-01-approved-repo-surface.md).
+This plan is the current execution source of truth for the remaining reduced-v1 closure work: repo shape, cutover order, and operator-surface completion. The canonical repo-surface contract lives at [docs/contracts/C-01-approved-repo-surface.md](docs/contracts/C-01-approved-repo-surface.md).
 
 ## Locked Decisions
 
@@ -33,7 +33,7 @@ This plan is the current execution source of truth for repo shape, migration ord
 - V1 freshness is deterministic: file presence, file hash, schema version, manifest generation version, and declared dependency checks.
 - V1 manifest state is request-scoped and in-memory by default. Persist detailed diagnostics only on request or on failure.
 - Renderers are pure views over one typed resolver result plus typed decision log.
-- `doctor` or `health` is a required v1 command surface, not a post-v1 nicety.
+- `doctor` is the required v1 recovery surface, not a post-v1 nicety.
 - Packet budgets are a first-class typed policy contract with deterministic keep, summarize, exclude, and refuse behavior.
 - V1 performance stays simple until measurement proves otherwise.
 - V1 distribution is a Rust CLI with explicit local install support for `macOS arm64` and `Linux x86_64`. Public package-manager and release publishing are deferred.
@@ -334,866 +334,176 @@ my-project/
 └── root-facing derived docs only if explicitly approved
 ```
 
-## Milestones
+## Current Implementation Snapshot
 
-### M1. Freeze The Legacy Scaffold
+The old milestone tree is no longer the active execution plan.
 
-Outcome:
+These parts of reduced v1 are already implemented and intentionally removed from active planning scope:
 
-- legacy Python scaffold clearly reads as frozen reference material
-- root clearly communicates Rust-first direction without losing the executable reference surface too early
-- no ambiguity about supported vs legacy paths
+- root Rust workspace with `crates/cli` and `crates/compiler`
+- reduced-v1 command surface: `setup`, `generate`, `inspect`, `doctor`
+- canonical `.system/` ingest for `CHARTER`, optional `PROJECT_CONTEXT`, and `FEATURE_SPEC`
+- deterministic manifest generation, freshness truth, budget policy, refusal logic, blocker aggregation, and decision logging
+- markdown, JSON, and inspect renderers driven by one typed resolver result
+- ready-path planning packet generation with a real packet body
+- fixture-backed execution demo generation and explicit live execution refusal
+- nested-repo resolution and retry-after-repair behavior
+- CI rails for `fmt`, `clippy`, `cargo test`, archive-boundary checks, and install smoke on `macOS arm64` and `Linux x86_64`
+- reduced-v1 contracts, docs, CLI vocabulary, tone rules, output anatomy, operator journey review, and `DESIGN.md`
 
-Work:
+This file now tracks only the unfinished work required to close reduced v1 honestly.
 
-- relabel legacy docs so the root docs do not present Python as the active product path
-- freeze Python harness mechanics in place as reference-only behavior
-- leave only approved root docs and canonical artifacts in place
-- update references so `PLAN.md` and the reviewed design are easy to find
+## Remaining Reduced-v1 Work
 
-Exit criteria:
-
-- a new contributor can tell in under 30 seconds that Python is legacy
-- nothing at the root implies Python is the supported runtime
-- the legacy harness remains runnable as a reference surface until Rust planning packet parity exists
-
-### M2. Scaffold The Rust Workspace
+### R1. Make `setup` a real handoff surface
 
 Outcome:
 
-- Rust workspace exists at the root with library + CLI split
+- `system setup` remains placeholder-only, but no longer dead-ends
+- the command names one exact current guided setup path
+- the front door feels incomplete only once, not ambiguous every time
 
 Work:
 
-- add root `Cargo.toml`
-- add `crates/compiler`
-- add `crates/cli`
-- add initial shared types for packet result and decision log
-- define CLI command surface skeleton
+- update `system setup` output so it points to the current guided setup entry path directly
+- align `README.md`, `docs/START_HERE.md`, and `docs/SUPPORTED_COMMANDS.md` with the same handoff wording
+- add coverage that proves the handoff stays explicit in runtime output and docs
 
 Exit criteria:
 
-- `cargo check` passes
-- CLI help exists
-- there is one obvious place to add compiler logic
+- a new operator can run `system setup` and know the exact next safe action without reading repo internals
+- no support-facing doc implies that Rust setup already exists
+- the handoff wording is stable across help text, docs, and runtime output
 
-### M3. Define Minimal Packet Inputs And Manifest
+### R2. Finish the `doctor` product surface
 
 Outcome:
 
-- minimal live packet-input contract exists
+- `doctor` reads like a finished recovery surface instead of an implementation dump
+- blocked and ready states match the CLI interaction contract
 
 Work:
 
-- define typed ingest for `.system/charter/CHARTER.md`, optional `.system/project_context/PROJECT_CONTEXT.md`, and `.system/feature_spec/FEATURE_SPEC.md`
-- define source-of-truth rules for canonical `.system/` artifacts versus derived repo-facing copies
-- define inherited posture dependency handling for `FOUNDATION_STRATEGY`, `TECH_ARCH_BRIEF`, `TEST_STRATEGY_BRIEF`, `QUALITY_GATES_SPEC`, and `ENVIRONMENT_INVENTORY`
-- define explicit override-with-rationale rules for lower-level artifacts that diverge from inherited posture
-- define request-scoped derived manifest shape
-- define deterministic freshness fields
-- define supported target matrix for local installation: `macOS arm64` and `Linux x86_64`
-- define how packaged templates in the `system` product repo materialize canonical `.system/` artifacts without becoming runtime project truth themselves
-- document explicit triggers for expanding metadata/schema to more artifacts
-
-Expansion triggers:
-
-- an artifact becomes a required live packet input
-- an artifact becomes a refusal source
-- an artifact becomes a provenance dependency shown to the user
-- an artifact becomes necessary to explain inclusion or exclusion decisions
+- replace debug-shaped blocker rendering with human-facing trust-header output
+- use stable operator language, especially `NEXT SAFE ACTION`
+- make ready output say what is ready and why retrying `generate` is safe
+- align `doctor` anatomy with [`docs/CLI_OUTPUT_ANATOMY.md`](docs/CLI_OUTPUT_ANATOMY.md) and [`DESIGN.md`](DESIGN.md)
 
 Exit criteria:
 
-- manifest can be built deterministically from approved live inputs
-- unsupported artifacts are ignored explicitly, not implicitly
-- inherited posture dependencies can mark packets stale without becoming mandatory packet body inputs
+- `doctor` blocked output leads with outcome, object, and next safe action
+- `doctor` no longer exposes raw debug formatting in operator-facing output
+- ready output is informative enough that an operator can confidently retry `generate`
 
-### M4. Implement Planning Packet Resolution
+### R3. Fix `inspect` ready-path handoff semantics
 
 Outcome:
 
-- live planning packets work over project + feature artifacts
+- `inspect` remains the proof surface
+- the ready-path next action is intentional instead of self-referential
 
 Work:
 
-- implement ingest
-- implement manifest build
-- implement deterministic freshness checks
-- implement planning packet selection
-- implement typed budget policy with deterministic keep, summarize, exclude, and refuse behavior
-- implement typed decision log
-- implement explicit refusal behavior
-- implement `doctor` or `health` for blockers, stale reasons, safe next actions, and packet-readiness status
+- replace the current ready-path next action with a non-self-referential handoff
+- keep inspect dense and auditable
+- add a regression test for the ready-path next-action wording
 
 Exit criteria:
 
-- same inputs yield same packet and same decision log
-- stale or missing required inputs refuse clearly
-- `doctor` reports the same blocker and freshness truth that packet generation uses
-- budget behavior is deterministic and inspectable
+- `inspect` never tells the operator to run `inspect` while already in `inspect`
+- proof ordering remains unchanged apart from the corrected handoff
 
-### M5. Implement Renderers
+### R4. Complete physical legacy cutover
 
 Outcome:
 
-- markdown, JSON, and inspect views all render from the same typed result
+- repo root reflects the approved product surface only
+- legacy harness code and wrappers no longer live on the active root path
 
 Work:
 
-- add markdown renderer
-- add JSON renderer
-- add inspect renderer
-- prove no renderer changes packet selection logic
-- prove inspect output reflects the same decision log and budget policy as markdown and JSON
+- move the frozen Python harness and wrappers under an explicit archived location
+- update any remaining references that still assume the legacy harness lives at the root
+- keep legacy material runnable as reference-only, but off the supported product surface
 
 Exit criteria:
 
-- inspect explains the same decision log used by markdown and JSON
-- renderer failure does not destroy a successful resolver result
-
-### M6. Add Fixture-Backed Execution Demo
-
-Outcome:
-
-- execution packet capability is demonstrated honestly without pretending live slice support
-
-Work:
-
-- define fixture lineage for execution packet demos
-- implement execution demo path
-- implement explicit refusal for unsupported live slice requests
-
-Exit criteria:
-
-- fixture execution packet demo works
-- live slice execution requests refuse with clear wording
-
-### M7. Add Test And CI Rails
-
-Outcome:
-
-- the Rust path is validated, not hoped into existence
-
-Work:
-
-- unit tests for ingest, metadata validation, manifest build, freshness checks, and refusal logic
-- unit tests for inherited posture dependency freshness and override-with-rationale rules
-- unit tests for budget policy: keep, summarize, exclude, and refuse
-- unit tests for renderer failure isolation
-- integration tests for planning packet resolution
-- golden tests for markdown, JSON, and inspect outputs
-- fixture-backed execution packet tests
-- CLI E2E tests for install, help, non-repo-root invocation, `doctor`, and refusal flows
-- drift tests for canonical `.system/` artifacts versus derived published docs
-- cutover regression tests proving Python is not advertised as supported
-- CI workflow for format, lint, test, and install smoke on `macOS arm64` and `Linux x86_64`
-
-Exit criteria:
-
-- `cargo fmt --check`
-- `cargo clippy -- -D warnings`
-- `cargo test`
-- install smoke passes in CI on both supported targets
-
-### M8. Docs And Cutover
-
-Outcome:
-
-- repo tells one story
-
-Work:
-
-- update top-level README for Rust-first product path
-- keep legacy docs under clearly marked legacy/archive locations
-- document how to use the Rust CLI for reduced v1
-- document what is deferred
-- move the frozen Python harness under `archived/python-harness/` once Rust planning packet parity and cutover validation are complete
-
-Exit criteria:
-
-- help text, README, and docs index all agree
-- no top-level doc presents Python as the supported product path
+- the repo root reads as the Rust product surface plus approved docs and build infrastructure
+- legacy Python remains available only as archived reference material
+- no supported runtime path imports, shells out to, or wraps archived legacy code
 
 ## Workstreams
 
-### Lane A: Repo Reshape
+### Lane A: CLI interaction closure
 
 Scope:
 
-- archive move
+- `setup` handoff
+- `doctor` surface alignment
+- `inspect` next-action fix
+
+Depends on:
+
+- current Rust CLI surface
+- current interaction docs and contracts
+
+### Lane B: docs and cutover cleanup
+
+Scope:
+
+- support-story parity
+- legacy archive move
 - root cleanup
-- doc relabeling
 
 Depends on:
 
-- none
-
-### Lane B: Rust Workspace
-
-Scope:
-
-- workspace scaffold
-- compiler and CLI crate setup
-
-Depends on:
-
-- M1 root decisions locked
-
-### Lane C: Resolver Core
-
-Scope:
-
-- ingest
-- manifest
-- freshness
-- planning packet selection
-- renderers
-
-Depends on:
-
-- M2
-- M3
-
-### Lane D: Validation Rail
-
-Scope:
-
-- tests
-- golden fixtures
-- CLI E2E
-- CI
-
-Depends on:
-
-- M2 for workspace
-- M4 for real behavior
+- Lane A wording decisions
 
 ## Execution Order
 
-1. Do M1 first. This is the repo contract.
-2. Start M2 immediately after M1.
-3. Run M3 and the early part of M4 after M2.
-4. Run M5 after the first typed resolver result exists.
-5. Run M6 after planning packet resolution is stable.
-6. Run M7 in parallel with late M4 to M6 once the command surface is real.
-7. Finish with M8 so the docs match what actually shipped.
+1. Finish `setup` handoff first so the front door becomes honest and actionable.
+2. Finish `doctor` next because recovery is the largest remaining product gap.
+3. Fix `inspect` ready-path handoff once the shared next-action language is final.
+4. Do the physical legacy archive move after the supported operator story is fully closed.
 
 ## Risks
 
-### Risk: Legacy Freeze Leaves Support Messaging Ambiguous
+### Risk: the front door still feels fake
 
 Mitigation:
 
-- relabel aggressively now
-- keep one obvious Rust-first story in root docs
-- do the physical archive move only after the Rust path is proven
+- make `system setup` name one exact current guided path
+- keep docs and help text verbatim-aligned with that path
 
-### Risk: Python Patterns Leak Back Into Runtime Design
-
-Mitigation:
-
-- reference-only rule for `archived/`
-- no runtime imports or wrappers
-- promotion requires explicit approval
-
-### Risk: Execution Demo Gets Mistaken For Live Capability
+### Risk: `doctor` keeps leaking implementation shape into product output
 
 Mitigation:
 
-- call it fixture-backed everywhere
-- add explicit refusal for live slice requests
-- test help text and docs for this wording
+- route output through the shared interaction contract
+- add regression coverage for blocked and ready states
 
-### Risk: Metadata Scope Grows Unbounded
+### Risk: legacy root clutter keeps confusing contributors
 
 Mitigation:
 
-- expansion only through the trigger list in M3
-- no artifact enters the schema by vibes
+- move legacy harness material out of the active root surface once CLI interaction closure lands
+- keep archived material clearly labeled as reference-only
 
 ## Deliverables
 
-- `PLAN.md`
-- frozen legacy scaffold clearly labeled as reference-only, then archived under `archived/python-harness/` at cutover
-- Rust workspace at root
-- planning packet resolver
-- `doctor` or `health` command
-- fixture-backed execution packet demo
-- tests and CI
-- updated docs
+- updated `PLAN.md` that reflects only unfinished reduced-v1 work
+- explicit `setup` handoff wording in runtime output and docs
+- `doctor` output aligned with the CLI interaction contract
+- corrected `inspect` ready-path next action
+- legacy harness moved under an archived location at cutover
 
 ## Definition Of Done For Reduced V1
 
-- root repo shape reflects the approved Rust-first direction
-- legacy Python is clearly labeled as frozen during implementation, then lives under `archived/` at cutover
-- Rust CLI is the only supported product path
-- live planning packets work over approved project + feature inputs
-- inherited posture dependency freshness and override rationale are enforced
-- packet budgets behave deterministically and are explained by inspect output
-- `doctor` reports blockers and safe next actions
-- execution packet demo works from fixtures only
-- unsupported live slice requests refuse clearly
-- docs and help text match reality
-- CI validates build, lint, test, and install smoke on both supported targets
-
-## GSTACK REVIEW REPORT
-
-| Review | Trigger | Why | Runs | Status | Findings |
-|--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 5 proposals, 4 accepted, 1 deferred |
-| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | CLEAR | 15 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 5/10 → 9/10, 7 decisions |
-
-**UNRESOLVED:** 0
-**VERDICT:** CEO + ENG + DESIGN CLEARED — ready to implement.
-
-## AUTOPLAN REVIEW ADDENDUM (2026-04-06)
-
-### Review Basis
-
-This `/autoplan` run was executed as a post-implementation source-of-truth audit, not as a greenfield pre-implementation review.
-
-Reason: the repo already contains the core Rust wedge that the plan still describes as future work:
-
-- root workspace `Cargo.toml`
-- `crates/compiler`
-- `crates/cli`
-- resolver, rendering, refusal, blocker, and manifest code
-- CLI surface tests and help snapshots
-- contracts `C-01` through `C-07`
-
-Validation run during this review:
-
-- `cargo test -q`
-- `cargo clippy --all-targets --all-features -- -D warnings`
-- `cargo install --path crates/cli --force`
-- `cargo run -q -- --help`
-- `cargo run -q -- generate --packet execution.demo.packet --fixture-set basic`
-- `cargo run -q -- inspect --packet execution.demo.packet --fixture-set basic`
-
-Observed reality:
-
-- code and tests say the Rust wedge exists
-- `docs/START_HERE.md` says live planning packet resolution is supported
-- CLI help still calls the product a scaffold with reserved placeholders
-- `generate` returns a placeholder packet body and exits non-zero on the ready path
-
-This addendum records the review outputs needed to reconcile that drift.
-
-### Phase 1: CEO Review
-
-#### 0A. Premise Challenge
-
-Examined: the plan framing in the status, goal, operator journey, milestones, and definition-of-done sections, plus current docs and CLI behavior.
-
-Result:
-
-- The plan still treats setup-first `.system/` truth as a settled fact, but current runtime behavior has not earned that as the only viable front door.
-- The repo has already shipped enough of the Rust wedge that the real strategic question is no longer "should we build this?" It is "what can we honestly claim is already supported?"
-- The highest-risk premise is not Rust itself. It is that support messaging can move ahead of runtime truth without hurting trust.
-
-Premise gate outcome:
-
-- On 2026-04-06, the user clarified that `PLAN.md` should be treated as "the plan that was just implemented."
-- This review therefore uses a post-implementation audit lens for every phase.
-
-#### 0B. Existing Code Leverage
-
-| Sub-problem | Existing code / artifact already in repo |
-|---|---|
-| Canonical artifact ingest | `crates/compiler/src/canonical_artifacts.rs` |
-| Request-scoped manifest generation | `crates/compiler/src/artifact_manifest.rs` |
-| Freshness and fingerprinting | `crates/compiler/src/freshness.rs` |
-| Refusal and blocker taxonomy | `crates/compiler/src/refusal.rs`, `crates/compiler/src/blocker.rs`, `crates/compiler/src/resolver.rs` |
-| Budget policy | `crates/compiler/src/budget.rs` |
-| Output surfaces | `crates/compiler/src/rendering/*.rs` |
-| CLI surface and exit behavior | `crates/cli/src/main.rs` |
-| Runtime drift guards | `crates/cli/tests/cli_surface.rs`, `crates/cli/tests/help_drift_guard.rs` |
-| Product contracts | `docs/contracts/C-01` through `docs/contracts/C-07` |
-
-#### 0C. Dream State Mapping
-
-```text
-CURRENT REPO
-  -> Rust wedge exists, tests pass, install smoke passes
-  -> docs and CLI disagree about what is supported
-  -> plan still reads like M1-M8 are future work
-
-THIS REVIEW
-  -> reclassify PLAN.md as historical implementation plan + current audit record
-  -> add explicit release gates for support claims
-  -> pin setup ownership, command vocabulary, and packet-body truth
-
-12-MONTH IDEAL
-  -> one supported story
-  -> `system generate` exits 0 with a non-placeholder packet body
-  -> `setup`, `generate`, `inspect`, and `doctor` share one documented state model
-  -> docs, help text, tests, and runtime output stay in lockstep
-```
-
-#### 0C-bis. Implementation Alternatives
-
-| Approach | Effort | Risk | Pros | Cons | Decision |
-|---|---|---|---|---|---|
-| Keep treating `PLAN.md` as a future implementation plan | S | High | Lowest immediate doc churn | Misstates shipped reality and hides support drift | Rejected |
-| Keep the Rust-first wedge, but rewrite the review around shipped-vs-claimed truth | M | Low | Preserves implementation work and fixes the highest-signal mismatch | Requires plan and docs cleanup now | Chosen |
-| Reframe the whole wedge around "messy repo first" and demote Rust to an implementation detail | M-L | Medium | Stronger long-term product story | Too disruptive for this audit pass | Deferred to future strategy review |
-
-#### 0D. Mode Selection
-
-- Mode: `SELECTIVE_EXPANSION`
-- Why: the repo does not need a new product thesis to benefit from this review. It needs the support boundary, setup ownership boundary, and command truth tightened first.
-
-#### 0E. Temporal Interrogation
-
-- HOUR 1:
-  - user reads `docs/START_HERE.md`
-  - expects live planning packet generation to be supported
-  - runs CLI help and immediately sees "scaffold" and "reserved placeholders"
-- HOUR 6:
-  - user can install the CLI and hit deterministic refusal / inspect / demo paths
-  - still cannot get a non-placeholder planning packet body from the ready path
-- SIX MONTHS:
-  - if unresolved, the project ships a coherent contract stack with an incoherent product claim
-
-#### 0F. CEO Dual Voices
-
-`CODEX SAYS (CEO — strategy challenge)`
-
-- The plan over-indexes on trust mechanics, setup posture, and migration hygiene.
-- The biggest strategic risk is claiming support before runtime truth matches docs.
-- The most credible wedge is "trusted packet output quickly," not "structured setup first at all costs."
-
-`CLAUDE SUBAGENT (CEO — strategic independence)`
-
-- The plan optimizes the Rust rewrite more than the operator's time-to-value.
-- Key assumptions, setup-first flow, hidden `.system/` truth, and `project + feature` sufficiency, are still bets, not facts.
-- The six-month regret case is a two-system product with weak distribution and unclear external value.
-
-CEO DUAL VOICES — CONSENSUS TABLE:
-
-| Dimension | Claude | Codex | Consensus |
-|---|---|---|---|
-| Premises valid? | Concern | Concern | Confirmed concern |
-| Right problem to solve? | Concern | Concern | Confirmed concern |
-| Scope calibration correct? | Concern | Concern | Confirmed concern |
-| Alternatives sufficiently explored? | Concern | Concern | Confirmed concern |
-| Competitive / market risks covered? | Concern | Concern | Confirmed concern |
-| 6-month trajectory sound? | Concern | Concern | Confirmed concern |
-
-CEO consensus:
-
-- `6/6` dimensions raised confirmed concern
-- `0/6` dimensions produced a material disagreement
-
-#### CEO Review Sections
-
-##### Section 1: Architecture Review
-
-Examined: `PLAN.md`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `crates/cli/src/main.rs`, `crates/compiler/src/resolver.rs`.
-
-Finding: the architecture is already partly shipped, but the plan still treats M2-M6 as future milestones. That is now a planning bug, because it hides the real problem: docs and runtime disagree on the support boundary.
-
-##### Section 2: Error & Rescue Map
-
-| Scenario | Current repo behavior | Risk | Required next action |
-|---|---|---|---|
-| User reads docs first | `docs/START_HERE.md` implies live planning is supported | Overclaim | Gate support claims on runtime truth |
-| User reads CLI help first | help says scaffold / reserved placeholders | Underclaim | Align help with actual shipped surfaces |
-| User runs `generate` without `.system/` | deterministic refusal with next safe action | Good | Preserve |
-| User runs `generate` with ready inputs | placeholder body + non-zero exit | Support contradiction | Do not call planning packets supported yet |
-| User needs setup | `system setup` placeholder, legacy bridge described only in docs | Split ownership | Define one canonical setup path |
-
-##### Section 3: Security & Threat Model
-
-Examined: `PLAN.md` storage and manifest sections, `crates/compiler/src/canonical_artifacts.rs`, `crates/compiler/src/freshness.rs`.
-
-What was examined:
-
-- symlink handling exists for `.system/` root and canonical artifacts
-- no explicit plan-level trust model exists for malformed markdown, large files, encoding failures, or prompt-injection-style repo content
-
-Flagged concern:
-
-- the plan should label repo-controlled content as untrusted input and define validation boundaries explicitly
-
-##### Section 4: Data Flow And Interaction Edge Cases
-
-Examined: state table, command hierarchy, current CLI cwd behavior, demo invocation paths.
-
-Flagged concerns:
-
-- repo discovery is not specified, even though current CLI uses `current_dir()` as the effective repo root
-- first-run routing is unresolved for new repo, initialized repo, stale repo, and unsupported repo
-- partial success is underdefined for `generate`
-
-##### Section 5: Code Quality Review
-
-Examined: plan vocabulary and repeated command naming.
-
-Flagged concern:
-
-- `doctor` vs `health` appears in mutually inconsistent ways. The plan says `doctor` is canonical, then later says "`doctor` or `health`" is required. That will drift docs, code, and tests.
-
-##### Section 6: Test Review
-
-Examined: `cargo test -q`, CLI tests, renderer tests, install smoke.
-
-Current strength:
-
-- deterministic refusal, inspect, help ordering, and fixture-backed demo flows are tested
-
-Current gap:
-
-- there is no explicit test gate that says "do not claim supported planning packet generation until `generate` exits `0` with a non-placeholder body"
-
-##### Section 7: Performance Review
-
-Examined: plan claims and current freshness implementation.
-
-Finding:
-
-- the current performance posture is acceptable for reduced scope
-- the plan still under-specifies large-repo behavior and whether repeated hashing remains request-scoped forever or only until profiling proves otherwise
-
-##### Section 8: Observability & Debuggability Review
-
-Examined: inspect output and doctor output.
-
-Finding:
-
-- `inspect` has a useful decision-log surface
-- `doctor` still prints raw debug-style subject and next-action structs instead of the cleaner shared rendering language
-
-##### Section 9: Deployment & Rollout Review
-
-Examined: install smoke, help text, top-level docs.
-
-Finding:
-
-- install smoke passes locally
-- rollout is still blocked on support-language consistency
-- the release gate should be docs/runtime parity first, wider distribution second
-
-##### Section 10: Long-Term Trajectory Review
-
-Flagged concern:
-
-- if unreconciled, this project will keep shipping contracts and tests that are more internally coherent than the product story users actually experience
-
-#### CEO Mandatory Outputs
-
-##### NOT in scope
-
-- No full product-theory rewrite in this review
-- No public distribution expansion beyond current local install smoke
-- No widening of v1 into review/fix packets or live slice execution
-
-##### What already exists
-
-- Rust workspace
-- compiler/CLI split
-- manifest and freshness model
-- refusal and blocker taxonomy
-- markdown/json/inspect renderers
-- fixture-backed execution demo
-- CLI and renderer drift tests
-- install smoke path
-
-##### Failure Modes Registry
-
-| Failure mode | Current status | Severity |
-|---|---|---|
-| Docs claim support before runtime does | Present | High |
-| Setup path split across docs and placeholder CLI | Present | High |
-| Packet-body contract missing from typed model | Present | High |
-| `doctor` / `health` vocabulary drift | Present | Medium |
-| Large-repo / malformed-input handling under-specified | Present | Medium |
-
-##### Dream state delta
-
-- The current repo is much closer to the desired architecture than the base plan suggests.
-- The missing gap is no longer "build the Rust wedge." It is "close the gap between what shipped and what the product claims."
-
-##### CEO Completion Summary
-
-| Item | Status |
-|---|---|
-| Strategic framing updated to post-implementation audit | Done |
-| Existing-code leverage mapped | Done |
-| Error and rescue map produced | Done |
-| Failure modes registry produced | Done |
-| Scope-expansion decisions logged | Done |
-| Unresolved strategic issue | Support boundary still overclaimed |
-
-### Phase 2: Design Review
-
-UI scope decision:
-
-- Run as applicable.
-- Rationale: this product is CLI-first, but the plan contains explicit information hierarchy, state coverage, accessibility, and output-layout rules. That is enough design scope for review.
-
-#### Design Setup
-
-- `DESIGN.md`: absent
-- existing design leverage:
-  - `docs/START_HERE.md`
-  - `docs/SUPPORTED_COMMANDS.md`
-  - `crates/compiler/src/rendering/*.rs`
-  - `crates/cli/tests/cli_surface.rs`
-
-#### Design Dual Voices
-
-`CODEX SAYS (design — UX challenge)`
-
-- The UX hierarchy still serves the system designer more than the operator.
-- The plan speaks in good CLI principles, but not enough exact templates.
-- Setup dominates too much of the story for a partially shipped wedge.
-
-`CLAUDE SUBAGENT (design — independent review)`
-
-- startup routing is ambiguous
-- first-failure states are incomplete
-- partial `generate` states and doctor terminal states are underdefined
-- command templates are still pattern-level rather than concrete
-
-DESIGN LITMUS SCORECARD:
-
-| Dimension | Claude | Codex | Consensus |
-|---|---|---|---|
-| Information architecture | Concern | Concern | Confirmed concern |
-| Interaction state coverage | Concern | Concern | Confirmed concern |
-| User journey / emotional arc | Concern | Concern | Confirmed concern |
-| Specificity of output templates | Concern | Concern | Confirmed concern |
-| Recovery vocabulary consistency | Concern | Concern | Confirmed concern |
-| Responsive / accessibility concreteness | Concern | Concern | Confirmed concern |
-| Drift resistance | Concern | Concern | Confirmed concern |
-
-Design consensus:
-
-- `7/7` dimensions raised confirmed concern
-- `0/7` dimensions produced a material disagreement
-
-#### Design Passes
-
-| Pass | Score | Review outcome |
-|---|---|---|
-| Information architecture | 5/10 | Setup is over-emphasized relative to the ready-path user |
-| Interaction state coverage | 5/10 | State table is thoughtful but misses launch-state and partial-state details |
-| User journey and emotional arc | 6/10 | Trust posture is clear, but momentum arrives too late |
-| AI slop risk | 8/10 | Vocabulary is deliberate, not generic |
-| Design system alignment | 6/10 | `doctor` / `health` inconsistency still creates drift risk |
-| Responsive and accessibility | 6/10 | narrow-first intent is solid, but no concrete width/output acceptance rules |
-| Unresolved design decisions | 4/10 | command templates and first-run routing remain ambiguous |
-
-##### Design NOT in scope
-
-- No visual mockups
-- No ANSI styling system
-- No alternate terminal UI layer
-
-##### Design What already exists
-
-- trust-header-first output ordering
-- refusal and inspect structure
-- CLI help ordering
-- golden tests for header ordering and inspect JSON fallback
-
-##### Design Completion Summary
-
-- The CLI design language is directionally correct.
-- The missing work is not aesthetic. It is exact templates, exact routing, and exact command-state closure.
-
-### Phase 3: Engineering Review
-
-#### Scope Challenge
-
-This phase reviewed shipped code against the plan instead of assuming milestones were pending.
-
-Primary engineering finding:
-
-- support claims outran the current typed runtime model
-
-#### Engineering Dual Voices
-
-`CODEX SAYS (eng — architecture challenge)`
-
-- there is no hard release gate for calling planning packet generation supported
-- setup ownership is split
-- render model does not yet contain packet body content
-- repo discovery and doctor scope are under-specified
-
-`CLAUDE SUBAGENT (eng — independent review)`
-
-- untrusted repo content lacks an explicit trust boundary
-- malformed / partial / high-volume repo states are under-specified
-- state-transition testing is still missing for repair and retry flows
-
-ENG DUAL VOICES — CONSENSUS TABLE:
-
-| Dimension | Claude | Codex | Consensus |
-|---|---|---|---|
-| Architecture sound? | Concern | Concern | Confirmed concern |
-| Test coverage sufficient? | Concern | Concern | Confirmed concern |
-| Performance risks addressed? | Partial concern | Concern | Confirmed concern |
-| Security threats covered? | Concern | Concern | Confirmed concern |
-| Error paths handled? | Concern | Concern | Confirmed concern |
-| Deployment risk manageable? | Concern | Concern | Confirmed concern |
-
-Engineering consensus:
-
-- `6/6` dimensions raised confirmed concern
-- `0/6` dimensions produced a material disagreement
-
-#### Architecture ASCII Diagram
-
-```text
-system CLI
-  |
-  +--> clap command parsing
-  |
-  +--> generate / inspect / doctor
-          |
-          +--> system_compiler::resolve(...)
-                  |
-                  +--> CanonicalArtifacts::load
-                  +--> ArtifactManifest::generate
-                  +--> compute_freshness
-                  +--> evaluate_budget
-                  +--> compute_refusal / compute_blockers
-          |
-          +--> build_output_model
-                  |
-                  +--> render_markdown / render_inspect / render_json
-
-docs + contracts + tests
-  |
-  +--> claim support boundary
-  +--> currently drift from CLI help / ready-path behavior
-```
-
-#### Code Quality Review
-
-Flagged concerns:
-
-- duplicate support vocabulary across `PLAN.md`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, and CLI help
-- raw debug formatting in `doctor`
-- typed output model still stops at metadata instead of packet content
-
-#### Test Review
-
-Current coverage examined:
-
-- `crates/compiler/tests/resolver_core.rs`
-- `crates/compiler/tests/rendering_surface.rs`
-- `crates/cli/tests/cli_surface.rs`
-- `crates/cli/tests/help_drift_guard.rs`
-
-Test diagram:
-
-| Codepath / UX flow | Current coverage | Gap |
-|---|---|---|
-| Missing `.system` refusal | Covered | None |
-| Ready planning path | Covered only as placeholder-ready state | Need real packet-body success gate |
-| Fixture-backed execution demo | Covered | None |
-| Live execution refusal | Covered | None |
-| Help ordering | Covered | None |
-| Support-language parity across docs/help/runtime | Partially covered | Need docs/help/runtime golden |
-| Retry after repair | Missing | Add |
-| Partial `.system` tree | Missing | Add |
-| Malformed markdown / encoding / large inputs | Missing | Add |
-| Non-repo-root invocation behavior | Mentioned in plan, not defined | Define and then test |
-
-Test plan artifact:
-
-- `/Users/spensermcconnell/.gstack/projects/system/spensermcconnell-main-test-plan-20260406-215805.md`
-
-#### Performance Review
-
-What was examined:
-
-- current freshness implementation hashes only the small canonical artifact set
-- no cache layer exists
-
-Finding:
-
-- fine for reduced scope
-- still needs an explicit large-repo policy before broader support claims
-
-#### Engineering NOT in scope
-
-- No new runtime code in this review
-- No public distribution rollout
-- No new packet families
-
-#### Engineering What already exists
-
-- deterministic manifest generation
-- deterministic refusal/blocker sorting
-- install smoke
-- help drift guards
-- demo packet path
-
-#### Failure Modes Registry
-
-| Failure mode | Current evidence | Severity |
-|---|---|---|
-| Supported planning path still returns placeholder body | `generate` ready path | High |
-| Setup ownership split between docs and placeholder CLI | docs + `system setup` | High |
-| Packet-body contract absent from typed render model | `RenderOutputModel` | High |
-| Repo-root discovery undefined | CLI uses cwd | Medium |
-| Untrusted repo input policy absent in plan | plan gap | Medium |
-| Repair / retry transitions under-tested | test gap | Medium |
-
-#### Engineering Completion Summary
-
-| Item | Status |
-|---|---|
-| Actual code reviewed | Done |
-| Architecture diagram produced | Done |
-| Test diagram produced | Done |
-| Test-plan artifact written | Done |
-| Install smoke verified | Done |
-| Critical unresolved issue | Planning packet support is overclaimed |
-
-### Cross-Phase Themes
-
-| Theme | Phases | Why it matters |
-|---|---|---|
-| Support boundary drift | CEO, Design, Eng | Docs, help, and runtime disagree about what reduced v1 actually supports |
-| Setup ownership ambiguity | CEO, Design, Eng | Users cannot infer one canonical entry path from repo state |
-| Missing concrete command templates | Design, Eng | Principles exist, but exact fields, states, and terminal outcomes are still underspecified |
-
-### Decision Audit Trail
-
-| # | Phase | Decision | Classification | Principle | Rationale | Rejected |
-|---|---|---|---|---|---|---|
-| 1 | Intake | Treat `PLAN.md` as a post-implementation audit target, not a greenfield build plan | Mechanical | Pragmatic | The repo already contains the milestones the plan still describes as future work | Continue pretending M1-M8 are wholly unshipped |
-| 2 | CEO | Preserve the Rust-first wedge for this review, but defer broader product reframing | Taste | Bias toward action | The fastest high-signal fix is support-boundary cleanup, not a new product thesis | Full wedge rewrite during audit |
-| 3 | Design | Run design review because CLI interaction language and state coverage are explicit plan surfaces | Mechanical | Completeness | CLI UX drift is central to this repo's current risk | Skip design because there is no browser UI |
-| 4 | CEO / Design / Eng | Elevate docs/help/runtime parity as the highest priority gap | Mechanical | Completeness | Multiple sources overclaim support while runtime still returns placeholders | Treat parity as a docs-only cleanup |
-| 5 | Design / Eng | Make `doctor` the only canonical recovery verb in v1 | Mechanical | Explicit over clever | One public recovery command is easier to test and document | Keep `doctor` / `health` ambiguity |
-| 6 | Eng | Define "supported planning packet generation" as zero-exit, non-placeholder packet body, with matching docs/help | Mechanical | Explicit over clever | Current ready-path behavior is not honest enough to call supported | Continue claiming support based on metadata-only readiness |
-| 7 | Eng | Add repo-discovery, malformed-input, and retry-after-repair transitions to the required test plan | Mechanical | Choose completeness | Current tests are good on static states and weak on recovery transitions | Keep only current happy-path and refusal coverage |
-
-### User Override (2026-04-06)
-
-The user chose the complete path for the main taste decision:
-
-- prioritize finishing the ready-path packet body first
-- then reconcile docs/help/runtime support language around the finished behavior
-
-This overrides the lighter recommendation to narrow support claims first.
-
-### Review Verdict
-
-- This repo is farther along than the base plan says.
-- Reduced v1 is not blocked on core Rust scaffolding anymore.
-- Reduced v1 is blocked on truthfulness: the project must either narrow its support claims or finish the packet-body and setup-ownership surfaces it already advertises.
-
-### P1 Closeout (2026-04-07)
-
-- `system generate` now exits `0` on the ready path with a non-placeholder packet body for `planning.packet` and the fixture-backed demo packet.
-- CLI help and support-facing docs were reconciled to the shipped reduced-v1 boundary.
-- `Packet Body Contract` and `Support Boundary Reconciliation` were completed in `TODOS.md` without reopening historical milestones.
+- `system setup` names the exact current guided setup path
+- `generate` remains the supported live planning packet surface
+- `inspect` remains the proof surface without self-referential ready-path guidance
+- `doctor` reports blockers and readiness using finished operator-facing output
+- execution packet demo remains fixture-backed only
+- unsupported live execution requests refuse clearly
+- docs, help text, and runtime output match reality
+- repo root reflects the approved Rust-first product surface
