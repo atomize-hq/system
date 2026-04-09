@@ -45,6 +45,54 @@ The product loses trust when it:
 - hides the next action
 - makes repair feel mysterious
 
+## Interaction Direction
+
+The design direction is **audited utilitarian**.
+
+This product should feel:
+
+- exact
+- narrow-terminal friendly
+- calm under failure
+- useful to both humans and agents
+- boring in the good way
+
+The model is not a chatty assistant and not a giant command maze.
+
+It should feel closer to a trust-heavy developer tool with a small verb surface than to a conversational wrapper around compiler internals.
+
+## Research Grounding
+
+This interaction direction was pressure-tested against current trust-heavy CLI products and their official docs surfaces.
+
+The common patterns worth keeping are:
+
+- a small stable verb surface
+- help text and runtime output that describe the same product
+- machine-readable and human-readable output treated as first-class
+- explicit boundaries around unsupported behavior
+- recovery that feels finite rather than mysterious
+
+The deliberate product choice for this repo is to keep the four-command surface small and make the handoffs between those commands feel intentional.
+
+Do not expand the command set just to paper over weak transitions.
+
+## Safe Choices And Deliberate Risks
+
+Safe choices, these are category-baseline expectations:
+
+- keep the four command roles stable: `setup`, `generate`, `inspect`, `doctor`
+- keep the trust-header model as the primary orientation pattern
+- keep narrow-terminal readability and explicit labels ahead of decorative output
+
+Deliberate risks, these are where the product gets its own face:
+
+- `doctor` should become a finished recovery product, not a raw diagnostic dump
+- `inspect` should stay audit-dense, even if that is less immediately friendly than mainstream CLI proof views
+- `setup` should be honest about being a handoff surface until Rust setup exists, instead of pretending the front door is already complete
+
+These risks are worth taking because the product wins on trust, not on surface-level friendliness.
+
 ## Core Principles
 
 ### 1. Trust before fluency
@@ -102,6 +150,13 @@ Current reduced-v1 reality:
 Design rule:
 
 - keep `setup` as the stable operation name even while the experience layer evolves
+- a placeholder front door is acceptable only if it hands off to one exact current guided path
+
+Finished interaction target:
+
+- acknowledge that Rust `setup` is still placeholder-only
+- name the guided setup path that currently owns truth establishment
+- end with one exact next safe action instead of a dead end
 
 ### `generate`
 
@@ -114,6 +169,13 @@ Design rule:
 
 - the packet is the product
 - success output should move quickly from trust header to packet body
+
+Finished interaction target:
+
+- `generate` remains the strongest shipped surface
+- keep the trust header compact
+- keep the packet body as the main event
+- do not add decorative framing that delays useful output
 
 ### `inspect`
 
@@ -132,6 +194,12 @@ Current quirk:
 - the shipped ready-path next action is self-referential
 - treat that as implementation debt, not ideal product design
 
+Finished interaction target:
+
+- the proof ordering stays dense and audit-like
+- the ready-path next safe action must hand the operator back to a productive surface
+- `inspect` must never tell the operator to run `inspect` while they are already in `inspect`
+
 ### `doctor`
 
 Role:
@@ -147,6 +215,13 @@ Current reduced-v1 reality:
 Design rule:
 
 - `doctor` is the only canonical recovery verb
+
+Finished interaction target:
+
+- `doctor` should use the same trust-header posture as the finished product surfaces
+- `doctor` should translate blocker taxonomy into human-facing recovery language
+- `doctor` must not print Rust debug shapes in operator output
+- `doctor` ready state should confirm readiness in a way that makes retrying `generate` feel safe and obvious
 
 ## Experience Layer Versus Command Layer
 
@@ -275,6 +350,25 @@ Design rules:
 - prefer explicit labels over decorative formatting
 - preserve predictable section order
 
+## Finished Surface Expectations
+
+The target product should create one coherent loop:
+
+1. `setup` establishes or refreshes trusted project truth
+2. `generate` produces the packet quickly
+3. `inspect` proves why the packet looks the way it does
+4. `doctor` recovers the operator from broken or ambiguous state
+
+That loop breaks when a surface feels semantically wrong even if the code is technically correct.
+
+Current examples of semantically wrong behavior:
+
+- `setup` is honest but not useful enough
+- `inspect` gives a self-referential handoff
+- `doctor` exposes implementation-shaped output instead of a finished recovery report
+
+When a future change touches one of these surfaces, prefer fixing the handoff quality over adding more explanatory prose.
+
 ## Change Workflow
 
 If a proposed change affects any of the following:
@@ -302,6 +396,8 @@ These are acknowledged interaction-design debts, not hidden contradictions:
 - `setup` remains placeholder-only in the Rust CLI
 - `doctor` still uses a transitional output anatomy
 - `inspect` currently emits a self-referential ready-path next action
+
+These gaps should be treated as the highest-value remaining CLI interaction work because they are the three moments where the product still feels unfinished at the exact point the operator most needs confidence.
 
 These should be treated as future implementation and conformance work, not silently normalized.
 

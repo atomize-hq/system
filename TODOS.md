@@ -76,6 +76,29 @@
 
 ## CLI Product Interaction Design
 
+### Chosen Interaction Direction (2026-04-08)
+
+The interaction direction for the CLI product is:
+
+- audited utilitarian
+- narrow-terminal first
+- exact and boring in the good way
+- explicit about shipped versus transitional behavior
+- optimized for both humans and agents
+
+What this means for task design:
+
+- do not add new top-level verbs to compensate for weak handoffs
+- prioritize fixing `setup`, `inspect`, and `doctor` transitions over copy polish elsewhere
+- treat `doctor` as a product surface, not just a diagnostic helper
+- keep proof dense and auditable rather than conversational
+
+Recommended implementation order for the remaining interaction backlog:
+
+1. R2, because it is a small fix with immediate trust payoff
+2. R3, because the front door should stop dead-ending
+3. R1, because it is the largest remaining product-shape gap
+
 ### Phase 1
 
 #### D1: Canonical Product Vocabulary
@@ -222,6 +245,30 @@
 
 **Why:** `doctor` is the clearest shipped mismatch against the CLI interaction contract. It is functionally correct, but it still prints implementation-shaped subject and next-action data instead of a finished recovery experience.
 
+**Product target:** `doctor` should feel like the operator can recover from a bad state without reverse-engineering Rust enums or guessing the retry order.
+
+**Implementation scope:**
+- add a stable trust header to both blocked and ready `doctor` output
+- choose one stable object label for the surface and use it consistently
+- replace debug-shaped `SUBJECT: Policy { ... }` and `NEXT ACTION: CreateSystemRoot { ... }` output with human-facing shared renderers
+- switch runtime wording from `NEXT ACTION` to `NEXT SAFE ACTION`
+- make the ready state more informative than a bare `READY`
+- update docs and conformance notes so the shipped anatomy no longer claims a transitional exception after this lands
+
+**Primary files:** `crates/cli/src/main.rs`, `crates/compiler/src/rendering/shared.rs`, `docs/CLI_OUTPUT_ANATOMY.md`, `docs/CLI_OPERATOR_JOURNEY.md`, `docs/SUPPORTED_COMMANDS.md`, `crates/cli/tests/`, `crates/compiler/tests/`
+
+**Acceptance criteria:**
+- blocked `doctor` output starts with `OUTCOME`, `OBJECT`, and `NEXT SAFE ACTION`
+- blocker groups use human-facing labels and do not contain `{:?}` debug rendering
+- the first blocker and the global handoff agree on the safest retry path
+- ready `doctor` output confirms readiness and points cleanly back to `generate`
+- docs, help, and tests all describe the upgraded surface consistently
+
+**Test coverage:**
+- snapshot or rendering coverage for ready and blocked `doctor`
+- drift-guard coverage that fails if debug-shaped blocker output or `NEXT ACTION` wording reappears
+- retry-path coverage proving the next safe action is stable for missing `.system/`, malformed artifacts, and ready repos
+
 **Effort:** M
 **Priority:** P1
 **Depends on:** D6 findings
@@ -232,6 +279,26 @@
 
 **Why:** `inspect` currently tells the operator to run `inspect` for proof while they are already in `inspect`. The rest of the proof surface is strong, but that line makes the product feel templated instead of intentional.
 
+**Product target:** once the operator is already on the proof surface, the handoff should point back to the next productive step, not back into the same proof view.
+
+**Implementation scope:**
+- make `inspect` compute its own ready-path handoff instead of reusing the `generate` proof handoff unchanged
+- preserve fixture context when the inspected packet is `execution.demo.packet`
+- keep the rest of the proof ordering unchanged unless the fix exposes a real contradiction
+- update the output anatomy and operator-journey docs so the contract names the corrected handoff
+
+**Primary files:** `crates/compiler/src/rendering/inspect.rs`, `crates/compiler/src/rendering/shared.rs`, `crates/compiler/tests/rendering_surface.rs`, `docs/CLI_OUTPUT_ANATOMY.md`, `docs/CLI_OPERATOR_JOURNEY.md`
+
+**Acceptance criteria:**
+- ready `inspect` output no longer instructs the operator to run `inspect`
+- the replacement next safe action is semantically correct for both planning and execution-demo packets
+- `generate` ready output is unaffected and can still point to `inspect` for proof
+- docs and tests encode the new handoff explicitly
+
+**Test coverage:**
+- update rendering snapshots for planning and execution-demo inspect success paths
+- add a regression assertion that no ready `inspect` output contains `run \`system inspect`
+
 **Effort:** S
 **Priority:** P1
 **Depends on:** D6 findings
@@ -241,6 +308,28 @@
 **What:** Keep `setup` as the stable operation name, but make the placeholder surface hand the operator to the exact current guided setup experience until Rust setup exists.
 
 **Why:** The front door is named correctly, but the shipped placeholder still dead-ends instead of routing the operator into the real setup path.
+
+**Product target:** the first operator who tries `system setup` should hit an honest but useful handoff, not a technically correct dead end.
+
+**Implementation scope:**
+- identify and lock one canonical guided setup entry path while Rust setup remains placeholder-only
+- change the placeholder runtime copy so it states the current ownership boundary and prints one exact handoff
+- align `generate` refusal copy and startup docs with the same guided setup path where appropriate
+- document what changes again once Rust setup becomes real so this bridge does not calcify
+
+**Primary files:** `crates/cli/src/main.rs`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/CLI_COMMAND_HIERARCHY.md`, `docs/CLI_OPERATOR_JOURNEY.md`, `crates/cli/tests/help_drift_guard.rs`
+
+**Acceptance criteria:**
+- `system setup` still tells the truth about placeholder status
+- `system setup` also names one exact current guided setup path
+- top-level docs and help no longer leave setup ownership ambiguous
+- the same handoff language appears consistently wherever the product routes a missing-truth repo toward setup
+
+**Open implementation decision:** the repo currently names the guided setup story, but does not yet expose one exact entry command or document path. This task should resolve that ambiguity instead of rephrasing it.
+
+**Test coverage:**
+- help/runtime drift coverage for the chosen guided setup handoff
+- docs parity check for the same entry path across README, START_HERE, supported commands, and runtime output
 
 **Effort:** S
 **Priority:** P1
