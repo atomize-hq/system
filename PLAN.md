@@ -192,22 +192,28 @@ Goal:
 
 Command-shape decision:
 
-- keep the existing four top-level verbs
-- `generate` owns the foundation-family planning-generation path
-- `inspect` owns the dry-run and proof view for pipeline loading, stage selection, activation, and routing state
-- `setup` does **not** absorb this parity work yet, because the real onboarding/front-door flow is still out of scope for this phase
+- keep the existing top-level verb surface for packet work and recovery
+- add a first-class `pipeline` noun family for legacy-parity orchestration work
+- `pipeline list` discovers available pipelines
+- `pipeline show --id <pipeline>` shows the declared pipeline config
+- `pipeline resolve --id <pipeline>` is the authoritative compute step for route selection
+- `pipeline compile --id <pipeline> --stage <stage-id>` compiles one resolved stage payload
+- `generate packet --id <packet>` remains the downstream packet-generation surface
+- `setup` remains first-time setup and repo-wide refresh, but does **not** absorb incremental pipeline rebuild behavior
 
 In plain English:
 
-- verbs stay stable
-- nouns become `pipeline` and `stage`
-- `generate` produces
-- `inspect` explains
+- `pipeline` owns orchestration
+- `resolve` decides which stages are active, skipped, blocked, and next
+- `compile` builds one stage payload from pipeline context plus stage schema
+- `generate packet` stays separate from pipeline work
+- `doctor` stays the recovery surface
 
 This avoids two bad outcomes:
 
-- overloading `setup` before the real onboarding flow exists
-- adding a migration-only top-level command that would need to be deleted later
+- overloading `generate` so it means both canonical rebuild work and packet generation
+- overloading `setup` so it means both first-time truth establishment and everyday incremental pipeline work
+- hiding route-computation logic inside `compile` instead of making it explicit and inspectable
 
 Legacy proof surface:
 
@@ -237,61 +243,129 @@ Must prove:
 
 - Rust can load a planning pipeline definition
 - Rust can select a deterministic stage order
-- Rust can evaluate stage activation
+- Rust can evaluate stage activation and compute one authoritative resolved route
 - Rust can persist and reuse the small routing state needed for multi-step planning flows
+- Rust can update routing state explicitly in M1 without pulling full output materialization forward
 - the chosen test corpus uses realistic canonical docs, not toy placeholder text
 
 Minimum acceptable wedge:
 
 - one foundation-style flow with `needs_project_context`-style branching
 - canonical docs are assumed to be pre-populated before the flow starts
+- the command family and schema behavior must remain pipeline-generic even though the first proof corpus is intentionally foundation-family only
 
 Implementation checklist:
 
-1. Define the Rust data model for pipeline loading.
+1. Define the Rust ownership boundary for M1.
+   - `crates/compiler` owns pipeline models, route resolution, activation evaluation, and persisted pipeline state.
+   - CLI command handlers stay thin adapters for argument parsing and rendering.
+2. Define the Rust data model for pipeline loading.
    - Support the current two-document YAML shape used by the pipeline files.
    - Preserve defaults plus ordered `stages`.
    - Preserve stage-local `sets` and `activation`.
-2. Reproduce pipeline path resolution.
+3. Reproduce pipeline path resolution.
    - Default to the root pipeline when no override is provided.
    - Allow relative pipeline paths rooted at the repo root.
    - Allow absolute pipeline paths.
-3. Reproduce deterministic stage selection.
-   - `list`-style enumeration in declared order.
-   - `--until`-style partial selection in declared order.
-   - single-stage selection without disturbing canonical ordering rules.
-4. Reproduce activation evaluation.
+4. Define the M1 `pipeline` command family.
+   - Declarative inspection commands:
+     - `pipeline list` reads pipeline metadata only.
+     - `pipeline show --id <pipeline>` shows declared pipeline configuration only.
+   - Route computation command:
+     - `pipeline resolve --id <pipeline>` computes and prints the authoritative resolved route.
+   - Stage payload compilation command:
+     - `pipeline compile --id <pipeline> --stage <stage-id>` compiles one resolved stage payload.
+   - Mutation commands:
+     - `pipeline state set --id <pipeline> --var key=value` updates derived pipeline-run state.
+   - Do not make `compile` implicitly choose a stage in the canonical form.
+   - Canonical file ids remain the source of truth (for example `pipeline.foundation_inputs` and `stage.07_foundation_pack`).
+   - CLI shorthand may strip the `pipeline.` or `stage.` prefix only when the shorthand is unambiguous.
+   - If shorthand lookup is ambiguous, output must say that overlapping ids were found, list the conflicting canonical ids, and tell the operator to use the full canonical id or rename the conflicting ids.
+5. Reproduce deterministic stage selection and route computation.
+   - `resolve` decides, not just displays.
+   - Declared stage order stays stable.
+   - Active, skipped, blocked, and next stage status must be explicit in the resolved result.
+6. Reproduce activation evaluation.
    - Support `activation.when.any` and `activation.when.all`.
    - Support the current literal comparisons the Python harness uses:
      - booleans
      - quoted strings
      - numbers
    - Preserve the foundation and foundation-inputs branching behavior for `needs_project_context` and `charter_gaps_detected`.
-5. Reproduce planning state persistence.
-   - Maintain a small state file equivalent to `artifacts/_harness_state.yaml`.
-   - Persist the minimal routing variables required for multi-stage re-entry.
+7. Reproduce planning state persistence under the Rust storage model.
+   - Persist derived pipeline-run state under `.system/state/pipeline/<pipeline-id>.yaml`.
+   - Treat this as derived orchestration state, not canonical project truth.
+   - Keep the file narrow with an explicit top-level shape:
+     - `routing`: branch variables such as `needs_project_context` and `charter_gaps_detected`
+     - `refs`: convenience refs to prior outputs such as `charter_ref` and `project_context_ref`
+     - `run`: run parameters such as `runner`, `profile`, `repo_root`, and any stage-family identifiers required for path substitution
+   - Do not store compiled payloads, resolved-route snapshots, copied canonical artifact contents, or other duplicated derived views in this file.
    - Do not widen this into a new general state machine.
-6. Reproduce post-capture routing updates.
-   - Setting `needs_project_context` from capture-time flow decisions.
-   - Preserving references like charter or project-context pointers only if they are required by the Rust planning path.
-   - Keep this narrow and evidence-driven.
-7. Define the Rust CLI proof surface for M1.
-   - There must be a visible way to show the loaded pipeline, selected stages, activation result, and saved routing state.
-   - Do not force users to inspect debug internals just to prove routing behavior.
-   - The proof surface should live under `inspect`, not under a temporary migration verb.
-8. Define the Rust generation surface for the foundation-family path.
-   - The generation surface should live under `generate`, not `setup`.
-   - It should be able to target the base/charter/project-context/foundation family without implying that the onboarding chat is already implemented.
+8. Define the explicit M1 state-update surface.
+   - M1 cannot rely on full output materialization yet.
+   - Add a narrow explicit command such as `pipeline state set --id <pipeline> --var key=value`.
+   - This command exists so persisted routing-state proofs are real product behavior, not test-only fixture setup.
+9. Define the stage compilation contract.
+   - Pipeline YAML remains the source of truth for orchestration commands.
+   - Pipeline-entry truth is limited to orchestration fields such as `id`, `file`, `sets`, `activation`, and control-flow.
+   - Stage front matter remains the source of truth for stage compilation fields like `includes`, `inputs`, `outputs`, `gating`, `work_level`, and `tags`.
+   - Any duplicated `inputs` or `outputs` in pipeline YAML are treated as legacy hints or removed over time. They must not outrank stage front matter.
+   - Pipeline-entry `activation` is the source of truth for orchestration and route selection.
+   - Stage-front-matter `activation` is legacy metadata unless and until a later plan removes it entirely.
+   - `pipeline resolve` and any downstream route computation must use pipeline-entry `activation`, not stage-front-matter `activation`.
+   - If both pipeline YAML and stage front matter define `activation` for the same stage, they must match exactly during the parity period.
+   - Conformance must fail if duplicated `activation` blocks drift.
+   - New stages added for the Rust-first path should define `activation` in pipeline YAML only unless there is a documented legacy-compatibility reason to duplicate it.
+   - `compile` consumes the resolved pipeline result plus one stage definition. It does not compile the entire pipeline in one shot.
+   - `compile` outputs only the stage-executable payload:
+     - resolved `includes`
+     - resolved library, artifact, and variable inputs
+     - the declared outputs contract
+     - gating metadata needed by the stage
+   - `compile` must not persist writes, update pipeline state, cache resolved-route snapshots, or copy canonical artifact contents into a second source of truth.
+10. Record the validation rail that parity work must add after M1 command shape is stable.
+   - Validation must reject duplicate or conflicting canonical ids within the same namespace.
+   - Validation must reject duplicate stage ids within a single pipeline.
+   - Validation must fail if shorthand id normalization would create ambiguous command lookup without an explicit conflict report.
+   - Validation must fail if duplicated `activation` blocks drift between pipeline YAML and stage front matter during the parity period.
+   - The repo does not have this validator yet. Record it now so the requirement is not lost.
+11. Record the required documentation realignment for the new command family.
+   - The current CLI vocabulary and hierarchy docs were written for reduced-v1 packet-only behavior.
+   - They must be revised before or alongside landing the `pipeline` family so docs do not become a competing product contract.
+   - At minimum, parity work must update:
+     - `docs/CLI_PRODUCT_VOCABULARY.md`
+     - `docs/CLI_COMMAND_HIERARCHY.md`
+     - `DESIGN.md`
+     - `README.md`
+     - `docs/START_HERE.md`
+   - Until those files are revised, treat their packet-only `generate` language as historical reduced-v1 guidance rather than the final CLI contract for parity work.
+12. Record the required test rail for the new command family.
+   - Add a dedicated CLI integration suite for the `pipeline` family instead of folding these cases into the existing packet-only CLI tests.
+   - Add compiler-core tests for resolved-route truth, activation branching, shorthand ambiguity handling, explicit `--stage`, and state persistence semantics.
+   - Add explicit negative-path tests for:
+     - unique shorthand success
+     - ambiguous shorthand refusal that lists the conflicting canonical ids
+     - duplicate stage ids within one pipeline
+     - activation-drift validation failure once the validator lands
+   - The `pipeline` family is public product contract. Manual verification alone is not sufficient for M1 completion.
+13. Record the M1 performance boundary for pipeline parsing.
+   - Reuse parsed pipeline config, parsed stage front matter, and loaded pipeline state in memory within a single command invocation.
+   - This is tightly scoped per-invocation reuse only.
+   - Do not add persisted caches, cross-command caches, or cached resolved-route/compiled-stage artifacts in M1.
+   - If later profiling shows repeated process-start parsing is a real bottleneck, address that in a later milestone rather than smuggling broader caching into M1.
 
 Proof commands for M1 completion:
 
-- load and inspect the default foundation pipeline
-- load and inspect `pipelines/foundation_inputs.yaml`
-- show ordered stages for `foundation` and `foundation_inputs`
-- run a dry routing pass where `needs_project_context=false` and confirm stage 06 is skipped
-- run a dry routing pass where `needs_project_context=true` and confirm stage 06 is included
-- run a dry routing pass for `foundation_inputs` where `charter_gaps_detected=true` and confirm stage 06 is included
-- persist routing state, re-run the same selection, and confirm the same route is chosen without manual re-entry
+- list available pipelines
+- show the declared config for the default root pipeline
+- show the declared config for `pipelines/foundation_inputs.yaml`
+- resolve `foundation` with `needs_project_context=false` and confirm stage 06 is skipped
+- resolve `foundation` with `needs_project_context=true` and confirm stage 06 is included
+- resolve `foundation_inputs` with `charter_gaps_detected=true` and confirm stage 06 is included
+- persist routing state under `.system/state/pipeline/<pipeline-id>.yaml`, re-run resolve, and confirm the same route is chosen without manual re-entry
+- compile `stage.07_foundation_pack` from `foundation_inputs` with an explicit `--stage` and confirm the compiled payload reflects resolved pipeline context plus stage-front-matter inputs
+- prove ambiguous shorthand id handling by showing a conflict message that lists the overlapping canonical ids and instructs the operator to use the full canonical id
+- run dedicated `pipeline` CLI and compiler tests that cover route resolution, activation branching, shorthand ambiguity, explicit `--stage`, and pipeline-state persistence
 
 Exit criteria:
 
@@ -299,16 +373,19 @@ Exit criteria:
 - stage order is byte-for-byte deterministic for the chosen foundation proof outputs
 - the two foundation-family branches behave the same way they do in Python
 - routing state survives enough to continue a multi-step planning flow
+- the resolved-route result is one shared truth consumed by both `resolve` output and `compile`
+- `compile` is stage-explicit in the canonical path and does not silently choose a stage
 - the proof corpus uses realistic pre-populated canonical docs rather than toy fixtures
+- dedicated `pipeline` CLI and compiler tests cover route resolution, activation branching, shorthand ambiguity, explicit `--stage`, and pipeline-state persistence
 
 Non-goals inside M1:
 
-- no prompt compilation yet, other than whatever minimal shape is required to prove stage selection
+- no full pipeline-wide compilation in one shot
 - no artifact writing yet
 - no onboarding chat flow
 - no downstream seam-skill integration yet
 - no release or sprint pipeline parity work yet
-- no new top-level CLI verb for parity work
+- no collapsing derived pipeline-run state into canonical `.system` artifact truth
 
 ### M2. Compilation Parity
 
@@ -443,3 +520,16 @@ Parity is only real when all of the following are true for the chosen first flow
 - do not widen into all downstream seam skills
 
 Stay on the parity path until the operator pain is materially reduced.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 31 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+
+**UNRESOLVED:** 0
+
+**VERDICT:** ENG CLEARED — ready to implement.
