@@ -98,6 +98,18 @@
 **Priority:** P2
 **Depends on:** Stable `pipeline` family, stable validation rules, compiler-owned typed identity layer
 
+### Activation Evaluator Expansion
+
+**What:** Expand the `pipeline` activation evaluator beyond the narrow `M1` subset when real pipeline maturity requires it.
+
+**Why:** `M1` intentionally supports only `when.any`, `when.all`, and variable-path equality against booleans, strings, and numbers. That keeps the first wedge boring and auditable, but future pipelines may eventually need a broader activation language.
+
+**Context:** The eng review locked `M1` to the smallest typed activation subset that covers the current foundation-family proof corpus. Anything broader was treated as accidental complexity for the first wedge. Revisit this only when real pipeline definitions, repeated refusals, or operator pain show that the narrow evaluator is blocking useful workflows, and expand it with explicit schema/tests rather than ad hoc compatibility hacks.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable `pipeline` route core, stable `M1` proof corpus, evidence that real pipeline usage needs broader activation semantics
+
 ### Structured Run Provenance
 
 **What:** Add structured run provenance for `pipeline resolve`, `pipeline compile`, and `pipeline state set`.
