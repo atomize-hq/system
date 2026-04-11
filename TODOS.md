@@ -74,6 +74,42 @@
 **Priority:** P1
 **Depends on:** Stable install smoke, release artifact naming, version tag convention
 
+### Operator Outcome Scoreboard
+
+**What:** Add an operator-outcome scoreboard for the pipeline/compiler wedge.
+
+**Why:** The product goal is reduced operator work, not just parser correctness. The team should be able to measure whether the Rust spine actually removes manual steps, repeated inputs, and oversized downstream grounding.
+
+**Context:** The CEO review intentionally kept this out of `M1` so the first wedge can ship on hard compiler, contract, and proof-corpus gates. Once the first wedge is stable, the next useful step is a small scoreboard that measures human outcomes instead of only technical behavior. Good candidate metrics are manual steps removed, repeated routing/context inputs removed, and grounding size reduction for downstream planning consumers.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable foundation-family wedge, locked proof corpus, repeatable command flows
+
+### Pipeline Validate Surface
+
+**What:** Add a first-class `system pipeline validate --id <pipeline>` preflight surface.
+
+**Why:** Operators should be able to check duplicate ids, shorthand ambiguity, activation drift, and schema issues before they hit a real `resolve` or `compile` refusal in the middle of work.
+
+**Context:** The CEO review required immediate activation-drift enforcement and strict validation behavior, but deferred the operator-facing validation command so the first wedge can stay focused on route truth and stage compilation. This follow-on should package the existing validation rules into one boring preflight command once the core `pipeline` family is stable.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable `pipeline` family, stable validation rules, compiler-owned typed identity layer
+
+### Structured Run Provenance
+
+**What:** Add structured run provenance for `pipeline resolve`, `pipeline compile`, and `pipeline state set`.
+
+**Why:** When a route changes, a compile refuses, or a state mutation causes confusion, the product should provide enough structured provenance to reconstruct what happened without guesswork.
+
+**Context:** The CEO review accepted the need for structured run provenance but deferred it out of `M1`. Mutation audit history remains required for `pipeline state set` now. This follow-on extends that observability posture across command runs so failures can be classified by route truth, compile payload, schema/validation, or proof rendering instead of leaving the operator to reconstruct history from raw terminal output.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable `pipeline` command family, stable refusal classes, stable proof corpus and failure classification
+
 ## CLI Product Interaction Design
 
 ### Chosen Interaction Direction (2026-04-08)

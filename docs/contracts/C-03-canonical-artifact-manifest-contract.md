@@ -46,12 +46,24 @@ The canonical input set MUST be exactly:
 
 No other file path is a direct canonical input under this contract.
 
+### Runtime zones under `.system/`
+
+This contract allows explicitly non-canonical runtime zones under `.system/`, provided they are documented as runtime-only and never treated as canonical inputs.
+
+Reduced-v1 runtime-zone rule:
+
+- `.system/state/**` is a runtime zone, not a canonical artifact zone.
+- Runtime-zone contents MAY support orchestration or proof, but MUST NOT be treated as project-truth inputs under this contract.
+- Future additions under `.system/` MUST declare whether they are canonical artifact zones or runtime zones.
+
 ### Canonical-truth rule (no derived inputs)
 
 - Repo-local `.system/` inputs are authoritative.
+- Runtime-zone contents under `.system/` are not authoritative unless a later contract revision explicitly moves them into the canonical input set.
 - Derived views MUST NOT be treated as runtime inputs, including (non-exhaustive):
   - `README.md`, `PLAN.md`, `docs/README.md`
   - any renderer output (`inspect`, markdown, JSON) or generated artifacts under `dist/` or `artifacts/`
+  - runtime-zone files such as `.system/state/**`
   - any prompt packs, stage outputs, or other derived documentation
 
 Downstream seams MAY reference derived views for operator guidance, but MUST NOT read them as canonical packet inputs.

@@ -12,7 +12,10 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/feature_spec/FEATURE_SPEC.md`
   - Optional:
     - `.system/project_context/PROJECT_CONTEXT.md`
+  - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
+- **The reviewed command surface adds `pipeline`** for route resolution, explicit stage compilation, and narrow route-state mutation.
+  - Until the `pipeline` family lands in code/help/docs/tests together, treat it as the next reviewed supported surface, not as already shipped behavior.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.

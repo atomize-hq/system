@@ -36,6 +36,10 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `generate`
   - The packet-generation surface.
   - Use when the operator wants the minimum correct planning packet from trusted inputs.
+- `pipeline`
+  - The orchestration surface.
+  - Use when the operator needs route truth, explicit stage compilation, or narrow route-state mutation.
+  - Do not describe this as a generic workflow framework unless the product contract actually expands that far.
 - `inspect`
   - The proof surface.
   - Use when the operator wants to verify why a packet looks the way it does.
@@ -48,6 +52,9 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `canonical artifacts`
   - The preferred term for the trusted repo-local `.system/` files the system reads as project truth.
   - In reduced v1, this is the primary noun for the files themselves.
+- `runtime zone`
+  - The preferred term for non-canonical derived state kept under `.system/`.
+  - Runtime zones are not canonical inputs and must never be described as project truth.
 - `canonical inputs`
   - Not a separate concept from `canonical artifacts`.
   - Use only when the sentence is specifically about packet generation reading those artifacts as inputs.
@@ -91,6 +98,7 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 ### Prefer
 
 - `setup`, not generic startup wording
+- `pipeline`, not generic framework wording, when naming route/compile control-plane work
 - `generate`, not compile/build/render when describing packet creation
 - `inspect`, not explain/debug when naming the proof command
 - `doctor`, not health repair or troubleshoot when naming the recovery command
@@ -107,6 +115,7 @@ Do not use these terms as the primary operator-facing language for the supported
 - `init`
 - `initialize`
 - `hydrate`
+- `workflow engine` as the primary product label for the supported wedge
 - `health repair`
 - `warning` when the command is actually blocked
 - `issue` when the command is actually blocked and the product means `refusal` or `blocker`
@@ -122,7 +131,7 @@ These words may still appear in:
 
 ### Docs and help text
 
-- Use the same verb ordering everywhere: `setup`, `generate`, `inspect`, `doctor`.
+- Use the same surface ordering everywhere: `setup`, `pipeline`, `generate`, `inspect`, `doctor` once `pipeline` lands.
 - Present reduced v1 as a trust product, not a generic scaffold.
 - Keep the supported path and the legacy reference path clearly separated.
 

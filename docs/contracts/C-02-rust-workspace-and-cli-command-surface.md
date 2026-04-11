@@ -45,10 +45,13 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 
 ### CLI verbs and help posture
 
-- The supported reduced-v1 verb surface MUST include only `setup`, `generate`, `inspect`, and `doctor`.
-- Help text MUST present the verbs in setup-first order: `setup`, then `generate`, then `inspect`, then `doctor`.
-- Help text MUST make clear that `setup` is still a placeholder entrypoint, packet generation comes after setup, `inspect` is the proof surface, and `doctor` is the recovery surface.
-- Help text and command-surface copy MUST match the shipped reduced-v1 boundary without underclaiming or overclaiming support.
+- The reviewed reduced-v1 command surface consists of `setup`, `pipeline`, `generate`, `inspect`, and `doctor`.
+- The currently shipped binary MAY temporarily expose only `setup`, `generate`, `inspect`, and `doctor` until the `pipeline` family lands.
+- When the `pipeline` family lands, code, help text, docs, contracts, tests, and proof-corpus gates MUST land together before `pipeline` is treated as a supported surface.
+- Help text MUST present the surfaces in setup-first order: `setup`, then `pipeline`, then `generate`, then `inspect`, then `doctor`.
+- Help text MUST make clear that `setup` is still a placeholder entrypoint, `pipeline` is the orchestration surface, `generate` is the packet surface, `inspect` is the proof surface, and `doctor` is the recovery surface.
+- Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.
+- `pipeline` MUST own route resolution, explicit stage compilation, and narrow pipeline-run state mutation for the supported wedge.
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery surface for blockers and next safe actions.
@@ -79,8 +82,9 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `Cargo.toml` defines a root workspace with `crates/cli` and `crates/compiler` as members.
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
 - [ ] `crates/compiler` owns shared types and compiler-core logic.
-- [ ] `--help` shows `setup`, `generate`, `inspect`, and `doctor` in setup-first order.
-- [ ] Help text matches the supported reduced-v1 command story and keeps `setup` explicitly placeholder-only.
+- [ ] `--help` shows the currently shipped supported surface in setup-first order and adds `pipeline` in the reviewed order once that family lands.
+- [ ] Help text matches the supported reduced-v1 command story, keeps `setup` explicitly placeholder-only, and documents `pipeline` as the orchestration surface once shipped.
+- [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the proof surface.
 - [ ] `doctor` is documented as the recovery surface.

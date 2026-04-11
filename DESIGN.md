@@ -73,7 +73,7 @@ The common patterns worth keeping are:
 - explicit boundaries around unsupported behavior
 - recovery that feels finite rather than mysterious
 
-The deliberate product choice for this repo is to keep the four-command surface small and make the handoffs between those commands feel intentional.
+The deliberate product choice for this repo is to keep the command surface small and make the handoffs between those commands feel intentional.
 
 Do not expand the command set just to paper over weak transitions.
 
@@ -81,7 +81,7 @@ Do not expand the command set just to paper over weak transitions.
 
 Safe choices, these are category-baseline expectations:
 
-- keep the four command roles stable: `setup`, `generate`, `inspect`, `doctor`
+- keep the top-level trust roles stable: `setup`, `pipeline`, `generate`, `inspect`, `doctor`
 - keep the trust-header model as the primary orientation pattern
 - keep narrow-terminal readability and explicit labels ahead of decorative output
 
@@ -124,6 +124,7 @@ The guided experience may be LLM-assisted, partially automated, or fully CLI-own
 The durable command names stay:
 
 - `setup`
+- `pipeline`
 - `generate`
 - `inspect`
 - `doctor`
@@ -176,6 +177,24 @@ Finished interaction target:
 - keep the trust header compact
 - keep the packet body as the main event
 - do not add decorative framing that delays useful output
+
+### `pipeline`
+
+Role:
+
+- orchestration surface
+- own route resolution, explicit stage compilation, and narrow pipeline-run state mutation
+
+Design rule:
+
+- `pipeline` is not a generic workflow engine brand
+- it exists to make route truth and stage compilation explicit and auditable
+
+Finished interaction target:
+
+- `pipeline resolve` and `pipeline compile` stay separate jobs with one shared typed route truth
+- `pipeline state set` stays schema-bound, auditable, and narrow
+- `pipeline` should feel like compiler control-plane tooling, not a second front door
 
 ### `inspect`
 
@@ -237,6 +256,7 @@ Experience layer:
 Command layer:
 
 - `setup`
+- `pipeline`
 - `generate`
 - `inspect`
 - `doctor`
@@ -253,10 +273,12 @@ The canonical product vocabulary lives in [`docs/CLI_PRODUCT_VOCABULARY.md`](doc
 The highest-value vocabulary rules are:
 
 - use `canonical artifacts` as the primary noun for trusted repo-local `.system/` files
+- use `runtime zone` for non-canonical derived state under `.system/`
 - use `canonical inputs` only when the sentence is explicitly about packet generation reading those artifacts as inputs
 - use `refusal` for blocked command outcomes
 - use `next safe action` for the repair handoff line
 - do not rename `setup` to `bootstrap`, `init`, `hydrate`, or `onboard`
+- do not describe `pipeline` as a generic framework when the product meaning is route truth plus explicit stage compilation
 
 ## Hierarchy And Routing Contract
 

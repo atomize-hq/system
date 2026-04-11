@@ -10,19 +10,26 @@ This document depends on [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULA
 
 ## Core Model
 
-The reduced-v1 CLI product has four operator-facing surfaces, in this order:
+The reviewed reduced-v1 CLI product has five operator-facing surfaces, in this order:
 
 1. `setup` / `setup refresh`
-2. `generate`
-3. `inspect`
-4. `doctor`
+2. `pipeline`
+3. `generate`
+4. `inspect`
+5. `doctor`
 
 That ordering is not arbitrary.
 
 - `setup` / `setup refresh` establishes or refreshes trusted project truth.
+- `pipeline` owns orchestration truth, route resolution, explicit stage compilation, and narrow route-state mutation.
 - `generate` is the default ready-path command once trusted truth exists.
 - `inspect` is the proof surface when the operator needs to verify why a packet looks the way it does.
 - `doctor` is the recovery and readiness surface when the operator needs blocker aggregation, repair guidance, or a readiness check.
+
+Current implementation note:
+
+- the currently shipped binary still exposes `setup`, `generate`, `inspect`, and `doctor`
+- the reviewed product surface adds `pipeline`, which becomes supported only when its code, help text, docs, contracts, tests, and proof-corpus gates all land together
 
 ## Front Door Rule
 
@@ -74,6 +81,16 @@ Use `generate` when:
 
 `generate` is the default ready-path command.
 
+### `pipeline`
+
+Use `pipeline` when:
+
+- the operator needs the authoritative route for a pipeline
+- the operator wants to compile one explicitly selected stage payload
+- the operator needs to set narrow route-state variables inside the declared schema
+
+`pipeline` is not the front door. It is the orchestration surface after trusted project truth already exists.
+
 ### `inspect`
 
 Use `inspect` when:
@@ -102,6 +119,7 @@ Use `doctor` when:
 |------------|-----------------|-----------------------|-----|
 | No canonical `.system/` artifacts yet | Establish trusted project truth | Guided setup / `setup` | The repo is not ready for packet generation |
 | Canonical artifacts exist but posture is stale or needs deliberate refresh | Re-establish trusted project truth | Guided setup refresh / `setup refresh` | The job is posture refresh, not packet generation |
+| Canonical artifacts exist and the operator needs route truth or stage compilation | Work the planning compiler control plane | `pipeline` | The operator is resolving or compiling explicit pipeline stages |
 | Canonical artifacts are ready | Get the packet | `generate` | This is the default steady-state path |
 | Canonical artifacts are ready | Prove or audit the packet basis | `inspect` | The operator wants proof |
 | Canonical artifacts are missing, malformed, contradictory, or otherwise unclear | Diagnose and recover cleanly | `doctor` | The operator needs the full blocker report |
@@ -110,6 +128,7 @@ Use `doctor` when:
 ### Practical routing rules
 
 - If the operator is trying to establish truth, route to `setup` or `setup refresh`.
+- If the operator is trying to resolve a route or compile an explicit stage, route to `pipeline`.
 - If the operator is trying to get work done from an already-prepared repo, route to `generate`.
 - If the operator is asking “why did this happen?” route to `inspect`.
 - If the operator is asking “what is wrong and what do I fix first?” route to `doctor`.
@@ -119,6 +138,7 @@ Use `doctor` when:
 The next safe action should reinforce the hierarchy rather than compete with it.
 
 - Use setup-oriented next actions when canonical truth is missing or must be re-established.
+- Use `pipeline resolve` when the operator needs route truth before a stage-specific compile.
 - Use `doctor` when deeper diagnosis or blocker aggregation is needed.
 - Use `inspect` after a ready `generate` result when the operator needs proof.
 - Use `system generate --packet planning.packet` as the fallback from unsupported live execution requests.
@@ -155,6 +175,7 @@ The experience layer can evolve from LLM-guided to partially automated to fully 
 Downstream docs and help text should follow these rules:
 
 - Present `setup` first, but do not imply that every steady-state user starts there every time.
+- Present `pipeline` as the orchestration surface once canonical truth exists.
 - Present `generate` as the normal repeat-use path for ready repos.
 - Present `inspect` as proof, not a second packet generator.
 - Present `doctor` as recovery/readiness, not a second setup command and not a rival to `generate`.

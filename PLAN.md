@@ -13,7 +13,7 @@ That archived plan explains why the current Rust CLI looks the way it does. It i
 
 ## Active Objective
 
-Make the Rust version recover the useful planning-generation behavior the legacy Python harness already had.
+Build the Rust-first planning compiler spine for foundation-family workflows, using legacy material as reference evidence where it is useful, without carrying migration baggage into the active product story.
 
 This repo remains exclusively the generator/compiler layer for a larger agent workflow stack.
 
@@ -30,7 +30,7 @@ The first job is:
 - stop inconsistent planning outputs
 - stop operator babysitting loops
 
-by making Rust do the useful planning-generation work that Python currently still does.
+by making Rust own the useful planning-generation work directly.
 
 ## Problem Statement
 
@@ -56,10 +56,11 @@ But it does not yet recover the planning-generation capabilities that actually r
 
 ### In scope
 
-- Rust parity for the useful legacy planning-generation behavior
+- a Rust-first `pipeline` command family for route resolution, explicit stage compilation, and narrow pipeline-run state management
 - Rust planning-generation from already-populated canonical project documents
-- parity inventory tied to concrete proof files and commands
-- the minimum end-to-end planning-generation flow that removes the most manual babysitting
+- a capability ledger tied to concrete proof files and commands
+- the minimum end-to-end foundation-family flow that removes the most manual babysitting
+- a locked proof corpus with named golden outputs for `pipeline resolve` and `pipeline compile`
 - stable outputs that downstream planning and execution consumers can reuse
 - preserving the trust-heavy CLI posture already defined in [DESIGN.md](DESIGN.md)
 
@@ -73,7 +74,7 @@ But it does not yet recover the planning-generation capabilities that actually r
 - live slice lineage and live execution packet generation
 - broad architecture cleanup that does not reduce operator pain
 
-Those can come back only after Rust parity proves it can replace the legacy planning path for real work.
+Those can come back only after the Rust pipeline spine proves it materially reduces operator work on real foundation-family flows.
 
 ## Operator And Wedge
 
@@ -94,9 +95,9 @@ Current failure mode:
 - brain-dead copy/paste and wait loops
 - reduced parallel project capacity because the human must keep stitching context back together
 
-## Assumed Inputs For Parity
+## Assumed Inputs For The First Wedge
 
-Parity starts after the front-door onboarding work has already happened.
+The first wedge starts after the front-door onboarding work has already happened.
 
 For this plan, assume the canonical project documents already exist and are rich enough to be useful:
 
@@ -107,7 +108,7 @@ For this plan, assume the canonical project documents already exist and are rich
 
 The onboarding flow that chats with an AI agent and populates those documents is a real part of the eventual product, but it is not the first implementation target in this plan.
 
-The parity question for this phase is narrower:
+The question for this phase is narrower:
 
 - given realistic canonical inputs that already exist, can Rust generate useful planning artifacts and reusable grounding without manual context shuttling?
 
@@ -118,16 +119,16 @@ These rules are active for every later session that touches this plan:
 1. Do not widen the repo objective beyond the generator/compiler layer.
 2. Do not treat the archived reduced-v1 plan as the active north star.
 3. Do not delete useful historical evidence just to simplify the story.
-4. Do not call parity "done" by feature count alone. Measure it by removed operator pain.
-5. Do not rebuild all legacy behavior blindly. Recover only the behavior that materially removes repeated grounding and manual shuttling.
-6. Do not block parity on final canonical storage debates if a compatibility path can prove the workflow sooner.
+4. Do not call the wedge "done" by feature count alone. Measure it by removed operator pain.
+5. Do not rebuild all legacy behavior blindly. Borrow only the behavior that materially removes repeated grounding and manual shuttling.
+6. Do not block the wedge on final canonical storage debates if the canonical versus runtime split is explicit in contracts and docs.
 7. Keep the existing downstream planning skills as consumers of compiler outputs unless and until a separate plan changes that.
-8. Do not treat the onboarding/intake flow as a prerequisite for proving planning-generation parity.
-9. Do not use toy one-paragraph fixtures as parity evidence. Use realistic demo project artifacts that look like actual project truth.
+8. Do not treat the onboarding/intake flow as a prerequisite for proving the first planning-generation wedge.
+9. Do not use toy one-paragraph fixtures as proof. Use realistic demo project artifacts that look like actual project truth.
 
-## Sources Of Truth For Parity
+## Reference Inputs And Current Sources Of Truth
 
-Legacy behavior proof lives in:
+Reference material that informs the wedge lives in:
 
 - [tools/harness.py](tools/harness.py)
 - [docs/legacy/HARNESS.md](docs/legacy/HARNESS.md)
@@ -153,11 +154,11 @@ Fixture and demo-corpus evidence should come from:
 - realistic archived planning artifacts under [archived/legacy-generated-artifacts/](archived/legacy-generated-artifacts/)
 - real-world-looking demo packs and charters that use the established templates and document shapes
 
-If an archived artifact is too thin to prove usefulness, treat it as shape reference only, not as parity proof.
+If an archived artifact is too thin to prove usefulness, treat it as shape reference only, not as proof.
 
-## Parity Ledger
+## Capability Ledger
 
-The table below is the active parity inventory. It is intentionally behavior-first, not architecture-first.
+The table below is the active capability inventory. It is intentionally behavior-first, not architecture-first.
 
 | ID | Legacy behavior to recover | Proof | Current pain when missing in Rust | Priority | Target milestone |
 | --- | --- | --- | --- | --- | --- |
@@ -171,8 +172,8 @@ The table below is the active parity inventory. It is intentionally behavior-fir
 | PL-08 | Writing artifact outputs plus canonical repo-file outputs when declared | `tools/harness.py`, `docs/legacy/SYSTEM_MODEL.md` | The compiler cannot become the real planning authority if it cannot materialize the planning artifacts and canonical docs | P0 | M3 |
 | PL-09 | Minimum useful end-to-end foundation planning flow, not just isolated packet generation | `pipelines/foundation_inputs.yaml`, `pipelines/foundation.yaml`, `core/stages/00_base.md`, `core/stages/04_charter_inputs.md`, `core/stages/05_charter_interview.md`, `core/stages/05_charter_synthesize.md`, `core/stages/06_project_context_interview.md`, `core/stages/07_foundation_pack.md` | The operator still falls back to manual planning chains because Rust only covers one narrow packet wedge | P0 | M4 |
 | PL-10 | Reusable compiler-owned grounding for downstream planning consumers | current downstream skill workflow plus compiled outputs from PL-01 through PL-09 | Seam extraction and execution still repeat repo grounding because Rust outputs are not yet the thing downstream workflows trust | P0 | M5 |
-| PL-11 | Legacy compatibility cleanup and cutover boundaries | `README.md`, `docs/START_HERE.md`, archive plan, legacy docs | Later sessions drift back into "Python is still fine for now" instead of finishing replacement | P1 | M6 |
-| PL-12 | Realistic demo corpus quality for parity proof | archived artifacts, established templates, demo project docs with substantial content | Thin one- or two-sentence fixtures can make compilation appear to work while proving nothing about usefulness | P0 | M1-M4 |
+| PL-11 | Product-contract cleanup and historical-reference boundaries | `README.md`, `docs/START_HERE.md`, archive plan, legacy docs | Later sessions drift into split product stories or treat historical reference files like active product contracts | P1 | M6 |
+| PL-12 | Realistic demo corpus quality for proof | archived artifacts, established templates, demo project docs with substantial content | Thin one- or two-sentence fixtures can make compilation appear to work while proving nothing about usefulness | P0 | M1-M4 |
 
 ## Ordered Milestones
 
@@ -184,16 +185,16 @@ Status: complete
 - make this file the only active root plan
 - stop later sessions from following the wrong source of truth
 
-### M1. Pipeline And Routing Parity
+### M1. Pipeline And Routing Spine
 
 Goal:
 
-- recover compiler ownership of planning path selection and conditional routing
+- establish compiler ownership of planning path selection and conditional routing
 
 Command-shape decision:
 
 - keep the existing top-level verb surface for packet work and recovery
-- add a first-class `pipeline` noun family for legacy-parity orchestration work
+- add a first-class `pipeline` noun family as a supported product surface
 - `pipeline list` discovers available pipelines
 - `pipeline show --id <pipeline>` shows the declared pipeline config
 - `pipeline resolve --id <pipeline>` is the authoritative compute step for route selection
@@ -215,7 +216,7 @@ This avoids two bad outcomes:
 - overloading `setup` so it means both first-time truth establishment and everyday incremental pipeline work
 - hiding route-computation logic inside `compile` instead of making it explicit and inspectable
 
-Legacy proof surface:
+Reference surface:
 
 - [tools/harness.py](tools/harness.py)
   - `resolve_pipeline_path(...)`
@@ -263,10 +264,10 @@ Implementation checklist:
    - Support the current two-document YAML shape used by the pipeline files.
    - Preserve defaults plus ordered `stages`.
    - Preserve stage-local `sets` and `activation`.
-3. Reproduce pipeline path resolution.
+3. Reproduce pipeline path resolution inside the approved repo surface.
    - Default to the root pipeline when no override is provided.
    - Allow relative pipeline paths rooted at the repo root.
-   - Allow absolute pipeline paths.
+   - Refuse out-of-root absolute paths, symlink escapes, or stage-file resolution outside the approved repo surface.
 4. Define the M1 `pipeline` command family.
    - Declarative inspection commands:
      - `pipeline list` reads pipeline metadata only.
@@ -281,6 +282,7 @@ Implementation checklist:
    - Canonical file ids remain the source of truth (for example `pipeline.foundation_inputs` and `stage.07_foundation_pack`).
    - CLI shorthand may strip the `pipeline.` or `stage.` prefix only when the shorthand is unambiguous.
    - If shorthand lookup is ambiguous, output must say that overlapping ids were found, list the conflicting canonical ids, and tell the operator to use the full canonical id or rename the conflicting ids.
+   - `pipeline` is a supported surface once the contract, docs, help, tests, and proof-corpus gates pass. Do not ship it as a vague or partially documented shadow command family.
 5. Reproduce deterministic stage selection and route computation.
    - `resolve` decides, not just displays.
    - Declared stage order stays stable.
@@ -295,6 +297,9 @@ Implementation checklist:
 7. Reproduce planning state persistence under the Rust storage model.
    - Persist derived pipeline-run state under `.system/state/pipeline/<pipeline-id>.yaml`.
    - Treat this as derived orchestration state, not canonical project truth.
+   - Update contracts and product vocabulary so `.system/` is governed as two explicit zones:
+     - canonical artifact zones
+     - non-canonical runtime zones
    - Keep the file narrow with an explicit top-level shape:
      - `routing`: branch variables such as `needs_project_context` and `charter_gaps_detected`
      - `refs`: convenience refs to prior outputs such as `charter_ref` and `project_context_ref`
@@ -304,6 +309,9 @@ Implementation checklist:
 8. Define the explicit M1 state-update surface.
    - M1 cannot rely on full output materialization yet.
    - Add a narrow explicit command such as `pipeline state set --id <pipeline> --var key=value`.
+   - Restrict writes to a declared schema of allowed keys and typed values. Unknown keys must refuse.
+   - Append an inspectable audit record for each route-relevant mutation.
+   - Use atomic writes plus conflict detection or serialized mutation semantics. Do not allow silent last-write-wins ambiguity.
    - This command exists so persisted routing-state proofs are real product behavior, not test-only fixture setup.
 9. Define the stage compilation contract.
    - Pipeline YAML remains the source of truth for orchestration commands.
@@ -313,46 +321,70 @@ Implementation checklist:
    - Pipeline-entry `activation` is the source of truth for orchestration and route selection.
    - Stage-front-matter `activation` is legacy metadata unless and until a later plan removes it entirely.
    - `pipeline resolve` and any downstream route computation must use pipeline-entry `activation`, not stage-front-matter `activation`.
-   - If both pipeline YAML and stage front matter define `activation` for the same stage, they must match exactly during the parity period.
-   - Conformance must fail if duplicated `activation` blocks drift.
+   - If both pipeline YAML and stage front matter define `activation` for the same stage, they must match exactly during the current wedge.
+   - Conformance must fail immediately in M1 if duplicated `activation` blocks drift.
    - New stages added for the Rust-first path should define `activation` in pipeline YAML only unless there is a documented legacy-compatibility reason to duplicate it.
    - `compile` consumes the resolved pipeline result plus one stage definition. It does not compile the entire pipeline in one shot.
+   - `compile` must verify that the resolved-route basis is still fresh against pipeline, stage, profile, runner, and route-state inputs. If the basis drifted, refuse and tell the operator to re-run `pipeline resolve`.
+   - If the requested stage exists but is inactive in the current resolved route, `compile` must refuse explicitly, show that the stage is real but inactive, and identify the current routing condition blocking it.
    - `compile` outputs only the stage-executable payload:
      - resolved `includes`
      - resolved library, artifact, and variable inputs
      - the declared outputs contract
      - gating metadata needed by the stage
+   - Required compile inputs are all-or-nothing. Missing, empty, malformed, or out-of-scope required inputs must refuse instead of producing partial payloads.
    - `compile` must not persist writes, update pipeline state, cache resolved-route snapshots, or copy canonical artifact contents into a second source of truth.
-10. Record the validation rail that parity work must add after M1 command shape is stable.
+10. Record the validation rail that this wedge must add after M1 command shape is stable.
    - Validation must reject duplicate or conflicting canonical ids within the same namespace.
    - Validation must reject duplicate stage ids within a single pipeline.
    - Validation must fail if shorthand id normalization would create ambiguous command lookup without an explicit conflict report.
-   - Validation must fail if duplicated `activation` blocks drift between pipeline YAML and stage front matter during the parity period.
-   - The repo does not have this validator yet. Record it now so the requirement is not lost.
+   - Validation must fail if duplicated `activation` blocks drift between pipeline YAML and stage front matter during the current wedge.
+   - Activation-drift enforcement is required in M1. A first-class `pipeline validate` operator surface is deferred to [TODOS.md](TODOS.md).
 11. Record the required documentation realignment for the new command family.
    - The current CLI vocabulary and hierarchy docs were written for reduced-v1 packet-only behavior.
    - They must be revised before or alongside landing the `pipeline` family so docs do not become a competing product contract.
-   - At minimum, parity work must update:
+   - At minimum, this wedge must update:
      - `docs/CLI_PRODUCT_VOCABULARY.md`
      - `docs/CLI_COMMAND_HIERARCHY.md`
      - `DESIGN.md`
-     - `README.md`
-     - `docs/START_HERE.md`
-   - Until those files are revised, treat their packet-only `generate` language as historical reduced-v1 guidance rather than the final CLI contract for parity work.
+     - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
+     - `docs/contracts/C-03-canonical-artifact-manifest-contract.md`
+      - `README.md`
+      - `docs/START_HERE.md`
+   - Until those files are revised, treat their packet-only `generate` language as historical reduced-v1 guidance rather than the final CLI contract for the `pipeline` spine.
 12. Record the required test rail for the new command family.
+   - Add a full command-by-command test matrix for `pipeline list`, `show`, `resolve`, `compile`, and `state set`, covering happy path, refusal path, edge cases, and stateful rerun behavior.
    - Add a dedicated CLI integration suite for the `pipeline` family instead of folding these cases into the existing packet-only CLI tests.
-   - Add compiler-core tests for resolved-route truth, activation branching, shorthand ambiguity handling, explicit `--stage`, and state persistence semantics.
+   - Add compiler-core tests for resolved-route truth, activation branching, shorthand ambiguity handling, explicit `--stage`, schema handling, route-basis freshness, and state persistence semantics.
    - Add explicit negative-path tests for:
+     - unknown canonical ids
      - unique shorthand success
      - ambiguous shorthand refusal that lists the conflicting canonical ids
      - duplicate stage ids within one pipeline
-     - activation-drift validation failure once the validator lands
+     - activation-drift validation failure
+     - malformed persisted state refusal
+     - inactive stage refusal
+   - Add dedicated state-mutation tests for atomic write behavior, conflict refusal, audit-record append semantics, and read-after-write route consistency.
+   - Lock a named proof corpus with golden outputs for `pipeline resolve` and `pipeline compile`.
+   - Every golden update must include an explicit reason and the affected contract surface.
    - The `pipeline` family is public product contract. Manual verification alone is not sufficient for M1 completion.
 13. Record the M1 performance boundary for pipeline parsing.
    - Reuse parsed pipeline config, parsed stage front matter, and loaded pipeline state in memory within a single command invocation.
    - This is tightly scoped per-invocation reuse only.
    - Do not add persisted caches, cross-command caches, or cached resolved-route/compiled-stage artifacts in M1.
+   - Add simple latency expectations for the proof corpus and treat repeated growth in parse steps or corpus costs as a regression to investigate.
+   - Keep default `resolve` and `compile` proof surfaces compact and auditable. Dense evidence should move into explicit deeper views or structured artifacts, not inflate the default command output.
    - If later profiling shows repeated process-start parsing is a real bottleneck, address that in a later milestone rather than smuggling broader caching into M1.
+14. Record the security and operability rules for the wedge.
+   - Profile and runner selection must resolve from declared allowlisted ids inside the approved repo surface.
+   - Proof output must surface the exact profile and runner inputs used to shape compilation.
+   - Unknown canonical ids and ambiguous shorthand ids must remain distinct refusal classes with distinct user-facing recovery guidance.
+   - Malformed or semantically invalid persisted state must refuse explicitly. Do not auto-delete, auto-heal, or silently ignore it.
+   - Structured run provenance for `resolve`, `compile`, and `state set` is deferred to [TODOS.md](TODOS.md), but the plan should preserve the requirement shape.
+15. Keep the product-story boundary honest.
+   - The command family and typed core are generic.
+   - The first supported proof corpus and schema coverage remain foundation-family narrow until later milestones expand them.
+   - Future compiler work is justified by reduced operator work and more trustworthy downstream artifacts, not by generic workflow-engine flexibility.
 
 Proof commands for M1 completion:
 
@@ -365,18 +397,21 @@ Proof commands for M1 completion:
 - persist routing state under `.system/state/pipeline/<pipeline-id>.yaml`, re-run resolve, and confirm the same route is chosen without manual re-entry
 - compile `stage.07_foundation_pack` from `foundation_inputs` with an explicit `--stage` and confirm the compiled payload reflects resolved pipeline context plus stage-front-matter inputs
 - prove ambiguous shorthand id handling by showing a conflict message that lists the overlapping canonical ids and instructs the operator to use the full canonical id
-- run dedicated `pipeline` CLI and compiler tests that cover route resolution, activation branching, shorthand ambiguity, explicit `--stage`, and pipeline-state persistence
+- prove malformed persisted state refusal, inactive stage refusal, and stale-route-basis refusal
+- run dedicated `pipeline` CLI and compiler tests that cover route resolution, activation branching, shorthand ambiguity, explicit `--stage`, pipeline-state persistence, and state mutation semantics
 
 Exit criteria:
 
 - the two foundation-family pipeline files can be parsed by Rust
 - stage order is byte-for-byte deterministic for the chosen foundation proof outputs
-- the two foundation-family branches behave the same way they do in Python
+- the two foundation-family branches behave the way the locked proof corpus says they should
 - routing state survives enough to continue a multi-step planning flow
 - the resolved-route result is one shared truth consumed by both `resolve` output and `compile`
 - `compile` is stage-explicit in the canonical path and does not silently choose a stage
+- `.system/` canonical versus runtime zones are documented explicitly
 - the proof corpus uses realistic pre-populated canonical docs rather than toy fixtures
-- dedicated `pipeline` CLI and compiler tests cover route resolution, activation branching, shorthand ambiguity, explicit `--stage`, and pipeline-state persistence
+- dedicated `pipeline` CLI and compiler tests cover route resolution, activation branching, shorthand ambiguity, explicit `--stage`, stale-basis refusal, malformed-state refusal, inactive-stage refusal, and pipeline-state persistence
+- docs, contracts, help, tests, and proof-corpus gates are all green in the same release, and `pipeline` is shipped as a supported surface rather than an undocumented experiment
 
 Non-goals inside M1:
 
@@ -384,10 +419,10 @@ Non-goals inside M1:
 - no artifact writing yet
 - no onboarding chat flow
 - no downstream seam-skill integration yet
-- no release or sprint pipeline parity work yet
+- no release or sprint pipeline coverage yet
 - no collapsing derived pipeline-run state into canonical `.system` artifact truth
 
-### M2. Compilation Parity
+### M2. Compilation Capability
 
 Goal:
 
@@ -404,7 +439,7 @@ Minimum acceptable wedge:
 
 - one compiled stage that matches the useful content classes the Python harness currently assembles
 
-### M3. Output Materialization Parity
+### M3. Output Materialization Capability
 
 Goal:
 
@@ -421,7 +456,7 @@ Minimum acceptable wedge:
 
 - one multi-file planning stage plus one canonical repo-file mirror
 
-### M4. End-to-End Planning Flow Parity
+### M4. End-to-End Foundation Flow
 
 Goal:
 
@@ -454,23 +489,23 @@ Must prove:
 - output size and structure reduce token bloat instead of amplifying it
 - provenance and freshness are explicit enough that downstream consumers know what they can trust
 
-This is where parity starts paying back the operator tax for real.
+This is where the wedge starts paying back the operator tax for real.
 
-### M6. Cutover And Cleanup
+### M6. Historical Reference Cleanup And Coverage Expansion
 
 Goal:
 
-- make Rust the real planning-generation authority and reduce Python to historical reference
+- keep the Rust product story coherent while expanding coverage and keeping historical reference material clearly non-authoritative
 
 Must prove:
 
-- the chosen parity flow is fully replaced in practice
-- docs and entrypoints no longer push users back to the legacy harness for that flow
-- the remaining legacy surface is explicitly historical or still-needed-only, not vaguely half-supported
+- the chosen foundation-family flow is fully supported through the Rust surface
+- docs and entrypoints describe one coherent Rust-first product story
+- the remaining historical reference surface is explicitly non-authoritative, not vaguely half-supported
 
 ## What Already Exists And Must Be Preserved
 
-The Rust baseline already bought some useful product decisions. Do not throw these away while chasing parity:
+The Rust baseline already bought some useful product decisions. Do not throw these away while chasing the pipeline spine:
 
 - trust-heavy CLI posture
 - small stable verb surface
@@ -479,23 +514,41 @@ The Rust baseline already bought some useful product decisions. Do not throw the
 - `doctor` as recovery surface
 - progressive disclosure as a product principle
 
-Parity work should absorb and extend these, not bulldoze them.
+This work should absorb and extend these, not bulldoze them.
+
+## CEO Review Addendum (2026-04-11)
+
+These decisions were locked during `/plan-ceo-review` and are now part of the active plan:
+
+- `pipeline` is a supported surface once the code, contracts, docs, help, tests, and proof-corpus gates pass. Do not ship it as an experimental or shadow surface.
+- `resolve` and `compile` stay separate jobs, but they must share one typed resolved-route truth.
+- `.system/` must be governed as canonical artifact zones plus explicit non-canonical runtime zones.
+- `pipeline state set` is schema-bound, audited, atomic, and conflict-aware.
+- Unknown ids, ambiguous shorthand, malformed state, stale route basis, and inactive stages are all distinct refusal classes.
+- Required compile inputs are all-or-nothing.
+- The implementation should stay in a small number of boring modules with compiler-owned semantics and one shared typed identity layer.
+- The proof corpus is mandatory and golden changes require an explicit reason and affected contract surface.
+- Latency and output-size discipline are part of the wedge, not post-ship cleanup.
+- Future work is justified by reduced operator work and more trustworthy downstream artifacts, not by generic YAML workflow-engine flexibility.
 
 ## Deferred Work
 
-These items are explicitly deferred behind parity:
+These items are explicitly deferred behind the first wedge:
 
 - thin MCP/UI companion from [TODOS.md](TODOS.md)
 - review/fix packet family from [TODOS.md](TODOS.md)
 - live slice lineage and live execution packets from [TODOS.md](TODOS.md)
 - public CLI distribution from [TODOS.md](TODOS.md)
 - CLI release workflow from [TODOS.md](TODOS.md)
+- operator-outcome scoreboard from [TODOS.md](TODOS.md)
+- `pipeline validate` preflight surface from [TODOS.md](TODOS.md)
+- structured run provenance for `resolve`, `compile`, and `state set` from [TODOS.md](TODOS.md)
 
-If a session proposes one of these before parity proves replacement value, the answer should usually be "not yet."
+If a session proposes one of these before the first wedge proves replacement value, the answer should usually be "not yet."
 
 ## Success Criteria
 
-Parity is only real when all of the following are true for the chosen first flow:
+The first wedge is only real when all of the following are true for the chosen flow:
 
 1. the operator does not repeat the same repo research at multiple planning stages
 2. the operator does not manually shuttle context between compiler-owned steps
@@ -506,10 +559,11 @@ Parity is only real when all of the following are true for the chosen first flow
 
 ## Immediate Next Work
 
-1. Turn the parity ledger above into a concrete implementation checklist with proof commands and target test coverage.
-2. Pick the first end-to-end planning flow to replace.
-3. Define the acceptance test for "Rust now does the useful thing Python did" in operator terms, not internal architecture terms.
-4. Start M1 only after the chosen first flow and acceptance checks are written down.
+1. Turn the capability ledger above into a concrete implementation checklist with proof commands and target test coverage.
+2. Write the full error/rescue registry, data-flow diagrams, and test matrix into the active plan artifact.
+3. Pick the first end-to-end foundation-family flow to support.
+4. Define the acceptance test in operator terms, not internal architecture terms.
+5. Start M1 only after the chosen first flow and acceptance checks are written down.
 
 ## Explicit Non-Goals For The Next Session
 
@@ -519,17 +573,17 @@ Parity is only real when all of the following are true for the chosen first flow
 - do not add UI wrappers
 - do not widen into all downstream seam skills
 
-Stay on the parity path until the operator pain is materially reduced.
+Stay on the wedge until the operator pain is materially reduced.
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 4 proposals, 1 accepted, 2 deferred |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 31 issues, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
 **UNRESOLVED:** 0
 
-**VERDICT:** ENG CLEARED — ready to implement.
+**VERDICT:** CEO + ENG CLEARED — ready to implement.
