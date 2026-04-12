@@ -1,19 +1,14 @@
 # Pack Closeout - M1 Pipeline And Routing Spine
 
 - **Remaining open seams**:
-  - `SEAM-1`
-  - `SEAM-2`
-  - `SEAM-3`
-  - `SEAM-4`
+  - none (all seams executed; `SEAM-4` closeout is recorded)
 - **Open remediations still blocking pack closeout**:
-  - none recorded yet; post-review findings should be added to `governance/remediation-log.md`
+  - none
 - **Threads still not closed**:
-  - `THR-01`
-  - `THR-02`
-  - `THR-03`
-  - `THR-04`
+  - none inside this pack (final publication recorded in `threading.md`)
 - **Downstream stale triggers still requiring attention**:
-  - all seam-local stale triggers remain provisional until the active seam publishes route/state truth and downstream seams revalidate against it
+  - future milestone packs must revalidate if proof-corpus shape, refusal classes, docs/help parity claims, or the M1 performance/security boundary change
 - **Evidence summary**:
-  - this pack is extracted only; no seam has landed yet
-  - `M1` still requires seam-local review, contract publication, proof corpus, and docs/help realignment before the `pipeline` family can be treated as a supported surface
+  - all required seams are closed and the pack is marked closed in `scope_brief.md`
+  - the canonical `C-11` contract is published at `docs/contracts/pipeline-proof-corpus-and-docs-cutover.md`
+  - conformance evidence is recorded in `governance/seam-4-closeout.md` and backed by compiler and CLI route/proof/doc-alignment suites

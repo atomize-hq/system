@@ -1,6 +1,6 @@
 ---
 seam_id: SEAM-4
-status: landed
+status: closed
 closeout_version: v1
 seam_exit_gate:
   source_ref: artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-4-validation-rails-proof-corpus-and-docs-realignment/slice-99-seam-exit-gate.md

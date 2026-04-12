@@ -1,10 +1,10 @@
 ---
 pack_id: m1-pipeline-and-routing-spine
 pack_version: v1
-pack_status: extracted
+pack_status: closed
 source_ref: PLAN.md#M1-pipeline-and-routing-spine
 execution_horizon:
-  active_seam: SEAM-4
+  active_seam: null
   next_seam: null
 ---
 

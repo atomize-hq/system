@@ -2,10 +2,10 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-4`
+- Active seam: none
 - Next seam: none
 - Future seams: none
-- Landed seams outside forward window: `SEAM-1`, `SEAM-2`, `SEAM-3`
+- Landed seams outside forward window: `SEAM-1`, `SEAM-2`, `SEAM-3`, `SEAM-4`
 - Default policy: only the active seam receives authoritative deep planning by default; there is no queued next seam in this pack; future seams remain seam briefs.
 
 ## Contract registry
@@ -87,9 +87,9 @@
   - **Consumer seam(s)**: future `M2`, `M3`, and `M4` seam packs
   - **Carried contract IDs**: `C-11`
   - **Purpose**: Publish the proof-corpus, docs/help, and conformance expectations that make the M1 `pipeline` surface safe to reuse and extend.
-  - **State**: `identified`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to shared proof fixtures, goldens, supported docs/help claims, mandatory test matrix, or the M1 performance/security posture.
-  - **Satisfied by**: `SEAM-4` closeout records passing conformance evidence, published contract updates, and the downstream stale triggers that later milestone packs must honor.
+  - **Satisfied by**: `artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-4-closeout.md` recording passing conformance evidence, the published `C-11` contract, and downstream stale triggers for later milestone packs.
   - **Notes**: This thread closes the M1 pack and becomes part of the basis for later milestone promotion.
 
 ## Dependency graph
