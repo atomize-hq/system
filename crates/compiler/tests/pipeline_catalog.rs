@@ -132,6 +132,8 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     assert!(pipeline_render.contains("core/stages/04_charter_inputs.md"));
     assert!(pipeline_render
         .contains("  5. stage.07_foundation_pack | core/stages/07_foundation_pack.md"));
+    assert!(pipeline_render.contains("DEFAULTS:"));
+    assert!(pipeline_render.contains("STAGES:"));
 
     let stage = catalog
         .resolve_selector("stage.07_foundation_pack")
@@ -146,6 +148,9 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     assert!(stage_render.contains("SOURCE: core/stages/07_foundation_pack.md"));
     assert!(stage_render.contains("pipeline.foundation"));
     assert!(stage_render.contains("pipeline.foundation_inputs"));
+    assert!(stage_render.contains("PIPELINES:"));
+    assert!(!stage_render.contains("DEFAULTS:"));
+    assert!(!stage_render.contains("STAGES:"));
 
     let list = render_pipeline_list(&catalog);
     assert!(list.contains("PIPELINE INVENTORY"));

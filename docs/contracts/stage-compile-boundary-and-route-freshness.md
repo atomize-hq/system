@@ -94,15 +94,19 @@ This contract defines the compile boundary between published `pipeline` route tr
 
 ### Activation equivalence
 
-- When activation appears in both pipeline YAML and stage front matter during the transition, the two representations MUST remain semantically equivalent.
-- If activation values drift, compile MUST refuse rather than guessing which representation is authoritative.
+- Activation equivalence is only a transition rule for the case where both surfaces explicitly carry activation metadata.
+- Pipeline YAML remains the route declaration source for activation.
+- If a stage-front-matter copy of activation exists during the transition, it MUST match the pipeline YAML activation exactly enough that compile cannot observe a semantic drift between the two copies.
+- If the stage-front-matter copy is absent, compile MUST use the pipeline YAML activation only and MUST NOT require or synthesize a second activation source.
+- If both copies exist but do not agree, compile MUST refuse rather than guessing which representation is authoritative.
 - Compile MUST NOT silently normalize activation drift away.
 - This contract does not define a new activation grammar; it only defines the transition rule that keeps the duplicated activation surfaces aligned.
 
 ### Stage-payload handoff
 
 - Later compile work MUST be able to consume one explicit stage-payload handoff boundary from this contract.
-- The handoff MUST describe the expected boundary between route truth, stage metadata, and compile output without over-specifying future payload field names.
+- The handoff boundary is: resolved route truth, selected stage identity and metadata, and the selected stage file payload.
+- The handoff MUST describe that boundary without over-specifying future payload field names, materialization steps, or file-write behavior.
 - The handoff MUST remain compatible with future M2 implementation detail changes as long as the source-of-truth split and refusal posture stay intact.
 
 ### M1 help/docs posture
