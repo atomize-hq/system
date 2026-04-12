@@ -10,6 +10,16 @@ pub struct PipelineDefinition {
     pub body: PipelineBody,
 }
 
+impl PipelineDefinition {
+    /// Returns the declared stage list in source order.
+    ///
+    /// Downstream routing code should consume this typed slice instead of
+    /// reparsing the pipeline YAML or inferring order from the filesystem.
+    pub fn declared_stages(&self) -> &[PipelineStage] {
+        &self.body.stages
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineHeader {

@@ -80,16 +80,42 @@ fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
 }
 
 #[test]
-fn schema_compatible_release_and_sprint_pipelines_smoke_load() {
+fn declared_stage_order_is_preserved_for_core_pipelines() {
     let repo_root = repo_root();
 
-    for pipeline_path in ["pipelines/release.yaml", "pipelines/sprint.yaml"] {
+    let cases = [
+        (
+            "pipelines/foundation_inputs.yaml",
+            vec![
+                "stage.00_base",
+                "stage.04_charter_inputs",
+                "stage.05_charter_synthesize",
+                "stage.06_project_context_interview",
+                "stage.07_foundation_pack",
+            ],
+        ),
+        (
+            "pipelines/release.yaml",
+            vec!["stage.00_base", "stage.01_release_plan"],
+        ),
+        (
+            "pipelines/sprint.yaml",
+            vec!["stage.00_base", "stage.02_sprint_plan"],
+        ),
+    ];
+
+    for (pipeline_path, expected_stage_ids) in cases {
         let definition =
             load_pipeline_definition(&repo_root, pipeline_path).expect("schema-compatible load");
         assert_eq!(definition.header.kind, "pipeline", "path={pipeline_path}");
-        assert!(
-            !definition.body.stages.is_empty(),
-            "expected stages for {pipeline_path}"
+        assert_eq!(
+            definition
+                .declared_stages()
+                .iter()
+                .map(|stage| stage.id.as_str())
+                .collect::<Vec<_>>(),
+            expected_stage_ids,
+            "path={pipeline_path}"
         );
     }
 }
