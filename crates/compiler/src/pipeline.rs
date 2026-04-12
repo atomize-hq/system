@@ -115,7 +115,19 @@ pub enum PipelineValidationError {
         stage_id: String,
         index: usize,
     },
-    StageFileOutsideRepoRoot {
+    StageFileOutsideApprovedSurface {
+        stage_id: String,
+        file: String,
+    },
+    StageFileMissing {
+        stage_id: String,
+        file: String,
+    },
+    StageFileNotRegularFile {
+        stage_id: String,
+        file: String,
+    },
+    StageFileSymlinkNotAllowed {
         stage_id: String,
         file: String,
     },
@@ -325,9 +337,21 @@ impl fmt::Display for PipelineValidationError {
                 f,
                 "stage `{stage_id}` has an empty `sets` entry at index {index}"
             ),
-            PipelineValidationError::StageFileOutsideRepoRoot { stage_id, file } => write!(
+            PipelineValidationError::StageFileOutsideApprovedSurface { stage_id, file } => write!(
                 f,
-                "stage `{stage_id}` file `{file}` resolves outside the repo root"
+                "stage `{stage_id}` file `{file}` must reference a repo-owned markdown stage under `core/stages/`"
+            ),
+            PipelineValidationError::StageFileMissing { stage_id, file } => write!(
+                f,
+                "stage `{stage_id}` file `{file}` does not exist"
+            ),
+            PipelineValidationError::StageFileNotRegularFile { stage_id, file } => write!(
+                f,
+                "stage `{stage_id}` file `{file}` must reference an existing regular file"
+            ),
+            PipelineValidationError::StageFileSymlinkNotAllowed { stage_id, file } => write!(
+                f,
+                "stage `{stage_id}` file `{file}` must not use symlinks in its path"
             ),
             PipelineValidationError::InvalidActivation { stage_id, reason } => {
                 write!(f, "stage `{stage_id}` has invalid activation: {reason}")
@@ -445,21 +469,64 @@ fn validate_stage_file(
     stage: &PipelineStage,
 ) -> Result<(), PipelineLoadError> {
     let file_path = Path::new(&stage.file);
-    if validate_repo_relative_path(file_path).is_err() {
+    if validate_repo_relative_path(file_path).is_err() || !is_approved_stage_file_path(file_path) {
         return Err(PipelineLoadError::Validation {
             path: path.to_path_buf(),
-            error: PipelineValidationError::StageFileOutsideRepoRoot {
+            error: PipelineValidationError::StageFileOutsideApprovedSurface {
                 stage_id: stage.id.clone(),
                 file: stage.file.clone(),
             },
         });
     }
 
-    let resolved = repo_root.join(file_path);
-    if !resolved.starts_with(repo_root) {
+    let mut current_path = repo_root.to_path_buf();
+    for component in file_path.components() {
+        current_path.push(component);
+        let meta = match std::fs::symlink_metadata(&current_path) {
+            Ok(meta) => meta,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                return Err(PipelineLoadError::Validation {
+                    path: path.to_path_buf(),
+                    error: PipelineValidationError::StageFileMissing {
+                        stage_id: stage.id.clone(),
+                        file: stage.file.clone(),
+                    },
+                });
+            }
+            Err(_) => {
+                return Err(PipelineLoadError::Validation {
+                    path: path.to_path_buf(),
+                    error: PipelineValidationError::StageFileNotRegularFile {
+                        stage_id: stage.id.clone(),
+                        file: stage.file.clone(),
+                    },
+                });
+            }
+        };
+
+        if meta.file_type().is_symlink() {
+            return Err(PipelineLoadError::Validation {
+                path: path.to_path_buf(),
+                error: PipelineValidationError::StageFileSymlinkNotAllowed {
+                    stage_id: stage.id.clone(),
+                    file: stage.file.clone(),
+                },
+            });
+        }
+    }
+
+    let meta =
+        std::fs::symlink_metadata(&current_path).map_err(|_| PipelineLoadError::Validation {
+            path: path.to_path_buf(),
+            error: PipelineValidationError::StageFileNotRegularFile {
+                stage_id: stage.id.clone(),
+                file: stage.file.clone(),
+            },
+        })?;
+    if !meta.is_file() {
         return Err(PipelineLoadError::Validation {
             path: path.to_path_buf(),
-            error: PipelineValidationError::StageFileOutsideRepoRoot {
+            error: PipelineValidationError::StageFileNotRegularFile {
                 stage_id: stage.id.clone(),
                 file: stage.file.clone(),
             },
@@ -504,6 +571,11 @@ fn validate_repo_relative_path(path: &Path) -> Result<&Path, &'static str> {
     }
 
     Ok(path)
+}
+
+fn is_approved_stage_file_path(path: &Path) -> bool {
+    path.starts_with(Path::new("core/stages"))
+        && path.extension().and_then(|ext| ext.to_str()) == Some("md")
 }
 
 fn parse_activation_clause(input: String) -> Result<ActivationClause, String> {
