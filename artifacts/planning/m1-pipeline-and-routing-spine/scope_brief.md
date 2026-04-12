@@ -4,8 +4,8 @@ pack_version: v1
 pack_status: extracted
 source_ref: PLAN.md#M1-pipeline-and-routing-spine
 execution_horizon:
-  active_seam: SEAM-3
-  next_seam: SEAM-4
+  active_seam: SEAM-4
+  next_seam: null
 ---
 
 # Scope Brief - M1 Pipeline And Routing Spine

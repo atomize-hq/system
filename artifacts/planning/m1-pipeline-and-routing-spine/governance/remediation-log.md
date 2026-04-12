@@ -37,6 +37,31 @@ Rules:
 ## Resolved remediations
 
 ```yaml
+remediation_id: REM-002
+origin_phase: pre_exec
+source_gate: contract
+related_seam: SEAM-4
+related_slice: S00
+related_thread: null
+related_contract: C-11
+related_artifact: artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-4-validation-rails-proof-corpus-and-docs-realignment/slice-00-c-11-pipeline-proof-corpus-and-docs-cutover-contract.md
+severity: blocking
+status: resolved
+owner_seam: SEAM-4
+blocked_targets:
+  - seam: SEAM-4
+    field: status
+    value: exec-ready
+summary: The owned conformance contract baseline for C-11 is concrete in seam-local planning, so SEAM-4 may become exec-ready without waiting for final publication.
+required_fix: |
+  Keep the owner contract baseline, execution checklist, and verification surfaces concrete in seam-local planning, then land the canonical contract at `docs/contracts/pipeline-proof-corpus-and-docs-cutover.md` during seam execution and capture publication in seam exit and closeout evidence.
+resolution_evidence:
+  - artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-4-validation-rails-proof-corpus-and-docs-realignment/seam.md
+  - artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-4-validation-rails-proof-corpus-and-docs-realignment/review.md
+  - artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-4-validation-rails-proof-corpus-and-docs-realignment/slice-00-c-11-pipeline-proof-corpus-and-docs-cutover-contract.md
+```
+
+```yaml
 remediation_id: REM-001
 origin_phase: pre_exec
 source_gate: contract

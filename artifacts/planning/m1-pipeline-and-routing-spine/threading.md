@@ -2,11 +2,11 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-3`
-- Next seam: `SEAM-4`
+- Active seam: `SEAM-4`
+- Next seam: none
 - Future seams: none
-- Landed seams outside forward window: `SEAM-1`, `SEAM-2`
-- Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
+- Landed seams outside forward window: `SEAM-1`, `SEAM-2`, `SEAM-3`
+- Default policy: only the active seam receives authoritative deep planning by default; there is no queued next seam in this pack; future seams remain seam briefs.
 
 ## Contract registry
 
@@ -60,7 +60,7 @@
   - **State**: `published`
   - **Revalidation trigger**: Any change to supported activation syntax, deterministic route ordering, state schema, mutation locking/revision semantics, or the canonical-vs-runtime `.system/` boundary.
   - **Satisfied by**: `SEAM-1` closeout records landed route/state contracts, typed proof outputs, state-file evidence, and a passed seam-exit record for `C-08`.
-  - **Notes**: `SEAM-2` is now the active consumer planning window and must preserve the published route/state truth without redefining it in CLI-only terms.
+  - **Notes**: `SEAM-2` is now a landed consumer seam and must preserve the published route/state truth without redefining it in CLI-only terms.
 
 - **Thread ID**: `THR-02`
   - **Producer seam**: `SEAM-2`
@@ -70,7 +70,7 @@
   - **State**: `published`
   - **Revalidation trigger**: Any change to supported `pipeline` subcommands, canonical-id/shorthand behavior, ambiguity refusal copy, or help-surface exposure rules.
   - **Satisfied by**: `SEAM-2` closeout records landed CLI command handlers, help evidence, canonical-id lookup behavior, and published operator-surface contract updates.
-  - **Notes**: `SEAM-3` is now the active consumer planning window and may treat the operator surface as published upstream truth.
+  - **Notes**: `SEAM-3` is now a landed consumer seam and may treat the operator surface as published upstream truth.
 
 - **Thread ID**: `THR-03`
   - **Producer seam**: `SEAM-3`
@@ -108,7 +108,7 @@ flowchart LR
 
 - `SEAM-1` published `C-08` before the operator surface claimed `pipeline` as supported.
 - `SEAM-2` published `C-09`, so the compile-boundary seam may now consume stable operator-surface truth.
-- `SEAM-3` is now the active seam and should define the compile handoff before `SEAM-4` finalizes docs/help copy that references compile as deferred.
+- `SEAM-3` is now landed with the compile handoff contract, and `SEAM-4` can harden the shipped surface against that published truth.
 - `SEAM-4` closes the pack by binding proof corpus, tests, docs, and performance/security posture to the published upstream contracts.
 
 ## Workstreams

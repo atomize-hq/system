@@ -2,14 +2,17 @@
 seam_id: SEAM-4
 seam_slug: validation-rails-proof-corpus-and-docs-realignment
 type: conformance
-status: proposed
-execution_horizon: next
+status: exec-ready
+execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
-  upstream_closeouts: []
+  upstream_closeouts:
+    - SEAM-1
+    - SEAM-2
+    - SEAM-3
   required_threads:
     - THR-01
     - THR-02
@@ -20,9 +23,9 @@ basis:
     - Any change to `SEAM-3` compile defer boundary requires revalidation of docs and proof surfaces that describe compile as future work.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
@@ -100,9 +103,10 @@ open_remediations: []
   - fail fast on drift in help text, proof outputs, refusal classes, or malformed-state behavior
   - keep performance expectations explicit and narrow rather than smuggling caches into M1
 - **Downstream decomposition context**:
-  - This seam is `next` because it can now plan against the published operator-surface truth while waiting on the active compile-boundary seam to publish `C-10`.
+  - This seam is active because it can now plan against the published operator-surface truth and the landed compile-boundary handoff.
   - `THR-04` is the closeout thread that carries the shared proof and docs/help posture into later milestone packs.
   - The first seam-local review should focus on proof-corpus realism, whether every check maps to a published contract, and whether the docs/help cutover removes competing packet-only product claims.
+  - The owned `C-11` contract baseline is concrete in seam-local planning; final publication belongs to landing, seam exit, and closeout evidence.
 - **Expected seam-exit concerns**:
   - Contracts likely to publish:
     - `C-11`
