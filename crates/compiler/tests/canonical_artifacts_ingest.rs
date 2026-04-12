@@ -11,6 +11,85 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 }
 
 #[test]
+fn runtime_only_state_does_not_establish_system_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        b"pipeline_id: pipeline.foundation_inputs\n",
+    );
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Missing);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert_eq!(
+        artifacts.feature_spec.identity.presence,
+        ArtifactPresence::Missing
+    );
+}
+
+#[test]
+fn charter_namespace_directory_establishes_partial_canonical_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("mkdirs");
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert_eq!(
+        artifacts.feature_spec.identity.presence,
+        ArtifactPresence::Missing
+    );
+}
+
+#[test]
+fn project_context_namespace_directory_establishes_partial_canonical_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/project_context")).expect("mkdirs");
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert_eq!(
+        artifacts.feature_spec.identity.presence,
+        ArtifactPresence::Missing
+    );
+}
+
+#[test]
+fn feature_spec_namespace_directory_establishes_partial_canonical_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("mkdirs");
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert_eq!(
+        artifacts.feature_spec.identity.presence,
+        ArtifactPresence::Missing
+    );
+}
+
+#[test]
 fn required_artifact_missing_is_reported_as_presence_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
