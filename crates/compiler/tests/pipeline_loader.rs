@@ -623,3 +623,281 @@ stages:
         other => panic!("expected non-regular-stage refusal, got {other:?}"),
     }
 }
+
+#[test]
+fn activation_all_operator_parses_multiple_boolean_clauses() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/all-activation.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.all_activation
+version: 0.1.0
+title: "All Activation"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    activation:
+      when:
+        all:
+          - variables.needs_project_context == true
+          - variables.charter_gaps_detected == false
+"#,
+    );
+
+    let definition =
+        load_pipeline_definition(repo_root, "pipelines/all-activation.yaml").expect("load");
+
+    let activation = definition.body.stages[0]
+        .activation
+        .as_ref()
+        .expect("activation");
+    assert_eq!(activation.when.operator, ActivationOperator::All);
+    assert_eq!(activation.when.clauses.len(), 2);
+    assert_eq!(activation.when.clauses[0].variable, "needs_project_context");
+    assert!(activation.when.clauses[0].value);
+    assert_eq!(activation.when.clauses[1].variable, "charter_gaps_detected");
+    assert!(!activation.when.clauses[1].value);
+}
+
+#[test]
+fn pipeline_path_must_stay_repo_relative() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    let err = load_pipeline_definition(repo_root, "../pipelines/outside.yaml")
+        .expect_err("pipeline path should be rejected");
+
+    match err {
+        PipelineLoadError::UnsupportedPipelinePath { reason, .. } => {
+            assert_eq!(reason, "path must not escape the repo root");
+        }
+        other => panic!("expected unsupported-pipeline-path refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn missing_pipeline_file_is_reported_as_read_failure() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    let err = load_pipeline_definition(repo_root, "pipelines/missing.yaml")
+        .expect_err("missing pipeline file");
+
+    match err {
+        PipelineLoadError::ReadFailure { path, .. } => {
+            assert_eq!(path, repo_root.join("pipelines/missing.yaml"));
+        }
+        other => panic!("expected read-failure refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn extra_yaml_documents_are_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/extra-doc.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.extra_doc
+version: 0.1.0
+title: "Extra Doc"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+---
+extra: true
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/extra-doc.yaml")
+        .expect_err("third document should be refused");
+
+    match err {
+        PipelineLoadError::WrongDocumentCount { actual, .. } => assert_eq!(actual, 3),
+        other => panic!("expected wrong-document-count refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn empty_stage_list_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_path = repo_root.join("pipelines/empty-stages.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.empty_stages
+version: 0.1.0
+title: "Empty Stages"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages: []
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/empty-stages.yaml")
+        .expect_err("empty stages");
+
+    match err {
+        PipelineLoadError::Validation {
+            error: PipelineValidationError::EmptyStages,
+            ..
+        } => {}
+        other => panic!("expected empty-stages refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn empty_sets_list_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/empty-sets.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.empty_sets
+version: 0.1.0
+title: "Empty Sets"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    sets: []
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/empty-sets.yaml")
+        .expect_err("empty sets");
+
+    match err {
+        PipelineLoadError::Validation {
+            error: PipelineValidationError::EmptySetsList { stage_id },
+            ..
+        } => assert_eq!(stage_id, "stage.00_base"),
+        other => panic!("expected empty-sets refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn blank_set_variable_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/blank-set-variable.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.blank_set_variable
+version: 0.1.0
+title: "Blank Set Variable"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    sets:
+      - "   "
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/blank-set-variable.yaml")
+        .expect_err("blank set variable");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::EmptySetVariable {
+                    stage_id,
+                    index,
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(index, 0);
+        }
+        other => panic!("expected empty-set-variable refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn empty_activation_clause_list_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/empty-activation-list.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.empty_activation_list
+version: 0.1.0
+title: "Empty Activation List"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    activation:
+      when:
+        any: []
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/empty-activation-list.yaml")
+        .expect_err("empty activation list");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidActivation {
+                    stage_id,
+                    reason:
+                        system_compiler::ActivationValidationError::EmptyConditionList {
+                            operator: ActivationOperator::Any,
+                        },
+                },
+            ..
+        } => assert_eq!(stage_id, "stage.00_base"),
+        other => panic!("expected empty-activation-list refusal, got {other:?}"),
+    }
+}
