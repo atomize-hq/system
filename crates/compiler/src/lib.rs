@@ -36,6 +36,7 @@ pub use pipeline::{
     load_pipeline_definition, ActivationClause, ActivationConditionSet, ActivationOperator,
     ActivationValidationError, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
     PipelineLoadError, PipelineStage, PipelineValidationError, StageActivation,
+    StageFileValidationError,
 };
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{

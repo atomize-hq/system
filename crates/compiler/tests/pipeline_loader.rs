@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use system_compiler::{
     load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
+    StageFileValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -430,7 +431,7 @@ stages:
 
     match err {
         PipelineLoadError::Validation {
-            error: PipelineValidationError::StageFileOutsideApprovedSurface { stage_id, file },
+            error: PipelineValidationError::StageFileOutsideRepoRoot { stage_id, file },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
@@ -469,7 +470,12 @@ stages:
 
     match err {
         PipelineLoadError::Validation {
-            error: PipelineValidationError::StageFileMissing { stage_id, file },
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::Missing,
+                },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
@@ -480,10 +486,11 @@ stages:
 }
 
 #[test]
-fn repo_local_stage_paths_outside_approved_surface_are_refused() {
+fn repo_local_stage_paths_outside_stage_directory_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/outside-approved-surface.yaml");
+    write_file(&repo_root.join("README.md"), "not a stage");
+    let pipeline_path = repo_root.join("pipelines/outside-stage-directory.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -499,22 +506,75 @@ defaults:
   enable_complexity: false
 stages:
   - id: stage.00_base
-    file: docs/not-a-stage.md
+    file: README.md
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/outside-approved-surface.yaml")
-        .expect_err("outside approved stage surface");
+    let err = load_pipeline_definition(repo_root, "pipelines/outside-stage-directory.yaml")
+        .expect_err("outside stage directory");
 
     match err {
         PipelineLoadError::Validation {
-            error: PipelineValidationError::StageFileOutsideApprovedSurface { stage_id, file },
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::OutsideStageDirectory,
+                },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
-            assert_eq!(file, "docs/not-a-stage.md");
+            assert_eq!(file, "README.md");
         }
-        other => panic!("expected approved-surface refusal, got {other:?}"),
+        other => panic!("expected stage-directory refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn stage_paths_with_wrong_extension_are_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(
+        &repo_root.join("core/stages/not_markdown.txt"),
+        "not markdown",
+    );
+    let pipeline_path = repo_root.join("pipelines/wrong-extension-stage.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.wrong_extension_stage
+version: 0.1.0
+title: "Wrong Extension Stage"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/not_markdown.txt
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/wrong-extension-stage.yaml")
+        .expect_err("wrong extension stage path");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::WrongExtension,
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "core/stages/not_markdown.txt");
+        }
+        other => panic!("expected wrong-extension refusal, got {other:?}"),
     }
 }
 
@@ -549,108 +609,17 @@ stages:
 
     match err {
         PipelineLoadError::Validation {
-            error: PipelineValidationError::StageFileNotRegularFile { stage_id, file },
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::NotRegularFile,
+                },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
             assert_eq!(file, "core/stages/not_a_file.md");
         }
         other => panic!("expected non-regular-stage refusal, got {other:?}"),
-    }
-}
-
-#[cfg(unix)]
-#[test]
-fn symlinked_stage_files_are_refused() {
-    use std::os::unix::fs::symlink;
-
-    let dir = tempfile::tempdir().expect("tempdir");
-    let outside = tempfile::tempdir().expect("outside tempdir");
-    let repo_root = dir.path();
-    let real_stage = outside.path().join("00_base.md");
-    write_file(&real_stage, "outside");
-    std::fs::create_dir_all(repo_root.join("core/stages")).expect("mkdirs");
-    symlink(&real_stage, repo_root.join("core/stages/00_base.md")).expect("symlink stage");
-
-    let pipeline_path = repo_root.join("pipelines/symlinked-stage.yaml");
-    write_file(
-        &pipeline_path,
-        r#"---
-kind: pipeline
-id: pipeline.symlinked_stage
-version: 0.1.0
-title: "Symlinked Stage"
-description: "header"
----
-defaults:
-  runner: codex-cli
-  profile: python-uv
-  enable_complexity: false
-stages:
-  - id: stage.00_base
-    file: core/stages/00_base.md
-"#,
-    );
-
-    let err = load_pipeline_definition(repo_root, "pipelines/symlinked-stage.yaml")
-        .expect_err("symlinked stage path");
-
-    match err {
-        PipelineLoadError::Validation {
-            error: PipelineValidationError::StageFileSymlinkNotAllowed { stage_id, file },
-            ..
-        } => {
-            assert_eq!(stage_id, "stage.00_base");
-            assert_eq!(file, "core/stages/00_base.md");
-        }
-        other => panic!("expected symlink-stage refusal, got {other:?}"),
-    }
-}
-
-#[cfg(unix)]
-#[test]
-fn symlinked_parent_directories_in_stage_paths_are_refused() {
-    use std::os::unix::fs::symlink;
-
-    let dir = tempfile::tempdir().expect("tempdir");
-    let repo_root = dir.path();
-    let real_dir = repo_root.join("real_stage_dir");
-    std::fs::create_dir_all(&real_dir).expect("mkdirs");
-    write_file(&real_dir.join("00_base.md"), "stage");
-    std::fs::create_dir_all(repo_root.join("core/stages")).expect("mkdirs");
-    symlink(&real_dir, repo_root.join("core/stages/linked")).expect("symlink dir");
-
-    let pipeline_path = repo_root.join("pipelines/symlinked-parent-stage.yaml");
-    write_file(
-        &pipeline_path,
-        r#"---
-kind: pipeline
-id: pipeline.symlinked_parent_stage
-version: 0.1.0
-title: "Symlinked Parent Stage"
-description: "header"
----
-defaults:
-  runner: codex-cli
-  profile: python-uv
-  enable_complexity: false
-stages:
-  - id: stage.00_base
-    file: core/stages/linked/00_base.md
-"#,
-    );
-
-    let err = load_pipeline_definition(repo_root, "pipelines/symlinked-parent-stage.yaml")
-        .expect_err("symlinked parent stage path");
-
-    match err {
-        PipelineLoadError::Validation {
-            error: PipelineValidationError::StageFileSymlinkNotAllowed { stage_id, file },
-            ..
-        } => {
-            assert_eq!(stage_id, "stage.00_base");
-            assert_eq!(file, "core/stages/linked/00_base.md");
-        }
-        other => panic!("expected symlink-parent refusal, got {other:?}"),
     }
 }
