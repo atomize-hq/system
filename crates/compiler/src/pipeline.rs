@@ -20,6 +20,567 @@ impl PipelineDefinition {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PipelineCatalog {
+    pipelines: std::collections::BTreeMap<String, PipelineCatalogEntry>,
+    stages: std::collections::BTreeMap<String, StageCatalogEntry>,
+}
+
+impl PipelineCatalog {
+    pub fn pipelines(&self) -> impl Iterator<Item = &PipelineCatalogEntry> {
+        self.pipelines.values()
+    }
+
+    pub fn stages(&self) -> impl Iterator<Item = &StageCatalogEntry> {
+        self.stages.values()
+    }
+
+    pub fn pipeline_count(&self) -> usize {
+        self.pipelines.len()
+    }
+
+    pub fn stage_count(&self) -> usize {
+        self.stages.len()
+    }
+
+    pub fn resolve_selector(
+        &self,
+        selector: &str,
+    ) -> Result<PipelineSelection, PipelineLookupError> {
+        resolve_pipeline_selector(self, selector)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PipelineCatalogEntry {
+    pub definition: PipelineDefinition,
+    pub stages: Vec<PipelineCatalogStageEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PipelineCatalogStageEntry {
+    pub stage_id: String,
+    pub title: String,
+    pub work_level: Option<String>,
+    pub source_path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageCatalogEntry {
+    pub id: String,
+    pub kind: String,
+    pub version: String,
+    pub title: String,
+    pub description: String,
+    pub work_level: Option<String>,
+    pub source_path: PathBuf,
+    pub pipelines: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PipelineSelection {
+    Pipeline(PipelineCatalogEntry),
+    Stage(StageCatalogEntry),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PipelineLookupError {
+    UnsupportedSelector {
+        selector: String,
+        reason: &'static str,
+    },
+    AmbiguousSelector {
+        selector: String,
+        matches: Vec<String>,
+    },
+    UnknownSelector {
+        selector: String,
+    },
+}
+
+#[derive(Debug)]
+pub enum PipelineCatalogError {
+    ReadPipelineCatalog {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    ReadStageCatalog {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    PipelineLoad {
+        path: PathBuf,
+        source: PipelineLoadError,
+    },
+    StageFrontMatter {
+        path: PathBuf,
+        source: serde_yaml_bw::Error,
+    },
+    StageKindMismatch {
+        path: PathBuf,
+        actual: String,
+    },
+    StageIdMismatch {
+        path: PathBuf,
+        expected: String,
+        actual: String,
+    },
+    DuplicatePipelineId {
+        id: String,
+    },
+    DuplicateStageId {
+        id: String,
+    },
+}
+
+impl fmt::Display for PipelineCatalogError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PipelineCatalogError::ReadPipelineCatalog { path, source } => {
+                write!(
+                    f,
+                    "failed to read pipeline catalog entry {}: {source}",
+                    path.display()
+                )
+            }
+            PipelineCatalogError::ReadStageCatalog { path, source } => {
+                write!(
+                    f,
+                    "failed to read stage catalog entry {}: {source}",
+                    path.display()
+                )
+            }
+            PipelineCatalogError::PipelineLoad { path, source } => {
+                write!(
+                    f,
+                    "failed to load pipeline definition {}: {source}",
+                    path.display()
+                )
+            }
+            PipelineCatalogError::StageFrontMatter { path, source } => {
+                write!(
+                    f,
+                    "failed to load stage front matter {}: {source}",
+                    path.display()
+                )
+            }
+            PipelineCatalogError::StageKindMismatch { path, actual } => {
+                write!(
+                    f,
+                    "stage front matter {} must declare kind `stage`, got `{actual}`",
+                    path.display()
+                )
+            }
+            PipelineCatalogError::StageIdMismatch {
+                path,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "stage front matter {} expected canonical id `{expected}` but found `{actual}`",
+                path.display()
+            ),
+            PipelineCatalogError::DuplicatePipelineId { id } => {
+                write!(f, "duplicate pipeline id `{id}` in pipeline catalog")
+            }
+            PipelineCatalogError::DuplicateStageId { id } => {
+                write!(f, "duplicate stage id `{id}` in stage catalog")
+            }
+        }
+    }
+}
+
+impl std::error::Error for PipelineCatalogError {}
+
+impl fmt::Display for PipelineLookupError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PipelineLookupError::UnsupportedSelector { selector, reason } => {
+                write!(f, "unsupported selector `{selector}`: {reason}")
+            }
+            PipelineLookupError::AmbiguousSelector { selector, matches } => {
+                write!(
+                    f,
+                    "ambiguous selector `{selector}` matched multiple canonical ids: {}",
+                    matches.join(", ")
+                )
+            }
+            PipelineLookupError::UnknownSelector { selector } => {
+                write!(
+                    f,
+                    "unknown pipeline selector `{selector}`; use a canonical id or `pipeline list` to inspect available inventory"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for PipelineLookupError {}
+
+#[derive(Debug, Clone, Deserialize)]
+struct StageFrontMatter {
+    pub kind: String,
+    pub id: String,
+    pub version: String,
+    pub title: String,
+    pub description: String,
+    #[serde(default)]
+    pub work_level: Option<String>,
+}
+
+pub fn load_pipeline_catalog(
+    repo_root: impl AsRef<Path>,
+) -> Result<PipelineCatalog, PipelineCatalogError> {
+    let repo_root = repo_root.as_ref();
+    let mut pipelines = std::collections::BTreeMap::new();
+    let mut stages = std::collections::BTreeMap::new();
+    let stage_catalog = load_stage_catalog(repo_root)?;
+    let mut stage_memberships: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+
+    for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
+        let definition = load_pipeline_definition(repo_root, &pipeline_path).map_err(|source| {
+            PipelineCatalogError::PipelineLoad {
+                path: repo_root.join(&pipeline_path),
+                source,
+            }
+        })?;
+        let pipeline_id = definition.header.id.clone();
+
+        let mut stage_entries = Vec::with_capacity(definition.declared_stages().len());
+        for stage in definition.declared_stages() {
+            let stage_catalog_entry =
+                stage_catalog.get(Path::new(&stage.file)).ok_or_else(|| {
+                    PipelineCatalogError::StageFrontMatter {
+                        path: repo_root.join(&stage.file),
+                        source: <serde_yaml_bw::Error as serde::de::Error>::custom(format!(
+                            "stage file {} is missing front matter or is not cataloged",
+                            stage.file
+                        )),
+                    }
+                })?;
+
+            if stage_catalog_entry.id != stage.id {
+                return Err(PipelineCatalogError::StageIdMismatch {
+                    path: stage_catalog_entry.source_path.clone(),
+                    expected: stage.id.clone(),
+                    actual: stage_catalog_entry.id.clone(),
+                });
+            }
+
+            stage_entries.push(PipelineCatalogStageEntry {
+                stage_id: stage_catalog_entry.id.clone(),
+                title: stage_catalog_entry.title.clone(),
+                work_level: stage_catalog_entry.work_level.clone(),
+                source_path: stage_catalog_entry.source_path.clone(),
+            });
+
+            stage_memberships
+                .entry(stage_catalog_entry.id.clone())
+                .or_default()
+                .push(definition.header.id.clone());
+        }
+
+        if pipelines
+            .insert(
+                pipeline_id.clone(),
+                PipelineCatalogEntry {
+                    definition,
+                    stages: stage_entries,
+                },
+            )
+            .is_some()
+        {
+            return Err(PipelineCatalogError::DuplicatePipelineId { id: pipeline_id });
+        }
+    }
+
+    for (stage_path, mut entry) in stage_catalog {
+        entry.pipelines = stage_memberships.remove(&entry.id).unwrap_or_default();
+        let stage_id = entry.id.clone();
+        if stages.insert(stage_id.clone(), entry).is_some() {
+            return Err(PipelineCatalogError::DuplicateStageId { id: stage_id });
+        }
+        let _ = stage_path;
+    }
+
+    Ok(PipelineCatalog { pipelines, stages })
+}
+
+pub fn render_pipeline_list(catalog: &PipelineCatalog) -> String {
+    let mut out = String::new();
+    out.push_str("PIPELINE INVENTORY\n");
+    out.push_str(&format!("PIPELINE COUNT: {}\n", catalog.pipeline_count()));
+    out.push_str(&format!("STAGE COUNT: {}\n", catalog.stage_count()));
+
+    for pipeline in catalog.pipelines() {
+        out.push_str(&format!("\nPIPELINE: {}\n", pipeline.definition.header.id));
+        out.push_str(&format!("TITLE: {}\n", pipeline.definition.header.title));
+        out.push_str(&format!(
+            "SOURCE: {}\n",
+            pipeline.definition.source_path.display()
+        ));
+        out.push_str(&format!("STAGES: {}\n", pipeline.stages.len()));
+    }
+
+    out.trim_end().to_string()
+}
+
+pub fn render_pipeline_show(selection: &PipelineSelection) -> String {
+    match selection {
+        PipelineSelection::Pipeline(pipeline) => render_pipeline_definition(pipeline),
+        PipelineSelection::Stage(stage) => render_stage_definition(stage),
+    }
+}
+
+pub fn resolve_pipeline_selector(
+    catalog: &PipelineCatalog,
+    selector: &str,
+) -> Result<PipelineSelection, PipelineLookupError> {
+    let selector = selector.trim();
+    if selector.is_empty() {
+        return Err(PipelineLookupError::UnknownSelector {
+            selector: selector.to_string(),
+        });
+    }
+
+    if looks_like_repo_path(selector) {
+        return Err(PipelineLookupError::UnsupportedSelector {
+            selector: selector.to_string(),
+            reason: "raw file paths are evidence only; use a canonical pipeline or stage id",
+        });
+    }
+
+    if let Some(pipeline) = catalog.pipelines.get(selector) {
+        return Ok(PipelineSelection::Pipeline(pipeline.clone()));
+    }
+    if let Some(stage) = catalog.stages.get(selector) {
+        return Ok(PipelineSelection::Stage(stage.clone()));
+    }
+
+    let shorthand_matches = catalog
+        .pipelines
+        .values()
+        .filter(|pipeline| {
+            pipeline.definition.header.id.strip_prefix("pipeline.") == Some(selector)
+        })
+        .map(|pipeline| pipeline.definition.header.id.clone())
+        .chain(
+            catalog
+                .stages
+                .values()
+                .filter(|stage| stage.id.strip_prefix("stage.") == Some(selector))
+                .map(|stage| stage.id.clone()),
+        )
+        .collect::<Vec<_>>();
+
+    if shorthand_matches.len() > 1 {
+        return Err(PipelineLookupError::AmbiguousSelector {
+            selector: selector.to_string(),
+            matches: shorthand_matches,
+        });
+    }
+
+    if let Some(canonical_id) = shorthand_matches.into_iter().next() {
+        if let Some(pipeline) = catalog.pipelines.get(&canonical_id) {
+            return Ok(PipelineSelection::Pipeline(pipeline.clone()));
+        }
+        if let Some(stage) = catalog.stages.get(&canonical_id) {
+            return Ok(PipelineSelection::Stage(stage.clone()));
+        }
+    }
+
+    Err(PipelineLookupError::UnknownSelector {
+        selector: selector.to_string(),
+    })
+}
+
+fn render_pipeline_definition(pipeline: &PipelineCatalogEntry) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("PIPELINE: {}\n", pipeline.definition.header.id));
+    out.push_str(&format!("TITLE: {}\n", pipeline.definition.header.title));
+    out.push_str(&format!(
+        "DESCRIPTION: {}\n",
+        pipeline.definition.header.description.trim()
+    ));
+    out.push_str(&format!(
+        "SOURCE: {}\n",
+        pipeline.definition.source_path.display()
+    ));
+    out.push_str("DEFAULTS:\n");
+    out.push_str(&format!(
+        "  runner: {}\n",
+        pipeline.definition.body.defaults.runner
+    ));
+    out.push_str(&format!(
+        "  profile: {}\n",
+        pipeline.definition.body.defaults.profile
+    ));
+    out.push_str(&format!(
+        "  enable_complexity: {}\n",
+        pipeline.definition.body.defaults.enable_complexity
+    ));
+    out.push_str("STAGES:\n");
+    for (index, stage) in pipeline.stages.iter().enumerate() {
+        out.push_str(&format!(
+            "  {}. {} | {}",
+            index + 1,
+            stage.stage_id,
+            stage.source_path.display()
+        ));
+        out.push_str(&format!(" | {}\n", stage.title));
+        if let Some(work_level) = &stage.work_level {
+            out.push_str(&format!("     work_level: {}\n", work_level));
+        }
+    }
+
+    out.trim_end().to_string()
+}
+
+fn render_stage_definition(stage: &StageCatalogEntry) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("STAGE: {}\n", stage.id));
+    out.push_str(&format!("KIND: {}\n", stage.kind));
+    out.push_str(&format!("VERSION: {}\n", stage.version));
+    out.push_str(&format!("TITLE: {}\n", stage.title));
+    out.push_str(&format!("DESCRIPTION: {}\n", stage.description.trim()));
+    if let Some(work_level) = &stage.work_level {
+        out.push_str(&format!("WORK_LEVEL: {}\n", work_level));
+    }
+    out.push_str(&format!("SOURCE: {}\n", stage.source_path.display()));
+    out.push_str("PIPELINES:\n");
+    for pipeline in &stage.pipelines {
+        out.push_str(&format!("  - {}\n", pipeline));
+    }
+
+    out.trim_end().to_string()
+}
+
+fn load_stage_catalog(
+    repo_root: &Path,
+) -> Result<std::collections::BTreeMap<PathBuf, StageCatalogEntry>, PipelineCatalogError> {
+    let mut out = std::collections::BTreeMap::new();
+    for stage_path in discover_repo_relative_files(repo_root, Path::new("core/stages"), "md")? {
+        let full_path = repo_root.join(&stage_path);
+        let contents = std::fs::read_to_string(&full_path).map_err(|source| {
+            PipelineCatalogError::ReadStageCatalog {
+                path: full_path.clone(),
+                source,
+            }
+        })?;
+
+        let Some(front_matter_text) = extract_front_matter_block(&contents) else {
+            continue;
+        };
+
+        let front_matter = serde_yaml_bw::from_str::<StageFrontMatter>(&front_matter_text)
+            .map_err(|source| PipelineCatalogError::StageFrontMatter {
+                path: full_path.clone(),
+                source,
+            })?;
+
+        if front_matter.kind != "stage" {
+            return Err(PipelineCatalogError::StageKindMismatch {
+                path: full_path.clone(),
+                actual: front_matter.kind,
+            });
+        }
+
+        out.insert(
+            stage_path.clone(),
+            StageCatalogEntry {
+                id: front_matter.id,
+                kind: front_matter.kind,
+                version: front_matter.version,
+                title: front_matter.title,
+                description: front_matter.description,
+                work_level: front_matter.work_level,
+                source_path: stage_path.clone(),
+                pipelines: Vec::new(),
+            },
+        );
+    }
+
+    Ok(out)
+}
+
+fn extract_front_matter_block(contents: &str) -> Option<String> {
+    let mut lines = contents.lines();
+    if lines.next()? != "---" {
+        return None;
+    }
+
+    let mut front_matter = String::new();
+    for line in lines {
+        if line == "---" {
+            return Some(front_matter);
+        }
+        front_matter.push_str(line);
+        front_matter.push('\n');
+    }
+
+    None
+}
+
+fn discover_repo_relative_files(
+    repo_root: &Path,
+    relative_dir: &Path,
+    extension: &str,
+) -> Result<Vec<PathBuf>, PipelineCatalogError> {
+    let full_dir = repo_root.join(relative_dir);
+    let entries = std::fs::read_dir(&full_dir).map_err(|source| {
+        if relative_dir == Path::new("pipelines") {
+            PipelineCatalogError::ReadPipelineCatalog {
+                path: full_dir.clone(),
+                source,
+            }
+        } else {
+            PipelineCatalogError::ReadStageCatalog {
+                path: full_dir.clone(),
+                source,
+            }
+        }
+    })?;
+
+    let mut out = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|source| {
+            if relative_dir == Path::new("pipelines") {
+                PipelineCatalogError::ReadPipelineCatalog {
+                    path: full_dir.clone(),
+                    source,
+                }
+            } else {
+                PipelineCatalogError::ReadStageCatalog {
+                    path: full_dir.clone(),
+                    source,
+                }
+            }
+        })?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        if path.extension().and_then(|value| value.to_str()) != Some(extension) {
+            continue;
+        }
+
+        let relative = path.strip_prefix(repo_root).unwrap_or(&path).to_path_buf();
+        out.push(relative);
+    }
+
+    out.sort();
+    Ok(out)
+}
+
+fn looks_like_repo_path(selector: &str) -> bool {
+    selector.contains('/')
+        || selector.contains('\\')
+        || selector.ends_with(".yaml")
+        || selector.ends_with(".yml")
+        || selector.ends_with(".md")
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineHeader {
@@ -220,7 +781,7 @@ pub fn load_pipeline_definition(
     validate_pipeline_definition(repo_root, &full_path, &header, &body)?;
 
     Ok(PipelineDefinition {
-        source_path: full_path,
+        source_path: relative_pipeline_path.to_path_buf(),
         header,
         body,
     })

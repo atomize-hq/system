@@ -8,10 +8,10 @@ pub mod freshness;
 pub mod packet_result;
 pub mod pipeline;
 pub mod pipeline_route;
-pub mod route_state;
 pub mod refusal;
 pub mod rendering;
 pub mod resolver;
+pub mod route_state;
 
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
@@ -35,19 +35,16 @@ pub use freshness::{
 };
 pub use packet_result::PacketResult;
 pub use pipeline::{
-    load_pipeline_definition, ActivationClause, ActivationConditionSet, ActivationOperator,
-    ActivationValidationError, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
-    PipelineLoadError, PipelineStage, PipelineValidationError, StageActivation,
-    StageFileValidationError,
+    load_pipeline_catalog, load_pipeline_definition, render_pipeline_list, render_pipeline_show,
+    resolve_pipeline_selector, ActivationClause, ActivationConditionSet, ActivationOperator,
+    ActivationValidationError, PipelineBody, PipelineCatalog, PipelineCatalogEntry,
+    PipelineCatalogError, PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition,
+    PipelineHeader, PipelineLoadError, PipelineLookupError, PipelineSelection, PipelineStage,
+    PipelineValidationError, StageActivation, StageCatalogEntry, StageFileValidationError,
 };
 pub use pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,
     RouteStageReason, RouteStageStatus, RouteVariables,
-};
-pub use route_state::{
-    load_route_state, set_route_state_variable, RouteState, RouteStateAuditEntry,
-    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateStoreError, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
@@ -57,6 +54,11 @@ pub use rendering::{
 };
 pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
+};
+pub use route_state::{
+    load_route_state, set_route_state_variable, RouteState, RouteStateAuditEntry,
+    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    RouteStateStoreError, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 pub fn workspace_contract_version() -> &'static str {

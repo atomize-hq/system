@@ -156,25 +156,97 @@ fn help_lists_setup_first() {
 
     assert_eq!(
         command_lines.len(),
-        4,
-        "expected four command lines in help"
+        5,
+        "expected five command lines in help"
     );
     assert!(
         command_lines[0].starts_with("setup "),
         "setup should be first: {command_lines:?}"
     );
     assert!(
-        command_lines[1].starts_with("generate "),
-        "generate should be second: {command_lines:?}"
+        command_lines[1].starts_with("pipeline "),
+        "pipeline should be second: {command_lines:?}"
     );
     assert!(
-        command_lines[2].starts_with("inspect "),
-        "inspect should be third: {command_lines:?}"
+        command_lines[2].starts_with("generate "),
+        "generate should be third: {command_lines:?}"
     );
     assert!(
-        command_lines[3].starts_with("doctor "),
-        "doctor should be fourth: {command_lines:?}"
+        command_lines[3].starts_with("inspect "),
+        "inspect should be fourth: {command_lines:?}"
     );
+    assert!(
+        command_lines[4].starts_with("doctor "),
+        "doctor should be fifth: {command_lines:?}"
+    );
+}
+
+#[test]
+fn pipeline_list_and_show_use_canonical_id_discovery() {
+    let root = workspace_root();
+
+    let list = run_in(root.as_path(), &["pipeline", "list"]);
+    assert!(list.status.success(), "pipeline list should succeed");
+    let list_stdout = String::from_utf8(list.stdout).expect("list stdout is utf-8");
+    assert!(list_stdout.contains("PIPELINE INVENTORY"));
+    assert!(list_stdout.contains("PIPELINE COUNT: 4"));
+    assert!(list_stdout.contains("PIPELINE: pipeline.foundation"));
+    assert!(list_stdout.contains("SOURCE: pipelines/foundation.yaml"));
+
+    let show = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipeline.foundation"],
+    );
+    assert!(show.status.success(), "pipeline show should succeed");
+    let show_stdout = String::from_utf8(show.stdout).expect("show stdout is utf-8");
+    assert!(show_stdout.contains("PIPELINE: pipeline.foundation"));
+    assert!(show_stdout.contains("DEFAULTS:"));
+    assert!(show_stdout.contains("stage.05_charter_interview"));
+    assert!(show_stdout.contains("core/stages/05_charter_interview.md"));
+
+    let shorthand = run_in(root.as_path(), &["pipeline", "show", "--id", "00_base"]);
+    assert!(shorthand.status.success(), "stage shorthand should resolve");
+    let shorthand_stdout = String::from_utf8(shorthand.stdout).expect("stdout is utf-8");
+    assert!(shorthand_stdout.contains("STAGE: stage.00_base"));
+    assert!(shorthand_stdout.contains("pipeline.foundation"));
+
+    let ambiguous_repo = tempfile::tempdir().expect("tempdir");
+    let ambiguous_root = ambiguous_repo.path();
+    write_file(
+        &ambiguous_root.join("core/stages/alpha.md"),
+        b"---\nkind: stage\nid: stage.alpha\nversion: 0.1.0\ntitle: Alpha Stage\ndescription: alpha\n---\n# alpha\n",
+    );
+    write_file(
+        &ambiguous_root.join("pipelines/alpha.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.alpha\nversion: 0.1.0\ntitle: Alpha Pipeline\ndescription: alpha\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.alpha\n    file: core/stages/alpha.md\n",
+    );
+
+    let ambiguous = run_in(ambiguous_root, &["pipeline", "show", "--id", "alpha"]);
+    assert!(
+        !ambiguous.status.success(),
+        "ambiguous shorthand should refuse"
+    );
+    let ambiguous_stdout = String::from_utf8(ambiguous.stdout).expect("stdout is utf-8");
+    assert!(ambiguous_stdout.contains("ambiguous selector `alpha`"));
+    assert!(ambiguous_stdout.contains("pipeline.alpha"));
+    assert!(ambiguous_stdout.contains("stage.alpha"));
+
+    let unknown = run_in(root.as_path(), &["pipeline", "show", "--id", "missing-id"]);
+    assert!(!unknown.status.success(), "unknown selector should refuse");
+    let unknown_stdout = String::from_utf8(unknown.stdout).expect("stdout is utf-8");
+    assert!(unknown_stdout.contains("unknown pipeline selector `missing-id`"));
+    assert!(unknown_stdout.contains("pipeline list"));
+
+    let path_like = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipelines/foundation.yaml"],
+    );
+    assert!(
+        !path_like.status.success(),
+        "path-like selector should refuse"
+    );
+    let path_like_stdout = String::from_utf8(path_like.stdout).expect("stdout is utf-8");
+    assert!(path_like_stdout.contains("raw file paths are evidence only"));
 }
 
 #[test]

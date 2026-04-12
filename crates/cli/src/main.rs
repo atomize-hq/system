@@ -25,8 +25,8 @@ fn main() -> ExitCode {
     name = "system",
     version,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: planning packet generation from canonical repo-local `.system/` inputs, fixture-backed execution demo via `execution.demo.packet`, live execution is explicitly refused, `inspect` is the proof surface, `doctor` is the recovery surface, and `setup` is still a placeholder.",
-    long_about = "Rust CLI for the reduced v1 system. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface. `setup` is still a placeholder."
+    about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -37,6 +37,8 @@ struct Cli {
 enum Command {
     /// Placeholder setup entrypoint.
     Setup,
+    /// Pipeline operator surface.
+    Pipeline(PipelineArgs),
     /// Generate a reduced-v1 packet.
     Generate(RequestArgs),
     /// Inspect packet composition and decision evidence.
@@ -49,11 +51,33 @@ impl Command {
     fn run(self) -> ExitCode {
         match self {
             Command::Setup => placeholder_exit("setup", "placeholder-only entrypoint"),
+            Command::Pipeline(args) => pipeline(args),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
             Command::Doctor => doctor(),
         }
     }
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineArgs {
+    #[command(subcommand)]
+    command: PipelineCommand,
+}
+
+#[derive(Subcommand, Debug)]
+enum PipelineCommand {
+    /// List available pipelines.
+    List,
+    /// Show one canonical pipeline or stage declaration.
+    Show(PipelineShowArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineShowArgs {
+    /// Canonical id or unambiguous shorthand for a pipeline or stage.
+    #[arg(long)]
+    id: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -343,6 +367,65 @@ fn doctor() -> ExitCode {
     }
 
     ExitCode::from(1)
+}
+
+fn pipeline(args: PipelineArgs) -> ExitCode {
+    match args.command {
+        PipelineCommand::List => pipeline_list(),
+        PipelineCommand::Show(args) => pipeline_show(args),
+    }
+}
+
+fn pipeline_list() -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+        Ok(catalog) => catalog,
+        Err(err) => {
+            println!("REFUSED: pipeline catalog error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    println!("{}", system_compiler::render_pipeline_list(&catalog));
+    ExitCode::SUCCESS
+}
+
+fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+        Ok(catalog) => catalog,
+        Err(err) => {
+            println!("REFUSED: pipeline catalog error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let selection = match system_compiler::resolve_pipeline_selector(&catalog, &args.id) {
+        Ok(selection) => selection,
+        Err(err) => {
+            println!("REFUSED: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    println!("{}", system_compiler::render_pipeline_show(&selection));
+    ExitCode::SUCCESS
 }
 
 fn inspect(args: RequestArgs) -> ExitCode {
