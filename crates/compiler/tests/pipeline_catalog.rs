@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use system_compiler::{
     load_pipeline_catalog, render_pipeline_list, render_pipeline_show, PipelineLookupError,
@@ -11,8 +12,6 @@ fn repo_root() -> PathBuf {
         .canonicalize()
         .expect("repo root")
 }
-
-use std::path::Path;
 
 #[test]
 fn catalog_discovers_canonical_pipeline_and_stage_ids() {
@@ -160,9 +159,116 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     assert!(list.contains("PIPELINE: pipeline.sprint"));
 }
 
+#[test]
+fn catalog_outputs_stay_deterministic_and_ignore_unrelated_route_state() {
+    let source_root = repo_root();
+    let source_catalog = load_pipeline_catalog(&source_root).expect("source catalog");
+
+    let baseline_list = render_pipeline_list(&source_catalog);
+    let baseline_pipeline = render_pipeline_show(
+        &source_catalog
+            .resolve_selector("pipeline.foundation_inputs")
+            .expect("pipeline selection"),
+    );
+    let baseline_stage = render_pipeline_show(
+        &source_catalog
+            .resolve_selector("stage.07_foundation_pack")
+            .expect("stage selection"),
+    );
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    copy_tree(&source_root.join("pipelines"), &root.join("pipelines"));
+    copy_tree(&source_root.join("core/stages"), &root.join("core/stages"));
+
+    let state_path = root
+        .join(".system")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.foundation_inputs.yaml");
+    write_file(
+        &state_path,
+        r#"---
+schema_version: m1-pipeline-state-v1
+pipeline_id: pipeline.foundation_inputs
+revision: 1
+variables:
+  unexpected: true
+audit:
+  - revision: 1
+    variable: unexpected
+    value: true
+"#,
+    );
+
+    let entries_before = dir_entries(root.join(".system/state/pipeline").as_path());
+
+    let catalog = load_pipeline_catalog(root).expect("catalog with unrelated route state");
+    assert_eq!(render_pipeline_list(&catalog), baseline_list);
+    assert_eq!(
+        render_pipeline_show(
+            &catalog
+                .resolve_selector("pipeline.foundation_inputs")
+                .expect("pipeline selection")
+        ),
+        baseline_pipeline
+    );
+    assert_eq!(
+        render_pipeline_show(
+            &catalog
+                .resolve_selector("stage.07_foundation_pack")
+                .expect("stage selection")
+        ),
+        baseline_stage
+    );
+    assert_eq!(
+        dir_entries(root.join(".system/state/pipeline").as_path()),
+        entries_before,
+        "catalog loading and rendering must not create or mutate route state"
+    );
+}
+
 fn write_file(path: &Path, contents: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("mkdirs");
     }
     std::fs::write(path, contents).expect("write");
+}
+
+fn copy_tree(src: &Path, dst: &Path) {
+    fs::create_dir_all(dst).expect("mkdirs");
+
+    for entry in fs::read_dir(src).expect("read dir") {
+        let entry = entry.expect("dir entry");
+        let file_type = entry.file_type().expect("file type");
+        let target = dst.join(entry.file_name());
+
+        if file_type.is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else if file_type.is_file() {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).expect("mkdirs");
+            }
+            fs::copy(entry.path(), &target).expect("copy file");
+        }
+    }
+}
+
+fn dir_entries(path: &Path) -> Vec<String> {
+    if !path.exists() {
+        return Vec::new();
+    }
+
+    let mut entries = fs::read_dir(path)
+        .expect("read dir")
+        .map(|entry| {
+            entry
+                .expect("dir entry")
+                .file_name()
+                .to_string_lossy()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries
 }
