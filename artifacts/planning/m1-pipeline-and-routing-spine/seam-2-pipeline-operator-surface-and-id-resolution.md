@@ -2,14 +2,15 @@
 seam_id: SEAM-2
 seam_slug: pipeline-operator-surface-and-id-resolution
 type: platform
-status: proposed
-execution_horizon: next
+status: exec-ready
+execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
-  upstream_closeouts: []
+  upstream_closeouts:
+    - SEAM-1
   required_threads:
     - THR-01
   stale_triggers:
@@ -17,9 +18,9 @@ basis:
     - If existing CLI command-hierarchy docs or `C-02` change the supported top-level command posture, this seam must revalidate naming and help-surface assumptions.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
@@ -78,7 +79,8 @@ open_remediations: []
   - `docs/CLI_COMMAND_HIERARCHY.md`
   - `docs/SUPPORTED_COMMANDS.md`
 - **Verification**:
-  - This seam consumes upstream route/state truth. Verification may depend on accepted upstream `C-08` evidence. At seam-brief depth, the goal is to make the operator-surface contract concrete enough for seam-local planning and implementation, especially around id lookup, refusal classes, and the shipped help subset.
+  - `SEAM-1` closeout now publishes `C-08` and `THR-01`, so this seam may consume current route/state truth directly.
+  - Seam-local planning under `threaded-seams/seam-2-pipeline-operator-surface-and-id-resolution/` now makes the operator-surface contract, review posture, and execution slices concrete enough for implementation.
 - **Canonical contract refs**:
   - `docs/contracts/pipeline-operator-surface-and-id-resolution.md`
   - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
@@ -91,7 +93,7 @@ open_remediations: []
   - keep `pipeline compile` hidden from shipped `M1` help/docs until `SEAM-3` and later M2 work publish the compile contract and implementation
   - refuse ambiguous or malformed operator input instead of guessing
 - **Downstream decomposition context**:
-  - This seam is `next` because it should consume published route/state truth rather than invent it in parallel with `SEAM-1`.
+  - This seam is `active` because the upstream route/state handoff is now published and current.
   - `THR-01` is the incoming dependency and `THR-02` is the outgoing operator-surface thread.
   - The first seam-local review should focus on user-visible command hierarchy, canonical-id lookup boundaries, and whether the default render contracts are compact enough to remain auditable.
 - **Expected seam-exit concerns**:

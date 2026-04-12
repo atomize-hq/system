@@ -3,7 +3,7 @@ seam_id: SEAM-3
 seam_slug: stage-compile-boundary-and-route-freshness-handoff
 type: integration
 status: proposed
-execution_horizon: future
+execution_horizon: next
 plan_version: v1
 basis:
   currentness: provisional
@@ -90,7 +90,7 @@ open_remediations: []
   - publish only the contract and freshness handoff in this seam; do not expose compile as supported surface until M2 lands
   - keep refusal classes explicit for inactive stages, stale route basis, and missing compile inputs
 - **Downstream decomposition context**:
-  - This seam is `future` because it depends on stable route truth and the shipped operator surface before its contract can be finalized responsibly.
+  - This seam is `next` because `SEAM-1` has now published route/state truth and `SEAM-2` is the active consumer seam that will define the supported operator surface.
   - `THR-03` is the dominant outbound thread; `SEAM-4` consumes it to keep docs/help and proof surfaces honest about what compile does not yet do.
   - The first seam-local review should focus on source-of-truth boundaries and whether compile freshness can be proven without reintroducing hidden caches or side effects.
 - **Expected seam-exit concerns**:

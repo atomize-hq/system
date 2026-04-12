@@ -12,14 +12,14 @@ This pack captures seam briefs, authoritative threading, pack-level review surfa
 
 Execution horizon:
 
-- Active seam: `SEAM-1`
-- Next seam: `SEAM-2`
+- Active seam: `SEAM-2`
+- Next seam: `SEAM-3`
 
 Policy:
 
 - only the active seam is eligible for authoritative downstream sub-slices by default
 - the next seam may later receive seam-local review + slices, and only provisional candidate-subslice hints
-- `SEAM-2` is expected to need authoritative contract-carrying work, not merely a spike-grade provisional seam
+- `SEAM-2` now owns the active operator-surface planning window after `SEAM-1` published `C-08` and `THR-01`
 - active and next seams must eventually terminate in a dedicated final `S99` `seam-exit-gate` slice once seam-local planning begins
 - seams that own undefined contracts may reserve `S00` as a contract-definition boundary slice once seam-local planning begins
 - future seams remain seam briefs

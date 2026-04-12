@@ -2,8 +2,8 @@
 seam_id: SEAM-1
 seam_slug: compiler-pipeline-core-and-routing-state
 type: capability
-status: exec-ready
-execution_horizon: active
+status: landed
+execution_horizon: future
 plan_version: v1
 basis:
   currentness: current
@@ -20,14 +20,13 @@ gates:
     contract: passed
     revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
-open_remediations:
-  - REM-001
+  status: passed
+open_remediations: []
 ---
 
 # SEAM-1 - Compiler Pipeline Core and Routing State
@@ -80,8 +79,8 @@ open_remediations:
   - `.system/state/pipeline/`
   - compiler-core tests and proof fixtures for route/state semantics
 - **Verification**:
-  - This seam produces an owned contract. Verification has made the route/state contract concrete enough for seam-local execution planning by pinning deterministic route results, explicit refusal classes, and real state-file mutation semantics without requiring downstream operator-surface docs/help to be complete yet.
-  - The seam is now eligible for `exec-ready`; remaining open remediation posture targets landing evidence rather than pre-exec readiness.
+  - The canonical route/state contract, compiler-owned route evaluation surface, and runtime-only state store are landed and recorded in `governance/seam-1-closeout.md`.
+  - Downstream seams now consume published `C-08` and the realized `THR-01` handoff rather than provisional seam-brief intent.
 - **Canonical contract refs**:
   - `docs/contracts/pipeline-route-and-state-core.md`
   - `docs/contracts/C-03-canonical-artifact-manifest-contract.md`
@@ -94,7 +93,7 @@ open_remediations:
   - prefer explicit refusal over implicit fallback for malformed pipelines, unsupported activation shapes, malformed persisted state, or revision conflicts
   - keep state audit history bounded and inspection-oriented rather than turning it into a provenance log
 - **Downstream decomposition context**:
-  - This seam is `active` because every visible `pipeline` behavior depends on route/state truth being concrete first.
+  - This seam has left the forward planning window after publishing `C-08` and `THR-01`.
   - `THR-01` is the dominant thread; `SEAM-2`, `SEAM-3`, and `SEAM-4` all consume it directly.
   - The first seam-local review should focus on contract ownership boundaries inside `crates/compiler`, route determinism, and whether state-mutation semantics are small enough to stay inside one compiler-owned seam.
   - Authoritative seam-local planning now lives under `threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/`.

@@ -2,9 +2,10 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-1`
-- Next seam: `SEAM-2`
-- Future seams: `SEAM-3`, `SEAM-4`
+- Active seam: `SEAM-2`
+- Next seam: `SEAM-3`
+- Future seams: `SEAM-4`
+- Landed seam outside forward window: `SEAM-1`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
@@ -56,10 +57,10 @@
   - **Consumer seam(s)**: `SEAM-2`, `SEAM-3`, `SEAM-4`
   - **Carried contract IDs**: `C-08`
   - **Purpose**: Publish one compiler-owned truth for pipeline loading, route computation, and route-state mutation so every downstream seam stops inferring routing behavior from legacy code or ad hoc CLI wiring.
-  - **State**: `defined`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to supported activation syntax, deterministic route ordering, state schema, mutation locking/revision semantics, or the canonical-vs-runtime `.system/` boundary.
   - **Satisfied by**: `SEAM-1` closeout records landed route/state contracts, typed proof outputs, state-file evidence, and a passed seam-exit record for `C-08`.
-  - **Notes**: `SEAM-1` is likely to reserve `S00` because route/state truth includes contract-defining work before broader operator-surface adoption can proceed.
+  - **Notes**: `SEAM-2` is now the active consumer planning window and must preserve the published route/state truth without redefining it in CLI-only terms.
 
 - **Thread ID**: `THR-02`
   - **Producer seam**: `SEAM-2`
