@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
-    load_pipeline_definition, ActivationOperator, ActivationScalar, PipelineLoadError,
-    PipelineValidationError,
+    load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -57,10 +56,7 @@ fn foundation_pipeline_loads_with_deterministic_stage_order() {
     assert_eq!(activation.when.operator, ActivationOperator::Any);
     assert_eq!(activation.when.clauses.len(), 1);
     assert_eq!(activation.when.clauses[0].variable, "needs_project_context");
-    assert_eq!(
-        activation.when.clauses[0].value,
-        ActivationScalar::Bool(true)
-    );
+    assert!(activation.when.clauses[0].value);
 }
 
 #[test]
@@ -77,15 +73,9 @@ fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
     assert_eq!(activation.when.operator, ActivationOperator::Any);
     assert_eq!(activation.when.clauses.len(), 2);
     assert_eq!(activation.when.clauses[0].variable, "needs_project_context");
-    assert_eq!(
-        activation.when.clauses[0].value,
-        ActivationScalar::Bool(true)
-    );
+    assert!(activation.when.clauses[0].value);
     assert_eq!(activation.when.clauses[1].variable, "charter_gaps_detected");
-    assert_eq!(
-        activation.when.clauses[1].value,
-        ActivationScalar::Bool(true)
-    );
+    assert!(activation.when.clauses[1].value);
 }
 
 #[test]
@@ -342,7 +332,7 @@ stages:
     activation:
       when:
         any:
-          - variables.target_env == production
+          - variables.target_env == "production"
 "#,
     );
 
@@ -350,7 +340,58 @@ stages:
         .expect_err("bad activation value");
 
     match err {
-        PipelineLoadError::BodyParse { .. } => {}
+        PipelineLoadError::BodyParse { source, .. } => {
+            assert!(
+                source
+                    .to_string()
+                    .contains("reduced v1 supports only boolean activation values"),
+                "unexpected parse error: {source}"
+            );
+        }
+        other => panic!("expected activation-value refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn numeric_activation_value_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_path = repo_root.join("pipelines/numeric-activation-value.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.numeric_activation_value
+version: 0.1.0
+title: "Numeric Activation Value"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    activation:
+      when:
+        any:
+          - variables.max_attempts == 3
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/numeric-activation-value.yaml")
+        .expect_err("numeric activation value");
+
+    match err {
+        PipelineLoadError::BodyParse { source, .. } => {
+            assert!(
+                source
+                    .to_string()
+                    .contains("reduced v1 supports only boolean activation values"),
+                "unexpected parse error: {source}"
+            );
+        }
         other => panic!("expected activation-value refusal, got {other:?}"),
     }
 }

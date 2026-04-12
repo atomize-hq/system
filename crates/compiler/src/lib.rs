@@ -34,9 +34,8 @@ pub use freshness::{
 pub use packet_result::PacketResult;
 pub use pipeline::{
     load_pipeline_definition, ActivationClause, ActivationConditionSet, ActivationOperator,
-    ActivationScalar, ActivationValidationError, PipelineBody, PipelineDefaults,
-    PipelineDefinition, PipelineHeader, PipelineLoadError, PipelineStage, PipelineValidationError,
-    StageActivation,
+    ActivationValidationError, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineLoadError, PipelineStage, PipelineValidationError, StageActivation,
 };
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{

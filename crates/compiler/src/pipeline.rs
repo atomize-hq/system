@@ -65,14 +65,7 @@ pub enum ActivationOperator {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActivationClause {
     pub variable: String,
-    pub value: ActivationScalar,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ActivationScalar {
-    Bool(bool),
-    String(String),
-    Number(String),
+    pub value: bool,
 }
 
 #[derive(Debug)]
@@ -515,17 +508,15 @@ fn validate_repo_relative_path(path: &Path) -> Result<&Path, &'static str> {
 
 fn parse_activation_clause(input: String) -> Result<ActivationClause, String> {
     let clause = input.trim();
-    let mut parts = clause.split("==");
-    let left = parts
-        .next()
-        .ok_or_else(|| "missing left-hand side".to_string())?
-        .trim();
-    let right = parts
-        .next()
-        .ok_or_else(|| "missing right-hand side".to_string())?
-        .trim();
+    let Some((left, right)) = clause.split_once("==") else {
+        return Err(format!(
+            "unsupported clause `{clause}`: exactly one equality operator is required"
+        ));
+    };
+    let left = left.trim();
+    let right = right.trim();
 
-    if parts.next().is_some() {
+    if right.contains("==") {
         return Err(format!(
             "unsupported clause `{clause}`: only one equality operator is supported"
         ));
@@ -537,9 +528,9 @@ fn parse_activation_clause(input: String) -> Result<ActivationClause, String> {
         ));
     }
 
-    let value = parse_activation_scalar(right).ok_or_else(|| {
+    let value = parse_activation_bool(right).ok_or_else(|| {
         format!(
-            "unsupported clause `{clause}`: right-hand side must be a boolean, quoted string, or number"
+            "unsupported clause `{clause}`: reduced v1 supports only boolean activation values (`true` or `false`)"
         )
     })?;
 
@@ -566,53 +557,11 @@ fn is_supported_variable_path(input: &str) -> bool {
     chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
 }
 
-fn parse_activation_scalar(input: &str) -> Option<ActivationScalar> {
+fn parse_activation_bool(input: &str) -> Option<bool> {
     match input {
-        "true" => Some(ActivationScalar::Bool(true)),
-        "false" => Some(ActivationScalar::Bool(false)),
-        _ if is_quoted_string(input) => Some(ActivationScalar::String(
-            input[1..input.len() - 1].to_string(),
-        )),
-        _ if is_supported_number(input) => Some(ActivationScalar::Number(input.to_string())),
+        "true" => Some(true),
+        "false" => Some(false),
         _ => None,
-    }
-}
-
-fn is_quoted_string(input: &str) -> bool {
-    let bytes = input.as_bytes();
-    if bytes.len() < 2 {
-        return false;
-    }
-
-    (bytes[0] == b'"' && bytes[bytes.len() - 1] == b'"')
-        || (bytes[0] == b'\'' && bytes[bytes.len() - 1] == b'\'')
-}
-
-fn is_supported_number(input: &str) -> bool {
-    if input.is_empty() {
-        return false;
-    }
-
-    let stripped = if let Some(rest) = input.strip_prefix(['+', '-']) {
-        rest
-    } else {
-        input
-    };
-
-    let mut parts = stripped.split('.');
-    let int_part = parts.next().unwrap_or_default();
-    let frac_part = parts.next();
-
-    if parts.next().is_some()
-        || int_part.is_empty()
-        || !int_part.chars().all(|ch| ch.is_ascii_digit())
-    {
-        return false;
-    }
-
-    match frac_part {
-        Some(part) => !part.is_empty() && part.chars().all(|ch| ch.is_ascii_digit()),
-        None => true,
     }
 }
 
