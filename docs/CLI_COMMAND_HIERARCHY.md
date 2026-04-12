@@ -28,8 +28,8 @@ That ordering is not arbitrary.
 
 Current implementation note:
 
-- the currently shipped binary still exposes `setup`, `generate`, `inspect`, and `doctor`
-- the reviewed product surface adds `pipeline`, which becomes supported only when its code, help text, docs, contracts, tests, and proof-corpus gates all land together
+- the currently shipped binary exposes `setup`, `pipeline`, `generate`, `inspect`, and `doctor`
+- the reviewed product surface includes `pipeline` as the orchestration surface for `list`, `show`, `resolve`, and `state set`
 
 ## Front Door Rule
 
