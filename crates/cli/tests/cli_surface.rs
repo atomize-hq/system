@@ -250,10 +250,14 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
     );
     assert!(second_stdout.contains("## JSON FALLBACK"));
+    assert!(
+        !second_stdout.contains("run `system inspect --packet planning.packet` for proof"),
+        "inspect ready path should not loop back into inspect: {second_stdout}"
+    );
     assert!(second_stdout.contains("## PACKET BODY"));
     assert!(second_stdout.contains("### CHARTER"));
     assert!(second_stdout.contains("### FEATURE_SPEC"));
@@ -399,6 +403,18 @@ fn doctor_blocks_when_system_root_missing() {
         stdout.contains("SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
     );
+    assert!(
+        stdout.contains("SUBJECT: policy system_root"),
+        "expected human-facing subject: {stdout}"
+    );
+    assert!(
+        stdout.contains("NEXT SAFE ACTION: create canonical .system root at .system"),
+        "expected human-facing next action: {stdout}"
+    );
+    assert!(
+        !stdout.contains("NEXT ACTION:"),
+        "doctor should use NEXT SAFE ACTION phrasing: {stdout}"
+    );
 }
 
 #[test]
@@ -412,6 +428,9 @@ fn doctor_blocks_when_feature_spec_missing_in_partial_system_tree() {
     assert!(stdout.contains("BLOCKED"));
     assert!(stdout.contains("RequiredArtifactMissing"));
     assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"));
+    assert!(stdout.contains(
+        "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+    ));
 }
 
 #[test]
@@ -691,8 +710,12 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
+    );
+    assert!(
+        !stdout.contains("run `system inspect --packet planning.packet` for proof"),
+        "inspect ready path should not loop back into inspect: {stdout}"
     );
     assert!(
         stdout.contains("## JSON FALLBACK"),
@@ -737,7 +760,7 @@ fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
     );
     assert!(
@@ -959,8 +982,14 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
         ],
+    );
+    assert!(
+        !stdout.contains(
+            "run `system inspect --packet execution.demo.packet --fixture-set basic` for proof"
+        ),
+        "inspect ready path should not loop back into inspect: {stdout}"
     );
     assert!(
         stdout.contains("## FIXTURE DEMO"),
@@ -1053,7 +1082,7 @@ fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(
@@ -1231,7 +1260,7 @@ fn inspect_resolves_execution_demo_packet_from_committed_fixture_dir() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(

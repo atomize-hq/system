@@ -221,11 +221,15 @@ fn render_inspect_is_deterministic_and_includes_json_fallback() {
         vec![
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ]
     );
     assert!(first.contains("## JSON FALLBACK"));
     assert!(first.contains("\"packet_id\": \"planning.packet\""));
+    assert!(
+        !first.contains("run `system inspect --packet planning.packet` for proof"),
+        "inspect ready path should not loop back into inspect: {first}"
+    );
     assert!(first.contains("## PACKET OVERVIEW"));
     assert!(first.contains("## PACKET BODY"));
     assert!(first.contains("### CHARTER (.system/charter/CHARTER.md)"));

@@ -326,10 +326,19 @@ fn doctor() -> ExitCode {
 
     println!("BLOCKED");
     for blocker in result.blockers {
-        println!("CATEGORY: {:?}", blocker.category);
+        println!(
+            "CATEGORY: {}",
+            system_compiler::render_blocker_category(blocker.category)
+        );
         println!("SUMMARY: {}", blocker.summary);
-        println!("SUBJECT: {:?}", blocker.subject);
-        println!("NEXT ACTION: {:?}", blocker.next_safe_action);
+        println!(
+            "SUBJECT: {}",
+            system_compiler::render_subject_ref(&blocker.subject)
+        );
+        println!(
+            "NEXT SAFE ACTION: {}",
+            system_compiler::render_next_safe_action_value(&blocker.next_safe_action)
+        );
         println!();
     }
 
