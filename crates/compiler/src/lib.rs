@@ -8,6 +8,7 @@ pub mod freshness;
 pub mod packet_result;
 pub mod pipeline;
 pub mod pipeline_route;
+pub mod route_state;
 pub mod refusal;
 pub mod rendering;
 pub mod resolver;
@@ -42,6 +43,11 @@ pub use pipeline::{
 pub use pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,
     RouteStageReason, RouteStageStatus, RouteVariables,
+};
+pub use route_state::{
+    load_route_state, set_route_state_variable, RouteState, RouteStateAuditEntry,
+    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    RouteStateStoreError, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
