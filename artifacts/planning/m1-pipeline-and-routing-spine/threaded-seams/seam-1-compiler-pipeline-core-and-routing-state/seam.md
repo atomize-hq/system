@@ -16,7 +16,7 @@ basis:
 gates:
   pre_exec:
     review: passed
-    contract: blocked
+    contract: passed
     revalidation: passed
   post_exec:
     landing: pending
@@ -57,7 +57,7 @@ open_remediations:
   - new compiler route/state tests under `crates/compiler/tests/`
 - **Verification**:
   - A downstream seam can cite one typed route result vocabulary (`active`, `skipped`, `blocked`, `next`) and one narrow state-mutation outcome surface without reconstructing behavior from CLI code.
-  - For the owned contract (`C-08`), pre-exec readiness depends on concrete rules plus a verification checklist for route statuses, activation subset boundaries, state schema, malformed-state refusal, and mutation concurrency semantics.
+  - For the owned contract (`C-08`), pre-exec readiness now rests on the concrete baseline in `docs/contracts/pipeline-route-and-state-core.md` plus the owner execution checklist in `S00`.
   - Publication or acceptance of the canonical `C-08` artifact remains seam-exit evidence, not a pre-exec prerequisite for the producing seam.
 - **Canonical contract refs**:
   - `docs/contracts/pipeline-route-and-state-core.md`

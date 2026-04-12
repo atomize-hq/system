@@ -47,18 +47,18 @@ flowchart LR
 
 ## Pre-exec findings
 
-- `REM-001` opened: the owned `C-08` contract is still missing its canonical artifact at `docs/contracts/pipeline-route-and-state-core.md`, so the seam does not yet have a durable contract baseline or verification checklist that downstream consumers can cite without reverse-engineering seam-local planning.
+- `REM-001` remains open, but it no longer blocks pre-exec readiness: the canonical route/state baseline now exists at `docs/contracts/pipeline-route-and-state-core.md`, and the remaining work is landing the implementation and seam-exit evidence promised by `S00`, `S2`, and `S3`.
 
 ## Pre-exec gate disposition
 
 - **Review gate**: passed
-- **Contract gate**: blocked
-- **Contract gate concerns**: `C-08` must pin one route-status vocabulary, one supported activation subset, one state schema, one bounded audit-history policy, and one mutation/refusal protocol before `SEAM-1` can become `exec-ready`. The canonical artifact path named by the seam plan does not exist yet, so the owned-contract baseline is not concrete enough to satisfy v2.5 pre-exec readiness.
+- **Contract gate**: passed
+- **Contract gate concerns**: The owned contract baseline is now concrete enough for `exec-ready`. Remaining work is post-exec: land the compiler route/state surfaces, publish `THR-01`, and record seam-exit evidence against the canonical contract.
 - **Revalidation prerequisites**:
   - Keep the basis current against the approved `serde_yaml_bw` parser base and the two-document pipeline shape.
   - Keep the basis current against `C-03` runtime-zone wording so `.system/state/**` remains non-canonical.
 - **Opened remediations**:
-  - `REM-001` blocks `SEAM-1` from reaching `exec-ready` until `docs/contracts/pipeline-route-and-state-core.md` exists and carries the verification checklist promised by `S00`.
+  - `REM-001` now tracks landing and publication evidence for the route/state baseline; it no longer blocks `SEAM-1` from reaching `exec-ready`.
 
 ## Planned seam-exit gate focus
 
