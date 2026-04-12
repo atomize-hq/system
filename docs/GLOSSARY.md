@@ -237,7 +237,8 @@ A stage front matter condition that determines whether the stage runs.
 Example used today:
 - `stage.06_project_context_interview` runs only when `variables.needs_project_context == true`.
 
-The harness supports simple equality checks against booleans/strings/numbers.
+Reduced v1 Rust pipeline loading supports boolean equality checks only.
+Legacy harness reference material may describe broader activation forms, but that is not the current Rust compiler contract.
 
 ## enable_complexity
 A boolean run variable that triggers auto‑inclusion of the `quality/complexity_assessment` overlay (when present) during compilation.

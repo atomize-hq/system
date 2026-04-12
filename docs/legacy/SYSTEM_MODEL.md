@@ -38,7 +38,8 @@ After you capture that stage’s output, the harness will prompt you to set the 
 A stage can be gated by `activation.when.any` / `activation.when.all` expressions like:
 - `variables.needs_project_context == true`
 
-The harness currently supports simple equality checks against booleans, numbers, and quoted strings.
+The legacy harness reference supports simple equality checks against booleans, numbers, and quoted strings.
+The reduced-v1 Rust pipeline loader is intentionally narrower: boolean equality only.
 
 ## Stage files (`core/stages/*.md`)
 

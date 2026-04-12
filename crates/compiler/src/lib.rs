@@ -6,6 +6,7 @@ pub mod decision_log;
 pub mod error;
 pub mod freshness;
 pub mod packet_result;
+pub mod pipeline;
 pub mod refusal;
 pub mod rendering;
 pub mod resolver;
@@ -31,6 +32,12 @@ pub use freshness::{
     MANIFEST_GENERATION_VERSION,
 };
 pub use packet_result::PacketResult;
+pub use pipeline::{
+    load_pipeline_definition, ActivationClause, ActivationConditionSet, ActivationOperator,
+    ActivationValidationError, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineLoadError, PipelineStage, PipelineValidationError, StageActivation,
+    StageFileValidationError,
+};
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
     build_output_model, render_inspect, render_json, render_markdown, RenderError,
