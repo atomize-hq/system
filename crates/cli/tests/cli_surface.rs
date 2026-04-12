@@ -408,6 +408,36 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         )
     );
 
+    let activation_applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=true",
+        ],
+    );
+    assert!(
+        activation_applied.status.success(),
+        "activation-only route variable should be supported"
+    );
+    let activation_applied_stdout =
+        String::from_utf8(activation_applied.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        activation_applied_stdout.trim_end(),
+        concat!(
+            "OUTCOME: APPLIED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "REVISION: 2\n",
+            "VARIABLES:\n",
+            "  charter_gaps_detected = true\n",
+            "  needs_project_context = true"
+        )
+    );
+
     let second_resolve = run_in(
         root.as_path(),
         &["pipeline", "resolve", "--id", "foundation_inputs"],
@@ -422,7 +452,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         concat!(
             "OUTCOME: RESOLVED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
-            "STATE REVISION: 1\n",
+            "STATE REVISION: 2\n",
             "ROUTE:\n",
             "  1. stage.00_base | active\n",
             "  2. stage.04_charter_inputs | active\n",
@@ -440,7 +470,7 @@ fn pipeline_state_set_preserves_distinct_refusals() {
 
     write_file(
         &state_path,
-        b"---\nschema_version: m1-pipeline-state-v1\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nvariables:\n  charter_gaps_detected: true\naudit:\n  - revision: 1\n    variable: charter_gaps_detected\n    value: true\n",
+        b"---\nschema_version: m1-pipeline-state-v1\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nvariables:\n  unsupported_flag: true\naudit:\n  - revision: 1\n    variable: unsupported_flag\n    value: true\n",
     );
 
     let malformed = run_in(
@@ -464,7 +494,7 @@ fn pipeline_state_set_preserves_distinct_refusals() {
     assert_eq!(
         malformed_stdout.trim_end(),
         format!(
-            "REFUSED: malformed route state at {}: unsupported audit variable `charter_gaps_detected` in persisted state",
+            "REFUSED: malformed route state at {}: unsupported audit variable `unsupported_flag` in persisted state",
             malformed_state_path.display()
         )
     );
@@ -512,7 +542,7 @@ fn pipeline_state_set_preserves_distinct_refusals() {
             "--id",
             "foundation_inputs",
             "--var",
-            "charter_gaps_detected=true",
+            "unsupported_flag=true",
         ],
     );
     assert!(
@@ -525,7 +555,7 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         concat!(
             "OUTCOME: REFUSED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
-            "REASON: unsupported route-state variable `charter_gaps_detected`"
+            "REASON: unsupported route-state variable `unsupported_flag`"
         )
     );
 }

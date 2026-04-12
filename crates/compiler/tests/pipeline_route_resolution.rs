@@ -189,13 +189,16 @@ fn route_evaluation_refuses_out_of_contract_activation_inputs() {
 }
 
 #[test]
-fn supported_route_state_variables_are_derived_from_declared_stage_sets() {
+fn supported_route_state_variables_include_stage_sets_and_activation_clauses() {
     let definition = fixture("pipelines/foundation_inputs.yaml");
     let variables = supported_route_state_variables(&definition);
 
     assert_eq!(
         variables.into_iter().collect::<Vec<_>>(),
-        vec!["needs_project_context".to_string()]
+        vec![
+            "charter_gaps_detected".to_string(),
+            "needs_project_context".to_string(),
+        ]
     );
 }
 

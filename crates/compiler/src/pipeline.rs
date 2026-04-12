@@ -417,6 +417,11 @@ pub fn supported_route_state_variables(pipeline: &PipelineDefinition) -> BTreeSe
                 variables.insert(variable.clone());
             }
         }
+        if let Some(activation) = &stage.activation {
+            for clause in &activation.when.clauses {
+                variables.insert(clause.variable.clone());
+            }
+        }
     }
 
     variables
