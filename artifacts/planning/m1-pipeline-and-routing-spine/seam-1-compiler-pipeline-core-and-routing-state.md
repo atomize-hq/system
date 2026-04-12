@@ -2,7 +2,7 @@
 seam_id: SEAM-1
 seam_slug: compiler-pipeline-core-and-routing-state
 type: capability
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:
@@ -17,7 +17,7 @@ basis:
 gates:
   pre_exec:
     review: passed
-    contract: blocked
+    contract: passed
     revalidation: passed
   post_exec:
     landing: pending
@@ -80,7 +80,8 @@ open_remediations:
   - `.system/state/pipeline/`
   - compiler-core tests and proof fixtures for route/state semantics
 - **Verification**:
-  - This seam produces an owned contract. Verification should prove the route/state contract is concrete enough for seam-local planning and implementation by showing deterministic route results, explicit refusal classes, and real state-file mutation semantics, without requiring downstream operator-surface docs/help to be complete yet.
+  - This seam produces an owned contract. Verification has made the route/state contract concrete enough for seam-local execution planning by pinning deterministic route results, explicit refusal classes, and real state-file mutation semantics without requiring downstream operator-surface docs/help to be complete yet.
+  - The seam is now eligible for `exec-ready`; remaining open remediation posture targets landing evidence rather than pre-exec readiness.
 - **Canonical contract refs**:
   - `docs/contracts/pipeline-route-and-state-core.md`
   - `docs/contracts/C-03-canonical-artifact-manifest-contract.md`

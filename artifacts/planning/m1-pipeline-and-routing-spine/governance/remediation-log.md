@@ -16,8 +16,8 @@ status: open
 owner_seam: SEAM-1
 blocked_targets:
   - seam: SEAM-1
-    field: gates.post_exec.landing
-    value: passed
+    field: status
+    value: landed
 summary: The route/state baseline is now explicit; remaining work is to land the compiler route/state surfaces and publish the landing evidence promised by the owner slices.
 required_fix: |
   Land the owner implementation and verification checklist anchored by the new canonical contract at `docs/contracts/pipeline-route-and-state-core.md`.

@@ -1,7 +1,7 @@
 ---
 seam_id: SEAM-1
 seam_slug: compiler-pipeline-core-and-routing-state
-status: decomposed
+status: exec-ready
 execution_horizon: active
 plan_version: v1
 basis:

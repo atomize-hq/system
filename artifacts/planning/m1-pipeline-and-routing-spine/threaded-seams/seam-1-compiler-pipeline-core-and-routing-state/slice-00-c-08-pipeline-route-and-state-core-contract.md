@@ -3,7 +3,7 @@ slice_id: S00
 seam_id: SEAM-1
 slice_kind: contract_definition
 execution_horizon: active
-status: decomposed
+status: exec-ready
 plan_version: v1
 basis:
   currentness: current

@@ -48,6 +48,7 @@ flowchart LR
 ## Pre-exec findings
 
 - `REM-001` remains open, but it no longer blocks pre-exec readiness: the canonical route/state baseline now exists at `docs/contracts/pipeline-route-and-state-core.md`, and the remaining work is landing the implementation and seam-exit evidence promised by `S00`, `S2`, and `S3`.
+- All pre-exec gates now pass against the current pack basis, so `SEAM-1` may promote from `decomposed` to `exec-ready`.
 
 ## Pre-exec gate disposition
 
@@ -59,6 +60,7 @@ flowchart LR
   - Keep the basis current against `C-03` runtime-zone wording so `.system/state/**` remains non-canonical.
 - **Opened remediations**:
   - `REM-001` now tracks landing and publication evidence for the route/state baseline; it no longer blocks `SEAM-1` from reaching `exec-ready`.
+- **Promotion result**: `SEAM-1` is ready for `exec-ready`; publication still depends on post-exec landing and seam-exit evidence.
 
 ## Planned seam-exit gate focus
 
