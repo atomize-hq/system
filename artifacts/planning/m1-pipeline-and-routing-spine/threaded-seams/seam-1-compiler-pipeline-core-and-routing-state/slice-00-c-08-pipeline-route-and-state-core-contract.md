@@ -23,7 +23,8 @@ threads:
 contracts_produced:
   - C-08
 contracts_consumed: []
-open_remediations: []
+open_remediations:
+  - REM-001
 ---
 
 ### S00 - Define `C-08` Pipeline Route and State Core Contract

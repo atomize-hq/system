@@ -16,7 +16,7 @@ basis:
 gates:
   pre_exec:
     review: passed
-    contract: pending
+    contract: blocked
     revalidation: passed
   post_exec:
     landing: pending
@@ -25,7 +25,8 @@ seam_exit_gate:
   required: true
   planned_location: S99
   status: pending
-open_remediations: []
+open_remediations:
+  - REM-001
 ---
 
 # SEAM-1 - Compiler Pipeline Core and Routing State

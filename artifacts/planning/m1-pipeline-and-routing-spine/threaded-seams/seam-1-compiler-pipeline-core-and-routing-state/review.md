@@ -47,16 +47,18 @@ flowchart LR
 
 ## Pre-exec findings
 
-- None opened in this decomposition pass. `S00` exists specifically to make `C-08` concrete enough that later execution can pass the contract gate without inventing semantics mid-implementation.
+- `REM-001` opened: the owned `C-08` contract is still missing its canonical artifact at `docs/contracts/pipeline-route-and-state-core.md`, so the seam does not yet have a durable contract baseline or verification checklist that downstream consumers can cite without reverse-engineering seam-local planning.
 
 ## Pre-exec gate disposition
 
 - **Review gate**: passed
-- **Contract gate concerns**: `C-08` must pin one route-status vocabulary, one supported activation subset, one state schema, one bounded audit-history policy, and one mutation/refusal protocol before `SEAM-1` can become `exec-ready`.
+- **Contract gate**: blocked
+- **Contract gate concerns**: `C-08` must pin one route-status vocabulary, one supported activation subset, one state schema, one bounded audit-history policy, and one mutation/refusal protocol before `SEAM-1` can become `exec-ready`. The canonical artifact path named by the seam plan does not exist yet, so the owned-contract baseline is not concrete enough to satisfy v2.5 pre-exec readiness.
 - **Revalidation prerequisites**:
   - Keep the basis current against the approved `serde_yaml_bw` parser base and the two-document pipeline shape.
   - Keep the basis current against `C-03` runtime-zone wording so `.system/state/**` remains non-canonical.
-- **Opened remediations**: none
+- **Opened remediations**:
+  - `REM-001` blocks `SEAM-1` from reaching `exec-ready` until `docs/contracts/pipeline-route-and-state-core.md` exists and carries the verification checklist promised by `S00`.
 
 ## Planned seam-exit gate focus
 
