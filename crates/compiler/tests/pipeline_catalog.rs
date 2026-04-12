@@ -113,8 +113,39 @@ stages:
 }
 
 #[test]
-fn catalog_renders_pipeline_and_stage_views_in_normalized_form() {
+fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     let catalog = load_pipeline_catalog(repo_root()).expect("catalog");
+
+    let pipeline = catalog
+        .resolve_selector("pipeline.foundation_inputs")
+        .expect("pipeline selection");
+    let pipeline_render = render_pipeline_show(&pipeline);
+    assert!(pipeline_render.contains("PIPELINE: pipeline.foundation_inputs"));
+    assert!(pipeline_render.contains("TITLE: Foundation Pipeline (Dev/Test Charter Inputs"));
+    assert!(pipeline_render.contains("SOURCE: pipelines/foundation_inputs.yaml"));
+    assert!(pipeline_render.contains("DEFAULTS:"));
+    assert!(pipeline_render.contains("runner: codex-cli"));
+    assert!(pipeline_render.contains("profile: python-uv"));
+    assert!(pipeline_render.contains("enable_complexity: false"));
+    assert!(pipeline_render.contains("  1. stage.00_base | core/stages/00_base.md"));
+    assert!(pipeline_render.contains("stage.04_charter_inputs"));
+    assert!(pipeline_render.contains("core/stages/04_charter_inputs.md"));
+    assert!(pipeline_render
+        .contains("  5. stage.07_foundation_pack | core/stages/07_foundation_pack.md"));
+
+    let stage = catalog
+        .resolve_selector("stage.07_foundation_pack")
+        .expect("stage selection");
+    let stage_render = render_pipeline_show(&stage);
+    assert!(stage_render.contains("STAGE: stage.07_foundation_pack"));
+    assert!(stage_render.contains("KIND: stage"));
+    assert!(stage_render.contains("VERSION: 0.1.0"));
+    assert!(stage_render.contains("TITLE: Foundation Pack Synthesis"));
+    assert!(stage_render.contains("DESCRIPTION: Synthesizes project-specific foundation artifacts"));
+    assert!(stage_render.contains("WORK_LEVEL: L1"));
+    assert!(stage_render.contains("SOURCE: core/stages/07_foundation_pack.md"));
+    assert!(stage_render.contains("pipeline.foundation"));
+    assert!(stage_render.contains("pipeline.foundation_inputs"));
 
     let list = render_pipeline_list(&catalog);
     assert!(list.contains("PIPELINE INVENTORY"));
@@ -122,24 +153,6 @@ fn catalog_renders_pipeline_and_stage_views_in_normalized_form() {
     assert!(list.contains("PIPELINE: pipeline.foundation"));
     assert!(list.contains("SOURCE: pipelines/foundation.yaml"));
     assert!(list.contains("PIPELINE: pipeline.sprint"));
-
-    let pipeline = catalog
-        .resolve_selector("pipeline.foundation_inputs")
-        .expect("pipeline selection");
-    let pipeline_render = render_pipeline_show(&pipeline);
-    assert!(pipeline_render.contains("PIPELINE: pipeline.foundation_inputs"));
-    assert!(pipeline_render.contains("DEFAULTS:"));
-    assert!(pipeline_render.contains("stage.04_charter_inputs"));
-    assert!(pipeline_render.contains("core/stages/04_charter_inputs.md"));
-
-    let stage = catalog
-        .resolve_selector("stage.00_base")
-        .expect("stage selection");
-    let stage_render = render_pipeline_show(&stage);
-    assert!(stage_render.contains("STAGE: stage.00_base"));
-    assert!(stage_render.contains("KIND: stage"));
-    assert!(stage_render.contains("SOURCE: core/stages/00_base.md"));
-    assert!(stage_render.contains("pipeline.foundation"));
 }
 
 fn write_file(path: &Path, contents: &str) {

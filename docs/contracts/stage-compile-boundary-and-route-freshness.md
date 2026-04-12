@@ -64,17 +64,24 @@ This contract defines the compile boundary between published `pipeline` route tr
 
 ### Compile-target selection
 
-- Compile MUST consume a canonical pipeline id and a canonical stage id through the published operator-surface selection rules.
-- Compile MUST NOT invent compile-only targeting aliases, raw-path targeting, or hidden stage selectors.
-- Compile MUST treat stage ids as meaningful only within the selected pipeline context and the published route basis.
-- Compile MUST reuse the reviewed `pipeline` id-resolution rules rather than recomputing target discovery from filesystem structure.
+- Compile-target selection MUST start from one resolved pipeline selection produced through the published `pipeline` operator surface.
+- The only accepted target inputs are the canonical pipeline id and a canonical stage id within that pipeline context.
+- Shorthand ids MAY be accepted only when they resolve through the same canonical-id and shorthand rules published in `C-09`.
+- Raw file paths, hidden aliases, and compile-only lookup forms MUST be refused.
+- Compile MUST treat route truth as an upstream input and MUST NOT rediscover targets from filesystem traversal or stage-front-matter parsing alone.
+- The selected stage id MUST exist in the selected pipeline's declared stage list.
 
 ### Source-of-truth split
 
-- Pipeline YAML owns orchestration order and route-entry activation.
-- Stage front matter owns compile-facing stage metadata that later compile work may consume.
-- Compile MUST refuse when the selected route basis and the selected stage metadata drift out of contract.
-- Compile MUST NOT silently prefer one source of truth when the two surfaces disagree.
+| Surface | Owns | Concrete fields |
+| --- | --- | --- |
+| Pipeline YAML | orchestration and route target declarations | `kind`, `id`, `version`, `title`, `description`, `defaults.runner`, `defaults.profile`, `defaults.enable_complexity`, `stages[].id`, `stages[].file`, `stages[].sets`, `stages[].activation` |
+| Stage front matter | stage identity and stage-local compile metadata | `kind`, `id`, `version`, `title`, `description`, `work_level`, plus any other stage-local front matter already present in `core/stages/*.md` |
+
+- Compile MUST read pipeline YAML for orchestration order and stage-to-file binding.
+- Compile MUST read stage front matter for the selected stage's canonical identity and stage-local metadata.
+- Compile MUST NOT infer a stage from front matter alone or from file path alone.
+- If the selected stage metadata and the pipeline-declared stage entry do not line up, later compile work MUST treat that as contract drift rather than inventing a second source of truth.
 
 ### Freshness and refusal posture
 
@@ -115,6 +122,8 @@ This contract defines the compile boundary between published `pipeline` route tr
 
 - [ ] The canonical contract exists at `docs/contracts/stage-compile-boundary-and-route-freshness.md`.
 - [ ] The contract names `pipeline` target selection, source-of-truth split, freshness refusal, inactive-stage refusal, activation-equivalence posture, and stage-payload handoff as separate normative concerns.
+- [ ] The contract makes pipeline-YAML-owned fields and stage-front-matter-owned fields explicit enough for downstream implementation.
+- [ ] The contract ties compile-target selection to the published canonical-id and shorthand rules without introducing raw-path targeting.
 - [ ] The contract keeps `pipeline compile` out of the shipped M1 help/docs posture.
 - [ ] The contract references only the published upstream truth at `docs/contracts/pipeline-route-and-state-core.md` and `docs/contracts/pipeline-operator-surface-and-id-resolution.md`.
 - [ ] The contract does not over-specify future payload field names or implementation details.

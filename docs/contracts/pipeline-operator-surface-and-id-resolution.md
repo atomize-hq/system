@@ -65,6 +65,7 @@ This contract is not authoritative for:
 - `pipeline resolve` and `pipeline state set` MUST wrap the compiler-owned route/state surfaces defined by `docs/contracts/pipeline-route-and-state-core.md`.
 - CLI glue for `pipeline resolve` and `pipeline state set` MUST NOT reinterpret route statuses, state schema, mutation protocol, or refusal semantics owned by `docs/contracts/pipeline-route-and-state-core.md`.
 - The reviewed operator surface MAY render or adapt compiler-owned truth, but it MUST NOT become a second authority for declared pipeline structure or route/state semantics.
+- Later compile-boundary work MUST reuse these canonical-id and shorthand rules as-is and MUST keep raw file paths evidence only rather than introducing a parallel selector contract.
 
 ### Canonical ids
 
