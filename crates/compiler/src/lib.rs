@@ -7,6 +7,7 @@ pub mod error;
 pub mod freshness;
 pub mod packet_result;
 pub mod pipeline;
+pub mod pipeline_route;
 pub mod refusal;
 pub mod rendering;
 pub mod resolver;
@@ -37,6 +38,10 @@ pub use pipeline::{
     ActivationValidationError, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
     PipelineLoadError, PipelineStage, PipelineValidationError, StageActivation,
     StageFileValidationError,
+};
+pub use pipeline_route::{
+    resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,
+    RouteStageReason, RouteStageStatus, RouteVariables,
 };
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
