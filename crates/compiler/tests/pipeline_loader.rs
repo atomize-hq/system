@@ -208,6 +208,42 @@ stages:
 }
 
 #[test]
+fn unsupported_header_kind_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_path = repo_root.join("pipelines/wrong-kind.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: schema
+id: pipeline.wrong_kind
+version: 0.1.0
+title: "Wrong Kind"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/wrong-kind.yaml")
+        .expect_err("wrong header kind");
+
+    match err {
+        PipelineLoadError::Validation {
+            error: PipelineValidationError::UnsupportedKind { actual },
+            ..
+        } => assert_eq!(actual, "schema"),
+        other => panic!("expected unsupported-kind refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn duplicate_stage_ids_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();

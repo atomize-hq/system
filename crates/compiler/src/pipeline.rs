@@ -108,6 +108,9 @@ pub enum PipelineValidationError {
     EmptyField {
         field: &'static str,
     },
+    UnsupportedKind {
+        actual: String,
+    },
     EmptyStages,
     DuplicateStageId {
         stage_id: String,
@@ -310,6 +313,9 @@ impl fmt::Display for PipelineValidationError {
             PipelineValidationError::EmptyField { field } => {
                 write!(f, "field `{field}` must not be empty")
             }
+            PipelineValidationError::UnsupportedKind { actual } => {
+                write!(f, "field `kind` must be `pipeline`, got `{actual}`")
+            }
             PipelineValidationError::EmptyStages => {
                 write!(f, "pipeline must declare at least one stage")
             }
@@ -359,6 +365,14 @@ fn validate_pipeline_definition(
     body: &PipelineBody,
 ) -> Result<(), PipelineLoadError> {
     validate_non_empty(path, "kind", &header.kind)?;
+    if header.kind != "pipeline" {
+        return Err(PipelineLoadError::Validation {
+            path: path.to_path_buf(),
+            error: PipelineValidationError::UnsupportedKind {
+                actual: header.kind.clone(),
+            },
+        });
+    }
     validate_non_empty(path, "id", &header.id)?;
     validate_non_empty(path, "version", &header.version)?;
     validate_non_empty(path, "title", &header.title)?;
