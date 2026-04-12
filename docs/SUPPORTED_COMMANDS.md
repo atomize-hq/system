@@ -36,7 +36,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 
 - `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
 - `pipeline` owns `list`, `show`, `resolve`, and `state set` for the reviewed wedge.
-- `pipeline` is reviewed and contractually defined now, and the shipped help surface pins that supported subset without exposing `pipeline compile`.
+- `pipeline` is reviewed and contractually defined now, and the help surface pins that supported subset while `pipeline compile` remains deferred under `C-10`.
 - `generate` produces planning packets from canonical repo-local `.system/` inputs and supports the fixture-backed execution demo via `execution.demo.packet`.
 - `inspect` is the proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.

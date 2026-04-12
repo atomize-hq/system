@@ -21,7 +21,7 @@ The reviewed reduced-v1 CLI product has five operator-facing surfaces, in this o
 That ordering is not arbitrary.
 
 - `setup` / `setup refresh` establishes or refreshes trusted project truth.
-- `pipeline` owns orchestration truth, route resolution, explicit stage compilation, and narrow route-state mutation.
+- `pipeline` owns orchestration truth, route resolution, explicit stage selection, and narrow route-state mutation.
 - `generate` is the default ready-path command once trusted truth exists.
 - `inspect` is the proof surface when the operator needs to verify why a packet looks the way it does.
 - `doctor` is the recovery and readiness surface when the operator needs blocker aggregation, repair guidance, or a readiness check.
@@ -86,7 +86,7 @@ Use `generate` when:
 Use `pipeline` when:
 
 - the operator needs the authoritative route for a pipeline
-- the operator wants to compile one explicitly selected stage payload
+- the operator wants to select one explicitly selected stage payload for future compile work
 - the operator needs to set narrow route-state variables inside the declared schema
 
 `pipeline` is not the front door. It is the orchestration surface after trusted project truth already exists.
@@ -119,7 +119,7 @@ Use `doctor` when:
 |------------|-----------------|-----------------------|-----|
 | No canonical `.system/` artifacts yet | Establish trusted project truth | Guided setup / `setup` | The repo is not ready for packet generation |
 | Canonical artifacts exist but posture is stale or needs deliberate refresh | Re-establish trusted project truth | Guided setup refresh / `setup refresh` | The job is posture refresh, not packet generation |
-| Canonical artifacts exist and the operator needs route truth or stage compilation | Work the planning compiler control plane | `pipeline` | The operator is resolving or compiling explicit pipeline stages |
+| Canonical artifacts exist and the operator needs route truth or stage selection | Work the planning compiler control plane | `pipeline` | The operator is resolving or preparing explicit pipeline stages |
 | Canonical artifacts are ready | Get the packet | `generate` | This is the default steady-state path |
 | Canonical artifacts are ready | Prove or audit the packet basis | `inspect` | The operator wants proof |
 | Canonical artifacts are missing, malformed, contradictory, or otherwise unclear | Diagnose and recover cleanly | `doctor` | The operator needs the full blocker report |
@@ -128,7 +128,7 @@ Use `doctor` when:
 ### Practical routing rules
 
 - If the operator is trying to establish truth, route to `setup` or `setup refresh`.
-- If the operator is trying to resolve a route or compile an explicit stage, route to `pipeline`.
+- If the operator is trying to resolve a route or select an explicit stage, route to `pipeline`.
 - If the operator is trying to get work done from an already-prepared repo, route to `generate`.
 - If the operator is asking “why did this happen?” route to `inspect`.
 - If the operator is asking “what is wrong and what do I fix first?” route to `doctor`.
@@ -138,7 +138,7 @@ Use `doctor` when:
 The next safe action should reinforce the hierarchy rather than compete with it.
 
 - Use setup-oriented next actions when canonical truth is missing or must be re-established.
-- Use `pipeline resolve` when the operator needs route truth before a stage-specific compile.
+- Use `pipeline resolve` when the operator needs route truth before future stage-specific compile work.
 - Use `doctor` when deeper diagnosis or blocker aggregation is needed.
 - Use `inspect` after a ready `generate` result when the operator needs proof.
 - Use `system generate --packet planning.packet` as the fallback from unsupported live execution requests.

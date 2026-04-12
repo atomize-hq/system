@@ -37,6 +37,6 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - Refusal + doctor blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)
-- Conformance + docs/help parity rails: [`C-07`](contracts/C-07-conformance-rails-and-docs-cutover.md)
+- Docs/help parity and conformance rails for the reviewed `pipeline` subset: [`C-11`](contracts/pipeline-proof-corpus-and-docs-cutover.md)
 
 Legacy reference docs (Python harness, stage reference, old workflow guides) live under [`docs/legacy/`](legacy/README.md).
