@@ -352,6 +352,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     let first_resolve_stdout = String::from_utf8(first_resolve.stdout).expect("stdout is utf-8");
     assert!(first_resolve_stdout.contains("OUTCOME: RESOLVED"));
     assert!(first_resolve_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
+    assert!(first_resolve_stdout.contains("STATE REVISION: 0"));
     assert!(first_resolve_stdout.contains("stage.06_project_context_interview | next"));
     assert!(first_resolve_stdout.contains("stage.07_foundation_pack | blocked"));
     assert!(first_resolve_stdout
@@ -388,6 +389,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline resolve should succeed after mutation"
     );
     let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
+    assert!(second_resolve_stdout.contains("STATE REVISION: 1"));
     assert!(second_resolve_stdout.contains("stage.06_project_context_interview | active"));
     assert!(second_resolve_stdout.contains("stage.07_foundation_pack | active"));
     assert!(

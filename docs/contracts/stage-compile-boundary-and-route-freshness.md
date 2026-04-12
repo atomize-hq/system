@@ -85,8 +85,9 @@ This contract defines the compile boundary between published `pipeline` route tr
 
 ### Freshness and refusal posture
 
+- Compile MUST consume already-resolved route truth as the route basis for downstream compile work.
 - Compile MUST refuse stale route basis instead of silently re-running `pipeline resolve`.
-- Compile MUST refuse inactive stages explicitly.
+- Compile MUST refuse inactive stages explicitly when the selected stage is not active in the resolved route truth.
 - Compile MUST surface a freshness refusal when the selected route basis is missing, stale, malformed, or otherwise outside the contract required for compile.
 - Compile MUST give the operator one clear recovery direction when freshness is the problem: re-run `pipeline resolve` before retrying compile.
 - Compile MUST NOT downgrade stale or inactive basis into best-effort behavior.

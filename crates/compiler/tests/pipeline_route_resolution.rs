@@ -29,6 +29,9 @@ fn route_evaluation_preserves_declared_order_and_marks_false_activation_skipped(
 
     let result = resolve_pipeline_route(&definition, &variables).expect("route");
 
+    assert_eq!(result.pipeline_id, definition.header.id);
+    assert_eq!(result.stages.len(), definition.declared_stages().len());
+
     assert_eq!(
         result
             .stages
@@ -82,6 +85,8 @@ fn route_evaluation_emits_exactly_one_next_when_route_state_is_missing() {
     let variables = RouteVariables::empty();
 
     let result = resolve_pipeline_route(&definition, &variables).expect("route");
+
+    assert_eq!(result.pipeline_id, definition.header.id);
 
     assert_eq!(
         result
