@@ -2,8 +2,8 @@
 seam_id: SEAM-2
 seam_slug: pipeline-operator-surface-and-id-resolution
 type: platform
-status: exec-ready
-execution_horizon: active
+status: landed
+execution_horizon: future
 plan_version: v1
 basis:
   currentness: current
@@ -22,12 +22,12 @@ gates:
     contract: passed
     revalidation: passed
   post_exec:
-    landing: pending
-    closeout: pending
+    landing: passed
+    closeout: passed
 seam_exit_gate:
   required: true
   planned_location: S99
-  status: pending
+  status: passed
 open_remediations: []
 ---
 
@@ -93,9 +93,9 @@ open_remediations: []
   - keep `pipeline compile` hidden from shipped `M1` help/docs until `SEAM-3` and later M2 work publish the compile contract and implementation
   - refuse ambiguous or malformed operator input instead of guessing
 - **Downstream decomposition context**:
-  - This seam is `active` because the upstream route/state handoff is now published and current.
-  - `THR-01` is the incoming dependency and `THR-02` is the outgoing operator-surface thread.
-  - The first seam-local review should focus on user-visible command hierarchy, canonical-id lookup boundaries, and whether the default render contracts are compact enough to remain auditable.
+  - This seam is now landed and outside the forward planning window after publishing the operator-surface handoff.
+  - `THR-01` was the incoming dependency and `THR-02` is now the published outgoing operator-surface thread.
+  - Downstream planning should consume the closeout-backed contract, help, and refusal evidence rather than reopening the seam-local review bundle.
 - **Expected seam-exit concerns**:
   - Contracts likely to publish:
     - `C-09`

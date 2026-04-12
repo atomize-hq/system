@@ -3,7 +3,7 @@ seam_id: SEAM-4
 seam_slug: validation-rails-proof-corpus-and-docs-realignment
 type: conformance
 status: proposed
-execution_horizon: future
+execution_horizon: next
 plan_version: v1
 basis:
   currentness: provisional
@@ -100,7 +100,7 @@ open_remediations: []
   - fail fast on drift in help text, proof outputs, refusal classes, or malformed-state behavior
   - keep performance expectations explicit and narrow rather than smuggling caches into M1
 - **Downstream decomposition context**:
-  - This seam is `future` because it must consume published upstream truth rather than chase moving contracts.
+  - This seam is `next` because it can now plan against the published operator-surface truth while waiting on the active compile-boundary seam to publish `C-10`.
   - `THR-04` is the closeout thread that carries the shared proof and docs/help posture into later milestone packs.
   - The first seam-local review should focus on proof-corpus realism, whether every check maps to a published contract, and whether the docs/help cutover removes competing packet-only product claims.
 - **Expected seam-exit concerns**:

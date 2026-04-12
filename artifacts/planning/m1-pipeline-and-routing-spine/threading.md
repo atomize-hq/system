@@ -2,10 +2,10 @@
 
 ## Execution horizon summary
 
-- Active seam: `SEAM-2`
-- Next seam: `SEAM-3`
-- Future seams: `SEAM-4`
-- Landed seam outside forward window: `SEAM-1`
+- Active seam: `SEAM-3`
+- Next seam: `SEAM-4`
+- Future seams: none
+- Landed seams outside forward window: `SEAM-1`, `SEAM-2`
 - Default policy: only the active seam receives authoritative deep planning by default; the next seam is eligible only for provisional seam-local planning later; future seams remain seam briefs.
 
 ## Contract registry
@@ -67,10 +67,10 @@
   - **Consumer seam(s)**: `SEAM-3`, `SEAM-4`
   - **Carried contract IDs**: `C-09`
   - **Purpose**: Carry the supported `pipeline` command vocabulary, id lookup rules, and compact render contract into compile handoff planning and conformance rails.
-  - **State**: `defined`
+  - **State**: `published`
   - **Revalidation trigger**: Any change to supported `pipeline` subcommands, canonical-id/shorthand behavior, ambiguity refusal copy, or help-surface exposure rules.
   - **Satisfied by**: `SEAM-2` closeout records landed CLI command handlers, help evidence, canonical-id lookup behavior, and published operator-surface contract updates.
-  - **Notes**: This thread should not publish until code, help, docs, tests, and proof corpus agree that `pipeline` is a supported surface.
+  - **Notes**: `SEAM-3` is now the active consumer planning window and may treat the operator surface as published upstream truth.
 
 - **Thread ID**: `THR-03`
   - **Producer seam**: `SEAM-3`
@@ -106,9 +106,9 @@ flowchart LR
 
 ## Critical path
 
-- `SEAM-1` must publish `C-08` before the operator surface can safely claim `pipeline` as supported.
-- `SEAM-2` must publish `C-09` before docs/help parity and proof outputs can freeze the shipped surface.
-- `SEAM-3` stays future-facing but should define the compile handoff before `SEAM-4` finalizes docs/help copy that references compile as deferred.
+- `SEAM-1` published `C-08` before the operator surface claimed `pipeline` as supported.
+- `SEAM-2` published `C-09`, so the compile-boundary seam may now consume stable operator-surface truth.
+- `SEAM-3` is now the active seam and should define the compile handoff before `SEAM-4` finalizes docs/help copy that references compile as deferred.
 - `SEAM-4` closes the pack by binding proof corpus, tests, docs, and performance/security posture to the published upstream contracts.
 
 ## Workstreams

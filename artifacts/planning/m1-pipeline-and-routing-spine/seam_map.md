@@ -7,9 +7,10 @@ then freeze the compile handoff contract and conformance rails that keep the sur
 
 ## Horizon policy
 
-- Active seam: `SEAM-1` because the compiler-owned route/state core is the critical-path dependency for every visible `pipeline` behavior.
-- Next seam: `SEAM-2` because the operator-facing `pipeline` family can be planned next once the route/state core has a concrete contract and touch surface.
-- Future seams: `SEAM-3` and `SEAM-4`.
+- Active seam: `SEAM-3` because the compile-boundary handoff is now the critical-path dependency for later compile-facing work after the operator surface published stable upstream truth.
+- Next seam: `SEAM-4` because the conformance seam can move into the window once the compile-boundary seam is actively planned.
+- Future seams: none.
+- Landed seams outside the forward window: `SEAM-1`, `SEAM-2`.
 - Only the active seam is eligible for authoritative deep planning by default.
 - The next seam may later receive seam-local review and slices, but only provisional deeper planning until it revalidates against the landed route/state contract from `SEAM-1`.
 - Future seams remain seam briefs only.
@@ -18,10 +19,10 @@ then freeze the compile handoff contract and conformance rails that keep the sur
 
 | Seam | Name | Type | Horizon | Primary value | Key contracts | Primary touch surface |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SEAM-1` | Compiler Pipeline Core and Routing State | `capability` | `active` | Makes the compiler the source of truth for pipeline loading, activation, resolved-route truth, and narrow route-state mutation semantics | `C-08` | `crates/compiler/`, `pipelines/`, `core/stages/`, `.system/state/pipeline/` |
-| `SEAM-2` | Pipeline Operator Surface and ID Resolution | `platform` | `next` | Ships the supported `pipeline` command family, canonical-id lookup, shorthand ambiguity refusal, and normalized CLI render contract | `C-09` | `crates/cli/`, help snapshots, docs/help surfaces |
-| `SEAM-3` | Stage Compile Boundary and Route Freshness Handoff | `integration` | `future` | Freezes the M2 compile boundary so route truth, stage metadata, and freshness checks connect cleanly without smuggling compile into M1 | `C-10` | future compile contract docs, `crates/compiler` compile boundary, stage front matter |
-| `SEAM-4` | Validation Rails, Proof Corpus, and Docs Realignment | `conformance` | `future` | Locks the shipped M1 surface with realistic proof corpus, goldens, malformed-state rails, performance/security rules, and docs/help parity | `C-11` | `tests/`, proof fixtures, `README.md`, `DESIGN.md`, `docs/`, contract docs |
+| `SEAM-1` | Compiler Pipeline Core and Routing State | `capability` | `future` | Makes the compiler the source of truth for pipeline loading, activation, resolved-route truth, and narrow route-state mutation semantics | `C-08` | `crates/compiler/`, `pipelines/`, `core/stages/`, `.system/state/pipeline/` |
+| `SEAM-2` | Pipeline Operator Surface and ID Resolution | `platform` | `future` | Ships the supported `pipeline` command family, canonical-id lookup, shorthand ambiguity refusal, and normalized CLI render contract | `C-09` | `crates/cli/`, help snapshots, docs/help surfaces |
+| `SEAM-3` | Stage Compile Boundary and Route Freshness Handoff | `integration` | `active` | Freezes the M2 compile boundary so route truth, stage metadata, and freshness checks connect cleanly without smuggling compile into M1 | `C-10` | future compile contract docs, `crates/compiler` compile boundary, stage front matter |
+| `SEAM-4` | Validation Rails, Proof Corpus, and Docs Realignment | `conformance` | `next` | Locks the shipped M1 surface with realistic proof corpus, goldens, malformed-state rails, performance/security rules, and docs/help parity | `C-11` | `tests/`, proof fixtures, `README.md`, `DESIGN.md`, `docs/`, contract docs |
 
 ## Why these seams are decomposable
 

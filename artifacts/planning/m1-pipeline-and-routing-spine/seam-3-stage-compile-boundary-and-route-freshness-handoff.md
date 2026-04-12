@@ -2,14 +2,16 @@
 seam_id: SEAM-3
 seam_slug: stage-compile-boundary-and-route-freshness-handoff
 type: integration
-status: proposed
-execution_horizon: next
+status: exec-ready
+execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
-  upstream_closeouts: []
+  upstream_closeouts:
+    - SEAM-1
+    - SEAM-2
   required_threads:
     - THR-01
     - THR-02
@@ -18,9 +20,9 @@ basis:
     - If `SEAM-2` changes supported stage or pipeline id lookup rules, this seam must revalidate compile-target selection semantics.
 gates:
   pre_exec:
-    review: pending
-    contract: pending
-    revalidation: pending
+    review: passed
+    contract: passed
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
@@ -78,7 +80,8 @@ open_remediations: []
   - `profiles/`
   - `runners/`
 - **Verification**:
-  - This seam produces an owned contract. Verification at seam-brief depth should prove the compile boundary is concrete enough for seam-local planning and implementation, especially around freshness refusal, inactive-stage refusal, and pipeline-vs-stage ownership, without requiring compile to land in `M1`.
+  - This seam now has active seam-local planning and a concrete owned-contract boundary for `C-10`.
+  - Verification at seam-brief depth should prove the compile boundary is concrete enough for implementation, especially around freshness refusal, inactive-stage refusal, and pipeline-vs-stage ownership, without requiring compile to land in `M1`.
 - **Canonical contract refs**:
   - `docs/contracts/stage-compile-boundary-and-route-freshness.md`
 - **Risks / unknowns**:
@@ -90,9 +93,9 @@ open_remediations: []
   - publish only the contract and freshness handoff in this seam; do not expose compile as supported surface until M2 lands
   - keep refusal classes explicit for inactive stages, stale route basis, and missing compile inputs
 - **Downstream decomposition context**:
-  - This seam is `next` because `SEAM-1` has now published route/state truth and `SEAM-2` is the active consumer seam that will define the supported operator surface.
-  - `THR-03` is the dominant outbound thread; `SEAM-4` consumes it to keep docs/help and proof surfaces honest about what compile does not yet do.
-  - The first seam-local review should focus on source-of-truth boundaries and whether compile freshness can be proven without reintroducing hidden caches or side effects.
+  - This seam is `active` because `SEAM-1` and `SEAM-2` have now published the route/state and operator-surface truth it depends on.
+  - `THR-03` is the dominant outbound thread; `SEAM-4` is now the next seam and will consume it to keep docs/help and proof surfaces honest about what compile does not yet do.
+  - The active seam-local review should focus on source-of-truth boundaries and whether compile freshness can be proven without reintroducing hidden caches or side effects.
 - **Expected seam-exit concerns**:
   - Contracts likely to publish:
     - `C-10`
