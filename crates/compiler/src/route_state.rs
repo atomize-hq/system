@@ -119,6 +119,21 @@ pub fn load_route_state(
     load_route_state_at_path(&state_path, pipeline_id, None)
 }
 
+pub fn load_route_state_with_supported_variables(
+    repo_root: impl AsRef<Path>,
+    pipeline_id: impl AsRef<str>,
+    supported_variables: &BTreeSet<String>,
+) -> Result<RouteState, RouteStateReadError> {
+    let pipeline_id = pipeline_id.as_ref();
+    let state_path = route_state_path(repo_root.as_ref(), pipeline_id).map_err(|reason| {
+        RouteStateReadError::InvalidPipelineId {
+            pipeline_id: pipeline_id.to_string(),
+            reason,
+        }
+    })?;
+    load_route_state_at_path(&state_path, pipeline_id, Some(supported_variables))
+}
+
 pub fn set_route_state_variable<I, S>(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -133,15 +148,16 @@ where
 {
     let pipeline_id = pipeline_id.as_ref();
     let variable = variable.as_ref();
-    validate_pipeline_id(pipeline_id).map_err(|reason| RouteStateStoreError::InvalidPipelineId {
-        pipeline_id: pipeline_id.to_string(),
-        reason,
+    validate_pipeline_id(pipeline_id).map_err(|reason| {
+        RouteStateStoreError::InvalidPipelineId {
+            pipeline_id: pipeline_id.to_string(),
+            reason,
+        }
     })?;
 
     let supported_variables = normalize_supported_variables(supported_variables)?;
-    validate_variable_name(variable).map_err(|reason| RouteStateStoreError::InvalidSupportedVariables {
-        reason,
-    })?;
+    validate_variable_name(variable)
+        .map_err(|reason| RouteStateStoreError::InvalidSupportedVariables { reason })?;
 
     let state_path = route_state_path(repo_root.as_ref(), pipeline_id).map_err(|reason| {
         RouteStateStoreError::InvalidPipelineId {
@@ -155,21 +171,27 @@ where
     })?;
 
     let _lock = acquire_advisory_lock(&state_path)?;
-    let mut state = match load_route_state_at_path(&state_path, pipeline_id, Some(&supported_variables))
-    {
-        Ok(state) => state,
-        Err(RouteStateReadError::MalformedState { reason, .. }) => {
-            return Ok(RouteStateMutationOutcome::Refused(
-                RouteStateMutationRefusal::MalformedState { reason },
-            ));
-        }
-        Err(RouteStateReadError::InvalidPipelineId { pipeline_id, reason }) => {
-            return Err(RouteStateStoreError::InvalidPipelineId { pipeline_id, reason });
-        }
-        Err(RouteStateReadError::ReadFailure { path, source }) => {
-            return Err(RouteStateStoreError::ReadFailure { path, source });
-        }
-    };
+    let mut state =
+        match load_route_state_at_path(&state_path, pipeline_id, Some(&supported_variables)) {
+            Ok(state) => state,
+            Err(RouteStateReadError::MalformedState { reason, .. }) => {
+                return Ok(RouteStateMutationOutcome::Refused(
+                    RouteStateMutationRefusal::MalformedState { reason },
+                ));
+            }
+            Err(RouteStateReadError::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            }) => {
+                return Err(RouteStateStoreError::InvalidPipelineId {
+                    pipeline_id,
+                    reason,
+                });
+            }
+            Err(RouteStateReadError::ReadFailure { path, source }) => {
+                return Err(RouteStateStoreError::ReadFailure { path, source });
+            }
+        };
 
     if !supported_variables.contains(variable) {
         return Ok(RouteStateMutationOutcome::Refused(
@@ -231,10 +253,11 @@ fn load_route_state_at_path(
         });
     }
 
-    let contents = read_file_no_follow(state_path).map_err(|source| RouteStateReadError::ReadFailure {
-        path: state_path.to_path_buf(),
-        source,
-    })?;
+    let contents =
+        read_file_no_follow(state_path).map_err(|source| RouteStateReadError::ReadFailure {
+            path: state_path.to_path_buf(),
+            source,
+        })?;
 
     let state: RouteState = serde_yaml_bw::from_str(&contents).map_err(|source| {
         RouteStateReadError::MalformedState {
@@ -274,9 +297,11 @@ fn validate_loaded_state(
         });
     }
 
-    validate_variable_map(&state.variables).map_err(|reason| RouteStateReadError::MalformedState {
-        path: state_path.to_path_buf(),
-        reason,
+    validate_variable_map(&state.variables).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason,
+        }
     })?;
     validate_audit_entries(&state.audit, supported_variables).map_err(|reason| {
         RouteStateReadError::MalformedState {
@@ -332,7 +357,9 @@ fn validate_variable_name(variable: &str) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
-fn normalize_supported_variables<I, S>(supported_variables: I) -> Result<BTreeSet<String>, RouteStateStoreError>
+fn normalize_supported_variables<I, S>(
+    supported_variables: I,
+) -> Result<BTreeSet<String>, RouteStateStoreError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
@@ -344,10 +371,9 @@ where
 
     let supported_variables = values.keys().cloned().collect::<BTreeSet<_>>();
 
-    RouteVariables::new(values)
-        .map_err(|err| RouteStateStoreError::InvalidSupportedVariables {
-            reason: err.to_string(),
-        })?;
+    RouteVariables::new(values).map_err(|err| RouteStateStoreError::InvalidSupportedVariables {
+        reason: err.to_string(),
+    })?;
 
     Ok(supported_variables)
 }
@@ -396,14 +422,17 @@ fn persist_route_state(state_path: &Path, state: &RouteState) -> Result<(), Rout
                 source,
             }
         })?;
-        file.sync_all().map_err(|source| RouteStateStoreError::WriteFailure {
-            path: temp_path.clone(),
-            source,
-        })?;
+        file.sync_all()
+            .map_err(|source| RouteStateStoreError::WriteFailure {
+                path: temp_path.clone(),
+                source,
+            })?;
         drop(file);
-        fs::rename(&temp_path, state_path).map_err(|source| RouteStateStoreError::WriteFailure {
-            path: state_path.to_path_buf(),
-            source,
+        fs::rename(&temp_path, state_path).map_err(|source| {
+            RouteStateStoreError::WriteFailure {
+                path: state_path.to_path_buf(),
+                source,
+            }
         })?;
         sync_parent_dir(state_path)?;
         Ok(())
@@ -427,10 +456,12 @@ fn open_new_temp_file(path: &Path) -> Result<File, RouteStateStoreError> {
         options.mode(0o600);
     }
 
-    options.open(path).map_err(|source| RouteStateStoreError::WriteFailure {
-        path: path.to_path_buf(),
-        source,
-    })
+    options
+        .open(path)
+        .map_err(|source| RouteStateStoreError::WriteFailure {
+            path: path.to_path_buf(),
+            source,
+        })
 }
 
 fn sync_parent_dir(path: &Path) -> Result<(), RouteStateStoreError> {
@@ -442,10 +473,11 @@ fn sync_parent_dir(path: &Path) -> Result<(), RouteStateStoreError> {
         path: parent.to_path_buf(),
         source,
     })?;
-    dir.sync_all().map_err(|source| RouteStateStoreError::WriteFailure {
-        path: parent.to_path_buf(),
-        source,
-    })?;
+    dir.sync_all()
+        .map_err(|source| RouteStateStoreError::WriteFailure {
+            path: parent.to_path_buf(),
+            source,
+        })?;
     Ok(())
 }
 
@@ -564,11 +596,21 @@ impl Drop for RouteStateLockGuard {
 impl fmt::Display for RouteStateReadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RouteStateReadError::InvalidPipelineId { pipeline_id, reason } => {
-                write!(f, "route state pipeline id `{pipeline_id}` is invalid: {reason}")
+            RouteStateReadError::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "route state pipeline id `{pipeline_id}` is invalid: {reason}"
+                )
             }
             RouteStateReadError::ReadFailure { path, source } => {
-                write!(f, "failed to read route state at {}: {source}", path.display())
+                write!(
+                    f,
+                    "failed to read route state at {}: {source}",
+                    path.display()
+                )
             }
             RouteStateReadError::MalformedState { path, reason } => {
                 write!(f, "malformed route state at {}: {reason}", path.display())
@@ -590,23 +632,45 @@ impl std::error::Error for RouteStateReadError {
 impl fmt::Display for RouteStateStoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RouteStateStoreError::InvalidPipelineId { pipeline_id, reason } => {
-                write!(f, "route state pipeline id `{pipeline_id}` is invalid: {reason}")
+            RouteStateStoreError::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "route state pipeline id `{pipeline_id}` is invalid: {reason}"
+                )
             }
             RouteStateStoreError::InvalidSupportedVariables { reason } => {
                 write!(f, "supported route-state variables are invalid: {reason}")
             }
             RouteStateStoreError::ReadFailure { path, source } => {
-                write!(f, "failed to read route state at {}: {source}", path.display())
+                write!(
+                    f,
+                    "failed to read route state at {}: {source}",
+                    path.display()
+                )
             }
             RouteStateStoreError::LockFailure { path, source } => {
-                write!(f, "failed to acquire route state lock at {}: {source}", path.display())
+                write!(
+                    f,
+                    "failed to acquire route state lock at {}: {source}",
+                    path.display()
+                )
             }
             RouteStateStoreError::WriteFailure { path, source } => {
-                write!(f, "failed to write route state at {}: {source}", path.display())
+                write!(
+                    f,
+                    "failed to write route state at {}: {source}",
+                    path.display()
+                )
             }
             RouteStateStoreError::SerializationFailure { path, reason } => {
-                write!(f, "failed to serialize route state for {}: {reason}", path.display())
+                write!(
+                    f,
+                    "failed to serialize route state for {}: {reason}",
+                    path.display()
+                )
             }
         }
     }

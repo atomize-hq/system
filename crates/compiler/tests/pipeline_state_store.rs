@@ -4,9 +4,9 @@ use std::thread;
 use std::time::Duration;
 
 use system_compiler::{
-    load_route_state, set_route_state_variable, RouteState, RouteStateMutationOutcome,
-    RouteStateMutationRefusal, RouteStateReadError, ROUTE_STATE_AUDIT_LIMIT,
-    ROUTE_STATE_SCHEMA_VERSION,
+    load_route_state, load_route_state_with_supported_variables, set_route_state_variable,
+    RouteState, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 fn write_file(path: &Path, contents: &str) {
@@ -162,6 +162,42 @@ audit: []
 }
 
 #[test]
+fn load_with_supported_variables_refuses_unsupported_persisted_state_variables() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v1
+pipeline_id: pipeline.route_state
+revision: 1
+variables:
+  charter_gaps_detected: true
+audit:
+  - revision: 1
+    variable: charter_gaps_detected
+    value: true
+"#,
+    );
+
+    let err = load_route_state_with_supported_variables(
+        repo_root,
+        pipeline_id,
+        &std::collections::BTreeSet::from(["needs_project_context".to_string()]),
+    )
+    .expect_err("malformed state");
+
+    match err {
+        RouteStateReadError::MalformedState { path: err_path, .. } => {
+            assert_eq!(err_path, path);
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn unsupported_variable_refuses_without_overwrite() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -271,7 +307,10 @@ fn audit_history_trims_oldest_first() {
         loaded.audit.first().expect("first audit").revision,
         loaded.revision - ROUTE_STATE_AUDIT_LIMIT as u64 + 1
     );
-    assert_eq!(loaded.audit.last().expect("last audit").revision, loaded.revision);
+    assert_eq!(
+        loaded.audit.last().expect("last audit").revision,
+        loaded.revision
+    );
 }
 
 #[test]
@@ -321,14 +360,22 @@ fn atomic_replace_happens_under_lock() {
 
     let dir_entries = std::fs::read_dir(path.parent().expect("parent"))
         .expect("read dir")
-        .map(|entry| entry.expect("entry").file_name().to_string_lossy().to_string())
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .to_string()
+        })
         .collect::<Vec<_>>();
-    assert!(dir_entries.iter().any(|entry| entry == "pipeline.route_state.yaml"));
-    assert!(dir_entries.iter().any(|entry| entry == "pipeline.route_state.lock"));
+    assert!(dir_entries
+        .iter()
+        .any(|entry| entry == "pipeline.route_state.yaml"));
+    assert!(dir_entries
+        .iter()
+        .any(|entry| entry == "pipeline.route_state.lock"));
     assert!(
-        dir_entries
-            .iter()
-            .all(|entry| !entry.contains(".tmp-")),
+        dir_entries.iter().all(|entry| !entry.contains(".tmp-")),
         "temp file should not remain after atomic replace"
     );
 }

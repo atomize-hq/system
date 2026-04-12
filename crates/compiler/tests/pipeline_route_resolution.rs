@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use system_compiler::{
-    load_pipeline_definition, resolve_pipeline_route, ActivationClause, ActivationConditionSet,
-    ActivationOperator, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
-    PipelineStage, RouteEvaluationError, RouteStageReason, RouteStageStatus, RouteVariables,
-    StageActivation,
+    load_pipeline_definition, resolve_pipeline_route, supported_route_state_variables,
+    ActivationClause, ActivationConditionSet, ActivationOperator, PipelineBody, PipelineDefaults,
+    PipelineDefinition, PipelineHeader, PipelineStage, RouteEvaluationError, RouteStageReason,
+    RouteStageStatus, RouteVariables, StageActivation,
 };
 
 fn repo_root() -> PathBuf {
@@ -181,6 +181,17 @@ fn route_evaluation_refuses_out_of_contract_activation_inputs() {
         }
         other => panic!("expected invalid-activation-clause refusal, got {other:?}"),
     }
+}
+
+#[test]
+fn supported_route_state_variables_are_derived_from_declared_stage_sets() {
+    let definition = fixture("pipelines/foundation_inputs.yaml");
+    let variables = supported_route_state_variables(&definition);
+
+    assert_eq!(
+        variables.into_iter().collect::<Vec<_>>(),
+        vec!["needs_project_context".to_string()]
+    );
 }
 
 #[test]

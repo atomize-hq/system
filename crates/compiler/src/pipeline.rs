@@ -395,6 +395,33 @@ pub fn resolve_pipeline_selector(
     })
 }
 
+pub fn resolve_pipeline_only_selector(
+    catalog: &PipelineCatalog,
+    selector: &str,
+) -> Result<PipelineCatalogEntry, PipelineLookupError> {
+    match resolve_pipeline_selector(catalog, selector) {
+        Ok(PipelineSelection::Pipeline(pipeline)) => Ok(pipeline),
+        Ok(PipelineSelection::Stage(_stage)) => Err(PipelineLookupError::UnsupportedSelector {
+            selector: selector.trim().to_string(),
+            reason: "stage ids are not supported for `pipeline resolve` or `pipeline state set`; use a canonical pipeline id",
+        }),
+        Err(err) => Err(err),
+    }
+}
+
+pub fn supported_route_state_variables(pipeline: &PipelineDefinition) -> BTreeSet<String> {
+    let mut variables = BTreeSet::new();
+    for stage in pipeline.declared_stages() {
+        if let Some(sets) = &stage.sets {
+            for variable in sets {
+                variables.insert(variable.clone());
+            }
+        }
+    }
+
+    variables
+}
+
 fn render_pipeline_definition(pipeline: &PipelineCatalogEntry) -> String {
     let mut out = String::new();
     out.push_str(&format!("PIPELINE: {}\n", pipeline.definition.header.id));

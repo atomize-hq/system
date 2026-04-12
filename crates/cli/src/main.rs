@@ -71,6 +71,22 @@ enum PipelineCommand {
     List,
     /// Show one canonical pipeline or stage declaration.
     Show(PipelineShowArgs),
+    /// Resolve one pipeline route from persisted route state.
+    Resolve(PipelineSelectorArgs),
+    /// Route-state operations.
+    State(PipelineStateArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineStateArgs {
+    #[command(subcommand)]
+    command: PipelineStateCommand,
+}
+
+#[derive(Subcommand, Debug)]
+enum PipelineStateCommand {
+    /// Set one supported route-state variable.
+    Set(PipelineStateSetArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -78,6 +94,26 @@ struct PipelineShowArgs {
     /// Canonical id or unambiguous shorthand for a pipeline or stage.
     #[arg(long)]
     id: String,
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineSelectorArgs {
+    /// Canonical id or unambiguous shorthand for a pipeline.
+    #[arg(long)]
+    id: String,
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineStateSetArgs {
+    /// Canonical id or unambiguous shorthand for a pipeline.
+    #[arg(long)]
+    id: String,
+    /// Route-state variable assignment in name=value form.
+    #[arg(long)]
+    var: String,
+    /// Expected route-state revision. Defaults to the currently loaded revision.
+    #[arg(long)]
+    expected_revision: Option<u64>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -373,6 +409,10 @@ fn pipeline(args: PipelineArgs) -> ExitCode {
     match args.command {
         PipelineCommand::List => pipeline_list(),
         PipelineCommand::Show(args) => pipeline_show(args),
+        PipelineCommand::Resolve(args) => pipeline_resolve(args),
+        PipelineCommand::State(args) => match args.command {
+            PipelineStateCommand::Set(args) => pipeline_state_set(args),
+        },
     }
 }
 
@@ -426,6 +466,260 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
 
     println!("{}", system_compiler::render_pipeline_show(&selection));
     ExitCode::SUCCESS
+}
+
+fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+        Ok(catalog) => catalog,
+        Err(err) => {
+            println!("REFUSED: pipeline catalog error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let pipeline = match system_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
+        Ok(pipeline) => pipeline,
+        Err(err) => {
+            println!("REFUSED: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let supported_variables =
+        system_compiler::supported_route_state_variables(&pipeline.definition);
+    let state = match system_compiler::load_route_state_with_supported_variables(
+        &repo_root,
+        &pipeline.definition.header.id,
+        &supported_variables,
+    ) {
+        Ok(state) => state,
+        Err(err) => {
+            println!("REFUSED: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let route_variables = match system_compiler::RouteVariables::new(state.variables.clone()) {
+        Ok(variables) => variables,
+        Err(err) => {
+            println!("REFUSED: malformed route state variables: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let route =
+        match system_compiler::resolve_pipeline_route(&pipeline.definition, &route_variables) {
+            Ok(route) => route,
+            Err(err) => {
+                println!("REFUSED: route resolution error: {err}");
+                return ExitCode::from(1);
+            }
+        };
+
+    println!(
+        "{}",
+        render_pipeline_resolve_output(&pipeline.definition.header.id, state.revision, &route)
+    );
+    ExitCode::SUCCESS
+}
+
+fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+        Ok(catalog) => catalog,
+        Err(err) => {
+            println!("REFUSED: pipeline catalog error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let pipeline = match system_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
+        Ok(pipeline) => pipeline,
+        Err(err) => {
+            println!("REFUSED: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let supported_variables =
+        system_compiler::supported_route_state_variables(&pipeline.definition);
+    let current_state = match system_compiler::load_route_state_with_supported_variables(
+        &repo_root,
+        &pipeline.definition.header.id,
+        &supported_variables,
+    ) {
+        Ok(state) => state,
+        Err(err) => {
+            println!("REFUSED: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let (variable, value) = match parse_route_state_assignment(&args.var) {
+        Ok(assignment) => assignment,
+        Err(err) => {
+            println!("REFUSED: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let expected_revision = args.expected_revision.unwrap_or(current_state.revision);
+    let outcome = match system_compiler::set_route_state_variable(
+        &repo_root,
+        &pipeline.definition.header.id,
+        supported_variables,
+        variable,
+        value,
+        expected_revision,
+    ) {
+        Ok(outcome) => outcome,
+        Err(err) => {
+            println!("REFUSED: route state mutation error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    match outcome {
+        system_compiler::RouteStateMutationOutcome::Applied(state) => {
+            println!(
+                "{}",
+                render_pipeline_state_set_output(
+                    &pipeline.definition.header.id,
+                    system_compiler::RouteStateMutationOutcome::Applied(state),
+                )
+            );
+            ExitCode::SUCCESS
+        }
+        system_compiler::RouteStateMutationOutcome::Refused(refusal) => {
+            println!(
+                "{}",
+                render_pipeline_state_set_output(
+                    &pipeline.definition.header.id,
+                    system_compiler::RouteStateMutationOutcome::Refused(refusal),
+                )
+            );
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn parse_route_state_assignment(value: &str) -> Result<(String, bool), String> {
+    let trimmed = value.trim();
+    let Some((name, raw_value)) = trimmed.split_once('=') else {
+        return Err("expected --var in name=value form".to_string());
+    };
+
+    let name = name.trim();
+    let raw_value = raw_value.trim();
+    if name.is_empty() {
+        return Err("--var name must not be empty".to_string());
+    }
+
+    let parsed_value = match raw_value {
+        "true" => true,
+        "false" => false,
+        _ => {
+            return Err(format!(
+                "unsupported --var value `{raw_value}`; expected `true` or `false`"
+            ));
+        }
+    };
+
+    Ok((name.to_string(), parsed_value))
+}
+
+fn render_pipeline_resolve_output(
+    pipeline_id: &str,
+    state_revision: u64,
+    route: &system_compiler::ResolvedPipelineRoute,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: RESOLVED\n");
+    out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
+    out.push_str(&format!("STATE REVISION: {state_revision}\n"));
+    out.push_str("ROUTE:\n");
+
+    for (index, stage) in route.stages.iter().enumerate() {
+        out.push_str(&format!(
+            "  {}. {} | {}\n",
+            index + 1,
+            stage.stage_id,
+            stage.status.as_str()
+        ));
+        if let Some(reason) = &stage.reason {
+            out.push_str(&format!(
+                "     REASON: {}\n",
+                render_route_stage_reason(reason)
+            ));
+        }
+    }
+
+    out.trim_end().to_string()
+}
+
+fn render_route_stage_reason(reason: &system_compiler::RouteStageReason) -> String {
+    match reason {
+        system_compiler::RouteStageReason::SkippedActivationFalse {
+            unsatisfied_variables,
+            ..
+        } => format!(
+            "activation evaluated false for variables: {}",
+            unsatisfied_variables.join(", ")
+        ),
+        system_compiler::RouteStageReason::NextMissingRouteVariables {
+            missing_variables, ..
+        } => format!("missing route variables: {}", missing_variables.join(", ")),
+        system_compiler::RouteStageReason::BlockedByUnresolvedStage {
+            upstream_stage_id,
+            upstream_status,
+        } => format!(
+            "blocked by unresolved stage {} ({})",
+            upstream_stage_id,
+            upstream_status.as_str()
+        ),
+    }
+}
+
+fn render_pipeline_state_set_output(
+    pipeline_id: &str,
+    outcome: system_compiler::RouteStateMutationOutcome,
+) -> String {
+    let mut out = String::new();
+    match outcome {
+        system_compiler::RouteStateMutationOutcome::Applied(state) => {
+            out.push_str("OUTCOME: APPLIED\n");
+            out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
+            out.push_str(&format!("REVISION: {}\n", state.revision));
+            out.push_str("VARIABLES:\n");
+            for (name, value) in state.variables {
+                out.push_str(&format!("  {} = {}\n", name, value));
+            }
+        }
+        system_compiler::RouteStateMutationOutcome::Refused(refusal) => {
+            out.push_str("OUTCOME: REFUSED\n");
+            out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
+            out.push_str(&format!("REASON: {}\n", refusal));
+        }
+    }
+
+    out.trim_end().to_string()
 }
 
 fn inspect(args: RequestArgs) -> ExitCode {

@@ -145,6 +145,34 @@ fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir
     (dir, nested)
 }
 
+fn pipeline_route_state_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("pipelines/foundation_inputs.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation_inputs\nversion: 0.1.0\ntitle: Foundation Inputs Pipeline\ndescription: foundation inputs\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n  - id: stage.05_charter_synthesize\n    file: core/stages/05_charter_synthesize.md\n    sets:\n      - needs_project_context\n  - id: stage.06_project_context_interview\n    file: core/stages/06_project_context_interview.md\n    activation:\n      when:\n        any:\n          - variables.needs_project_context == true\n          - variables.charter_gaps_detected == true\n  - id: stage.07_foundation_pack\n    file: core/stages/07_foundation_pack.md\n",
+    );
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("core/stages/05_charter_synthesize.md"),
+        b"---\nkind: stage\nid: stage.05_charter_synthesize\nversion: 0.1.0\ntitle: Charter Synthesize\ndescription: synthesize\n---\n# synthesize\n",
+    );
+    write_file(
+        &root.join("core/stages/06_project_context_interview.md"),
+        b"---\nkind: stage\nid: stage.06_project_context_interview\nversion: 0.1.0\ntitle: Project Context\ndescription: context\n---\n# context\n",
+    );
+    write_file(
+        &root.join("core/stages/07_foundation_pack.md"),
+        b"---\nkind: stage\nid: stage.07_foundation_pack\nversion: 0.1.0\ntitle: Foundation Pack\ndescription: pack\n---\n# pack\n",
+    );
+
+    (dir, root)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -247,6 +275,148 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
     );
     let path_like_stdout = String::from_utf8(path_like.stdout).expect("stdout is utf-8");
     assert!(path_like_stdout.contains("raw file paths are evidence only"));
+}
+
+#[test]
+fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
+    let (_dir, root) = pipeline_route_state_repo();
+
+    let first_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        first_resolve.status.success(),
+        "pipeline resolve should succeed"
+    );
+    let first_resolve_stdout = String::from_utf8(first_resolve.stdout).expect("stdout is utf-8");
+    assert!(first_resolve_stdout.contains("OUTCOME: RESOLVED"));
+    assert!(first_resolve_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
+    assert!(first_resolve_stdout.contains("stage.06_project_context_interview | next"));
+    assert!(first_resolve_stdout.contains("stage.07_foundation_pack | blocked"));
+    assert!(first_resolve_stdout
+        .contains("missing route variables: charter_gaps_detected, needs_project_context"));
+
+    let applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+    );
+    assert!(
+        applied.status.success(),
+        "pipeline state set should succeed"
+    );
+    let applied_stdout = String::from_utf8(applied.stdout).expect("stdout is utf-8");
+    assert!(applied_stdout.contains("OUTCOME: APPLIED"));
+    assert!(applied_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
+    assert!(applied_stdout.contains("REVISION: 1"));
+    assert!(applied_stdout.contains("needs_project_context = true"));
+
+    let second_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        second_resolve.status.success(),
+        "pipeline resolve should succeed after mutation"
+    );
+    let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
+    assert!(second_resolve_stdout.contains("stage.06_project_context_interview | active"));
+    assert!(second_resolve_stdout.contains("stage.07_foundation_pack | active"));
+    assert!(
+        !second_resolve_stdout.contains(" | next"),
+        "resolve should no longer report a pending next stage: {second_resolve_stdout}"
+    );
+    assert!(
+        !second_resolve_stdout.contains(" | blocked"),
+        "resolve should no longer report blocked downstream stages: {second_resolve_stdout}"
+    );
+}
+
+#[test]
+fn pipeline_state_set_preserves_distinct_refusals() {
+    let (_dir, root) = pipeline_route_state_repo();
+    let state_path = root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml");
+
+    write_file(
+        &state_path,
+        b"---\nschema_version: m1-pipeline-state-v1\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nvariables:\n  charter_gaps_detected: true\naudit:\n  - revision: 1\n    variable: charter_gaps_detected\n    value: true\n",
+    );
+
+    let malformed = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+    );
+    assert!(
+        !malformed.status.success(),
+        "malformed route state should refuse"
+    );
+    let malformed_stdout = String::from_utf8(malformed.stdout).expect("stdout is utf-8");
+    assert!(malformed_stdout.contains("malformed route state"));
+    assert!(malformed_stdout.contains("charter_gaps_detected"));
+
+    write_file(
+        &state_path,
+        b"---\nschema_version: m1-pipeline-state-v1\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nvariables:\n  needs_project_context: true\naudit:\n  - revision: 1\n    variable: needs_project_context\n    value: true\n",
+    );
+
+    let revision_conflict = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=false",
+            "--expected-revision",
+            "0",
+        ],
+    );
+    let revision_conflict_stdout =
+        String::from_utf8(revision_conflict.stdout).expect("stdout is utf-8");
+    assert!(
+        !revision_conflict.status.success(),
+        "revision conflict should refuse: {revision_conflict_stdout}"
+    );
+    assert!(revision_conflict_stdout.contains("revision conflict"));
+    assert!(revision_conflict_stdout.contains("expected 0"));
+
+    let unsupported = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=true",
+        ],
+    );
+    assert!(
+        !unsupported.status.success(),
+        "unsupported variable should refuse"
+    );
+    let unsupported_stdout = String::from_utf8(unsupported.stdout).expect("stdout is utf-8");
+    assert!(unsupported_stdout.contains("unsupported route-state variable"));
+    assert!(unsupported_stdout.contains("charter_gaps_detected"));
 }
 
 #[test]

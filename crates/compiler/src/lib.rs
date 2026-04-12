@@ -36,10 +36,11 @@ pub use freshness::{
 pub use packet_result::PacketResult;
 pub use pipeline::{
     load_pipeline_catalog, load_pipeline_definition, render_pipeline_list, render_pipeline_show,
-    resolve_pipeline_selector, ActivationClause, ActivationConditionSet, ActivationOperator,
-    ActivationValidationError, PipelineBody, PipelineCatalog, PipelineCatalogEntry,
-    PipelineCatalogError, PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition,
-    PipelineHeader, PipelineLoadError, PipelineLookupError, PipelineSelection, PipelineStage,
+    resolve_pipeline_only_selector, resolve_pipeline_selector, supported_route_state_variables,
+    ActivationClause, ActivationConditionSet, ActivationOperator, ActivationValidationError,
+    PipelineBody, PipelineCatalog, PipelineCatalogEntry, PipelineCatalogError,
+    PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineLoadError, PipelineLookupError, PipelineSelection, PipelineStage,
     PipelineValidationError, StageActivation, StageCatalogEntry, StageFileValidationError,
 };
 pub use pipeline_route::{
@@ -56,9 +57,9 @@ pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
 };
 pub use route_state::{
-    load_route_state, set_route_state_variable, RouteState, RouteStateAuditEntry,
-    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateStoreError, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    load_route_state, load_route_state_with_supported_variables, set_route_state_variable,
+    RouteState, RouteStateAuditEntry, RouteStateMutationOutcome, RouteStateMutationRefusal,
+    RouteStateReadError, RouteStateStoreError, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 pub fn workspace_contract_version() -> &'static str {
