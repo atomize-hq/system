@@ -188,8 +188,8 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/empty-title.yaml")
-        .expect_err("empty title");
+    let err =
+        load_pipeline_definition(repo_root, "pipelines/empty-title.yaml").expect_err("empty title");
 
     match err {
         PipelineLoadError::Validation {
@@ -834,8 +834,8 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/empty-sets.yaml")
-        .expect_err("empty sets");
+    let err =
+        load_pipeline_definition(repo_root, "pipelines/empty-sets.yaml").expect_err("empty sets");
 
     match err {
         PipelineLoadError::Validation {
@@ -878,11 +878,7 @@ stages:
 
     match err {
         PipelineLoadError::Validation {
-            error:
-                PipelineValidationError::EmptySetVariable {
-                    stage_id,
-                    index,
-                },
+            error: PipelineValidationError::EmptySetVariable { stage_id, index },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
