@@ -145,30 +145,32 @@ fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir
     (dir, nested)
 }
 
-fn pipeline_route_state_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+fn copy_committed_file(repo_root: &std::path::Path, relative_path: &str) {
+    let source = workspace_root().join(relative_path);
+    let target = repo_root.join(relative_path);
+
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent).expect("mkdirs");
+    }
+
+    std::fs::copy(&source, &target)
+        .unwrap_or_else(|err| panic!("copy {} -> {}: {err}", source.display(), target.display()));
+}
+
+fn shared_pipeline_proof_corpus_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
 
-    write_file(
-        &root.join("pipelines/foundation_inputs.yaml"),
-        b"---\nkind: pipeline\nid: pipeline.foundation_inputs\nversion: 0.1.0\ntitle: Foundation Inputs Pipeline\ndescription: foundation inputs\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n  - id: stage.05_charter_synthesize\n    file: core/stages/05_charter_synthesize.md\n    sets:\n      - needs_project_context\n  - id: stage.06_project_context_interview\n    file: core/stages/06_project_context_interview.md\n    activation:\n      when:\n        any:\n          - variables.needs_project_context == true\n          - variables.charter_gaps_detected == true\n  - id: stage.07_foundation_pack\n    file: core/stages/07_foundation_pack.md\n",
-    );
-    write_file(
-        &root.join("core/stages/00_base.md"),
-        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
-    );
-    write_file(
-        &root.join("core/stages/05_charter_synthesize.md"),
-        b"---\nkind: stage\nid: stage.05_charter_synthesize\nversion: 0.1.0\ntitle: Charter Synthesize\ndescription: synthesize\n---\n# synthesize\n",
-    );
-    write_file(
-        &root.join("core/stages/06_project_context_interview.md"),
-        b"---\nkind: stage\nid: stage.06_project_context_interview\nversion: 0.1.0\ntitle: Project Context\ndescription: context\n---\n# context\n",
-    );
-    write_file(
-        &root.join("core/stages/07_foundation_pack.md"),
-        b"---\nkind: stage\nid: stage.07_foundation_pack\nversion: 0.1.0\ntitle: Foundation Pack\ndescription: pack\n---\n# pack\n",
-    );
+    for path in [
+        "pipelines/foundation_inputs.yaml",
+        "core/stages/00_base.md",
+        "core/stages/04_charter_inputs.md",
+        "core/stages/05_charter_synthesize.md",
+        "core/stages/06_project_context_interview.md",
+        "core/stages/07_foundation_pack.md",
+    ] {
+        copy_committed_file(&root, path);
+    }
 
     (dir, root)
 }
@@ -219,7 +221,11 @@ fn pipeline_help_lists_supported_surface() {
     let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
     let command_lines = command_section_lines(&stdout);
 
-    assert_eq!(command_lines.len(), 4, "expected four pipeline command lines");
+    assert_eq!(
+        command_lines.len(),
+        4,
+        "expected four pipeline command lines"
+    );
     assert!(
         command_lines[0].starts_with("list "),
         "list should be first: {command_lines:?}"
@@ -247,12 +253,19 @@ fn pipeline_state_help_lists_set() {
     let root = workspace_root();
 
     let output = run_in(root.as_path(), &["pipeline", "state", "--help"]);
-    assert!(output.status.success(), "pipeline state help should succeed");
+    assert!(
+        output.status.success(),
+        "pipeline state help should succeed"
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
     let command_lines = command_section_lines(&stdout);
 
-    assert_eq!(command_lines.len(), 1, "expected one pipeline state command line");
+    assert_eq!(
+        command_lines.len(),
+        1,
+        "expected one pipeline state command line"
+    );
     assert!(
         command_lines[0].starts_with("set "),
         "set should be the only state subcommand: {command_lines:?}"
@@ -339,7 +352,7 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
 
 #[test]
 fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
-    let (_dir, root) = pipeline_route_state_repo();
+    let (_dir, root) = shared_pipeline_proof_corpus_repo();
 
     let first_resolve = run_in(
         root.as_path(),
@@ -350,13 +363,22 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline resolve should succeed"
     );
     let first_resolve_stdout = String::from_utf8(first_resolve.stdout).expect("stdout is utf-8");
-    assert!(first_resolve_stdout.contains("OUTCOME: RESOLVED"));
-    assert!(first_resolve_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
-    assert!(first_resolve_stdout.contains("STATE REVISION: 0"));
-    assert!(first_resolve_stdout.contains("stage.06_project_context_interview | next"));
-    assert!(first_resolve_stdout.contains("stage.07_foundation_pack | blocked"));
-    assert!(first_resolve_stdout
-        .contains("missing route variables: charter_gaps_detected, needs_project_context"));
+    assert_eq!(
+        first_resolve_stdout.trim_end(),
+        concat!(
+            "OUTCOME: RESOLVED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "STATE REVISION: 0\n",
+            "ROUTE:\n",
+            "  1. stage.00_base | active\n",
+            "  2. stage.04_charter_inputs | active\n",
+            "  3. stage.05_charter_synthesize | active\n",
+            "  4. stage.06_project_context_interview | next\n",
+            "     REASON: missing route variables: charter_gaps_detected, needs_project_context\n",
+            "  5. stage.07_foundation_pack | blocked\n",
+            "     REASON: blocked by unresolved stage stage.06_project_context_interview (next)"
+        )
+    );
 
     let applied = run_in(
         root.as_path(),
@@ -375,10 +397,16 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline state set should succeed"
     );
     let applied_stdout = String::from_utf8(applied.stdout).expect("stdout is utf-8");
-    assert!(applied_stdout.contains("OUTCOME: APPLIED"));
-    assert!(applied_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
-    assert!(applied_stdout.contains("REVISION: 1"));
-    assert!(applied_stdout.contains("needs_project_context = true"));
+    assert_eq!(
+        applied_stdout.trim_end(),
+        concat!(
+            "OUTCOME: APPLIED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "REVISION: 1\n",
+            "VARIABLES:\n",
+            "  needs_project_context = true"
+        )
+    );
 
     let second_resolve = run_in(
         root.as_path(),
@@ -389,22 +417,25 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline resolve should succeed after mutation"
     );
     let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
-    assert!(second_resolve_stdout.contains("STATE REVISION: 1"));
-    assert!(second_resolve_stdout.contains("stage.06_project_context_interview | active"));
-    assert!(second_resolve_stdout.contains("stage.07_foundation_pack | active"));
-    assert!(
-        !second_resolve_stdout.contains(" | next"),
-        "resolve should no longer report a pending next stage: {second_resolve_stdout}"
-    );
-    assert!(
-        !second_resolve_stdout.contains(" | blocked"),
-        "resolve should no longer report blocked downstream stages: {second_resolve_stdout}"
+    assert_eq!(
+        second_resolve_stdout.trim_end(),
+        concat!(
+            "OUTCOME: RESOLVED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "STATE REVISION: 1\n",
+            "ROUTE:\n",
+            "  1. stage.00_base | active\n",
+            "  2. stage.04_charter_inputs | active\n",
+            "  3. stage.05_charter_synthesize | active\n",
+            "  4. stage.06_project_context_interview | active\n",
+            "  5. stage.07_foundation_pack | active"
+        )
     );
 }
 
 #[test]
 fn pipeline_state_set_preserves_distinct_refusals() {
-    let (_dir, root) = pipeline_route_state_repo();
+    let (_dir, root) = shared_pipeline_proof_corpus_repo();
     let state_path = root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml");
 
     write_file(
@@ -429,8 +460,14 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         "malformed route state should refuse"
     );
     let malformed_stdout = String::from_utf8(malformed.stdout).expect("stdout is utf-8");
-    assert!(malformed_stdout.contains("malformed route state"));
-    assert!(malformed_stdout.contains("charter_gaps_detected"));
+    let malformed_state_path = std::fs::canonicalize(&state_path).expect("canonical state path");
+    assert_eq!(
+        malformed_stdout.trim_end(),
+        format!(
+            "REFUSED: malformed route state at {}: unsupported audit variable `charter_gaps_detected` in persisted state",
+            malformed_state_path.display()
+        )
+    );
 
     write_file(
         &state_path,
@@ -457,8 +494,14 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         !revision_conflict.status.success(),
         "revision conflict should refuse: {revision_conflict_stdout}"
     );
-    assert!(revision_conflict_stdout.contains("revision conflict"));
-    assert!(revision_conflict_stdout.contains("expected 0"));
+    assert_eq!(
+        revision_conflict_stdout.trim_end(),
+        concat!(
+            "OUTCOME: REFUSED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "REASON: revision conflict: expected 0, found 1"
+        )
+    );
 
     let unsupported = run_in(
         root.as_path(),
@@ -477,8 +520,14 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         "unsupported variable should refuse"
     );
     let unsupported_stdout = String::from_utf8(unsupported.stdout).expect("stdout is utf-8");
-    assert!(unsupported_stdout.contains("unsupported route-state variable"));
-    assert!(unsupported_stdout.contains("charter_gaps_detected"));
+    assert_eq!(
+        unsupported_stdout.trim_end(),
+        concat!(
+            "OUTCOME: REFUSED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "REASON: unsupported route-state variable `charter_gaps_detected`"
+        )
+    );
 }
 
 #[test]
