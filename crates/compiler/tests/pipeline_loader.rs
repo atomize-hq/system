@@ -164,6 +164,43 @@ stages:\n\
 }
 
 #[test]
+fn empty_header_fields_are_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/empty-title.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.empty_title
+version: 0.1.0
+title: "   "
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/empty-title.yaml")
+        .expect_err("empty title");
+
+    match err {
+        PipelineLoadError::Validation {
+            error: PipelineValidationError::EmptyField { field },
+            ..
+        } => assert_eq!(field, "title"),
+        other => panic!("expected empty-field refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn unknown_fields_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
