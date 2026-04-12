@@ -115,6 +115,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - Any change to accepted pipeline shape, activation grammar, stage-status vocabulary, or runtime-state schema requires downstream revalidation.
 - Any change to route-state mutation semantics, including revision handling or audit trimming behavior, requires downstream revalidation.
 - Any change to the runtime-only posture of `.system/state/**` requires downstream revalidation.
+- `THR-01` publication requires this contract to name the downstream revalidation targets explicitly, and any later change to `C-08` must revalidate `SEAM-2`, `SEAM-3`, and `SEAM-4` before the thread can be treated as current.
 
 ## Verification Checklist
 
@@ -132,6 +133,7 @@ Existing loader evidence already lives in `crates/compiler/src/pipeline.rs` and 
   - `state_store_refuses_revision_conflict_without_overwrite`
   - `state_store_trims_audit_history_oldest_first`
   - `state_store_uses_atomic_replace_under_lock`
+- Record `THR-01` publication evidence that cites `C-08` and the downstream revalidation targets `SEAM-2`, `SEAM-3`, and `SEAM-4`.
 - Pass criteria:
   - identical pipeline and state inputs produce identical ordered route results
   - malformed or out-of-contract state never downgrades into best-effort behavior
