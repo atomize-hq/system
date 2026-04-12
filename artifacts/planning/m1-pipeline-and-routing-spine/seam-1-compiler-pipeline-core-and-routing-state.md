@@ -2,11 +2,11 @@
 seam_id: SEAM-1
 seam_slug: compiler-pipeline-core-and-routing-state
 type: capability
-status: proposed
+status: decomposed
 execution_horizon: active
 plan_version: v1
 basis:
-  currentness: provisional
+  currentness: current
   source_scope_ref: scope_brief.md
   source_scope_version: v1
   upstream_closeouts: []
@@ -16,9 +16,9 @@ basis:
     - If the canonical-vs-runtime `.system/` boundary changes in upstream docs/contracts, this seam must revalidate route-state storage assumptions.
 gates:
   pre_exec:
-    review: pending
+    review: passed
     contract: pending
-    revalidation: pending
+    revalidation: passed
   post_exec:
     landing: pending
     closeout: pending
@@ -95,6 +95,7 @@ open_remediations: []
   - This seam is `active` because every visible `pipeline` behavior depends on route/state truth being concrete first.
   - `THR-01` is the dominant thread; `SEAM-2`, `SEAM-3`, and `SEAM-4` all consume it directly.
   - The first seam-local review should focus on contract ownership boundaries inside `crates/compiler`, route determinism, and whether state-mutation semantics are small enough to stay inside one compiler-owned seam.
+  - Authoritative seam-local planning now lives under `threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/`.
 - **Expected seam-exit concerns**:
   - Contracts likely to publish:
     - `C-08`
