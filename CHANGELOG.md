@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.0.0] - 2026-04-11
+
+### Added
+- Added a compiler-owned Rust pipeline loader that reads the current two-document pipeline YAML shape and exposes typed pipeline definitions for the reduced-v1 foundation-family wedge.
+- Added strict parser-gate coverage for duplicate stage ids, stage file validity, activation operators, extra YAML documents, and other refusal paths so unsupported shapes fail loudly instead of becoming compatibility debt.
+
+### Changed
+- Tightened reduced-v1 activation handling to boolean equality only, matching the narrow contract the current Rust proof corpus actually uses.
+- Clarified glossary and legacy-system docs so the supported Rust loader contract no longer implies broader legacy activation semantics than the compiler ships today.
+
 ## [0.0.1.0] - 2026-04-07
 
 ### Added
