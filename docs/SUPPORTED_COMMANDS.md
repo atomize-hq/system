@@ -27,10 +27,13 @@ cargo run -p system-cli -- pipeline list
 cargo run -p system-cli -- pipeline resolve --id pipeline.foundation
 ```
 
+For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
+
 ## Current command meanings
 
 - `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
 - `pipeline` owns route resolution, explicit stage compilation, and narrow route-state mutation for the reviewed wedge.
+- `pipeline` is reviewed and contractually defined now, but it is not treated as shipped until the later slices land code/help/docs/tests/proof-corpus alignment together.
 - `generate` produces planning packets from canonical repo-local `.system/` inputs and supports the fixture-backed execution demo via `execution.demo.packet`.
 - `inspect` is the proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.

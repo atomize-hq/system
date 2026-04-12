@@ -15,6 +15,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
 - **The reviewed command surface adds `pipeline`** for route resolution, explicit stage compilation, and narrow route-state mutation.
+  - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
   - Until the `pipeline` family lands in code/help/docs/tests together, treat it as the next reviewed supported surface, not as already shipped behavior.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the proof surface.
@@ -32,6 +33,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - Operator journey and conformance review: [`docs/CLI_OPERATOR_JOURNEY.md`](CLI_OPERATOR_JOURNEY.md)
 - Contracts (the authoritative truth): [`docs/contracts/`](contracts/)
 - CLI command surface and wording: [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md)
+- Pipeline operator surface and ID resolution: [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md)
 - Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
 - Refusal + doctor blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
