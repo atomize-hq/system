@@ -21,7 +21,7 @@ This repo is in transition.
 - Planning packet generation is supported from canonical repo-local `.system/`.
 - Fixture-backed execution demo generation is supported via `execution.demo.packet`.
 - Live slice lineage and live execution packets are deferred. Live execution is explicitly refused.
-- `pipeline` is the orchestration surface once its code, docs, contracts, tests, and proof-corpus gates land together.
+- `pipeline` is the orchestration surface for `list`, `show`, `resolve`, and `state set`.
 - `inspect` is the proof surface and `doctor` is the recovery surface.
 - `setup` is still a placeholder entrypoint until Rust setup exists.
 

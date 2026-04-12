@@ -210,6 +210,60 @@ fn help_lists_setup_first() {
 }
 
 #[test]
+fn pipeline_help_lists_supported_surface() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "--help"]);
+    assert!(output.status.success(), "pipeline help should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    let command_lines = command_section_lines(&stdout);
+
+    assert_eq!(command_lines.len(), 4, "expected four pipeline command lines");
+    assert!(
+        command_lines[0].starts_with("list "),
+        "list should be first: {command_lines:?}"
+    );
+    assert!(
+        command_lines[1].starts_with("show "),
+        "show should be second: {command_lines:?}"
+    );
+    assert!(
+        command_lines[2].starts_with("resolve "),
+        "resolve should be third: {command_lines:?}"
+    );
+    assert!(
+        command_lines[3].starts_with("state "),
+        "state should be fourth: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("Pipeline operator surface"),
+        "expected pipeline help title: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_state_help_lists_set() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "state", "--help"]);
+    assert!(output.status.success(), "pipeline state help should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    let command_lines = command_section_lines(&stdout);
+
+    assert_eq!(command_lines.len(), 1, "expected one pipeline state command line");
+    assert!(
+        command_lines[0].starts_with("set "),
+        "set should be the only state subcommand: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("Set one supported route-state variable"),
+        "expected pipeline state help text: {stdout}"
+    );
+}
+
+#[test]
 fn pipeline_list_and_show_use_canonical_id_discovery() {
     let root = workspace_root();
 
@@ -258,12 +312,16 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
     assert!(ambiguous_stdout.contains("ambiguous selector `alpha`"));
     assert!(ambiguous_stdout.contains("pipeline.alpha"));
     assert!(ambiguous_stdout.contains("stage.alpha"));
+    assert!(ambiguous_stdout.contains("NEXT SAFE ACTION"));
+    assert!(ambiguous_stdout.contains("rename the conflicting ids"));
 
     let unknown = run_in(root.as_path(), &["pipeline", "show", "--id", "missing-id"]);
     assert!(!unknown.status.success(), "unknown selector should refuse");
     let unknown_stdout = String::from_utf8(unknown.stdout).expect("stdout is utf-8");
     assert!(unknown_stdout.contains("unknown pipeline selector `missing-id`"));
     assert!(unknown_stdout.contains("pipeline list"));
+    assert!(unknown_stdout.contains("NEXT SAFE ACTION"));
+    assert!(unknown_stdout.contains("full canonical id"));
 
     let path_like = run_in(
         root.as_path(),
@@ -275,6 +333,8 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
     );
     let path_like_stdout = String::from_utf8(path_like.stdout).expect("stdout is utf-8");
     assert!(path_like_stdout.contains("raw file paths are evidence only"));
+    assert!(path_like_stdout.contains("NEXT SAFE ACTION"));
+    assert!(path_like_stdout.contains("canonical pipeline or stage id"));
 }
 
 #[test]

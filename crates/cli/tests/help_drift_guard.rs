@@ -84,6 +84,24 @@ fn system_inspect_help_matches_snapshot() {
 }
 
 #[test]
+fn system_pipeline_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "--help"],
+        "system-pipeline-help.txt",
+        "system pipeline --help",
+    );
+}
+
+#[test]
+fn system_pipeline_state_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "state", "--help"],
+        "system-pipeline-state-help.txt",
+        "system pipeline state --help",
+    );
+}
+
+#[test]
 fn support_story_docs_match_help_snapshots() {
     let root = workspace_root();
     let docs = [
@@ -150,6 +168,22 @@ fn support_story_docs_match_help_snapshots() {
         assert!(
             inspect_help_text.contains(phrase),
             "inspect help snapshot missing phrase `{phrase}`"
+        );
+    }
+
+    let pipeline_required_phrases = [
+        "`pipeline`",
+        "pipeline resolve",
+        "pipeline state set",
+    ];
+    assert!(
+        top_help_text.contains("pipeline"),
+        "top-level help snapshot missing pipeline entry"
+    );
+    for phrase in pipeline_required_phrases {
+        assert!(
+            docs_text.contains(phrase),
+            "docs missing pipeline phrase `{phrase}`"
         );
     }
 }

@@ -459,7 +459,7 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
     let selection = match system_compiler::resolve_pipeline_selector(&catalog, &args.id) {
         Ok(selection) => selection,
         Err(err) => {
-            println!("REFUSED: {err}");
+            println!("{}", render_pipeline_selector_refusal(err));
             return ExitCode::from(1);
         }
     };
@@ -489,7 +489,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     let pipeline = match system_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
         Ok(pipeline) => pipeline,
         Err(err) => {
-            println!("REFUSED: {err}");
+            println!("{}", render_pipeline_selector_refusal(err));
             return ExitCode::from(1);
         }
     };
@@ -553,7 +553,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     let pipeline = match system_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
         Ok(pipeline) => pipeline,
         Err(err) => {
-            println!("REFUSED: {err}");
+            println!("{}", render_pipeline_selector_refusal(err));
             return ExitCode::from(1);
         }
     };
@@ -616,6 +616,31 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
                 )
             );
             ExitCode::from(1)
+        }
+    }
+}
+
+fn render_pipeline_selector_refusal(err: system_compiler::PipelineLookupError) -> String {
+    match err {
+        system_compiler::PipelineLookupError::AmbiguousSelector { selector, matches } => {
+            format!(
+                "REFUSED: ambiguous selector `{selector}` matched multiple canonical ids: {}\nNEXT SAFE ACTION: use the full canonical id or rename the conflicting ids",
+                matches.join(", ")
+            )
+        }
+        system_compiler::PipelineLookupError::UnknownSelector { selector } => format!(
+            "REFUSED: unknown pipeline selector `{selector}`; use a canonical id or `pipeline list` to inspect available inventory\nNEXT SAFE ACTION: run `pipeline list` and retry with the full canonical id"
+        ),
+        system_compiler::PipelineLookupError::UnsupportedSelector { selector, reason } => {
+            let next_safe_action = if reason.contains("raw file paths are evidence only") {
+                "use `pipeline list` to inspect available inventory and retry with a canonical pipeline or stage id"
+            } else {
+                "retry with a canonical pipeline id"
+            };
+
+            format!(
+                "REFUSED: unsupported selector `{selector}`: {reason}\nNEXT SAFE ACTION: {next_safe_action}"
+            )
         }
     }
 }
