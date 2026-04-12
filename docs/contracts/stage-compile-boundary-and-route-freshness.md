@@ -4,7 +4,7 @@ seam_id: SEAM-3
 owner_seam: SEAM-3
 version: m1-v1
 currentness: current
-status: drafted
+status: published
 revalidation_triggers:
   - Any change to compile-target selection semantics, canonical id resolution, or the rule that compile consumes published operator-surface truth rather than inventing compile-only targeting behavior.
   - Any change to the source-of-truth split between pipeline YAML orchestration data and stage front-matter compile-facing metadata.

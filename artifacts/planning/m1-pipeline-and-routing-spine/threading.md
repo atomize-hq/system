@@ -38,7 +38,7 @@
   - **Thread IDs**: `THR-03`
   - **Definition**: Downstream compile-boundary contract defining source-of-truth split between pipeline YAML and stage front matter, route-basis freshness checks, inactive-stage refusal, and the stage-payload shape expected once compile lands.
   - **Canonical contract ref**: `docs/contracts/stage-compile-boundary-and-route-freshness.md`
-  - **Versioning / compat**: Any change to compile freshness inputs, inactive-stage refusal semantics, or activation-drift equivalence rules requires downstream revalidation.
+  - **Versioning / compat**: Any change to compile freshness inputs, inactive-stage refusal semantics, activation-drift equivalence rules, or the stage-payload handoff boundary requires downstream revalidation.
 
 - **Contract ID**: `C-11`
   - **Type**: `config`
@@ -77,10 +77,10 @@
   - **Consumer seam(s)**: `SEAM-4`
   - **Carried contract IDs**: `C-10`
   - **Purpose**: Freeze the compile-boundary and route-freshness rules so later `pipeline compile` work cannot reinterpret M1 route truth or stage source-of-truth boundaries.
-  - **State**: `defined`
-  - **Revalidation trigger**: Any change to route freshness inputs, compile refusal categories, stage-front-matter vs pipeline-YAML ownership, or activation-drift equivalence rules.
-  - **Satisfied by**: `SEAM-3` closeout records the accepted compile-boundary contract and seam-exit evidence that downstream compile work can consume without reopening M1 route semantics.
-  - **Notes**: This is a future-facing contract seam; it should remain brief-only until `SEAM-1` and `SEAM-2` publish stable upstream truth.
+  - **State**: `published`
+  - **Revalidation trigger**: Any change to route freshness inputs, compile refusal categories, stage-front-matter vs pipeline-YAML ownership, activation-drift equivalence rules, the stage-payload handoff boundary, or the rule that `pipeline compile` is not implied as shipped in M1 help/docs.
+  - **Satisfied by**: `artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-3-closeout.md` recording the accepted `C-10` compile-boundary contract and seam-exit evidence that downstream compile work can consume without reopening M1 route semantics.
+  - **Notes**: This thread now carries the compile-boundary handoff as published upstream truth for downstream planning.
 
 - **Thread ID**: `THR-04`
   - **Producer seam**: `SEAM-4`
