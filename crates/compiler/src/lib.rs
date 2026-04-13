@@ -35,13 +35,14 @@ pub use freshness::{
 };
 pub use packet_result::PacketResult;
 pub use pipeline::{
-    load_pipeline_catalog, load_pipeline_definition, render_pipeline_list, render_pipeline_show,
-    resolve_pipeline_only_selector, resolve_pipeline_selector, supported_route_state_variables,
-    ActivationClause, ActivationConditionSet, ActivationOperator, ActivationValidationError,
-    PipelineBody, PipelineCatalog, PipelineCatalogEntry, PipelineCatalogError,
-    PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition, PipelineHeader,
-    PipelineLoadError, PipelineLookupError, PipelineSelection, PipelineStage,
-    PipelineValidationError, StageActivation, StageCatalogEntry, StageFileValidationError,
+    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
+    render_pipeline_list, render_pipeline_show, resolve_pipeline_only_selector,
+    resolve_pipeline_selector, supported_route_state_variables, ActivationClause,
+    ActivationConditionSet, ActivationOperator, ActivationValidationError, PipelineBody,
+    PipelineCatalog, PipelineCatalogEntry, PipelineCatalogError, PipelineCatalogStageEntry,
+    PipelineDefaults, PipelineDefinition, PipelineHeader, PipelineLoadError, PipelineLookupError,
+    PipelineSelection, PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
+    StageFileValidationError,
 };
 pub use pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,

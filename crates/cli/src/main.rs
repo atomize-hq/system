@@ -429,7 +429,7 @@ fn pipeline_list() -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+    let catalog = match system_compiler::load_pipeline_catalog_metadata(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -451,7 +451,7 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+    let catalog = match system_compiler::load_pipeline_catalog_metadata(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -745,11 +745,7 @@ fn render_pipeline_resolve_output(
         }
     }
     out.push_str("  refs:\n");
-    render_optional_route_basis_field(
-        &mut out,
-        "charter_ref",
-        state.refs.charter_ref.as_deref(),
-    );
+    render_optional_route_basis_field(&mut out, "charter_ref", state.refs.charter_ref.as_deref());
     render_optional_route_basis_field(
         &mut out,
         "project_context_ref",

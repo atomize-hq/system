@@ -2,8 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
-    load_pipeline_catalog, render_pipeline_list, render_pipeline_show, PipelineCatalogError,
-    PipelineLoadError, PipelineLookupError, PipelineSelection, PipelineValidationError,
+    load_pipeline_catalog, load_pipeline_catalog_metadata, render_pipeline_list,
+    render_pipeline_show, PipelineCatalogError, PipelineLoadError, PipelineLookupError,
+    PipelineSelection, PipelineValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -15,7 +16,7 @@ fn repo_root() -> PathBuf {
 
 #[test]
 fn catalog_discovers_canonical_pipeline_and_stage_ids() {
-    let catalog = load_pipeline_catalog(repo_root()).expect("catalog");
+    let catalog = load_pipeline_catalog_metadata(repo_root()).expect("catalog");
 
     assert_eq!(catalog.pipeline_count(), 4);
     assert!(catalog.stage_count() >= 8);
@@ -97,7 +98,7 @@ stages:
 "#,
     );
 
-    let catalog = load_pipeline_catalog(root).expect("catalog");
+    let catalog = load_pipeline_catalog_metadata(root).expect("catalog");
     let err = catalog.resolve_selector("alpha").expect_err("ambiguous");
     match err {
         PipelineLookupError::AmbiguousSelector { selector, matches } => {
@@ -113,7 +114,7 @@ stages:
 
 #[test]
 fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
-    let catalog = load_pipeline_catalog(repo_root()).expect("catalog");
+    let catalog = load_pipeline_catalog_metadata(repo_root()).expect("catalog");
 
     let pipeline = catalog
         .resolve_selector("pipeline.foundation_inputs")
@@ -166,7 +167,7 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
 #[test]
 fn catalog_outputs_stay_deterministic_and_ignore_unrelated_route_state() {
     let source_root = repo_root();
-    let source_catalog = load_pipeline_catalog(&source_root).expect("source catalog");
+    let source_catalog = load_pipeline_catalog_metadata(&source_root).expect("source catalog");
 
     let baseline_list = render_pipeline_list(&source_catalog);
     let baseline_pipeline = render_pipeline_show(
@@ -207,7 +208,7 @@ audit:
 
     let entries_before = dir_entries(root.join(".system/state/pipeline").as_path());
 
-    let catalog = load_pipeline_catalog(root).expect("catalog with unrelated route state");
+    let catalog = load_pipeline_catalog_metadata(root).expect("catalog with unrelated route state");
     assert_eq!(render_pipeline_list(&catalog), baseline_list);
     assert_eq!(
         render_pipeline_show(
@@ -233,7 +234,7 @@ audit:
 }
 
 #[test]
-fn catalog_refuses_activation_drift_between_pipeline_yaml_and_stage_front_matter() {
+fn metadata_catalog_keeps_activation_drift_out_of_inventory_inspection() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -272,7 +273,69 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_catalog(root).expect_err("activation drift should refuse");
+    let catalog = load_pipeline_catalog_metadata(root).expect("metadata catalog should load");
+    let list = render_pipeline_list(&catalog);
+    assert!(list.contains("PIPELINE INVENTORY"));
+    assert!(list.contains("PIPELINE: pipeline.drift"));
+
+    let pipeline = catalog
+        .resolve_selector("pipeline.drift")
+        .expect("pipeline selection");
+    let pipeline_render = render_pipeline_show(&pipeline);
+    assert!(pipeline_render.contains("PIPELINE: pipeline.drift"));
+    assert!(pipeline_render.contains("SOURCE: pipelines/drift.yaml"));
+    assert!(pipeline_render.contains("stage.00_base"));
+
+    let stage = catalog
+        .resolve_selector("stage.00_base")
+        .expect("stage selection");
+    let stage_render = render_pipeline_show(&stage);
+    assert!(stage_render.contains("STAGE: stage.00_base"));
+    assert!(stage_render.contains("PIPELINES:"));
+}
+
+#[test]
+fn route_aware_catalog_still_refuses_activation_drift_between_pipeline_yaml_and_stage_front_matter()
+{
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        r#"---
+kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+activation:
+  when:
+    any:
+      - variables.needs_project_context == true
+---
+# base
+"#,
+    );
+    write_file(
+        &root.join("pipelines/drift.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.drift
+version: 0.1.0
+title: Drift
+description: drift
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_catalog(root).expect_err("route-aware catalog should refuse");
 
     match err {
         PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
@@ -307,7 +370,8 @@ description: bad
 "#,
     );
 
-    let err = load_pipeline_catalog(root).expect_err("invalid stage canonical id should refuse");
+    let err =
+        load_pipeline_catalog_metadata(root).expect_err("invalid stage canonical id should refuse");
 
     match err {
         PipelineCatalogError::InvalidStageCanonicalId {

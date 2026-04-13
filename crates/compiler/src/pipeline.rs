@@ -250,8 +250,27 @@ enum StageFrontMatterLoadError {
     Parse(serde_yaml_bw::Error),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PipelineLoadMode {
+    MetadataOnly,
+    RouteAware,
+}
+
 pub fn load_pipeline_catalog(
     repo_root: impl AsRef<Path>,
+) -> Result<PipelineCatalog, PipelineCatalogError> {
+    load_pipeline_catalog_with_mode(repo_root, PipelineLoadMode::RouteAware)
+}
+
+pub fn load_pipeline_catalog_metadata(
+    repo_root: impl AsRef<Path>,
+) -> Result<PipelineCatalog, PipelineCatalogError> {
+    load_pipeline_catalog_with_mode(repo_root, PipelineLoadMode::MetadataOnly)
+}
+
+fn load_pipeline_catalog_with_mode(
+    repo_root: impl AsRef<Path>,
+    mode: PipelineLoadMode,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
     let repo_root = repo_root.as_ref();
     let mut pipelines = std::collections::BTreeMap::new();
@@ -261,12 +280,11 @@ pub fn load_pipeline_catalog(
         std::collections::BTreeMap::new();
 
     for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
-        let definition = load_pipeline_definition(repo_root, &pipeline_path).map_err(|source| {
-            PipelineCatalogError::PipelineLoad {
+        let definition = load_pipeline_definition_with_mode(repo_root, &pipeline_path, mode)
+            .map_err(|source| PipelineCatalogError::PipelineLoad {
                 path: repo_root.join(&pipeline_path),
                 source: Box::new(source),
-            }
-        })?;
+            })?;
         let pipeline_id = definition.header.id.clone();
 
         let mut stage_entries = Vec::with_capacity(definition.declared_stages().len());
@@ -821,6 +839,14 @@ pub fn load_pipeline_definition(
     repo_root: impl AsRef<Path>,
     pipeline_path: impl AsRef<Path>,
 ) -> Result<PipelineDefinition, PipelineLoadError> {
+    load_pipeline_definition_with_mode(repo_root, pipeline_path, PipelineLoadMode::RouteAware)
+}
+
+fn load_pipeline_definition_with_mode(
+    repo_root: impl AsRef<Path>,
+    pipeline_path: impl AsRef<Path>,
+    mode: PipelineLoadMode,
+) -> Result<PipelineDefinition, PipelineLoadError> {
     let repo_root = repo_root.as_ref();
     let pipeline_path = pipeline_path.as_ref();
     let relative_pipeline_path = validate_repo_relative_path(pipeline_path).map_err(|reason| {
@@ -875,7 +901,7 @@ pub fn load_pipeline_definition(
         });
     }
 
-    validate_pipeline_definition(repo_root, &full_path, &header, &body)?;
+    validate_pipeline_definition(repo_root, &full_path, &header, &body, mode)?;
 
     Ok(PipelineDefinition {
         source_path: relative_pipeline_path.to_path_buf(),
@@ -1093,6 +1119,7 @@ fn validate_pipeline_definition(
     path: &Path,
     header: &PipelineHeader,
     body: &PipelineBody,
+    mode: PipelineLoadMode,
 ) -> Result<(), PipelineLoadError> {
     validate_non_empty(path, "kind", &header.kind)?;
     if header.kind != "pipeline" {
@@ -1168,7 +1195,9 @@ fn validate_pipeline_definition(
 
         validate_stage_file(repo_root, path, stage)?;
         validate_stage_activation(path, stage)?;
-        validate_stage_activation_equivalence(repo_root, path, stage)?;
+        if mode == PipelineLoadMode::RouteAware {
+            validate_stage_activation_equivalence(repo_root, path, stage)?;
+        }
     }
 
     Ok(())

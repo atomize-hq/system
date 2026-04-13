@@ -452,20 +452,23 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     let applied_stdout = String::from_utf8(applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         applied_stdout.trim_end(),
-        format!(concat!(
-            "OUTCOME: APPLIED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "REVISION: 1\n",
-            "ROUTING:\n",
-            "  needs_project_context = true\n",
-            "REFS:\n",
-            "  charter_ref = <unset>\n",
-            "  project_context_ref = <unset>\n",
-            "RUN:\n",
-            "  runner = <unset>\n",
-            "  profile = <unset>\n",
-            "  repo_root = {root_display}"
-        ), root_display = root_display)
+        format!(
+            concat!(
+                "OUTCOME: APPLIED\n",
+                "PIPELINE: pipeline.foundation_inputs\n",
+                "REVISION: 1\n",
+                "ROUTING:\n",
+                "  needs_project_context = true\n",
+                "REFS:\n",
+                "  charter_ref = <unset>\n",
+                "  project_context_ref = <unset>\n",
+                "RUN:\n",
+                "  runner = <unset>\n",
+                "  profile = <unset>\n",
+                "  repo_root = {root_display}"
+            ),
+            root_display = root_display
+        )
     );
 
     let activation_applied = run_in(
@@ -488,21 +491,24 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         String::from_utf8(activation_applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         activation_applied_stdout.trim_end(),
-        format!(concat!(
-            "OUTCOME: APPLIED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "REVISION: 2\n",
-            "ROUTING:\n",
-            "  charter_gaps_detected = true\n",
-            "  needs_project_context = true\n",
-            "REFS:\n",
-            "  charter_ref = <unset>\n",
-            "  project_context_ref = <unset>\n",
-            "RUN:\n",
-            "  runner = <unset>\n",
-            "  profile = <unset>\n",
-            "  repo_root = {root_display}"
-        ), root_display = root_display)
+        format!(
+            concat!(
+                "OUTCOME: APPLIED\n",
+                "PIPELINE: pipeline.foundation_inputs\n",
+                "REVISION: 2\n",
+                "ROUTING:\n",
+                "  charter_gaps_detected = true\n",
+                "  needs_project_context = true\n",
+                "REFS:\n",
+                "  charter_ref = <unset>\n",
+                "  project_context_ref = <unset>\n",
+                "RUN:\n",
+                "  runner = <unset>\n",
+                "  profile = <unset>\n",
+                "  repo_root = {root_display}"
+            ),
+            root_display = root_display
+        )
     );
 
     let second_resolve = run_in(
@@ -516,28 +522,31 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
     assert_eq!(
         second_resolve_stdout.trim_end(),
-        format!(concat!(
-            "OUTCOME: RESOLVED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "ROUTE BASIS:\n",
-            "  revision = 2\n",
-            "  routing:\n",
-            "    charter_gaps_detected = true\n",
-            "    needs_project_context = true\n",
-            "  refs:\n",
-            "    charter_ref = <unset>\n",
-            "    project_context_ref = <unset>\n",
-            "  run:\n",
-            "    runner = <unset>\n",
-            "    profile = <unset>\n",
-            "    repo_root = {root_display}\n",
-            "ROUTE:\n",
-            "  1. stage.00_base | active\n",
-            "  2. stage.04_charter_inputs | active\n",
-            "  3. stage.05_charter_synthesize | active\n",
-            "  4. stage.06_project_context_interview | active\n",
-            "  5. stage.07_foundation_pack | active"
-        ), root_display = root_display)
+        format!(
+            concat!(
+                "OUTCOME: RESOLVED\n",
+                "PIPELINE: pipeline.foundation_inputs\n",
+                "ROUTE BASIS:\n",
+                "  revision = 2\n",
+                "  routing:\n",
+                "    charter_gaps_detected = true\n",
+                "    needs_project_context = true\n",
+                "  refs:\n",
+                "    charter_ref = <unset>\n",
+                "    project_context_ref = <unset>\n",
+                "  run:\n",
+                "    runner = <unset>\n",
+                "    profile = <unset>\n",
+                "    repo_root = {root_display}\n",
+                "ROUTE:\n",
+                "  1. stage.00_base | active\n",
+                "  2. stage.04_charter_inputs | active\n",
+                "  3. stage.05_charter_synthesize | active\n",
+                "  4. stage.06_project_context_interview | active\n",
+                "  5. stage.07_foundation_pack | active"
+            ),
+            root_display = root_display
+        )
     );
 }
 
@@ -568,20 +577,23 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let runner_stdout = String::from_utf8(runner_applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         runner_stdout.trim_end(),
-        format!(concat!(
-            "OUTCOME: APPLIED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "REVISION: 1\n",
-            "ROUTING:\n",
-            "  <empty>\n",
-            "REFS:\n",
-            "  charter_ref = <unset>\n",
-            "  project_context_ref = <unset>\n",
-            "RUN:\n",
-            "  runner = codex-cli\n",
-            "  profile = <unset>\n",
-            "  repo_root = {root_display}"
-        ), root_display = root_display)
+        format!(
+            concat!(
+                "OUTCOME: APPLIED\n",
+                "PIPELINE: pipeline.foundation_inputs\n",
+                "REVISION: 1\n",
+                "ROUTING:\n",
+                "  <empty>\n",
+                "REFS:\n",
+                "  charter_ref = <unset>\n",
+                "  project_context_ref = <unset>\n",
+                "RUN:\n",
+                "  runner = codex-cli\n",
+                "  profile = <unset>\n",
+                "  repo_root = {root_display}"
+            ),
+            root_display = root_display
+        )
     );
 
     let ref_applied = run_in(
@@ -603,20 +615,23 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let ref_stdout = String::from_utf8(ref_applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         ref_stdout.trim_end(),
-        format!(concat!(
-            "OUTCOME: APPLIED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "REVISION: 2\n",
-            "ROUTING:\n",
-            "  <empty>\n",
-            "REFS:\n",
-            "  charter_ref = artifacts/charter/CHARTER.md\n",
-            "  project_context_ref = <unset>\n",
-            "RUN:\n",
-            "  runner = codex-cli\n",
-            "  profile = <unset>\n",
-            "  repo_root = {root_display}"
-        ), root_display = root_display)
+        format!(
+            concat!(
+                "OUTCOME: APPLIED\n",
+                "PIPELINE: pipeline.foundation_inputs\n",
+                "REVISION: 2\n",
+                "ROUTING:\n",
+                "  <empty>\n",
+                "REFS:\n",
+                "  charter_ref = artifacts/charter/CHARTER.md\n",
+                "  project_context_ref = <unset>\n",
+                "RUN:\n",
+                "  runner = codex-cli\n",
+                "  profile = <unset>\n",
+                "  repo_root = {root_display}"
+            ),
+            root_display = root_display
+        )
     );
 
     let resolve = run_in(
@@ -630,7 +645,8 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
     assert_eq!(
         resolve_stdout.trim_end(),
-        format!(concat!(
+        format!(
+            concat!(
             "OUTCOME: RESOLVED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "ROUTE BASIS:\n",
@@ -652,7 +668,9 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
             "     REASON: missing route variables: charter_gaps_detected, needs_project_context\n",
             "  5. stage.07_foundation_pack | blocked\n",
             "     REASON: blocked by unresolved stage stage.06_project_context_interview (next)"
-        ), root_display = root_display)
+        ),
+            root_display = root_display
+        )
     );
 }
 
@@ -728,12 +746,35 @@ fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
 }
 
 #[test]
-fn pipeline_commands_refuse_activation_drift_before_operating() {
+fn pipeline_list_and_show_ignore_activation_drift_during_inventory_inspection() {
     let (_dir, root) = activation_drift_pipeline_repo();
 
     for args in [
         vec!["pipeline", "list"],
         vec!["pipeline", "show", "--id", "pipeline.drift"],
+        vec!["pipeline", "show", "--id", "stage.00_base"],
+    ] {
+        let output = run_in(root.as_path(), &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+        assert!(
+            !stdout.contains("has activation drift"),
+            "inventory command should not surface activation drift for {:?}: {stdout}",
+            args
+        );
+    }
+}
+
+#[test]
+fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_evaluation() {
+    let (_dir, root) = activation_drift_pipeline_repo();
+
+    for args in [
         vec!["pipeline", "resolve", "--id", "pipeline.drift"],
         vec![
             "pipeline",
@@ -748,7 +789,7 @@ fn pipeline_commands_refuse_activation_drift_before_operating() {
         let output = run_in(root.as_path(), &args);
         assert!(
             !output.status.success(),
-            "command should refuse: {:?}",
+            "route-aware command should refuse: {:?}",
             args
         );
 
