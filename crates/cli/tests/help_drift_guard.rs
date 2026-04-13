@@ -171,11 +171,7 @@ fn support_story_docs_match_help_snapshots() {
         );
     }
 
-    let pipeline_required_phrases = [
-        "`pipeline`",
-        "pipeline resolve",
-        "pipeline state set",
-    ];
+    let pipeline_required_phrases = ["`pipeline`", "pipeline resolve", "pipeline state set"];
     assert!(
         top_help_text.contains("pipeline"),
         "top-level help snapshot missing pipeline entry"

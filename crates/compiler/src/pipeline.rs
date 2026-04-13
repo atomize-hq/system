@@ -110,7 +110,7 @@ pub enum PipelineCatalogError {
     },
     PipelineLoad {
         path: PathBuf,
-        source: PipelineLoadError,
+        source: Box<PipelineLoadError>,
     },
     StageFrontMatter {
         path: PathBuf,
@@ -264,7 +264,7 @@ pub fn load_pipeline_catalog(
         let definition = load_pipeline_definition(repo_root, &pipeline_path).map_err(|source| {
             PipelineCatalogError::PipelineLoad {
                 path: repo_root.join(&pipeline_path),
-                source,
+                source: Box::new(source),
             }
         })?;
         let pipeline_id = definition.header.id.clone();

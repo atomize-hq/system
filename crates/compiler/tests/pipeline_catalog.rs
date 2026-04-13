@@ -271,7 +271,7 @@ stages:
     let err = load_pipeline_catalog(root).expect_err("activation drift should refuse");
 
     match err {
-        PipelineCatalogError::PipelineLoad { source, .. } => match source {
+        PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
             PipelineLoadError::Validation {
                 error: PipelineValidationError::ActivationDrift { stage_id, file, .. },
                 ..

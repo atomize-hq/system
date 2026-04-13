@@ -539,6 +539,7 @@ fn acquire_advisory_lock(state_path: &Path) -> Result<RouteStateLockGuard, Route
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&lock_path)
         .map_err(|source| RouteStateStoreError::LockFailure {
             path: lock_path.clone(),
