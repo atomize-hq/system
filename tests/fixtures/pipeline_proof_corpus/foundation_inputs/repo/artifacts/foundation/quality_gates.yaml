@@ -1,0 +1,15 @@
+version: 1
+gates:
+  - id: cargo-test-workspace
+    required: true
+    command_key: tests
+    scope: workspace
+    notes: Run the Rust workspace test suite before claiming compile support.
+  - id: compile-proof-corpus
+    required: true
+    scope: proof-corpus
+    notes: Shared success and refusal scenarios must pass in both compiler and CLI suites.
+  - id: docs-help-parity
+    required: true
+    scope: docs
+    notes: Help text and docs must describe the same supported compile surface.

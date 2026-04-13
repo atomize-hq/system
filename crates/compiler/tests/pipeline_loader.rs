@@ -414,6 +414,7 @@ fn declared_stage_order_is_preserved_for_core_pipelines() {
                 "stage.05_charter_synthesize",
                 "stage.06_project_context_interview",
                 "stage.07_foundation_pack",
+                "stage.10_feature_spec",
             ],
         ),
         (

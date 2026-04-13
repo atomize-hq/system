@@ -19,3 +19,5 @@ ROUTE:
      REASON: missing route variables: charter_gaps_detected, needs_project_context
   5. stage.07_foundation_pack | blocked
      REASON: blocked by unresolved stage stage.06_project_context_interview (next)
+  6. stage.10_feature_spec | blocked
+     REASON: blocked by unresolved stage stage.06_project_context_interview (next)

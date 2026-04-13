@@ -18,3 +18,4 @@ ROUTE:
   3. stage.05_charter_synthesize | active
   4. stage.06_project_context_interview | active
   5. stage.07_foundation_pack | active
+  6. stage.10_feature_spec | active

@@ -1,0 +1,11 @@
+commands:
+  install: "uv sync"
+  format: "uv run ruff format {code_dirs} {test_dirs}"
+  format_check: "uv run ruff format --check {code_dirs} {test_dirs}"
+  lint: "uv run ruff check {code_dirs} {test_dirs}"
+  typecheck: "uv run mypy {code_dirs}"
+  tests: "uv run pytest -q"
+  coverage: "uv run pytest --cov={code_dirs} --cov-report=term-missing --cov-fail-under={coverage_min}"
+  docs: "uv run ruff check --select D {code_dirs}"
+  security: "uv run pip-audit && uv run bandit -r {code_dirs}"
+  complexity: "uv run ruff check --select C90 {code_dirs}"

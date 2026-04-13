@@ -30,3 +30,5 @@ stages:
           - variables.charter_gaps_detected == true
   - id: stage.07_foundation_pack
     file: core/stages/07_foundation_pack.md
+  - id: stage.10_feature_spec
+    file: core/stages/10_feature_spec.md

@@ -877,7 +877,7 @@ Lane completion checklists:
 Lane A:
 
 - [ ] `crates/compiler` owns compile entrypoint, typed result, refusal logic, and both payload/explain renderers
-- [ ] `pipelines/foundation_inputs.yaml` declares `stage.10_feature_spec`
+- [x] `pipelines/foundation_inputs.yaml` declares `stage.10_feature_spec`
 - [ ] `route_state` persists one bounded `route_basis` snapshot written by `pipeline resolve`
 - [ ] `docs/contracts/pipeline-route-and-state-core.md` is updated with the new `route_basis` field set and schema version
 - [ ] compile can refuse missing, malformed, or stale `route_basis` without rerunning resolve
@@ -895,8 +895,8 @@ Lane B:
 
 Lane C:
 
-- [ ] the shared proof corpus declares `stage.10_feature_spec`
-- [ ] the shared corpus contains every compile-time dependency for `stage.10_feature_spec`
+- [x] the shared proof corpus declares `stage.10_feature_spec`
+- [x] the shared corpus contains every compile-time dependency for `stage.10_feature_spec`
 - [ ] shared payload and explain goldens are committed once and reused by both suites
 - [ ] stale-basis and inactive-stage regressions are locked as mandatory tests
 - [ ] help snapshots and docs/help drift checks cover the shipped compile surface

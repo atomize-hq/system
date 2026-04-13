@@ -40,6 +40,7 @@ fn route_evaluation_preserves_declared_order_and_marks_false_activation_skipped(
             "stage.05_charter_synthesize",
             "stage.06_project_context_interview",
             "stage.07_foundation_pack",
+            "stage.10_feature_spec",
         ]
     );
     assert_eq!(
@@ -53,6 +54,7 @@ fn route_evaluation_preserves_declared_order_and_marks_false_activation_skipped(
             RouteStageStatus::Active,
             RouteStageStatus::Active,
             RouteStageStatus::Skipped,
+            RouteStageStatus::Active,
             RouteStageStatus::Active,
         ]
     );
@@ -95,6 +97,7 @@ fn route_evaluation_emits_exactly_one_next_when_route_state_is_missing() {
             RouteStageStatus::Active,
             RouteStageStatus::Active,
             RouteStageStatus::Next,
+            RouteStageStatus::Blocked,
             RouteStageStatus::Blocked,
         ]
     );
