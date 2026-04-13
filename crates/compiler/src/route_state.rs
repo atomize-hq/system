@@ -4,13 +4,18 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v1";
+pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v2";
 pub const ROUTE_STATE_AUDIT_LIMIT: usize = 50;
 
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+const FIELD_REFS_CHARTER_REF: &str = "refs.charter_ref";
+const FIELD_REFS_PROJECT_CONTEXT_REF: &str = "refs.project_context_ref";
+const FIELD_RUN_RUNNER: &str = "run.runner";
+const FIELD_RUN_PROFILE: &str = "run.profile";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -18,7 +23,9 @@ pub struct RouteState {
     pub schema_version: String,
     pub pipeline_id: String,
     pub revision: u64,
-    pub variables: BTreeMap<String, bool>,
+    pub routing: BTreeMap<String, bool>,
+    pub refs: RouteStateRefs,
+    pub run: RouteStateRun,
     pub audit: Vec<RouteStateAuditEntry>,
 }
 
@@ -28,18 +35,100 @@ impl RouteState {
             schema_version: ROUTE_STATE_SCHEMA_VERSION.to_string(),
             pipeline_id: pipeline_id.into(),
             revision: 0,
-            variables: BTreeMap::new(),
+            routing: BTreeMap::new(),
+            refs: RouteStateRefs::default(),
+            run: RouteStateRun::default(),
             audit: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteStateRefs {
+    pub charter_ref: Option<String>,
+    pub project_context_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteStateRun {
+    pub runner: Option<String>,
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouteStateAuditEntry {
     pub revision: u64,
-    pub variable: String,
-    pub value: bool,
+    pub field_path: String,
+    pub value: RouteStateValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RouteStateValue {
+    Bool(bool),
+    String(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RouteStateMutation {
+    RoutingVariable { variable: String, value: bool },
+    RefCharterRef { value: String },
+    RefProjectContextRef { value: String },
+    RunRunner { value: String },
+    RunProfile { value: String },
+}
+
+impl RouteStateMutation {
+    fn field_path(&self) -> String {
+        match self {
+            Self::RoutingVariable { variable, .. } => format!("routing.{variable}"),
+            Self::RefCharterRef { .. } => FIELD_REFS_CHARTER_REF.to_string(),
+            Self::RefProjectContextRef { .. } => FIELD_REFS_PROJECT_CONTEXT_REF.to_string(),
+            Self::RunRunner { .. } => FIELD_RUN_RUNNER.to_string(),
+            Self::RunProfile { .. } => FIELD_RUN_PROFILE.to_string(),
+        }
+    }
+
+    fn value(&self) -> RouteStateValue {
+        match self {
+            Self::RoutingVariable { value, .. } => RouteStateValue::Bool(*value),
+            Self::RefCharterRef { value }
+            | Self::RefProjectContextRef { value }
+            | Self::RunRunner { value }
+            | Self::RunProfile { value } => RouteStateValue::String(value.clone()),
+        }
+    }
+
+    fn apply(&self, state: &mut RouteState) {
+        match self {
+            Self::RoutingVariable { variable, value } => {
+                state.routing.insert(variable.clone(), *value);
+            }
+            Self::RefCharterRef { value } => {
+                state.refs.charter_ref = Some(value.clone());
+            }
+            Self::RefProjectContextRef { value } => {
+                state.refs.project_context_ref = Some(value.clone());
+            }
+            Self::RunRunner { value } => {
+                state.run.runner = Some(value.clone());
+            }
+            Self::RunProfile { value } => {
+                state.run.profile = Some(value.clone());
+            }
+        }
+    }
+}
+
+enum RouteStateFieldPath<'a> {
+    Routing(&'a str),
+    RefsCharterRef,
+    RefsProjectContextRef,
+    RunRunner,
+    RunProfile,
 }
 
 #[derive(Debug)]
@@ -65,6 +154,9 @@ pub enum RouteStateStoreError {
         reason: &'static str,
     },
     InvalidSupportedVariables {
+        reason: String,
+    },
+    InvalidMutation {
         reason: String,
     },
     ReadFailure {
@@ -134,20 +226,14 @@ pub fn load_route_state_with_supported_variables(
     load_route_state_at_path(&state_path, pipeline_id, Some(supported_variables))
 }
 
-pub fn set_route_state_variable<I, S>(
+pub fn set_route_state(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
-    supported_variables: I,
-    variable: impl AsRef<str>,
-    value: bool,
+    supported_variables: impl IntoIterator<Item = impl AsRef<str>>,
+    mutation: RouteStateMutation,
     expected_revision: u64,
-) -> Result<RouteStateMutationOutcome, RouteStateStoreError>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
+) -> Result<RouteStateMutationOutcome, RouteStateStoreError> {
     let pipeline_id = pipeline_id.as_ref();
-    let variable = variable.as_ref();
     validate_pipeline_id(pipeline_id).map_err(|reason| {
         RouteStateStoreError::InvalidPipelineId {
             pipeline_id: pipeline_id.to_string(),
@@ -156,8 +242,7 @@ where
     })?;
 
     let supported_variables = normalize_supported_variables(supported_variables)?;
-    validate_variable_name(variable)
-        .map_err(|reason| RouteStateStoreError::InvalidSupportedVariables { reason })?;
+    validate_mutation(&mutation, &supported_variables)?;
 
     let state_path = route_state_path(repo_root.as_ref(), pipeline_id).map_err(|reason| {
         RouteStateStoreError::InvalidPipelineId {
@@ -193,12 +278,14 @@ where
             }
         };
 
-    if !supported_variables.contains(variable) {
-        return Ok(RouteStateMutationOutcome::Refused(
-            RouteStateMutationRefusal::UnsupportedVariable {
-                variable: variable.to_string(),
-            },
-        ));
+    if let RouteStateMutation::RoutingVariable { variable, .. } = &mutation {
+        if !supported_variables.contains(variable) {
+            return Ok(RouteStateMutationOutcome::Refused(
+                RouteStateMutationRefusal::UnsupportedVariable {
+                    variable: variable.clone(),
+                },
+            ));
+        }
     }
 
     if state.revision != expected_revision {
@@ -211,11 +298,11 @@ where
     }
 
     state.revision = state.revision.saturating_add(1);
-    state.variables.insert(variable.to_string(), value);
+    mutation.apply(&mut state);
     state.audit.push(RouteStateAuditEntry {
         revision: state.revision,
-        variable: variable.to_string(),
-        value,
+        field_path: mutation.field_path(),
+        value: mutation.value(),
     });
     trim_audit_history(&mut state.audit);
 
@@ -297,11 +384,17 @@ fn validate_loaded_state(
         });
     }
 
-    validate_variable_map(&state.variables).map_err(|reason| {
-        RouteStateReadError::MalformedState {
-            path: state_path.to_path_buf(),
-            reason,
-        }
+    validate_routing_map(&state.routing).map_err(|reason| RouteStateReadError::MalformedState {
+        path: state_path.to_path_buf(),
+        reason,
+    })?;
+    validate_refs(&state.refs).map_err(|reason| RouteStateReadError::MalformedState {
+        path: state_path.to_path_buf(),
+        reason,
+    })?;
+    validate_run(&state.run).map_err(|reason| RouteStateReadError::MalformedState {
+        path: state_path.to_path_buf(),
+        reason,
     })?;
     validate_audit_entries(&state.audit, supported_variables).map_err(|reason| {
         RouteStateReadError::MalformedState {
@@ -311,13 +404,46 @@ fn validate_loaded_state(
     })?;
 
     if let Some(supported_variables) = supported_variables {
-        for variable in state.variables.keys() {
+        for variable in state.routing.keys() {
             if !supported_variables.contains(variable) {
                 return Err(RouteStateReadError::MalformedState {
                     path: state_path.to_path_buf(),
-                    reason: format!("unsupported variable `{variable}` in persisted state"),
+                    reason: format!("unsupported routing variable `{variable}` in persisted state"),
                 });
             }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_mutation(
+    mutation: &RouteStateMutation,
+    supported_variables: &BTreeSet<String>,
+) -> Result<(), RouteStateStoreError> {
+    match mutation {
+        RouteStateMutation::RoutingVariable { variable, .. } => {
+            validate_variable_name(variable)
+                .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?;
+
+            let values = supported_variables
+                .iter()
+                .map(|variable| (variable.clone(), false))
+                .collect::<BTreeMap<_, _>>();
+            RouteVariables::new(values).map_err(|err| {
+                RouteStateStoreError::InvalidSupportedVariables {
+                    reason: err.to_string(),
+                }
+            })?;
+        }
+        RouteStateMutation::RefCharterRef { value }
+        | RouteStateMutation::RefProjectContextRef { value } => {
+            validate_repo_relative_ref(value)
+                .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
+        }
+        RouteStateMutation::RunRunner { value } | RouteStateMutation::RunProfile { value } => {
+            validate_non_empty_string(value)
+                .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
         }
     }
 
@@ -329,13 +455,48 @@ fn validate_audit_entries(
     supported_variables: Option<&BTreeSet<String>>,
 ) -> Result<(), String> {
     for entry in audit {
-        validate_variable_name(&entry.variable)?;
-        if let Some(supported_variables) = supported_variables {
-            if !supported_variables.contains(&entry.variable) {
-                return Err(format!(
-                    "unsupported audit variable `{}` in persisted state",
-                    entry.variable
-                ));
+        let field = parse_route_state_field_path(&entry.field_path)?;
+        match field {
+            RouteStateFieldPath::Routing(variable) => {
+                match &entry.value {
+                    RouteStateValue::Bool(_) => {}
+                    RouteStateValue::String(_) => {
+                        return Err(format!(
+                            "audit field `{}` must use a boolean value",
+                            entry.field_path
+                        ));
+                    }
+                }
+
+                if let Some(supported_variables) = supported_variables {
+                    if !supported_variables.contains(variable) {
+                        return Err(format!(
+                            "unsupported audit routing variable `{variable}` in persisted state"
+                        ));
+                    }
+                }
+            }
+            RouteStateFieldPath::RefsCharterRef | RouteStateFieldPath::RefsProjectContextRef => {
+                match &entry.value {
+                    RouteStateValue::String(value) => validate_repo_relative_ref(value)?,
+                    RouteStateValue::Bool(_) => {
+                        return Err(format!(
+                            "audit field `{}` must use a string value",
+                            entry.field_path
+                        ));
+                    }
+                }
+            }
+            RouteStateFieldPath::RunRunner | RouteStateFieldPath::RunProfile => {
+                match &entry.value {
+                    RouteStateValue::String(value) => validate_non_empty_string(value)?,
+                    RouteStateValue::Bool(_) => {
+                        return Err(format!(
+                            "audit field `{}` must use a string value",
+                            entry.field_path
+                        ));
+                    }
+                }
             }
         }
     }
@@ -343,9 +504,29 @@ fn validate_audit_entries(
     Ok(())
 }
 
-fn validate_variable_map(values: &BTreeMap<String, bool>) -> Result<(), String> {
+fn validate_routing_map(values: &BTreeMap<String, bool>) -> Result<(), String> {
     let values = values.iter().map(|(name, value)| (name.clone(), *value));
     RouteVariables::new(values.collect()).map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn validate_refs(refs: &RouteStateRefs) -> Result<(), String> {
+    if let Some(value) = &refs.charter_ref {
+        validate_repo_relative_ref(value)?;
+    }
+    if let Some(value) = &refs.project_context_ref {
+        validate_repo_relative_ref(value)?;
+    }
+    Ok(())
+}
+
+fn validate_run(run: &RouteStateRun) -> Result<(), String> {
+    if let Some(value) = &run.runner {
+        validate_non_empty_string(value)?;
+    }
+    if let Some(value) = &run.profile {
+        validate_non_empty_string(value)?;
+    }
     Ok(())
 }
 
@@ -355,6 +536,68 @@ fn validate_variable_name(variable: &str) -> Result<(), String> {
     RouteVariables::new(values)
         .map(|_| ())
         .map_err(|err| err.to_string())
+}
+
+fn validate_non_empty_string(value: &str) -> Result<(), String> {
+    if value.trim().is_empty() {
+        Err("value must not be empty".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_repo_relative_ref(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("repo-relative ref must not be empty".to_string());
+    }
+
+    let path = Path::new(trimmed);
+    if path.is_absolute() {
+        return Err(format!(
+            "repo-relative ref `{trimmed}` must not be absolute"
+        ));
+    }
+
+    let mut saw_normal = false;
+    for component in path.components() {
+        match component {
+            Component::Normal(_) => saw_normal = true,
+            Component::ParentDir => {
+                return Err(format!(
+                    "repo-relative ref `{trimmed}` must not escape the repo root"
+                ));
+            }
+            Component::CurDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(format!(
+                    "repo-relative ref `{trimmed}` must be a clean repo-relative path"
+                ));
+            }
+        }
+    }
+
+    if !saw_normal {
+        return Err(format!(
+            "repo-relative ref `{trimmed}` must include at least one path component"
+        ));
+    }
+
+    Ok(())
+}
+
+fn parse_route_state_field_path(input: &str) -> Result<RouteStateFieldPath<'_>, String> {
+    if let Some(variable) = input.strip_prefix("routing.") {
+        validate_variable_name(variable)?;
+        return Ok(RouteStateFieldPath::Routing(variable));
+    }
+
+    match input {
+        FIELD_REFS_CHARTER_REF => Ok(RouteStateFieldPath::RefsCharterRef),
+        FIELD_REFS_PROJECT_CONTEXT_REF => Ok(RouteStateFieldPath::RefsProjectContextRef),
+        FIELD_RUN_RUNNER => Ok(RouteStateFieldPath::RunRunner),
+        FIELD_RUN_PROFILE => Ok(RouteStateFieldPath::RunProfile),
+        _ => Err(format!("unsupported route-state field path `{input}`")),
+    }
 }
 
 fn normalize_supported_variables<I, S>(
@@ -518,8 +761,8 @@ fn validate_pipeline_id(pipeline_id: &str) -> Result<(), &'static str> {
 
     let mut components = Path::new(pipeline_id).components();
     match (components.next(), components.next()) {
-        (Some(std::path::Component::Normal(_)), None) => Ok(()),
-        (Some(std::path::Component::CurDir), None) => {
+        (Some(Component::Normal(_)), None) => Ok(()),
+        (Some(Component::CurDir), None) => {
             Err("pipeline id must be a single repo-relative path component")
         }
         _ => Err("pipeline id must be a single repo-relative path component"),
@@ -594,6 +837,15 @@ impl Drop for RouteStateLockGuard {
     }
 }
 
+impl fmt::Display for RouteStateValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteStateValue::Bool(value) => write!(f, "{value}"),
+            RouteStateValue::String(value) => write!(f, "{value}"),
+        }
+    }
+}
+
 impl fmt::Display for RouteStateReadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -645,6 +897,9 @@ impl fmt::Display for RouteStateStoreError {
             RouteStateStoreError::InvalidSupportedVariables { reason } => {
                 write!(f, "supported route-state variables are invalid: {reason}")
             }
+            RouteStateStoreError::InvalidMutation { reason } => {
+                write!(f, "route state mutation is invalid: {reason}")
+            }
             RouteStateStoreError::ReadFailure { path, source } => {
                 write!(
                     f,
@@ -685,6 +940,7 @@ impl std::error::Error for RouteStateStoreError {
             | RouteStateStoreError::WriteFailure { source, .. } => Some(source),
             RouteStateStoreError::InvalidPipelineId { .. }
             | RouteStateStoreError::InvalidSupportedVariables { .. }
+            | RouteStateStoreError::InvalidMutation { .. }
             | RouteStateStoreError::SerializationFailure { .. } => None,
         }
     }

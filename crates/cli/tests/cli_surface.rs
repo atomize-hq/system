@@ -303,7 +303,7 @@ fn pipeline_state_help_lists_set() {
         "set should be the only state subcommand: {command_lines:?}"
     );
     assert!(
-        stdout.contains("Set one supported route-state variable"),
+        stdout.contains("Set one supported route-state field"),
         "expected pipeline state help text: {stdout}"
     );
 }
@@ -435,8 +435,14 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "OUTCOME: APPLIED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "REVISION: 1\n",
-            "VARIABLES:\n",
-            "  needs_project_context = true"
+            "ROUTING:\n",
+            "  needs_project_context = true\n",
+            "REFS:\n",
+            "  charter_ref = <unset>\n",
+            "  project_context_ref = <unset>\n",
+            "RUN:\n",
+            "  runner = <unset>\n",
+            "  profile = <unset>"
         )
     );
 
@@ -464,9 +470,15 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "OUTCOME: APPLIED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "REVISION: 2\n",
-            "VARIABLES:\n",
+            "ROUTING:\n",
             "  charter_gaps_detected = true\n",
-            "  needs_project_context = true"
+            "  needs_project_context = true\n",
+            "REFS:\n",
+            "  charter_ref = <unset>\n",
+            "  project_context_ref = <unset>\n",
+            "RUN:\n",
+            "  runner = <unset>\n",
+            "  profile = <unset>"
         )
     );
 
@@ -492,6 +504,128 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "  4. stage.06_project_context_interview | active\n",
             "  5. stage.07_foundation_pack | active"
         )
+    );
+}
+
+#[test]
+fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
+    let (_dir, root) = shared_pipeline_proof_corpus_repo();
+
+    let runner_applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.runner=codex-cli",
+        ],
+    );
+    assert!(
+        runner_applied.status.success(),
+        "run.runner field should succeed"
+    );
+    let runner_stdout = String::from_utf8(runner_applied.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        runner_stdout.trim_end(),
+        concat!(
+            "OUTCOME: APPLIED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "REVISION: 1\n",
+            "ROUTING:\n",
+            "  <empty>\n",
+            "REFS:\n",
+            "  charter_ref = <unset>\n",
+            "  project_context_ref = <unset>\n",
+            "RUN:\n",
+            "  runner = codex-cli\n",
+            "  profile = <unset>"
+        )
+    );
+
+    let ref_applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+    );
+    assert!(
+        ref_applied.status.success(),
+        "refs.charter_ref field should succeed"
+    );
+    let ref_stdout = String::from_utf8(ref_applied.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        ref_stdout.trim_end(),
+        concat!(
+            "OUTCOME: APPLIED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "REVISION: 2\n",
+            "ROUTING:\n",
+            "  <empty>\n",
+            "REFS:\n",
+            "  charter_ref = artifacts/charter/CHARTER.md\n",
+            "  project_context_ref = <unset>\n",
+            "RUN:\n",
+            "  runner = codex-cli\n",
+            "  profile = <unset>"
+        )
+    );
+}
+
+#[test]
+fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
+    let (_dir, root) = shared_pipeline_proof_corpus_repo();
+
+    let invalid_path = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.unknown=artifacts/charter/CHARTER.md",
+        ],
+    );
+    assert!(
+        !invalid_path.status.success(),
+        "invalid field path should refuse"
+    );
+    let invalid_path_stdout = String::from_utf8(invalid_path.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        invalid_path_stdout.trim_end(),
+        "REFUSED: unsupported --field path `refs.unknown`; expected one of `run.runner`, `run.profile`, `refs.charter_ref`, or `refs.project_context_ref`"
+    );
+
+    let invalid_value = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=/tmp/CHARTER.md",
+        ],
+    );
+    assert!(
+        !invalid_value.status.success(),
+        "invalid field value should refuse"
+    );
+    let invalid_value_stdout = String::from_utf8(invalid_value.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        invalid_value_stdout.trim_end(),
+        "REFUSED: route state mutation error: route state mutation is invalid: repo-relative ref `/tmp/CHARTER.md` must not be absolute"
     );
 }
 
@@ -575,7 +709,7 @@ fn pipeline_state_set_preserves_distinct_refusals() {
 
     write_file(
         &state_path,
-        b"---\nschema_version: m1-pipeline-state-v1\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nvariables:\n  unsupported_flag: true\naudit:\n  - revision: 1\n    variable: unsupported_flag\n    value: true\n",
+        b"---\nschema_version: m1-pipeline-state-v2\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nrouting: {}\nrefs: {}\nrun: {}\naudit:\n  - revision: 1\n    field_path: routing.unsupported_flag\n    value: true\n",
     );
 
     let malformed = run_in(
@@ -599,14 +733,14 @@ fn pipeline_state_set_preserves_distinct_refusals() {
     assert_eq!(
         malformed_stdout.trim_end(),
         format!(
-            "REFUSED: malformed route state at {}: unsupported audit variable `unsupported_flag` in persisted state",
+            "REFUSED: malformed route state at {}: unsupported audit routing variable `unsupported_flag` in persisted state",
             malformed_state_path.display()
         )
     );
 
     write_file(
         &state_path,
-        b"---\nschema_version: m1-pipeline-state-v1\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nvariables:\n  needs_project_context: true\naudit:\n  - revision: 1\n    variable: needs_project_context\n    value: true\n",
+        b"---\nschema_version: m1-pipeline-state-v2\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nrouting:\n  needs_project_context: true\nrefs: {}\nrun: {}\naudit:\n  - revision: 1\n    field_path: routing.needs_project_context\n    value: true\n",
     );
 
     let revision_conflict = run_in(

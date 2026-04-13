@@ -4,9 +4,9 @@ use std::thread;
 use std::time::Duration;
 
 use system_compiler::{
-    load_route_state, load_route_state_with_supported_variables, set_route_state_variable,
-    RouteState, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    load_route_state, load_route_state_with_supported_variables, set_route_state, RouteState,
+    RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    RouteStateStoreError, RouteStateValue, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 fn write_file(path: &Path, contents: &str) {
@@ -55,23 +55,30 @@ fn release_unix_lock(file: &std::fs::File) {
 }
 
 #[test]
-fn missing_state_loads_as_empty_and_round_trips_revisioned_variables() {
+fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
 
     let empty = load_route_state(repo_root, pipeline_id).expect("empty state");
     assert_eq!(empty, RouteState::empty(pipeline_id));
+    assert!(empty.routing.is_empty());
+    assert_eq!(empty.refs.charter_ref, None);
+    assert_eq!(empty.refs.project_context_ref, None);
+    assert_eq!(empty.run.runner, None);
+    assert_eq!(empty.run.profile, None);
 
-    let outcome = set_route_state_variable(
+    let outcome = set_route_state(
         repo_root,
         pipeline_id,
         ["needs_project_context", "charter_gaps_detected"],
-        "needs_project_context",
-        true,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
         0,
     )
-    .expect("mutation");
+    .expect("routing mutation");
     let mut state = match outcome {
         RouteStateMutationOutcome::Applied(state) => state,
         other => panic!("expected success, got {other:?}"),
@@ -79,28 +86,89 @@ fn missing_state_loads_as_empty_and_round_trips_revisioned_variables() {
     assert_eq!(state.schema_version, ROUTE_STATE_SCHEMA_VERSION);
     assert_eq!(state.pipeline_id, pipeline_id);
     assert_eq!(state.revision, 1);
-    assert_eq!(state.variables.get("needs_project_context"), Some(&true));
+    assert_eq!(state.routing.get("needs_project_context"), Some(&true));
     assert_eq!(state.audit.len(), 1);
+    assert_eq!(state.audit[0].field_path, "routing.needs_project_context");
+    assert_eq!(state.audit[0].value, RouteStateValue::Bool(true));
 
-    let outcome = set_route_state_variable(
+    let outcome = set_route_state(
         repo_root,
         pipeline_id,
         ["needs_project_context", "charter_gaps_detected"],
-        "charter_gaps_detected",
-        false,
+        RouteStateMutation::RunRunner {
+            value: "codex-cli".to_string(),
+        },
         1,
     )
-    .expect("mutation");
+    .expect("run mutation");
     state = match outcome {
         RouteStateMutationOutcome::Applied(state) => state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.revision, 2);
-    assert_eq!(state.variables.get("needs_project_context"), Some(&true));
-    assert_eq!(state.variables.get("charter_gaps_detected"), Some(&false));
-    assert_eq!(state.audit.len(), 2);
-    assert_eq!(state.audit[0].revision, 1);
-    assert_eq!(state.audit[1].revision, 2);
+    assert_eq!(state.run.runner.as_deref(), Some("codex-cli"));
+    assert_eq!(state.audit[1].field_path, "run.runner");
+    assert_eq!(
+        state.audit[1].value,
+        RouteStateValue::String("codex-cli".to_string())
+    );
+
+    let outcome = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context", "charter_gaps_detected"],
+        RouteStateMutation::RunProfile {
+            value: "python-uv".to_string(),
+        },
+        2,
+    )
+    .expect("profile mutation");
+    state = match outcome {
+        RouteStateMutationOutcome::Applied(state) => state,
+        other => panic!("expected success, got {other:?}"),
+    };
+    assert_eq!(state.revision, 3);
+    assert_eq!(state.run.profile.as_deref(), Some("python-uv"));
+
+    let outcome = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context", "charter_gaps_detected"],
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+        3,
+    )
+    .expect("charter ref mutation");
+    state = match outcome {
+        RouteStateMutationOutcome::Applied(state) => state,
+        other => panic!("expected success, got {other:?}"),
+    };
+    assert_eq!(state.revision, 4);
+    assert_eq!(
+        state.refs.charter_ref.as_deref(),
+        Some("artifacts/charter/CHARTER.md")
+    );
+
+    let outcome = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context", "charter_gaps_detected"],
+        RouteStateMutation::RefProjectContextRef {
+            value: "artifacts/project_context/PROJECT_CONTEXT.md".to_string(),
+        },
+        4,
+    )
+    .expect("project context ref mutation");
+    state = match outcome {
+        RouteStateMutationOutcome::Applied(state) => state,
+        other => panic!("expected success, got {other:?}"),
+    };
+    assert_eq!(state.revision, 5);
+    assert_eq!(
+        state.refs.project_context_ref.as_deref(),
+        Some("artifacts/project_context/PROJECT_CONTEXT.md")
+    );
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
     assert_eq!(loaded, state);
@@ -115,11 +183,12 @@ fn malformed_state_refuses_unknown_top_level_keys() {
     write_file(
         &path,
         r#"---
-schema_version: m1-pipeline-state-v1
+schema_version: m1-pipeline-state-v2
 pipeline_id: pipeline.route_state
 revision: 1
-variables:
-  needs_project_context: true
+routing: {}
+refs: {}
+run: {}
 audit: []
 unexpected: true
 "#,
@@ -135,7 +204,7 @@ unexpected: true
 }
 
 #[test]
-fn malformed_state_refuses_non_boolean_values() {
+fn malformed_state_refuses_wrong_nested_scalar_types() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
@@ -143,12 +212,18 @@ fn malformed_state_refuses_non_boolean_values() {
     write_file(
         &path,
         r#"---
-schema_version: m1-pipeline-state-v1
+schema_version: m1-pipeline-state-v2
 pipeline_id: pipeline.route_state
 revision: 1
-variables:
-  needs_project_context: maybe
-audit: []
+routing:
+  needs_project_context: true
+refs:
+  charter_ref: true
+run: {}
+audit:
+  - revision: 1
+    field_path: run.runner
+    value: true
 "#,
     );
 
@@ -162,7 +237,7 @@ audit: []
 }
 
 #[test]
-fn load_with_supported_variables_refuses_unsupported_persisted_state_variables() {
+fn load_with_supported_variables_refuses_unsupported_persisted_routing_variables() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
@@ -170,14 +245,16 @@ fn load_with_supported_variables_refuses_unsupported_persisted_state_variables()
     write_file(
         &path,
         r#"---
-schema_version: m1-pipeline-state-v1
+schema_version: m1-pipeline-state-v2
 pipeline_id: pipeline.route_state
 revision: 1
-variables:
+routing:
   charter_gaps_detected: true
+refs: {}
+run: {}
 audit:
   - revision: 1
-    variable: charter_gaps_detected
+    field_path: routing.charter_gaps_detected
     value: true
 "#,
     );
@@ -204,12 +281,14 @@ fn unsupported_variable_refuses_without_overwrite() {
     let pipeline_id = "pipeline.route_state";
     let path = state_path(repo_root, pipeline_id);
 
-    let outcome = set_route_state_variable(
+    let outcome = set_route_state(
         repo_root,
         pipeline_id,
         ["needs_project_context"],
-        "charter_gaps_detected",
-        true,
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: true,
+        },
         0,
     )
     .expect("mutation");
@@ -224,6 +303,31 @@ fn unsupported_variable_refuses_without_overwrite() {
 }
 
 #[test]
+fn invalid_ref_value_is_rejected_before_write() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+
+    let err = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context"],
+        RouteStateMutation::RefCharterRef {
+            value: "/tmp/CHARTER.md".to_string(),
+        },
+        0,
+    )
+    .expect_err("invalid mutation");
+
+    match err {
+        RouteStateStoreError::InvalidMutation { reason } => {
+            assert!(reason.contains("must not be absolute"), "{reason}");
+        }
+        other => panic!("expected invalid mutation error, got {other:?}"),
+    }
+}
+
+#[test]
 fn revision_conflict_refuses_without_overwrite() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -232,27 +336,32 @@ fn revision_conflict_refuses_without_overwrite() {
     write_file(
         &path,
         r#"---
-schema_version: m1-pipeline-state-v1
+schema_version: m1-pipeline-state-v2
 pipeline_id: pipeline.route_state
 revision: 2
-variables:
+routing:
   needs_project_context: true
+refs: {}
+run:
+  runner: codex-cli
 audit:
   - revision: 1
-    variable: needs_project_context
+    field_path: routing.needs_project_context
     value: true
   - revision: 2
-    variable: needs_project_context
-    value: true
+    field_path: run.runner
+    value: codex-cli
 "#,
     );
 
-    let outcome = set_route_state_variable(
+    let outcome = set_route_state(
         repo_root,
         pipeline_id,
         ["needs_project_context"],
-        "needs_project_context",
-        false,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
         1,
     )
     .expect("mutation");
@@ -270,24 +379,39 @@ audit:
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
     assert_eq!(loaded.revision, 2);
-    assert_eq!(loaded.variables.get("needs_project_context"), Some(&true));
+    assert_eq!(loaded.routing.get("needs_project_context"), Some(&true));
+    assert_eq!(loaded.run.runner.as_deref(), Some("codex-cli"));
 }
 
 #[test]
-fn audit_history_trims_oldest_first() {
+fn audit_history_trims_oldest_first_across_mixed_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
     let mut expected_revision = 0;
-    let mut value = false;
 
-    for _ in 0..(ROUTE_STATE_AUDIT_LIMIT + 3) {
-        let outcome = set_route_state_variable(
+    for index in 0..(ROUTE_STATE_AUDIT_LIMIT + 3) {
+        let mutation = match index % 4 {
+            0 => RouteStateMutation::RoutingVariable {
+                variable: "needs_project_context".to_string(),
+                value: index % 2 == 0,
+            },
+            1 => RouteStateMutation::RunRunner {
+                value: format!("runner-{index}"),
+            },
+            2 => RouteStateMutation::RunProfile {
+                value: format!("profile-{index}"),
+            },
+            _ => RouteStateMutation::RefCharterRef {
+                value: format!("artifacts/charter/CHARTER-{index}.md"),
+            },
+        };
+
+        let outcome = set_route_state(
             repo_root,
             pipeline_id,
             ["needs_project_context"],
-            "needs_project_context",
-            value,
+            mutation,
             expected_revision,
         )
         .expect("mutation");
@@ -297,7 +421,6 @@ fn audit_history_trims_oldest_first() {
             other => panic!("expected success, got {other:?}"),
         };
         expected_revision = state.revision;
-        value = !value;
     }
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
@@ -326,12 +449,14 @@ fn atomic_replace_happens_under_lock() {
     let repo_root = repo_root.to_path_buf();
     let thread_repo_root = repo_root.clone();
     thread::spawn(move || {
-        let outcome = set_route_state_variable(
+        let outcome = set_route_state(
             &thread_repo_root,
             pipeline_id,
             ["needs_project_context"],
-            "needs_project_context",
-            true,
+            RouteStateMutation::RoutingVariable {
+                variable: "needs_project_context".to_string(),
+                value: true,
+            },
             0,
         );
         tx.send(outcome).expect("send");
@@ -349,7 +474,7 @@ fn atomic_replace_happens_under_lock() {
     match outcome {
         RouteStateMutationOutcome::Applied(state) => {
             assert_eq!(state.revision, 1);
-            assert_eq!(state.variables.get("needs_project_context"), Some(&true));
+            assert_eq!(state.routing.get("needs_project_context"), Some(&true));
         }
         other => panic!("expected success, got {other:?}"),
     }
@@ -378,4 +503,35 @@ fn atomic_replace_happens_under_lock() {
         dir_entries.iter().all(|entry| !entry.contains(".tmp-")),
         "temp file should not remain after atomic replace"
     );
+}
+
+#[test]
+fn legacy_flat_schema_refuses_explicitly() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v1
+pipeline_id: pipeline.route_state
+revision: 1
+variables:
+  needs_project_context: true
+audit: []
+"#,
+    );
+
+    let err = load_route_state(repo_root, pipeline_id).expect_err("legacy schema should refuse");
+    match err {
+        RouteStateReadError::MalformedState { reason, .. } => {
+            assert!(
+                reason.contains("unknown field `variables`")
+                    || reason.contains("unexpected schema_version"),
+                "{reason}"
+            );
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
 }

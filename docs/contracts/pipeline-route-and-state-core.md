@@ -87,23 +87,43 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - `schema_version`
   - `pipeline_id`
   - `revision`
-  - `variables`
+  - `routing`
+  - `refs`
+  - `run`
   - `audit`
-- `schema_version` MUST be `m1-pipeline-state-v1`.
+- `schema_version` MUST be `m1-pipeline-state-v2`.
 - `pipeline_id` MUST match the canonical pipeline ID from the loaded pipeline definition.
 - `revision` MUST be a monotonically increasing non-negative integer.
-- `variables` MUST be a mapping from supported variable name to boolean value. Keys MUST follow the same variable-name grammar as activation clauses.
+- `routing` MUST be a mapping from supported variable name to boolean value. Keys MUST follow the same variable-name grammar as activation clauses.
+- `refs` MUST be a mapping with exactly these optional string fields:
+  - `charter_ref`
+  - `project_context_ref`
+- `run` MUST be a mapping with exactly these optional string fields:
+  - `runner`
+  - `profile`
+- `refs.*` values, when present, MUST be non-empty repo-relative paths.
+- `run.*` values, when present, MUST be non-empty strings.
 - `audit` MUST be a sequence of mutation records. Each record MUST contain exactly:
   - `revision`
-  - `variable`
+  - `field_path`
   - `value`
-- Unknown top-level keys, unknown audit-entry keys, invalid variable names, or non-boolean variable values MUST be refused as malformed state.
+- `audit.field_path` MUST be one of:
+  - `routing.<variable-name>`
+  - `refs.charter_ref`
+  - `refs.project_context_ref`
+  - `run.runner`
+  - `run.profile`
+- `audit.value` MUST be a boolean for `routing.*` entries and a string for `refs.*` / `run.*` entries.
+- Unknown top-level keys, unknown nested keys, invalid routing variable names, invalid field paths, or wrong scalar types MUST be refused as malformed state.
 - Audit history MUST be bounded to a fixed implementation-defined maximum entry count and MUST trim oldest-first after a successful mutation. The bound MUST remain stable within one implementation revision and be covered by tests.
 
 ### Mutation protocol
 
 - Route-state mutation MUST be compiler-owned and typed. CLI surfaces may wrap it, but they MUST NOT redefine its concurrency or refusal semantics.
-- Every mutation MUST validate the pipeline ID, schema version, variable-name grammar, and boolean value before attempting persistence.
+- Every mutation MUST validate the pipeline ID, schema version, routing-variable grammar, and field value type before attempting persistence.
+- Routing mutations MUST target `routing.<variable-name>` and accept boolean values only.
+- `refs.charter_ref` and `refs.project_context_ref` MUST accept repo-relative string values only.
+- `run.runner` and `run.profile` MUST accept non-empty string values only.
 - Every mutation MUST acquire an advisory lock before the read-modify-write sequence begins.
 - Every mutation MUST compare an expected revision supplied by the caller with the persisted revision. On mismatch, the mutation MUST refuse rather than silently overwrite newer state.
 - Successful writes MUST use write-then-rename atomic replacement within the same state directory.
@@ -128,11 +148,12 @@ Existing loader evidence already lives in `crates/compiler/src/pipeline.rs` and 
   - `resolved_route_emits_single_next_stage_when_state_is_required`
   - `resolved_route_refuses_out_of_contract_activation_inputs`
 - Add `crates/compiler/tests/pipeline_state_store.rs` with:
-  - `state_store_round_trips_revisioned_boolean_variables`
-  - `state_store_refuses_unknown_keys_and_non_boolean_values`
+  - `state_store_round_trips_revisioned_routing_refs_and_run_fields`
+  - `state_store_refuses_unknown_keys_and_wrong_scalar_types`
   - `state_store_refuses_revision_conflict_without_overwrite`
   - `state_store_trims_audit_history_oldest_first`
   - `state_store_uses_atomic_replace_under_lock`
+  - `state_store_refuses_legacy_flat_schema_version`
 - Record `THR-01` publication evidence that cites `C-08` and the downstream revalidation targets `SEAM-2`, `SEAM-3`, and `SEAM-4`.
 - Pass criteria:
   - identical pipeline and state inputs produce identical ordered route results

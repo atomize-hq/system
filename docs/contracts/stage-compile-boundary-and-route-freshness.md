@@ -86,6 +86,8 @@ This contract defines the compile boundary between published `pipeline` route tr
 ### Freshness and refusal posture
 
 - Compile MUST consume already-resolved route truth as the route basis for downstream compile work.
+- The route basis includes the resolved route plus the reviewed runtime state surfaces published by `C-08`: `routing`, `refs`, and `run`.
+- Freshness checks that depend on runner/profile or artifact references MUST read them from the published route-state fields rather than reconstructing them from legacy harness assumptions.
 - Compile MUST refuse stale route basis instead of silently re-running `pipeline resolve`.
 - Compile MUST refuse inactive stages explicitly when the selected stage is not active in the resolved route truth.
 - Compile MUST surface a freshness refusal when the selected route basis is missing, stale, malformed, or otherwise outside the contract required for compile.

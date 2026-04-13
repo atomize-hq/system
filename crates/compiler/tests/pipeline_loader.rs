@@ -1444,9 +1444,7 @@ stages:
         PipelineLoadError::Validation {
             error:
                 PipelineValidationError::InvalidSetVariable {
-                    stage_id,
-                    variable,
-                    ..
+                    stage_id, variable, ..
                 },
             ..
         } => {

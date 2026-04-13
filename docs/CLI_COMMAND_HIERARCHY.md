@@ -87,7 +87,7 @@ Use `pipeline` when:
 
 - the operator needs the authoritative route for a pipeline
 - the operator wants to select one explicitly selected stage payload for future compile work
-- the operator needs to set narrow route-state variables inside the declared schema
+- the operator needs to set narrow route-state routing, refs, or run fields inside the declared schema
 
 `pipeline` is not the front door. It is the orchestration surface after trusted project truth already exists.
 

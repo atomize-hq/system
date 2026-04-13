@@ -85,7 +85,7 @@ struct PipelineStateArgs {
 
 #[derive(Subcommand, Debug)]
 enum PipelineStateCommand {
-    /// Set one supported route-state variable.
+    /// Set one supported route-state field.
     Set(PipelineStateSetArgs),
 }
 
@@ -108,9 +108,12 @@ struct PipelineStateSetArgs {
     /// Canonical id or unambiguous shorthand for a pipeline.
     #[arg(long)]
     id: String,
-    /// Route-state variable assignment in name=value form.
-    #[arg(long)]
-    var: String,
+    /// Route-state routing assignment in name=value form.
+    #[arg(long, conflicts_with = "field", required_unless_present = "field")]
+    var: Option<String>,
+    /// Route-state field assignment in field.path=value form.
+    #[arg(long, conflicts_with = "var", required_unless_present = "var")]
+    field: Option<String>,
     /// Expected route-state revision. Defaults to the currently loaded revision.
     #[arg(long)]
     expected_revision: Option<u64>,
@@ -508,7 +511,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let route_variables = match system_compiler::RouteVariables::new(state.variables.clone()) {
+    let route_variables = match system_compiler::RouteVariables::new(state.routing.clone()) {
         Ok(variables) => variables,
         Err(err) => {
             println!("REFUSED: malformed route state variables: {err}");
@@ -572,8 +575,8 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
         }
     };
 
-    let (variable, value) = match parse_route_state_assignment(&args.var) {
-        Ok(assignment) => assignment,
+    let mutation = match parse_route_state_mutation(&args) {
+        Ok(mutation) => mutation,
         Err(err) => {
             println!("REFUSED: {err}");
             return ExitCode::from(1);
@@ -581,12 +584,11 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     let expected_revision = args.expected_revision.unwrap_or(current_state.revision);
-    let outcome = match system_compiler::set_route_state_variable(
+    let outcome = match system_compiler::set_route_state(
         &repo_root,
         &pipeline.definition.header.id,
         supported_variables,
-        variable,
-        value,
+        mutation,
         expected_revision,
     ) {
         Ok(outcome) => outcome,
@@ -645,7 +647,20 @@ fn render_pipeline_selector_refusal(err: system_compiler::PipelineLookupError) -
     }
 }
 
-fn parse_route_state_assignment(value: &str) -> Result<(String, bool), String> {
+fn parse_route_state_mutation(
+    args: &PipelineStateSetArgs,
+) -> Result<system_compiler::RouteStateMutation, String> {
+    match (&args.var, &args.field) {
+        (Some(value), None) => parse_route_state_var_assignment(value),
+        (None, Some(value)) => parse_route_state_field_assignment(value),
+        (Some(_), Some(_)) => Err("use exactly one of --var or --field".to_string()),
+        (None, None) => Err("one of --var or --field is required".to_string()),
+    }
+}
+
+fn parse_route_state_var_assignment(
+    value: &str,
+) -> Result<system_compiler::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((name, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --var in name=value form".to_string());
@@ -667,7 +682,48 @@ fn parse_route_state_assignment(value: &str) -> Result<(String, bool), String> {
         }
     };
 
-    Ok((name.to_string(), parsed_value))
+    Ok(system_compiler::RouteStateMutation::RoutingVariable {
+        variable: name.to_string(),
+        value: parsed_value,
+    })
+}
+
+fn parse_route_state_field_assignment(
+    value: &str,
+) -> Result<system_compiler::RouteStateMutation, String> {
+    let trimmed = value.trim();
+    let Some((field_path, raw_value)) = trimmed.split_once('=') else {
+        return Err("expected --field in field.path=value form".to_string());
+    };
+
+    let field_path = field_path.trim();
+    let raw_value = raw_value.trim();
+    if field_path.is_empty() {
+        return Err("--field path must not be empty".to_string());
+    }
+    if raw_value.is_empty() {
+        return Err("--field value must not be empty".to_string());
+    }
+
+    match field_path {
+        "run.runner" => Ok(system_compiler::RouteStateMutation::RunRunner {
+            value: raw_value.to_string(),
+        }),
+        "run.profile" => Ok(system_compiler::RouteStateMutation::RunProfile {
+            value: raw_value.to_string(),
+        }),
+        "refs.charter_ref" => Ok(system_compiler::RouteStateMutation::RefCharterRef {
+            value: raw_value.to_string(),
+        }),
+        "refs.project_context_ref" => {
+            Ok(system_compiler::RouteStateMutation::RefProjectContextRef {
+                value: raw_value.to_string(),
+            })
+        }
+        _ => Err(format!(
+            "unsupported --field path `{field_path}`; expected one of `run.runner`, `run.profile`, `refs.charter_ref`, or `refs.project_context_ref`"
+        )),
+    }
 }
 
 fn render_pipeline_resolve_output(
@@ -732,10 +788,24 @@ fn render_pipeline_state_set_output(
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REVISION: {}\n", state.revision));
-            out.push_str("VARIABLES:\n");
-            for (name, value) in state.variables {
-                out.push_str(&format!("  {} = {}\n", name, value));
+            out.push_str("ROUTING:\n");
+            if state.routing.is_empty() {
+                out.push_str("  <empty>\n");
+            } else {
+                for (name, value) in state.routing {
+                    out.push_str(&format!("  {} = {}\n", name, value));
+                }
             }
+            out.push_str("REFS:\n");
+            render_optional_state_field(&mut out, "charter_ref", state.refs.charter_ref.as_deref());
+            render_optional_state_field(
+                &mut out,
+                "project_context_ref",
+                state.refs.project_context_ref.as_deref(),
+            );
+            out.push_str("RUN:\n");
+            render_optional_state_field(&mut out, "runner", state.run.runner.as_deref());
+            render_optional_state_field(&mut out, "profile", state.run.profile.as_deref());
         }
         system_compiler::RouteStateMutationOutcome::Refused(refusal) => {
             out.push_str("OUTCOME: REFUSED\n");
@@ -745,6 +815,13 @@ fn render_pipeline_state_set_output(
     }
 
     out.trim_end().to_string()
+}
+
+fn render_optional_state_field(out: &mut String, name: &str, value: Option<&str>) {
+    match value {
+        Some(value) => out.push_str(&format!("  {} = {}\n", name, value)),
+        None => out.push_str(&format!("  {} = <unset>\n", name)),
+    }
 }
 
 fn inspect(args: RequestArgs) -> ExitCode {

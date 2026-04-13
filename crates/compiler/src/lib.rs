@@ -57,9 +57,10 @@ pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
 };
 pub use route_state::{
-    load_route_state, load_route_state_with_supported_variables, set_route_state_variable,
-    RouteState, RouteStateAuditEntry, RouteStateMutationOutcome, RouteStateMutationRefusal,
-    RouteStateReadError, RouteStateStoreError, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    load_route_state, load_route_state_with_supported_variables, set_route_state, RouteState,
+    RouteStateAuditEntry, RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal,
+    RouteStateReadError, RouteStateRefs, RouteStateRun, RouteStateStoreError, RouteStateValue,
+    ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 pub fn workspace_contract_version() -> &'static str {
