@@ -1,20 +1,16 @@
-use std::path::{Path, PathBuf};
+mod pipeline_proof_corpus_support;
+
+use std::path::PathBuf;
 use system_compiler::{
-    load_pipeline_definition, resolve_pipeline_route, supported_route_state_variables,
-    ActivationClause, ActivationConditionSet, ActivationOperator, PipelineBody, PipelineDefaults,
-    PipelineDefinition, PipelineHeader, PipelineStage, RouteEvaluationError, RouteStageReason,
-    RouteStageStatus, RouteVariables, StageActivation,
+    load_pipeline_definition, load_route_state_with_supported_variables, resolve_pipeline_route,
+    set_route_state, supported_route_state_variables, ActivationClause, ActivationConditionSet,
+    ActivationOperator, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineStage, RouteEvaluationError, RouteStageReason, RouteStageStatus, RouteStateMutation,
+    RouteStateMutationOutcome, RouteVariables, StageActivation,
 };
 
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("repo root")
-}
-
 fn fixture(path: &str) -> PipelineDefinition {
-    let root = repo_root();
+    let root = pipeline_proof_corpus_support::committed_repo_root();
     load_pipeline_definition(&root, path).expect("pipeline fixture")
 }
 
@@ -260,4 +256,234 @@ fn all_operator_with_known_false_and_missing_inputs_is_skipped_not_next() {
         }
         other => panic!("expected skipped reason, got {other:?}"),
     }
+}
+
+#[test]
+fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&root, "pipelines/foundation_inputs.yaml")
+        .expect("proof corpus definition");
+    let pipeline_id = definition.header.id.clone();
+    let supported_variables = supported_route_state_variables(&definition);
+
+    let initial_state =
+        load_route_state_with_supported_variables(&root, &pipeline_id, &supported_variables)
+            .expect("initial state");
+    let initial_route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(initial_state.routing.clone()).expect("route variables"),
+    )
+    .expect("initial route");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_resolve_output(
+            &pipeline_id,
+            &initial_state,
+            &initial_route,
+        ),
+        &root,
+        None,
+        "resolve.initial.txt",
+    );
+
+    let first_outcome = set_route_state(
+        &root,
+        &pipeline_id,
+        supported_variables.clone(),
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
+        initial_state.revision,
+    )
+    .expect("first mutation");
+    let first_state = match &first_outcome {
+        RouteStateMutationOutcome::Applied(state) => state.clone(),
+        RouteStateMutationOutcome::Refused(refusal) => {
+            panic!("expected applied mutation, got {refusal}")
+        }
+    };
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_state_set_output(
+            &pipeline_id,
+            first_outcome,
+        ),
+        &root,
+        None,
+        "state_set.var.needs_project_context.applied.txt",
+    );
+
+    let second_outcome = set_route_state(
+        &root,
+        &pipeline_id,
+        supported_variables.clone(),
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: true,
+        },
+        first_state.revision,
+    )
+    .expect("second mutation");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_state_set_output(
+            &pipeline_id,
+            second_outcome,
+        ),
+        &root,
+        None,
+        "state_set.var.charter_gaps_detected.applied.txt",
+    );
+
+    let activated_state =
+        load_route_state_with_supported_variables(&root, &pipeline_id, &supported_variables)
+            .expect("activated state");
+    let activated_route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(activated_state.routing.clone()).expect("route variables"),
+    )
+    .expect("activated route");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_resolve_output(
+            &pipeline_id,
+            &activated_state,
+            &activated_route,
+        ),
+        &root,
+        None,
+        "resolve.after_full_activation.txt",
+    );
+}
+
+#[test]
+fn shared_proof_corpus_state_mutation_outputs_match_repo_owned_goldens() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&root, "pipelines/foundation_inputs.yaml")
+        .expect("proof corpus definition");
+    let pipeline_id = definition.header.id.clone();
+    let supported_variables = supported_route_state_variables(&definition);
+
+    let runner_outcome = set_route_state(
+        &root,
+        &pipeline_id,
+        supported_variables.clone(),
+        RouteStateMutation::RunRunner {
+            value: "codex-cli".to_string(),
+        },
+        0,
+    )
+    .expect("runner mutation");
+    let runner_state = match &runner_outcome {
+        RouteStateMutationOutcome::Applied(state) => state.clone(),
+        RouteStateMutationOutcome::Refused(refusal) => {
+            panic!("expected applied mutation, got {refusal}")
+        }
+    };
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_state_set_output(
+            &pipeline_id,
+            runner_outcome,
+        ),
+        &root,
+        None,
+        "state_set.field.run_runner.applied.txt",
+    );
+
+    let ref_outcome = set_route_state(
+        &root,
+        &pipeline_id,
+        supported_variables.clone(),
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+        runner_state.revision,
+    )
+    .expect("ref mutation");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_state_set_output(&pipeline_id, ref_outcome),
+        &root,
+        None,
+        "state_set.field.refs_charter_ref.applied.txt",
+    );
+
+    let routed_state =
+        load_route_state_with_supported_variables(&root, &pipeline_id, &supported_variables)
+            .expect("routed state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(routed_state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_resolve_output(
+            &pipeline_id,
+            &routed_state,
+            &route,
+        ),
+        &root,
+        None,
+        "resolve.after_run_and_refs.txt",
+    );
+
+    let unsupported = set_route_state(
+        &root,
+        &pipeline_id,
+        supported_variables.clone(),
+        RouteStateMutation::RoutingVariable {
+            variable: "unsupported_flag".to_string(),
+            value: true,
+        },
+        routed_state.revision,
+    )
+    .expect("unsupported mutation");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_state_set_output(&pipeline_id, unsupported),
+        &root,
+        None,
+        "state_set.refused.unsupported_variable.txt",
+    );
+
+    let (_revision_dir, revision_root) =
+        pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    pipeline_proof_corpus_support::install_state_seed(
+        &revision_root,
+        "revision_conflict_state.yaml",
+    );
+    let revision_conflict = set_route_state(
+        &revision_root,
+        &pipeline_id,
+        supported_variables.clone(),
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
+        0,
+    )
+    .expect("revision conflict outcome");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_pipeline_state_set_output(
+            &pipeline_id,
+            revision_conflict,
+        ),
+        &revision_root,
+        None,
+        "state_set.refused.revision_conflict.txt",
+    );
+
+    let (_malformed_dir, malformed_root) =
+        pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let malformed_state_path = pipeline_proof_corpus_support::install_state_seed(
+        &malformed_root,
+        "malformed_route_state.yaml",
+    );
+    let malformed = load_route_state_with_supported_variables(
+        &malformed_root,
+        &pipeline_id,
+        &supported_variables,
+    )
+    .expect_err("malformed state refusal");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &pipeline_proof_corpus_support::render_load_route_state_refusal(malformed),
+        &malformed_root,
+        Some(&malformed_state_path),
+        "state_set.refused.malformed_route_state.txt",
+    );
 }

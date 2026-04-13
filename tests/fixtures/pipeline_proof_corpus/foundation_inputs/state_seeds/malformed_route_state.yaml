@@ -1,0 +1,11 @@
+---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.foundation_inputs
+revision: 1
+routing: {}
+refs: {}
+run: {}
+audit:
+  - revision: 1
+    field_path: routing.unsupported_flag
+    value: true

@@ -1,0 +1,21 @@
+OUTCOME: RESOLVED
+PIPELINE: pipeline.foundation_inputs
+ROUTE BASIS:
+  revision = 0
+  routing:
+    <empty>
+  refs:
+    charter_ref = <unset>
+    project_context_ref = <unset>
+  run:
+    runner = <unset>
+    profile = <unset>
+    repo_root = <unset>
+ROUTE:
+  1. stage.00_base | active
+  2. stage.04_charter_inputs | active
+  3. stage.05_charter_synthesize | active
+  4. stage.06_project_context_interview | next
+     REASON: missing route variables: charter_gaps_detected, needs_project_context
+  5. stage.07_foundation_pack | blocked
+     REASON: blocked by unresolved stage stage.06_project_context_interview (next)

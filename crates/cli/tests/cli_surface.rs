@@ -1,3 +1,5 @@
+mod pipeline_proof_corpus_support;
+
 use std::process::{Command, Output};
 
 fn binary() -> Command {
@@ -143,38 +145,6 @@ fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir
     std::fs::create_dir_all(&nested).expect("nested cwd");
 
     (dir, nested)
-}
-
-fn copy_committed_file(repo_root: &std::path::Path, relative_path: &str) {
-    let source = workspace_root().join(relative_path);
-    let target = repo_root.join(relative_path);
-
-    if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent).expect("mkdirs");
-    }
-
-    std::fs::copy(&source, &target)
-        .unwrap_or_else(|err| panic!("copy {} -> {}: {err}", source.display(), target.display()));
-}
-
-fn shared_pipeline_proof_corpus_repo() -> (tempfile::TempDir, std::path::PathBuf) {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path().to_path_buf();
-
-    for path in [
-        "pipelines/foundation_inputs.yaml",
-        "core/stages/00_base.md",
-        "core/stages/04_charter_inputs.md",
-        "core/stages/05_charter_synthesize.md",
-        "core/stages/06_project_context_interview.md",
-        "core/stages/07_foundation_pack.md",
-        "runners/codex-cli.md",
-        "profiles/python-uv/profile.yaml",
-    ] {
-        copy_committed_file(&root, path);
-    }
-
-    (dir, root)
 }
 
 fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -391,11 +361,7 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
 
 #[test]
 fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
-    let (_dir, root) = shared_pipeline_proof_corpus_repo();
-    let root_display = std::fs::canonicalize(&root)
-        .expect("canonical root")
-        .display()
-        .to_string();
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
 
     let first_resolve = run_in(
         root.as_path(),
@@ -406,31 +372,11 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline resolve should succeed"
     );
     let first_resolve_stdout = String::from_utf8(first_resolve.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        first_resolve_stdout.trim_end(),
-        concat!(
-            "OUTCOME: RESOLVED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "ROUTE BASIS:\n",
-            "  revision = 0\n",
-            "  routing:\n",
-            "    <empty>\n",
-            "  refs:\n",
-            "    charter_ref = <unset>\n",
-            "    project_context_ref = <unset>\n",
-            "  run:\n",
-            "    runner = <unset>\n",
-            "    profile = <unset>\n",
-            "    repo_root = <unset>\n",
-            "ROUTE:\n",
-            "  1. stage.00_base | active\n",
-            "  2. stage.04_charter_inputs | active\n",
-            "  3. stage.05_charter_synthesize | active\n",
-            "  4. stage.06_project_context_interview | next\n",
-            "     REASON: missing route variables: charter_gaps_detected, needs_project_context\n",
-            "  5. stage.07_foundation_pack | blocked\n",
-            "     REASON: blocked by unresolved stage stage.06_project_context_interview (next)"
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &first_resolve_stdout,
+        root.as_path(),
+        None,
+        "resolve.initial.txt",
     );
 
     let applied = run_in(
@@ -450,25 +396,11 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline state set should succeed"
     );
     let applied_stdout = String::from_utf8(applied.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        applied_stdout.trim_end(),
-        format!(
-            concat!(
-                "OUTCOME: APPLIED\n",
-                "PIPELINE: pipeline.foundation_inputs\n",
-                "REVISION: 1\n",
-                "ROUTING:\n",
-                "  needs_project_context = true\n",
-                "REFS:\n",
-                "  charter_ref = <unset>\n",
-                "  project_context_ref = <unset>\n",
-                "RUN:\n",
-                "  runner = <unset>\n",
-                "  profile = <unset>\n",
-                "  repo_root = {root_display}"
-            ),
-            root_display = root_display
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &applied_stdout,
+        root.as_path(),
+        None,
+        "state_set.var.needs_project_context.applied.txt",
     );
 
     let activation_applied = run_in(
@@ -489,26 +421,11 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     );
     let activation_applied_stdout =
         String::from_utf8(activation_applied.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        activation_applied_stdout.trim_end(),
-        format!(
-            concat!(
-                "OUTCOME: APPLIED\n",
-                "PIPELINE: pipeline.foundation_inputs\n",
-                "REVISION: 2\n",
-                "ROUTING:\n",
-                "  charter_gaps_detected = true\n",
-                "  needs_project_context = true\n",
-                "REFS:\n",
-                "  charter_ref = <unset>\n",
-                "  project_context_ref = <unset>\n",
-                "RUN:\n",
-                "  runner = <unset>\n",
-                "  profile = <unset>\n",
-                "  repo_root = {root_display}"
-            ),
-            root_display = root_display
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &activation_applied_stdout,
+        root.as_path(),
+        None,
+        "state_set.var.charter_gaps_detected.applied.txt",
     );
 
     let second_resolve = run_in(
@@ -520,43 +437,17 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         "pipeline resolve should succeed after mutation"
     );
     let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        second_resolve_stdout.trim_end(),
-        format!(
-            concat!(
-                "OUTCOME: RESOLVED\n",
-                "PIPELINE: pipeline.foundation_inputs\n",
-                "ROUTE BASIS:\n",
-                "  revision = 2\n",
-                "  routing:\n",
-                "    charter_gaps_detected = true\n",
-                "    needs_project_context = true\n",
-                "  refs:\n",
-                "    charter_ref = <unset>\n",
-                "    project_context_ref = <unset>\n",
-                "  run:\n",
-                "    runner = <unset>\n",
-                "    profile = <unset>\n",
-                "    repo_root = {root_display}\n",
-                "ROUTE:\n",
-                "  1. stage.00_base | active\n",
-                "  2. stage.04_charter_inputs | active\n",
-                "  3. stage.05_charter_synthesize | active\n",
-                "  4. stage.06_project_context_interview | active\n",
-                "  5. stage.07_foundation_pack | active"
-            ),
-            root_display = root_display
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &second_resolve_stdout,
+        root.as_path(),
+        None,
+        "resolve.after_full_activation.txt",
     );
 }
 
 #[test]
 fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
-    let (_dir, root) = shared_pipeline_proof_corpus_repo();
-    let root_display = std::fs::canonicalize(&root)
-        .expect("canonical root")
-        .display()
-        .to_string();
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
 
     let runner_applied = run_in(
         root.as_path(),
@@ -575,25 +466,11 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
         "run.runner field should succeed"
     );
     let runner_stdout = String::from_utf8(runner_applied.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        runner_stdout.trim_end(),
-        format!(
-            concat!(
-                "OUTCOME: APPLIED\n",
-                "PIPELINE: pipeline.foundation_inputs\n",
-                "REVISION: 1\n",
-                "ROUTING:\n",
-                "  <empty>\n",
-                "REFS:\n",
-                "  charter_ref = <unset>\n",
-                "  project_context_ref = <unset>\n",
-                "RUN:\n",
-                "  runner = codex-cli\n",
-                "  profile = <unset>\n",
-                "  repo_root = {root_display}"
-            ),
-            root_display = root_display
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &runner_stdout,
+        root.as_path(),
+        None,
+        "state_set.field.run_runner.applied.txt",
     );
 
     let ref_applied = run_in(
@@ -613,25 +490,11 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
         "refs.charter_ref field should succeed"
     );
     let ref_stdout = String::from_utf8(ref_applied.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        ref_stdout.trim_end(),
-        format!(
-            concat!(
-                "OUTCOME: APPLIED\n",
-                "PIPELINE: pipeline.foundation_inputs\n",
-                "REVISION: 2\n",
-                "ROUTING:\n",
-                "  <empty>\n",
-                "REFS:\n",
-                "  charter_ref = artifacts/charter/CHARTER.md\n",
-                "  project_context_ref = <unset>\n",
-                "RUN:\n",
-                "  runner = codex-cli\n",
-                "  profile = <unset>\n",
-                "  repo_root = {root_display}"
-            ),
-            root_display = root_display
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &ref_stdout,
+        root.as_path(),
+        None,
+        "state_set.field.refs_charter_ref.applied.txt",
     );
 
     let resolve = run_in(
@@ -643,40 +506,17 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
         "pipeline resolve should surface refs and run fields in route basis"
     );
     let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        resolve_stdout.trim_end(),
-        format!(
-            concat!(
-            "OUTCOME: RESOLVED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "ROUTE BASIS:\n",
-            "  revision = 2\n",
-            "  routing:\n",
-            "    <empty>\n",
-            "  refs:\n",
-            "    charter_ref = artifacts/charter/CHARTER.md\n",
-            "    project_context_ref = <unset>\n",
-            "  run:\n",
-            "    runner = codex-cli\n",
-            "    profile = <unset>\n",
-            "    repo_root = {root_display}\n",
-            "ROUTE:\n",
-            "  1. stage.00_base | active\n",
-            "  2. stage.04_charter_inputs | active\n",
-            "  3. stage.05_charter_synthesize | active\n",
-            "  4. stage.06_project_context_interview | next\n",
-            "     REASON: missing route variables: charter_gaps_detected, needs_project_context\n",
-            "  5. stage.07_foundation_pack | blocked\n",
-            "     REASON: blocked by unresolved stage stage.06_project_context_interview (next)"
-        ),
-            root_display = root_display
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &resolve_stdout,
+        root.as_path(),
+        None,
+        "resolve.after_run_and_refs.txt",
     );
 }
 
 #[test]
 fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
-    let (_dir, root) = shared_pipeline_proof_corpus_repo();
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
 
     let invalid_path = run_in(
         root.as_path(),
@@ -843,12 +683,10 @@ fn pipeline_list_refuses_invalid_canonical_ids_before_advertising_inventory() {
 
 #[test]
 fn pipeline_state_set_preserves_distinct_refusals() {
-    let (_dir, root) = shared_pipeline_proof_corpus_repo();
-    let state_path = root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml");
-
-    write_file(
-        &state_path,
-        b"---\nschema_version: m1-pipeline-state-v2\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nrouting: {}\nrefs: {}\nrun: {}\naudit:\n  - revision: 1\n    field_path: routing.unsupported_flag\n    value: true\n",
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let state_path = pipeline_proof_corpus_support::install_state_seed(
+        root.as_path(),
+        "malformed_route_state.yaml",
     );
 
     let malformed = run_in(
@@ -868,18 +706,16 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         "malformed route state should refuse"
     );
     let malformed_stdout = String::from_utf8(malformed.stdout).expect("stdout is utf-8");
-    let malformed_state_path = std::fs::canonicalize(&state_path).expect("canonical state path");
-    assert_eq!(
-        malformed_stdout.trim_end(),
-        format!(
-            "REFUSED: malformed route state at {}: unsupported audit routing variable `unsupported_flag` in persisted state",
-            malformed_state_path.display()
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &malformed_stdout,
+        root.as_path(),
+        Some(&state_path),
+        "state_set.refused.malformed_route_state.txt",
     );
 
-    write_file(
-        &state_path,
-        b"---\nschema_version: m1-pipeline-state-v2\npipeline_id: pipeline.foundation_inputs\nrevision: 1\nrouting:\n  needs_project_context: true\nrefs: {}\nrun: {}\naudit:\n  - revision: 1\n    field_path: routing.needs_project_context\n    value: true\n",
+    pipeline_proof_corpus_support::install_state_seed(
+        root.as_path(),
+        "revision_conflict_state.yaml",
     );
 
     let revision_conflict = run_in(
@@ -902,13 +738,11 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         !revision_conflict.status.success(),
         "revision conflict should refuse: {revision_conflict_stdout}"
     );
-    assert_eq!(
-        revision_conflict_stdout.trim_end(),
-        concat!(
-            "OUTCOME: REFUSED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "REASON: revision conflict: expected 0, found 1"
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &revision_conflict_stdout,
+        root.as_path(),
+        None,
+        "state_set.refused.revision_conflict.txt",
     );
 
     let unsupported = run_in(
@@ -928,13 +762,11 @@ fn pipeline_state_set_preserves_distinct_refusals() {
         "unsupported variable should refuse"
     );
     let unsupported_stdout = String::from_utf8(unsupported.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        unsupported_stdout.trim_end(),
-        concat!(
-            "OUTCOME: REFUSED\n",
-            "PIPELINE: pipeline.foundation_inputs\n",
-            "REASON: unsupported route-state variable `unsupported_flag`"
-        )
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &unsupported_stdout,
+        root.as_path(),
+        None,
+        "state_set.refused.unsupported_variable.txt",
     );
 }
 

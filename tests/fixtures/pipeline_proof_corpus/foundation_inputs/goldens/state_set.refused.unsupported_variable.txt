@@ -1,0 +1,3 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+REASON: unsupported route-state variable `unsupported_flag`

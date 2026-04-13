@@ -32,6 +32,9 @@ This contract defines the conformance baseline for the shipped M1 `pipeline` sur
 ## Canonical location
 
 - Canonical artifact: `docs/contracts/pipeline-proof-corpus-and-docs-cutover.md`
+- Canonical proof corpus root: `tests/fixtures/pipeline_proof_corpus/`
+- Canonical M1 shared route-bearing corpus case: `tests/fixtures/pipeline_proof_corpus/foundation_inputs/`
+- Canonical shared goldens for `pipeline resolve` / `pipeline state set`: `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/`
 - Producing seam: `SEAM-4`
 
 ## Consumed contracts (inputs)
@@ -70,6 +73,9 @@ This contract defines the conformance baseline for the shipped M1 `pipeline` sur
 - The corpus MUST be shared rather than duplicated across compiler and CLI test suites.
 - The corpus MUST live outside `.system/` and outside runtime-state directories; it is proof data, not canonical project truth and not runtime truth.
 - The corpus SHOULD be colocated with repo test fixtures so later slices can reference it from compiler and CLI suites without inventing separate fixture trees.
+- The shipped M1 route-bearing corpus MUST live at `tests/fixtures/pipeline_proof_corpus/foundation_inputs/`.
+- The shared repo fixture for that corpus MUST live under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/`.
+- Persisted malformed/revision-conflict seed state used by the corpus MUST live under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/state_seeds/`.
 
 The proof corpus MUST include cases that exercise:
 
@@ -89,6 +95,9 @@ The proof corpus MUST include cases that exercise:
 - Golden outputs MUST be shared across compiler and CLI conformance checks when they describe the same contract surface.
 - Golden changes MUST be reviewed as contract changes, not as cosmetic test updates.
 - Golden outputs MUST remain deterministic for identical inputs and must not depend on filesystem traversal order, environment-specific paths, or non-deterministic timestamps.
+- Shared route-bearing goldens MUST live under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/`.
+- Path-bearing proof output MUST normalize temp-repo evidence into committed placeholder tokens before comparing against goldens.
+- The M1 placeholder tokens are `{{REPO_ROOT}}` for the temp proof repo root and `{{STATE_PATH}}` for persisted route-state evidence paths.
 
 ### Malformed-refusal classes
 
@@ -155,8 +164,10 @@ Any change to `C-08`, `C-09`, or `C-10` that affects route truth, operator-surfa
 The following checklist is normative for seam-local execution and closeout:
 
 - [ ] The shared proof corpus exists as one repository-owned corpus used by both compiler and CLI conformance checks.
+- [ ] The shared M1 route-bearing corpus lives under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/` with `repo/`, `state_seeds/`, and `goldens/` subtrees.
 - [ ] The corpus covers pipeline loading, activation, ordered route truth, shorthand ambiguity, malformed pipeline refusal, malformed route-state refusal, revision conflicts, and mutation semantics.
 - [ ] Golden outputs or snapshots pin the same shared corpus across compiler and CLI surfaces.
+- [ ] Path-bearing proof output is normalized to committed placeholder tokens before golden comparison.
 - [ ] Malformed pipeline refusal and malformed route-state refusal remain explicit and distinct from other refusal classes.
 - [ ] Docs and help snapshots describe `pipeline` as `list`, `show`, `resolve`, and `state set` only.
 - [ ] Docs and help do not imply `pipeline compile` is shipped in M1.
