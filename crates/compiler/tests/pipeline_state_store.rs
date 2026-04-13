@@ -108,7 +108,10 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     assert_eq!(state.pipeline_id, pipeline_id);
     assert_eq!(state.revision, 1);
     assert_eq!(state.routing.get("needs_project_context"), Some(&true));
-    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+    assert_eq!(
+        state.run.repo_root.as_deref(),
+        Some(expected_repo_root.as_str())
+    );
     assert_eq!(state.audit.len(), 1);
     assert_eq!(state.audit[0].field_path, "routing.needs_project_context");
     assert_eq!(state.audit[0].value, RouteStateValue::Bool(true));
@@ -129,7 +132,10 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     };
     assert_eq!(state.revision, 2);
     assert_eq!(state.run.runner.as_deref(), Some("codex-cli"));
-    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+    assert_eq!(
+        state.run.repo_root.as_deref(),
+        Some(expected_repo_root.as_str())
+    );
     assert_eq!(state.audit[1].field_path, "run.runner");
     assert_eq!(
         state.audit[1].value,
@@ -152,7 +158,10 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     };
     assert_eq!(state.revision, 3);
     assert_eq!(state.run.profile.as_deref(), Some("python-uv"));
-    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+    assert_eq!(
+        state.run.repo_root.as_deref(),
+        Some(expected_repo_root.as_str())
+    );
 
     let outcome = set_route_state(
         repo_root,
@@ -173,7 +182,10 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
         state.refs.charter_ref.as_deref(),
         Some("artifacts/charter/CHARTER.md")
     );
-    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+    assert_eq!(
+        state.run.repo_root.as_deref(),
+        Some(expected_repo_root.as_str())
+    );
 
     let outcome = set_route_state(
         repo_root,
@@ -194,7 +206,10 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
         state.refs.project_context_ref.as_deref(),
         Some("artifacts/project_context/PROJECT_CONTEXT.md")
     );
-    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+    assert_eq!(
+        state.run.repo_root.as_deref(),
+        Some(expected_repo_root.as_str())
+    );
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
     assert_eq!(loaded, state);
@@ -247,7 +262,10 @@ audit:
     assert_eq!(state.revision, 2);
     assert_eq!(state.run.runner.as_deref(), Some("codex-cli"));
     assert_eq!(state.run.profile.as_deref(), Some("python-uv"));
-    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+    assert_eq!(
+        state.run.repo_root.as_deref(),
+        Some(expected_repo_root.as_str())
+    );
 
     let reloaded = load_route_state(repo_root, pipeline_id).expect("reloaded state");
     assert_eq!(reloaded, state);
