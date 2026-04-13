@@ -226,6 +226,14 @@ struct StageFrontMatter {
     pub description: String,
     #[serde(default)]
     pub work_level: Option<String>,
+    #[serde(default)]
+    pub activation: Option<StageActivation>,
+}
+
+#[derive(Debug)]
+enum StageFrontMatterLoadError {
+    Read(std::io::Error),
+    Parse(serde_yaml_bw::Error),
 }
 
 pub fn load_pipeline_catalog(
@@ -494,22 +502,19 @@ fn load_stage_catalog(
     let mut out = std::collections::BTreeMap::new();
     for stage_path in discover_repo_relative_files(repo_root, Path::new("core/stages"), "md")? {
         let full_path = repo_root.join(&stage_path);
-        let contents = std::fs::read_to_string(&full_path).map_err(|source| {
-            PipelineCatalogError::ReadStageCatalog {
+        let Some(front_matter) = load_stage_front_matter(&full_path).map_err(|err| match err {
+            StageFrontMatterLoadError::Read(source) => PipelineCatalogError::ReadStageCatalog {
                 path: full_path.clone(),
                 source,
-            }
-        })?;
-
-        let Some(front_matter_text) = extract_front_matter_block(&contents) else {
+            },
+            StageFrontMatterLoadError::Parse(source) => PipelineCatalogError::StageFrontMatter {
+                path: full_path.clone(),
+                source,
+            },
+        })?
+        else {
             continue;
         };
-
-        let front_matter = serde_yaml_bw::from_str::<StageFrontMatter>(&front_matter_text)
-            .map_err(|source| PipelineCatalogError::StageFrontMatter {
-                path: full_path.clone(),
-                source,
-            })?;
 
         if front_matter.kind != "stage" {
             return Err(PipelineCatalogError::StageKindMismatch {
@@ -730,6 +735,16 @@ pub enum PipelineValidationError {
     InvalidActivation {
         stage_id: String,
         reason: ActivationValidationError,
+    },
+    InvalidStageFrontMatter {
+        stage_id: String,
+        file: String,
+        detail: String,
+    },
+    ActivationDrift {
+        stage_id: String,
+        file: String,
+        detail: String,
     },
 }
 
@@ -953,6 +968,22 @@ impl fmt::Display for PipelineValidationError {
             PipelineValidationError::InvalidActivation { stage_id, reason } => {
                 write!(f, "stage `{stage_id}` has invalid activation: {reason}")
             }
+            PipelineValidationError::InvalidStageFrontMatter {
+                stage_id,
+                file,
+                detail,
+            } => write!(
+                f,
+                "stage `{stage_id}` file `{file}` has invalid front matter: {detail}"
+            ),
+            PipelineValidationError::ActivationDrift {
+                stage_id,
+                file,
+                detail,
+            } => write!(
+                f,
+                "stage `{stage_id}` file `{file}` has activation drift: {detail}"
+            ),
         }
     }
 }
@@ -1059,6 +1090,7 @@ fn validate_pipeline_definition(
 
         validate_stage_file(repo_root, path, stage)?;
         validate_stage_activation(path, stage)?;
+        validate_stage_activation_equivalence(repo_root, path, stage)?;
     }
 
     Ok(())
@@ -1184,6 +1216,119 @@ fn validate_stage_activation(path: &Path, stage: &PipelineStage) -> Result<(), P
     }
 
     Ok(())
+}
+
+fn validate_stage_activation_equivalence(
+    repo_root: &Path,
+    path: &Path,
+    stage: &PipelineStage,
+) -> Result<(), PipelineLoadError> {
+    let stage_front_matter = load_stage_front_matter(repo_root.join(&stage.file).as_path())
+        .map_err(|err| invalid_stage_front_matter_error(path, stage, err))?;
+
+    let Some(stage_front_matter) = stage_front_matter else {
+        return Ok(());
+    };
+
+    let Some(front_matter_activation) = stage_front_matter.activation.as_ref() else {
+        return Ok(());
+    };
+
+    let Some(pipeline_activation) = stage.activation.as_ref() else {
+        return Err(PipelineLoadError::Validation {
+            path: path.to_path_buf(),
+            error: PipelineValidationError::ActivationDrift {
+                stage_id: stage.id.clone(),
+                file: stage.file.clone(),
+                detail: format!(
+                    "stage front matter declares {} but pipeline YAML does not",
+                    render_activation(front_matter_activation)
+                ),
+            },
+        });
+    };
+
+    if activation_equivalent(front_matter_activation, pipeline_activation) {
+        return Ok(());
+    }
+
+    Err(PipelineLoadError::Validation {
+        path: path.to_path_buf(),
+        error: PipelineValidationError::ActivationDrift {
+            stage_id: stage.id.clone(),
+            file: stage.file.clone(),
+            detail: format!(
+                "pipeline YAML {} does not match stage front matter {}",
+                render_activation(pipeline_activation),
+                render_activation(front_matter_activation)
+            ),
+        },
+    })
+}
+
+fn invalid_stage_front_matter_error(
+    path: &Path,
+    stage: &PipelineStage,
+    err: StageFrontMatterLoadError,
+) -> PipelineLoadError {
+    let detail = match err {
+        StageFrontMatterLoadError::Read(source) => {
+            format!("failed to read stage front matter: {source}")
+        }
+        StageFrontMatterLoadError::Parse(source) => {
+            format!("failed to parse stage front matter: {source}")
+        }
+    };
+
+    PipelineLoadError::Validation {
+        path: path.to_path_buf(),
+        error: PipelineValidationError::InvalidStageFrontMatter {
+            stage_id: stage.id.clone(),
+            file: stage.file.clone(),
+            detail,
+        },
+    }
+}
+
+fn activation_equivalent(left: &StageActivation, right: &StageActivation) -> bool {
+    left.when.operator == right.when.operator
+        && normalized_activation_clauses(left) == normalized_activation_clauses(right)
+}
+
+fn normalized_activation_clauses(activation: &StageActivation) -> BTreeSet<(String, bool)> {
+    activation
+        .when
+        .clauses
+        .iter()
+        .map(|clause| (clause.variable.clone(), clause.value))
+        .collect()
+}
+
+fn render_activation(activation: &StageActivation) -> String {
+    let clauses = normalized_activation_clauses(activation)
+        .into_iter()
+        .map(|(variable, value)| format!("variables.{variable} == {value}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "activation.when.{} [{}]",
+        activation.when.operator.label(),
+        clauses
+    )
+}
+
+fn load_stage_front_matter(
+    path: &Path,
+) -> Result<Option<StageFrontMatter>, StageFrontMatterLoadError> {
+    let contents = std::fs::read_to_string(path).map_err(StageFrontMatterLoadError::Read)?;
+    let Some(front_matter_text) = extract_front_matter_block(&contents) else {
+        return Ok(None);
+    };
+
+    let front_matter = serde_yaml_bw::from_str::<StageFrontMatter>(&front_matter_text)
+        .map_err(StageFrontMatterLoadError::Parse)?;
+
+    Ok(Some(front_matter))
 }
 
 fn validate_repo_relative_path(path: &Path) -> Result<&Path, &'static str> {

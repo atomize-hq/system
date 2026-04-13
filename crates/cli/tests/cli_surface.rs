@@ -175,6 +175,22 @@ fn shared_pipeline_proof_corpus_repo() -> (tempfile::TempDir, std::path::PathBuf
     (dir, root)
 }
 
+fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\nactivation:\n  when:\n    any:\n      - variables.needs_project_context == true\n---\n# base\n",
+    );
+    write_file(
+        &root.join("pipelines/drift.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.drift\nversion: 0.1.0\ntitle: Drift\ndescription: drift\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -461,6 +477,50 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "  5. stage.07_foundation_pack | active"
         )
     );
+}
+
+#[test]
+fn pipeline_commands_refuse_activation_drift_before_operating() {
+    let (_dir, root) = activation_drift_pipeline_repo();
+
+    for args in [
+        vec!["pipeline", "list"],
+        vec!["pipeline", "show", "--id", "pipeline.drift"],
+        vec!["pipeline", "resolve", "--id", "pipeline.drift"],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "pipeline.drift",
+            "--var",
+            "needs_project_context=true",
+        ],
+    ] {
+        let output = run_in(root.as_path(), &args);
+        assert!(
+            !output.status.success(),
+            "command should refuse: {:?}",
+            args
+        );
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+        assert!(
+            stdout.contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
+            "expected catalog refusal for {:?}: {stdout}",
+            args
+        );
+        assert!(
+            stdout.contains("has activation drift"),
+            "expected activation drift for {:?}: {stdout}",
+            args
+        );
+        assert!(
+            stdout.contains("stage `stage.00_base` file `core/stages/00_base.md`"),
+            "expected stage identification for {:?}: {stdout}",
+            args
+        );
+    }
 }
 
 #[test]

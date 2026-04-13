@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
-    load_pipeline_catalog, render_pipeline_list, render_pipeline_show, PipelineLookupError,
-    PipelineSelection,
+    load_pipeline_catalog, render_pipeline_list, render_pipeline_show, PipelineCatalogError,
+    PipelineLoadError, PipelineLookupError, PipelineSelection, PipelineValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -226,6 +226,63 @@ audit:
         entries_before,
         "catalog loading and rendering must not create or mutate route state"
     );
+}
+
+#[test]
+fn catalog_refuses_activation_drift_between_pipeline_yaml_and_stage_front_matter() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        r#"---
+kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+activation:
+  when:
+    any:
+      - variables.needs_project_context == true
+---
+# base
+"#,
+    );
+    write_file(
+        &root.join("pipelines/drift.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.drift
+version: 0.1.0
+title: Drift
+description: drift
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_catalog(root).expect_err("activation drift should refuse");
+
+    match err {
+        PipelineCatalogError::PipelineLoad { source, .. } => match source {
+            PipelineLoadError::Validation {
+                error: PipelineValidationError::ActivationDrift { stage_id, file, .. },
+                ..
+            } => {
+                assert_eq!(stage_id, "stage.00_base");
+                assert_eq!(file, "core/stages/00_base.md");
+            }
+            other => panic!("expected activation-drift validation, got {other:?}"),
+        },
+        other => panic!("expected pipeline-load catalog refusal, got {other:?}"),
+    }
 }
 
 fn write_file(path: &Path, contents: &str) {

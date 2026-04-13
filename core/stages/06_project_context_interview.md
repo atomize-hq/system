@@ -17,11 +17,6 @@ includes:
 - profiles/${profile}/conventions.md
 - profiles/${profile}/profile.yaml
 - profiles/${profile}/commands.yaml
-activation:
-  when:
-    any:
-    - variables.needs_project_context == true
-    - variables.charter_gaps_detected == true
 inputs:
   library:
   - path: core/library/project_context/project_context_gen_directive.md
