@@ -127,6 +127,43 @@ fn prepare_compile_ready_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, repo_root)
 }
 
+fn prepare_compile_ready_repo_with_default_run() -> (tempfile::TempDir, std::path::PathBuf) {
+    let (dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let (_, supported_variables) = supported_variables(&repo_root);
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefProjectContextRef {
+            value: "artifacts/project_context/PROJECT_CONTEXT.md".to_string(),
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: false,
+        },
+    );
+    persist_route_basis_for_current_state(&repo_root);
+    (dir, repo_root)
+}
+
 fn fixed_runtime() -> PipelineCompileRuntimeContext {
     PipelineCompileRuntimeContext {
         now_utc_override: Some(FIXED_NOW_UTC.to_string()),
@@ -281,6 +318,22 @@ fn compile_succeeds_when_optional_artifacts_are_absent() {
         }),
         "expected optional project-context artifact to be marked missing"
     );
+}
+
+#[test]
+fn compile_succeeds_with_route_basis_backed_by_default_runner_and_profile() {
+    let (_dir, repo_root) = prepare_compile_ready_repo_with_default_run();
+
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile success");
+
+    assert!(result.variables.iter().any(
+        |variable| variable.name == "runner" && variable.value.as_deref() == Some("codex-cli")
+    ));
+    assert!(result.variables.iter().any(
+        |variable| variable.name == "profile" && variable.value.as_deref() == Some("python-uv")
+    ));
 }
 
 #[test]

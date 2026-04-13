@@ -4,8 +4,8 @@ use crate::pipeline::{
     CompileStageLoadError, CompileStageVariable, PipelineCatalogEntry, PipelineDefinition,
 };
 use crate::route_state::{
-    load_route_state_with_supported_variables, RouteBasis, RouteBasisStageReason,
-    RouteBasisStageStatus, RouteState, RouteStateReadError,
+    effective_route_basis_run, load_route_state_with_supported_variables, RouteBasis,
+    RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateReadError,
 };
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -665,7 +665,8 @@ fn check_route_basis_freshness(
             ),
         ));
     }
-    if state.routing != basis.routing || state.refs != basis.refs || state.run != basis.run {
+    let effective_run = effective_route_basis_run(repo_root, pipeline, state);
+    if state.routing != basis.routing || state.refs != basis.refs || effective_run != basis.run {
         return Err(stale_basis_refusal(
             &pipeline.header.id,
             stage_id,

@@ -9,7 +9,7 @@ ROUTE BASIS:
     project_context_ref = <unset>
   run:
     runner = codex-cli
-    profile = <unset>
+    profile = python-uv
     repo_root = {{REPO_ROOT}}
 ROUTE:
   1. stage.00_base | active

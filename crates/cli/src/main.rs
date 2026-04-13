@@ -572,7 +572,12 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
 
     println!(
         "{}",
-        render_pipeline_resolve_output(&pipeline.definition.header.id, &state, &route)
+        render_pipeline_resolve_output(
+            &pipeline.definition.header.id,
+            &state,
+            &system_compiler::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
+            &route,
+        )
     );
     ExitCode::SUCCESS
 }
@@ -890,6 +895,7 @@ fn parse_route_state_field_assignment(
 fn render_pipeline_resolve_output(
     pipeline_id: &str,
     state: &system_compiler::RouteState,
+    effective_run: &system_compiler::RouteStateRun,
     route: &system_compiler::ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
@@ -913,9 +919,9 @@ fn render_pipeline_resolve_output(
         state.refs.project_context_ref.as_deref(),
     );
     out.push_str("  run:\n");
-    render_optional_route_basis_field(&mut out, "runner", state.run.runner.as_deref());
-    render_optional_route_basis_field(&mut out, "profile", state.run.profile.as_deref());
-    render_optional_route_basis_field(&mut out, "repo_root", state.run.repo_root.as_deref());
+    render_optional_route_basis_field(&mut out, "runner", effective_run.runner.as_deref());
+    render_optional_route_basis_field(&mut out, "profile", effective_run.profile.as_deref());
+    render_optional_route_basis_field(&mut out, "repo_root", effective_run.repo_root.as_deref());
     out.push_str("ROUTE:\n");
 
     for (index, stage) in route.stages.iter().enumerate() {

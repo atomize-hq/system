@@ -1,12 +1,19 @@
+#[allow(dead_code)]
+#[path = "support/pipeline_proof_corpus_support.rs"]
+mod pipeline_proof_corpus_support;
+
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
 use system_compiler::{
-    load_route_state, load_route_state_with_supported_variables, set_route_state, RouteState,
+    build_route_basis, effective_route_basis_run, load_pipeline_definition, load_route_state,
+    load_route_state_with_supported_variables, persist_route_basis, resolve_pipeline_route,
+    set_route_state, supported_route_state_variables, RouteBasisPersistOutcome, RouteState,
     RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateStoreError, RouteStateValue, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    RouteStateStoreError, RouteStateValue, RouteVariables, ROUTE_STATE_AUDIT_LIMIT,
+    ROUTE_STATE_SCHEMA_VERSION,
 };
 
 fn write_file(path: &Path, contents: &str) {
@@ -71,6 +78,79 @@ fn release_unix_lock(file: &std::fs::File) {
 
     let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) };
     assert_eq!(rc, 0, "release lock");
+}
+
+#[test]
+fn route_basis_defaults_runner_and_profile_into_run_snapshot() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+
+    let route_basis = build_route_basis(&repo_root, &definition, &state, &route).expect("basis");
+
+    assert_eq!(route_basis.run.runner.as_deref(), Some("codex-cli"));
+    assert_eq!(route_basis.run.profile.as_deref(), Some("python-uv"));
+    assert_eq!(
+        route_basis.run,
+        effective_route_basis_run(&repo_root, &definition, &state)
+    );
+}
+
+#[test]
+fn persist_route_basis_accepts_defaulted_run_snapshot_against_unset_state_run() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+    let route_basis = build_route_basis(&repo_root, &definition, &state, &route).expect("basis");
+
+    let outcome =
+        persist_route_basis(&repo_root, &definition.header.id, route_basis).expect("persist");
+
+    match outcome {
+        RouteBasisPersistOutcome::Applied(state) => {
+            assert_eq!(
+                state
+                    .route_basis
+                    .as_ref()
+                    .and_then(|basis| basis.run.runner.as_deref()),
+                Some("codex-cli")
+            );
+            assert_eq!(
+                state
+                    .route_basis
+                    .as_ref()
+                    .and_then(|basis| basis.run.profile.as_deref()),
+                Some("python-uv")
+            );
+        }
+        RouteBasisPersistOutcome::Refused(refusal) => {
+            panic!("expected route basis persist to apply, got {refusal:?}")
+        }
+    }
 }
 
 #[test]

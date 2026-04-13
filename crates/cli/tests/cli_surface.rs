@@ -52,6 +52,11 @@ fn workspace_root() -> std::path::PathBuf {
     );
 }
 
+fn canonical_repo_root(path: &std::path::Path) -> std::path::PathBuf {
+    std::fs::canonicalize(path)
+        .unwrap_or_else(|err| panic!("canonicalize {}: {err}", path.display()))
+}
+
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("mkdirs");
@@ -654,9 +659,10 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
 fn pipeline_compile_plain_success_is_payload_only_stdout() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+    let canonical_root = canonical_repo_root(root.as_path());
 
     let expected = system_compiler::compile_pipeline_stage_with_runtime(
-        root.as_path(),
+        canonical_root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
         &system_compiler::PipelineCompileRuntimeContext {
@@ -703,9 +709,10 @@ fn pipeline_compile_plain_success_is_payload_only_stdout() {
 fn pipeline_compile_explain_success_is_proof_only_stdout() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+    let canonical_root = canonical_repo_root(root.as_path());
 
     let expected = system_compiler::compile_pipeline_stage_with_runtime(
-        root.as_path(),
+        canonical_root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
         &system_compiler::PipelineCompileRuntimeContext {

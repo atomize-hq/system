@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
-    ResolvedPipelineRoute, RouteStageReason, RouteState, RouteStateMutationOutcome,
+    ResolvedPipelineRoute, RouteStageReason, RouteState, RouteStateMutationOutcome, RouteStateRun,
 };
 
 pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
@@ -79,6 +79,7 @@ pub fn assert_matches_golden_with_placeholders(
 pub fn render_pipeline_resolve_output(
     pipeline_id: &str,
     state: &RouteState,
+    effective_run: &RouteStateRun,
     route: &ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
@@ -102,9 +103,9 @@ pub fn render_pipeline_resolve_output(
         state.refs.project_context_ref.as_deref(),
     );
     out.push_str("  run:\n");
-    render_optional_route_basis_field(&mut out, "runner", state.run.runner.as_deref());
-    render_optional_route_basis_field(&mut out, "profile", state.run.profile.as_deref());
-    render_optional_route_basis_field(&mut out, "repo_root", state.run.repo_root.as_deref());
+    render_optional_route_basis_field(&mut out, "runner", effective_run.runner.as_deref());
+    render_optional_route_basis_field(&mut out, "profile", effective_run.profile.as_deref());
+    render_optional_route_basis_field(&mut out, "repo_root", effective_run.repo_root.as_deref());
     out.push_str("ROUTE:\n");
 
     for (index, stage) in route.stages.iter().enumerate() {

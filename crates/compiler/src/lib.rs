@@ -70,14 +70,14 @@ pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
 };
 pub use route_state::{
-    build_route_basis, load_route_state, load_route_state_with_supported_variables,
-    persist_route_basis, set_route_state, RouteBasis, RouteBasisActivationOperator,
-    RouteBasisBuildError, RouteBasisPersistOutcome, RouteBasisPersistRefusal,
-    RouteBasisProfilePack, RouteBasisResolvedStage, RouteBasisRunner, RouteBasisStageReason,
-    RouteBasisStageStatus, RouteState, RouteStateAuditEntry, RouteStateMutation,
-    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError, RouteStateRefs,
-    RouteStateRun, RouteStateStoreError, RouteStateValue, ROUTE_BASIS_SCHEMA_VERSION,
-    ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    build_route_basis, effective_route_basis_run, load_route_state,
+    load_route_state_with_supported_variables, persist_route_basis, set_route_state, RouteBasis,
+    RouteBasisActivationOperator, RouteBasisBuildError, RouteBasisPersistOutcome,
+    RouteBasisPersistRefusal, RouteBasisProfilePack, RouteBasisResolvedStage, RouteBasisRunner,
+    RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateAuditEntry,
+    RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    RouteStateRefs, RouteStateRun, RouteStateStoreError, RouteStateValue,
+    ROUTE_BASIS_SCHEMA_VERSION, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 pub fn workspace_contract_version() -> &'static str {

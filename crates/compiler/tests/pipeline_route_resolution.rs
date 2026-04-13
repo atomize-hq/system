@@ -282,6 +282,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &initial_state,
+            &system_compiler::effective_route_basis_run(&root, &definition, &initial_state),
             &initial_route,
         ),
         &root,
@@ -349,6 +350,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &activated_state,
+            &system_compiler::effective_route_basis_run(&root, &definition, &activated_state),
             &activated_route,
         ),
         &root,
@@ -420,6 +422,7 @@ fn shared_proof_corpus_state_mutation_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &routed_state,
+            &system_compiler::effective_route_basis_run(&root, &definition, &routed_state),
             &route,
         ),
         &root,

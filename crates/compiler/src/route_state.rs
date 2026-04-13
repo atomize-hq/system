@@ -1,4 +1,4 @@
-use crate::pipeline::PipelineDefinition;
+use crate::pipeline::{load_pipeline_definition, PipelineDefinition};
 use crate::pipeline_route::{
     ResolvedPipelineRoute, RouteStageReason, RouteStageStatus, RouteVariables,
 };
@@ -484,16 +484,15 @@ pub fn build_route_basis(
 ) -> Result<RouteBasis, RouteBasisBuildError> {
     let repo_root = repo_root.as_ref();
     let normalized_state = normalized_state_for_route_basis(state, repo_root);
-    let selected_runner_id = normalized_state
-        .run
+    let effective_run = effective_route_basis_run(repo_root, pipeline, state);
+    let selected_runner_id = effective_run
         .runner
         .clone()
-        .unwrap_or_else(|| pipeline.body.defaults.runner.clone());
-    let selected_profile_id = normalized_state
-        .run
+        .expect("effective route-basis run always resolves runner");
+    let selected_profile_id = effective_run
         .profile
         .clone()
-        .unwrap_or_else(|| pipeline.body.defaults.profile.clone());
+        .expect("effective route-basis run always resolves profile");
 
     if selected_runner_id.trim().is_empty() {
         return Err(RouteBasisBuildError::MissingSelectedRunner {
@@ -549,7 +548,7 @@ pub fn build_route_basis(
         state_revision: normalized_state.revision,
         routing: normalized_state.routing.clone(),
         refs: normalized_state.refs.clone(),
-        run: normalized_state.run.clone(),
+        run: effective_run.clone(),
         route: route_stages,
         runner: RouteBasisRunner {
             id: selected_runner_id.clone(),
@@ -617,6 +616,15 @@ pub fn persist_route_basis(
         }
     };
 
+    let pipeline =
+        load_pipeline_definition(repo_root, &route_basis.pipeline_file).map_err(|err| {
+            RouteStateStoreError::InvalidMutation {
+                reason: format!(
+                    "failed to load pipeline definition for route_basis persistence: {err}"
+                ),
+            }
+        })?;
+    let effective_run = effective_route_basis_run(repo_root, &pipeline, &state);
     state = normalized_state_for_route_basis(&state, repo_root);
     if state.revision != route_basis.state_revision {
         return Ok(RouteBasisPersistOutcome::Refused(
@@ -628,7 +636,7 @@ pub fn persist_route_basis(
     }
     if state.routing != route_basis.routing
         || state.refs != route_basis.refs
-        || state.run != route_basis.run
+        || effective_run != route_basis.run
     {
         return Ok(RouteBasisPersistOutcome::Refused(
             RouteBasisPersistRefusal::MalformedState {
@@ -1352,6 +1360,22 @@ fn normalized_state_for_route_basis(state: &RouteState, repo_root: &Path) -> Rou
     normalized.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
     normalized.run.repo_root = Some(derived_repo_root(repo_root));
     normalized
+}
+
+pub fn effective_route_basis_run(
+    repo_root: impl AsRef<Path>,
+    pipeline: &PipelineDefinition,
+    state: &RouteState,
+) -> RouteStateRun {
+    let repo_root = repo_root.as_ref();
+    let mut run = normalized_state_for_route_basis(state, repo_root).run;
+    if run.runner.is_none() {
+        run.runner = Some(pipeline.body.defaults.runner.clone());
+    }
+    if run.profile.is_none() {
+        run.profile = Some(pipeline.body.defaults.profile.clone());
+    }
+    run
 }
 
 fn fingerprint_repo_relative_file(
