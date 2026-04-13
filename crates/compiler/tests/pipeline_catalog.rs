@@ -2,9 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata, render_pipeline_list,
-    render_pipeline_show, PipelineCatalogError, PipelineLoadError, PipelineLookupError,
-    PipelineSelection, PipelineValidationError,
+    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_selection_metadata,
+    render_pipeline_list, render_pipeline_show, PipelineCatalogError, PipelineLoadError,
+    PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
+    PipelineValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -353,40 +354,284 @@ stages:
 }
 
 #[test]
-fn catalog_refuses_stage_front_matter_with_path_like_canonical_id() {
+fn metadata_catalog_ignores_unused_broken_stage_files_but_strict_catalog_still_refuses() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
     write_file(
-        &root.join("core/stages/bad.md"),
+        &root.join("core/stages/00_base.md"),
         r#"---
 kind: stage
-id: stage.bad/path
+id: stage.00_base
 version: 0.1.0
-title: Bad Stage
+title: Base
+description: base
+---
+# base
+"#,
+    );
+    write_file(
+        &root.join("core/stages/99_bad_unused.md"),
+        r#"---
+kind: nonsense
+id: stage.bad_unused
+version: 0.1.0
+title: Bad Unused Stage
 description: bad
 ---
 # bad
 "#,
     );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.foundation
+version: 0.1.0
+title: Foundation
+description: foundation
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
 
-    let err =
-        load_pipeline_catalog_metadata(root).expect_err("invalid stage canonical id should refuse");
+    let catalog = load_pipeline_catalog_metadata(root).expect("metadata catalog should load");
+    assert_eq!(catalog.pipeline_count(), 1);
+    assert_eq!(catalog.stage_count(), 1);
+    let list = render_pipeline_list(&catalog);
+    assert!(list.contains("PIPELINE: pipeline.foundation"));
+    assert!(!list.contains("stage.bad_unused"));
 
+    let err = load_pipeline_catalog(root).expect_err("strict catalog should refuse");
     match err {
-        PipelineCatalogError::InvalidStageCanonicalId {
-            path,
-            value,
-            reason,
-        } => {
-            assert_eq!(path, root.join("core/stages/bad.md"));
-            assert_eq!(value, "stage.bad/path");
-            assert_eq!(
-                reason,
-                "canonical ids must not look like raw repo-relative paths"
-            );
+        PipelineCatalogError::StageKindMismatch { path, actual } => {
+            assert_eq!(path, root.join("core/stages/99_bad_unused.md"));
+            assert_eq!(actual, "nonsense");
         }
-        other => panic!("expected invalid-stage-canonical-id refusal, got {other:?}"),
+        other => panic!("expected stage-kind-mismatch refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn metadata_catalog_ignores_unrelated_broken_pipeline_but_strict_catalog_still_refuses() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        r#"---
+kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+---
+# base
+"#,
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.foundation
+version: 0.1.0
+title: Foundation
+description: foundation
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+    write_file(
+        &root.join("pipelines/bad-id.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.bad/path
+version: 0.1.0
+title: Bad Id
+description: bad
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let catalog = load_pipeline_catalog_metadata(root).expect("metadata catalog should load");
+    assert_eq!(catalog.pipeline_count(), 1);
+    assert!(catalog.resolve_selector("pipeline.foundation").is_ok());
+    assert!(catalog.resolve_selector("pipeline.bad/path").is_err());
+
+    let err = load_pipeline_catalog(root).expect_err("strict catalog should refuse");
+    match err {
+        PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
+            PipelineLoadError::Validation {
+                error: PipelineValidationError::InvalidCanonicalId { value, .. },
+                ..
+            } => {
+                assert_eq!(value, "pipeline.bad/path");
+            }
+            other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
+        },
+        other => panic!("expected pipeline-load refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn metadata_selection_refuses_when_selected_pipeline_is_malformed() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        r#"---
+kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+---
+# base
+"#,
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.foundation
+version: 0.1.0
+title: Foundation
+description: foundation
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+    write_file(
+        &root.join("pipelines/broken.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.broken
+version: 0.1.0
+title: Broken
+description: broken
+---
+defaults:
+  runner:
+"#,
+    );
+
+    let err = load_pipeline_selection_metadata(root, "pipeline.broken")
+        .expect_err("selected malformed pipeline should refuse");
+    match err {
+        PipelineMetadataSelectionError::Catalog(PipelineCatalogError::PipelineLoad {
+            source,
+            ..
+        }) => match source.as_ref() {
+            PipelineLoadError::BodyParse { .. } => {}
+            other => panic!("expected body-parse refusal, got {other:?}"),
+        },
+        other => panic!("expected catalog pipeline-load refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn metadata_selection_refuses_when_selected_pipeline_references_broken_stage_metadata() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        r#"---
+kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+---
+# base
+"#,
+    );
+    write_file(
+        &root.join("core/stages/bad.md"),
+        r#"---
+kind: nonsense
+id: stage.bad
+version: 0.1.0
+title: Bad
+description: bad
+---
+# bad
+"#,
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.foundation
+version: 0.1.0
+title: Foundation
+description: foundation
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+    write_file(
+        &root.join("pipelines/broken.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.broken
+version: 0.1.0
+title: Broken
+description: broken
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.bad
+    file: core/stages/bad.md
+"#,
+    );
+
+    let err = load_pipeline_selection_metadata(root, "pipeline.broken")
+        .expect_err("selected pipeline with broken stage metadata should refuse");
+    match err {
+        PipelineMetadataSelectionError::Catalog(PipelineCatalogError::StageKindMismatch {
+            path,
+            actual,
+        }) => {
+            assert_eq!(path, root.join("core/stages/bad.md"));
+            assert_eq!(actual, "nonsense");
+        }
+        other => panic!("expected stage-kind-mismatch refusal, got {other:?}"),
     }
 }
 

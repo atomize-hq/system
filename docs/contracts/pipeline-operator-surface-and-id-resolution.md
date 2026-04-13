@@ -62,6 +62,8 @@ This contract is not authoritative for:
 
 - `pipeline list` and `pipeline show` MUST consume compiler-owned declared pipeline data.
 - CLI glue for `pipeline list` and `pipeline show` MUST NOT reparse YAML as an independent source of truth or redefine declared-pipeline semantics.
+- The compiler-owned metadata path for `pipeline list` and `pipeline show` MUST remain metadata-first and MUST NOT fail because of unrelated malformed pipeline or stage files elsewhere in the repo.
+- `pipeline show` MUST still surface an explicit catalog refusal when the selected pipeline's own declared metadata cannot be loaded.
 - `pipeline resolve` and `pipeline state set` MUST wrap the compiler-owned route/state surfaces defined by `docs/contracts/pipeline-route-and-state-core.md`.
 - CLI glue for `pipeline resolve` and `pipeline state set` MUST NOT reinterpret route statuses, state schema, mutation protocol, or refusal semantics owned by `docs/contracts/pipeline-route-and-state-core.md`.
 - The reviewed operator surface MAY render or adapt compiler-owned truth, but it MUST NOT become a second authority for declared pipeline structure or route/state semantics.
@@ -76,6 +78,7 @@ This contract is not authoritative for:
 ### Shorthand lookup
 
 - Shorthand lookup MAY strip the `pipeline.` or `stage.` prefix only when the resulting shorthand is unambiguous.
+- For metadata-only inventory surfaces, selector resolution MUST operate on successfully indexed metadata entries rather than unrelated malformed files that were excluded from the metadata index.
 - If shorthand lookup is unambiguous, the CLI MAY resolve it to the matching canonical id.
 - If shorthand lookup is ambiguous, the CLI MUST refuse and MUST:
   - say that overlapping ids were found

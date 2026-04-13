@@ -140,6 +140,8 @@ The docs/help parity boundary for `C-11` is:
 - M1 `pipeline` conformance MUST remain repo-local and deterministic.
 - The `pipeline` proof and docs surfaces MUST not require network access, external services, or ambient machine state beyond the repository and its managed runtime state.
 - `pipeline list` and `pipeline show` MUST remain metadata-first surfaces.
+- `pipeline list` and `pipeline show` MUST ignore unrelated malformed pipeline or stage files that are outside the selected metadata inventory.
+- `pipeline show` MUST still refuse explicitly when the selected pipeline's declared metadata cannot be loaded.
 - `pipeline resolve` MUST remain the first command allowed to load route-bearing state.
 - `pipeline state set` MUST remain narrow, typed, and auditable.
 - The contract MUST not smuggle caching, background refresh, or silent repair into M1.
@@ -169,6 +171,8 @@ The following checklist is normative for seam-local execution and closeout:
 - [ ] Golden outputs or snapshots pin the same shared corpus across compiler and CLI surfaces.
 - [ ] Path-bearing proof output is normalized to committed placeholder tokens before golden comparison.
 - [ ] Malformed pipeline refusal and malformed route-state refusal remain explicit and distinct from other refusal classes.
+- [ ] Metadata-only inventory tests prove that `pipeline list` and `pipeline show` ignore unrelated malformed pipeline and stage files.
+- [ ] Selection-scoped metadata tests prove that `pipeline show` still refuses when the chosen pipeline's metadata is malformed or references broken stage front matter.
 - [ ] Docs and help snapshots describe `pipeline` as `list`, `show`, `resolve`, and `state set` only.
 - [ ] Docs and help do not imply `pipeline compile` is shipped in M1.
 - [ ] The contract stays aligned with `C-08`, `C-09`, and `C-10` without redefining their semantics.

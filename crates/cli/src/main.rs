@@ -451,17 +451,13 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match system_compiler::load_pipeline_catalog_metadata(&repo_root) {
-        Ok(catalog) => catalog,
-        Err(err) => {
+    let selection = match system_compiler::load_pipeline_selection_metadata(&repo_root, &args.id) {
+        Ok(selection) => selection,
+        Err(system_compiler::PipelineMetadataSelectionError::Catalog(err)) => {
             println!("REFUSED: pipeline catalog error: {err}");
             return ExitCode::from(1);
         }
-    };
-
-    let selection = match system_compiler::resolve_pipeline_selector(&catalog, &args.id) {
-        Ok(selection) => selection,
-        Err(err) => {
+        Err(system_compiler::PipelineMetadataSelectionError::Lookup(err)) => {
             println!("{}", render_pipeline_selector_refusal(err));
             return ExitCode::from(1);
         }

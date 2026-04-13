@@ -99,6 +99,12 @@ pub enum PipelineLookupError {
 }
 
 #[derive(Debug)]
+pub enum PipelineMetadataSelectionError {
+    Catalog(PipelineCatalogError),
+    Lookup(PipelineLookupError),
+}
+
+#[derive(Debug)]
 pub enum PipelineCatalogError {
     ReadPipelineCatalog {
         path: PathBuf,
@@ -231,6 +237,24 @@ impl fmt::Display for PipelineLookupError {
 
 impl std::error::Error for PipelineLookupError {}
 
+impl fmt::Display for PipelineMetadataSelectionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PipelineMetadataSelectionError::Catalog(err) => write!(f, "{err}"),
+            PipelineMetadataSelectionError::Lookup(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for PipelineMetadataSelectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            PipelineMetadataSelectionError::Catalog(err) => Some(err),
+            PipelineMetadataSelectionError::Lookup(err) => Some(err),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct StageFrontMatter {
     pub kind: String,
@@ -265,7 +289,43 @@ pub fn load_pipeline_catalog(
 pub fn load_pipeline_catalog_metadata(
     repo_root: impl AsRef<Path>,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
-    load_pipeline_catalog_with_mode(repo_root, PipelineLoadMode::MetadataOnly)
+    load_pipeline_metadata_catalog_index(repo_root.as_ref())
+}
+
+pub fn load_pipeline_selection_metadata(
+    repo_root: impl AsRef<Path>,
+    selector: &str,
+) -> Result<PipelineSelection, PipelineMetadataSelectionError> {
+    let repo_root = repo_root.as_ref();
+    let catalog = load_pipeline_catalog_metadata(repo_root)
+        .map_err(PipelineMetadataSelectionError::Catalog)?;
+
+    match resolve_pipeline_selector(&catalog, selector) {
+        Ok(selection) => return Ok(selection),
+        Err(PipelineLookupError::UnsupportedSelector { selector, reason }) => {
+            return Err(PipelineMetadataSelectionError::Lookup(
+                PipelineLookupError::UnsupportedSelector { selector, reason },
+            ));
+        }
+        Err(PipelineLookupError::AmbiguousSelector { selector, matches }) => {
+            return Err(PipelineMetadataSelectionError::Lookup(
+                PipelineLookupError::AmbiguousSelector { selector, matches },
+            ));
+        }
+        Err(PipelineLookupError::UnknownSelector { .. }) => {}
+    }
+
+    if let Some(err) = find_selected_pipeline_metadata_error(repo_root, selector)
+        .map_err(PipelineMetadataSelectionError::Catalog)?
+    {
+        return Err(PipelineMetadataSelectionError::Catalog(err));
+    }
+
+    Err(PipelineMetadataSelectionError::Lookup(
+        PipelineLookupError::UnknownSelector {
+            selector: selector.trim().to_string(),
+        },
+    ))
 }
 
 fn load_pipeline_catalog_with_mode(
@@ -273,8 +333,8 @@ fn load_pipeline_catalog_with_mode(
     mode: PipelineLoadMode,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
     let repo_root = repo_root.as_ref();
-    let mut pipelines = std::collections::BTreeMap::new();
-    let mut stages = std::collections::BTreeMap::new();
+    let mut pipelines = std::collections::BTreeMap::<String, PipelineCatalogEntry>::new();
+    let mut stages = std::collections::BTreeMap::<String, StageCatalogEntry>::new();
     let stage_catalog = load_stage_catalog(repo_root)?;
     let mut stage_memberships: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
@@ -345,6 +405,195 @@ fn load_pipeline_catalog_with_mode(
     }
 
     Ok(PipelineCatalog { pipelines, stages })
+}
+
+fn load_pipeline_metadata_catalog_index(
+    repo_root: &Path,
+) -> Result<PipelineCatalog, PipelineCatalogError> {
+    let mut pipelines = std::collections::BTreeMap::<String, PipelineCatalogEntry>::new();
+    let mut stages = std::collections::BTreeMap::<String, StageCatalogEntry>::new();
+    let mut stage_memberships: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+
+    for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
+        let definition = match load_pipeline_definition_with_mode(
+            repo_root,
+            &pipeline_path,
+            PipelineLoadMode::MetadataOnly,
+        ) {
+            Ok(definition) => definition,
+            Err(_) => continue,
+        };
+
+        let entry = match build_pipeline_catalog_entry_metadata(repo_root, &definition) {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+
+        let pipeline_id = definition.header.id.clone();
+        if pipelines.insert(pipeline_id.clone(), entry).is_some() {
+            return Err(PipelineCatalogError::DuplicatePipelineId { id: pipeline_id });
+        }
+
+        for stage in definition.declared_stages() {
+            let stage_entry = load_stage_catalog_entry_for_reference(repo_root, stage)?;
+            stage_memberships
+                .entry(stage_entry.id.clone())
+                .or_default()
+                .push(definition.header.id.clone());
+
+            match stages.get(&stage_entry.id) {
+                Some(existing) if existing.source_path != stage_entry.source_path => {
+                    return Err(PipelineCatalogError::DuplicateStageId {
+                        id: stage_entry.id.clone(),
+                    });
+                }
+                Some(_) => {}
+                None => {
+                    stages.insert(stage_entry.id.clone(), stage_entry);
+                }
+            }
+        }
+    }
+
+    for (stage_id, pipelines_for_stage) in stage_memberships {
+        if let Some(stage) = stages.get_mut(&stage_id) {
+            stage.pipelines = pipelines_for_stage;
+        }
+    }
+
+    Ok(PipelineCatalog { pipelines, stages })
+}
+
+fn build_pipeline_catalog_entry_metadata(
+    repo_root: &Path,
+    definition: &PipelineDefinition,
+) -> Result<PipelineCatalogEntry, PipelineCatalogError> {
+    let mut stage_entries = Vec::with_capacity(definition.declared_stages().len());
+    for stage in definition.declared_stages() {
+        let stage_catalog_entry = load_stage_catalog_entry_for_reference(repo_root, stage)?;
+        stage_entries.push(PipelineCatalogStageEntry {
+            stage_id: stage_catalog_entry.id,
+            title: stage_catalog_entry.title,
+            work_level: stage_catalog_entry.work_level,
+            source_path: stage_catalog_entry.source_path,
+        });
+    }
+
+    Ok(PipelineCatalogEntry {
+        definition: definition.clone(),
+        stages: stage_entries,
+    })
+}
+
+fn load_stage_catalog_entry_for_reference(
+    repo_root: &Path,
+    stage: &PipelineStage,
+) -> Result<StageCatalogEntry, PipelineCatalogError> {
+    let full_path = repo_root.join(&stage.file);
+    let Some(front_matter) = load_stage_front_matter(&full_path).map_err(|err| match err {
+        StageFrontMatterLoadError::Read(source) => PipelineCatalogError::ReadStageCatalog {
+            path: full_path.clone(),
+            source,
+        },
+        StageFrontMatterLoadError::Parse(source) => PipelineCatalogError::StageFrontMatter {
+            path: full_path.clone(),
+            source,
+        },
+    })?
+    else {
+        return Err(PipelineCatalogError::StageFrontMatter {
+            path: full_path,
+            source: <serde_yaml_bw::Error as serde::de::Error>::custom(format!(
+                "stage file {} is missing front matter or is not cataloged",
+                stage.file
+            )),
+        });
+    };
+
+    if front_matter.kind != "stage" {
+        return Err(PipelineCatalogError::StageKindMismatch {
+            path: full_path,
+            actual: front_matter.kind,
+        });
+    }
+    if let Some(reason) = canonical_id_path_like_reason(&front_matter.id) {
+        return Err(PipelineCatalogError::InvalidStageCanonicalId {
+            path: repo_root.join(&stage.file),
+            value: front_matter.id,
+            reason,
+        });
+    }
+    if front_matter.id != stage.id {
+        return Err(PipelineCatalogError::StageIdMismatch {
+            path: PathBuf::from(&stage.file),
+            expected: stage.id.clone(),
+            actual: front_matter.id,
+        });
+    }
+
+    Ok(StageCatalogEntry {
+        id: stage.id.clone(),
+        kind: front_matter.kind,
+        version: front_matter.version,
+        title: front_matter.title,
+        description: front_matter.description,
+        work_level: front_matter.work_level,
+        source_path: PathBuf::from(&stage.file),
+        pipelines: Vec::new(),
+    })
+}
+
+fn find_selected_pipeline_metadata_error(
+    repo_root: &Path,
+    selector: &str,
+) -> Result<Option<PipelineCatalogError>, PipelineCatalogError> {
+    for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
+        let definition = match load_pipeline_definition_with_mode(
+            repo_root,
+            &pipeline_path,
+            PipelineLoadMode::MetadataOnly,
+        ) {
+            Ok(definition) => definition,
+            Err(source) => {
+                if pipeline_selector_matches_path(repo_root, &pipeline_path, selector)? {
+                    return Ok(Some(PipelineCatalogError::PipelineLoad {
+                        path: repo_root.join(&pipeline_path),
+                        source: Box::new(source),
+                    }));
+                }
+                continue;
+            }
+        };
+
+        if matches_pipeline_selector(&definition.header.id, selector) {
+            if let Err(err) = build_pipeline_catalog_entry_metadata(repo_root, &definition) {
+                return Ok(Some(err));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+fn pipeline_selector_matches_path(
+    repo_root: &Path,
+    pipeline_path: &Path,
+    selector: &str,
+) -> Result<bool, PipelineCatalogError> {
+    match load_pipeline_header(repo_root, pipeline_path) {
+        Ok(Some(header)) => Ok(matches_pipeline_selector(&header.id, selector)),
+        Ok(None) => Ok(false),
+        Err(source) => Err(PipelineCatalogError::PipelineLoad {
+            path: repo_root.join(pipeline_path),
+            source: Box::new(source),
+        }),
+    }
+}
+
+fn matches_pipeline_selector(pipeline_id: &str, selector: &str) -> bool {
+    let selector = selector.trim();
+    selector == pipeline_id || pipeline_id.strip_prefix("pipeline.") == Some(selector)
 }
 
 pub fn render_pipeline_list(catalog: &PipelineCatalog) -> String {
@@ -840,6 +1089,40 @@ pub fn load_pipeline_definition(
     pipeline_path: impl AsRef<Path>,
 ) -> Result<PipelineDefinition, PipelineLoadError> {
     load_pipeline_definition_with_mode(repo_root, pipeline_path, PipelineLoadMode::RouteAware)
+}
+
+fn load_pipeline_header(
+    repo_root: &Path,
+    pipeline_path: &Path,
+) -> Result<Option<PipelineHeader>, PipelineLoadError> {
+    let relative_pipeline_path = validate_repo_relative_path(pipeline_path).map_err(|reason| {
+        PipelineLoadError::UnsupportedPipelinePath {
+            path: pipeline_path.to_path_buf(),
+            reason,
+        }
+    })?;
+    let full_path = repo_root.join(relative_pipeline_path);
+    let contents =
+        std::fs::read_to_string(&full_path).map_err(|source| PipelineLoadError::ReadFailure {
+            path: full_path.clone(),
+            source,
+        })?;
+
+    let mut docs = serde_yaml_bw::Deserializer::from_str(&contents);
+    let header_doc = docs.next();
+
+    let Some(header_doc) = header_doc else {
+        return Ok(None);
+    };
+
+    let header = PipelineHeader::deserialize(header_doc).map_err(|source| {
+        PipelineLoadError::HeaderParse {
+            path: full_path,
+            source,
+        }
+    })?;
+
+    Ok(Some(header))
 }
 
 fn load_pipeline_definition_with_mode(

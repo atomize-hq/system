@@ -172,8 +172,56 @@ fn invalid_pipeline_id_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
     );
     write_file(
+        &root.join("pipelines/foundation.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+    write_file(
         &root.join("pipelines/bad-id.yaml"),
         b"---\nkind: pipeline\nid: pipeline.bad/path\nversion: 0.1.0\ntitle: Bad Id\ndescription: bad\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
+fn unused_bad_stage_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("core/stages/99_bad_unused.md"),
+        b"---\nkind: nonsense\nid: stage.bad_unused\nversion: 0.1.0\ntitle: Bad Unused Stage\ndescription: bad\n---\n# bad\n",
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
+fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("core/stages/bad.md"),
+        b"---\nkind: nonsense\nid: stage.bad\nversion: 0.1.0\ntitle: Bad\ndescription: bad\n---\n# bad\n",
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+    write_file(
+        &root.join("pipelines/broken.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.broken\nversion: 0.1.0\ntitle: Broken\ndescription: broken\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.bad\n    file: core/stages/bad.md\n",
     );
 
     (dir, root)
@@ -611,6 +659,31 @@ fn pipeline_list_and_show_ignore_activation_drift_during_inventory_inspection() 
 }
 
 #[test]
+fn pipeline_list_and_show_ignore_unrelated_broken_stage_files_during_inventory_inspection() {
+    let (_dir, root) = unused_bad_stage_repo();
+
+    for args in [
+        vec!["pipeline", "list"],
+        vec!["pipeline", "show", "--id", "pipeline.foundation"],
+        vec!["pipeline", "show", "--id", "stage.00_base"],
+    ] {
+        let output = run_in(root.as_path(), &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+        assert!(
+            !stdout.contains("pipeline catalog error"),
+            "unexpected refusal: {stdout}"
+        );
+        assert!(stdout.contains("pipeline.foundation") || stdout.contains("stage.00_base"));
+    }
+}
+
+#[test]
 fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_evaluation() {
     let (_dir, root) = activation_drift_pipeline_repo();
 
@@ -653,31 +726,68 @@ fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_eva
 }
 
 #[test]
-fn pipeline_list_refuses_invalid_canonical_ids_before_advertising_inventory() {
+fn pipeline_list_omits_unrelated_invalid_pipeline_ids_but_resolve_still_refuses() {
     let (_dir, root) = invalid_pipeline_id_repo();
 
     let output = run_in(root.as_path(), &["pipeline", "list"]);
-    assert!(
-        !output.status.success(),
-        "pipeline list should refuse invalid canonical ids"
-    );
+    assert!(output.status.success(), "pipeline list should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
-        "expected catalog refusal: {stdout}"
-    );
-    assert!(
-        stdout.contains("field `id` has invalid canonical id `pipeline.bad/path`"),
-        "expected invalid canonical id detail: {stdout}"
-    );
-    assert!(
-        stdout.contains("canonical ids must not look like raw repo-relative paths"),
-        "expected recovery guidance: {stdout}"
-    );
+    assert!(stdout.contains("PIPELINE: pipeline.foundation"));
     assert!(
         !stdout.contains("PIPELINE: pipeline.bad/path"),
-        "unreachable id must not be advertised: {stdout}"
+        "invalid pipeline id must not be advertised: {stdout}"
+    );
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "pipeline.foundation"],
+    );
+    assert!(
+        !resolve.status.success(),
+        "pipeline resolve should still refuse"
+    );
+    let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
+    assert!(
+        resolve_stdout
+            .contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
+        "expected strict catalog refusal: {resolve_stdout}"
+    );
+    assert!(
+        resolve_stdout.contains("field `id` has invalid canonical id `pipeline.bad/path`"),
+        "expected invalid canonical id detail: {resolve_stdout}"
+    );
+}
+
+#[test]
+fn pipeline_show_still_refuses_when_selected_pipeline_has_broken_stage_metadata() {
+    let (_dir, root) = selected_broken_pipeline_repo();
+
+    let healthy = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipeline.foundation"],
+    );
+    assert!(
+        healthy.status.success(),
+        "healthy pipeline show should succeed"
+    );
+
+    let broken = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipeline.broken"],
+    );
+    assert!(
+        !broken.status.success(),
+        "selected broken pipeline should refuse"
+    );
+    let stdout = String::from_utf8(broken.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: pipeline catalog error: stage front matter"),
+        "expected stage metadata refusal: {stdout}"
+    );
+    assert!(
+        stdout.contains("must declare kind `stage`, got `nonsense`"),
+        "expected stage kind detail: {stdout}"
     );
 }
 
