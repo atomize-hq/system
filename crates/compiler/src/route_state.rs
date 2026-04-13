@@ -55,6 +55,7 @@ pub struct RouteStateRefs {
 pub struct RouteStateRun {
     pub runner: Option<String>,
     pub profile: Option<String>,
+    pub repo_root: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -336,6 +337,7 @@ pub fn set_route_state(
 
     state.revision = state.revision.saturating_add(1);
     mutation.apply(&mut state);
+    state.run.repo_root = Some(derived_repo_root(repo_root.as_ref()));
     state.audit.push(RouteStateAuditEntry {
         revision: state.revision,
         field_path: mutation.field_path(),
@@ -602,6 +604,9 @@ fn validate_run(run: &RouteStateRun, run_inventory: &RouteStateRunInventory) -> 
             &run_inventory.profiles,
         )?;
     }
+    if let Some(value) = &run.repo_root {
+        validate_repo_root(value)?;
+    }
     Ok(())
 }
 
@@ -674,6 +679,43 @@ fn validate_repo_relative_ref(value: &str) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn validate_repo_root(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("run.repo_root must not be empty".to_string());
+    }
+
+    let path = Path::new(trimmed);
+    if !path.is_absolute() {
+        return Err(format!("run.repo_root `{trimmed}` must be absolute"));
+    }
+
+    let mut saw_normal = false;
+    for component in path.components() {
+        match component {
+            Component::Normal(_) => saw_normal = true,
+            Component::RootDir => {}
+            Component::ParentDir | Component::CurDir | Component::Prefix(_) => {
+                return Err(format!(
+                    "run.repo_root `{trimmed}` must be a clean absolute path"
+                ));
+            }
+        }
+    }
+
+    if !saw_normal {
+        return Err(format!(
+            "run.repo_root `{trimmed}` must include at least one path component"
+        ));
+    }
+
+    Ok(())
+}
+
+fn derived_repo_root(repo_root: &Path) -> String {
+    repo_root.to_string_lossy().into_owned()
 }
 
 fn parse_route_state_field_path(input: &str) -> Result<RouteStateFieldPath<'_>, String> {

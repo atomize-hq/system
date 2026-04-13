@@ -758,6 +758,7 @@ fn render_pipeline_resolve_output(
     out.push_str("  run:\n");
     render_optional_route_basis_field(&mut out, "runner", state.run.runner.as_deref());
     render_optional_route_basis_field(&mut out, "profile", state.run.profile.as_deref());
+    render_optional_route_basis_field(&mut out, "repo_root", state.run.repo_root.as_deref());
     out.push_str("ROUTE:\n");
 
     for (index, stage) in route.stages.iter().enumerate() {
@@ -836,6 +837,7 @@ fn render_pipeline_state_set_output(
             out.push_str("RUN:\n");
             render_optional_state_field(&mut out, "runner", state.run.runner.as_deref());
             render_optional_state_field(&mut out, "profile", state.run.profile.as_deref());
+            render_optional_state_field(&mut out, "repo_root", state.run.repo_root.as_deref());
         }
         system_compiler::RouteStateMutationOutcome::Refused(refusal) => {
             out.push_str("OUTCOME: REFUSED\n");

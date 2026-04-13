@@ -168,6 +168,8 @@ fn shared_pipeline_proof_corpus_repo() -> (tempfile::TempDir, std::path::PathBuf
         "core/stages/05_charter_synthesize.md",
         "core/stages/06_project_context_interview.md",
         "core/stages/07_foundation_pack.md",
+        "runners/codex-cli.md",
+        "profiles/python-uv/profile.yaml",
     ] {
         copy_committed_file(&root, path);
     }
@@ -390,6 +392,10 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
 #[test]
 fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     let (_dir, root) = shared_pipeline_proof_corpus_repo();
+    let root_display = std::fs::canonicalize(&root)
+        .expect("canonical root")
+        .display()
+        .to_string();
 
     let first_resolve = run_in(
         root.as_path(),
@@ -415,6 +421,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "  run:\n",
             "    runner = <unset>\n",
             "    profile = <unset>\n",
+            "    repo_root = <unset>\n",
             "ROUTE:\n",
             "  1. stage.00_base | active\n",
             "  2. stage.04_charter_inputs | active\n",
@@ -445,7 +452,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     let applied_stdout = String::from_utf8(applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         applied_stdout.trim_end(),
-        concat!(
+        format!(concat!(
             "OUTCOME: APPLIED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "REVISION: 1\n",
@@ -456,8 +463,9 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "  project_context_ref = <unset>\n",
             "RUN:\n",
             "  runner = <unset>\n",
-            "  profile = <unset>"
-        )
+            "  profile = <unset>\n",
+            "  repo_root = {root_display}"
+        ), root_display = root_display)
     );
 
     let activation_applied = run_in(
@@ -480,7 +488,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         String::from_utf8(activation_applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         activation_applied_stdout.trim_end(),
-        concat!(
+        format!(concat!(
             "OUTCOME: APPLIED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "REVISION: 2\n",
@@ -492,8 +500,9 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "  project_context_ref = <unset>\n",
             "RUN:\n",
             "  runner = <unset>\n",
-            "  profile = <unset>"
-        )
+            "  profile = <unset>\n",
+            "  repo_root = {root_display}"
+        ), root_display = root_display)
     );
 
     let second_resolve = run_in(
@@ -507,7 +516,7 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
     let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
     assert_eq!(
         second_resolve_stdout.trim_end(),
-        concat!(
+        format!(concat!(
             "OUTCOME: RESOLVED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "ROUTE BASIS:\n",
@@ -521,19 +530,24 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
             "  run:\n",
             "    runner = <unset>\n",
             "    profile = <unset>\n",
+            "    repo_root = {root_display}\n",
             "ROUTE:\n",
             "  1. stage.00_base | active\n",
             "  2. stage.04_charter_inputs | active\n",
             "  3. stage.05_charter_synthesize | active\n",
             "  4. stage.06_project_context_interview | active\n",
             "  5. stage.07_foundation_pack | active"
-        )
+        ), root_display = root_display)
     );
 }
 
 #[test]
 fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let (_dir, root) = shared_pipeline_proof_corpus_repo();
+    let root_display = std::fs::canonicalize(&root)
+        .expect("canonical root")
+        .display()
+        .to_string();
 
     let runner_applied = run_in(
         root.as_path(),
@@ -554,7 +568,7 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let runner_stdout = String::from_utf8(runner_applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         runner_stdout.trim_end(),
-        concat!(
+        format!(concat!(
             "OUTCOME: APPLIED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "REVISION: 1\n",
@@ -565,8 +579,9 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
             "  project_context_ref = <unset>\n",
             "RUN:\n",
             "  runner = codex-cli\n",
-            "  profile = <unset>"
-        )
+            "  profile = <unset>\n",
+            "  repo_root = {root_display}"
+        ), root_display = root_display)
     );
 
     let ref_applied = run_in(
@@ -588,7 +603,7 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let ref_stdout = String::from_utf8(ref_applied.stdout).expect("stdout is utf-8");
     assert_eq!(
         ref_stdout.trim_end(),
-        concat!(
+        format!(concat!(
             "OUTCOME: APPLIED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "REVISION: 2\n",
@@ -599,8 +614,9 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
             "  project_context_ref = <unset>\n",
             "RUN:\n",
             "  runner = codex-cli\n",
-            "  profile = <unset>"
-        )
+            "  profile = <unset>\n",
+            "  repo_root = {root_display}"
+        ), root_display = root_display)
     );
 
     let resolve = run_in(
@@ -614,7 +630,7 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
     assert_eq!(
         resolve_stdout.trim_end(),
-        concat!(
+        format!(concat!(
             "OUTCOME: RESOLVED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
             "ROUTE BASIS:\n",
@@ -627,6 +643,7 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
             "  run:\n",
             "    runner = codex-cli\n",
             "    profile = <unset>\n",
+            "    repo_root = {root_display}\n",
             "ROUTE:\n",
             "  1. stage.00_base | active\n",
             "  2. stage.04_charter_inputs | active\n",
@@ -635,7 +652,7 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
             "     REASON: missing route variables: charter_gaps_detected, needs_project_context\n",
             "  5. stage.07_foundation_pack | blocked\n",
             "     REASON: blocked by unresolved stage stage.06_project_context_interview (next)"
-        )
+        ), root_display = root_display)
     );
 }
 
@@ -663,6 +680,28 @@ fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
     assert_eq!(
         invalid_path_stdout.trim_end(),
         "REFUSED: unsupported --field path `refs.unknown`; expected one of `run.runner`, `run.profile`, `refs.charter_ref`, or `refs.project_context_ref`"
+    );
+
+    let derived_path = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.repo_root=/tmp/repo",
+        ],
+    );
+    assert!(
+        !derived_path.status.success(),
+        "derived run.repo_root field should refuse"
+    );
+    let derived_path_stdout = String::from_utf8(derived_path.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        derived_path_stdout.trim_end(),
+        "REFUSED: unsupported --field path `run.repo_root`; expected one of `run.runner`, `run.profile`, `refs.charter_ref`, or `refs.project_context_ref`"
     );
 
     let invalid_value = run_in(

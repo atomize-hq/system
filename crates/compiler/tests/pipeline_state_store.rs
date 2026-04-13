@@ -30,6 +30,10 @@ fn seed_run_inventory(repo_root: &Path) {
     write_file(&repo_root.join("profiles/.DS_Store"), "noise");
 }
 
+fn repo_root_string(repo_root: &Path) -> String {
+    repo_root.to_string_lossy().into_owned()
+}
+
 fn state_path(repo_root: &Path, pipeline_id: &str) -> PathBuf {
     repo_root
         .join(".system")
@@ -72,6 +76,7 @@ fn release_unix_lock(file: &std::fs::File) {
 fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
+    let expected_repo_root = repo_root_string(repo_root);
     let pipeline_id = "pipeline.route_state";
     seed_run_inventory(repo_root);
 
@@ -82,6 +87,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     assert_eq!(empty.refs.project_context_ref, None);
     assert_eq!(empty.run.runner, None);
     assert_eq!(empty.run.profile, None);
+    assert_eq!(empty.run.repo_root, None);
 
     let outcome = set_route_state(
         repo_root,
@@ -102,6 +108,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     assert_eq!(state.pipeline_id, pipeline_id);
     assert_eq!(state.revision, 1);
     assert_eq!(state.routing.get("needs_project_context"), Some(&true));
+    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
     assert_eq!(state.audit.len(), 1);
     assert_eq!(state.audit[0].field_path, "routing.needs_project_context");
     assert_eq!(state.audit[0].value, RouteStateValue::Bool(true));
@@ -122,6 +129,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     };
     assert_eq!(state.revision, 2);
     assert_eq!(state.run.runner.as_deref(), Some("codex-cli"));
+    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
     assert_eq!(state.audit[1].field_path, "run.runner");
     assert_eq!(
         state.audit[1].value,
@@ -144,6 +152,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     };
     assert_eq!(state.revision, 3);
     assert_eq!(state.run.profile.as_deref(), Some("python-uv"));
+    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
 
     let outcome = set_route_state(
         repo_root,
@@ -164,6 +173,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
         state.refs.charter_ref.as_deref(),
         Some("artifacts/charter/CHARTER.md")
     );
+    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
 
     let outcome = set_route_state(
         repo_root,
@@ -184,9 +194,63 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
         state.refs.project_context_ref.as_deref(),
         Some("artifacts/project_context/PROJECT_CONTEXT.md")
     );
+    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
     assert_eq!(loaded, state);
+}
+
+#[test]
+fn legacy_state_without_repo_root_backfills_on_next_successful_mutation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let expected_repo_root = repo_root_string(repo_root);
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.route_state
+revision: 1
+routing: {}
+refs: {}
+run:
+  runner: codex-cli
+  profile: python-uv
+audit:
+  - revision: 1
+    field_path: run.runner
+    value: codex-cli
+"#,
+    );
+
+    let loaded = load_route_state(repo_root, pipeline_id).expect("legacy state loads");
+    assert_eq!(loaded.run.repo_root, None);
+
+    let outcome = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context"],
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
+        1,
+    )
+    .expect("mutation");
+    let state = match outcome {
+        RouteStateMutationOutcome::Applied(state) => state,
+        other => panic!("expected success, got {other:?}"),
+    };
+    assert_eq!(state.revision, 2);
+    assert_eq!(state.run.runner.as_deref(), Some("codex-cli"));
+    assert_eq!(state.run.profile.as_deref(), Some("python-uv"));
+    assert_eq!(state.run.repo_root.as_deref(), Some(expected_repo_root.as_str()));
+
+    let reloaded = load_route_state(repo_root, pipeline_id).expect("reloaded state");
+    assert_eq!(reloaded, state);
 }
 
 #[test]
@@ -246,6 +310,37 @@ audit:
     match err {
         RouteStateReadError::MalformedState { path: err_path, .. } => {
             assert_eq!(err_path, path);
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_state_refuses_invalid_repo_root_shape() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.route_state
+revision: 1
+routing: {}
+refs: {}
+run:
+  repo_root: relative/root
+audit: []
+"#,
+    );
+
+    let err = load_route_state(repo_root, pipeline_id).expect_err("malformed state");
+    match err {
+        RouteStateReadError::MalformedState { reason, .. } => {
+            assert!(reason.contains("run.repo_root"), "{reason}");
+            assert!(reason.contains("must be absolute"), "{reason}");
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
     }
