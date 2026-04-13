@@ -1,0 +1,6 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+REASON: unsupported_target: unknown stage selector `stage.10_feature_spec` for the selected pipeline
+BROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`
+NEXT SAFE ACTION: run `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`

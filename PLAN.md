@@ -816,7 +816,7 @@ Lane C. Proof Corpus + Goldens + Tests:
   - malformed persisted `route_basis` refusal
   - stale `route_basis` refusal after route-state mutation without a fresh resolve
   - inactive-stage refusal when `stage.10_feature_spec` is present in the pipeline but not active in the persisted route basis
-  - selected-stage-not-in-pipeline refusal
+  - selected-stage-not-in-pipeline refusal, rendered under the shipped `unsupported_target` contract
   - missing required artifact refusal for `stage.10_feature_spec`
   - optional-artifact absence success for `stage.10_feature_spec`
   - plain `pipeline compile` payload-only success
@@ -844,7 +844,7 @@ Lane C. Proof Corpus + Goldens + Tests:
   - `pipeline_compile_refuses_malformed_route_basis`
   - `pipeline_compile_refuses_stale_route_basis_after_state_set`
   - `pipeline_compile_refuses_inactive_stage`
-  - `pipeline_compile_refuses_stage_not_in_pipeline`
+  - `pipeline_compile_refuses_stage_not_in_pipeline` (asserting the existing `unsupported_target` surface)
   - `pipeline_compile_refuses_missing_required_artifact`
   - `pipeline_compile_allows_optional_artifacts_to_be_absent`
 - split responsibilities cleanly:

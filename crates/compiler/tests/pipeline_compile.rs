@@ -171,7 +171,39 @@ fn fixed_runtime() -> PipelineCompileRuntimeContext {
 }
 
 #[test]
-fn compile_success_matches_shared_payload_and_explain_goldens() {
+fn compile_feature_spec_payload_matches_shared_golden() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
+    let payload = render_pipeline_compile_payload(&result);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+        &payload,
+        &repo_root,
+        &[],
+        "compile.stage_10_feature_spec.payload.full_context.txt",
+    );
+}
+
+#[test]
+fn compile_feature_spec_explain_matches_shared_golden() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
+    let explain = render_pipeline_compile_explain(&result);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+        &explain,
+        &repo_root,
+        &[],
+        "compile.stage_10_feature_spec.explain.full_context.txt",
+    );
+}
+
+#[test]
+fn compile_payload_and_explain_share_one_typed_result() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
     let result =
         compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
@@ -179,6 +211,7 @@ fn compile_success_matches_shared_payload_and_explain_goldens() {
     let payload = render_pipeline_compile_payload(&result);
     let explain = render_pipeline_compile_explain(&result);
 
+    assert_eq!(result.target.stage_id, STAGE_ID);
     pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
         &payload,
         &repo_root,
@@ -194,7 +227,7 @@ fn compile_success_matches_shared_payload_and_explain_goldens() {
 }
 
 #[test]
-fn compile_refuses_when_route_basis_is_missing() {
+fn compile_refuses_missing_route_basis() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     let err =
         compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
@@ -208,7 +241,7 @@ fn compile_refuses_when_route_basis_is_missing() {
 }
 
 #[test]
-fn compile_refuses_when_required_artifact_is_missing() {
+fn compile_refuses_missing_required_artifact() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
     fs::remove_file(repo_root.join("artifacts/base/BASE_CONTEXT.md"))
         .expect("remove required artifact");
@@ -337,7 +370,7 @@ fn compile_succeeds_with_route_basis_backed_by_default_runner_and_profile() {
 }
 
 #[test]
-fn compile_refuses_when_route_basis_is_stale_after_state_mutation() {
+fn compile_refuses_stale_route_basis_after_route_state_mutation() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
     let (_, supported_variables) = supported_variables(&repo_root);
     apply_state_mutation(
@@ -360,7 +393,7 @@ fn compile_refuses_when_route_basis_is_stale_after_state_mutation() {
 }
 
 #[test]
-fn compile_refuses_when_persisted_route_basis_marks_stage_inactive() {
+fn compile_refuses_inactive_stage() {
     let (dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     let (_, supported_variables) = supported_variables(&repo_root);
     apply_state_mutation(
@@ -391,7 +424,33 @@ fn compile_refuses_when_persisted_route_basis_marks_stage_inactive() {
 }
 
 #[test]
-fn compile_refuses_when_route_basis_is_malformed() {
+fn compile_refuses_stage_not_declared_in_pipeline() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let pipeline_path = repo_root.join("pipelines/foundation_inputs.yaml");
+    let pipeline = fs::read_to_string(&pipeline_path).expect("read pipeline");
+    let updated_pipeline = pipeline.replace(
+        "  - id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n",
+        "",
+    );
+    assert_ne!(
+        pipeline, updated_pipeline,
+        "pipeline fixture should be updated for the test"
+    );
+    fs::write(&pipeline_path, updated_pipeline).expect("write pipeline");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget
+    );
+    assert!(err.summary.contains("unknown stage selector"));
+    assert!(err.summary.contains("stage.10_feature_spec"));
+}
+
+#[test]
+fn compile_refuses_malformed_route_basis() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
     let state_path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
     let state = fs::read_to_string(&state_path).expect("state file");

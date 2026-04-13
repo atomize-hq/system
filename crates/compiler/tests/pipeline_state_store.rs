@@ -154,6 +154,45 @@ fn persist_route_basis_accepts_defaulted_run_snapshot_against_unset_state_run() 
 }
 
 #[test]
+fn route_basis_round_trips_when_written_by_resolve() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+    let route_basis = build_route_basis(&repo_root, &definition, &state, &route).expect("basis");
+
+    let outcome = persist_route_basis(&repo_root, &definition.header.id, route_basis.clone())
+        .expect("persist");
+
+    let persisted_state = match outcome {
+        RouteBasisPersistOutcome::Applied(state) => *state,
+        RouteBasisPersistOutcome::Refused(refusal) => {
+            panic!("expected route basis persist to apply, got {refusal:?}")
+        }
+    };
+    assert_eq!(persisted_state.route_basis.as_ref(), Some(&route_basis));
+
+    let reloaded_state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("reload state");
+    assert_eq!(reloaded_state.route_basis.as_ref(), Some(&route_basis));
+}
+
+#[test]
 fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -294,6 +333,44 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
     assert_eq!(loaded, state);
+}
+
+#[test]
+fn legacy_m1_state_without_route_basis_still_loads() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.route_state
+revision: 2
+routing:
+  needs_project_context: false
+refs:
+  charter_ref: artifacts/charter/CHARTER.md
+run:
+  runner: codex-cli
+  profile: python-uv
+audit:
+  - revision: 1
+    field_path: run.runner
+    value: codex-cli
+  - revision: 2
+    field_path: routing.needs_project_context
+    value: false
+"#,
+    );
+
+    let state = load_route_state(repo_root, pipeline_id).expect("legacy state loads");
+    assert_eq!(state.schema_version, "m1-pipeline-state-v2");
+    assert_eq!(state.route_basis, None);
+    assert_eq!(state.run.runner.as_deref(), Some("codex-cli"));
+    assert_eq!(state.run.profile.as_deref(), Some("python-uv"));
+    assert_eq!(state.routing.get("needs_project_context"), Some(&false));
 }
 
 #[test]
@@ -440,6 +517,50 @@ audit: []
         RouteStateReadError::MalformedState { reason, .. } => {
             assert!(reason.contains("run.repo_root"), "{reason}");
             assert!(reason.contains("must be absolute"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_route_basis_is_distinct_from_malformed_route_state() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let malformed_route_basis_path =
+        pipeline_proof_corpus_support::install_state_seed(&repo_root, "malformed_route_basis.yaml");
+    let malformed_route_basis_err = load_route_state_with_supported_variables(
+        &repo_root,
+        pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID,
+        &std::collections::BTreeSet::from([
+            "needs_project_context".to_string(),
+            "charter_gaps_detected".to_string(),
+        ]),
+    )
+    .expect_err("malformed route basis should refuse");
+
+    match malformed_route_basis_err {
+        RouteStateReadError::MalformedState { path, reason } => {
+            assert_eq!(path, malformed_route_basis_path);
+            assert!(reason.contains("route_basis"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+
+    let malformed_route_state_path =
+        pipeline_proof_corpus_support::install_state_seed(&repo_root, "malformed_route_state.yaml");
+    let malformed_route_state_err = load_route_state_with_supported_variables(
+        &repo_root,
+        pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID,
+        &std::collections::BTreeSet::from([
+            "needs_project_context".to_string(),
+            "charter_gaps_detected".to_string(),
+        ]),
+    )
+    .expect_err("malformed route state should refuse");
+
+    match malformed_route_state_err {
+        RouteStateReadError::MalformedState { path, reason } => {
+            assert_eq!(path, malformed_route_state_path);
+            assert!(!reason.contains("route_basis"), "{reason}");
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
     }
