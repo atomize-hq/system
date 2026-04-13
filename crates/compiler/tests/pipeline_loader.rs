@@ -1411,6 +1411,53 @@ stages:
 }
 
 #[test]
+fn invalid_set_variable_name_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/invalid-set-variable.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.invalid_set_variable
+version: 0.1.0
+title: "Invalid Set Variable"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    sets:
+      - 9bad
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/invalid-set-variable.yaml")
+        .expect_err("invalid set variable");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidSetVariable {
+                    stage_id,
+                    variable,
+                    ..
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(variable, "9bad");
+        }
+        other => panic!("expected invalid-set-variable refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn empty_activation_clause_list_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();

@@ -754,6 +754,11 @@ pub enum PipelineValidationError {
         stage_id: String,
         index: usize,
     },
+    InvalidSetVariable {
+        stage_id: String,
+        variable: String,
+        reason: &'static str,
+    },
     StageFileOutsideRepoRoot {
         stage_id: String,
         file: String,
@@ -995,6 +1000,14 @@ impl fmt::Display for PipelineValidationError {
                 f,
                 "stage `{stage_id}` has an empty `sets` entry at index {index}"
             ),
+            PipelineValidationError::InvalidSetVariable {
+                stage_id,
+                variable,
+                reason,
+            } => write!(
+                f,
+                "stage `{stage_id}` has an out-of-contract `sets` variable `{variable}`: {reason}"
+            ),
             PipelineValidationError::StageFileOutsideRepoRoot { stage_id, file } => write!(
                 f,
                 "stage `{stage_id}` file `{file}` resolves outside the repo root"
@@ -1123,6 +1136,16 @@ fn validate_pipeline_definition(
                         error: PipelineValidationError::EmptySetVariable {
                             stage_id: stage.id.clone(),
                             index,
+                        },
+                    });
+                }
+                if let Some(reason) = invalid_route_variable_name_reason(entry) {
+                    return Err(PipelineLoadError::Validation {
+                        path: path.to_path_buf(),
+                        error: PipelineValidationError::InvalidSetVariable {
+                            stage_id: stage.id.clone(),
+                            variable: entry.clone(),
+                            reason,
                         },
                     });
                 }
@@ -1406,6 +1429,27 @@ fn validate_repo_relative_path(path: &Path) -> Result<&Path, &'static str> {
     }
 
     Ok(path)
+}
+
+fn invalid_route_variable_name_reason(variable: &str) -> Option<&'static str> {
+    let mut chars = variable.chars();
+    let Some(first) = chars.next() else {
+        return Some("variable name must not be empty");
+    };
+
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return Some(
+            "variable name must start with an ASCII letter or `_` and continue with ASCII alphanumeric or `_` characters",
+        );
+    }
+
+    if chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_') {
+        None
+    } else {
+        Some(
+            "variable name must start with an ASCII letter or `_` and continue with ASCII alphanumeric or `_` characters",
+        )
+    }
 }
 
 fn parse_activation_clause(input: String) -> Result<ActivationClause, String> {
