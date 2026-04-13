@@ -1,0 +1,12 @@
+Pipeline operator surface
+
+Usage: system pipeline <COMMAND>
+
+Commands:
+  list     List available pipelines
+  show     Show one canonical pipeline or stage declaration
+  resolve  Resolve one pipeline route from persisted route state
+  state    Route-state operations
+
+Options:
+  -h, --help  Print help

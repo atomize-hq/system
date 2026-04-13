@@ -1,0 +1,12 @@
+OUTCOME: APPLIED
+PIPELINE: pipeline.foundation_inputs
+REVISION: 2
+ROUTING:
+  <empty>
+REFS:
+  charter_ref = artifacts/charter/CHARTER.md
+  project_context_ref = <unset>
+RUN:
+  runner = codex-cli
+  profile = <unset>
+  repo_root = {{REPO_ROOT}}

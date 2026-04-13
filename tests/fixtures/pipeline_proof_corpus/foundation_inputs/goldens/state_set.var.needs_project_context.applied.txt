@@ -1,0 +1,12 @@
+OUTCOME: APPLIED
+PIPELINE: pipeline.foundation_inputs
+REVISION: 1
+ROUTING:
+  needs_project_context = true
+REFS:
+  charter_ref = <unset>
+  project_context_ref = <unset>
+RUN:
+  runner = <unset>
+  profile = <unset>
+  repo_root = {{REPO_ROOT}}

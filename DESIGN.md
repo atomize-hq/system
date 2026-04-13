@@ -183,16 +183,16 @@ Finished interaction target:
 Role:
 
 - orchestration surface
-- own route resolution, explicit stage compilation, and narrow pipeline-run state mutation
+- own route resolution, explicit stage selection, and narrow pipeline-run state mutation
 
 Design rule:
 
 - `pipeline` is not a generic workflow engine brand
-- it exists to make route truth and stage compilation explicit and auditable
+- it exists to make route truth and future compile boundaries explicit and auditable
 
 Finished interaction target:
 
-- `pipeline resolve` and `pipeline compile` stay separate jobs with one shared typed route truth
+- `pipeline resolve` and future compile work stay separate jobs with one shared typed route truth
 - `pipeline state set` stays schema-bound, auditable, and narrow
 - `pipeline` should feel like compiler control-plane tooling, not a second front door
 
@@ -278,7 +278,7 @@ The highest-value vocabulary rules are:
 - use `refusal` for blocked command outcomes
 - use `next safe action` for the repair handoff line
 - do not rename `setup` to `bootstrap`, `init`, `hydrate`, or `onboard`
-- do not describe `pipeline` as a generic framework when the product meaning is route truth plus explicit stage compilation
+- do not describe `pipeline` as a generic framework when the product meaning is route truth plus explicit stage selection
 
 ## Hierarchy And Routing Contract
 

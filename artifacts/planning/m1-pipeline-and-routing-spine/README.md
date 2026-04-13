@@ -1,0 +1,26 @@
+# M1 Pipeline And Routing Spine - seam extraction
+
+Source: `PLAN.md` (`M1. Pipeline And Routing Spine`)
+
+This pack captures seam briefs, authoritative threading, pack-level review surfaces, seam-exit intent, and governance scaffolds for the `M1` pipeline-and-routing milestone. It intentionally stays one level above seam-local decomposition.
+
+- Start here: `scope_brief.md`
+- Seam overview: `seam_map.md`
+- Threading: `threading.md`
+- Pack review surfaces: `review_surfaces.md`
+- Governance: `governance/remediation-log.md`
+
+Execution horizon:
+
+- Active seam: none
+- Next seam: none
+- Landed seams outside the forward window: `SEAM-1`, `SEAM-2`, `SEAM-3`, `SEAM-4`
+
+Policy:
+
+- only the active seam is eligible for authoritative downstream sub-slices by default
+- the next seam may later receive seam-local review + slices, and only provisional candidate-subslice hints
+- active and next seams must eventually terminate in a dedicated final `S99` `seam-exit-gate` slice once seam-local planning begins
+- seams that own undefined contracts may reserve `S00` as a contract-definition boundary slice once seam-local planning begins
+- no future seams remain in this pack
+- canonical contract docs live in `docs/contracts/` and must remain descriptive-only

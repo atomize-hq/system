@@ -15,33 +15,39 @@ From repo root:
 ```bash
 cargo run -p system-cli -- --help
 cargo run -p system-cli -- setup
+cargo run -p system-cli -- pipeline --help
 cargo run -p system-cli -- generate
 cargo run -p system-cli -- inspect
 cargo run -p system-cli -- doctor
 ```
 
-## Reviewed target surface (lands with the `pipeline` family)
+## Reviewed `pipeline` surface
 
 ```bash
 cargo run -p system-cli -- pipeline list
-cargo run -p system-cli -- pipeline resolve --id pipeline.foundation
+cargo run -p system-cli -- pipeline show --id pipeline.foundation
+cargo run -p system-cli -- pipeline resolve --id pipeline.foundation_inputs
+cargo run -p system-cli -- pipeline state set --id pipeline.foundation_inputs --var needs_project_context=true
 ```
+
+For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
 
 ## Current command meanings
 
 - `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
-- `pipeline` owns route resolution, explicit stage compilation, and narrow route-state mutation for the reviewed wedge.
+- `pipeline` owns `list`, `show`, `resolve`, and `state set` for the reviewed wedge.
+- `pipeline` is reviewed and contractually defined now, and the help surface pins that supported subset while `pipeline compile` remains deferred under `C-10`.
 - `generate` produces planning packets from canonical repo-local `.system/` inputs and supports the fixture-backed execution demo via `execution.demo.packet`.
 - `inspect` is the proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.
 
 ## What to expect right now
 
-- The currently shipped binary may still expose only `setup`, `generate`, `inspect`, and `doctor` until the `pipeline` family lands.
-- `pipeline` becomes a supported surface only when its code, help text, docs, contracts, tests, and proof-corpus gates land together.
+- The currently shipped binary exposes `pipeline` as the reviewed operator surface alongside `setup`, `generate`, `inspect`, and `doctor`.
+- `pipeline` stays limited to the supported M1 subset until later seams extend the surface.
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
 - For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
-- For `pipeline`, route resolution and stage compilation stay inside the approved repo surface and use one shared resolved-route truth.
+- For `pipeline`, list/show/resolve/state-set stay inside the approved repo surface and use one shared resolved-route truth.
 - If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
 - Once `.system/` canonical artifacts exist, planning packet generation is supported.
 - Execution packets are only supported as fixture-backed demos via `execution.demo.packet`, and live execution is explicitly refused.

@@ -7,9 +7,11 @@ pub mod error;
 pub mod freshness;
 pub mod packet_result;
 pub mod pipeline;
+pub mod pipeline_route;
 pub mod refusal;
 pub mod rendering;
 pub mod resolver;
+pub mod route_state;
 
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
@@ -33,18 +35,34 @@ pub use freshness::{
 };
 pub use packet_result::PacketResult;
 pub use pipeline::{
-    load_pipeline_definition, ActivationClause, ActivationConditionSet, ActivationOperator,
-    ActivationValidationError, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
-    PipelineLoadError, PipelineStage, PipelineValidationError, StageActivation,
+    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
+    load_pipeline_selection_metadata, render_pipeline_list, render_pipeline_show,
+    resolve_pipeline_only_selector, resolve_pipeline_selector, supported_route_state_variables,
+    ActivationClause, ActivationConditionSet, ActivationOperator, ActivationValidationError,
+    PipelineBody, PipelineCatalog, PipelineCatalogEntry, PipelineCatalogError,
+    PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
+    PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
     StageFileValidationError,
+};
+pub use pipeline_route::{
+    resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,
+    RouteStageReason, RouteStageStatus, RouteVariables,
 };
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
-    build_output_model, render_inspect, render_json, render_markdown, RenderError,
-    RenderOutputModel, RenderSurface,
+    build_output_model, render_blocker_category, render_inspect, render_json, render_markdown,
+    render_next_safe_action_value, render_subject_ref, RenderError, RenderOutputModel,
+    RenderSurface,
 };
 pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
+};
+pub use route_state::{
+    load_route_state, load_route_state_with_supported_variables, set_route_state, RouteState,
+    RouteStateAuditEntry, RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal,
+    RouteStateReadError, RouteStateRefs, RouteStateRun, RouteStateStoreError, RouteStateValue,
+    ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 pub fn workspace_contract_version() -> &'static str {

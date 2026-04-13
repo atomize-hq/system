@@ -98,7 +98,7 @@ Rules:
 - `## REFUSAL` and `## BLOCKERS` still appear on the ready path and may contain `NONE`.
 - `## JSON FALLBACK` always appears.
 - Proof order privileges evidence review over narrative prose.
-- The current ready-path `NEXT SAFE ACTION` is self-referential and should be treated as a shipped quirk, not the ideal long-term inspect design.
+- The ready-path `NEXT SAFE ACTION` must hand off to the packet surface, not back into `inspect`.
 
 ### Blocked or refused
 

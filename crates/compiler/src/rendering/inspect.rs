@@ -7,31 +7,32 @@ use super::shared::{
 };
 
 pub fn render_inspect(model: &RenderOutputModel) -> String {
+    let inspect_model = inspect_model(model);
     let mut output = String::new();
 
     push_line(
         &mut output,
         format!(
             "OUTCOME: {}",
-            render_outcome(model.packet_status, model.refusal.is_some())
+            render_outcome(inspect_model.packet_status, inspect_model.refusal.is_some())
         ),
     );
-    push_line(&mut output, format!("OBJECT: {}", model.packet_id));
+    push_line(&mut output, format!("OBJECT: {}", inspect_model.packet_id));
     push_line(
         &mut output,
         format!(
             "NEXT SAFE ACTION: {}",
             render_next_safe_action_from_model(
-                &model.packet_result,
-                model.refusal.as_ref(),
-                &model.blockers
+                &inspect_model.packet_result,
+                inspect_model.refusal.as_ref(),
+                &inspect_model.blockers
             )
         ),
     );
 
     output.push('\n');
     push_line(&mut output, "## DECISION LOG");
-    for (index, entry) in model.decision_log_entries.iter().enumerate() {
+    for (index, entry) in inspect_model.decision_log_entries.iter().enumerate() {
         push_line(&mut output, format!("{}. {}", index + 1, entry));
     }
 
@@ -41,20 +42,20 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
         &mut output,
         format!(
             "DISPOSITION: {}",
-            render_budget_disposition(model.budget_outcome.disposition)
+            render_budget_disposition(inspect_model.budget_outcome.disposition)
         ),
     );
     push_line(
         &mut output,
         format!(
             "REASON: {}",
-            render_budget_reason(&model.budget_outcome.reason)
+            render_budget_reason(&inspect_model.budget_outcome.reason)
         ),
     );
-    if model.budget_outcome.targets.is_empty() {
+    if inspect_model.budget_outcome.targets.is_empty() {
         push_line(&mut output, "TARGETS: NONE");
     } else {
-        for (index, target) in model.budget_outcome.targets.iter().enumerate() {
+        for (index, target) in inspect_model.budget_outcome.targets.iter().enumerate() {
             push_line(
                 &mut output,
                 format!(
@@ -66,7 +67,7 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
             );
         }
     }
-    match render_budget_next_safe_action(model.budget_outcome.next_safe_action.as_ref()) {
+    match render_budget_next_safe_action(inspect_model.budget_outcome.next_safe_action.as_ref()) {
         Some(next_safe_action) => push_line(
             &mut output,
             format!("NEXT SAFE ACTION: {}", next_safe_action),
@@ -76,7 +77,7 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
 
     output.push('\n');
     push_line(&mut output, "## REFUSAL");
-    match model.refusal.as_ref() {
+    match inspect_model.refusal.as_ref() {
         Some(refusal) => {
             push_line(
                 &mut output,
@@ -103,10 +104,10 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
 
     output.push('\n');
     push_line(&mut output, "## BLOCKERS");
-    if model.blockers.is_empty() {
+    if inspect_model.blockers.is_empty() {
         push_line(&mut output, "NONE");
     } else {
-        for (index, blocker) in model.blockers.iter().enumerate() {
+        for (index, blocker) in inspect_model.blockers.iter().enumerate() {
             if index > 0 {
                 output.push('\n');
             }
@@ -129,30 +130,63 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
         }
     }
 
-    if model.packet_result.is_ready() {
+    if inspect_model.packet_result.is_ready() {
         output.push('\n');
         push_line(&mut output, "## PACKET OVERVIEW");
         push_line(
             &mut output,
             format!(
                 "PACKET VARIANT: {}",
-                super::shared::render_packet_variant(model.packet_result.variant)
+                super::shared::render_packet_variant(inspect_model.packet_result.variant)
             ),
         );
         push_line(
             &mut output,
             format!(
                 "SUMMARY: {}",
-                model.packet_result.decision_summary.summary_line
+                inspect_model.packet_result.decision_summary.summary_line
             ),
         );
         output.push('\n');
-        super::shared::render_packet_body(&mut output, &model.packet_result);
+        super::shared::render_packet_body(&mut output, &inspect_model.packet_result);
     }
 
     output.push('\n');
     push_line(&mut output, "## JSON FALLBACK");
-    push_line(&mut output, render_json(model).trim_end());
+    push_line(&mut output, render_json(&inspect_model).trim_end());
 
     output
+}
+
+fn inspect_model(model: &RenderOutputModel) -> RenderOutputModel {
+    let mut inspect_model = model.clone();
+    if inspect_model.packet_result.is_ready()
+        && inspect_model.refusal.is_none()
+        && inspect_model.blockers.is_empty()
+    {
+        inspect_model
+            .packet_result
+            .decision_summary
+            .ready_next_safe_action = inspect_ready_next_safe_action(&inspect_model);
+    }
+    inspect_model
+}
+
+fn inspect_ready_next_safe_action(model: &RenderOutputModel) -> String {
+    match model.packet_result.variant {
+        crate::packet_result::PacketVariant::Planning
+        | crate::packet_result::PacketVariant::ExecutionLive => {
+            format!("run `system generate --packet {}`", model.packet_id)
+        }
+        crate::packet_result::PacketVariant::ExecutionDemo => {
+            if let Some(context) = model.packet_result.fixture_context.as_ref() {
+                format!(
+                    "run `system generate --packet {} --fixture-set {}`",
+                    model.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!("run `system generate --packet {}`", model.packet_id)
+            }
+        }
+    }
 }

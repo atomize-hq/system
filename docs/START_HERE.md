@@ -14,8 +14,8 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/project_context/PROJECT_CONTEXT.md`
   - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
-- **The reviewed command surface adds `pipeline`** for route resolution, explicit stage compilation, and narrow route-state mutation.
-  - Until the `pipeline` family lands in code/help/docs/tests together, treat it as the next reviewed supported surface, not as already shipped behavior.
+- **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, and `state set` over route truth and narrow route-state mutation.
+  - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
@@ -32,10 +32,11 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - Operator journey and conformance review: [`docs/CLI_OPERATOR_JOURNEY.md`](CLI_OPERATOR_JOURNEY.md)
 - Contracts (the authoritative truth): [`docs/contracts/`](contracts/)
 - CLI command surface and wording: [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md)
+- Pipeline operator surface and ID resolution: [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md)
 - Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
 - Refusal + doctor blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)
-- Conformance + docs/help parity rails: [`C-07`](contracts/C-07-conformance-rails-and-docs-cutover.md)
+- Docs/help parity and conformance rails for the reviewed `pipeline` subset: [`C-11`](contracts/pipeline-proof-corpus-and-docs-cutover.md)
 
 Legacy reference docs (Python harness, stage reference, old workflow guides) live under [`docs/legacy/`](legacy/README.md).

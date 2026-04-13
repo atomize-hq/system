@@ -1,0 +1,12 @@
+---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.foundation_inputs
+revision: 1
+routing:
+  needs_project_context: true
+refs: {}
+run: {}
+audit:
+  - revision: 1
+    field_path: routing.needs_project_context
+    value: true

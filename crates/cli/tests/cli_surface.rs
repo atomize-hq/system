@@ -1,3 +1,5 @@
+mod pipeline_proof_corpus_support;
+
 use std::process::{Command, Output};
 
 fn binary() -> Command {
@@ -145,6 +147,86 @@ fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir
     (dir, nested)
 }
 
+fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\nactivation:\n  when:\n    any:\n      - variables.needs_project_context == true\n---\n# base\n",
+    );
+    write_file(
+        &root.join("pipelines/drift.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.drift\nversion: 0.1.0\ntitle: Drift\ndescription: drift\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
+fn invalid_pipeline_id_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+    write_file(
+        &root.join("pipelines/bad-id.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.bad/path\nversion: 0.1.0\ntitle: Bad Id\ndescription: bad\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
+fn unused_bad_stage_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("core/stages/99_bad_unused.md"),
+        b"---\nkind: nonsense\nid: stage.bad_unused\nversion: 0.1.0\ntitle: Bad Unused Stage\ndescription: bad\n---\n# bad\n",
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
+fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("core/stages/bad.md"),
+        b"---\nkind: nonsense\nid: stage.bad\nversion: 0.1.0\ntitle: Bad\ndescription: bad\n---\n# bad\n",
+    );
+    write_file(
+        &root.join("pipelines/foundation.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+    write_file(
+        &root.join("pipelines/broken.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.broken\nversion: 0.1.0\ntitle: Broken\ndescription: broken\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.bad\n    file: core/stages/bad.md\n",
+    );
+
+    (dir, root)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -156,24 +238,645 @@ fn help_lists_setup_first() {
 
     assert_eq!(
         command_lines.len(),
-        4,
-        "expected four command lines in help"
+        5,
+        "expected five command lines in help"
     );
     assert!(
         command_lines[0].starts_with("setup "),
         "setup should be first: {command_lines:?}"
     );
     assert!(
-        command_lines[1].starts_with("generate "),
-        "generate should be second: {command_lines:?}"
+        command_lines[1].starts_with("pipeline "),
+        "pipeline should be second: {command_lines:?}"
     );
     assert!(
-        command_lines[2].starts_with("inspect "),
-        "inspect should be third: {command_lines:?}"
+        command_lines[2].starts_with("generate "),
+        "generate should be third: {command_lines:?}"
     );
     assert!(
-        command_lines[3].starts_with("doctor "),
-        "doctor should be fourth: {command_lines:?}"
+        command_lines[3].starts_with("inspect "),
+        "inspect should be fourth: {command_lines:?}"
+    );
+    assert!(
+        command_lines[4].starts_with("doctor "),
+        "doctor should be fifth: {command_lines:?}"
+    );
+}
+
+#[test]
+fn pipeline_help_lists_supported_surface() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "--help"]);
+    assert!(output.status.success(), "pipeline help should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    let command_lines = command_section_lines(&stdout);
+
+    assert_eq!(
+        command_lines.len(),
+        4,
+        "expected four pipeline command lines"
+    );
+    assert!(
+        command_lines[0].starts_with("list "),
+        "list should be first: {command_lines:?}"
+    );
+    assert!(
+        command_lines[1].starts_with("show "),
+        "show should be second: {command_lines:?}"
+    );
+    assert!(
+        command_lines[2].starts_with("resolve "),
+        "resolve should be third: {command_lines:?}"
+    );
+    assert!(
+        command_lines[3].starts_with("state "),
+        "state should be fourth: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("Pipeline operator surface"),
+        "expected pipeline help title: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_state_help_lists_set() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "state", "--help"]);
+    assert!(
+        output.status.success(),
+        "pipeline state help should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    let command_lines = command_section_lines(&stdout);
+
+    assert_eq!(
+        command_lines.len(),
+        1,
+        "expected one pipeline state command line"
+    );
+    assert!(
+        command_lines[0].starts_with("set "),
+        "set should be the only state subcommand: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("Set one supported route-state field"),
+        "expected pipeline state help text: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_list_and_show_use_canonical_id_discovery() {
+    let root = workspace_root();
+
+    let list = run_in(root.as_path(), &["pipeline", "list"]);
+    assert!(list.status.success(), "pipeline list should succeed");
+    let list_stdout = String::from_utf8(list.stdout).expect("list stdout is utf-8");
+    assert!(list_stdout.contains("PIPELINE INVENTORY"));
+    assert!(list_stdout.contains("PIPELINE COUNT: 4"));
+    assert!(list_stdout.contains("PIPELINE: pipeline.foundation"));
+    assert!(list_stdout.contains("SOURCE: pipelines/foundation.yaml"));
+
+    let show = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipeline.foundation_inputs"],
+    );
+    assert!(show.status.success(), "pipeline show should succeed");
+    let show_stdout = String::from_utf8(show.stdout).expect("show stdout is utf-8");
+    assert!(show_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
+    assert!(show_stdout.contains("DEFAULTS:"));
+    assert!(show_stdout.contains("SOURCE: pipelines/foundation_inputs.yaml"));
+    assert!(show_stdout.contains("stage.05_charter_synthesize"));
+    assert!(show_stdout.contains("core/stages/05_charter_synthesize.md"));
+    assert!(show_stdout.contains("sets: [needs_project_context]"));
+    assert!(show_stdout.contains(
+        "activation: activation.when.any [variables.charter_gaps_detected == true, variables.needs_project_context == true]"
+    ));
+
+    let shorthand = run_in(root.as_path(), &["pipeline", "show", "--id", "00_base"]);
+    assert!(shorthand.status.success(), "stage shorthand should resolve");
+    let shorthand_stdout = String::from_utf8(shorthand.stdout).expect("stdout is utf-8");
+    assert!(shorthand_stdout.contains("STAGE: stage.00_base"));
+    assert!(shorthand_stdout.contains("pipeline.foundation"));
+
+    let ambiguous_repo = tempfile::tempdir().expect("tempdir");
+    let ambiguous_root = ambiguous_repo.path();
+    write_file(
+        &ambiguous_root.join("core/stages/alpha.md"),
+        b"---\nkind: stage\nid: stage.alpha\nversion: 0.1.0\ntitle: Alpha Stage\ndescription: alpha\n---\n# alpha\n",
+    );
+    write_file(
+        &ambiguous_root.join("pipelines/alpha.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.alpha\nversion: 0.1.0\ntitle: Alpha Pipeline\ndescription: alpha\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.alpha\n    file: core/stages/alpha.md\n",
+    );
+
+    let ambiguous = run_in(ambiguous_root, &["pipeline", "show", "--id", "alpha"]);
+    assert!(
+        !ambiguous.status.success(),
+        "ambiguous shorthand should refuse"
+    );
+    let ambiguous_stdout = String::from_utf8(ambiguous.stdout).expect("stdout is utf-8");
+    assert!(ambiguous_stdout.contains("ambiguous selector `alpha`"));
+    assert!(ambiguous_stdout.contains("pipeline.alpha"));
+    assert!(ambiguous_stdout.contains("stage.alpha"));
+    assert!(ambiguous_stdout.contains("NEXT SAFE ACTION"));
+    assert!(ambiguous_stdout.contains("rename the conflicting ids"));
+
+    let unknown = run_in(root.as_path(), &["pipeline", "show", "--id", "missing-id"]);
+    assert!(!unknown.status.success(), "unknown selector should refuse");
+    let unknown_stdout = String::from_utf8(unknown.stdout).expect("stdout is utf-8");
+    assert!(unknown_stdout.contains("unknown pipeline selector `missing-id`"));
+    assert!(unknown_stdout.contains("pipeline list"));
+    assert!(unknown_stdout.contains("NEXT SAFE ACTION"));
+    assert!(unknown_stdout.contains("full canonical id"));
+
+    let path_like = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipelines/foundation.yaml"],
+    );
+    assert!(
+        !path_like.status.success(),
+        "path-like selector should refuse"
+    );
+    let path_like_stdout = String::from_utf8(path_like.stdout).expect("stdout is utf-8");
+    assert!(path_like_stdout.contains("raw file paths are evidence only"));
+    assert!(path_like_stdout.contains("NEXT SAFE ACTION"));
+    assert!(path_like_stdout.contains("canonical pipeline or stage id"));
+}
+
+#[test]
+fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let first_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        first_resolve.status.success(),
+        "pipeline resolve should succeed"
+    );
+    let first_resolve_stdout = String::from_utf8(first_resolve.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &first_resolve_stdout,
+        root.as_path(),
+        None,
+        "resolve.initial.txt",
+    );
+
+    let applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+    );
+    assert!(
+        applied.status.success(),
+        "pipeline state set should succeed"
+    );
+    let applied_stdout = String::from_utf8(applied.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &applied_stdout,
+        root.as_path(),
+        None,
+        "state_set.var.needs_project_context.applied.txt",
+    );
+
+    let activation_applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=true",
+        ],
+    );
+    assert!(
+        activation_applied.status.success(),
+        "activation-only route variable should be supported"
+    );
+    let activation_applied_stdout =
+        String::from_utf8(activation_applied.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &activation_applied_stdout,
+        root.as_path(),
+        None,
+        "state_set.var.charter_gaps_detected.applied.txt",
+    );
+
+    let second_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        second_resolve.status.success(),
+        "pipeline resolve should succeed after mutation"
+    );
+    let second_resolve_stdout = String::from_utf8(second_resolve.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &second_resolve_stdout,
+        root.as_path(),
+        None,
+        "resolve.after_full_activation.txt",
+    );
+}
+
+#[test]
+fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let runner_applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.runner=codex-cli",
+        ],
+    );
+    assert!(
+        runner_applied.status.success(),
+        "run.runner field should succeed"
+    );
+    let runner_stdout = String::from_utf8(runner_applied.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &runner_stdout,
+        root.as_path(),
+        None,
+        "state_set.field.run_runner.applied.txt",
+    );
+
+    let ref_applied = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+    );
+    assert!(
+        ref_applied.status.success(),
+        "refs.charter_ref field should succeed"
+    );
+    let ref_stdout = String::from_utf8(ref_applied.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &ref_stdout,
+        root.as_path(),
+        None,
+        "state_set.field.refs_charter_ref.applied.txt",
+    );
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        resolve.status.success(),
+        "pipeline resolve should surface refs and run fields in route basis"
+    );
+    let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &resolve_stdout,
+        root.as_path(),
+        None,
+        "resolve.after_run_and_refs.txt",
+    );
+}
+
+#[test]
+fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let invalid_path = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.unknown=artifacts/charter/CHARTER.md",
+        ],
+    );
+    assert!(
+        !invalid_path.status.success(),
+        "invalid field path should refuse"
+    );
+    let invalid_path_stdout = String::from_utf8(invalid_path.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        invalid_path_stdout.trim_end(),
+        "REFUSED: unsupported --field path `refs.unknown`; expected one of `run.runner`, `run.profile`, `refs.charter_ref`, or `refs.project_context_ref`"
+    );
+
+    let derived_path = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.repo_root=/tmp/repo",
+        ],
+    );
+    assert!(
+        !derived_path.status.success(),
+        "derived run.repo_root field should refuse"
+    );
+    let derived_path_stdout = String::from_utf8(derived_path.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        derived_path_stdout.trim_end(),
+        "REFUSED: unsupported --field path `run.repo_root`; expected one of `run.runner`, `run.profile`, `refs.charter_ref`, or `refs.project_context_ref`"
+    );
+
+    let invalid_value = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=/tmp/CHARTER.md",
+        ],
+    );
+    assert!(
+        !invalid_value.status.success(),
+        "invalid field value should refuse"
+    );
+    let invalid_value_stdout = String::from_utf8(invalid_value.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        invalid_value_stdout.trim_end(),
+        "REFUSED: route state mutation error: route state mutation is invalid: repo-relative ref `/tmp/CHARTER.md` must not be absolute"
+    );
+}
+
+#[test]
+fn pipeline_list_and_show_ignore_activation_drift_during_inventory_inspection() {
+    let (_dir, root) = activation_drift_pipeline_repo();
+
+    for args in [
+        vec!["pipeline", "list"],
+        vec!["pipeline", "show", "--id", "pipeline.drift"],
+        vec!["pipeline", "show", "--id", "stage.00_base"],
+    ] {
+        let output = run_in(root.as_path(), &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+        assert!(
+            !stdout.contains("has activation drift"),
+            "inventory command should not surface activation drift for {:?}: {stdout}",
+            args
+        );
+    }
+}
+
+#[test]
+fn pipeline_list_and_show_ignore_unrelated_broken_stage_files_during_inventory_inspection() {
+    let (_dir, root) = unused_bad_stage_repo();
+
+    for args in [
+        vec!["pipeline", "list"],
+        vec!["pipeline", "show", "--id", "pipeline.foundation"],
+        vec!["pipeline", "show", "--id", "stage.00_base"],
+    ] {
+        let output = run_in(root.as_path(), &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+        assert!(
+            !stdout.contains("pipeline catalog error"),
+            "unexpected refusal: {stdout}"
+        );
+        assert!(stdout.contains("pipeline.foundation") || stdout.contains("stage.00_base"));
+    }
+}
+
+#[test]
+fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_evaluation() {
+    let (_dir, root) = activation_drift_pipeline_repo();
+
+    for args in [
+        vec!["pipeline", "resolve", "--id", "pipeline.drift"],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "pipeline.drift",
+            "--var",
+            "needs_project_context=true",
+        ],
+    ] {
+        let output = run_in(root.as_path(), &args);
+        assert!(
+            !output.status.success(),
+            "route-aware command should refuse: {:?}",
+            args
+        );
+
+        let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+        assert!(
+            stdout.contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
+            "expected catalog refusal for {:?}: {stdout}",
+            args
+        );
+        assert!(
+            stdout.contains("has activation drift"),
+            "expected activation drift for {:?}: {stdout}",
+            args
+        );
+        assert!(
+            stdout.contains("stage `stage.00_base` file `core/stages/00_base.md`"),
+            "expected stage identification for {:?}: {stdout}",
+            args
+        );
+    }
+}
+
+#[test]
+fn pipeline_list_omits_unrelated_invalid_pipeline_ids_but_resolve_still_refuses() {
+    let (_dir, root) = invalid_pipeline_id_repo();
+
+    let output = run_in(root.as_path(), &["pipeline", "list"]);
+    assert!(output.status.success(), "pipeline list should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("PIPELINE: pipeline.foundation"));
+    assert!(
+        !stdout.contains("PIPELINE: pipeline.bad/path"),
+        "invalid pipeline id must not be advertised: {stdout}"
+    );
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "pipeline.foundation"],
+    );
+    assert!(
+        !resolve.status.success(),
+        "pipeline resolve should still refuse"
+    );
+    let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
+    assert!(
+        resolve_stdout
+            .contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
+        "expected strict catalog refusal: {resolve_stdout}"
+    );
+    assert!(
+        resolve_stdout.contains("field `id` has invalid canonical id `pipeline.bad/path`"),
+        "expected invalid canonical id detail: {resolve_stdout}"
+    );
+}
+
+#[test]
+fn pipeline_show_still_refuses_when_selected_pipeline_has_broken_stage_metadata() {
+    let (_dir, root) = selected_broken_pipeline_repo();
+
+    let healthy = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipeline.foundation"],
+    );
+    assert!(
+        healthy.status.success(),
+        "healthy pipeline show should succeed"
+    );
+
+    let broken = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipeline.broken"],
+    );
+    assert!(
+        !broken.status.success(),
+        "selected broken pipeline should refuse"
+    );
+    let stdout = String::from_utf8(broken.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: pipeline catalog error: stage front matter"),
+        "expected stage metadata refusal: {stdout}"
+    );
+    assert!(
+        stdout.contains("must declare kind `stage`, got `nonsense`"),
+        "expected stage kind detail: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_state_set_preserves_distinct_refusals() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let state_path = pipeline_proof_corpus_support::install_state_seed(
+        root.as_path(),
+        "malformed_route_state.yaml",
+    );
+
+    let malformed = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+    );
+    assert!(
+        !malformed.status.success(),
+        "malformed route state should refuse"
+    );
+    let malformed_stdout = String::from_utf8(malformed.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &malformed_stdout,
+        root.as_path(),
+        Some(&state_path),
+        "state_set.refused.malformed_route_state.txt",
+    );
+
+    pipeline_proof_corpus_support::install_state_seed(
+        root.as_path(),
+        "revision_conflict_state.yaml",
+    );
+
+    let revision_conflict = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=false",
+            "--expected-revision",
+            "0",
+        ],
+    );
+    let revision_conflict_stdout =
+        String::from_utf8(revision_conflict.stdout).expect("stdout is utf-8");
+    assert!(
+        !revision_conflict.status.success(),
+        "revision conflict should refuse: {revision_conflict_stdout}"
+    );
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &revision_conflict_stdout,
+        root.as_path(),
+        None,
+        "state_set.refused.revision_conflict.txt",
+    );
+
+    let unsupported = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "unsupported_flag=true",
+        ],
+    );
+    assert!(
+        !unsupported.status.success(),
+        "unsupported variable should refuse"
+    );
+    let unsupported_stdout = String::from_utf8(unsupported.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &unsupported_stdout,
+        root.as_path(),
+        None,
+        "state_set.refused.unsupported_variable.txt",
     );
 }
 
@@ -250,10 +953,14 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
     );
     assert!(second_stdout.contains("## JSON FALLBACK"));
+    assert!(
+        !second_stdout.contains("run `system inspect --packet planning.packet` for proof"),
+        "inspect ready path should not loop back into inspect: {second_stdout}"
+    );
     assert!(second_stdout.contains("## PACKET BODY"));
     assert!(second_stdout.contains("### CHARTER"));
     assert!(second_stdout.contains("### FEATURE_SPEC"));
@@ -399,6 +1106,18 @@ fn doctor_blocks_when_system_root_missing() {
         stdout.contains("SystemRootMissing"),
         "expected SystemRootMissing category: {stdout}"
     );
+    assert!(
+        stdout.contains("SUBJECT: policy system_root"),
+        "expected human-facing subject: {stdout}"
+    );
+    assert!(
+        stdout.contains("NEXT SAFE ACTION: create canonical .system root at .system"),
+        "expected human-facing next action: {stdout}"
+    );
+    assert!(
+        !stdout.contains("NEXT ACTION:"),
+        "doctor should use NEXT SAFE ACTION phrasing: {stdout}"
+    );
 }
 
 #[test]
@@ -412,6 +1131,9 @@ fn doctor_blocks_when_feature_spec_missing_in_partial_system_tree() {
     assert!(stdout.contains("BLOCKED"));
     assert!(stdout.contains("RequiredArtifactMissing"));
     assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"));
+    assert!(stdout.contains(
+        "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+    ));
 }
 
 #[test]
@@ -691,8 +1413,12 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
+    );
+    assert!(
+        !stdout.contains("run `system inspect --packet planning.packet` for proof"),
+        "inspect ready path should not loop back into inspect: {stdout}"
     );
     assert!(
         stdout.contains("## JSON FALLBACK"),
@@ -737,7 +1463,7 @@ fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
     );
     assert!(
@@ -959,8 +1685,14 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
         ],
+    );
+    assert!(
+        !stdout.contains(
+            "run `system inspect --packet execution.demo.packet --fixture-set basic` for proof"
+        ),
+        "inspect ready path should not loop back into inspect: {stdout}"
     );
     assert!(
         stdout.contains("## FIXTURE DEMO"),
@@ -1053,7 +1785,7 @@ fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(
@@ -1231,7 +1963,7 @@ fn inspect_resolves_execution_demo_packet_from_committed_fixture_dir() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(

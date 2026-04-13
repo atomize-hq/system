@@ -1,0 +1,9 @@
+Route-state operations
+
+Usage: system pipeline state <COMMAND>
+
+Commands:
+  set  Set one supported route-state field
+
+Options:
+  -h, --help  Print help

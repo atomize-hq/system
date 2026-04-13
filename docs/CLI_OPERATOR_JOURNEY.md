@@ -119,40 +119,39 @@ Observed surface:
 
 - `inspect` is evidence-rich and stable.
 - Section ordering feels like proof, not chat.
-- The ready-path next action is self-referential: it tells the operator to run `inspect` for proof while they are already in `inspect`.
+- The ready-path next action now hands off back to `generate`, which is the packet surface.
 
 Conformance:
 
 - D1 vocabulary: aligned
 - D2 proof role: aligned
 - D3 tone: aligned
-- D4 anatomy: partially aligned because the shipped next action is semantically wrong
-- D5 honesty rules: aligned because the contract now names this as a known quirk
+- D4 anatomy: aligned
+- D5 honesty rules: aligned
 
 Verdict:
 
-- Good proof surface, flawed ready-path handoff.
-- The output is useful despite the next-action bug, not because of it.
+- Good proof surface with an intentional ready-path handoff.
+- The command now closes the loop cleanly instead of pointing at itself.
 
 ### Step 5, use `doctor` when the repo is blocked
 
 Observed surface:
 
 - `doctor` prints `BLOCKED`.
-- It then prints raw debug-shaped blocker groups:
+- It then prints compact blocker groups:
   - `CATEGORY`
   - `SUMMARY`
-  - `SUBJECT: Policy { ... }`
-  - `NEXT ACTION: CreateSystemRoot { ... }`
-- It does not use the trust header.
-- It does not use the human-facing `NEXT SAFE ACTION` phrasing.
+  - `SUBJECT: policy ...`
+  - `NEXT SAFE ACTION: ...`
+- It still does not use the trust header.
 - It does not name an object.
 
 Conformance:
 
-- D1 vocabulary: not aligned
+- D1 vocabulary: aligned
 - D2 recovery role: aligned in concept, weak in presentation
-- D3 tone: not aligned
+- D3 tone: partially aligned
 - D4 anatomy: not aligned
 - D5 honesty rules: aligned because the interaction contract explicitly calls `doctor` transitional
 
@@ -183,10 +182,10 @@ Verdict:
 
 | Area | Status | Notes |
 |------|--------|-------|
-| D1 Vocabulary | Mostly aligned | Main drift is `doctor` using `NEXT ACTION` and raw debug-shaped subject rendering |
+| D1 Vocabulary | Aligned | The shipped commands now use the locked `NEXT SAFE ACTION` phrasing and human-facing blocker subjects |
 | D2 Hierarchy and front door | Partially aligned | Help and steady-state path are good; guided setup handoff is still unresolved in the shipped CLI |
-| D3 Tone | Mostly aligned | `generate` and `inspect` are good; `doctor` still feels implementation-shaped |
-| D4 Output anatomy | Partially aligned | `generate` is strong, `inspect` is strong with one next-action bug, `doctor` is still transitional, `setup` is still placeholder-only |
+| D3 Tone | Mostly aligned | `generate` and `inspect` are good; `doctor` is better but still thin on the ready path |
+| D4 Output anatomy | Partially aligned | `generate` and `inspect` are strong; `doctor` is still transitional, `setup` is still placeholder-only |
 | D5 Interaction contract | Aligned | The contract is honest about the remaining gaps instead of hiding them |
 
 ## Verdict

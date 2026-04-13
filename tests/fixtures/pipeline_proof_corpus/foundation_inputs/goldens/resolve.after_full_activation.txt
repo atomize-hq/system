@@ -1,0 +1,20 @@
+OUTCOME: RESOLVED
+PIPELINE: pipeline.foundation_inputs
+ROUTE BASIS:
+  revision = 2
+  routing:
+    charter_gaps_detected = true
+    needs_project_context = true
+  refs:
+    charter_ref = <unset>
+    project_context_ref = <unset>
+  run:
+    runner = <unset>
+    profile = <unset>
+    repo_root = {{REPO_ROOT}}
+ROUTE:
+  1. stage.00_base | active
+  2. stage.04_charter_inputs | active
+  3. stage.05_charter_synthesize | active
+  4. stage.06_project_context_interview | active
+  5. stage.07_foundation_pack | active

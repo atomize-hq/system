@@ -322,11 +322,10 @@ Implementation checklist:
    - Active, skipped, blocked, and next stage status must be explicit in the resolved result.
 6. Reproduce activation evaluation.
    - Support `activation.when.any` and `activation.when.all`.
-   - Support only the narrow typed subset needed for the first wedge:
-     - booleans
-     - quoted strings
-     - numbers
-   - Limit comparisons to variable-path equality checks inside that subset.
+   - Support only the narrow reduced-v1 subset needed for the first wedge:
+     - boolean literals only
+   - Limit comparisons to variable-path equality checks in the form `variables.<name> == true|false`.
+   - Treat quoted strings and numbers as out of scope for shipped M1 activation evaluation.
    - Treat any activation shape outside the supported subset as a pipeline load/validation failure, not a late resolve-time surprise.
    - Preserve the foundation and foundation-inputs branching behavior for `needs_project_context` and `charter_gaps_detected`.
 7. Reproduce planning state persistence under the Rust storage model.
@@ -410,7 +409,10 @@ Implementation checklist:
      - unsupported activation syntax failing at load/validation time
      - malformed pipeline definition refusal
      - duplicate stage-id or duplicate/conflicting canonical-id refusal
-   - Add one shared malformed-pipeline proof case that `pipeline list`, `pipeline show`, and `pipeline resolve` must all fail on with the same refusal classification and next-action posture.
+   - Add split malformed-pipeline proof cases:
+     - `pipeline list` and `pipeline show` must ignore unrelated malformed pipeline or stage files during metadata-only inventory inspection.
+     - `pipeline show` must still fail with an explicit catalog refusal when the selected pipeline's declared metadata cannot be loaded.
+     - `pipeline resolve` must still fail on malformed pipeline or stage data that invalidates the strict route-aware catalog.
    - Add an M1 command-by-command test matrix for `pipeline list`, `show`, `resolve`, and `state set`, covering happy path, refusal path, edge cases, and stateful rerun behavior.
    - Add a dedicated CLI integration suite for the `pipeline` family instead of folding these cases into the existing packet-only CLI tests.
    - Add explicit M1 help snapshots and docs/help parity checks for the shipped `pipeline` subset, reusing the existing `help_drift_guard` pattern for `system --help`, `system pipeline --help`, and relevant pipeline subcommands.

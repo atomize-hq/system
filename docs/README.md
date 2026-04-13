@@ -21,6 +21,7 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - Renderer and proof surfaces: [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)
 - Conformance rails and docs cutover: [`C-07`](contracts/C-07-conformance-rails-and-docs-cutover.md)
+- Pipeline operator surface and ID resolution: [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md)
 - Vision (broader, non-binding): [`docs/VISION.md`](VISION.md)
 - Glossary: [`docs/GLOSSARY.md`](GLOSSARY.md)
 

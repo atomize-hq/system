@@ -19,6 +19,13 @@ fn write_file(path: &Path, contents: &str) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn write_stage_with_front_matter(repo_root: &Path, relative_path: &str, front_matter_body: &str) {
+    write_file(
+        &repo_root.join(relative_path),
+        &format!("---\n{front_matter_body}---\n# stage body\n"),
+    );
+}
+
 #[test]
 fn foundation_pipeline_loads_with_deterministic_stage_order() {
     let repo_root = repo_root();
@@ -80,16 +87,357 @@ fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
 }
 
 #[test]
-fn schema_compatible_release_and_sprint_pipelines_smoke_load() {
+fn matching_front_matter_activation_copy_is_accepted() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+activation:
+  when:
+    any:
+      - variables.needs_project_context == true
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/matching-front-matter-activation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.matching_front_matter_activation
+version: 0.1.0
+title: "Matching Front Matter Activation"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+"#,
+    );
+
+    let definition =
+        load_pipeline_definition(repo_root, "pipelines/matching-front-matter-activation.yaml")
+            .expect("matching activation should load");
+
+    assert_eq!(definition.body.stages.len(), 1);
+    assert!(definition.body.stages[0].activation.is_some());
+}
+
+#[test]
+fn front_matter_activation_without_pipeline_activation_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+activation:
+  when:
+    any:
+      - variables.needs_project_context == true
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/front-matter-only-activation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.front_matter_only_activation
+version: 0.1.0
+title: "Front Matter Only Activation"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/front-matter-only-activation.yaml")
+        .expect_err("front matter only activation should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::ActivationDrift {
+                    stage_id,
+                    file,
+                    detail,
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "core/stages/00_base.md");
+            assert!(detail.contains("stage front matter declares"));
+            assert!(detail.contains("pipeline YAML does not"));
+        }
+        other => panic!("expected activation-drift refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn semantic_activation_drift_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    let cases = [
+        (
+            "value drift",
+            r#"activation:
+  when:
+    any:
+      - variables.needs_project_context == false
+"#,
+            r#"activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+"#,
+        ),
+        (
+            "variable drift",
+            r#"activation:
+  when:
+    any:
+      - variables.charter_gaps_detected == true
+"#,
+            r#"activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+"#,
+        ),
+        (
+            "operator drift",
+            r#"activation:
+  when:
+    all:
+      - variables.needs_project_context == true
+"#,
+            r#"activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+"#,
+        ),
+    ];
+
+    for (name, front_matter_activation, pipeline_activation) in cases {
+        write_stage_with_front_matter(
+            repo_root,
+            "core/stages/00_base.md",
+            &format!(
+                "kind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n{front_matter_activation}"
+            ),
+        );
+        write_file(
+            &repo_root.join("pipelines/activation-drift.yaml"),
+            format!(
+                r#"---
+kind: pipeline
+id: pipeline.activation_drift
+version: 0.1.0
+title: "Activation Drift"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    {pipeline_activation}"#
+            )
+            .as_str(),
+        );
+
+        let err =
+            load_pipeline_definition(repo_root, "pipelines/activation-drift.yaml").expect_err(name);
+
+        match err {
+            PipelineLoadError::Validation {
+                error: PipelineValidationError::ActivationDrift { stage_id, .. },
+                ..
+            } => assert_eq!(stage_id, "stage.00_base", "case={name}"),
+            other => panic!("expected activation-drift refusal for {name}, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn reordered_semantically_identical_activation_is_accepted() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+activation:
+  when:
+    any:
+      - variables.charter_gaps_detected == true
+      - variables.needs_project_context == false
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/reordered-activation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.reordered_activation
+version: 0.1.0
+title: "Reordered Activation"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == false
+          - variables.charter_gaps_detected == true
+"#,
+    );
+
+    load_pipeline_definition(repo_root, "pipelines/reordered-activation.yaml")
+        .expect("reordered semantic activation should load");
+}
+
+#[test]
+fn malformed_front_matter_activation_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+activation:
+  when:
+    any:
+      - variables.needs_project_context != true
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/malformed-front-matter-activation.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.malformed_front_matter_activation
+version: 0.1.0
+title: "Malformed Front Matter Activation"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+"#,
+    );
+
+    let err = load_pipeline_definition(
+        repo_root,
+        "pipelines/malformed-front-matter-activation.yaml",
+    )
+    .expect_err("malformed stage front matter activation should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidStageFrontMatter {
+                    stage_id,
+                    file,
+                    detail,
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "core/stages/00_base.md");
+            assert!(detail.contains("failed to parse stage front matter"));
+            assert!(detail.contains("exactly one equality operator"));
+        }
+        other => panic!("expected invalid-stage-front-matter refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn declared_stage_order_is_preserved_for_core_pipelines() {
     let repo_root = repo_root();
 
-    for pipeline_path in ["pipelines/release.yaml", "pipelines/sprint.yaml"] {
+    let cases = [
+        (
+            "pipelines/foundation_inputs.yaml",
+            vec![
+                "stage.00_base",
+                "stage.04_charter_inputs",
+                "stage.05_charter_synthesize",
+                "stage.06_project_context_interview",
+                "stage.07_foundation_pack",
+            ],
+        ),
+        (
+            "pipelines/release.yaml",
+            vec!["stage.00_base", "stage.01_release_plan"],
+        ),
+        (
+            "pipelines/sprint.yaml",
+            vec!["stage.00_base", "stage.02_sprint_plan"],
+        ),
+    ];
+
+    for (pipeline_path, expected_stage_ids) in cases {
         let definition =
             load_pipeline_definition(&repo_root, pipeline_path).expect("schema-compatible load");
         assert_eq!(definition.header.kind, "pipeline", "path={pipeline_path}");
-        assert!(
-            !definition.body.stages.is_empty(),
-            "expected stages for {pipeline_path}"
+        assert_eq!(
+            definition
+                .declared_stages()
+                .iter()
+                .map(|stage| stage.id.as_str())
+                .collect::<Vec<_>>(),
+            expected_stage_ids,
+            "path={pipeline_path}"
         );
     }
 }
@@ -197,6 +545,180 @@ stages:
             ..
         } => assert_eq!(field, "title"),
         other => panic!("expected empty-field refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn path_like_pipeline_header_id_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/bad-header-id.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.bad/path
+version: 0.1.0
+title: "Bad Header Id"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/bad-header-id.yaml")
+        .expect_err("path-like pipeline id should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidCanonicalId {
+                    field,
+                    value,
+                    reason,
+                },
+            ..
+        } => {
+            assert_eq!(field, "id");
+            assert_eq!(value, "pipeline.bad/path");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn path_like_stage_id_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.bad/path
+version: 0.1.0
+title: Base
+description: base
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/bad-stage-id.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.valid_stage_id_check
+version: 0.1.0
+title: "Bad Stage Id"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.bad/path
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/bad-stage-id.yaml")
+        .expect_err("path-like stage id should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidCanonicalId {
+                    field,
+                    value,
+                    reason,
+                },
+            ..
+        } => {
+            assert_eq!(field, "stage.id");
+            assert_eq!(value, "stage.bad/path");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn extension_shaped_pipeline_header_id_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/bad-header-extension.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.bad.yaml
+version: 0.1.0
+title: "Bad Header Extension"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/bad-header-extension.yaml")
+        .expect_err("extension-shaped pipeline id should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidCanonicalId {
+                    field,
+                    value,
+                    reason,
+                },
+            ..
+        } => {
+            assert_eq!(field, "id");
+            assert_eq!(value, "pipeline.bad.yaml");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
     }
 }
 
@@ -385,9 +907,9 @@ stages:
     match err {
         PipelineLoadError::BodyParse { source, .. } => {
             assert!(
-                source
-                    .to_string()
-                    .contains("reduced v1 supports only boolean activation values"),
+                source.to_string().contains(
+                    "reduced v1 supports only boolean activation values (`true` or `false`)"
+                ),
                 "unexpected parse error: {source}"
             );
         }
@@ -429,9 +951,9 @@ stages:
     match err {
         PipelineLoadError::BodyParse { source, .. } => {
             assert!(
-                source
-                    .to_string()
-                    .contains("reduced v1 supports only boolean activation values"),
+                source.to_string().contains(
+                    "reduced v1 supports only boolean activation values (`true` or `false`)"
+                ),
                 "unexpected parse error: {source}"
             );
         }
@@ -885,6 +1407,51 @@ stages:
             assert_eq!(index, 0);
         }
         other => panic!("expected empty-set-variable refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn invalid_set_variable_name_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    write_file(&repo_root.join("core/stages/00_base.md"), "base");
+    let pipeline_path = repo_root.join("pipelines/invalid-set-variable.yaml");
+    write_file(
+        &pipeline_path,
+        r#"---
+kind: pipeline
+id: pipeline.invalid_set_variable
+version: 0.1.0
+title: "Invalid Set Variable"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+    sets:
+      - 9bad
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/invalid-set-variable.yaml")
+        .expect_err("invalid set variable");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidSetVariable {
+                    stage_id, variable, ..
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(variable, "9bad");
+        }
+        other => panic!("expected invalid-set-variable refusal, got {other:?}"),
     }
 }
 

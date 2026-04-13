@@ -1,0 +1,40 @@
+# Seam Map - M1 Pipeline And Routing Spine
+
+This seam map treats `M1` as a control-plane milestone:
+first make the compiler authoritative for pipeline route truth and route-state truth,
+then expose that truth through the supported `pipeline` operator surface,
+then freeze the compile handoff contract and conformance rails that keep the surface honest.
+
+## Horizon policy
+
+- Active seam: `SEAM-4` because the conformance seam can now harden the shipped M1 surface after the compile-boundary seam landed.
+- Next seam: none.
+- Future seams: none.
+- Landed seams outside the forward window: `SEAM-1`, `SEAM-2`, `SEAM-3`.
+- Only the active seam is eligible for authoritative deep planning by default.
+- There is no queued next seam inside this pack once `SEAM-4` becomes active.
+- Future seams remain seam briefs only.
+
+## Seam summary
+
+| Seam | Name | Type | Horizon | Primary value | Key contracts | Primary touch surface |
+| --- | --- | --- | --- | --- | --- | --- |
+| `SEAM-1` | Compiler Pipeline Core and Routing State | `capability` | `landed` | Makes the compiler the source of truth for pipeline loading, activation, resolved-route truth, and narrow route-state mutation semantics | `C-08` | `crates/compiler/`, `pipelines/`, `core/stages/`, `.system/state/pipeline/` |
+| `SEAM-2` | Pipeline Operator Surface and ID Resolution | `platform` | `landed` | Ships the supported `pipeline` command family, canonical-id lookup, shorthand ambiguity refusal, and normalized CLI render contract | `C-09` | `crates/cli/`, help snapshots, docs/help surfaces |
+| `SEAM-3` | Stage Compile Boundary and Route Freshness Handoff | `integration` | `landed` | Freezes the M2 compile boundary so route truth, stage metadata, and freshness checks connect cleanly without smuggling compile into M1 | `C-10` | `docs/contracts/stage-compile-boundary-and-route-freshness.md`, `crates/compiler` compile boundary, stage front matter |
+| `SEAM-4` | Validation Rails, Proof Corpus, and Docs Realignment | `conformance` | `active` | Locks the shipped M1 surface with realistic proof corpus, goldens, malformed-state rails, performance/security rules, and docs/help parity | `C-11` | `tests/`, proof fixtures, `README.md`, `DESIGN.md`, `docs/`, contract docs |
+
+## Why these seams are decomposable
+
+- `SEAM-1` is bounded to compiler-owned route/state truth; it does not own public help/docs cutover or compile payload generation.
+- `SEAM-2` is bounded to the operator-visible `pipeline` surface and CLI lookup/render behavior; it consumes route/state truth instead of redefining it.
+- `SEAM-3` is now landed with the compile handoff contract and freshness rules; it does not ship compile implementation or artifact writes in `M1`.
+- `SEAM-4` is a genuine active conformance seam because the remaining work is cross-seam hardening: proof corpus, docs/help alignment, drift guards, and performance/security boundaries.
+
+## Workstream posture
+
+- `WS-Compiler-Core`: `SEAM-1`
+- `WS-Operator-Surface`: `SEAM-2` and `SEAM-3`
+- `WS-Conformance`: `SEAM-4`
+
+The workstreams are not safely parallel at extraction time. The realized critical path is serial through `SEAM-1`, `SEAM-2`, `SEAM-3`, and the now-active conformance seam `SEAM-4`.

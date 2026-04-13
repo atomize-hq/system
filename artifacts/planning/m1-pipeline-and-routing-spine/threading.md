@@ -1,0 +1,122 @@
+# Threading - M1 Pipeline And Routing Spine
+
+## Execution horizon summary
+
+- Active seam: none
+- Next seam: none
+- Future seams: none
+- Landed seams outside forward window: `SEAM-1`, `SEAM-2`, `SEAM-3`, `SEAM-4`
+- Default policy: only the active seam receives authoritative deep planning by default; there is no queued next seam in this pack; future seams remain seam briefs.
+
+## Contract registry
+
+- **Contract ID**: `C-08`
+  - **Type**: `state`
+  - **Owner seam**: `SEAM-1`
+  - **Direct consumers**: `SEAM-2`, `SEAM-3`, `SEAM-4`
+  - **Derived consumers**: future `M2` compile and `M4` foundation-flow seams
+  - **Thread IDs**: `THR-01`
+  - **Definition**: Compiler-owned contract for pipeline definition loading, repo-safe path rules, supported activation subset, deterministic route ordering, explicit per-stage route status/reason semantics, and narrow route-state persistence plus mutation protocol.
+  - **Canonical contract ref**: `docs/contracts/pipeline-route-and-state-core.md`
+  - **Versioning / compat**: Any change to activation semantics, route statuses, state schema, or mutation concurrency rules requires downstream revalidation.
+
+- **Contract ID**: `C-09`
+  - **Type**: `API`
+  - **Owner seam**: `SEAM-2`
+  - **Direct consumers**: `SEAM-3`, `SEAM-4`
+  - **Derived consumers**: future operator-facing docs and downstream planning consumers
+  - **Thread IDs**: `THR-02`
+  - **Definition**: Supported `pipeline` command-family contract covering `list`, `show`, `resolve`, `state set`, canonical ids, shorthand ambiguity rules, normalized CLI render surfaces, and the rule that raw file paths remain evidence rather than first-class operator inputs.
+  - **Canonical contract ref**: `docs/contracts/pipeline-operator-surface-and-id-resolution.md`
+  - **Versioning / compat**: Any change to supported subcommands, id lookup semantics, route-report wording requirements, or help-surface posture requires downstream revalidation.
+
+- **Contract ID**: `C-10`
+  - **Type**: `schema`
+  - **Owner seam**: `SEAM-3`
+  - **Direct consumers**: `SEAM-4`
+  - **Derived consumers**: future `M2` compile implementation and later planning-generation milestones
+  - **Thread IDs**: `THR-03`
+  - **Definition**: Downstream compile-boundary contract defining source-of-truth split between pipeline YAML and stage front matter, route-basis freshness checks, inactive-stage refusal, and the stage-payload shape expected once compile lands.
+  - **Canonical contract ref**: `docs/contracts/stage-compile-boundary-and-route-freshness.md`
+  - **Versioning / compat**: Any change to compile freshness inputs, inactive-stage refusal semantics, activation-drift equivalence rules, or the stage-payload handoff boundary requires downstream revalidation.
+
+- **Contract ID**: `C-11`
+  - **Type**: `config`
+  - **Owner seam**: `SEAM-4`
+  - **Direct consumers**: none inside this pack
+  - **Derived consumers**: future milestone packs, release validation, and operator trust surfaces
+  - **Thread IDs**: `THR-04`
+  - **Definition**: Conformance contract for proof corpus location, golden-output governance, malformed-pipeline and malformed-state refusal rails, help/docs parity, and the M1 performance/security posture for the `pipeline` family.
+  - **Canonical contract ref**: `docs/contracts/pipeline-proof-corpus-and-docs-cutover.md`
+  - **Versioning / compat**: Any change to proof-corpus shape, mandatory checks, supported help/docs claims, or latency/security boundaries requires revalidation of downstream milestone packs.
+
+## Thread registry
+
+- **Thread ID**: `THR-01`
+  - **Producer seam**: `SEAM-1`
+  - **Consumer seam(s)**: `SEAM-2`, `SEAM-3`, `SEAM-4`
+  - **Carried contract IDs**: `C-08`
+  - **Purpose**: Publish one compiler-owned truth for pipeline loading, route computation, and route-state mutation so every downstream seam stops inferring routing behavior from legacy code or ad hoc CLI wiring.
+  - **State**: `published`
+  - **Revalidation trigger**: Any change to supported activation syntax, deterministic route ordering, state schema, mutation locking/revision semantics, or the canonical-vs-runtime `.system/` boundary.
+  - **Satisfied by**: `SEAM-1` closeout records landed route/state contracts, typed proof outputs, state-file evidence, and a passed seam-exit record for `C-08`.
+  - **Notes**: `SEAM-2` is now a landed consumer seam and must preserve the published route/state truth without redefining it in CLI-only terms.
+
+- **Thread ID**: `THR-02`
+  - **Producer seam**: `SEAM-2`
+  - **Consumer seam(s)**: `SEAM-3`, `SEAM-4`
+  - **Carried contract IDs**: `C-09`
+  - **Purpose**: Carry the supported `pipeline` command vocabulary, id lookup rules, and compact render contract into compile handoff planning and conformance rails.
+  - **State**: `published`
+  - **Revalidation trigger**: Any change to supported `pipeline` subcommands, canonical-id/shorthand behavior, ambiguity refusal copy, or help-surface exposure rules.
+  - **Satisfied by**: `SEAM-2` closeout records landed CLI command handlers, help evidence, canonical-id lookup behavior, and published operator-surface contract updates.
+  - **Notes**: `SEAM-3` is now a landed consumer seam and may treat the operator surface as published upstream truth.
+
+- **Thread ID**: `THR-03`
+  - **Producer seam**: `SEAM-3`
+  - **Consumer seam(s)**: `SEAM-4`
+  - **Carried contract IDs**: `C-10`
+  - **Purpose**: Freeze the compile-boundary and route-freshness rules so later `pipeline compile` work cannot reinterpret M1 route truth or stage source-of-truth boundaries.
+  - **State**: `published`
+  - **Revalidation trigger**: Any change to route freshness inputs, compile refusal categories, stage-front-matter vs pipeline-YAML ownership, activation-drift equivalence rules, the stage-payload handoff boundary, or the rule that `pipeline compile` is not implied as shipped in M1 help/docs.
+  - **Satisfied by**: `artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-3-closeout.md` recording the accepted `C-10` compile-boundary contract and seam-exit evidence that downstream compile work can consume without reopening M1 route semantics.
+  - **Notes**: This thread now carries the compile-boundary handoff as published upstream truth for downstream planning.
+
+- **Thread ID**: `THR-04`
+  - **Producer seam**: `SEAM-4`
+  - **Consumer seam(s)**: future `M2`, `M3`, and `M4` seam packs
+  - **Carried contract IDs**: `C-11`
+  - **Purpose**: Publish the proof-corpus, docs/help, and conformance expectations that make the M1 `pipeline` surface safe to reuse and extend.
+  - **State**: `published`
+  - **Revalidation trigger**: Any change to shared proof fixtures, goldens, supported docs/help claims, mandatory test matrix, or the M1 performance/security posture.
+  - **Satisfied by**: `artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-4-closeout.md` recording passing conformance evidence, the published `C-11` contract, and downstream stale triggers for later milestone packs.
+  - **Notes**: This thread closes the M1 pack and becomes part of the basis for later milestone promotion.
+
+## Dependency graph
+
+```mermaid
+flowchart LR
+  S1["SEAM-1<br/>Compiler Pipeline Core and Routing State"] --> S2["SEAM-2<br/>Pipeline Operator Surface and ID Resolution"]
+  S1 --> S3["SEAM-3<br/>Stage Compile Boundary and Route Freshness Handoff"]
+  S1 --> S4["SEAM-4<br/>Validation Rails, Proof Corpus, and Docs Realignment"]
+  S2 --> S3
+  S2 --> S4
+  S3 --> S4
+```
+
+## Critical path
+
+- `SEAM-1` published `C-08` before the operator surface claimed `pipeline` as supported.
+- `SEAM-2` published `C-09`, so the compile-boundary seam may now consume stable operator-surface truth.
+- `SEAM-3` is now landed with the compile handoff contract, and `SEAM-4` can harden the shipped surface against that published truth.
+- `SEAM-4` closes the pack by binding proof corpus, tests, docs, and performance/security posture to the published upstream contracts.
+
+## Workstreams
+
+- `WS-Compiler-Core`
+  - `SEAM-1`
+- `WS-Operator-Surface`
+  - `SEAM-2`
+  - `SEAM-3`
+- `WS-Conformance`
+  - `SEAM-4`

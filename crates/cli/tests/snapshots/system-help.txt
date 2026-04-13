@@ -1,9 +1,10 @@
-Rust CLI for the reduced v1 system. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface. `setup` is still a placeholder.
+Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface.
 
 Usage: system [COMMAND]
 
 Commands:
   setup     Placeholder setup entrypoint
+  pipeline  Pipeline operator surface
   generate  Generate a reduced-v1 packet
   inspect   Inspect packet composition and decision evidence
   doctor    Diagnose blockers and safe next actions

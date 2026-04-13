@@ -38,7 +38,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
   - Use when the operator wants the minimum correct planning packet from trusted inputs.
 - `pipeline`
   - The orchestration surface.
-  - Use when the operator needs route truth, explicit stage compilation, or narrow route-state mutation.
+  - Use when the operator needs route truth, explicit stage selection, or narrow route-state mutation.
   - Do not describe this as a generic workflow framework unless the product contract actually expands that far.
 - `inspect`
   - The proof surface.
@@ -98,7 +98,7 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 ### Prefer
 
 - `setup`, not generic startup wording
-- `pipeline`, not generic framework wording, when naming route/compile control-plane work
+- `pipeline`, not generic framework wording, when naming route/control-plane work
 - `generate`, not compile/build/render when describing packet creation
 - `inspect`, not explain/debug when naming the proof command
 - `doctor`, not health repair or troubleshoot when naming the recovery command

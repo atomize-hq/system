@@ -16,11 +16,12 @@ This repo is in transition.
 - The composed CLI interaction contract lives in [DESIGN.md](DESIGN.md).
 - The shipped journey and revision findings live in [CLI Operator Journey And Conformance Review](docs/CLI_OPERATOR_JOURNEY.md).
 - The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
-- The reduced live v1 scope is **route resolution, explicit stage compilation, and planning packet generation over existing project + feature artifacts**.
+- The reviewed `pipeline` operator surface baseline is [C-09 Pipeline Operator Surface and ID Resolution Contract](docs/contracts/pipeline-operator-surface-and-id-resolution.md).
+- The reduced live v1 scope is **route resolution, explicit stage selection, and planning packet generation over existing project + feature artifacts**.
 - Planning packet generation is supported from canonical repo-local `.system/`.
 - Fixture-backed execution demo generation is supported via `execution.demo.packet`.
 - Live slice lineage and live execution packets are deferred. Live execution is explicitly refused.
-- `pipeline` is the orchestration surface once its code, docs, contracts, tests, and proof-corpus gates land together.
+- `pipeline` is the orchestration surface for `list`, `show`, `resolve`, and `state set`.
 - `inspect` is the proof surface and `doctor` is the recovery surface.
 - `setup` is still a placeholder entrypoint until Rust setup exists.
 

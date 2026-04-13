@@ -28,6 +28,12 @@ impl CanonicalArtifactKind {
     }
 }
 
+const CANONICAL_ARTIFACT_KINDS: [CanonicalArtifactKind; 3] = [
+    CanonicalArtifactKind::Charter,
+    CanonicalArtifactKind::ProjectContext,
+    CanonicalArtifactKind::FeatureSpec,
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemRootStatus {
     Ok,
@@ -79,8 +85,10 @@ impl CanonicalArtifacts {
                     SystemRootStatus::SymlinkNotAllowed
                 } else if !meta.is_dir() {
                     SystemRootStatus::NotDir
-                } else {
+                } else if canonical_root_scaffold_exists(repo_root)? {
                     SystemRootStatus::Ok
+                } else {
+                    SystemRootStatus::Missing
                 }
             }
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => SystemRootStatus::Missing,
@@ -137,6 +145,44 @@ impl CanonicalArtifacts {
             &self.feature_spec.identity,
         ]
     }
+}
+
+fn canonical_root_scaffold_exists(repo_root: &Path) -> Result<bool, ArtifactIngestError> {
+    for kind in CANONICAL_ARTIFACT_KINDS {
+        let artifact_path = repo_root.join(kind.relative_path());
+        match std::fs::symlink_metadata(&artifact_path) {
+            Ok(_) => return Ok(true),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => {
+                return Err(ArtifactIngestError::ReadFailure {
+                    path: artifact_path,
+                    source: err,
+                });
+            }
+        }
+
+        let namespace_dir = repo_root.join(canonical_namespace_dir(kind));
+        match std::fs::symlink_metadata(&namespace_dir) {
+            Ok(meta) if meta.is_dir() => return Ok(true),
+            Ok(_) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => {
+                return Err(ArtifactIngestError::ReadFailure {
+                    path: namespace_dir,
+                    source: err,
+                });
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+fn canonical_namespace_dir(kind: CanonicalArtifactKind) -> &'static str {
+    kind.relative_path()
+        .rsplit_once('/')
+        .map(|(parent, _)| parent)
+        .expect("canonical artifact path should include parent directory")
 }
 
 #[derive(Debug)]
