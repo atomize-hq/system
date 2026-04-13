@@ -533,6 +533,8 @@ Reviewed scope lock, 2026-04-13:
 - the implementation budget for `M2` stays intentionally small: thin CLI wiring in `crates/cli`, one new compiler-owned compile module in `crates/compiler`, and only minimal extensions to existing `pipeline` and `route_state` modules for shared contracts and persisted `route_basis`
 - plain `pipeline compile` and `pipeline compile --explain` share one compiler-owned typed compile result. The stage payload is assembled once, then rendered either as payload-only stdout or proof-only explain output.
 - `M2` preserves the useful content classes from the legacy harness, includes, runner/profile material, library inputs, required/optional artifact inputs, and scoped-rule filtering, but normalizes final output shape and refusal language to the reviewed Rust contracts instead of chasing byte-for-byte legacy parity.
+- The first executable `M2` slice is prerequisite prep, not compile assembly: add `stage.10_feature_spec` to the real and proof-corpus `pipeline.foundation_inputs` declarations and seed the shared proof corpus with the compile-time library, rules, profile-pack, and upstream artifact inputs that stage needs.
+- Until that prerequisite slice lands, truthful `M2` compile behavior for the locked target is refusal, not synthetic success.
 
 Must prove:
 
@@ -554,6 +556,7 @@ Minimum acceptable wedge:
 - compile proof stays local to compile semantics instead of widening `inspect` from packet proof into a generic catch-all proof surface
 - payload and explain output must not drift; one typed compile result keeps success rendering and proof rendering on the same truth
 - legacy Python remains behavioral reference, not formatting authority; Rust owns the supported output shape once `M2` lands
+- compile success is gated on repo truth and proof-corpus truth matching the selected target; if the stage is absent from the pipeline or its required proof inputs are missing, refusal is the correct product behavior
 
 Non-goals inside M2:
 
@@ -562,6 +565,7 @@ Non-goals inside M2:
 - no hidden fallback to legacy Python for missing Rust behavior
 - no generalized compile IR, cache layer, or new abstraction stack beyond what the single-stage wedge requires
 - no multi-module compile mini-framework for one stage; if the design needs several new helper modules to explain itself, it is already overbuilt for `M2`
+- no fake compile success against a target stage that the real pipeline and shared proof corpus do not yet support
 
 Implementation-ready expansion, validated 2026-04-13:
 
