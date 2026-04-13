@@ -530,7 +530,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
 
     println!(
         "{}",
-        render_pipeline_resolve_output(&pipeline.definition.header.id, state.revision, &route)
+        render_pipeline_resolve_output(&pipeline.definition.header.id, &state, &route)
     );
     ExitCode::SUCCESS
 }
@@ -728,13 +728,36 @@ fn parse_route_state_field_assignment(
 
 fn render_pipeline_resolve_output(
     pipeline_id: &str,
-    state_revision: u64,
+    state: &system_compiler::RouteState,
     route: &system_compiler::ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
     out.push_str("OUTCOME: RESOLVED\n");
     out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
-    out.push_str(&format!("STATE REVISION: {state_revision}\n"));
+    out.push_str("ROUTE BASIS:\n");
+    out.push_str(&format!("  revision = {}\n", state.revision));
+    out.push_str("  routing:\n");
+    if state.routing.is_empty() {
+        out.push_str("    <empty>\n");
+    } else {
+        for (name, value) in &state.routing {
+            out.push_str(&format!("    {} = {}\n", name, value));
+        }
+    }
+    out.push_str("  refs:\n");
+    render_optional_route_basis_field(
+        &mut out,
+        "charter_ref",
+        state.refs.charter_ref.as_deref(),
+    );
+    render_optional_route_basis_field(
+        &mut out,
+        "project_context_ref",
+        state.refs.project_context_ref.as_deref(),
+    );
+    out.push_str("  run:\n");
+    render_optional_route_basis_field(&mut out, "runner", state.run.runner.as_deref());
+    render_optional_route_basis_field(&mut out, "profile", state.run.profile.as_deref());
     out.push_str("ROUTE:\n");
 
     for (index, stage) in route.stages.iter().enumerate() {
@@ -753,6 +776,13 @@ fn render_pipeline_resolve_output(
     }
 
     out.trim_end().to_string()
+}
+
+fn render_optional_route_basis_field(out: &mut String, name: &str, value: Option<&str>) {
+    match value {
+        Some(value) => out.push_str(&format!("    {} = {}\n", name, value)),
+        None => out.push_str(&format!("    {} = <unset>\n", name)),
+    }
 }
 
 fn render_route_stage_reason(reason: &system_compiler::RouteStageReason) -> String {

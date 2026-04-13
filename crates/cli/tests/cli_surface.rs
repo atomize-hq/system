@@ -400,7 +400,16 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         concat!(
             "OUTCOME: RESOLVED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
-            "STATE REVISION: 0\n",
+            "ROUTE BASIS:\n",
+            "  revision = 0\n",
+            "  routing:\n",
+            "    <empty>\n",
+            "  refs:\n",
+            "    charter_ref = <unset>\n",
+            "    project_context_ref = <unset>\n",
+            "  run:\n",
+            "    runner = <unset>\n",
+            "    profile = <unset>\n",
             "ROUTE:\n",
             "  1. stage.00_base | active\n",
             "  2. stage.04_charter_inputs | active\n",
@@ -496,7 +505,17 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         concat!(
             "OUTCOME: RESOLVED\n",
             "PIPELINE: pipeline.foundation_inputs\n",
-            "STATE REVISION: 2\n",
+            "ROUTE BASIS:\n",
+            "  revision = 2\n",
+            "  routing:\n",
+            "    charter_gaps_detected = true\n",
+            "    needs_project_context = true\n",
+            "  refs:\n",
+            "    charter_ref = <unset>\n",
+            "    project_context_ref = <unset>\n",
+            "  run:\n",
+            "    runner = <unset>\n",
+            "    profile = <unset>\n",
             "ROUTE:\n",
             "  1. stage.00_base | active\n",
             "  2. stage.04_charter_inputs | active\n",
@@ -576,6 +595,41 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
             "RUN:\n",
             "  runner = codex-cli\n",
             "  profile = <unset>"
+        )
+    );
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        resolve.status.success(),
+        "pipeline resolve should surface refs and run fields in route basis"
+    );
+    let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        resolve_stdout.trim_end(),
+        concat!(
+            "OUTCOME: RESOLVED\n",
+            "PIPELINE: pipeline.foundation_inputs\n",
+            "ROUTE BASIS:\n",
+            "  revision = 2\n",
+            "  routing:\n",
+            "    <empty>\n",
+            "  refs:\n",
+            "    charter_ref = artifacts/charter/CHARTER.md\n",
+            "    project_context_ref = <unset>\n",
+            "  run:\n",
+            "    runner = codex-cli\n",
+            "    profile = <unset>\n",
+            "ROUTE:\n",
+            "  1. stage.00_base | active\n",
+            "  2. stage.04_charter_inputs | active\n",
+            "  3. stage.05_charter_synthesize | active\n",
+            "  4. stage.06_project_context_interview | next\n",
+            "     REASON: missing route variables: charter_gaps_detected, needs_project_context\n",
+            "  5. stage.07_foundation_pack | blocked\n",
+            "     REASON: blocked by unresolved stage stage.06_project_context_interview (next)"
         )
     );
 }
