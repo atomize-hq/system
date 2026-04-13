@@ -264,6 +264,24 @@ fn help_lists_setup_first() {
 }
 
 #[test]
+fn version_matches_release_metadata() {
+    let root = workspace_root();
+    let output = run_in(root.as_path(), &["--version"]);
+
+    assert!(output.status.success(), "version should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("version stdout is utf-8");
+    let expected_version =
+        std::fs::read_to_string(root.join("VERSION")).expect("read workspace VERSION");
+    let expected = format!("system {}\n", expected_version.trim());
+
+    assert_eq!(
+        stdout, expected,
+        "CLI version should match release metadata"
+    );
+}
+
+#[test]
 fn pipeline_help_lists_supported_surface() {
     let root = workspace_root();
 
