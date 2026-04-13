@@ -1,0 +1,156 @@
+Paste-ready draft for the M2 section:
+
+```md
+#### M2 Lane A. Compiler Core + `route_basis` Persistence + Typed Compile Result
+
+Scope lock for Lane A:
+
+- Lane A owns only compiler-core compile assembly, persisted `route_basis`, freshness / inactive-stage refusal, and one shared typed compile result in `crates/compiler`.
+- Lane A does not own artifact writes, repo-file writes, multi-stage compile breadth, or any fallback to legacy Python.
+- Lane A must preserve the current M2 target lock: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
+- Lane A must also preserve one repo-critical fact: today `pipeline.foundation_inputs` does not declare `stage.10_feature_spec`, and the shared foundation proof corpus mirrors that omission. Until repo truth and the shared proof corpus are extended, the correct compiler behavior is selected-stage-not-in-pipeline refusal, not fake success.
+
+Ownership boundaries inside `crates/compiler`:
+
+- `crates/compiler/src/pipeline.rs` continues to own pipeline catalog loading, canonical selector resolution, pipeline-entry to stage-file binding, stage front-matter identity validation, and compile-facing stage metadata loading.
+- `crates/compiler/src/pipeline_route.rs` continues to own route evaluation only. It must not grow compile assembly, artifact loading, or payload rendering logic.
+- `crates/compiler/src/route_state.rs` continues to own the persisted pipeline-state schema, typed reads/writes, revision handling, locking, and atomic replacement. M2 extends it with persisted `route_basis`.
+- `crates/compiler/src/pipeline_compile.rs` is the one new M2 compiler module. It owns compile-target eligibility checks, stale-basis checks, inactive-stage refusal, include/library/artifact expansion, scoped filtering, and assembly of one shared typed compile result plus payload / explain renderers derived from that result.
+- `crates/compiler/src/lib.rs` only re-exports the new compile entrypoints and types.
+- `crates/compiler/src/resolver.rs`, packet rendering, and packet domain types stay packet-scoped. Lane A must not widen packet code into pipeline compile code.
+
+Persisted `route_basis` shape:
+
+- `route_basis` lives inside `.system/state/pipeline/<pipeline-id>.yaml` and is written only by `pipeline resolve`.
+- Adding `route_basis` requires a route-state schema revision. Do not smuggle it into the current strict `m1-pipeline-state-v2` shape as an untyped extra key.
+- The first M2-compatible state shape should preserve the current `routing`, `refs`, `run`, `revision`, and `audit` fields and add one bounded `route_basis` mapping.
+- `route_basis` must store:
+- the canonical `pipeline_id`
+- the repo-relative pipeline file path
+- the pipeline file content fingerprint
+- the state revision captured at resolve time
+- a snapshot of `routing`, `refs`, and `run` exactly as resolve used them
+- the ordered resolved route snapshot for all declared stages, including `stage_id`, repo-relative `file`, persisted route `status`, persisted route `reason`, and the stage file fingerprint
+- the selected runner id plus runner file fingerprint
+- the selected profile id plus fingerprints for `profile.yaml`, `commands.yaml`, and `conventions.md`
+- one explicit `route_basis` schema/version field
+- `route_basis` must not store:
+- compiled payload text
+- explain output text
+- copied artifact contents
+- copied library contents
+- copied include contents
+- duplicated audit history
+- mutable CLI flags or compile-only overrides
+- wall-clock timestamps that add golden churn without improving freshness semantics
+
+Freshness and inactive-stage refusal without re-running resolve:
+
+- `pipeline compile` must load the persisted pipeline state and require a present, well-formed `route_basis`.
+- `pipeline compile` must not call `resolve_pipeline_route` as an implicit fallback.
+- Freshness succeeds only when:
+- the current pipeline-state `revision` matches `route_basis.state_revision`
+- current `routing`, `refs`, and `run` match the `route_basis` snapshot exactly
+- the current pipeline file fingerprint matches the persisted pipeline fingerprint
+- the current selected stage file fingerprint matches the persisted fingerprint for that stage
+- the current runner file fingerprint matches the persisted runner fingerprint
+- the current profile file fingerprints match the persisted profile-pack fingerprints
+- Any mismatch is stale-route-basis refusal with one recovery action: re-run `pipeline resolve`.
+- After freshness passes, compile must look up the selected stage in the stored resolved-route snapshot.
+- If the stage is absent from the stored route snapshot, compile must refuse as selected-stage-not-in-pipeline.
+- If the stage is present but its persisted status is not `active`, compile must refuse as inactive-stage and surface the persisted route reason instead of recomputing the route.
+- Missing or malformed `route_basis` is a freshness refusal, not a reason to silently downgrade into best-effort compile behavior.
+
+Shared typed compile result:
+
+- Plain `pipeline compile` and `pipeline compile --explain` must render from one compiler-owned typed result.
+- The typed result should carry:
+- `target`: `pipeline_id`, `stage_id`, repo-relative `stage_file`, `title`, `description`, `work_level`
+- `basis`: the accepted `route_basis` summary needed for explain output and stale-basis diagnostics
+- `variables`: the resolved variable map used for path substitution and run-variable rendering
+- `documents`: one ordered list of expanded compile inputs, where each entry records `kind` (`include`, `library`, `artifact`), repo-relative `path`, `required`, `status`, and `content` when present
+- `outputs`: the declared output contract after variable substitution
+- `gating`: the declared gating mode, `fail_on`, and notes
+- `stage_body`: optional stage body text when non-empty
+- Payload rendering consumes only the typed result and emits the normalized compiled stage payload.
+- Explain rendering consumes the same typed result and emits route-basis proof, eligibility decisions, expansion order, and required / optional input decisions.
+- There must be no second assembly path for `--explain`.
+
+Selected-stage eligibility checks for `pipeline.foundation_inputs` + `stage.10_feature_spec`:
+
+- The selected pipeline id must resolve through the published pipeline selector rules.
+- The selected stage id must resolve through the same canonical-id / shorthand rules already used by the pipeline family.
+- The selected stage must be declared in the selected pipeline’s ordered stage list.
+- The selected stage’s pipeline entry must bind to a real `core/stages/*.md` file whose front matter declares the same canonical stage id.
+- The selected stage must be present in the persisted resolved-route snapshot.
+- The selected stage must be `active` in that snapshot.
+- Plan-critical fact to preserve: current repo truth fails the third check because `pipelines/foundation_inputs.yaml` and `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml` stop at `stage.07_foundation_pack`. The main planner must keep that prerequisite explicit instead of pretending Lane A can compile `stage.10_feature_spec` against today’s pipeline declaration.
+
+Legacy behavior that must be preserved for stage assembly:
+
+- Preserve front-matter-driven stage assembly from `core/stages/10_feature_spec.md`: includes, library inputs, artifact inputs, variables, outputs, gating, tags, and optional stage body.
+- Preserve variable substitution in declared paths using the resolved run/state variables from the accepted `route_basis`.
+- Preserve scoped filtering by `work_level`, with the same practical default as the legacy harness: fall back to `L1` when the stage front matter leaves work level empty.
+- Preserve ordered include expansion in declared front-matter order.
+- Preserve selected runner and selected profile content as compile-shaping inputs derived from `run.runner` and `run.profile`, not from hardcoded prompt templates.
+- Preserve profile-pack behavior across `profile.yaml`, `commands.yaml`, and `conventions.md`.
+- Preserve required vs optional artifact semantics from front matter.
+- For `stage.10_feature_spec`, required artifacts are `artifacts/base/BASE_CONTEXT.md` and `artifacts/charter/CHARTER.md`; their absence or emptiness is compile refusal.
+- For `stage.10_feature_spec`, optional artifacts are `artifacts/project_context/PROJECT_CONTEXT.md` plus the foundation-pack artifacts; their absence must not refuse compile.
+- Optional-artifact absence must still be visible in `--explain` so operators can see why the payload omitted that input family.
+
+Normalization Rust should apply instead of byte-for-byte harness parity:
+
+- Do not recreate legacy `dist/` writes.
+- Do not preserve legacy duplicate inclusion of runner/profile material through both special-case sections and repeated include expansion.
+- Normalize to one stable payload order derived from typed data, not ad hoc string concatenation.
+- Preserve declared order for includes, library inputs, artifact inputs, and outputs.
+- Normalize newlines to LF and trim trailing whitespace.
+- Use repo-relative paths in payload and explain output instead of absolute paths.
+- Treat missing compile-shaping includes, missing runner docs, and missing selected profile-pack files as explicit refusals instead of silently rendering `(missing)` into a “successful” payload.
+- Keep optional artifact absence visible but non-fatal.
+- Keep refusal wording and explain wording contract-shaped in Rust, not harness-shaped in Python.
+
+Implementation sequencing inside `crates/compiler`:
+
+1. Extend `pipeline.rs` with one compile-facing stage-front-matter loader that exposes `includes`, `inputs`, `outputs`, `gating`, `tags`, and optional stage body for a selected declared stage.
+2. Extend `route_state.rs` with the M2 schema revision, typed `route_basis` structs, read compatibility rules, and one compiler-owned write path that lets `pipeline resolve` persist the accepted snapshot.
+3. Add route-basis fingerprint helpers for pipeline YAML, stage files, runner docs, and profile-pack files.
+4. Add `pipeline_compile.rs` with one public compile entrypoint that takes repo root, pipeline id, and stage id and returns one typed compile result or one typed refusal.
+5. Implement eligibility checks in this order: canonical pipeline selection, declared-stage membership, persisted `route_basis` presence, basis freshness, selected-stage route lookup, active-stage requirement.
+6. Implement document expansion in this order: includes, library inputs, artifact inputs, outputs, gating, optional stage body.
+7. Implement scoped filtering and variable substitution as compiler helpers used during expansion, not as CLI-side string munging.
+8. Add compiler-owned payload and explain renderers that both consume the same typed result.
+9. Re-export only the compile entrypoint and compile result types from `lib.rs`.
+
+Lane-specific file references:
+
+- `PLAN.md`
+- `docs/contracts/stage-compile-boundary-and-route-freshness.md`
+- `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
+- `docs/contracts/pipeline-route-and-state-core.md`
+- `pipelines/foundation_inputs.yaml`
+- `core/stages/10_feature_spec.md`
+- `crates/compiler/src/lib.rs`
+- `crates/compiler/src/pipeline.rs`
+- `crates/compiler/src/pipeline_route.rs`
+- `crates/compiler/src/route_state.rs`
+- `crates/compiler/src/pipeline_compile.rs` (new)
+- `crates/compiler/tests/pipeline_proof_corpus_support.rs`
+- `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml`
+
+Lane A checklist:
+
+- [ ] `crates/compiler` owns the compile typed result, compile refusal logic, and both payload / explain renderers.
+- [ ] `route_state` persists one bounded `route_basis` snapshot written by `pipeline resolve`.
+- [ ] `pipeline compile` can refuse missing, malformed, or stale `route_basis` without re-running resolve.
+- [ ] `pipeline compile` can refuse a real but inactive stage by reading persisted route status and reason.
+- [ ] `stage.10_feature_spec` required library and artifact inputs refuse on missing or empty content.
+- [ ] `stage.10_feature_spec` optional foundation-pack artifacts are non-fatal when absent.
+- [ ] Scoped rule filtering still follows `work_level`.
+- [ ] Runner/profile material still shapes compile output from selected repo-local docs.
+- [ ] Payload and `--explain` are rendered from one shared typed result.
+- [ ] The planner preserves the prerequisite that `stage.10_feature_spec` must be added to `pipeline.foundation_inputs` and to the shared proof corpus before compile success for the locked M2 target can be claimed.
+```
+
+Supporting repo facts: [PLAN.md](/Users/spensermcconnell/__Active_Code/system/PLAN.md:521), [stage-compile-boundary-and-route-freshness.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/stage-compile-boundary-and-route-freshness.md:65), [pipeline-route-and-state-core.md](/Users/spensermcconnell/__Active_Code/system/docs/contracts/pipeline-route-and-state-core.md:81), [pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/pipelines/foundation_inputs.yaml:15), [10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/core/stages/10_feature_spec.md:20), [route_state.rs](/Users/spensermcconnell/__Active_Code/system/crates/compiler/src/route_state.rs:20), [pipeline_route.rs](/Users/spensermcconnell/__Active_Code/system/crates/compiler/src/pipeline_route.rs:47), [tools/harness.py](/Users/spensermcconnell/__Active_Code/system/tools/harness.py:311), and the shared fixture pipeline copy [foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml:15).

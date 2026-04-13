@@ -55,7 +55,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - Help text MUST make clear that `setup` is still a placeholder entrypoint, `pipeline` is the orchestration surface, `generate` is the packet surface, `inspect` is the proof surface, and `doctor` is the recovery surface.
 - Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.
 - `pipeline` MUST own route resolution, explicit stage compilation, and narrow pipeline-run state mutation for the supported wedge.
-- Successful `pipeline compile` output MUST remain a payload surface, not a proof surface. Route-basis evidence, freshness detail, and decision proof remain the responsibility of refusal output and `inspect`.
+- Successful `pipeline compile` output MUST remain a payload surface, not a proof surface. Route-basis evidence, freshness detail, and decision proof remain the responsibility of refusal output and `pipeline compile --explain`.
 - When `M2` lands, compile-specific proof MUST be exposed through `pipeline compile --explain`, not by broadening `inspect` beyond its packet-proof meaning.
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.

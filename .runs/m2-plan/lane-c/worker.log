@@ -1,0 +1,1536 @@
+2026-04-13T18:46:48.066910Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.067108Z  WARN codex_core::state_db: failed to initialize state runtime at /Users/spensermcconnell/.codex: migration 21 was previously applied but is missing in the resolved migrations
+OpenAI Codex v0.116.0 (research preview)
+--------
+workdir: /Users/spensermcconnell/__Active_Code/system
+model: gpt-5.4
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR, /Users/spensermcconnell/.codex/memories]
+reasoning effort: high
+reasoning summaries: none
+session id: 019d882a-edf3-7cc0-9cb2-7d7dd9b0987a
+--------
+user
+You are drafting implementation-ready plan detail for M2 in /Users/spensermcconnell/__Active_Code/system. Focus only on Lane C: proof corpus, tests, help snapshots, and goldens. Do not edit files.
+
+Read the current PLAN.md M2 section plus docs/contracts/C-02-rust-workspace-and-cli-command-surface.md, docs/SUPPORTED_COMMANDS.md, crates/compiler/tests/pipeline_proof_corpus_support.rs, crates/cli/tests/pipeline_proof_corpus_support.rs, crates/cli/tests/cli_surface.rs, crates/cli/tests/help_drift_guard.rs, the existing foundation_inputs proof corpus under tests/fixtures/pipeline_proof_corpus/foundation_inputs, and the current pipeline/stage files relevant to stage.10_feature_spec.
+
+Output a concrete draft for PLAN.md that covers:
+- exact fixture/proof-corpus changes needed to support stage.10_feature_spec in M2
+- shared goldens for pipeline compile payload output and pipeline compile --explain proof output
+- mandatory regression tests for stale route_basis and inactive-stage refusal
+- compiler-vs-cli test responsibilities and how they should share fixtures without duplication
+- help snapshot/doc drift coverage that must change when compile lands
+- implementation sequencing for tests and goldens, including what must be updated before M2 can be called shipped
+- file references and a lane-specific checklist
+
+Keep to the chosen constraints already locked in PLAN.md. If the current committed proof corpus or pipeline fixture shape blocks M2, say so plainly.
+
+deprecated: `[features].collab` is deprecated. Use `[features].multi_agent` instead.
+  Enable it with `--enable multi_agent` or `[features].multi_agent` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details.
+mcp: deepwiki starting
+mcp: gsd starting
+mcp: cloudflare-docs starting
+mcp: figma-use starting
+mcp: figma starting
+2026-04-13T18:46:48.208686Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.236598Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.251592Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.275978Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.282681Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+mcp: cloudflare-docs ready
+2026-04-13T18:46:48.307239Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.312404Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.345017Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.363181Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.385284Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.396537Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.412793Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.415728Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.439418Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.442809Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.464204Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.466731Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.494935Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.497528Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.527204Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.531366Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.555549Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.558036Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.582544Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.583506Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.601011Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at "/Users/spensermcconnell/.codex/shell_snapshots/019d882a-edf3-7cc0-9cb2-7d7dd9b0987a.tmp-1776106008177952000": Os { code: 2, kind: NotFound, message: "No such file or directory" }
+2026-04-13T18:46:48.607211Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.609509Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.637419Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.639680Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.663222Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.664709Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.687208Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.688442Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.713068Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.720069Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.743175Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.746434Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.771798Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.777549Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.802872Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.804489Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.827057Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.828863Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.853042Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.854338Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.877096Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.878404Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.902344Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.904102Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.929528Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.931260Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.955461Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.956833Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:48.980545Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:48.983182Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.007671Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.011827Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.035093Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.036675Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.062039Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.064973Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.088893Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.090839Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+mcp: figma ready
+2026-04-13T18:46:49.113927Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.116691Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.142598Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.144751Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.170550Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.175655Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.206830Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.208482Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.231641Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.233678Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.253499Z  WARN codex_rmcp_client::rmcp_client: Failed to terminate MCP process group 79252: Operation not permitted (os error 1)
+mcp: figma-use failed: MCP client for `figma-use` failed to start: MCP startup failed: handshaking with MCP server failed: connection closed: initialize response
+2026-04-13T18:46:49.257923Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.258735Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.281146Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+mcp: gsd ready
+2026-04-13T18:46:49.282006Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.305886Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.306685Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.330924Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.331880Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.354753Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.355857Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.378675Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.379509Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.401632Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.402429Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.424710Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.427309Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.451338Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.452035Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.475437Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.476191Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.499841Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.500535Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.523755Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.524490Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.548006Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.548878Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.572942Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.573708Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.596162Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.597038Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.621217Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.621824Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.645881Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.646625Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.670201Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.670868Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.694240Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.695024Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.718879Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.719549Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.742890Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.743727Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.767768Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.768376Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.792425Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.793073Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.817355Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.818077Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.842036Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.842692Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.866969Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.867629Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.891297Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.892056Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.915251Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.916147Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.938341Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.939174Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.962988Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.963724Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:49.987422Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:49.988282Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.012071Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.012911Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.036777Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.037541Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.060700Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.061435Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.085681Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.086429Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.109691Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.110527Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+mcp: deepwiki ready
+mcp startup: ready: cloudflare-docs, figma, gsd, deepwiki; failed: figma-use
+2026-04-13T18:46:50.134507Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.135652Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.159297Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.160187Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.184156Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.184993Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.209008Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.209746Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.233816Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at "/Users/spensermcconnell/.codex/shell_snapshots/019d882a-ed25-7b22-9ec6-4309b8abdd89.1776106007975608000.sh": Os { code: 2, kind: NotFound, message: "No such file or directory" }
+2026-04-13T18:46:50.234505Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.257643Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.258320Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.280752Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.281624Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.305220Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.306035Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.329648Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.330498Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.354595Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.355232Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.378600Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-04-13T18:46:50.379356Z  WARN codex_state::runtime: failed to open state db at /Users/spensermcconnell/.codex/state_5.sqlite: migration 21 was previously applied but is missing in the resolved migrations
+2026-04-13T18:46:50.403316Z  WARN codex_core::rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+codex
+I’m reading the current M2 plan, the contract/docs, the existing proof corpus, and the compiler/CLI test surfaces to draft Lane C precisely against the current repository state.
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/contracts/C-02-rust-workspace-and-cli-command-surface.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,260p' PLAN.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 20ms:
+---
+contract_id: C-02
+seam_id: SEAM-2
+owner_seam: SEAM-2
+version: reduced-v1
+currentness: current
+status: published
+revalidation_triggers:
+  - Any change to the supported verb set or help hierarchy in README.md, PLAN.md, docs/README.md, or this contract.
+  - Any change to the workspace member list, crate ownership boundaries, or the location of CLI entrypoints.
+  - Any change to the reduced-v1 local install target matrix or the supported-vs-legacy runtime boundary.
+---
+
+# C-02 Rust Workspace and CLI Command-Surface Contract
+
+## Purpose
+
+This contract defines the reduced-v1 Rust workspace and CLI command-surface truth for `SEAM-2`. It is the source of truth for crate ownership, supported verbs, help posture, and the runtime boundary between supported Rust code and legacy reference material.
+
+## Canonical Location
+ succeeded in 20ms:
+<!-- previous reduced-v1 baseline archived at .implemented/PLAN-20260409-144209-reduced-v1-baseline.md -->
+# PLAN
+
+## Status
+
+This is the active execution source of truth for `system`.
+
+The old reduced-v1 packet-baseline plan is preserved as historical evidence at:
+
+- [.implemented/PLAN-20260409-144209-reduced-v1-baseline.md](.implemented/PLAN-20260409-144209-reduced-v1-baseline.md)
+
+That archived plan explains why the current Rust CLI looks the way it does. It is no longer the active objective.
+
+## Active Objective
+
+Build the Rust-first planning compiler spine for foundation-family workflows, using legacy material as reference evidence where it is useful, without carrying migration baggage into the active product story.
+
+This repo remains exclusively the generator/compiler layer for a larger agent workflow stack.
+
+The first job is not:
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/SUPPORTED_COMMANDS.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc 'rg --files crates/compiler/tests crates/cli/tests tests/fixtures/pipeline_proof_corpus crates/compiler/src crates/cli/src | sort' in /Users/spensermcconnell/__Active_Code/system succeeded in 20ms:
+# Supported Commands (Reduced v1, Rust-first)
+
+The supported reduced-v1 entrypoint is the Rust CLI (crate `system-cli`, binary `system`).
+
+For the authoritative command surface and help ordering, see [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md).
+For the canonical operator-facing product language, see [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md).
+For the front door and repo-state routing model, see [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md).
+For operator-facing tone rules, see [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md).
+For section ordering and output-shape rules, see [`docs/CLI_OUTPUT_ANATOMY.md`](CLI_OUTPUT_ANATOMY.md).
+
+## Local invocation (current shipped binary)
+
+From repo root:
+
+```bash
+cargo run -p system-cli -- --help
+cargo run -p system-cli -- setup
+cargo run -p system-cli -- pipeline --help
+cargo run -p system-cli -- generate
+cargo run -p system-cli -- inspect
+ succeeded in 26ms:
+crates/cli/src/main.rs
+crates/cli/tests/cli_surface.rs
+crates/cli/tests/help_drift_guard.rs
+crates/cli/tests/pipeline_proof_corpus_support.rs
+crates/cli/tests/snapshots/system-generate-help.txt
+crates/cli/tests/snapshots/system-help.txt
+crates/cli/tests/snapshots/system-inspect-help.txt
+crates/cli/tests/snapshots/system-pipeline-help.txt
+crates/cli/tests/snapshots/system-pipeline-state-help.txt
+crates/compiler/src/artifact_manifest.rs
+crates/compiler/src/blocker.rs
+crates/compiler/src/budget.rs
+crates/compiler/src/canonical_artifacts.rs
+crates/compiler/src/decision_log.rs
+crates/compiler/src/error.rs
+crates/compiler/src/freshness.rs
+crates/compiler/src/lib.rs
+crates/compiler/src/packet_result.rs
+crates/compiler/src/pipeline.rs
+crates/compiler/src/pipeline_route.rs
+codex
+I have the current command-surface contract and proof-corpus scaffold. Next I’m pulling the M2 section, test files, proof fixtures, and the stage/pipeline inputs for `stage.10_feature_spec` to see whether Lane C is blocked by fixture shape.
+exec
+/bin/zsh -lc 'rg -n "''^### M2|''^### M3|stage'"\\.10_feature_spec|feature_spec|compile --explain|pipeline compile\" PLAN.md crates/compiler/tests/pipeline_proof_corpus_support.rs crates/cli/tests/pipeline_proof_corpus_support.rs crates/cli/tests/cli_surface.rs crates/cli/tests/help_drift_guard.rs tests/fixtures/pipeline_proof_corpus/foundation_inputs -g '"'!**/target/**'"'" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '260,460p' PLAN.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 21ms:
+- [docs/legacy/guides/workflows/02_foundation_real_project.md](docs/legacy/guides/workflows/02_foundation_real_project.md)
+- [docs/legacy/guides/workflows/09_foundation_inputs_charter.md](docs/legacy/guides/workflows/09_foundation_inputs_charter.md)
+
+Must prove:
+
+- Rust can load a planning pipeline definition
+- Rust can select a deterministic stage order
+- Rust can evaluate stage activation and compute one authoritative resolved route
+- Rust can persist and reuse the small routing state needed for multi-step planning flows
+- Rust can update routing state explicitly in M1 without pulling full output materialization forward
+- the chosen test corpus uses realistic canonical docs, not toy placeholder text
+
+Minimum acceptable wedge:
+
+- one foundation-style flow with `needs_project_context`-style branching
+- canonical docs are assumed to be pre-populated before the flow starts
+- the command family and schema behavior must remain pipeline-generic even though the first proof corpus is intentionally foundation-family only
+
+Implementation checklist:
+
+ succeeded in 30ms:
+crates/cli/tests/cli_surface.rs:56:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:87:        &root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:104:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:141:        &parent.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:1043:fn generate_refuses_when_feature_spec_missing_in_partial_system_tree() {
+crates/cli/tests/cli_surface.rs:1055:            "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md",
+crates/cli/tests/cli_surface.rs:1087:fn inspect_refuses_when_feature_spec_missing_in_partial_system_tree() {
+crates/cli/tests/cli_surface.rs:1099:            "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md",
+crates/cli/tests/cli_surface.rs:1142:fn doctor_blocks_when_feature_spec_missing_in_partial_system_tree() {
+crates/cli/tests/cli_surface.rs:1151:    assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"));
+crates/cli/tests/cli_surface.rs:1153:        "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+crates/cli/tests/cli_surface.rs:1269:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:1380:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:1417:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:1540:        root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+crates/cli/tests/cli_surface.rs:1682:        root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+crates/cli/tests/cli_surface.rs:1775:        .find("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]")
+crates/cli/tests/cli_surface.rs:2004:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+crates/cli/tests/cli_surface.rs:2041:        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+PLAN.md:63:- a locked proof corpus with named golden outputs for `pipeline resolve` and `pipeline compile`
+exec
+/bin/zsh -lc "sed -n '1,260p' crates/compiler/tests/pipeline_proof_corpus_support.rs" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,260p' crates/cli/tests/pipeline_proof_corpus_support.rs" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,260p' crates/cli/tests/cli_surface.rs" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,260p' crates/cli/tests/help_drift_guard.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 17ms:
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use system_compiler::{
+    ResolvedPipelineRoute, RouteStageReason, RouteState, RouteStateMutationOutcome,
+};
+
+pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
+
+pub fn committed_repo_root() -> PathBuf {
+    committed_case_root().join("repo")
+}
+
+pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+    copy_tree(&committed_repo_root(), &root);
+    (dir, root)
+}
+
+ succeeded in 15ms:
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
+
+pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+    copy_tree(&committed_repo_root(), &root);
+    (dir, root)
+}
+
+pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
+    let source = committed_case_root().join("state_seeds").join(seed_name);
+    let target = repo_root
+        .join(".system")
+        .join("state")
+        .join("pipeline")
+        .join(format!("{FOUNDATION_INPUTS_PIPELINE_ID}.yaml"));
+
+ succeeded in 16ms:
+mod pipeline_proof_corpus_support;
+
+use std::process::{Command, Output};
+
+fn binary() -> Command {
+    Command::new(env!("CARGO_BIN_EXE_system"))
+}
+
+fn binary_in(dir: &std::path::Path) -> Command {
+    let mut cmd = binary();
+    cmd.current_dir(dir);
+    cmd
+}
+
+fn run_in(dir: &std::path::Path, args: &[&str]) -> Output {
+    binary_in(dir)
+        .args(args)
+        .output()
+        .unwrap_or_else(|err| panic!("run `{}`: {err}", args.join(" ")))
+}
+ succeeded in 15ms:
+use std::fs;
+use std::path::PathBuf;
+use std::process::Command;
+
+fn normalize_newlines(value: &str) -> String {
+    value.replace("\r\n", "\n")
+}
+
+fn help_snapshot_path(filename: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("snapshots")
+        .join(filename)
+}
+
+fn run_help(args: &[&str], command_name: &str) -> String {
+    let exe = env!("CARGO_BIN_EXE_system");
+
+    let output = Command::new(exe)
+        .args(args)
+codex
+The plan already names the M2 test rail, but I need the actual stage and fixture shape to say whether Lane C is achievable without first changing the proof corpus itself. I’m checking whether `stage.10_feature_spec` already exists and how the committed corpus is wired today.
+exec
+/bin/zsh -lc "sed -n '500,570p' PLAN.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc 'rg --files core/stages pipelines tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines | sort' in /Users/spensermcconnell/__Active_Code/system succeeded in 31ms:
+- `.system/` canonical versus runtime zones are documented explicitly
+- the proof corpus uses realistic pre-populated canonical docs rather than toy fixtures
+- dedicated `pipeline` CLI and compiler tests cover route resolution, activation branching, shorthand ambiguity, malformed-state refusal, revision-conflict refusal, advisory locking, and pipeline-state persistence
+- docs, contracts, help, tests, and proof-corpus gates are all green in the same release, and the M1 subset of `pipeline` is shipped as a supported surface rather than an undocumented experiment
+
+Non-goals inside M1:
+
+- no full pipeline-wide compilation in one shot
+- no artifact writing yet
+- no onboarding chat flow
+- no downstream seam-skill integration yet
+- no release or sprint pipeline coverage yet
+- no collapsing derived pipeline-run state into canonical `.system` artifact truth
+- no real `pipeline compile` stage-payload generation yet
+
+### M2. Compilation Capability
+
+Goal:
+
+- recover the actual prompt-compilation behavior that keeps repo research from being repeated, after M1 has already locked route truth and state truth
+ succeeded in 37ms:
+core/stages/*.md
+core/stages/00_base.md
+core/stages/01_release_plan.md
+core/stages/02_sprint_plan.md
+core/stages/04_charter_inputs.md
+core/stages/05_charter_interview.md
+core/stages/05_charter_synthesize.md
+core/stages/06_project_context_interview.md
+core/stages/07_foundation_pack.md
+core/stages/10_feature_spec.md
+core/stages/20_phase_decomp.md
+core/stages/30_slice_gen.md
+core/stages/40_slice_check.md
+core/stages/50_slice_refine.md
+core/stages/55_slice_simplify.md
+core/stages/60_slice_execute.md
+core/stages/70_quality_gate.md
+pipelines/foundation.yaml
+pipelines/foundation_inputs.yaml
+pipelines/release.yaml
+exec
+/bin/zsh -lc "rg -n \"stage\\.10_feature_spec|feature_spec|route_basis|compile --explain|compile\" core/stages pipelines crates/compiler/src crates/cli/src tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo -g '"'!**/target/**'"'" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc 'find tests/fixtures/pipeline_proof_corpus/foundation_inputs -maxdepth 4 -type f | sort' in /Users/spensermcconnell/__Active_Code/system succeeded in 23ms:
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/resolve.after_full_activation.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/resolve.after_run_and_refs.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/resolve.initial.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.field.refs_charter_ref.applied.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.field.run_runner.applied.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.refused.malformed_route_state.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.refused.revision_conflict.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.refused.unsupported_variable.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.var.charter_gaps_detected.applied.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/state_set.var.needs_project_context.applied.txt
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/00_base.md
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/04_charter_inputs.md
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/05_charter_synthesize.md
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/06_project_context_interview.md
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/07_foundation_pack.md
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/profiles/python-uv/profile.yaml
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/runners/codex-cli.md
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/state_seeds/malformed_route_state.yaml
+tests/fixtures/pipeline_proof_corpus/foundation_inputs/state_seeds/revision_conflict_state.yaml
+ succeeded in 28ms:
+core/stages/*.md:29:    - path: artifacts/feature_spec.yaml
+crates/cli/src/main.rs:247:        "tests/fixtures/execution_demo/{fixture_set_id}/.system/feature_spec/FEATURE_SPEC.md"
+crates/cli/src/main.rs:296:    let compiler_root = match packet_id {
+crates/cli/src/main.rs:325:    let result = match system_compiler::resolve(
+crates/cli/src/main.rs:326:        &compiler_root,
+crates/cli/src/main.rs:327:        system_compiler::ResolveRequest {
+crates/cli/src/main.rs:329:            ..system_compiler::ResolveRequest::default()
+crates/cli/src/main.rs:339:    let model = match system_compiler::build_output_model(&result) {
+crates/cli/src/main.rs:347:    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+crates/cli/src/main.rs:351:    println!("{}", system_compiler::render_markdown(&model));
+crates/cli/src/main.rs:360:    let contract_version = system_compiler::workspace_contract_version();
+crates/cli/src/main.rs:378:        match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
+crates/cli/src/main.rs:395:            system_compiler::render_blocker_category(blocker.category)
+crates/cli/src/main.rs:400:            system_compiler::render_subject_ref(&blocker.subject)
+crates/cli/src/main.rs:404:            system_compiler::render_next_safe_action_value(&blocker.next_safe_action)
+crates/cli/src/main.rs:433:    let catalog = match system_compiler::load_pipeline_catalog_metadata(&repo_root) {
+crates/cli/src/main.rs:441:    println!("{}", system_compiler::render_pipeline_list(&catalog));
+crates/cli/src/main.rs:455:    let selection = match system_compiler::load_pipeline_selection_metadata(&repo_root, &args.id) {
+crates/cli/src/main.rs:457:        Err(system_compiler::PipelineMetadataSelectionError::Catalog(err)) => {
+crates/cli/src/main.rs:461:        Err(system_compiler::PipelineMetadataSelectionError::Lookup(err)) => {
+codex
+The key gap is already visible: the committed proof corpus only contains stages through `stage.07_foundation_pack`. I’m reading `core/stages/10_feature_spec.md` and the current `foundation_inputs` pipeline definitions now to determine exactly what fixture, artifact, and golden additions Lane C would need.
+exec
+/bin/zsh -lc "sed -n '1,220p' core/stages/10_feature_spec.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,240p' pipelines/foundation_inputs.yaml" in /Users/spensermcconnell/__Active_Code/system succeeded in 15ms:
+---
+kind: pipeline
+id: pipeline.foundation_inputs
+version: 0.1.0
+title: "Foundation Pipeline (Dev/Test Charter Inputs → Charter → Context? → Foundation Pack)"
+description: >
+  Development/testing pipeline that avoids the multi-turn Charter interview by generating
+  CHARTER_INPUTS.yaml and synthesizing CHARTER.md from it in a single shot.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.04_charter_inputs
+    file: core/stages/04_charter_inputs.md
+  - id: stage.05_charter_synthesize
+ succeeded in 20ms:
+---
+kind: stage
+id: stage.10_feature_spec
+version: 0.1.0
+title: "Feature Specification"
+work_level: L1
+description: >
+  Produces a single FEATURE_SPEC.md for one feature, aligned with the project Charter and Foundation Pack.
+
+includes:
+  - core/rules/p0_absolute.md
+  - core/rules/p1_pragmatic.md
+  - core/rules/traceability_policy.md
+  - core/rules/evidence_policy.md
+  - runners/${runner}.md
+  - profiles/${profile}/profile.yaml
+  - profiles/${profile}/commands.yaml
+  - profiles/${profile}/conventions.md
+
+inputs:
+exec
+/bin/zsh -lc "sed -n '1,240p' tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc 'for f in tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/*.md; do echo "FILE: $f"; sed -n '"'1,140p' \""'$f"; done' in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc 'rg --files core/library profiles runners core/rules | sort' in /Users/spensermcconnell/__Active_Code/system succeeded in 23ms:
+---
+kind: pipeline
+id: pipeline.foundation_inputs
+version: 0.1.0
+title: "Foundation Pipeline (Dev/Test Charter Inputs → Charter → Context? → Foundation Pack)"
+description: >
+  Development/testing pipeline that avoids the multi-turn Charter interview by generating
+  CHARTER_INPUTS.yaml and synthesizing CHARTER.md from it in a single shot.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.04_charter_inputs
+    file: core/stages/04_charter_inputs.md
+  - id: stage.05_charter_synthesize
+ succeeded in 27ms:
+core/library/anti_patterns.md
+core/library/backlog/BACKLOG.yaml.tmpl
+core/library/base/BASE_CONTEXT.md.tmpl
+core/library/base/base_init_directive.md
+core/library/charter/CHARTER_INPUTS.yaml.tmpl
+core/library/charter/charter.md.tmpl
+core/library/charter/charter_gen_directive.md
+core/library/charter/charter_gen_directive_TEST_MODE.md
+core/library/charter/charter_inputs_directive.md
+core/library/charter/charter_synthesize_directive.md
+core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl
+core/library/environment_inventory/environment_inventory_directive.md
+core/library/feature_spec/FEATURE_SPEC.md.tmpl
+core/library/feature_spec/feature_spec_architect_directive.md
+core/library/foundation_pack/FOUNDATION_STRATEGY.md.tmpl
+core/library/foundation_pack/QUALITY_GATES_SPEC.md.tmpl
+core/library/foundation_pack/TECH_ARCH_BRIEF.md.tmpl
+core/library/foundation_pack/TEST_STRATEGY_BRIEF.md.tmpl
+core/library/foundation_pack/foundation_pack_directive.md
+core/library/foundation_pack/quality_gates.yaml.tmpl
+ succeeded in 30ms:
+FILE: tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/00_base.md
+---
+kind: stage
+id: stage.00_base
+version: 0.1.0
+title: "Base Initialization \u2192 BASE_CONTEXT.md"
+work_level: L0
+description: 'Establishes the pipeline run baseline (runner/profile/repo_root/identifiers)
+  and emits a small BASE_CONTEXT.md artifact so downstream stages can reference stable
+  project metadata and defaults. This stage is language-agnostic and must not hardcode
+  stack commands (profile owns tooling).
+
+  '
+includes:
+- core/rules/p0_absolute.md
+- core/rules/p1_pragmatic.md
+- core/rules/traceability_policy.md
+- core/rules/evidence_policy.md
+- runners/${runner}.md
+- profiles/${profile}/conventions.md
+exec
+/bin/zsh -lc "rg -n \"route_basis|RouteBasis|compile result|compile\" crates/compiler/src crates/compiler/tests crates/cli/src crates/cli/tests -g '"'!**/target/**'"'" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,260p' crates/compiler/src/pipeline.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 22ms:
+use serde::Deserialize;
+use std::collections::BTreeSet;
+use std::fmt;
+use std::path::{Component, Path, PathBuf};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PipelineDefinition {
+    pub source_path: PathBuf,
+    pub header: PipelineHeader,
+    pub body: PipelineBody,
+}
+
+impl PipelineDefinition {
+    /// Returns the declared stage list in source order.
+    ///
+    /// Downstream routing code should consume this typed slice instead of
+    /// reparsing the pipeline YAML or inferring order from the filesystem.
+    pub fn declared_stages(&self) -> &[PipelineStage] {
+        &self.body.stages
+    }
+ succeeded in 32ms:
+crates/compiler/tests/rendering_surface.rs:1:use system_compiler::{
+crates/compiler/tests/rendering_surface.rs:248:    let request = system_compiler::ResolveRequest {
+crates/cli/src/main.rs:296:    let compiler_root = match packet_id {
+crates/cli/src/main.rs:325:    let result = match system_compiler::resolve(
+crates/cli/src/main.rs:326:        &compiler_root,
+crates/cli/src/main.rs:327:        system_compiler::ResolveRequest {
+crates/cli/src/main.rs:329:            ..system_compiler::ResolveRequest::default()
+crates/cli/src/main.rs:339:    let model = match system_compiler::build_output_model(&result) {
+crates/cli/src/main.rs:347:    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+crates/cli/src/main.rs:351:    println!("{}", system_compiler::render_markdown(&model));
+crates/cli/src/main.rs:360:    let contract_version = system_compiler::workspace_contract_version();
+crates/cli/src/main.rs:378:        match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
+crates/cli/src/main.rs:395:            system_compiler::render_blocker_category(blocker.category)
+crates/cli/src/main.rs:400:            system_compiler::render_subject_ref(&blocker.subject)
+crates/cli/src/main.rs:404:            system_compiler::render_next_safe_action_value(&blocker.next_safe_action)
+crates/cli/src/main.rs:433:    let catalog = match system_compiler::load_pipeline_catalog_metadata(&repo_root) {
+crates/cli/src/main.rs:441:    println!("{}", system_compiler::render_pipeline_list(&catalog));
+crates/cli/src/main.rs:455:    let selection = match system_compiler::load_pipeline_selection_metadata(&repo_root, &args.id) {
+crates/cli/src/main.rs:457:        Err(system_compiler::PipelineMetadataSelectionError::Catalog(err)) => {
+crates/cli/src/main.rs:461:        Err(system_compiler::PipelineMetadataSelectionError::Lookup(err)) => {
+exec
+/bin/zsh -lc "sed -n '1,320p' crates/compiler/src/route_state.rs" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,260p' crates/compiler/src/pipeline_route.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 22ms:
+use crate::pipeline::{
+    ActivationClause, ActivationConditionSet, ActivationOperator, PipelineDefinition,
+    PipelineStage, StageActivation,
+};
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct RouteVariables {
+    values: BTreeMap<String, bool>,
+}
+
+impl RouteVariables {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn new(values: BTreeMap<String, bool>) -> Result<Self, RouteEvaluationError> {
+        validate_route_variable_map(&values)?;
+        Ok(Self { values })
+ succeeded in 22ms:
+use crate::pipeline_route::RouteVariables;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::fs::{self, File, OpenOptions};
+use std::io::{Read, Write};
+use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v2";
+pub const ROUTE_STATE_AUDIT_LIMIT: usize = 50;
+
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+const FIELD_REFS_CHARTER_REF: &str = "refs.charter_ref";
+const FIELD_REFS_PROJECT_CONTEXT_REF: &str = "refs.project_context_ref";
+const FIELD_RUN_RUNNER: &str = "run.runner";
+const FIELD_RUN_PROFILE: &str = "run.profile";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+exec
+/bin/zsh -lc 'rg -n "enum Pipeline|struct Pipeline|Subcommand|compile|state set|resolve" crates/cli/src/main.rs' in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' crates/cli/src/main.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 28ms:
+use clap::{CommandFactory, Parser, Subcommand};
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+const PACKET_PLANNING_ID: &str = "planning.packet";
+const PACKET_EXECUTION_DEMO_ID: &str = "execution.demo.packet";
+const PACKET_EXECUTION_LIVE_ID: &str = "execution.live.packet";
+const RELEASE_VERSION: &str = env!("SYSTEM_RELEASE_VERSION");
+
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(command) => command.run(),
+        None => {
+            let mut command = Cli::command();
+            command.print_help().expect("help output");
+            println!();
+            ExitCode::SUCCESS
+        }
+ succeeded in 31ms:
+1:use clap::{CommandFactory, Parser, Subcommand};
+37:#[derive(Subcommand, Debug)]
+64:struct PipelineArgs {
+69:#[derive(Subcommand, Debug)]
+70:enum PipelineCommand {
+82:struct PipelineStateArgs {
+87:#[derive(Subcommand, Debug)]
+88:enum PipelineStateCommand {
+94:struct PipelineShowArgs {
+101:struct PipelineSelectorArgs {
+108:struct PipelineStateSetArgs {
+296:    let compiler_root = match packet_id {
+325:    let result = match system_compiler::resolve(
+326:        &compiler_root,
+327:        system_compiler::ResolveRequest {
+329:            ..system_compiler::ResolveRequest::default()
+334:            println!("REFUSED: resolver error: {err:?}");
+339:    let model = match system_compiler::build_output_model(&result) {
+347:    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+351:    println!("{}", system_compiler::render_markdown(&model));
+exec
+/bin/zsh -lc "sed -n '220,420p' crates/cli/src/main.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 21ms:
+fn discover_managed_repo_root(start: &Path) -> PathBuf {
+    if let Some(git_root) = discover_enclosing_git_root(start) {
+        return git_root;
+    }
+
+    if let Some(managed_root) = discover_nearest_managed_root(start) {
+        return managed_root;
+    }
+
+    start.to_path_buf()
+}
+
+fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
+    let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id).join(".system");
+
+    let project_context = base.join("project_context/PROJECT_CONTEXT.md");
+
+    let mut out = Vec::new();
+    out.push(format!(
+        "tests/fixtures/execution_demo/{fixture_set_id}/.system/charter/CHARTER.md"
+exec
+/bin/zsh -lc "sed -n '1,220p' tests/fixtures/pipeline_proof_corpus/foundation_inputs/state_seeds/malformed_route_state.yaml" in /Users/spensermcconnell/__Active_Code/system succeeded in 36ms:
+---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.foundation_inputs
+revision: 1
+routing: {}
+refs: {}
+run: {}
+audit:
+  - revision: 1
+    field_path: routing.unsupported_flag
+    value: true
+exec
+/bin/zsh -lc "sed -n '1,220p' tests/fixtures/pipeline_proof_corpus/foundation_inputs/state_seeds/revision_conflict_state.yaml" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc 'for f in tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/*.txt; do echo "FILE: $f"; sed -n '"'1,120p' \""'$f"; echo; done' in /Users/spensermcconnell/__Active_Code/system succeeded in 24ms:
+---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.foundation_inputs
+revision: 1
+routing:
+  needs_project_context: true
+refs: {}
+run: {}
+audit:
+  - revision: 1
+    field_path: routing.needs_project_context
+    value: true
+ succeeded in 41ms:
+FILE: tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/resolve.after_full_activation.txt
+OUTCOME: RESOLVED
+PIPELINE: pipeline.foundation_inputs
+ROUTE BASIS:
+  revision = 2
+  routing:
+    charter_gaps_detected = true
+    needs_project_context = true
+  refs:
+    charter_ref = <unset>
+    project_context_ref = <unset>
+  run:
+    runner = <unset>
+    profile = <unset>
+    repo_root = {{REPO_ROOT}}
+ROUTE:
+  1. stage.00_base | active
+  2. stage.04_charter_inputs | active
+  3. stage.05_charter_synthesize | active
+  4. stage.06_project_context_interview | active
+exec
+/bin/zsh -lc 'rg -n "foundation_inputs|golden|state_seed|resolve|state set" crates/compiler/tests/pipeline_route_resolution.rs crates/compiler/tests/pipeline_state_store.rs crates/compiler/tests/pipeline_loader.rs crates/cli/tests/pipeline_proof_corpus_support.rs crates/compiler/tests/pipeline_proof_corpus_support.rs crates/cli/tests/cli_surface.rs' in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '400,560p' crates/cli/tests/cli_surface.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 23ms:
+    assert!(ambiguous_stdout.contains("ambiguous selector `alpha`"));
+    assert!(ambiguous_stdout.contains("pipeline.alpha"));
+    assert!(ambiguous_stdout.contains("stage.alpha"));
+    assert!(ambiguous_stdout.contains("NEXT SAFE ACTION"));
+    assert!(ambiguous_stdout.contains("rename the conflicting ids"));
+
+    let unknown = run_in(root.as_path(), &["pipeline", "show", "--id", "missing-id"]);
+    assert!(!unknown.status.success(), "unknown selector should refuse");
+    let unknown_stdout = String::from_utf8(unknown.stdout).expect("stdout is utf-8");
+    assert!(unknown_stdout.contains("unknown pipeline selector `missing-id`"));
+    assert!(unknown_stdout.contains("pipeline list"));
+    assert!(unknown_stdout.contains("NEXT SAFE ACTION"));
+    assert!(unknown_stdout.contains("full canonical id"));
+
+    let path_like = run_in(
+        root.as_path(),
+        &["pipeline", "show", "--id", "pipelines/foundation.yaml"],
+    );
+    assert!(
+        !path_like.status.success(),
+ succeeded in 28ms:
+crates/compiler/tests/pipeline_proof_corpus_support.rs:8:pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
+crates/compiler/tests/pipeline_proof_corpus_support.rs:14:pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
+crates/compiler/tests/pipeline_proof_corpus_support.rs:21:pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
+crates/compiler/tests/pipeline_proof_corpus_support.rs:22:    let source = committed_case_root().join("state_seeds").join(seed_name);
+crates/compiler/tests/pipeline_proof_corpus_support.rs:43:pub fn assert_matches_golden(
+crates/compiler/tests/pipeline_proof_corpus_support.rs:47:    golden_name: &str,
+crates/compiler/tests/pipeline_proof_corpus_support.rs:50:    let expected = read_golden(golden_name);
+crates/compiler/tests/pipeline_proof_corpus_support.rs:54:        "pipeline proof output drifted for {golden_name}; update the golden at {} if intentional",
+crates/compiler/tests/pipeline_proof_corpus_support.rs:56:            .join("goldens")
+crates/compiler/tests/pipeline_proof_corpus_support.rs:57:            .join(golden_name)
+crates/compiler/tests/pipeline_proof_corpus_support.rs:62:pub fn render_pipeline_resolve_output(
+crates/compiler/tests/pipeline_proof_corpus_support.rs:181:        RouteStageReason::BlockedByUnresolvedStage {
+crates/compiler/tests/pipeline_proof_corpus_support.rs:185:            "blocked by unresolved stage {} ({})",
+crates/compiler/tests/pipeline_proof_corpus_support.rs:207:fn read_golden(golden_name: &str) -> String {
+crates/compiler/tests/pipeline_proof_corpus_support.rs:208:    let golden_path = committed_case_root().join("goldens").join(golden_name);
+crates/compiler/tests/pipeline_proof_corpus_support.rs:210:        &fs::read_to_string(&golden_path)
+crates/compiler/tests/pipeline_proof_corpus_support.rs:211:            .unwrap_or_else(|err| panic!("read {}: {err}", golden_path.display())),
+crates/compiler/tests/pipeline_proof_corpus_support.rs:270:        .join("foundation_inputs")
+crates/cli/tests/cli_surface.rs:308:        command_lines[2].starts_with("resolve "),
+crates/cli/tests/cli_surface.rs:309:        "resolve should be third: {command_lines:?}"
+exec
+/bin/zsh -lc "sed -n '1,260p' crates/compiler/tests/pipeline_route_resolution.rs" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,280p' crates/compiler/tests/pipeline_state_store.rs" in /Users/spensermcconnell/__Active_Code/system succeeded in 18ms:
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
+use system_compiler::{
+    load_route_state, load_route_state_with_supported_variables, set_route_state, RouteState,
+    RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    RouteStateStoreError, RouteStateValue, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+};
+
+fn write_file(path: &Path, contents: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).expect("mkdirs");
+    }
+    std::fs::write(path, contents).expect("write");
+}
+
+fn seed_run_inventory(repo_root: &Path) {
+    write_file(&repo_root.join("runners/codex-cli.md"), "# runner");
+ succeeded in 18ms:
+mod pipeline_proof_corpus_support;
+
+use std::path::PathBuf;
+use system_compiler::{
+    load_pipeline_definition, load_route_state_with_supported_variables, resolve_pipeline_route,
+    set_route_state, supported_route_state_variables, ActivationClause, ActivationConditionSet,
+    ActivationOperator, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineStage, RouteEvaluationError, RouteStageReason, RouteStageStatus, RouteStateMutation,
+    RouteStateMutationOutcome, RouteVariables, StageActivation,
+};
+
+fn fixture(path: &str) -> PipelineDefinition {
+    let root = pipeline_proof_corpus_support::committed_repo_root();
+    load_pipeline_definition(&root, path).expect("pipeline fixture")
+}
+
+#[test]
+fn route_evaluation_preserves_declared_order_and_marks_false_activation_skipped() {
+    let definition = fixture("pipelines/foundation_inputs.yaml");
+    let variables = RouteVariables::from_pairs([
+exec
+/bin/zsh -lc 'rg -n "pipeline compile|compile --explain|pipeline state set|pipeline resolve|setup is still a placeholder|pipeline is the orchestration surface" README.md docs/START_HERE.md docs/SUPPORTED_COMMANDS.md docs/contracts/C-02-rust-workspace-and-cli-command-surface.md crates/cli/tests/snapshots/system-help.txt crates/cli/tests/snapshots/system-pipeline-help.txt crates/cli/tests/snapshots/system-pipeline-state-help.txt' in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' crates/cli/tests/snapshots/system-help.txt" in /Users/spensermcconnell/__Active_Code/system succeeded in 31ms:
+Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface.
+
+Usage: system [COMMAND]
+
+Commands:
+  setup     Placeholder setup entrypoint
+  pipeline  Pipeline operator surface
+  generate  Generate a reduced-v1 packet
+  inspect   Inspect packet composition and decision evidence
+  doctor    Diagnose blockers and safe next actions
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+ succeeded in 36ms:
+docs/SUPPORTED_COMMANDS.md:29:cargo run -p system-cli -- pipeline resolve --id pipeline.foundation_inputs
+docs/SUPPORTED_COMMANDS.md:30:cargo run -p system-cli -- pipeline state set --id pipeline.foundation_inputs --var needs_project_context=true
+docs/SUPPORTED_COMMANDS.md:39:- `pipeline` is reviewed and contractually defined now, and the help surface pins that supported subset while `pipeline compile` remains deferred under `C-10`.
+docs/contracts/C-02-rust-workspace-and-cli-command-surface.md:45:- For the first supported `M2` compile wedge, plain `pipeline compile` and `pipeline compile --explain` MUST render from one shared compiler-owned typed compile result rather than maintaining separate assembly paths.
+docs/contracts/C-02-rust-workspace-and-cli-command-surface.md:58:- Successful `pipeline compile` output MUST remain a payload surface, not a proof surface. Route-basis evidence, freshness detail, and decision proof remain the responsibility of refusal output and `inspect`.
+docs/contracts/C-02-rust-workspace-and-cli-command-surface.md:59:- When `M2` lands, compile-specific proof MUST be exposed through `pipeline compile --explain`, not by broadening `inspect` beyond its packet-proof meaning.
+exec
+/bin/zsh -lc "sed -n '1,220p' crates/cli/tests/snapshots/system-pipeline-help.txt" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' crates/cli/tests/snapshots/system-pipeline-state-help.txt" in /Users/spensermcconnell/__Active_Code/system succeeded in 20ms:
+Pipeline operator surface
+
+Usage: system pipeline <COMMAND>
+
+Commands:
+  list     List available pipelines
+  show     Show one canonical pipeline or stage declaration
+  resolve  Resolve one pipeline route from persisted route state
+  state    Route-state operations
+
+Options:
+  -h, --help  Print help
+ succeeded in 18ms:
+Route-state operations
+
+Usage: system pipeline state <COMMAND>
+
+Commands:
+  set  Set one supported route-state field
+
+Options:
+  -h, --help  Print help
+exec
+/bin/zsh -lc 'rg --files docs/contracts | sort' in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "rg -n \"C-10|compile\" docs/contracts -g '"'!**/target/**'"'" in /Users/spensermcconnell/__Active_Code/system succeeded in 35ms:
+docs/contracts/C-01-approved-repo-surface.md
+docs/contracts/C-02-rust-workspace-and-cli-command-surface.md
+docs/contracts/C-03-canonical-artifact-manifest-contract.md
+docs/contracts/C-04-resolver-result-and-doctor-blockers.md
+docs/contracts/C-05-renderer-and-proof-surfaces.md
+docs/contracts/C-06-fixture-execution-demo-boundary.md
+docs/contracts/C-07-conformance-rails-and-docs-cutover.md
+docs/contracts/pipeline-operator-surface-and-id-resolution.md
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md
+docs/contracts/pipeline-route-and-state-core.md
+docs/contracts/stage-compile-boundary-and-route-freshness.md
+ succeeded in 35ms:
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:13:  - Any change to the upstream contracts consumed by this contract: `C-08`, `C-09`, or `C-10`.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:24:- the shared proof corpus used by compiler and CLI conformance checks
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:44:- [`C-08`](pipeline-route-and-state-core.md) compiler-owned route/state truth
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:46:- [`C-10`](stage-compile-boundary-and-route-freshness.md) compile-boundary and route-freshness handoff rules
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:62:- the compile-boundary semantics owned by `C-10`
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:63:- the concrete implementation of future compiler or CLI tests
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:64:- any future payload field names, materialization steps, or file-write details for later compile work
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:70:- The M1 proof corpus MUST be a single shared repository-owned corpus used by both compiler and CLI conformance checks.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:73:- The corpus MUST be shared rather than duplicated across compiler and CLI test suites.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:75:- The corpus SHOULD be colocated with repo test fixtures so later slices can reference it from compiler and CLI suites without inventing separate fixture trees.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:95:- Golden outputs MUST be shared across compiler and CLI conformance checks when they describe the same contract surface.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:127:- Docs and help MUST keep `pipeline compile` out of the shipped M1 supported surface.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:130:- Docs and help MUST keep the compile boundary deferred as future work consistent with `C-10`.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:149:- The contract MUST keep the shipped help/docs posture from implying broader execution or compile behavior than the upstream contracts allow.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:162:Any change to `C-08`, `C-09`, or `C-10` that affects route truth, operator-surface wording, or the compile boundary MUST revalidate `C-11` before downstream consumers treat it as current.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:168:- [ ] The shared proof corpus exists as one repository-owned corpus used by both compiler and CLI conformance checks.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:171:- [ ] Golden outputs or snapshots pin the same shared corpus across compiler and CLI surfaces.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:177:- [ ] Docs and help do not imply `pipeline compile` is shipped in M1.
+docs/contracts/pipeline-proof-corpus-and-docs-cutover.md:178:- [ ] The contract stays aligned with `C-08`, `C-09`, and `C-10` without redefining their semantics.
+docs/contracts/pipeline-operator-surface-and-id-resolution.md:22:It exists so the operator-facing `pipeline` family can be treated as one explicit contract baseline for `list`, `show`, `resolve`, and `state set` without reinterpreting compiler truth in CLI-only code paths.
+codex
+I’ve confirmed two hard blockers in the current committed state: `pipeline.foundation_inputs` does not yet include `stage.10_feature_spec`, and the shared proof corpus fixture tree does not contain the files that stage would need to compile. I’m reading the compile-boundary contract now so the draft stays aligned with the locked M2 constraints rather than inventing new ones.
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/contracts/stage-compile-boundary-and-route-freshness.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,240p' docs/contracts/pipeline-proof-corpus-and-docs-cutover.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 30ms:
+---
+contract_id: C-10
+seam_id: SEAM-3
+owner_seam: SEAM-3
+version: m1-v1
+currentness: current
+status: published
+revalidation_triggers:
+  - Any change to compile-target selection semantics, canonical id resolution, or the rule that compile consumes published operator-surface truth rather than inventing compile-only targeting behavior.
+  - Any change to the source-of-truth split between pipeline YAML orchestration data and stage front-matter compile-facing metadata.
+  - Any change to route-basis freshness inputs, inactive-stage refusal posture, or the operator recovery guidance that tells the caller to re-run `pipeline resolve`.
+  - Any change to the activation-equivalence rule between pipeline YAML and stage front matter during the transition.
+  - Any change to the stage-payload handoff boundary expected by later compile work.
+---
+
+# C-10 Stage Compile Boundary and Route Freshness Contract
+
+## Purpose
+
+This contract defines the compile boundary between published `pipeline` route truth and the later compile surface that will consume it.
+ succeeded in 30ms:
+---
+contract_id: C-11
+seam_id: SEAM-4
+owner_seam: SEAM-4
+version: m1-v1
+currentness: current
+status: drafted
+revalidation_triggers:
+  - Any change to the proof-corpus shape, fixture ownership, or shared golden outputs.
+  - Any change to malformed pipeline or malformed route-state refusal classes, wording, or recovery guidance.
+  - Any change to docs/help parity claims for the supported `pipeline` subset.
+  - Any change to the M1 performance, security, or operability boundary for `pipeline`.
+  - Any change to the upstream contracts consumed by this contract: `C-08`, `C-09`, or `C-10`.
+---
+
+# C-11 Pipeline Proof Corpus and Docs Cutover Contract
+
+## Purpose
+
+This contract defines the conformance baseline for the shipped M1 `pipeline` surface.
+exec
+/bin/zsh -lc "sed -n '1,220p' profiles/python-uv/profile.yaml" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' profiles/python-uv/commands.yaml" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' profiles/python-uv/conventions.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' runners/codex-cli.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 21ms:
+kind: profile
+id: python-uv
+version: 0.1.0
+title: "Python (uv)"
+description: >
+  Python projects managed with uv. Assumes ruff for lint/format, mypy for typing, pytest for tests.
+
+compatibility:
+  languages: ["python"]
+  package_managers: ["uv"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  python_requires: ">=3.11"
+  code_dirs: ["src"]
+  test_dirs: ["tests"]
+  config_files:
+    - pyproject.toml
+    - uv.lock
+
+ succeeded in 19ms:
+commands:
+  install: "uv sync"
+  format: "uv run ruff format {code_dirs} {test_dirs}"
+  format_check: "uv run ruff format --check {code_dirs} {test_dirs}"
+  lint: "uv run ruff check {code_dirs} {test_dirs}"
+  typecheck: "uv run mypy {code_dirs}"
+  tests: "uv run pytest -q"
+  coverage: "uv run pytest --cov={code_dirs} --cov-report=term-missing --cov-fail-under={coverage_min}"
+  docs: "uv run ruff check --select D {code_dirs}"
+  security: "uv run pip-audit && uv run bandit -r {code_dirs}"
+  complexity: "uv run ruff check --select C90 {code_dirs}"
+ succeeded in 19ms:
+# Profile conventions: Python (uv)
+
+These are **project/tooling conventions** for Python projects managed with **uv**.
+Core system prompts should not hardcode any of the commands below; they should reference
+**command keys** from `commands.yaml` (e.g., `commands.tests`).
+
+## Layout assumptions
+- Preferred code root: `src/` (unless repo already uses a different layout)
+- Preferred tests root: `tests/`
+- Keep module depth shallow; prefer composition.
+
+## Style
+- Formatting: `ruff format` (Black-compatible)
+- Linting: `ruff check`
+- Docstrings: Google-style recommended; enforce via Ruff `D` rules if enabled.
+
+## Typing
+- Use type annotations for public APIs and non-trivial functions.
+- Prefer `mypy` (strict posture for new modules if feasible).
+- Avoid blanket `# type: ignore` (allowed only with justification and minimal scope).
+ succeeded in 18ms:
+# Runner: codex-cli
+
+This runner assumes the agent can:
+- run shell commands in the repo
+- read/write files
+- show command evidence (cmd, exit code, tail)
+
+## Command execution rules
+- Use the selected profile’s command keys (e.g., `commands.tests`) as the source of truth.
+- Capture evidence for every gate you claim passed (see Evidence Policy).
+
+## File edits
+- Prefer minimal diffs.
+- Keep changes within slice scope.
+- If a change introduces/changes env vars, services, ports, or runtime assumptions:
+  - update `ENVIRONMENT_INVENTORY.md` at the repo/project root (the repo root for this run)
+  - keep the pipeline artifact copy in sync when applicable (`artifacts/foundation/ENVIRONMENT_INVENTORY.md`)
+
+## Output discipline
+- For “document stages”, output only the document content (no extra commentary).
+exec
+/bin/zsh -lc "sed -n '1,220p' core/library/feature_spec/feature_spec_architect_directive.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 28ms:
+You are the Feature Spec Architect.
+
+## Purpose
+Produce a complete, implementation-ready Feature Specification that will be used as the contract for phase decomposition and slicing.
+
+## Inputs (must be provided)
+- Project Charter (CHARTER.md): posture, constraints, standards, risk tolerance.
+- Feature request context: problem statement or request text + any links/notes available.
+- Project Profile (conceptual): codebase shape, tooling, and standard quality gates exist elsewhere; do not invent commands.
+
+## Operating Rules (language/tooling agnostic)
+1) No guessing: If essential details are missing, ask clarifying questions.
+2) Keep it minimal but sufficient: include only what is needed to build, test, and ship.
+3) Traceability: Every requirement must map to acceptance criteria.
+4) Design must be explicit: include a proposed approach AND at least 1 credible alternative with trade-offs.
+5) Do not bake in stack commands: reference “profile-defined commands” generically where needed.
+
+## Interview Mode (default)
+Ask one question at a time. Stop when the spec can be completed confidently.
+- Ask up to 10 questions max.
+exec
+/bin/zsh -lc "sed -n '1,260p' core/library/feature_spec/FEATURE_SPEC.md.tmpl" in /Users/spensermcconnell/__Active_Code/system succeeded in 22ms:
+# {{FEATURE_TITLE}} — Feature Specification
+- Spec ID: {{SPEC_ID}}
+- Date (UTC): {{NOW_UTC}}
+- Owner: {{OWNER}}
+- Team: {{TEAM}}
+- Repo / Project Ref: {{REPO_OR_PROJECT_REF}}
+- Charter Ref: {{CHARTER_REF}}  <!-- e.g., link or section reference -->
+
+## 0) Charter Alignment
+- Charter Ref: {{CHARTER_REF}}
+- Baseline posture (from Charter): Level {{CHARTER_BASELINE_LEVEL}} — {{CHARTER_BASELINE_LABEL}}
+- Feature risk delta vs Charter context snapshot: {{RISK_DELTA_NONE_OR_LIST}}
+
+### Dimension alignment
+> Inherit by default. Only override when this feature triggers “raise-the-bar” conditions.
+
+| Dimension | Charter default level | Feature stance (inherit/raise/lower) | Reason |
+|---|---:|---|---|
+| Speed vs Quality |  |  |  |
+| Type safety / static analysis |  |  |  |
+exec
+/bin/zsh -lc "rg -n \"route_basis|route basis\" -g '"'!**/target/**'"' ." in /Users/spensermcconnell/__Active_Code/system succeeded in 42ms:
+./PLAN.md:379:   - `compile` must verify that the resolved-route basis is still fresh against pipeline, stage, profile, runner, and route-state inputs. If the basis drifted, refuse and tell the operator to re-run `pipeline resolve`.
+./PLAN.md:437:     - missing persisted `route_basis` refusal
+./PLAN.md:438:     - malformed persisted `route_basis` refusal
+./PLAN.md:439:     - stale `route_basis` refusal after route-state mutation without a fresh `pipeline resolve`
+./PLAN.md:440:     - inactive-stage refusal when the selected stage is not active in the persisted route basis
+./PLAN.md:457:     - `pipeline compile` reuses the already-selected pipeline definition, selected stage metadata, persisted `route_basis`, and loaded artifact/profile content in memory within that single command invocation only
+./PLAN.md:529:- `pipeline resolve` in `M2` becomes the writer of one bounded persisted `route_basis` snapshot, and `pipeline compile` consumes that snapshot for freshness and active-stage checks instead of silently re-running resolve.
+./PLAN.md:531:- `pipeline compile` in `M2` does not accept runner/profile override flags. Compile consumes the persisted `route_basis` exactly as resolved; changing runner or profile requires state mutation plus a fresh `pipeline resolve`.
+./PLAN.md:532:- compile proof in `M2` is exposed as `pipeline compile --explain`. Plain `compile` stays payload-only, while `compile --explain` is a proof-only mode for route basis, selected stage metadata, include expansion, and required-input decisions.
+./PLAN.md:533:- the implementation budget for `M2` stays intentionally small: thin CLI wiring in `crates/cli`, one new compiler-owned compile module in `crates/compiler`, and only minimal extensions to existing `pipeline` and `route_state` modules for shared contracts and persisted `route_basis`
+./PLAN.md:551:- freshness refusal in `M2` is grounded on a persisted `route_basis` snapshot written by `pipeline resolve`, not on implicit resolver reruns or caller-managed ad hoc tokens
+./PLAN.md:651:- Unknown ids, ambiguous shorthand, malformed state, stale route basis, and inactive stages are all distinct refusal classes.
+./artifacts/planning/m1-pipeline-and-routing-spine/seam-3-stage-compile-boundary-and-route-freshness-handoff.md:94:  - keep refusal classes explicit for inactive stages, stale route basis, and missing compile inputs
+./artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-3-stage-compile-boundary-and-route-freshness-handoff/slice-2-route-basis-freshness-and-inactive-stage-refusals.md:33:- **User/system value**: Compile-boundary work can fail safely and explicitly when the selected stage is inactive or the route basis is stale, instead of silently compiling against invalid planning truth.
+./artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-3-stage-compile-boundary-and-route-freshness-handoff/slice-00-c-10-stage-compile-boundary-and-route-freshness-contract.md:62:  - compile consumes a canonical pipeline id, a canonical stage id, and one previously resolved route basis
+./artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-3-stage-compile-boundary-and-route-freshness-handoff/slice-00-c-10-stage-compile-boundary-and-route-freshness-contract.md:68:  - compile must refuse if the upstream route basis and stage-front-matter expectations drift out of contract
+./artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-3-stage-compile-boundary-and-route-freshness-handoff/slice-00-c-10-stage-compile-boundary-and-route-freshness-contract.md:70:  - compile must refuse stale route basis instead of silently re-running `pipeline resolve`
+./crates/cli/src/main.rs:745:    render_optional_route_basis_field(&mut out, "charter_ref", state.refs.charter_ref.as_deref());
+./crates/cli/src/main.rs:746:    render_optional_route_basis_field(
+./crates/cli/src/main.rs:752:    render_optional_route_basis_field(&mut out, "runner", state.run.runner.as_deref());
+exec
+/bin/zsh -lc "rg -n \"Lane C|stage\\.10_feature_spec|route_basis|compile --explain|goldens|proof corpus\" artifacts/planning docs PLAN.md -g '"'!**/target/**'"'" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "find artifacts/planning -maxdepth 4 -type f | sort | sed -n '1,200p'" in /Users/spensermcconnell/__Active_Code/system succeeded in 29ms:
+artifacts/planning/m1-pipeline-and-routing-spine/README.md
+artifacts/planning/m1-pipeline-and-routing-spine/governance/pack-closeout.md
+artifacts/planning/m1-pipeline-and-routing-spine/governance/remediation-log.md
+artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-1-closeout.md
+artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-2-closeout.md
+artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-3-closeout.md
+artifacts/planning/m1-pipeline-and-routing-spine/governance/seam-4-closeout.md
+artifacts/planning/m1-pipeline-and-routing-spine/review_surfaces.md
+artifacts/planning/m1-pipeline-and-routing-spine/scope_brief.md
+artifacts/planning/m1-pipeline-and-routing-spine/seam-1-compiler-pipeline-core-and-routing-state.md
+artifacts/planning/m1-pipeline-and-routing-spine/seam-2-pipeline-operator-surface-and-id-resolution.md
+artifacts/planning/m1-pipeline-and-routing-spine/seam-3-stage-compile-boundary-and-route-freshness-handoff.md
+artifacts/planning/m1-pipeline-and-routing-spine/seam-4-validation-rails-proof-corpus-and-docs-realignment.md
+artifacts/planning/m1-pipeline-and-routing-spine/seam_map.md
+artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/review.md
+artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/seam.md
+artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/slice-00-c-08-pipeline-route-and-state-core-contract.md
+artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/slice-1-pipeline-definition-ingest-and-declared-route-shape.md
+artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/slice-2-route-evaluation-and-status-reasons.md
+artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-1-compiler-pipeline-core-and-routing-state/slice-3-route-state-persistence-and-mutation-refusals.md
+ succeeded in 38ms:
+PLAN.md:63:- a locked proof corpus with named golden outputs for `pipeline resolve` and `pipeline compile`
+PLAN.md:276:- the command family and schema behavior must remain pipeline-generic even though the first proof corpus is intentionally foundation-family only
+PLAN.md:430:   - Lock an M1 proof corpus with golden outputs for `pipeline resolve` and `pipeline state set`.
+PLAN.md:431:   - Store that M1 proof corpus in one repo-owned foundation-family directory adjacent to the CLI/compiler test suites, not inside `.system/` or another product-shaped runtime zone.
+PLAN.md:432:   - CLI and compiler tests must share that one foundation-family proof corpus rather than maintaining duplicate golden case sets.
+PLAN.md:437:     - missing persisted `route_basis` refusal
+PLAN.md:438:     - malformed persisted `route_basis` refusal
+PLAN.md:439:     - stale `route_basis` refusal after route-state mutation without a fresh `pipeline resolve`
+PLAN.md:442:     - missing required artifact refusal for `stage.10_feature_spec`
+PLAN.md:443:     - optional-artifact absence success for `stage.10_feature_spec`
+PLAN.md:445:     - proof-only success for `pipeline compile --explain`
+PLAN.md:449:   - Lock M2 golden outputs for both `pipeline compile` payload output and `pipeline compile --explain` proof output over the shared foundation-family proof corpus.
+PLAN.md:450:   - CLI and compiler compile tests must share those same M2 goldens instead of maintaining separate payload/proof fixtures.
+PLAN.md:457:     - `pipeline compile` reuses the already-selected pipeline definition, selected stage metadata, persisted `route_basis`, and loaded artifact/profile content in memory within that single command invocation only
+PLAN.md:461:   - Add simple latency expectations for the foundation-family proof corpus and treat repeated growth in parse steps or corpus costs as a regression to investigate.
+PLAN.md:462:   - Rough local budgets for the proof corpus:
+PLAN.md:465:     - `pipeline resolve`: comfortably under a human-perceptible pause on the proof corpus
+PLAN.md:477:   - The first supported proof corpus and schema coverage remain foundation-family narrow until later milestones expand them.
+PLAN.md:497:- the two foundation-family branches behave the way the locked proof corpus says they should
+PLAN.md:501:- the proof corpus uses realistic pre-populated canonical docs rather than toy fixtures
+exec
+/bin/zsh -lc "sed -n '1,220p' artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-3-stage-compile-boundary-and-route-freshness-handoff/slice-2-route-basis-freshness-and-inactive-stage-refusals.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,220p' artifacts/planning/m1-pipeline-and-routing-spine/threaded-seams/seam-3-stage-compile-boundary-and-route-freshness-handoff/slice-3-activation-equivalence-and-stage-payload-handoff.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 27ms:
+---
+slice_id: S2
+seam_id: SEAM-3
+slice_kind: implementation
+execution_horizon: active
+status: exec-ready
+plan_version: v1
+basis:
+  currentness: current
+  basis_ref: seam.md#basis
+  stale_triggers:
+    - Any change to route-basis fields, route-state semantics, inactive-stage status meaning, or the operator recovery path that says to re-run `pipeline resolve` requires this slice to revalidate.
+gates:
+  pre_exec:
+    review: inherited
+    contract: inherited
+    revalidation: inherited
+  post_exec:
+    landing: pending
+    closeout: pending
+ succeeded in 29ms:
+---
+slice_id: S3
+seam_id: SEAM-3
+slice_kind: conformance
+execution_horizon: active
+status: exec-ready
+plan_version: v1
+basis:
+  currentness: current
+  basis_ref: seam.md#basis
+  stale_triggers:
+    - Any change to stage-front-matter activation posture, compile payload field ownership, or the rule that activation drift is an explicit refusal requires this slice to revalidate.
+gates:
+  pre_exec:
+    review: inherited
+    contract: inherited
+    revalidation: inherited
+  post_exec:
+    landing: pending
+    closeout: pending
+exec
+/bin/zsh -lc "sed -n '1,180p' docs/legacy/guides/workflows/05_feature_to_slice_execution.md" in /Users/spensermcconnell/__Active_Code/systemexec
+/bin/zsh -lc "sed -n '1,160p' docs/legacy/stages/stage.10_feature_spec.md" in /Users/spensermcconnell/__Active_Code/system succeeded in 30ms:
+# stage.10_feature_spec — Feature Specification → FEATURE_SPEC.md
+
+## Purpose
+
+Produces a single per-feature `FEATURE_SPEC.md` that acts as the contract for downstream phase decomposition and slicing.
+
+The spec must be aligned with:
+- `CHARTER.md` (posture and red lines)
+- the Foundation Pack artifacts (if present)
+- project reality (`PROJECT_CONTEXT.md` if present)
+
+- **Work level:** L1 (Project/Planning)
+- **Interaction style:** interview by default (up to ~10 clarifying questions)
+
+## Inputs
+
+### Library inputs (required)
+- `core/library/feature_spec/feature_spec_architect_directive.md`
+- `core/library/feature_spec/FEATURE_SPEC.md.tmpl`
+
+ succeeded in 30ms:
+# Workflow: Feature spec → slices → execution (if present)
+
+Some systems keep “feature delivery” in a single pipeline with stages like:
+- Feature spec
+- Phase decomposition
+- Slice generation
+- Slice check / refine loop
+- Slice execution
+- Quality gate
+
+If your current system includes these stages, use this workflow.
+
+## 1) Confirm the stages exist
+
+```bash
+python3 tools/harness.py list
+```
+
+Look for stage IDs like:
+- `stage.10_feature_spec`
+codex
+Current blocker: M2 Lane C is blocked by the committed fixture shape.
+
+[core/stages/10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/core/stages/10_feature_spec.md) exists, but neither the real pipeline [pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/pipelines/foundation_inputs.yaml) nor the shared proof-corpus pipeline [foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml) declares `stage.10_feature_spec`. The shared corpus repo also does not contain the compile-time inputs that stage needs: no fixture copy of `core/rules/*.md`, no `profiles/python-uv/commands.yaml`, no `profiles/python-uv/conventions.md`, no `core/library/feature_spec/*`, and no `artifacts/...` inputs for base/charter/foundation. M2 cannot be called shipped until that is fixed.
+
+**Draft**
+### Lane C. Proof Corpus, Compile Goldens, and Help/Docs Conformance
+
+- Keep M2 proof narrow and explicit: one shared foundation-family proof corpus, one supported compile target, `pipeline.foundation_inputs` + `stage.10_feature_spec`, and no second corpus tree for CLI vs compiler.
+- Extend the real pipeline at [pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/pipelines/foundation_inputs.yaml) and the shared proof-corpus pipeline at [tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml) to append `stage.10_feature_spec` after `stage.07_foundation_pack`.
+- Add the stage file to the shared proof corpus at [tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/10_feature_spec.md), matching the current stage contract from [core/stages/10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/core/stages/10_feature_spec.md).
+- Add every compile-time dependency referenced by `stage.10_feature_spec` into the shared corpus repo, with realistic committed content, not placeholders:
+  - `core/rules/p0_absolute.md`
+  - `core/rules/p1_pragmatic.md`
+  - `core/rules/traceability_policy.md`
+  - `core/rules/evidence_policy.md`
+  - `profiles/python-uv/profile.yaml`
+  - `profiles/python-uv/commands.yaml`
+  - `profiles/python-uv/conventions.md`
+  - `runners/codex-cli.md`
+  - `core/library/feature_spec/feature_spec_architect_directive.md`
+  - `core/library/feature_spec/FEATURE_SPEC.md.tmpl`
+- Add realistic upstream artifact inputs under the shared corpus repo so compile can resolve stage.10 inputs without synthesizing fake runtime output:
+  - required: `artifacts/base/BASE_CONTEXT.md`, `artifacts/charter/CHARTER.md`
+  - optional happy-path baseline: `artifacts/project_context/PROJECT_CONTEXT.md` plus the full foundation pack files from [core/stages/07_foundation_pack.md](/Users/spensermcconnell/__Active_Code/system/core/stages/07_foundation_pack.md)
+- Keep optional-input coverage non-duplicative: the committed corpus baseline should be the richer “full context” case, and the optional-absence success case should delete optional files from the temp installed copy during tests instead of creating a second near-identical fixture tree.
+- Add route-basis fixture support to the shared corpus. Fresh route-basis snapshots should be created by `pipeline resolve` inside tests so the real resolve→compile handoff is exercised. Only malformed-route-basis refusal should use a committed negative seed. Do not add a second hand-authored “happy-path route_basis” source of truth.
+- Extend proof normalization helpers so compile goldens can replace temp repo paths and the persisted route-basis path with stable placeholders; the current helpers only cover `{{REPO_ROOT}}` and `{{STATE_PATH}}`.
+
+- Lock one shared success payload golden and one shared success explain golden for the baseline full-context corpus:
+  - `compile.stage_10_feature_spec.payload.full_context.txt`
+  - `compile.stage_10_feature_spec.explain.full_context.txt`
+- The payload golden must pin the plain `pipeline compile` stdout shape only.
+- The explain golden must pin `pipeline compile --explain` as proof-only output for: selected pipeline/stage, route-basis summary, include expansion, required vs optional input decisions, and outputs contract.
+- Compiler and CLI tests must read those same golden files from [tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens); no duplicate compiler-only or cli-only compile goldens.
+- Stale-route-basis and inactive-stage refusals are regression-critical. Compiler tests may type-assert refusal kinds, but CLI tests must pin operator-facing wording and the “re-run `pipeline resolve`” recovery path.
+
+- Compiler responsibilities:
+  - add a dedicated compile-core suite, preferably separate from the existing route-only files, to assert typed compile result assembly, required/optional input classification, shared render-from-one-result behavior, and refusal classification
+  - exercise the shared corpus by installing the committed fixture repo, running resolve when a fresh basis is needed, and comparing compiler-rendered payload/proof output against the shared goldens
+- CLI responsibilities:
+  - add compile surface integration coverage for selector parsing, exit codes, stdout/refusal rendering, and the resolve→compile handoff
+  - keep compile help and docs drift checks in the CLI suite, not in compiler tests
+- Shared-fixture rule:
+  - the source of truth stays under [tests/fixtures/pipeline_proof_corpus/foundation_inputs](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs)
+  - helper code may exist in both suites if Cargo wiring forces it, but fixture contents, seeds, and goldens must exist only once
+
+- Mandatory M2 regression tests for Lane C:
+  - missing persisted `route_basis` refusal
+  - malformed persisted `route_basis` refusal
+  - stale `route_basis` refusal after route-state mutation without a fresh resolve
+  - inactive-stage refusal when `stage.10_feature_spec` is present in the pipeline but not active in the persisted route basis
+  - selected-stage-not-in-pipeline refusal
+  - missing required artifact refusal for `stage.10_feature_spec`
+  - optional-artifact absence success for `stage.10_feature_spec`
+  - plain `pipeline compile` payload-only success
+  - `pipeline compile --explain` proof-only success
+  - one shared typed compile result proving payload/explain cannot drift semantically
+
+- The stale-route-basis regression should be isolated by:
+  - resolving a fresh basis for an active `stage.10_feature_spec`
+  - mutating `run.profile` or `run.runner`
+  - compiling without a fresh resolve
+  - asserting stale-basis refusal, not inactive-stage refusal
+- The inactive-stage regression should be isolated by:
+  - resolving from a route state where `stage.06_project_context_interview` is still `next`
+  - compiling `stage.10_feature_spec`
+  - asserting inactive-stage refusal that surfaces the blocking route condition, not a freshness refusal
+
+- Help/doc drift coverage that must change when compile lands:
+  - update [system-help.txt](/Users/spensermcconnell/__Active_Code/system/crates/cli/tests/snapshots/system-help.txt) so top-level help still presents setup-first ordering and now advertises `pipeline compile`
+  - update [system-pipeline-help.txt](/Users/spensermcconnell/__Active_Code/system/crates/cli/tests/snapshots/system-pipeline-help.txt) so `compile` appears beside `list`, `show`, `resolve`, and `state`
+  - add `system-pipeline-compile-help.txt`
+  - update [help_drift_guard.rs](/Users/spensermcconnell/__Active_Code/system/crates/cli/tests/help_drift_guard.rs) so docs/help parity now requires `pipeline compile`, `pipeline compile --explain`, payload-only stdout wording, and the freshness recovery path
+  - update support-story docs checked by that drift guard: [README.md](/Users/spensermcconnell/__Active_Code/system/README.md), [docs/START_HERE.md](/Users/spensermcconnell/__Active_Code/system/docs/START_HERE.md), [docs/SUPPORTED_COMMANDS.md](/Users/spensermcconnell/__Active_Code/system/docs/SUPPORTED_COMMANDS.md), and keep them aligned with [C-02](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-02-rust-workspace-and-cli-command-surface.md)
+  - remove the current “compile remains deferred” wording from [docs/SUPPORTED_COMMANDS.md](/Users/spensermcconnell/__Active_Code/system/docs/SUPPORTED_COMMANDS.md) once the command actually ships
+
+- Implementation sequencing for Lane C:
+  1. Update the real and proof-corpus `foundation_inputs` pipelines to declare `stage.10_feature_spec`.
+  2. Expand the shared proof corpus with the stage file, compile includes, library files, and realistic artifact inputs.
+  3. Add route-basis fixture support and path normalization needed for compile goldens.
+  4. Land compiler-core compile tests first, including stale/inactive regressions and shared-golden render checks.
+  5. Land CLI compile integration tests second, using the same corpus and goldens.
+  6. Update help snapshots and doc drift guards only after the CLI surface is real.
+  7. Update support-story docs and contracts in the same slice that exposes `pipeline compile` in help.
+  8. Call M2 shipped only when compiler tests, CLI tests, shared goldens, help snapshots, and docs/help parity are all green together.
+
+**Lane C Checklist**
+- [ ] `stage.10_feature_spec` is declared in both the real and proof-corpus `foundation_inputs` pipelines.
+- [ ] The shared corpus repo contains every stage.10 include, library input, and required artifact input.
+- [ ] The shared corpus baseline contains realistic optional foundation inputs.
+- [ ] No duplicate compile corpus tree exists for compiler vs CLI.
+- [ ] Shared compile payload and explain goldens are committed under the foundation-inputs goldens directory.
+- [ ] Missing, malformed, stale, and inactive route-basis cases are covered.
+- [ ] Required-input refusal and optional-input success are both covered for `stage.10_feature_spec`.
+- [ ] Help snapshots and docs/help drift guards are updated for `pipeline compile` and `--explain`.
+- [ ] `docs/SUPPORTED_COMMANDS.md`, `README.md`, and `docs/START_HERE.md` no longer describe compile as deferred once shipped.
+- [ ] M2 is not called shipped until the shared corpus, goldens, tests, help snapshots, and docs all agree.
+tokens used
+115,612
+Current blocker: M2 Lane C is blocked by the committed fixture shape.
+
+[core/stages/10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/core/stages/10_feature_spec.md) exists, but neither the real pipeline [pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/pipelines/foundation_inputs.yaml) nor the shared proof-corpus pipeline [foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml) declares `stage.10_feature_spec`. The shared corpus repo also does not contain the compile-time inputs that stage needs: no fixture copy of `core/rules/*.md`, no `profiles/python-uv/commands.yaml`, no `profiles/python-uv/conventions.md`, no `core/library/feature_spec/*`, and no `artifacts/...` inputs for base/charter/foundation. M2 cannot be called shipped until that is fixed.
+
+**Draft**
+### Lane C. Proof Corpus, Compile Goldens, and Help/Docs Conformance
+
+- Keep M2 proof narrow and explicit: one shared foundation-family proof corpus, one supported compile target, `pipeline.foundation_inputs` + `stage.10_feature_spec`, and no second corpus tree for CLI vs compiler.
+- Extend the real pipeline at [pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/pipelines/foundation_inputs.yaml) and the shared proof-corpus pipeline at [tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml) to append `stage.10_feature_spec` after `stage.07_foundation_pack`.
+- Add the stage file to the shared proof corpus at [tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/10_feature_spec.md), matching the current stage contract from [core/stages/10_feature_spec.md](/Users/spensermcconnell/__Active_Code/system/core/stages/10_feature_spec.md).
+- Add every compile-time dependency referenced by `stage.10_feature_spec` into the shared corpus repo, with realistic committed content, not placeholders:
+  - `core/rules/p0_absolute.md`
+  - `core/rules/p1_pragmatic.md`
+  - `core/rules/traceability_policy.md`
+  - `core/rules/evidence_policy.md`
+  - `profiles/python-uv/profile.yaml`
+  - `profiles/python-uv/commands.yaml`
+  - `profiles/python-uv/conventions.md`
+  - `runners/codex-cli.md`
+  - `core/library/feature_spec/feature_spec_architect_directive.md`
+  - `core/library/feature_spec/FEATURE_SPEC.md.tmpl`
+- Add realistic upstream artifact inputs under the shared corpus repo so compile can resolve stage.10 inputs without synthesizing fake runtime output:
+  - required: `artifacts/base/BASE_CONTEXT.md`, `artifacts/charter/CHARTER.md`
+  - optional happy-path baseline: `artifacts/project_context/PROJECT_CONTEXT.md` plus the full foundation pack files from [core/stages/07_foundation_pack.md](/Users/spensermcconnell/__Active_Code/system/core/stages/07_foundation_pack.md)
+- Keep optional-input coverage non-duplicative: the committed corpus baseline should be the richer “full context” case, and the optional-absence success case should delete optional files from the temp installed copy during tests instead of creating a second near-identical fixture tree.
+- Add route-basis fixture support to the shared corpus. Fresh route-basis snapshots should be created by `pipeline resolve` inside tests so the real resolve→compile handoff is exercised. Only malformed-route-basis refusal should use a committed negative seed. Do not add a second hand-authored “happy-path route_basis” source of truth.
+- Extend proof normalization helpers so compile goldens can replace temp repo paths and the persisted route-basis path with stable placeholders; the current helpers only cover `{{REPO_ROOT}}` and `{{STATE_PATH}}`.
+
+- Lock one shared success payload golden and one shared success explain golden for the baseline full-context corpus:
+  - `compile.stage_10_feature_spec.payload.full_context.txt`
+  - `compile.stage_10_feature_spec.explain.full_context.txt`
+- The payload golden must pin the plain `pipeline compile` stdout shape only.
+- The explain golden must pin `pipeline compile --explain` as proof-only output for: selected pipeline/stage, route-basis summary, include expansion, required vs optional input decisions, and outputs contract.
+- Compiler and CLI tests must read those same golden files from [tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens); no duplicate compiler-only or cli-only compile goldens.
+- Stale-route-basis and inactive-stage refusals are regression-critical. Compiler tests may type-assert refusal kinds, but CLI tests must pin operator-facing wording and the “re-run `pipeline resolve`” recovery path.
+
+- Compiler responsibilities:
+  - add a dedicated compile-core suite, preferably separate from the existing route-only files, to assert typed compile result assembly, required/optional input classification, shared render-from-one-result behavior, and refusal classification
+  - exercise the shared corpus by installing the committed fixture repo, running resolve when a fresh basis is needed, and comparing compiler-rendered payload/proof output against the shared goldens
+- CLI responsibilities:
+  - add compile surface integration coverage for selector parsing, exit codes, stdout/refusal rendering, and the resolve→compile handoff
+  - keep compile help and docs drift checks in the CLI suite, not in compiler tests
+- Shared-fixture rule:
+  - the source of truth stays under [tests/fixtures/pipeline_proof_corpus/foundation_inputs](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs)
+  - helper code may exist in both suites if Cargo wiring forces it, but fixture contents, seeds, and goldens must exist only once
+
+- Mandatory M2 regression tests for Lane C:
+  - missing persisted `route_basis` refusal
+  - malformed persisted `route_basis` refusal
+  - stale `route_basis` refusal after route-state mutation without a fresh resolve
+  - inactive-stage refusal when `stage.10_feature_spec` is present in the pipeline but not active in the persisted route basis
+  - selected-stage-not-in-pipeline refusal
+  - missing required artifact refusal for `stage.10_feature_spec`
+  - optional-artifact absence success for `stage.10_feature_spec`
+  - plain `pipeline compile` payload-only success
+  - `pipeline compile --explain` proof-only success
+  - one shared typed compile result proving payload/explain cannot drift semantically
+
+- The stale-route-basis regression should be isolated by:
+  - resolving a fresh basis for an active `stage.10_feature_spec`
+  - mutating `run.profile` or `run.runner`
+  - compiling without a fresh resolve
+  - asserting stale-basis refusal, not inactive-stage refusal
+- The inactive-stage regression should be isolated by:
+  - resolving from a route state where `stage.06_project_context_interview` is still `next`
+  - compiling `stage.10_feature_spec`
+  - asserting inactive-stage refusal that surfaces the blocking route condition, not a freshness refusal
+
+- Help/doc drift coverage that must change when compile lands:
+  - update [system-help.txt](/Users/spensermcconnell/__Active_Code/system/crates/cli/tests/snapshots/system-help.txt) so top-level help still presents setup-first ordering and now advertises `pipeline compile`
+  - update [system-pipeline-help.txt](/Users/spensermcconnell/__Active_Code/system/crates/cli/tests/snapshots/system-pipeline-help.txt) so `compile` appears beside `list`, `show`, `resolve`, and `state`
+  - add `system-pipeline-compile-help.txt`
+  - update [help_drift_guard.rs](/Users/spensermcconnell/__Active_Code/system/crates/cli/tests/help_drift_guard.rs) so docs/help parity now requires `pipeline compile`, `pipeline compile --explain`, payload-only stdout wording, and the freshness recovery path
+  - update support-story docs checked by that drift guard: [README.md](/Users/spensermcconnell/__Active_Code/system/README.md), [docs/START_HERE.md](/Users/spensermcconnell/__Active_Code/system/docs/START_HERE.md), [docs/SUPPORTED_COMMANDS.md](/Users/spensermcconnell/__Active_Code/system/docs/SUPPORTED_COMMANDS.md), and keep them aligned with [C-02](/Users/spensermcconnell/__Active_Code/system/docs/contracts/C-02-rust-workspace-and-cli-command-surface.md)
+  - remove the current “compile remains deferred” wording from [docs/SUPPORTED_COMMANDS.md](/Users/spensermcconnell/__Active_Code/system/docs/SUPPORTED_COMMANDS.md) once the command actually ships
+
+- Implementation sequencing for Lane C:
+  1. Update the real and proof-corpus `foundation_inputs` pipelines to declare `stage.10_feature_spec`.
+  2. Expand the shared proof corpus with the stage file, compile includes, library files, and realistic artifact inputs.
+  3. Add route-basis fixture support and path normalization needed for compile goldens.
+  4. Land compiler-core compile tests first, including stale/inactive regressions and shared-golden render checks.
+  5. Land CLI compile integration tests second, using the same corpus and goldens.
+  6. Update help snapshots and doc drift guards only after the CLI surface is real.
+  7. Update support-story docs and contracts in the same slice that exposes `pipeline compile` in help.
+  8. Call M2 shipped only when compiler tests, CLI tests, shared goldens, help snapshots, and docs/help parity are all green together.
+
+**Lane C Checklist**
+- [ ] `stage.10_feature_spec` is declared in both the real and proof-corpus `foundation_inputs` pipelines.
+- [ ] The shared corpus repo contains every stage.10 include, library input, and required artifact input.
+- [ ] The shared corpus baseline contains realistic optional foundation inputs.
+- [ ] No duplicate compile corpus tree exists for compiler vs CLI.
+- [ ] Shared compile payload and explain goldens are committed under the foundation-inputs goldens directory.
+- [ ] Missing, malformed, stale, and inactive route-basis cases are covered.
+- [ ] Required-input refusal and optional-input success are both covered for `stage.10_feature_spec`.
+- [ ] Help snapshots and docs/help drift guards are updated for `pipeline compile` and `--explain`.
+- [ ] `docs/SUPPORTED_COMMANDS.md`, `README.md`, and `docs/START_HERE.md` no longer describe compile as deferred once shipped.
+- [ ] M2 is not called shipped until the shared corpus, goldens, tests, help snapshots, and docs all agree.

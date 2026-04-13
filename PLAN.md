@@ -527,7 +527,7 @@ Reviewed scope lock, 2026-04-13:
 - Stage selection for that first compile wedge must be explicit in the plan and justified by downstream usefulness rather than convenience alone.
 - `pipeline compile` in `M2` prints the compiled stage payload to stdout; it does not recreate legacy `dist/` writes and does not grow an optional output-path flag.
 - `pipeline resolve` in `M2` becomes the writer of one bounded persisted `route_basis` snapshot, and `pipeline compile` consumes that snapshot for freshness and active-stage checks instead of silently re-running resolve.
-- successful `pipeline compile` output in `M2` is payload-only. Proof metadata, route-basis detail, and freshness evidence stay out of the payload stream and remain the job of refusal output plus `inspect`.
+- successful `pipeline compile` output in `M2` is payload-only. Proof metadata, route-basis detail, and freshness evidence stay out of the payload stream and remain the job of refusal output plus `pipeline compile --explain`.
 - `pipeline compile` in `M2` does not accept runner/profile override flags. Compile consumes the persisted `route_basis` exactly as resolved; changing runner or profile requires state mutation plus a fresh `pipeline resolve`.
 - compile proof in `M2` is exposed as `pipeline compile --explain`. Plain `compile` stays payload-only, while `compile --explain` is a proof-only mode for route basis, selected stage metadata, include expansion, and required-input decisions.
 - the implementation budget for `M2` stays intentionally small: thin CLI wiring in `crates/cli`, one new compiler-owned compile module in `crates/compiler`, and only minimal extensions to existing `pipeline` and `route_state` modules for shared contracts and persisted `route_basis`
@@ -549,7 +549,7 @@ Minimum acceptable wedge:
 - the explicit first-stage target is `stage.10_feature_spec`, because it proves real compile assembly over runner/profile/includes/library inputs and upstream artifacts without dragging multi-file output materialization into `M2`
 - the compile payload is a terminal-facing product surface in `M2`; persisted output files stay deferred to `M3`
 - freshness refusal in `M2` is grounded on a persisted `route_basis` snapshot written by `pipeline resolve`, not on implicit resolver reruns or caller-managed ad hoc tokens
-- the copy-paste handoff matters more than decorative proof on success; payload-only stdout keeps `pipeline compile` usable while preserving `inspect` as the proof surface
+- the copy-paste handoff matters more than decorative proof on success; payload-only stdout keeps `pipeline compile` usable while preserving `inspect` as the packet proof surface and `pipeline compile --explain` as the compile proof surface
 - compile must not become a second route-selection surface; runner/profile changes remain explicit route-state changes upstream of compile
 - compile proof stays local to compile semantics instead of widening `inspect` from packet proof into a generic catch-all proof surface
 - payload and explain output must not drift; one typed compile result keeps success rendering and proof rendering on the same truth
@@ -562,6 +562,340 @@ Non-goals inside M2:
 - no hidden fallback to legacy Python for missing Rust behavior
 - no generalized compile IR, cache layer, or new abstraction stack beyond what the single-stage wedge requires
 - no multi-module compile mini-framework for one stage; if the design needs several new helper modules to explain itself, it is already overbuilt for `M2`
+
+Implementation-ready expansion, validated 2026-04-13:
+
+Current repo blockers that must be cleared before `M2` can claim compile success:
+
+- the chosen target stage already exists at `core/stages/10_feature_spec.md`, but neither `pipelines/foundation_inputs.yaml` nor the shared proof-corpus copy at `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml` currently declares `stage.10_feature_spec`
+- the shared proof corpus also does not yet contain the compile-time inputs that `stage.10_feature_spec` needs, including the feature-spec library files, the full profile pack, the rules referenced by the stage, and realistic upstream artifacts under `artifacts/base/`, `artifacts/charter/`, and `artifacts/foundation/`
+- until those repo-truth and proof-corpus prerequisites land, the correct behavior for the locked M2 target is refusal, not fake success
+
+Parallel implementation lanes:
+
+```text
+M2 lane dependency map
+======================
+Lane A  compiler core + live route_basis contract
+  touches: crates/compiler/, pipelines/foundation_inputs.yaml, route-state contract docs
+  produces: compile API, typed compile result, persisted route_basis shape
+
+Lane C  proof corpus + shared goldens
+  touches: tests/fixtures/, crates/compiler/tests/, crates/cli/tests/
+  produces: stage.10 proof corpus, refusal seeds, shared payload/explain goldens
+
+Lane B  CLI + help/docs cutover
+  touches: crates/cli/, help snapshots, README/docs
+  consumes: Lane A compile API and Lane C committed examples/goldens
+
+Launch order:
+  1. Start Lane A + Lane C in parallel.
+  2. Freeze compile API + shared proof corpus.
+  3. Finish Lane B wiring, snapshots, and docs parity.
+  4. Run the full shared green suite before calling M2 done.
+```
+
+| Lane | Scope | Primary touch surfaces | Depends on |
+|------|-------|------------------------|------------|
+| A | compiler core, live pipeline target wiring, `route_basis`, typed compile result, payload/proof renderers | `crates/compiler`, `pipelines/foundation_inputs.yaml`, stage metadata loaders, route-state contract docs | — |
+| B | CLI command shape, help text, docs/help cutover, payload/proof posture | `crates/cli`, docs, help snapshots | Lane A compile interface, Lane C committed goldens/examples |
+| C | proof corpus, shared goldens, regression coverage, help/doc drift gates | `tests/fixtures`, `crates/compiler/tests`, `crates/cli/tests`, docs parity checks | fixture prep may start early; final goldens wait on A renderer contract and B shipped CLI wording |
+
+Lane A. Compiler Core + `route_basis` Persistence:
+
+- exact file budget for Lane A:
+  - `pipelines/foundation_inputs.yaml`
+  - `crates/compiler/src/lib.rs`
+  - `crates/compiler/src/pipeline.rs`
+  - `crates/compiler/src/pipeline_route.rs`
+  - `crates/compiler/src/route_state.rs`
+  - `crates/compiler/src/pipeline_compile.rs`
+  - `docs/contracts/pipeline-route-and-state-core.md`
+- keep compiler ownership boring and explicit:
+  - `crates/compiler/src/pipeline.rs` continues to own pipeline loading, selector resolution, declared stage order, and stage-file identity validation
+  - `crates/compiler/src/pipeline_route.rs` continues to own route evaluation only
+  - `crates/compiler/src/route_state.rs` continues to own persisted pipeline state, revisions, locking, and atomic replacement
+  - add exactly one new compiler-owned module, `crates/compiler/src/pipeline_compile.rs`, for compile-target eligibility, stale-basis checks, input expansion, and render-from-one-result behavior
+- Lane A owns the live repo target wiring by appending `stage.10_feature_spec` to `pipelines/foundation_inputs.yaml`; the shared proof-corpus pipeline copy stays with Lane C
+- extend the persisted route-state schema with one bounded `route_basis` snapshot written only by `pipeline resolve`
+- when `route_basis` lands, bump the route-state schema version and update `docs/contracts/pipeline-route-and-state-core.md` in the same change; do not introduce a new top-level field under the old exact-key contract
+- `route_basis` must store only the information compile needs to trust a resolved route without rerunning resolve:
+  - canonical `pipeline_id`
+  - repo-relative pipeline file path plus a file fingerprint
+  - the state revision captured at resolve time
+  - snapshots of `routing`, `refs`, and `run` exactly as resolve used them
+  - the ordered resolved route snapshot for all declared stages, including `stage_id`, repo-relative `file`, persisted route `status`, persisted route `reason`, and stage file fingerprint
+  - the selected runner id and runner-doc fingerprint
+  - the selected profile id and fingerprints for `profile.yaml`, `commands.yaml`, and `conventions.md`
+  - one explicit `route_basis` schema/version field
+- `route_basis` must not store compiled payload bytes, explain output bytes, copied artifact contents, copied include contents, duplicated audit history, or compile-only overrides
+- freshness checks for `pipeline compile` must stay compiler-owned and must not rerun route evaluation:
+  - require present, well-formed `route_basis`
+  - require current pipeline-state `revision`, `routing`, `refs`, and `run` to match the persisted snapshot
+  - require current pipeline, selected stage, selected runner, and selected profile-pack fingerprints to match the persisted snapshot
+  - any mismatch is stale-route-basis refusal with the exact recovery path: rerun `pipeline resolve`
+- selected-stage eligibility order:
+  - resolve the selected pipeline through the published pipeline selector rules
+  - resolve the selected stage through the same canonical-id / shorthand rules, still scoped to the selected pipeline
+  - confirm the stage is declared in the pipeline’s ordered stage list
+  - confirm the stage file exists and its front matter matches the canonical stage id
+  - confirm the stage is present in the persisted resolved-route snapshot
+  - confirm the stage is `active` in that snapshot
+- preserve the useful legacy content classes from `tools/harness.py` while normalizing the output shape to Rust contracts:
+  - ordered include expansion from stage front matter
+  - selected runner docs and selected profile-pack files derived from `run.runner` and `run.profile`
+  - library inputs
+  - required and optional artifact inputs
+  - scoped filtering by `work_level`, defaulting to `L1` when the stage leaves it empty
+  - outputs contract, gating notes, and optional stage body
+- normalize, do not clone, legacy behavior:
+  - do not recreate `dist/` writes
+  - do not keep the harness habit of silently rendering `(missing)` into a “successful” payload for compile-shaping inputs
+  - treat missing compile-shaping includes, missing runner docs, missing selected profile-pack files, and missing required library/artifact inputs as explicit refusals
+  - keep optional-artifact absence visible in `--explain` but non-fatal on the success path
+  - render repo-relative paths, LF newlines, and one stable output order from typed data instead of ad hoc string concatenation
+- one shared typed compile result must power both plain `pipeline compile` and `pipeline compile --explain`
+- the typed result must carry:
+  - `target`: pipeline id, stage id, stage file, title, description, and work level
+  - `basis`: accepted `route_basis` summary
+  - `variables`: the resolved variable map used for substitution and run-variable reporting
+  - `documents`: one ordered list of expanded includes, library inputs, and artifact inputs, each with `kind`, `path`, `required`, `status`, and content when present
+  - `outputs`: the declared output contract after substitution
+  - `gating`: mode, `fail_on`, and notes
+  - `stage_body`: optional stage body text when non-empty
+- lock the public compiler-side names now so CLI and tests can plan against them:
+  - `PipelineCompileRequest`
+  - `PipelineCompileResult`
+  - `RouteBasisSnapshot`
+  - `PipelineCompileRefusal`
+- Lane A sequencing:
+  1. extend `pipeline.rs` with one compile-facing stage-front-matter loader
+  2. extend `route_state.rs` with typed `route_basis` structs and the new schema version
+  3. add fingerprint helpers for pipeline YAML, stage files, runner docs, and profile-pack files
+  4. add `pipeline_compile.rs` with one public compile entrypoint that returns one typed compile result or one typed refusal
+  5. implement eligibility checks before document expansion
+  6. implement document expansion and renderer logic from the shared typed result
+
+Lane B. CLI + Docs + Help Surface:
+
+- exact file budget for Lane B:
+  - `crates/cli/src/main.rs`
+  - `crates/cli/tests/cli_surface.rs`
+  - `crates/cli/tests/help_drift_guard.rs`
+  - `crates/cli/tests/pipeline_proof_corpus_support.rs`
+  - `crates/cli/tests/snapshots/system-help.txt`
+  - `crates/cli/tests/snapshots/system-pipeline-help.txt`
+  - `crates/cli/tests/snapshots/system-pipeline-compile-help.txt`
+  - `README.md`
+  - `docs/START_HERE.md`
+  - `docs/README.md`
+  - `docs/SUPPORTED_COMMANDS.md`
+  - `docs/CLI_PRODUCT_VOCABULARY.md`
+  - `docs/CLI_TONE_RULES.md`
+  - `docs/CLI_OUTPUT_ANATOMY.md`
+  - `docs/CLI_COMMAND_HIERARCHY.md`
+  - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
+  - `docs/contracts/pipeline-proof-corpus-and-docs-cutover.md`
+- ship exactly two supported invocations in M2:
+  - `system pipeline compile --id <pipeline-id> --stage <stage-id>`
+  - `system pipeline compile --id <pipeline-id> --stage <stage-id> --explain`
+- `--id` reuses the existing canonical-id and unambiguous shorthand rules from the `pipeline` family
+- `--stage` accepts a canonical stage id or unambiguous shorthand stage id, still scoped to the selected pipeline
+- `--explain` is a boolean proof-mode switch, not a second subcommand family
+- do not add positional target syntax, raw path selectors, `--out`, `--format`, `--json`, runner/profile override flags, or compile-time route mutation flags in M2
+- `crates/cli` stays thin:
+  - add `PipelineCommand::Compile`
+  - add one `PipelineCompileArgs` shape with exactly `--id`, `--stage`, and `--explain`
+  - forward all compile targeting, payload rendering, explain rendering, and refusal classification to compiler-owned code
+- help snapshot work is mandatory in the same slice:
+  - update `system --help`
+  - update `system pipeline --help`
+  - add `system pipeline compile --help`
+- success posture:
+  - plain `pipeline compile` success is payload-only stdout, with no `OUTCOME`, no trust header, no route-basis recap, and no trailing next action
+  - `pipeline compile --explain` success is proof-only stdout, not payload-plus-proof
+  - explain output should use a stable proof ordering:
+    - target
+    - route basis used for freshness
+    - selected stage metadata
+    - include expansion
+    - required vs optional input decisions
+    - output contract
+    - gating notes
+    - payload summary only
+- refusal posture:
+  - `OUTCOME: REFUSED`
+  - `PIPELINE: <pipeline-id>`
+  - `STAGE: <stage-id>`
+  - `REASON: <category and summary>`
+  - `NEXT SAFE ACTION: <exact repair command>`
+  - one refusal block naming category, summary, and broken subject in the repo's existing refusal language
+- keep compile-specific proof out of `inspect`
+- `inspect` remains the packet proof surface, not the compile proof surface
+- update help/docs in one cut after the command is real:
+  - `docs/SUPPORTED_COMMANDS.md`
+  - `docs/CLI_PRODUCT_VOCABULARY.md`
+  - `docs/CLI_TONE_RULES.md`
+  - `docs/CLI_OUTPUT_ANATOMY.md`
+  - `docs/CLI_COMMAND_HIERARCHY.md`
+  - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
+  - `docs/contracts/stage-compile-boundary-and-route-freshness.md`
+- only after compiler behavior, proof corpus, snapshots, and docs land together should `pipeline compile` be described as supported
+
+Lane C. Proof Corpus + Goldens + Tests:
+
+- exact file budget for Lane C:
+  - add `crates/compiler/tests/pipeline_compile.rs`
+  - extend `crates/compiler/tests/pipeline_state_store.rs`
+  - extend `crates/compiler/tests/pipeline_proof_corpus_support.rs`
+  - extend `crates/cli/tests/cli_surface.rs`
+  - extend `crates/cli/tests/help_drift_guard.rs`
+  - extend `crates/cli/tests/pipeline_proof_corpus_support.rs`
+  - extend `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/pipelines/foundation_inputs.yaml`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/stages/10_feature_spec.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/library/feature_spec/feature_spec_architect_directive.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/library/feature_spec/FEATURE_SPEC.md.tmpl`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/rules/p0_absolute.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/rules/p1_pragmatic.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/rules/traceability_policy.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/core/rules/evidence_policy.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/profiles/python-uv/commands.yaml`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/profiles/python-uv/conventions.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/base/BASE_CONTEXT.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/charter/CHARTER.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/project_context/PROJECT_CONTEXT.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/foundation/FOUNDATION_STRATEGY.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/foundation/TECH_ARCH_BRIEF.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/foundation/TEST_STRATEGY_BRIEF.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/foundation/QUALITY_GATES_SPEC.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/foundation/quality_gates.yaml`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+  - add `tests/fixtures/pipeline_proof_corpus/foundation_inputs/state_seeds/malformed_route_basis.yaml`
+  - add shared goldens under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/`
+- keep one shared foundation-family proof corpus under `tests/fixtures/pipeline_proof_corpus/foundation_inputs`; do not create separate CLI-vs-compiler corpus trees
+- extend the shared proof-corpus pipeline copy to append `stage.10_feature_spec` after `stage.07_foundation_pack`; the live repo pipeline declaration stays with Lane A
+- add the stage file plus every compile-time dependency referenced by `stage.10_feature_spec` to the shared proof corpus with realistic committed content:
+  - `core/stages/10_feature_spec.md`
+  - `core/rules/p0_absolute.md`
+  - `core/rules/p1_pragmatic.md`
+  - `core/rules/traceability_policy.md`
+  - `core/rules/evidence_policy.md`
+  - `profiles/python-uv/profile.yaml`
+  - `profiles/python-uv/commands.yaml`
+  - `profiles/python-uv/conventions.md`
+  - `runners/codex-cli.md`
+  - `core/library/feature_spec/feature_spec_architect_directive.md`
+  - `core/library/feature_spec/FEATURE_SPEC.md.tmpl`
+- add realistic upstream artifact inputs to the shared corpus:
+  - required baseline: `artifacts/base/BASE_CONTEXT.md` and `artifacts/charter/CHARTER.md`
+  - richer optional baseline: `artifacts/project_context/PROJECT_CONTEXT.md` and the foundation-pack outputs referenced by `stage.10_feature_spec`
+- keep optional-input coverage non-duplicative:
+  - the committed corpus baseline should be the richer full-context case
+  - optional-absence success cases should delete optional files from the temp installed copy during tests instead of creating a second nearly identical fixture tree
+- route-basis fixture support:
+  - create fresh happy-path `route_basis` snapshots by running `pipeline resolve` inside tests
+  - keep only malformed-route-basis as a committed negative seed
+  - extend path normalization helpers so compile goldens can replace temp repo paths and persisted route-basis paths with stable placeholders
+- lock one shared success payload golden and one shared success explain golden under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens`:
+  - `compile.stage_10_feature_spec.payload.full_context.txt`
+  - `compile.stage_10_feature_spec.explain.full_context.txt`
+- add shared refusal goldens in the same directory:
+  - `compile.refused.missing_route_basis.txt`
+  - `compile.refused.malformed_route_basis.txt`
+  - `compile.refused.stale_route_basis.txt`
+  - `compile.refused.inactive_stage.txt`
+  - `compile.refused.stage_not_in_pipeline.txt`
+  - `compile.refused.missing_required_artifact.txt`
+- compiler and CLI tests must read those same golden files; do not create duplicate compiler-only or cli-only compile goldens
+- mandatory regression coverage for M2:
+  - missing persisted `route_basis` refusal
+  - malformed persisted `route_basis` refusal
+  - stale `route_basis` refusal after route-state mutation without a fresh resolve
+  - inactive-stage refusal when `stage.10_feature_spec` is present in the pipeline but not active in the persisted route basis
+  - selected-stage-not-in-pipeline refusal
+  - missing required artifact refusal for `stage.10_feature_spec`
+  - optional-artifact absence success for `stage.10_feature_spec`
+  - plain `pipeline compile` payload-only success
+  - `pipeline compile --explain` proof-only success
+  - one shared typed compile result proving payload and explain cannot drift semantically
+- exact compiler tests to add in `crates/compiler/tests/pipeline_compile.rs`:
+  - `compile_feature_spec_payload_matches_shared_golden`
+  - `compile_feature_spec_explain_matches_shared_golden`
+  - `compile_payload_and_explain_share_one_typed_result`
+  - `compile_refuses_missing_route_basis`
+  - `compile_refuses_malformed_route_basis`
+  - `compile_refuses_stale_route_basis_after_route_state_mutation`
+  - `compile_refuses_inactive_stage`
+  - `compile_refuses_stage_not_declared_in_pipeline`
+  - `compile_refuses_missing_required_artifact`
+  - `compile_succeeds_when_optional_artifacts_are_absent`
+- exact route-state tests to add in `crates/compiler/tests/pipeline_state_store.rs`:
+  - `route_basis_round_trips_when_written_by_resolve`
+  - `legacy_m1_state_without_route_basis_still_loads`
+  - `malformed_route_basis_is_distinct_from_malformed_route_state`
+- exact CLI tests to add in `crates/cli/tests/cli_surface.rs`:
+  - `pipeline_compile_feature_spec_payload_matches_shared_golden`
+  - `pipeline_compile_feature_spec_explain_matches_shared_golden`
+  - `pipeline_compile_refuses_missing_route_basis`
+  - `pipeline_compile_refuses_malformed_route_basis`
+  - `pipeline_compile_refuses_stale_route_basis_after_state_set`
+  - `pipeline_compile_refuses_inactive_stage`
+  - `pipeline_compile_refuses_stage_not_in_pipeline`
+  - `pipeline_compile_refuses_missing_required_artifact`
+  - `pipeline_compile_allows_optional_artifacts_to_be_absent`
+- split responsibilities cleanly:
+  - compiler tests assert typed compile-result assembly, refusal classification, and shared-golden rendering from compiler-owned code
+  - CLI tests assert selector parsing, exit codes, stdout/refusal rendering, help snapshots, and docs/help drift parity
+- help/doc drift work:
+  - update top-level help and pipeline help snapshots
+  - add `system-pipeline-compile-help.txt`
+  - extend help-drift parity checks so docs and snapshots both require `pipeline compile`, `pipeline compile --explain`, payload-only success wording, and the freshness recovery path
+- determinism requirement:
+  - fix `now_utc` to a stable injected value inside compile tests; do not normalize arbitrary wall-clock timestamps in goldens
+
+Execution order and merge gates:
+
+- Lane A starts first because Lane B needs a stable compile interface and Lane C needs the real refusal/output contract before final goldens can freeze
+- Lane C fixture expansion may start in parallel with Lane A, but final compile goldens wait for the Lane A renderer contract and the Lane A live pipeline target wiring
+- Lane B may prepare clap wiring early, but final snapshots and help/docs lock only after Lane A exposes the compile entrypoint and Lane C commits the shared examples/goldens
+- final ship gate for M2 is one coherent green slice:
+  - live pipeline declares `stage.10_feature_spec`
+  - shared proof corpus declares `stage.10_feature_spec`
+  - compiler tests pass
+  - CLI tests pass
+  - shared payload and explain goldens are committed
+  - help snapshots match
+  - docs/help parity checks match
+  - help/docs describe `pipeline compile` as supported and no longer deferred
+
+Lane completion checklists:
+
+Lane A:
+
+- [ ] `crates/compiler` owns compile entrypoint, typed result, refusal logic, and both payload/explain renderers
+- [ ] `pipelines/foundation_inputs.yaml` declares `stage.10_feature_spec`
+- [ ] `route_state` persists one bounded `route_basis` snapshot written by `pipeline resolve`
+- [ ] `docs/contracts/pipeline-route-and-state-core.md` is updated with the new `route_basis` field set and schema version
+- [ ] compile can refuse missing, malformed, or stale `route_basis` without rerunning resolve
+- [ ] compile can refuse inactive stages using persisted route status and reason
+- [ ] required `stage.10_feature_spec` library/artifact inputs refuse on missing or empty content
+- [ ] optional foundation inputs remain non-fatal and visible in explain output
+
+Lane B:
+
+- [ ] `pipeline compile` ships with exactly `--id`, `--stage`, and optional `--explain`
+- [ ] plain compile success is payload-only stdout
+- [ ] explain success is proof-only stdout
+- [ ] compile-specific proof stays out of `inspect`
+- [ ] help text, docs, and contracts all describe the same operator boundary
+
+Lane C:
+
+- [ ] the shared proof corpus declares `stage.10_feature_spec`
+- [ ] the shared corpus contains every compile-time dependency for `stage.10_feature_spec`
+- [ ] shared payload and explain goldens are committed once and reused by both suites
+- [ ] stale-basis and inactive-stage regressions are locked as mandatory tests
+- [ ] help snapshots and docs/help drift checks cover the shipped compile surface
 
 ### M3. Output Materialization Capability
 

@@ -1,0 +1,16 @@
+You are drafting implementation-ready plan detail for M2 in /Users/spensermcconnell/__Active_Code/system. Focus only on Lane A: compiler core + route_basis persistence + typed compile result. Do not edit files.
+
+Read the current PLAN.md M2 section plus docs/contracts/stage-compile-boundary-and-route-freshness.md, docs/contracts/C-02-rust-workspace-and-cli-command-surface.md, docs/contracts/pipeline-route-and-state-core.md if relevant, core/stages/10_feature_spec.md, pipelines/foundation_inputs.yaml, crates/compiler/src/lib.rs, crates/compiler/src/route_state.rs, crates/compiler/src/pipeline_route.rs, crates/compiler/tests/pipeline_proof_corpus_support.rs, and the legacy compile reference in tools/harness.py around compile_stage_prompt.
+
+Output a concrete draft for PLAN.md that covers:
+- exact ownership boundaries in crates/compiler for M2
+- how route_basis should be added to persisted pipeline state, including what fields it must and must not store
+- how compile freshness and active-stage refusal should work without re-running resolve
+- the shared typed compile result shape powering both payload and --explain
+- selected-stage eligibility checks for pipeline.foundation_inputs + stage.10_feature_spec
+- required/optional artifact handling and include/profile/runner/scoped-rule behavior that must be preserved from legacy reference
+- what normalization Rust should apply instead of byte-for-byte harness parity
+- implementation sequencing inside crates/compiler
+- file references and a lane-specific checklist
+
+Keep to the chosen constraints already locked in PLAN.md. Call out any plan-critical repo fact the main planner must preserve, especially if the current fixture proof corpus does not yet include the stage 10 target.
