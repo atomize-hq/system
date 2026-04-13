@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0.0] - 2026-04-13
+
+### Added
+- Added the supported reduced-v1 `pipeline` command family with `pipeline list`, `pipeline show`, `pipeline resolve`, and `pipeline state set` so operators can inspect pipeline inventory, compute route truth, and persist narrow routing state without manual repo archaeology.
+- Added compiler-owned pipeline catalog loading, canonical ID discovery, deterministic route evaluation, typed route-state persistence, advisory locking, revision-conflict refusals, and shared foundation-family proof corpus goldens for `pipeline resolve` and `pipeline state set`.
+- Added dedicated CLI and compiler coverage for pipeline inventory inspection, shorthand ambiguity, activation drift, malformed-state refusals, lock-aware mutation behavior, help snapshots, and proof-corpus rendering.
+
+### Changed
+- Tightened the M1 route/state contract so stage `sets`, activation clauses, persisted refs, and runner/profile mutations all validate against explicit reduced-v1 grammar and allowlists instead of drifting into loose stringly-typed behavior.
+- Improved the operator proof surface with route-basis summaries, declared route metadata in `pipeline show`, clearer invalid-canonical-id and inventory-refusal behavior, and metadata-only inventory commands that ignore unrelated broken pipeline files during inspection.
+- Realigned product docs, contracts, seam/governance artifacts, README guidance, and CLI support docs around the shipped M1 pipeline/routing spine and the shared proof corpus.
+
 ## [0.1.0.0] - 2026-04-11
 
 ### Added
