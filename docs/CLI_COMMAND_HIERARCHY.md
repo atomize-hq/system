@@ -21,15 +21,15 @@ The reviewed reduced-v1 CLI product has five operator-facing surfaces, in this o
 That ordering is not arbitrary.
 
 - `setup` / `setup refresh` establishes or refreshes trusted project truth.
-- `pipeline` owns orchestration truth, route resolution, explicit stage selection, and narrow route-state mutation.
+- `pipeline` owns orchestration truth, route resolution, explicit stage selection, explicit stage compilation, and narrow route-state mutation.
 - `generate` is the default ready-path command once trusted truth exists.
-- `inspect` is the proof surface when the operator needs to verify why a packet looks the way it does.
+- `inspect` is the packet proof surface when the operator needs to verify why a packet looks the way it does.
 - `doctor` is the recovery and readiness surface when the operator needs blocker aggregation, repair guidance, or a readiness check.
 
 Current implementation note:
 
 - the currently shipped binary exposes `setup`, `pipeline`, `generate`, `inspect`, and `doctor`
-- the reviewed product surface includes `pipeline` as the orchestration surface for `list`, `show`, `resolve`, and `state set`
+- the reviewed product surface includes `pipeline` as the orchestration surface for `list`, `show`, `resolve`, `compile`, and `state set`
 
 ## Front Door Rule
 
@@ -86,7 +86,7 @@ Use `generate` when:
 Use `pipeline` when:
 
 - the operator needs the authoritative route for a pipeline
-- the operator wants to select one explicitly selected stage payload for future compile work
+- the operator wants to compile one explicitly selected stage payload with `pipeline compile --id <pipeline-id> --stage <stage-id>`
 - the operator needs to set narrow route-state routing, refs, or run fields inside the declared schema
 
 `pipeline` is not the front door. It is the orchestration surface after trusted project truth already exists.
@@ -98,6 +98,7 @@ Use `inspect` when:
 - the operator wants proof rather than the packet body alone
 - the operator needs inclusion, exclusion, freshness, or budget reasoning
 - success output from `generate` needs verification
+- the operator is reviewing packet proof, not compile proof
 
 `inspect` is not the front door. It is the proof path after or alongside generation.
 
@@ -139,6 +140,8 @@ The next safe action should reinforce the hierarchy rather than compete with it.
 
 - Use setup-oriented next actions when canonical truth is missing or must be re-established.
 - Use `pipeline resolve` when the operator needs route truth before future stage-specific compile work.
+- Use `pipeline compile --id <pipeline-id> --stage <stage-id>` only after `pipeline resolve` established the current route basis.
+- Use `pipeline compile --explain` when the operator needs compile proof; keep `inspect` for packet proof.
 - Use `doctor` when deeper diagnosis or blocker aggregation is needed.
 - Use `inspect` after a ready `generate` result when the operator needs proof.
 - Use `system generate --packet planning.packet` as the fallback from unsupported live execution requests.

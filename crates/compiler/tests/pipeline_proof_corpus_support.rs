@@ -18,13 +18,17 @@ pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
     (dir, root)
 }
 
-pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
-    let source = committed_case_root().join("state_seeds").join(seed_name);
-    let target = repo_root
+pub fn pipeline_state_path(repo_root: &Path) -> PathBuf {
+    repo_root
         .join(".system")
         .join("state")
         .join("pipeline")
-        .join(format!("{FOUNDATION_INPUTS_PIPELINE_ID}.yaml"));
+        .join(format!("{FOUNDATION_INPUTS_PIPELINE_ID}.yaml"))
+}
+
+pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
+    let source = committed_case_root().join("state_seeds").join(seed_name);
+    let target = pipeline_state_path(repo_root);
 
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).expect("state seed parent");
@@ -46,7 +50,20 @@ pub fn assert_matches_golden(
     state_path: Option<&Path>,
     golden_name: &str,
 ) {
-    let normalized_actual = normalize_output(actual, repo_root, state_path);
+    let mut placeholders = Vec::new();
+    if let Some(state_path) = state_path {
+        placeholders.push((state_path, "{{STATE_PATH}}"));
+    }
+    assert_matches_golden_with_placeholders(actual, repo_root, &placeholders, golden_name);
+}
+
+pub fn assert_matches_golden_with_placeholders(
+    actual: &str,
+    repo_root: &Path,
+    placeholders: &[(&Path, &str)],
+    golden_name: &str,
+) {
+    let normalized_actual = normalize_output(actual, repo_root, placeholders);
     let expected = read_golden(golden_name);
     assert_eq!(
         normalized_actual,
@@ -189,18 +206,14 @@ fn render_route_stage_reason(reason: &RouteStageReason) -> String {
     }
 }
 
-fn normalize_output(actual: &str, repo_root: &Path, state_path: Option<&Path>) -> String {
+fn normalize_output(actual: &str, repo_root: &Path, placeholders: &[(&Path, &str)]) -> String {
     let mut normalized = normalize_newlines(actual);
 
-    if let Some(state_path) = state_path {
-        for candidate in path_candidates(state_path) {
-            normalized = normalized.replace(&candidate, "{{STATE_PATH}}");
-        }
+    for (path, placeholder) in placeholders {
+        normalized = replace_path_candidates(&normalized, path, placeholder);
     }
 
-    for candidate in path_candidates(repo_root) {
-        normalized = normalized.replace(&candidate, "{{REPO_ROOT}}");
-    }
+    normalized = replace_path_candidates(&normalized, repo_root, "{{REPO_ROOT}}");
     normalized.trim_end().to_string()
 }
 
@@ -228,6 +241,14 @@ fn path_candidates(path: &Path) -> Vec<String> {
     }
     candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.len()));
     candidates
+}
+
+fn replace_path_candidates(value: &str, path: &Path, placeholder: &str) -> String {
+    let mut replaced = value.to_string();
+    for candidate in path_candidates(path) {
+        replaced = replaced.replace(&candidate, placeholder);
+    }
+    replaced
 }
 
 fn copy_tree(source: &Path, target: &Path) {

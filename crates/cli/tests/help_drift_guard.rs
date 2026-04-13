@@ -102,6 +102,15 @@ fn system_pipeline_state_help_matches_snapshot() {
 }
 
 #[test]
+fn system_pipeline_compile_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "compile", "--help"],
+        "system-pipeline-compile-help.txt",
+        "system pipeline compile --help",
+    );
+}
+
+#[test]
 fn support_story_docs_match_help_snapshots() {
     let root = workspace_root();
     let docs = [
@@ -121,6 +130,8 @@ fn support_story_docs_match_help_snapshots() {
     let top_help_text = read_help_snapshot("system-help.txt");
     let generate_help_text = read_help_snapshot("system-generate-help.txt");
     let inspect_help_text = read_help_snapshot("system-inspect-help.txt");
+    let pipeline_help_text = read_help_snapshot("system-pipeline-help.txt");
+    let compile_help_text = read_help_snapshot("system-pipeline-compile-help.txt");
 
     let top_level_required_phrases = [
         "planning packet generation",
@@ -128,9 +139,10 @@ fn support_story_docs_match_help_snapshots() {
         "fixture-backed execution demo",
         "execution.demo.packet",
         "live execution is explicitly refused",
-        "`inspect` is the proof surface",
+        "`inspect` is the packet proof surface",
         "`doctor` is the recovery surface",
         "`setup` is still a placeholder",
+        "explicit stage compilation",
     ];
 
     for phrase in top_level_required_phrases {
@@ -171,7 +183,16 @@ fn support_story_docs_match_help_snapshots() {
         );
     }
 
-    let pipeline_required_phrases = ["`pipeline`", "pipeline resolve", "pipeline state set"];
+    let pipeline_required_phrases = [
+        "`pipeline`",
+        "pipeline resolve",
+        "pipeline compile",
+        "pipeline state set",
+        "pipeline compile --explain",
+        "payload-only stdout",
+        "proof-only stdout",
+        "re-run `pipeline resolve`",
+    ];
     assert!(
         top_help_text.contains("pipeline"),
         "top-level help snapshot missing pipeline entry"
@@ -182,6 +203,21 @@ fn support_story_docs_match_help_snapshots() {
             "docs missing pipeline phrase `{phrase}`"
         );
     }
+
+    assert!(
+        pipeline_help_text.contains("compile"),
+        "pipeline help snapshot missing compile entry"
+    );
+    for phrase in ["--stage", "--explain"] {
+        assert!(
+            compile_help_text.contains(phrase),
+            "compile help snapshot missing phrase `{phrase}`"
+        );
+    }
+    assert!(
+        !inspect_help_text.contains("compile"),
+        "inspect help snapshot must remain packet-proof only"
+    );
 }
 
 #[test]
@@ -246,9 +282,10 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
     let required_phrases = [
         "planning packet generation",
         "canonical repo-local `.system/` inputs",
-        "`inspect` is the proof surface",
+        "`inspect` is the packet proof surface",
         "`doctor` is the recovery surface",
         "`setup` is still a placeholder",
+        "`pipeline compile --explain`",
         "next safe action",
         "bootstrap",
         "hydrate",
@@ -273,6 +310,7 @@ fn cli_command_hierarchy_doc_locks_front_door_rules() {
         "The front door is a guided setup experience.",
         "The stable operation name remains `setup`.",
         "`generate` is the default ready-path command.",
+        "`pipeline compile --id <pipeline-id> --stage <stage-id>`",
         "Commands anchor to the enclosing git root when one exists.",
         "A nested git repo boundary wins over a parent managed repo.",
         "`doctor` is the recovery and readiness command",
@@ -299,6 +337,8 @@ fn cli_tone_rules_doc_locks_core_tone() {
         "something went wrong",
         "unable to process request",
         "Do not celebrate normal success.",
+        "Plain `pipeline compile` success should stay payload-only.",
+        "`pipeline compile --explain` should stay proof-only.",
         "Refusal output should:",
         "Proof output should:",
         "Recovery output should:",
@@ -323,6 +363,9 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         "`generate` and `inspect` start with the same three-line trust header:",
         "## `generate` Anatomy",
         "## `inspect` Anatomy",
+        "## `pipeline compile` Anatomy",
+        "plain `pipeline compile` success is payload-only stdout",
+        "`pipeline compile --explain` success is proof-only stdout",
         "`doctor` is still transitional.",
         "docs must not claim that it already shares the full trust-header anatomy",
         "`setup` is placeholder-only in current reduced v1.",

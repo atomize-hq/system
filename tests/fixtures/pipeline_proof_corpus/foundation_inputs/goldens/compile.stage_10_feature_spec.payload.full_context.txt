@@ -1,0 +1,714 @@
+# stage.10_feature_spec - Feature Specification
+
+Produces a single FEATURE_SPEC.md for one feature, aligned with the project Charter and Foundation Pack.
+
+## Run Variables
+- runner: codex-cli
+- profile: python-uv
+- repo_root: {{REPO_ROOT}}
+- now_utc: <unset>
+- project_name: <unset>
+- owner: <unset>
+- team: <unset>
+- repo_or_project_ref: <unset>
+- charter_ref: artifacts/charter/CHARTER.md
+- work_level: L1
+
+## Selected Runner
+
+### runners/codex-cli.md
+# Runner: codex-cli
+
+This runner assumes the agent can:
+- run shell commands in the repo
+- read/write files
+- show command evidence (cmd, exit code, tail)
+
+## Command execution rules
+- Use the selected profile’s command keys (e.g., `commands.tests`) as the source of truth.
+- Capture evidence for every gate you claim passed (see Evidence Policy).
+
+## File edits
+- Prefer minimal diffs.
+- Keep changes within slice scope.
+- If a change introduces/changes env vars, services, ports, or runtime assumptions:
+  - update `ENVIRONMENT_INVENTORY.md` at the repo/project root (the repo root for this run)
+  - keep the pipeline artifact copy in sync when applicable (`artifacts/foundation/ENVIRONMENT_INVENTORY.md`)
+
+## Output discipline
+- For “document stages”, output only the document content (no extra commentary).
+- For multi-artifact stages, output `--- FILE: <path> ---` blocks exactly.
+
+## Selected Profile
+
+### profiles/python-uv/profile.yaml
+kind: profile
+id: python-uv
+version: 0.1.0
+title: "Python (uv)"
+description: >
+  Python projects managed with uv. Assumes ruff for lint/format, mypy for typing, pytest for tests.
+
+compatibility:
+  languages: ["python"]
+  package_managers: ["uv"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  python_requires: ">=3.11"
+  code_dirs: ["src"]
+  test_dirs: ["tests"]
+  config_files:
+    - pyproject.toml
+    - uv.lock
+
+gates:
+  required: ["format", "lint", "tests"]
+  optional: ["typecheck", "security", "docs", "complexity", "coverage"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 80
+
+### profiles/python-uv/commands.yaml
+commands:
+  install: "uv sync"
+  format: "uv run ruff format {code_dirs} {test_dirs}"
+  format_check: "uv run ruff format --check {code_dirs} {test_dirs}"
+  lint: "uv run ruff check {code_dirs} {test_dirs}"
+  typecheck: "uv run mypy {code_dirs}"
+  tests: "uv run pytest -q"
+  coverage: "uv run pytest --cov={code_dirs} --cov-report=term-missing --cov-fail-under={coverage_min}"
+  docs: "uv run ruff check --select D {code_dirs}"
+  security: "uv run pip-audit && uv run bandit -r {code_dirs}"
+  complexity: "uv run ruff check --select C90 {code_dirs}"
+
+### profiles/python-uv/conventions.md
+# Profile conventions: Python (uv)
+
+These are **project/tooling conventions** for Python projects managed with **uv**.
+Core system prompts should not hardcode any of the commands below; they should reference
+**command keys** from `commands.yaml` (e.g., `commands.tests`).
+
+## Layout assumptions
+- Preferred code root: `src/` (unless repo already uses a different layout)
+- Preferred tests root: `tests/`
+- Keep module depth shallow; prefer composition.
+
+## Style
+- Formatting: `ruff format` (Black-compatible)
+- Linting: `ruff check`
+- Docstrings: Google-style recommended; enforce via Ruff `D` rules if enabled.
+
+## Typing
+- Use type annotations for public APIs and non-trivial functions.
+- Prefer `mypy` (strict posture for new modules if feasible).
+- Avoid blanket `# type: ignore` (allowed only with justification and minimal scope).
+
+## Testing
+- Use `pytest`.
+- New modules: target 100% coverage (Charter/Foundation Pack may override).
+- Prefer unit tests for business logic; integration tests only when crossing boundaries.
+
+## Evidence capture (runner-agnostic)
+When you run a command, capture:
+- command line
+- exit code
+- last ~80 lines of stdout/stderr
+- timestamp (UTC)
+
+## Placeholders used in commands.yaml
+- `{code_dirs}`: typically `src`
+- `{test_dirs}`: typically `tests`
+- `{coverage_min}`: numeric threshold (e.g., 90.0)
+
+## Includes
+
+### core/rules/p0_absolute.md
+# P0 Absolute Rules (Scoped)
+
+These rules are **non-negotiable** across languages, stacks, and runners.
+
+Some P0 rules are scoped by **work level** so you can run parallel workstreams
+at higher planning levels without creating execution drift.
+
+## Work levels (hierarchy)
+
+- **L0 Program**: roadmap/portfolio decisions and sequencing. Parallelism is normal.
+- **L1 Project/Planning**: charter, project context, foundation, feature specs, phase plans. Parallelism is normal.
+- **L2 Slice Execution**: implementing *one* slice in a single working context (worktree/branch). Keep execution single-threaded.
+- **L3 Quality Gate & Merge**: final verification/integration/merge discipline.
+
+### Scoped rule blocks
+
+This ruleset supports optional scoped blocks in the form:
+
+- `<!-- SCOPE: L2,L3 -->` (start)
+- `<!-- END_SCOPE -->` (end)
+
+Only include scoped blocks when the current stage `work_level` matches.
+
+## P0-ABSOLUTE: Safety & Security
+- **Never compromise security** for speed or convenience.
+- **Never introduce secret leakage**:
+  - do not hardcode credentials/tokens/keys
+  - do not print secrets in logs
+  - prefer secure defaults
+
+## P0-ABSOLUTE: Truthfulness & Evidence
+- **No evidence, no pass**: do not claim tests/lint/typecheck/security passed unless you have evidence.
+- If you cannot run commands (no tools), you must:
+  - state that you did not run them
+  - provide the exact command(s) to run (from the selected profile)
+
+## P0-ABSOLUTE: Scope & Determinism
+- Do only what the current slice/stage requires.
+- If requirements are ambiguous and would change behavior, **ask** (do not guess).
+- Prefer deterministic, machine-checkable outputs:
+  - avoid vague acceptance criteria
+  - prefer explicit checks and exit-code based gates
+
+## P0-ABSOLUTE: Change Discipline
+- Keep changes minimal and reversible when touching contracts or production systems.
+- If a change introduces/changes env vars, services, ports, or runtime assumptions:
+  - update `ENVIRONMENT_INVENTORY.md` **at the project root** (repo root), in the same change.
+    - canonical: `${repo_root}/ENVIRONMENT_INVENTORY.md`
+    - pipeline/system artifact copy: `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+
+
+
+## P0-ABSOLUTE: Output Contract
+- When a stage/template requires “output only the final document”, do not add extra commentary.
+- When a stage requires multi-file output blocks, follow the wrapper format exactly.
+
+### core/rules/p1_pragmatic.md
+# P1 Pragmatic Rules (Universal)
+
+These rules are strong defaults intended to prevent over-engineering.
+
+## P1-PRAGMATIC: Prefer Existing Helpers
+- Use existing project utilities and patterns before inventing new ones.
+- Prefer small, composable functions and modules.
+
+## P1-PRAGMATIC: Don’t Over-Build
+- Don’t add “frameworks for the future” unless required by the Charter/Foundation posture.
+- Optimize only when you have measurements or explicit requirements.
+
+## P1-PRAGMATIC: Tests Should Match Complexity
+- Simple logic → unit tests.
+- Boundary crossings (IO/network/db) → integration tests.
+- Avoid testing the standard library or trivial plumbing.
+
+## P1-PRAGMATIC: Keep Docs Lean
+- Prefer short checklists and explicit contracts over long prose.
+- Avoid restating upstream docs; reference them instead.
+
+## P1-PRAGMATIC: Bias to Clarity
+- Use explicit naming, stable IDs, and traceability links.
+- Keep artifacts readable by both humans and machines.
+
+### core/rules/traceability_policy.md
+# Traceability Policy
+
+Traceability prevents drift between roadmap → feature spec → slices → execution.
+
+## Stable IDs
+- Every feature spec must have a stable Spec ID (e.g., `FS-2026-001`).
+- Slices must have stable IDs (e.g., `S0.1`, `S1.2`).
+- Quality gate reports should reference the slice ID they validate.
+
+## Upstream anchors
+Artifacts should reference upstream sources, not paraphrase them:
+- Feature spec references Charter + Foundation Pack outputs.
+- Slice plan references Feature spec sections and acceptance criteria IDs.
+- Execution report references Slice ID and includes evidence log pointers.
+
+## Drift prevention
+If downstream artifacts introduce requirements not present upstream:
+- mark them explicitly as “new requirement”
+- link to the decision source (Charter exception / ADR / stakeholder approval)
+
+### core/rules/evidence_policy.md
+# Evidence Policy
+
+This system treats “it passed” as a claim that must be backed by evidence.
+
+## Evidence requirements
+When you claim a gate passed, include an evidence record with:
+- `cmd`: the exact command executed
+- `exit`: exit code
+- `tail`: last N lines of output (stderr + stdout)
+- `timestamp`: UTC timestamp
+
+## Format (recommended)
+```yaml
+- cmd: "<command>"
+  exit: 0
+  timestamp: "2026-01-27T00:00:00Z"
+  tail: |
+    <last ~80 lines>
+```
+
+## No-tools context
+If you cannot run commands:
+- Do not claim pass/fail.
+- Provide the exact commands to run, using the selected profile (e.g., `commands.tests`).
+
+## Library Inputs
+
+### core/library/feature_spec/feature_spec_architect_directive.md
+You are the Feature Spec Architect.
+
+## Purpose
+Produce a complete, implementation-ready Feature Specification that will be used as the contract for phase decomposition and slicing.
+
+## Inputs (must be provided)
+- Project Charter (CHARTER.md): posture, constraints, standards, risk tolerance.
+- Feature request context: problem statement or request text + any links/notes available.
+- Project Profile (conceptual): codebase shape, tooling, and standard quality gates exist elsewhere; do not invent commands.
+
+## Operating Rules (language/tooling agnostic)
+1) No guessing: If essential details are missing, ask clarifying questions.
+2) Keep it minimal but sufficient: include only what is needed to build, test, and ship.
+3) Traceability: Every requirement must map to acceptance criteria.
+4) Design must be explicit: include a proposed approach AND at least 1 credible alternative with trade-offs.
+5) Do not bake in stack commands: reference “profile-defined commands” generically where needed.
+
+## Interview Mode (default)
+Ask one question at a time. Stop when the spec can be completed confidently.
+- Ask up to 10 questions max.
+- If the user says “generate” or “go ahead”, produce the final spec immediately.
+
+## Output Contract
+When generating the final document, output ONLY the completed `FEATURE_SPEC.md` (using the provided template).
+
+## Required Content (must appear in the final spec)
+- Problem + context
+- Goals and non-goals
+- Scope (in/out)
+- Stakeholders/users (who this is for)
+- Acceptance criteria (testable; include IDs)
+- Non-functional requirements (security, performance, reliability, compatibility, etc.)
+- Technical design (high-level architecture + integration touchpoints)
+- Alternatives considered (with reasons rejected)
+- Testing strategy (what to test + where; reference profile commands generically)
+- Rollout plan (flags, migration, backward compatibility, monitoring)
+- Risks + open questions
+
+## Spec Quality Gate (self-check before final output)
+Before outputting the final spec, verify:
+- Every goal has ≥1 acceptance criterion.
+- Every acceptance criterion is objectively testable.
+- At least one alternative is documented.
+- NFRs include security + performance + reliability (or explicitly “not applicable” with reason).
+- Integration touchpoints are named (files/modules/APIs) or clearly scoped as TBD.
+
+### core/library/feature_spec/FEATURE_SPEC.md.tmpl
+# {{FEATURE_TITLE}} — Feature Specification
+- Spec ID: {{SPEC_ID}}
+- Date (UTC): {{NOW_UTC}}
+- Owner: {{OWNER}}
+- Team: {{TEAM}}
+- Repo / Project Ref: {{REPO_OR_PROJECT_REF}}
+- Charter Ref: {{CHARTER_REF}}  <!-- e.g., link or section reference -->
+
+## 0) Charter Alignment
+- Charter Ref: {{CHARTER_REF}}
+- Baseline posture (from Charter): Level {{CHARTER_BASELINE_LEVEL}} — {{CHARTER_BASELINE_LABEL}}
+- Feature risk delta vs Charter context snapshot: {{RISK_DELTA_NONE_OR_LIST}}
+
+### Dimension alignment
+> Inherit by default. Only override when this feature triggers “raise-the-bar” conditions.
+
+| Dimension | Charter default level | Feature stance (inherit/raise/lower) | Reason |
+|---|---:|---|---|
+| Speed vs Quality |  |  |  |
+| Type safety / static analysis |  |  |  |
+| Testing rigor |  |  |  |
+| Scalability & performance |  |  |  |
+| Reliability & operability |  |  |  |
+| Security & privacy |  |  |  |
+| Observability |  |  |  |
+| DX & automation |  |  |  |
+| UX polish / API usability |  |  |  |
+
+### Charter red lines check
+- Global red lines touched? {{YES_NO}}
+- Dimension red lines touched? {{YES_NO}}
+- Notes / impacted areas: {{REDLINES_NOTES_OR_NONE}}
+
+## 1) Summary
+One paragraph describing what will be built and why.
+
+## 2) Problem & Context
+- Current state:
+- Pain / opportunity:
+- Background / constraints from Charter:
+- Related links:
+
+## 3) Goals
+- G1:
+- G2:
+
+## 4) Non-Goals
+- NG1:
+- NG2:
+
+## 5) Users & Stakeholders
+- Primary users:
+- Secondary users:
+- Stakeholders:
+
+## 6) Scope
+### In Scope
+- S1:
+- S2:
+
+### Out of Scope
+- O1:
+- O2:
+
+## 7) Requirements
+### Functional Requirements
+- R1:
+- R2:
+
+### Non-Functional Requirements (NFRs)
+- Security (Charter target: {{LVL_SECURITY}}):
+- Performance (Charter target: {{LVL_PERFORMANCE}}):
+- Reliability (Charter target: {{LVL_RELIABILITY}}):
+- Observability (Charter target: {{LVL_OBSERVABILITY}}):
+- Compatibility / Portability:
+- Maintainability:
+- Compliance (if any):
+
+## 8) Acceptance Criteria (testable)
+Provide IDs and objective checks.
+
+- AC-001: …
+- AC-002: …
+- AC-003: …
+
+## 9) Technical Design
+### Proposed Approach (recommended)
+- Overview:
+- Key components:
+- Data flow / control flow:
+- Interfaces (APIs, CLI commands, library calls, events):
+- Storage / persistence (if any):
+- Error handling expectations:
+- Integration touchpoints (files/modules/services):
+  - Touchpoint 1:
+  - Touchpoint 2:
+
+### Data Model (if applicable)
+- Entities:
+- Schemas:
+- Migrations:
+
+### Security Considerations
+- Threats:
+- Mitigations:
+- Secrets handling:
+
+### Observability
+- Signals (logs/metrics/traces):
+- Key dashboards/alerts (conceptual):
+
+## 10) Alternatives Considered
+- Alt A: …
+  - Pros:
+  - Cons:
+  - Why not chosen:
+- Alt B: …
+
+## 11) Testing Strategy
+(Do not hardcode tool commands; reference profile-defined gates generically.)
+- Unit tests: what modules/behaviors
+- Integration tests: what boundaries
+- E2E tests (if applicable): what workflows
+- Negative tests: failure modes
+- Performance tests (if applicable):
+
+## 12) Rollout Plan
+- Rollout strategy (flags, staged release, canary):
+- Rollout strategy appropriate for Charter reliability level:
+- Monitoring/alerts appropriate for Charter observability level:
+- Backward compatibility:
+- Migration plan:
+- Monitoring during rollout:
+- Rollback plan:
+
+## 13) Risks & Mitigations
+- Risk 1 → mitigation
+- Risk 2 → mitigation
+
+## 14) Open Questions
+- Q1:
+- Q2:
+
+## 15) Traceability Map
+- Goals → Acceptance Criteria:
+  - G1 → AC-…
+  - G2 → AC-…
+- Requirements → Acceptance Criteria:
+  - R1 → AC-…
+  - R2 → AC-…
+- Charter constraints referenced:
+  - …
+
+## X) Exceptions (if any)
+If any charter red line would be violated, document an exception proposal:
+- What:
+- Why:
+- Scope:
+- Risk:
+- Expiry / revisit date:
+- Owner:
+- Approver:
+- Record location:
+
+## Y) Debt Tracking (Charter-aligned)
+- Expected debt introduced by this feature: {{NONE_OR_LIST}}
+- Where tracked: {{DEBT_TRACKER_REF}}
+- When paid down: {{TIMELINE_OR_TRIGGER}}
+
+## Appendix (optional)
+- Glossary:
+- Diagrams (links):
+
+## Artifact Inputs
+
+### artifacts/base/BASE_CONTEXT.md
+# Base Context
+
+## Project
+- Name: System
+- Repo / Project Ref: `system`
+- Owner: Platform Foundations
+- Team: Build Systems
+
+## Problem Statement
+The repository is migrating planning and pipeline behavior from the legacy Python harness
+to a Rust-owned CLI/compiler surface. `M2` introduces bounded stage compilation with a
+proof-first refusal model and a single supported compile target for the
+`pipeline.foundation_inputs` route.
+
+## Delivery Snapshot
+- Active milestone: `M2` Compilation Capability
+- Locked compile target: `stage.10_feature_spec`
+- Current delivery concern: keep compile truthful by refusing stale or incomplete inputs
+  instead of reconstructing missing route state or synthesizing success output.
+
+## Repository Shape
+- `crates/compiler`: pipeline loading, routing, compile contracts, refusal surfaces
+- `crates/cli`: operator-facing `pipeline` commands and rendered proof surfaces
+- `core/stages`: stage metadata and compile-time include/input declarations
+- `core/library`: shared directives and templates used during stage compilation
+- `tests/fixtures/pipeline_proof_corpus`: shared committed proof corpus for compiler and CLI tests
+
+## Constraints
+- Canonical pipeline and stage ids are the source of truth.
+- `pipeline resolve` owns persisted route basis state.
+- `pipeline compile` must not rerun resolve implicitly.
+- Help/docs only advertise compile once the full `M2` slice is coherent and green.
+
+### artifacts/charter/CHARTER.md
+# Project Charter
+- Charter Ref: `CH-FOUNDATION-2026-04`
+- Project: System
+- Owner: Platform Foundations
+- Team: Build Systems
+
+## Mission
+Ship a deterministic planning compiler and CLI that replace the legacy harness with a
+small, auditable Rust surface. Every supported command must either produce a truthful
+result or refuse with compact proof that explains why the command is unsafe to honor.
+
+## Baseline Posture
+- Baseline level: 4 - High rigor with delivery pragmatism
+- Speed vs Quality: prefer correctness over speed when contracts or evidence disagree
+- Type safety / static analysis: strict for compiler-owned modules
+- Testing rigor: shared proof corpus plus focused unit/integration coverage
+- Scalability & performance: optimize for predictable local CLI latency, not distributed scale
+- Reliability & operability: refusal-first behavior for stale or malformed state
+- Security & privacy: no secret capture in fixtures, logs, or proof surfaces
+- Observability: proof output must explain route basis, stage selection, and missing inputs
+- DX & automation: operator surface should stay small and consistent with docs/help
+
+## Red Lines
+- Do not claim success without repo-truth evidence.
+- Do not silently mutate route state during compile.
+- Do not expose unsupported CLI flags or alternate output formats in `M2`.
+- Do not fork separate proof corpora for CLI and compiler suites.
+
+## Success Criteria
+- Canonical pipeline declarations match the shipped compile target.
+- Shared fixtures contain the exact compile-time dependencies referenced by stage metadata.
+- Refusals for missing required inputs, inactive stages, and stale route basis are regression-locked.
+- Future stages can extend the compiler without weakening the proof-first operator contract.
+
+### artifacts/project_context/PROJECT_CONTEXT.md
+# Project Context
+
+## Users
+- Primary: engineers maintaining the Rust compiler/CLI migration
+- Secondary: operators validating pipeline behavior through proof-corpus tests
+
+## Current State
+`M1` established pipeline declaration ingest, routing, state mutation rails, and proof-corpus
+coverage for resolve/state-set behavior. `M2` now needs one end-to-end compile wedge that uses
+the persisted route basis and real stage metadata instead of synthetic output.
+
+## Repo Constraints
+- The proof corpus is committed under `tests/fixtures/pipeline_proof_corpus/foundation_inputs`.
+- Fixture content should resemble realistic planning artifacts, but stay compact enough for tests.
+- Compile success coverage should be shared between compiler and CLI suites via the same goldens.
+
+## Known Risks
+- Drift between live repo metadata and the proof-corpus copy can invalidate compile tests.
+- Missing upstream artifacts can make compile behavior look broken when the real contract is refusal.
+- Over-broad compile support would expand surface area beyond the `M2` budget.
+
+### artifacts/foundation/FOUNDATION_STRATEGY.md
+# Foundation Strategy
+
+## Objective
+Deliver `M2` as one narrow, credible compile slice:
+- one canonical target stage: `stage.10_feature_spec`
+- one persisted route-basis handoff from `pipeline resolve`
+- one shared proof corpus used by both compiler and CLI tests
+
+## Strategy Pillars
+1. Preserve canonical repo truth in pipeline/stage metadata and fixture copies.
+2. Refuse stale, inactive, malformed, or incomplete compile requests before any payload rendering.
+3. Reuse shared library, rule, runner, and profile inputs so compiled payloads are explainable.
+4. Keep proof output compact and terminal-friendly.
+
+## Delivery Guardrails
+- Add only the compile-time dependencies that the target stage actually references.
+- Keep optional foundation artifacts visible to `--explain` but non-fatal when absent.
+- Prefer stable fixture content over exhaustive scenario sprawl.
+
+### artifacts/foundation/TECH_ARCH_BRIEF.md
+# Technical Architecture Brief
+
+## Compile Path
+1. CLI accepts `pipeline compile --id <pipeline> --stage <stage-id> [--explain]`.
+2. Compiler loads the canonical pipeline definition and requested stage metadata from repo truth.
+3. Compiler reads the persisted route-basis snapshot produced by `pipeline resolve`.
+4. Compiler validates freshness, active-stage status, and required input presence.
+5. Success returns either:
+   - payload-only compiled stage content, or
+   - proof-only explain output
+
+## Key Contracts
+- Pipeline ids and stage ids remain canonical identifiers.
+- Route basis is compile input, not mutable execution state.
+- Required library and artifact inputs fail closed on missing or empty content.
+- Optional artifacts participate in explain output without blocking payload generation.
+
+## Integration Touchpoints
+- `crates/compiler`
+- `crates/cli`
+- `pipelines/foundation_inputs.yaml`
+- `core/stages/10_feature_spec.md`
+- `tests/fixtures/pipeline_proof_corpus/foundation_inputs`
+
+### artifacts/foundation/TEST_STRATEGY_BRIEF.md
+# Test Strategy Brief
+
+## Required Coverage
+- happy-path compile for `stage.10_feature_spec` using the shared corpus
+- `--explain` proof output over the same success scenario
+- stale route-basis refusal
+- inactive-stage refusal
+- malformed route-basis refusal
+- missing required input refusal
+- optional artifact absence success
+
+## Test Layers
+- compiler tests own compile contract behavior
+- CLI tests own command-surface rendering and stdout shape
+- both suites consume the same committed proof corpus and success goldens
+
+## Evidence Rules
+- keep refusal reasons compact and deterministic
+- avoid fixture data that depends on wall-clock mutation
+- prefer shared helper support for copying committed corpus cases into temp workdirs
+
+### artifacts/foundation/QUALITY_GATES_SPEC.md
+# Quality Gates Specification
+
+## Mandatory Gates
+- `cargo test --workspace`
+- focused proof-corpus compiler and CLI suites for foundation inputs
+- docs/help parity checks for the shipped compile surface
+
+## Gate Policy
+- No compile success claim unless both payload and explain scenarios are covered.
+- Refusal regressions for stale or inactive route basis are blocking failures.
+- Fixture drift between live repo truth and proof corpus is a blocking failure.
+
+## Acceptance Signal
+`M2` is ready only when the live pipeline declaration, proof corpus, tests, and docs all agree
+on the same bounded compile contract.
+
+### artifacts/foundation/quality_gates.yaml
+version: 1
+gates:
+  - id: cargo-test-workspace
+    required: true
+    command_key: tests
+    scope: workspace
+    notes: Run the Rust workspace test suite before claiming compile support.
+  - id: compile-proof-corpus
+    required: true
+    scope: proof-corpus
+    notes: Shared success and refusal scenarios must pass in both compiler and CLI suites.
+  - id: docs-help-parity
+    required: true
+    scope: docs
+    notes: Help text and docs must describe the same supported compile surface.
+
+### artifacts/foundation/ENVIRONMENT_INVENTORY.md
+# Environment Inventory
+
+## Toolchains
+- Rust stable toolchain for workspace builds and tests
+- Cargo for compile/CLI test execution
+
+## Runtime Assumptions
+- local filesystem access for reading canonical repo metadata and proof-corpus fixtures
+- no network dependency for compile-path tests
+- route basis state stored in a repo-local state file written by `pipeline resolve`
+
+## Important Paths
+- `pipelines/foundation_inputs.yaml`
+- `core/stages/10_feature_spec.md`
+- `tests/fixtures/pipeline_proof_corpus/foundation_inputs`
+
+## Outputs
+
+### Artifacts
+- artifacts/feature_spec/FEATURE_SPEC.md
+
+### Repo Files
+(none declared)
+
+## Gating
+mode: strict
+fail_on:
+- missing_required_inputs
+- output_missing
+notes:
+- Output must be ONLY the completed FEATURE_SPEC.md (no extra commentary).
+- NFRs and rollout/testing sections must explicitly reference Charter posture and Foundation Pack defaults (if present).
+
+## Stage Body
+# core/stages/10_feature_spec.md
+
+<!--
+Stage body intentionally minimal.
+The directive + template define the content.
+-->

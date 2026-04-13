@@ -78,6 +78,143 @@ pub struct StageCatalogEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompileStageDefinition {
+    pub stage: PipelineStage,
+    pub source_path: PathBuf,
+    pub kind: String,
+    pub id: String,
+    pub version: String,
+    pub title: String,
+    pub description: String,
+    pub work_level: Option<String>,
+    pub includes: Vec<String>,
+    pub inputs: CompileStageInputs,
+    pub outputs: CompileStageOutputs,
+    pub gating: CompileStageGating,
+    pub tags: Vec<String>,
+    pub body: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompileStageInputs {
+    pub library: Vec<CompileStageInput>,
+    pub artifacts: Vec<CompileStageInput>,
+    pub variables: Vec<CompileStageVariable>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompileStageInput {
+    pub path: String,
+    pub required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompileStageVariable {
+    pub name: String,
+    pub optional: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompileStageOutputs {
+    pub artifacts: Vec<CompileStageOutput>,
+    pub repo_files: Vec<CompileStageOutput>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompileStageOutput {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompileStageGating {
+    pub mode: Option<String>,
+    pub fail_on: Vec<String>,
+    pub notes: Vec<String>,
+}
+
+impl CompileStageInputs {
+    fn from_raw(raw: CompileStageInputsRaw) -> Self {
+        Self {
+            library: raw
+                .library
+                .into_iter()
+                .map(CompileStageInput::from_raw)
+                .collect(),
+            artifacts: raw
+                .artifacts
+                .into_iter()
+                .map(CompileStageInput::from_raw)
+                .collect(),
+            variables: raw
+                .variables
+                .into_iter()
+                .map(|value| {
+                    let optional = value.ends_with('?');
+                    let name = if optional {
+                        value.trim_end_matches('?')
+                    } else {
+                        value.as_str()
+                    };
+                    CompileStageVariable {
+                        name: name.to_string(),
+                        optional,
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
+impl CompileStageInput {
+    fn from_raw(raw: CompileStageInputRaw) -> Self {
+        match raw {
+            CompileStageInputRaw::Path(path) => Self {
+                path,
+                required: false,
+            },
+            CompileStageInputRaw::Entry { path, required } => Self { path, required },
+        }
+    }
+}
+
+impl CompileStageOutputs {
+    fn from_raw(raw: CompileStageOutputsRaw) -> Self {
+        Self {
+            artifacts: raw
+                .artifacts
+                .into_iter()
+                .map(CompileStageOutput::from_raw)
+                .collect(),
+            repo_files: raw
+                .repo_files
+                .into_iter()
+                .map(CompileStageOutput::from_raw)
+                .collect(),
+        }
+    }
+}
+
+impl CompileStageOutput {
+    fn from_raw(raw: CompileStageOutputRaw) -> Self {
+        match raw {
+            CompileStageOutputRaw::Path(path) | CompileStageOutputRaw::Entry { path } => {
+                Self { path }
+            }
+        }
+    }
+}
+
+impl CompileStageGating {
+    fn from_raw(raw: CompileStageGatingRaw) -> Self {
+        Self {
+            mode: raw.mode,
+            fail_on: raw.fail_on,
+            notes: raw.notes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PipelineSelection {
     Pipeline(PipelineCatalogEntry),
     Stage(StageCatalogEntry),
@@ -255,6 +392,68 @@ impl std::error::Error for PipelineMetadataSelectionError {
     }
 }
 
+impl fmt::Display for CompileStageLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompileStageLoadError::StageNotDeclared {
+                pipeline_id,
+                stage_id,
+            } => write!(
+                f,
+                "stage `{stage_id}` is not declared in pipeline `{pipeline_id}`"
+            ),
+            CompileStageLoadError::ReadFailure { path, source } => {
+                write!(
+                    f,
+                    "failed to read compile stage definition {}: {source}",
+                    path.display()
+                )
+            }
+            CompileStageLoadError::MissingFrontMatter { path } => {
+                write!(
+                    f,
+                    "compile stage definition {} is missing front matter",
+                    path.display()
+                )
+            }
+            CompileStageLoadError::ParseFrontMatter { path, source } => {
+                write!(
+                    f,
+                    "failed to parse compile stage front matter {}: {source}",
+                    path.display()
+                )
+            }
+            CompileStageLoadError::StageKindMismatch { path, actual } => write!(
+                f,
+                "compile stage front matter {} must declare kind `stage`, got `{actual}`",
+                path.display()
+            ),
+            CompileStageLoadError::StageIdMismatch {
+                path,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "compile stage front matter {} expected canonical id `{expected}` but found `{actual}`",
+                path.display()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CompileStageLoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            CompileStageLoadError::ReadFailure { source, .. } => Some(source),
+            CompileStageLoadError::ParseFrontMatter { source, .. } => Some(source),
+            CompileStageLoadError::StageNotDeclared { .. }
+            | CompileStageLoadError::MissingFrontMatter { .. }
+            | CompileStageLoadError::StageKindMismatch { .. }
+            | CompileStageLoadError::StageIdMismatch { .. } => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct StageFrontMatter {
     pub kind: String,
@@ -268,10 +467,109 @@ struct StageFrontMatter {
     pub activation: Option<StageActivation>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompileStageFrontMatterRaw {
+    pub kind: String,
+    pub id: String,
+    pub version: String,
+    pub title: String,
+    pub description: String,
+    #[serde(default)]
+    pub work_level: Option<String>,
+    #[serde(default)]
+    pub includes: Vec<String>,
+    #[serde(default)]
+    pub inputs: CompileStageInputsRaw,
+    #[serde(default)]
+    pub outputs: CompileStageOutputsRaw,
+    #[serde(default)]
+    pub gating: CompileStageGatingRaw,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompileStageInputsRaw {
+    #[serde(default)]
+    pub library: Vec<CompileStageInputRaw>,
+    #[serde(default)]
+    pub artifacts: Vec<CompileStageInputRaw>,
+    #[serde(default)]
+    pub variables: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum CompileStageInputRaw {
+    Path(String),
+    Entry {
+        path: String,
+        #[serde(default)]
+        required: bool,
+    },
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompileStageOutputsRaw {
+    #[serde(default)]
+    pub artifacts: Vec<CompileStageOutputRaw>,
+    #[serde(default)]
+    pub repo_files: Vec<CompileStageOutputRaw>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum CompileStageOutputRaw {
+    Path(String),
+    Entry { path: String },
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompileStageGatingRaw {
+    #[serde(default)]
+    pub mode: Option<String>,
+    #[serde(default)]
+    pub fail_on: Vec<String>,
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
 #[derive(Debug)]
 enum StageFrontMatterLoadError {
     Read(std::io::Error),
     Parse(serde_yaml_bw::Error),
+}
+
+#[derive(Debug)]
+pub enum CompileStageLoadError {
+    StageNotDeclared {
+        pipeline_id: String,
+        stage_id: String,
+    },
+    ReadFailure {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    MissingFrontMatter {
+        path: PathBuf,
+    },
+    ParseFrontMatter {
+        path: PathBuf,
+        source: serde_yaml_bw::Error,
+    },
+    StageKindMismatch {
+        path: PathBuf,
+        actual: String,
+    },
+    StageIdMismatch {
+        path: PathBuf,
+        expected: String,
+        actual: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -326,6 +624,72 @@ pub fn load_pipeline_selection_metadata(
             selector: selector.trim().to_string(),
         },
     ))
+}
+
+pub fn load_stage_compile_definition(
+    repo_root: impl AsRef<Path>,
+    pipeline: &PipelineDefinition,
+    stage_id: &str,
+) -> Result<CompileStageDefinition, CompileStageLoadError> {
+    let Some(stage) = pipeline
+        .declared_stages()
+        .iter()
+        .find(|stage| stage.id == stage_id)
+        .cloned()
+    else {
+        return Err(CompileStageLoadError::StageNotDeclared {
+            pipeline_id: pipeline.header.id.clone(),
+            stage_id: stage_id.to_string(),
+        });
+    };
+
+    let path = repo_root.as_ref().join(&stage.file);
+    let contents =
+        std::fs::read_to_string(&path).map_err(|source| CompileStageLoadError::ReadFailure {
+            path: path.clone(),
+            source,
+        })?;
+    let Some((front_matter_text, body)) = extract_front_matter_parts(&contents) else {
+        return Err(CompileStageLoadError::MissingFrontMatter { path });
+    };
+
+    let front_matter = serde_yaml_bw::from_str::<CompileStageFrontMatterRaw>(&front_matter_text)
+        .map_err(|source| CompileStageLoadError::ParseFrontMatter {
+            path: path.clone(),
+            source,
+        })?;
+
+    if front_matter.kind != "stage" {
+        return Err(CompileStageLoadError::StageKindMismatch {
+            path,
+            actual: front_matter.kind,
+        });
+    }
+
+    if front_matter.id != stage.id {
+        return Err(CompileStageLoadError::StageIdMismatch {
+            path,
+            expected: stage.id,
+            actual: front_matter.id,
+        });
+    }
+
+    Ok(CompileStageDefinition {
+        stage,
+        source_path: path,
+        kind: front_matter.kind,
+        id: front_matter.id,
+        version: front_matter.version,
+        title: front_matter.title,
+        description: front_matter.description,
+        work_level: front_matter.work_level,
+        includes: front_matter.includes,
+        inputs: CompileStageInputs::from_raw(front_matter.inputs),
+        outputs: CompileStageOutputs::from_raw(front_matter.outputs),
+        gating: CompileStageGating::from_raw(front_matter.gating),
+        tags: front_matter.tags,
+        body: normalize_optional_body(&body),
+    })
 }
 
 fn load_pipeline_catalog_with_mode(
@@ -844,21 +1208,35 @@ fn load_stage_catalog(
 }
 
 fn extract_front_matter_block(contents: &str) -> Option<String> {
+    extract_front_matter_parts(contents).map(|(front_matter, _body)| front_matter)
+}
+
+fn extract_front_matter_parts(contents: &str) -> Option<(String, String)> {
     let mut lines = contents.lines();
     if lines.next()? != "---" {
         return None;
     }
 
     let mut front_matter = String::new();
-    for line in lines {
+    while let Some(line) = lines.next() {
         if line == "---" {
-            return Some(front_matter);
+            let body = lines.collect::<Vec<_>>().join("\n");
+            return Some((front_matter, body));
         }
         front_matter.push_str(line);
         front_matter.push('\n');
     }
 
     None
+}
+
+fn normalize_optional_body(body: &str) -> Option<String> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn discover_repo_relative_files(

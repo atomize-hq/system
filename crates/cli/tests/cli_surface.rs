@@ -227,6 +227,37 @@ fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, root)
 }
 
+fn prepare_foundation_inputs_compile_ready_route_basis(root: &std::path::Path) {
+    for args in [
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=true",
+        ],
+        vec!["pipeline", "resolve", "--id", "foundation_inputs"],
+    ] {
+        let output = run_in(root, &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+    }
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -293,8 +324,8 @@ fn pipeline_help_lists_supported_surface() {
 
     assert_eq!(
         command_lines.len(),
-        4,
-        "expected four pipeline command lines"
+        5,
+        "expected five pipeline command lines"
     );
     assert!(
         command_lines[0].starts_with("list "),
@@ -309,11 +340,15 @@ fn pipeline_help_lists_supported_surface() {
         "resolve should be third: {command_lines:?}"
     );
     assert!(
-        command_lines[3].starts_with("state "),
-        "state should be fourth: {command_lines:?}"
+        command_lines[3].starts_with("compile "),
+        "compile should be fourth: {command_lines:?}"
     );
     assert!(
-        stdout.contains("Pipeline operator surface"),
+        command_lines[4].starts_with("state "),
+        "state should be fifth: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("explicit stage compilation"),
         "expected pipeline help title: {stdout}"
     );
 }
@@ -344,6 +379,29 @@ fn pipeline_state_help_lists_set() {
         stdout.contains("Set one supported route-state field"),
         "expected pipeline state help text: {stdout}"
     );
+}
+
+#[test]
+fn pipeline_compile_help_lists_exact_m2_surface() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "compile", "--help"]);
+    assert!(
+        output.status.success(),
+        "pipeline compile help should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    assert!(
+        stdout.contains("Compile one supported stage payload from persisted route basis"),
+        "expected compile help summary: {stdout}"
+    );
+    assert!(stdout.contains("--id <ID>"), "expected --id: {stdout}");
+    assert!(
+        stdout.contains("--stage <STAGE>"),
+        "expected --stage: {stdout}"
+    );
+    assert!(stdout.contains("--explain"), "expected --explain: {stdout}");
 }
 
 #[test]
@@ -578,6 +636,190 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
         None,
         "resolve.after_run_and_refs.txt",
     );
+}
+
+#[test]
+fn pipeline_compile_plain_success_is_payload_only_stdout() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let expected = system_compiler::compile_pipeline_stage(
+        root.as_path(),
+        "pipeline.foundation_inputs",
+        "stage.10_feature_spec",
+    )
+    .map(|result| system_compiler::render_pipeline_compile_payload(&result))
+    .expect("compile should succeed");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+    );
+    assert!(output.status.success(), "pipeline compile should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_eq!(stdout, format!("{expected}\n"));
+    assert!(
+        !stdout.contains("OUTCOME:"),
+        "plain compile must stay payload-only: {stdout}"
+    );
+    assert!(
+        !stdout.contains("NEXT SAFE ACTION:"),
+        "plain compile must not include refusal framing: {stdout}"
+    );
+    assert!(
+        !stdout.contains("ROUTE BASIS:"),
+        "plain compile must not include proof sections: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_compile_explain_success_is_proof_only_stdout() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let expected = system_compiler::compile_pipeline_stage(
+        root.as_path(),
+        "pipeline.foundation_inputs",
+        "stage.10_feature_spec",
+    )
+    .map(|result| system_compiler::render_pipeline_compile_explain(&result))
+    .expect("compile should succeed");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+            "--explain",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "pipeline compile --explain should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_eq!(stdout, format!("{expected}\n"));
+    assert!(
+        stdout.contains("OUTCOME: COMPILED"),
+        "explain mode should render proof: {stdout}"
+    );
+    assert!(
+        !stdout.starts_with("# stage.10_feature_spec"),
+        "explain mode must not include the payload header: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_when_route_basis_is_missing() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "pipeline compile should refuse without a persisted route basis"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        stdout.trim_end(),
+        "OUTCOME: REFUSED\nPIPELINE: pipeline.foundation_inputs\nSTAGE: stage.10_feature_spec\nREASON: missing_route_basis: persisted route_basis is missing for the selected pipeline\nBROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`\nNEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_when_selected_stage_is_inactive() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "pipeline resolve should succeed");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "inactive-stage compile should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"));
+    assert!(stdout.contains("REASON: inactive_stage:"));
+    assert!(stdout.contains("stage.06_project_context_interview (next)"));
+    assert!(stdout.contains("NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"));
+}
+
+#[test]
+fn pipeline_compile_refuses_when_route_basis_is_stale() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let mutation = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+    );
+    assert!(mutation.status.success(), "state mutation should succeed");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+    );
+    assert!(!output.status.success(), "stale route basis should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("REASON: stale_route_basis:"));
+    assert!(
+        stdout.contains("route state revision 3 does not match persisted route_basis revision 2")
+    );
+    assert!(stdout.contains("NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"));
 }
 
 #[test]

@@ -1,5 +1,5 @@
 ---
-version: m1-v1
+version: m2-v1
 currentness: current
 status: drafted
 revalidation_triggers:
@@ -91,7 +91,9 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - `refs`
   - `run`
   - `audit`
-- `schema_version` MUST be `m1-pipeline-state-v2`.
+  - `route_basis`
+- `schema_version` MUST be `m2-pipeline-state-v3` for newly written state.
+- Read compatibility MAY accept legacy `m1-pipeline-state-v2` state that omits `route_basis`, but legacy schema writes are no longer the current shape.
 - `pipeline_id` MUST match the canonical pipeline ID from the loaded pipeline definition.
 - `revision` MUST be a monotonically increasing non-negative integer.
 - `routing` MUST be a mapping from supported variable name to boolean value. Keys MUST follow the same variable-name grammar as activation clauses.
@@ -118,6 +120,17 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - `run.profile`
 - `audit.value` MUST be a boolean for `routing.*` entries and a string for `refs.*` / `run.*` entries.
 - Derived runtime-state fields such as `run.repo_root` MUST NOT appear in `audit.field_path`; audit records track direct typed mutations only.
+- `route_basis`, when present, MUST be a bounded compiler-owned snapshot written by `pipeline resolve`.
+- `route_basis` MUST contain:
+  - its own explicit schema/version field
+  - the canonical `pipeline_id`
+  - the repo-relative pipeline file path plus its content fingerprint
+  - the state revision captured at resolve time
+  - exact snapshots of `routing`, `refs`, and `run` as resolve used them
+  - the ordered resolved route snapshot for all declared stages, including repo-relative stage file paths, persisted statuses/reasons, and stage file fingerprints
+  - the selected runner id plus runner file path/fingerprint
+  - the selected profile id plus fingerprints for `profile.yaml`, `commands.yaml`, and `conventions.md`
+- `route_basis` MUST NOT contain compiled payload bytes, explain output bytes, copied include/library/artifact contents, duplicated audit history, compile-only overrides, or wall-clock timestamps.
 - Unknown top-level keys, unknown nested keys, invalid routing variable names, invalid field paths, or wrong scalar types MUST be refused as malformed state.
 - Audit history MUST be bounded to a fixed implementation-defined maximum entry count and MUST trim oldest-first after a successful mutation. The bound MUST remain stable within one implementation revision and be covered by tests.
 
@@ -134,11 +147,13 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - Successful writes MUST use write-then-rename atomic replacement within the same state directory.
 - Silent last-write-wins behavior is forbidden.
 - Mutation outcomes MUST distinguish success from refusal, and refusal outcomes MUST distinguish malformed-state refusal, unsupported-variable refusal, and revision-conflict refusal.
+- `pipeline resolve` is the only compiler-owned write path allowed to persist `route_basis`.
+- Persisting `route_basis` MUST NOT silently recompute route state from stale inputs; it must snapshot the already accepted route plus the exact `routing` / `refs` / `run` surfaces used during that resolve.
 
 ## Compatibility and Downstream Revalidation
 
 - Any change to accepted pipeline shape, activation grammar, stage-status vocabulary, or runtime-state schema requires downstream revalidation.
-- Any change to route-state mutation semantics, including revision handling or audit trimming behavior, requires downstream revalidation.
+- Any change to route-state mutation semantics, `route_basis` persistence rules, revision handling, or audit trimming behavior requires downstream revalidation.
 - Any change to the runtime-only posture of `.system/state/**` requires downstream revalidation.
 - `THR-01` publication requires this contract to name the downstream revalidation targets explicitly, and any later change to `C-08` must revalidate `SEAM-2`, `SEAM-3`, and `SEAM-4` before the thread can be treated as current.
 
@@ -154,6 +169,9 @@ Existing loader evidence already lives in `crates/compiler/src/pipeline.rs` and 
   - `resolved_route_refuses_out_of_contract_activation_inputs`
 - Add `crates/compiler/tests/pipeline_state_store.rs` with:
   - `state_store_round_trips_revisioned_routing_refs_and_run_fields`
+  - `route_basis_round_trips_when_written_by_resolve`
+  - `legacy_m1_state_without_route_basis_still_loads`
+  - `malformed_route_basis_is_distinct_from_malformed_route_state`
   - `state_store_refuses_unknown_keys_and_wrong_scalar_types`
   - `state_store_refuses_revision_conflict_without_overwrite`
   - `state_store_trims_audit_history_oldest_first`

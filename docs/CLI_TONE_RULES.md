@@ -79,6 +79,7 @@ Help text should:
 - explain the supported boundary in one pass
 - avoid examples unless the example adds real disambiguation
 - read cleanly in a narrow terminal
+- keep `pipeline compile` terse about the bounded M2 wedge: one stage payload, one optional `--explain` proof mode
 
 Help text should not:
 
@@ -94,12 +95,17 @@ Success output should:
 - start with outcome, object, and next safe action
 - keep the packet or proof result as the main event
 - stay calm and matter-of-fact
+- keep `pipeline compile --explain` in ordered proof form when the operator explicitly asks for compile proof
 
 Success output should not:
 
 - congratulate the operator
 - sound like a status email
 - bury the useful result behind framing text
+
+Plain `pipeline compile` success should stay payload-only.
+
+`pipeline compile --explain` should stay proof-only.
 
 ### Runtime refusal output
 
@@ -110,6 +116,7 @@ Refusal output should:
 - name the broken artifact, dependency, or policy second
 - end with the exact next safe action
 - feel procedural rather than dramatic
+- keep compile refusal framing stable: `OUTCOME`, `PIPELINE`, `STAGE`, `REASON`, `BROKEN SUBJECT`, `NEXT SAFE ACTION`
 
 Refusal output should not:
 

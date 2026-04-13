@@ -1,5 +1,9 @@
-use crate::pipeline_route::RouteVariables;
+use crate::pipeline::PipelineDefinition;
+use crate::pipeline_route::{
+    ResolvedPipelineRoute, RouteStageReason, RouteStageStatus, RouteVariables,
+};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
@@ -7,7 +11,9 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v2";
+pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m2-pipeline-state-v3";
+const LEGACY_ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v2";
+pub const ROUTE_BASIS_SCHEMA_VERSION: &str = "m2-route-basis-v1";
 pub const ROUTE_STATE_AUDIT_LIMIT: usize = 50;
 
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -27,6 +33,8 @@ pub struct RouteState {
     pub refs: RouteStateRefs,
     pub run: RouteStateRun,
     pub audit: Vec<RouteStateAuditEntry>,
+    #[serde(default)]
+    pub route_basis: Option<RouteBasis>,
 }
 
 impl RouteState {
@@ -39,8 +47,85 @@ impl RouteState {
             refs: RouteStateRefs::default(),
             run: RouteStateRun::default(),
             audit: Vec::new(),
+            route_basis: None,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteBasis {
+    pub schema_version: String,
+    pub pipeline_id: String,
+    pub pipeline_file: String,
+    pub pipeline_file_sha256: String,
+    pub state_revision: u64,
+    pub routing: BTreeMap<String, bool>,
+    pub refs: RouteStateRefs,
+    pub run: RouteStateRun,
+    pub route: Vec<RouteBasisResolvedStage>,
+    pub runner: RouteBasisRunner,
+    pub profile: RouteBasisProfilePack,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteBasisResolvedStage {
+    pub stage_id: String,
+    pub file: String,
+    pub status: RouteBasisStageStatus,
+    pub reason: Option<RouteBasisStageReason>,
+    pub file_sha256: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RouteBasisStageStatus {
+    Active,
+    Skipped,
+    Blocked,
+    Next,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RouteBasisStageReason {
+    SkippedActivationFalse {
+        operator: RouteBasisActivationOperator,
+        unsatisfied_variables: Vec<String>,
+    },
+    NextMissingRouteVariables {
+        operator: RouteBasisActivationOperator,
+        missing_variables: Vec<String>,
+    },
+    BlockedByUnresolvedStage {
+        upstream_stage_id: String,
+        upstream_status: RouteBasisStageStatus,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RouteBasisActivationOperator {
+    Any,
+    All,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteBasisRunner {
+    pub id: String,
+    pub file: String,
+    pub file_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RouteBasisProfilePack {
+    pub id: String,
+    pub profile_yaml_sha256: String,
+    pub commands_yaml_sha256: String,
+    pub conventions_md_sha256: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -184,6 +269,29 @@ pub enum RouteStateStoreError {
     },
 }
 
+#[derive(Debug)]
+pub enum RouteBasisBuildError {
+    MissingSelectedRunner {
+        pipeline_id: String,
+    },
+    MissingSelectedProfile {
+        pipeline_id: String,
+    },
+    InvalidRouteSnapshot {
+        pipeline_id: String,
+        stage_id: String,
+        detail: String,
+    },
+    ReadFailure {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    InvalidPath {
+        path: String,
+        reason: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RouteStateMutationOutcome {
     Applied(RouteState),
@@ -197,6 +305,23 @@ pub enum RouteStateMutationRefusal {
     },
     UnsupportedVariable {
         variable: String,
+    },
+    RevisionConflict {
+        expected_revision: u64,
+        actual_revision: u64,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RouteBasisPersistOutcome {
+    Applied(RouteState),
+    Refused(RouteBasisPersistRefusal),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RouteBasisPersistRefusal {
+    MalformedState {
+        reason: String,
     },
     RevisionConflict {
         expected_revision: u64,
@@ -335,6 +460,7 @@ pub fn set_route_state(
         ));
     }
 
+    state.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
     state.revision = state.revision.saturating_add(1);
     mutation.apply(&mut state);
     state.run.repo_root = Some(derived_repo_root(repo_root.as_ref()));
@@ -348,6 +474,175 @@ pub fn set_route_state(
     persist_route_state(&state_path, &state)?;
 
     Ok(RouteStateMutationOutcome::Applied(state))
+}
+
+pub fn build_route_basis(
+    repo_root: impl AsRef<Path>,
+    pipeline: &PipelineDefinition,
+    state: &RouteState,
+    route: &ResolvedPipelineRoute,
+) -> Result<RouteBasis, RouteBasisBuildError> {
+    let repo_root = repo_root.as_ref();
+    let normalized_state = normalized_state_for_route_basis(state, repo_root);
+    let selected_runner_id = normalized_state
+        .run
+        .runner
+        .clone()
+        .unwrap_or_else(|| pipeline.body.defaults.runner.clone());
+    let selected_profile_id = normalized_state
+        .run
+        .profile
+        .clone()
+        .unwrap_or_else(|| pipeline.body.defaults.profile.clone());
+
+    if selected_runner_id.trim().is_empty() {
+        return Err(RouteBasisBuildError::MissingSelectedRunner {
+            pipeline_id: pipeline.header.id.clone(),
+        });
+    }
+    if selected_profile_id.trim().is_empty() {
+        return Err(RouteBasisBuildError::MissingSelectedProfile {
+            pipeline_id: pipeline.header.id.clone(),
+        });
+    }
+
+    let pipeline_file_sha256 =
+        fingerprint_repo_relative_file(repo_root, pipeline.source_path.to_string_lossy().as_ref())?;
+
+    let mut route_stages = Vec::with_capacity(route.stages.len());
+    for resolved_stage in &route.stages {
+        let Some(pipeline_stage) = pipeline
+            .declared_stages()
+            .iter()
+            .find(|stage| stage.id == resolved_stage.stage_id)
+        else {
+            return Err(RouteBasisBuildError::InvalidRouteSnapshot {
+                pipeline_id: pipeline.header.id.clone(),
+                stage_id: resolved_stage.stage_id.clone(),
+                detail: "resolved route stage is not declared in the selected pipeline".to_string(),
+            });
+        };
+
+        let file_sha256 = fingerprint_repo_relative_file(repo_root, &pipeline_stage.file)?;
+        route_stages.push(RouteBasisResolvedStage {
+            stage_id: resolved_stage.stage_id.clone(),
+            file: pipeline_stage.file.clone(),
+            status: RouteBasisStageStatus::from(resolved_stage.status),
+            reason: resolved_stage
+                .reason
+                .clone()
+                .map(RouteBasisStageReason::from),
+            file_sha256,
+        });
+    }
+
+    let runner_file = format!("runners/{selected_runner_id}.md");
+    let profile_yaml = format!("profiles/{selected_profile_id}/profile.yaml");
+    let commands_yaml = format!("profiles/{selected_profile_id}/commands.yaml");
+    let conventions_md = format!("profiles/{selected_profile_id}/conventions.md");
+
+    Ok(RouteBasis {
+        schema_version: ROUTE_BASIS_SCHEMA_VERSION.to_string(),
+        pipeline_id: pipeline.header.id.clone(),
+        pipeline_file: pipeline.source_path.to_string_lossy().into_owned(),
+        pipeline_file_sha256,
+        state_revision: normalized_state.revision,
+        routing: normalized_state.routing.clone(),
+        refs: normalized_state.refs.clone(),
+        run: normalized_state.run.clone(),
+        route: route_stages,
+        runner: RouteBasisRunner {
+            id: selected_runner_id.clone(),
+            file: runner_file.clone(),
+            file_sha256: fingerprint_repo_relative_file(repo_root, &runner_file)?,
+        },
+        profile: RouteBasisProfilePack {
+            id: selected_profile_id.clone(),
+            profile_yaml_sha256: fingerprint_repo_relative_file(repo_root, &profile_yaml)?,
+            commands_yaml_sha256: fingerprint_repo_relative_file(repo_root, &commands_yaml)?,
+            conventions_md_sha256: fingerprint_repo_relative_file(repo_root, &conventions_md)?,
+        },
+    })
+}
+
+pub fn persist_route_basis(
+    repo_root: impl AsRef<Path>,
+    pipeline_id: impl AsRef<str>,
+    route_basis: RouteBasis,
+) -> Result<RouteBasisPersistOutcome, RouteStateStoreError> {
+    let repo_root = repo_root.as_ref();
+    let pipeline_id = pipeline_id.as_ref();
+    validate_pipeline_id(pipeline_id).map_err(|reason| {
+        RouteStateStoreError::InvalidPipelineId {
+            pipeline_id: pipeline_id.to_string(),
+            reason,
+        }
+    })?;
+
+    let state_path = route_state_path(repo_root, pipeline_id).map_err(|reason| {
+        RouteStateStoreError::InvalidPipelineId {
+            pipeline_id: pipeline_id.to_string(),
+            reason,
+        }
+    })?;
+    ensure_state_parent_dir(&state_path).map_err(|source| RouteStateStoreError::ReadFailure {
+        path: state_path.clone(),
+        source,
+    })?;
+
+    let run_inventory =
+        load_run_inventory(repo_root).map_err(|err| RouteStateStoreError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    let _lock = acquire_advisory_lock(&state_path)?;
+    let mut state = match load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory) {
+        Ok(state) => state,
+        Err(RouteStateReadError::MalformedState { reason, .. }) => {
+            return Ok(RouteBasisPersistOutcome::Refused(
+                RouteBasisPersistRefusal::MalformedState { reason },
+            ));
+        }
+        Err(RouteStateReadError::InvalidPipelineId {
+            pipeline_id,
+            reason,
+        }) => {
+            return Err(RouteStateStoreError::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            });
+        }
+        Err(RouteStateReadError::ReadFailure { path, source }) => {
+            return Err(RouteStateStoreError::ReadFailure { path, source });
+        }
+    };
+
+    state = normalized_state_for_route_basis(&state, repo_root);
+    if state.revision != route_basis.state_revision {
+        return Ok(RouteBasisPersistOutcome::Refused(
+            RouteBasisPersistRefusal::RevisionConflict {
+                expected_revision: route_basis.state_revision,
+                actual_revision: state.revision,
+            },
+        ));
+    }
+    if state.routing != route_basis.routing
+        || state.refs != route_basis.refs
+        || state.run != route_basis.run
+    {
+        return Ok(RouteBasisPersistOutcome::Refused(
+            RouteBasisPersistRefusal::MalformedState {
+                reason: "route_basis snapshot does not match the current route-state surfaces"
+                    .to_string(),
+            },
+        ));
+    }
+
+    state.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
+    state.route_basis = Some(route_basis);
+    persist_route_state(&state_path, &state)?;
+
+    Ok(RouteBasisPersistOutcome::Applied(state))
 }
 
 fn load_route_state_at_path(
@@ -411,12 +706,14 @@ fn validate_loaded_state(
     run_inventory: &RouteStateRunInventory,
     state_path: &Path,
 ) -> Result<(), RouteStateReadError> {
-    if state.schema_version != ROUTE_STATE_SCHEMA_VERSION {
+    if state.schema_version != ROUTE_STATE_SCHEMA_VERSION
+        && state.schema_version != LEGACY_ROUTE_STATE_SCHEMA_VERSION
+    {
         return Err(RouteStateReadError::MalformedState {
             path: state_path.to_path_buf(),
             reason: format!(
-                "unexpected schema_version `{}`; expected `{}`",
-                state.schema_version, ROUTE_STATE_SCHEMA_VERSION
+                "unexpected schema_version `{}`; expected `{}` or `{}`",
+                state.schema_version, ROUTE_STATE_SCHEMA_VERSION, LEGACY_ROUTE_STATE_SCHEMA_VERSION
             ),
         });
     }
@@ -451,6 +748,7 @@ fn validate_loaded_state(
             reason,
         }
     })?;
+    validate_route_basis(state, supported_variables, run_inventory, state_path)?;
 
     if let Some(supported_variables) = supported_variables {
         for variable in state.routing.keys() {
@@ -610,6 +908,159 @@ fn validate_run(run: &RouteStateRun, run_inventory: &RouteStateRunInventory) -> 
     Ok(())
 }
 
+fn validate_route_basis(
+    state: &RouteState,
+    supported_variables: Option<&BTreeSet<String>>,
+    run_inventory: &RouteStateRunInventory,
+    state_path: &Path,
+) -> Result<(), RouteStateReadError> {
+    let Some(route_basis) = &state.route_basis else {
+        return Ok(());
+    };
+
+    if state.schema_version == LEGACY_ROUTE_STATE_SCHEMA_VERSION {
+        return Err(RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!(
+                "route_basis requires schema_version `{}`",
+                ROUTE_STATE_SCHEMA_VERSION
+            ),
+        });
+    }
+    if route_basis.schema_version != ROUTE_BASIS_SCHEMA_VERSION {
+        return Err(RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!(
+                "route_basis schema_version `{}` does not match expected `{}`",
+                route_basis.schema_version, ROUTE_BASIS_SCHEMA_VERSION
+            ),
+        });
+    }
+    if route_basis.pipeline_id != state.pipeline_id {
+        return Err(RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!(
+                "route_basis pipeline_id `{}` does not match persisted pipeline_id `{}`",
+                route_basis.pipeline_id, state.pipeline_id
+            ),
+        });
+    }
+    validate_repo_relative_ref(&route_basis.pipeline_file).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis pipeline_file is invalid: {reason}"),
+        }
+    })?;
+    validate_sha256(&route_basis.pipeline_file_sha256).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis pipeline_file_sha256 is invalid: {reason}"),
+        }
+    })?;
+    validate_routing_map(&route_basis.routing).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis routing is invalid: {reason}"),
+        }
+    })?;
+    validate_refs(&route_basis.refs).map_err(|reason| RouteStateReadError::MalformedState {
+        path: state_path.to_path_buf(),
+        reason: format!("route_basis refs are invalid: {reason}"),
+    })?;
+    validate_run(&route_basis.run, run_inventory).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis run is invalid: {reason}"),
+        }
+    })?;
+    if let Some(supported_variables) = supported_variables {
+        for variable in route_basis.routing.keys() {
+            if !supported_variables.contains(variable) {
+                return Err(RouteStateReadError::MalformedState {
+                    path: state_path.to_path_buf(),
+                    reason: format!(
+                        "unsupported route_basis routing variable `{variable}` in persisted state"
+                    ),
+                });
+            }
+        }
+    }
+
+    validate_inventory_value(
+        &route_basis.runner.id,
+        "route_basis.runner.id",
+        "runners/",
+        &run_inventory.runners,
+    )
+    .map_err(|reason| RouteStateReadError::MalformedState {
+        path: state_path.to_path_buf(),
+        reason,
+    })?;
+    validate_repo_relative_ref(&route_basis.runner.file).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis runner.file is invalid: {reason}"),
+        }
+    })?;
+    validate_sha256(&route_basis.runner.file_sha256).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis runner.file_sha256 is invalid: {reason}"),
+        }
+    })?;
+    validate_inventory_value(
+        &route_basis.profile.id,
+        "route_basis.profile.id",
+        "profiles/",
+        &run_inventory.profiles,
+    )
+    .map_err(|reason| RouteStateReadError::MalformedState {
+        path: state_path.to_path_buf(),
+        reason,
+    })?;
+    validate_sha256(&route_basis.profile.profile_yaml_sha256).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis profile.profile_yaml_sha256 is invalid: {reason}"),
+        }
+    })?;
+    validate_sha256(&route_basis.profile.commands_yaml_sha256).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis profile.commands_yaml_sha256 is invalid: {reason}"),
+        }
+    })?;
+    validate_sha256(&route_basis.profile.conventions_md_sha256).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason: format!("route_basis profile.conventions_md_sha256 is invalid: {reason}"),
+        }
+    })?;
+
+    for stage in &route_basis.route {
+        validate_repo_relative_ref(&stage.file).map_err(|reason| {
+            RouteStateReadError::MalformedState {
+                path: state_path.to_path_buf(),
+                reason: format!(
+                    "route_basis stage `{}` file is invalid: {reason}",
+                    stage.stage_id
+                ),
+            }
+        })?;
+        validate_sha256(&stage.file_sha256).map_err(|reason| {
+            RouteStateReadError::MalformedState {
+                path: state_path.to_path_buf(),
+                reason: format!(
+                    "route_basis stage `{}` file_sha256 is invalid: {reason}",
+                    stage.stage_id
+                ),
+            }
+        })?;
+    }
+
+    Ok(())
+}
+
 fn validate_variable_name(variable: &str) -> Result<(), String> {
     let mut values = BTreeMap::new();
     values.insert(variable.to_string(), false);
@@ -712,6 +1163,18 @@ fn validate_repo_root(value: &str) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn validate_sha256(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed.len() != 64 {
+        return Err("fingerprint must be 64 hex characters".to_string());
+    }
+    if trimmed.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        Ok(())
+    } else {
+        Err("fingerprint must be lowercase/uppercase hexadecimal".to_string())
+    }
 }
 
 fn derived_repo_root(repo_root: &Path) -> String {
@@ -882,6 +1345,35 @@ fn is_inventory_id(value: &str) -> bool {
     value
         .chars()
         .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_')
+}
+
+fn normalized_state_for_route_basis(state: &RouteState, repo_root: &Path) -> RouteState {
+    let mut normalized = state.clone();
+    normalized.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
+    normalized.run.repo_root = Some(derived_repo_root(repo_root));
+    normalized
+}
+
+fn fingerprint_repo_relative_file(
+    repo_root: &Path,
+    relative_path: &str,
+) -> Result<String, RouteBasisBuildError> {
+    validate_repo_relative_ref(relative_path).map_err(|reason| {
+        RouteBasisBuildError::InvalidPath {
+            path: relative_path.to_string(),
+            reason,
+        }
+    })?;
+
+    let path = repo_root.join(relative_path);
+    let contents =
+        read_file_no_follow(&path).map_err(|source| RouteBasisBuildError::ReadFailure {
+            path: path.clone(),
+            source,
+        })?;
+    let mut hasher = Sha256::new();
+    hasher.update(contents.as_bytes());
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn trim_audit_history(audit: &mut Vec<RouteStateAuditEntry>) {
@@ -1092,6 +1584,54 @@ struct RouteStateLockGuard {
     lock_path: PathBuf,
 }
 
+impl From<RouteStageStatus> for RouteBasisStageStatus {
+    fn from(value: RouteStageStatus) -> Self {
+        match value {
+            RouteStageStatus::Active => Self::Active,
+            RouteStageStatus::Skipped => Self::Skipped,
+            RouteStageStatus::Blocked => Self::Blocked,
+            RouteStageStatus::Next => Self::Next,
+        }
+    }
+}
+
+impl From<RouteStageReason> for RouteBasisStageReason {
+    fn from(value: RouteStageReason) -> Self {
+        match value {
+            RouteStageReason::SkippedActivationFalse {
+                operator,
+                unsatisfied_variables,
+            } => Self::SkippedActivationFalse {
+                operator: RouteBasisActivationOperator::from(operator),
+                unsatisfied_variables,
+            },
+            RouteStageReason::NextMissingRouteVariables {
+                operator,
+                missing_variables,
+            } => Self::NextMissingRouteVariables {
+                operator: RouteBasisActivationOperator::from(operator),
+                missing_variables,
+            },
+            RouteStageReason::BlockedByUnresolvedStage {
+                upstream_stage_id,
+                upstream_status,
+            } => Self::BlockedByUnresolvedStage {
+                upstream_stage_id,
+                upstream_status: RouteBasisStageStatus::from(upstream_status),
+            },
+        }
+    }
+}
+
+impl From<crate::pipeline::ActivationOperator> for RouteBasisActivationOperator {
+    fn from(value: crate::pipeline::ActivationOperator) -> Self {
+        match value {
+            crate::pipeline::ActivationOperator::Any => Self::Any,
+            crate::pipeline::ActivationOperator::All => Self::All,
+        }
+    }
+}
+
 impl Drop for RouteStateLockGuard {
     fn drop(&mut self) {
         #[cfg(unix)]
@@ -1209,6 +1749,49 @@ impl std::error::Error for RouteStateStoreError {
     }
 }
 
+impl fmt::Display for RouteBasisBuildError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteBasisBuildError::MissingSelectedRunner { pipeline_id } => write!(
+                f,
+                "cannot build route_basis for `{pipeline_id}` without a selected runner"
+            ),
+            RouteBasisBuildError::MissingSelectedProfile { pipeline_id } => write!(
+                f,
+                "cannot build route_basis for `{pipeline_id}` without a selected profile"
+            ),
+            RouteBasisBuildError::InvalidRouteSnapshot {
+                pipeline_id,
+                stage_id,
+                detail,
+            } => write!(
+                f,
+                "cannot build route_basis for `{pipeline_id}` because stage `{stage_id}` is invalid: {detail}"
+            ),
+            RouteBasisBuildError::ReadFailure { path, source } => write!(
+                f,
+                "failed to read route_basis input {}: {source}",
+                path.display()
+            ),
+            RouteBasisBuildError::InvalidPath { path, reason } => {
+                write!(f, "route_basis path `{path}` is invalid: {reason}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for RouteBasisBuildError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            RouteBasisBuildError::ReadFailure { source, .. } => Some(source),
+            RouteBasisBuildError::MissingSelectedRunner { .. }
+            | RouteBasisBuildError::MissingSelectedProfile { .. }
+            | RouteBasisBuildError::InvalidRouteSnapshot { .. }
+            | RouteBasisBuildError::InvalidPath { .. } => None,
+        }
+    }
+}
+
 impl fmt::Display for RouteStateMutationOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -1235,6 +1818,38 @@ impl fmt::Display for RouteStateMutationRefusal {
             } => write!(
                 f,
                 "revision conflict: expected {expected_revision}, found {actual_revision}"
+            ),
+        }
+    }
+}
+
+impl fmt::Display for RouteBasisPersistOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteBasisPersistOutcome::Applied(state) => {
+                write!(
+                    f,
+                    "persisted route_basis at route state revision {}",
+                    state.revision
+                )
+            }
+            RouteBasisPersistOutcome::Refused(refusal) => write!(f, "{refusal}"),
+        }
+    }
+}
+
+impl fmt::Display for RouteBasisPersistRefusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteBasisPersistRefusal::MalformedState { reason } => {
+                write!(f, "malformed route state: {reason}")
+            }
+            RouteBasisPersistRefusal::RevisionConflict {
+                expected_revision,
+                actual_revision,
+            } => write!(
+                f,
+                "revision conflict while persisting route_basis: expected {expected_revision}, found {actual_revision}"
             ),
         }
     }

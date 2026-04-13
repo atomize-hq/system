@@ -52,11 +52,12 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - The currently shipped binary MAY temporarily expose only `setup`, `generate`, `inspect`, and `doctor` until the `pipeline` family lands.
 - When the `pipeline` family lands, code, help text, docs, contracts, tests, and proof-corpus gates MUST land together before `pipeline` is treated as a supported surface.
 - Help text MUST present the surfaces in setup-first order: `setup`, then `pipeline`, then `generate`, then `inspect`, then `doctor`.
-- Help text MUST make clear that `setup` is still a placeholder entrypoint, `pipeline` is the orchestration surface, `generate` is the packet surface, `inspect` is the proof surface, and `doctor` is the recovery surface.
+- Help text MUST make clear that `setup` is still a placeholder entrypoint, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, and route-state operations, `generate` is the packet surface, `inspect` is the packet proof surface, and `doctor` is the recovery surface.
 - Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.
 - `pipeline` MUST own route resolution, explicit stage compilation, and narrow pipeline-run state mutation for the supported wedge.
+- The shipped M2 compile wedge MUST expose exactly `system pipeline compile --id <pipeline-id> --stage <stage-id>` and `system pipeline compile --id <pipeline-id> --stage <stage-id> --explain`.
 - Successful `pipeline compile` output MUST remain a payload surface, not a proof surface. Route-basis evidence, freshness detail, and decision proof remain the responsibility of refusal output and `pipeline compile --explain`.
-- When `M2` lands, compile-specific proof MUST be exposed through `pipeline compile --explain`, not by broadening `inspect` beyond its packet-proof meaning.
+- Compile-specific proof MUST be exposed through `pipeline compile --explain`, not by broadening `inspect` beyond its packet-proof meaning.
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery surface for blockers and next safe actions.
@@ -88,10 +89,10 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
 - [ ] `crates/compiler` owns shared types and compiler-core logic.
 - [ ] `--help` shows the currently shipped supported surface in setup-first order and adds `pipeline` in the reviewed order once that family lands.
-- [ ] Help text matches the supported reduced-v1 command story, keeps `setup` explicitly placeholder-only, and documents `pipeline` as the orchestration surface once shipped.
+- [ ] Help text matches the supported reduced-v1 command story, keeps `setup` explicitly placeholder-only, documents `pipeline` as the orchestration surface once shipped, and exposes the M2 compile wedge with `--explain`.
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
-- [ ] `inspect` is documented as the proof surface.
+- [ ] `inspect` is documented as the packet proof surface.
 - [ ] `doctor` is documented as the recovery surface.
 - [ ] Fixture-backed execution demo support is described only at the command-surface level here and defers detailed boundary semantics to `C-06`.
 - [ ] The Rust CLI does not invoke the legacy Python harness as a supported runtime dependency.

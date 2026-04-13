@@ -1,0 +1,77 @@
+OUTCOME: COMPILED
+TARGET:
+  pipeline = pipeline.foundation_inputs
+  stage = stage.10_feature_spec
+  stage_file = core/stages/10_feature_spec.md
+  work_level = L1
+ROUTE BASIS:
+  schema_version = m2-route-basis-v1
+  state_revision = 6
+  pipeline_file = pipelines/foundation_inputs.yaml
+  pipeline_file_sha256 = 1a6fb478c3b0ad36707f57716fb601f3b6a5323e2987309e32618a50c1e1b5c8
+  routing:
+    charter_gaps_detected = false
+    needs_project_context = false
+  refs:
+    charter_ref = artifacts/charter/CHARTER.md
+    project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
+  run:
+    runner = codex-cli
+    profile = python-uv
+    repo_root = {{REPO_ROOT}}
+  runner:
+    id = codex-cli
+    file = runners/codex-cli.md
+    file_sha256 = 7af94edf447c93f042831db080c34b404ea09293f4b9184a6004878d4d2ce32b
+  profile:
+    id = python-uv
+    profile.yaml.sha256 = 88a0080f75a7660944df592783c266af9f124565ac06bde3985ea63da0ccfb53
+    commands.yaml.sha256 = 96cb50b8c885e8e0df43ec8dd2a9755c5f003198d11df95f5f3c7b5512202c22
+    conventions.md.sha256 = 2b537da156cc8046ba799e4360e5c47fac06b3fa7e42263d469a62476accf5da
+ROUTE SNAPSHOT:
+  1. stage.00_base | active | core/stages/00_base.md
+  2. stage.04_charter_inputs | active | core/stages/04_charter_inputs.md
+  3. stage.05_charter_synthesize | active | core/stages/05_charter_synthesize.md
+  4. stage.06_project_context_interview | skipped | core/stages/06_project_context_interview.md
+     REASON: activation evaluated false for variables: charter_gaps_detected, needs_project_context
+  5. stage.07_foundation_pack | active | core/stages/07_foundation_pack.md
+  6. stage.10_feature_spec | active | core/stages/10_feature_spec.md
+VARIABLES:
+  runner = codex-cli
+  profile = python-uv
+  repo_root = {{REPO_ROOT}}
+  now_utc = <unset>
+  project_name = <unset>
+  owner = <unset>
+  team = <unset>
+  repo_or_project_ref = <unset>
+  charter_ref = artifacts/charter/CHARTER.md
+  work_level = L1
+DOCUMENTS:
+  1. include | core/rules/p0_absolute.md | required=true | status=present
+  2. include | core/rules/p1_pragmatic.md | required=true | status=present
+  3. include | core/rules/traceability_policy.md | required=true | status=present
+  4. include | core/rules/evidence_policy.md | required=true | status=present
+  5. runner | runners/codex-cli.md | required=true | status=present
+  6. profile | profiles/python-uv/profile.yaml | required=true | status=present
+  7. profile | profiles/python-uv/commands.yaml | required=true | status=present
+  8. profile | profiles/python-uv/conventions.md | required=true | status=present
+  9. library | core/library/feature_spec/feature_spec_architect_directive.md | required=true | status=present
+  10. library | core/library/feature_spec/FEATURE_SPEC.md.tmpl | required=true | status=present
+  11. artifact | artifacts/base/BASE_CONTEXT.md | required=true | status=present
+  12. artifact | artifacts/charter/CHARTER.md | required=true | status=present
+  13. artifact | artifacts/project_context/PROJECT_CONTEXT.md | required=false | status=present
+  14. artifact | artifacts/foundation/FOUNDATION_STRATEGY.md | required=false | status=present
+  15. artifact | artifacts/foundation/TECH_ARCH_BRIEF.md | required=false | status=present
+  16. artifact | artifacts/foundation/TEST_STRATEGY_BRIEF.md | required=false | status=present
+  17. artifact | artifacts/foundation/QUALITY_GATES_SPEC.md | required=false | status=present
+  18. artifact | artifacts/foundation/quality_gates.yaml | required=false | status=present
+  19. artifact | artifacts/foundation/ENVIRONMENT_INVENTORY.md | required=false | status=present
+OUTPUTS:
+  artifact | artifacts/feature_spec/FEATURE_SPEC.md
+GATING:
+  mode = strict
+  fail_on = missing_required_inputs, output_missing
+  note = Output must be ONLY the completed FEATURE_SPEC.md (no extra commentary).
+  note = NFRs and rollout/testing sections must explicitly reference Charter posture and Foundation Pack defaults (if present).
+STAGE BODY: present

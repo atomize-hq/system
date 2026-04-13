@@ -2,7 +2,7 @@
 contract_id: C-11
 seam_id: SEAM-4
 owner_seam: SEAM-4
-version: m1-v1
+version: m2-v1
 currentness: current
 status: drafted
 revalidation_triggers:
@@ -17,7 +17,7 @@ revalidation_triggers:
 
 ## Purpose
 
-This contract defines the conformance baseline for the shipped M1 `pipeline` surface.
+This contract defines the conformance baseline for the shipped M2 `pipeline` surface.
 
 `C-11` exists so later milestone packs can rely on one explicit truth for:
 
@@ -51,7 +51,7 @@ This contract defines the conformance baseline for the shipped M1 `pipeline` sur
 
 - the required shared proof corpus for M1 `pipeline` conformance
 - the golden-output and refusal-output surfaces that must be pinned by tests
-- the docs/help parity baseline for the reviewed `pipeline` subset
+- the docs/help parity baseline for the reviewed `pipeline` subset, including the bounded M2 compile wedge
 - the explicit M1 performance, security, and operability boundary for `pipeline`
 - the downstream revalidation triggers that later milestone packs must honor
 
@@ -123,11 +123,14 @@ Malformed pipeline and malformed route-state refusals MUST stay explicit:
 ### Docs/help parity
 
 - The supported `pipeline` subset MUST be described consistently across root docs, support-story docs, contract docs, and help snapshots.
-- Docs and help MUST present `pipeline` as the reviewed operator surface for `list`, `show`, `resolve`, and `state set`.
-- Docs and help MUST keep `pipeline compile` out of the shipped M1 supported surface.
-- Docs and help MUST not imply that proof-corpus checks, docs/help cutover, or safety rails are optional once the M1 `pipeline` surface is presented as supported.
-- Docs and help MUST not diverge from the reviewed operator-surface language in `C-09`.
-- Docs and help MUST keep the compile boundary deferred as future work consistent with `C-10`.
+- Docs and help MUST present `pipeline` as the reviewed operator surface for `list`, `show`, `resolve`, `compile`, and `state set`.
+- Docs and help MUST expose the shipped M2 compile surface as exactly:
+  - `pipeline compile --id <pipeline-id> --stage <stage-id>`
+  - `pipeline compile --id <pipeline-id> --stage <stage-id> --explain`
+- Docs and help MUST describe plain `pipeline compile` success as payload-only stdout and `pipeline compile --explain` as proof-only stdout.
+- Docs and help MUST keep `inspect` scoped to packet proof rather than compile proof.
+- Docs and help MUST not imply that proof-corpus checks, docs/help cutover, or safety rails are optional once the M2 `pipeline` surface is presented as supported.
+- Docs and help MUST not diverge from the reviewed operator-surface language in `C-09` or the compile-boundary posture in `C-10`.
 
 The docs/help parity boundary for `C-11` is:
 
@@ -173,7 +176,7 @@ The following checklist is normative for seam-local execution and closeout:
 - [ ] Malformed pipeline refusal and malformed route-state refusal remain explicit and distinct from other refusal classes.
 - [ ] Metadata-only inventory tests prove that `pipeline list` and `pipeline show` ignore unrelated malformed pipeline and stage files.
 - [ ] Selection-scoped metadata tests prove that `pipeline show` still refuses when the chosen pipeline's metadata is malformed or references broken stage front matter.
-- [ ] Docs and help snapshots describe `pipeline` as `list`, `show`, `resolve`, and `state set` only.
-- [ ] Docs and help do not imply `pipeline compile` is shipped in M1.
+- [ ] Docs and help snapshots describe `pipeline` as `list`, `show`, `resolve`, `compile`, and `state set`.
+- [ ] Docs and help expose `pipeline compile` and `pipeline compile --explain` as the bounded shipped M2 surface.
 - [ ] The contract stays aligned with `C-08`, `C-09`, and `C-10` without redefining their semantics.
 - [ ] The M1 performance, security, and operability boundary remains repo-local, deterministic, and free of silent repair.
