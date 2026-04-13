@@ -5,6 +5,7 @@ use std::process::ExitCode;
 const PACKET_PLANNING_ID: &str = "planning.packet";
 const PACKET_EXECUTION_DEMO_ID: &str = "execution.demo.packet";
 const PACKET_EXECUTION_LIVE_ID: &str = "execution.live.packet";
+const RELEASE_VERSION: &str = env!("SYSTEM_RELEASE_VERSION");
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -23,7 +24,7 @@ fn main() -> ExitCode {
 #[derive(Parser, Debug)]
 #[command(
     name = "system",
-    version,
+    version = RELEASE_VERSION,
     disable_help_subcommand = true,
     about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the proof surface, and `doctor` is the recovery surface.",
     long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface."
