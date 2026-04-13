@@ -907,9 +907,9 @@ stages:
     match err {
         PipelineLoadError::BodyParse { source, .. } => {
             assert!(
-                source
-                    .to_string()
-                    .contains("reduced v1 supports only boolean activation values (`true` or `false`)"),
+                source.to_string().contains(
+                    "reduced v1 supports only boolean activation values (`true` or `false`)"
+                ),
                 "unexpected parse error: {source}"
             );
         }
@@ -951,9 +951,9 @@ stages:
     match err {
         PipelineLoadError::BodyParse { source, .. } => {
             assert!(
-                source
-                    .to_string()
-                    .contains("reduced v1 supports only boolean activation values (`true` or `false`)"),
+                source.to_string().contains(
+                    "reduced v1 supports only boolean activation values (`true` or `false`)"
+                ),
                 "unexpected parse error: {source}"
             );
         }
