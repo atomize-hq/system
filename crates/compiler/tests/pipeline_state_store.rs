@@ -57,6 +57,7 @@ fn acquire_unix_lock(path: &Path) -> std::fs::File {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(path)
         .expect("open lock file");
 
