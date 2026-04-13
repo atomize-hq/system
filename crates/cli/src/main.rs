@@ -973,6 +973,7 @@ fn render_pipeline_state_set_output(
     let mut out = String::new();
     match outcome {
         system_compiler::RouteStateMutationOutcome::Applied(state) => {
+            let state = *state;
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REVISION: {}\n", state.revision));

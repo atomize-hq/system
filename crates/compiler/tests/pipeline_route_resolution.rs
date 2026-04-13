@@ -1,3 +1,4 @@
+#[path = "support/pipeline_proof_corpus_support.rs"]
 mod pipeline_proof_corpus_support;
 
 use std::path::PathBuf;
@@ -300,7 +301,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
     )
     .expect("first mutation");
     let first_state = match &first_outcome {
-        RouteStateMutationOutcome::Applied(state) => state.clone(),
+        RouteStateMutationOutcome::Applied(state) => state.as_ref().clone(),
         RouteStateMutationOutcome::Refused(refusal) => {
             panic!("expected applied mutation, got {refusal}")
         }
@@ -375,7 +376,7 @@ fn shared_proof_corpus_state_mutation_outputs_match_repo_owned_goldens() {
     )
     .expect("runner mutation");
     let runner_state = match &runner_outcome {
-        RouteStateMutationOutcome::Applied(state) => state.clone(),
+        RouteStateMutationOutcome::Applied(state) => state.as_ref().clone(),
         RouteStateMutationOutcome::Refused(refusal) => {
             panic!("expected applied mutation, got {refusal}")
         }

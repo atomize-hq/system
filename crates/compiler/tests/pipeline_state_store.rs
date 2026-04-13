@@ -102,7 +102,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     )
     .expect("routing mutation");
     let mut state = match outcome {
-        RouteStateMutationOutcome::Applied(state) => state,
+        RouteStateMutationOutcome::Applied(state) => *state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.schema_version, ROUTE_STATE_SCHEMA_VERSION);
@@ -128,7 +128,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     )
     .expect("run mutation");
     state = match outcome {
-        RouteStateMutationOutcome::Applied(state) => state,
+        RouteStateMutationOutcome::Applied(state) => *state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.revision, 2);
@@ -154,7 +154,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     )
     .expect("profile mutation");
     state = match outcome {
-        RouteStateMutationOutcome::Applied(state) => state,
+        RouteStateMutationOutcome::Applied(state) => *state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.revision, 3);
@@ -175,7 +175,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     )
     .expect("charter ref mutation");
     state = match outcome {
-        RouteStateMutationOutcome::Applied(state) => state,
+        RouteStateMutationOutcome::Applied(state) => *state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.revision, 4);
@@ -199,7 +199,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     )
     .expect("project context ref mutation");
     state = match outcome {
-        RouteStateMutationOutcome::Applied(state) => state,
+        RouteStateMutationOutcome::Applied(state) => *state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.revision, 5);
@@ -257,7 +257,7 @@ audit:
     )
     .expect("mutation");
     let state = match outcome {
-        RouteStateMutationOutcome::Applied(state) => state,
+        RouteStateMutationOutcome::Applied(state) => *state,
         other => panic!("expected success, got {other:?}"),
     };
     assert_eq!(state.revision, 2);
@@ -604,7 +604,7 @@ fn audit_history_trims_oldest_first_across_mixed_fields() {
         .expect("mutation");
 
         let state = match outcome {
-            RouteStateMutationOutcome::Applied(state) => state,
+            RouteStateMutationOutcome::Applied(state) => *state,
             other => panic!("expected success, got {other:?}"),
         };
         expected_revision = state.revision;

@@ -859,14 +859,14 @@ fn load_required_document(
             status: PipelineCompileDocumentStatus::Present,
             content: Some(content),
         }),
-        Err(DocumentLoadError::Missing { .. }) => Err(PipelineCompileRefusal {
+        Err(DocumentLoadError::Missing) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::MissingRequiredInput,
             summary: format!("required compile-shaping input `{path}` is missing for `{stage_id}`"),
             pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "restore the missing input and retry `pipeline compile`".to_string(),
         }),
-        Err(DocumentLoadError::Empty { .. }) => Err(PipelineCompileRefusal {
+        Err(DocumentLoadError::Empty) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::EmptyRequiredInput,
             summary: format!("required compile-shaping input `{path}` is empty for `{stage_id}`"),
             pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
@@ -913,28 +913,28 @@ fn load_declared_input(
             status: PipelineCompileDocumentStatus::Present,
             content: Some(content),
         }),
-        Err(DocumentLoadError::Missing { .. }) if !input.required => Ok(PipelineCompileDocument {
+        Err(DocumentLoadError::Missing) if !input.required => Ok(PipelineCompileDocument {
             kind,
             path,
             required: false,
             status: PipelineCompileDocumentStatus::MissingOptional,
             content: None,
         }),
-        Err(DocumentLoadError::Empty { .. }) if !input.required => Ok(PipelineCompileDocument {
+        Err(DocumentLoadError::Empty) if !input.required => Ok(PipelineCompileDocument {
             kind,
             path,
             required: false,
             status: PipelineCompileDocumentStatus::MissingOptional,
             content: None,
         }),
-        Err(DocumentLoadError::Missing { .. }) => Err(PipelineCompileRefusal {
+        Err(DocumentLoadError::Missing) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::MissingRequiredInput,
             summary: format!("required input `{path}` is missing for `{stage_id}`"),
             pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "restore the required input and retry `pipeline compile`".to_string(),
         }),
-        Err(DocumentLoadError::Empty { .. }) => Err(PipelineCompileRefusal {
+        Err(DocumentLoadError::Empty) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::EmptyRequiredInput,
             summary: format!("required input `{path}` is empty for `{stage_id}`"),
             pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),

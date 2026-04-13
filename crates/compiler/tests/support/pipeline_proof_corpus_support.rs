@@ -132,6 +132,7 @@ pub fn render_pipeline_state_set_output(
     let mut out = String::new();
     match outcome {
         RouteStateMutationOutcome::Applied(state) => {
+            let state = *state;
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REVISION: {}\n", state.revision));
@@ -239,75 +240,52 @@ fn path_candidates(path: &Path) -> Vec<String> {
             candidates.push(canonical_display);
         }
     }
-    candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.len()));
+    candidates.sort();
+    candidates.dedup();
     candidates
 }
 
-fn replace_path_candidates(value: &str, path: &Path, placeholder: &str) -> String {
-    let mut replaced = value.to_string();
+fn replace_path_candidates(content: &str, path: &Path, placeholder: &str) -> String {
+    let mut updated = content.to_string();
     for candidate in path_candidates(path) {
-        replaced = replaced.replace(&candidate, placeholder);
+        updated = updated.replace(&candidate, placeholder);
     }
-    replaced
-}
-
-fn copy_tree(source: &Path, target: &Path) {
-    fs::create_dir_all(target).unwrap_or_else(|err| panic!("mkdir {}: {err}", target.display()));
-
-    for entry in
-        fs::read_dir(source).unwrap_or_else(|err| panic!("read_dir {}: {err}", source.display()))
-    {
-        let entry =
-            entry.unwrap_or_else(|err| panic!("dir entry under {}: {err}", source.display()));
-        let source_path = entry.path();
-        let target_path = target.join(entry.file_name());
-        let file_type = entry
-            .file_type()
-            .unwrap_or_else(|err| panic!("file_type {}: {err}", source_path.display()));
-
-        if file_type.is_dir() {
-            copy_tree(&source_path, &target_path);
-        } else if file_type.is_file() {
-            if let Some(parent) = target_path.parent() {
-                fs::create_dir_all(parent)
-                    .unwrap_or_else(|err| panic!("mkdir {}: {err}", parent.display()));
-            }
-            fs::copy(&source_path, &target_path).unwrap_or_else(|err| {
-                panic!(
-                    "copy {} -> {}: {err}",
-                    source_path.display(),
-                    target_path.display()
-                )
-            });
-        }
-    }
+    updated
 }
 
 fn committed_case_root() -> PathBuf {
-    workspace_root()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
         .join("tests")
         .join("fixtures")
         .join("pipeline_proof_corpus")
         .join("foundation_inputs")
 }
 
-fn workspace_root() -> PathBuf {
-    let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for ancestor in start.ancestors() {
-        let cargo_toml = ancestor.join("Cargo.toml");
-        if !cargo_toml.is_file() {
-            continue;
-        }
-        let Ok(contents) = fs::read_to_string(&cargo_toml) else {
-            continue;
-        };
-        if contents.contains("[workspace]") {
-            return ancestor.to_path_buf();
+fn copy_tree(source: &Path, target: &Path) {
+    for entry in
+        fs::read_dir(source).unwrap_or_else(|err| panic!("read {}: {err}", source.display()))
+    {
+        let entry = entry.unwrap_or_else(|err| panic!("dir entry {}: {err}", source.display()));
+        let file_type = entry
+            .file_type()
+            .unwrap_or_else(|err| panic!("file_type {}: {err}", entry.path().display()));
+        let from = entry.path();
+        let to = target.join(entry.file_name());
+
+        if file_type.is_dir() {
+            fs::create_dir_all(&to).unwrap_or_else(|err| panic!("mkdir {}: {err}", to.display()));
+            copy_tree(&from, &to);
+        } else if file_type.is_file() {
+            if let Some(parent) = to.parent() {
+                fs::create_dir_all(parent)
+                    .unwrap_or_else(|err| panic!("mkdir {}: {err}", parent.display()));
+            }
+            fs::copy(&from, &to)
+                .unwrap_or_else(|err| panic!("copy {} -> {}: {err}", from.display(), to.display()));
+        } else {
+            panic!("unsupported proof corpus entry {}", from.display());
         }
     }
-
-    panic!(
-        "failed to locate workspace root from CARGO_MANIFEST_DIR={}",
-        env!("CARGO_MANIFEST_DIR")
-    );
 }

@@ -294,7 +294,7 @@ pub enum RouteBasisBuildError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RouteStateMutationOutcome {
-    Applied(RouteState),
+    Applied(Box<RouteState>),
     Refused(RouteStateMutationRefusal),
 }
 
@@ -314,7 +314,7 @@ pub enum RouteStateMutationRefusal {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RouteBasisPersistOutcome {
-    Applied(RouteState),
+    Applied(Box<RouteState>),
     Refused(RouteBasisPersistRefusal),
 }
 
@@ -473,7 +473,7 @@ pub fn set_route_state(
 
     persist_route_state(&state_path, &state)?;
 
-    Ok(RouteStateMutationOutcome::Applied(state))
+    Ok(RouteStateMutationOutcome::Applied(Box::new(state)))
 }
 
 pub fn build_route_basis(
@@ -642,7 +642,7 @@ pub fn persist_route_basis(
     state.route_basis = Some(route_basis);
     persist_route_state(&state_path, &state)?;
 
-    Ok(RouteBasisPersistOutcome::Applied(state))
+    Ok(RouteBasisPersistOutcome::Applied(Box::new(state)))
 }
 
 fn load_route_state_at_path(
