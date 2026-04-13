@@ -285,6 +285,43 @@ stages:
     }
 }
 
+#[test]
+fn catalog_refuses_stage_front_matter_with_path_like_canonical_id() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join("core/stages/bad.md"),
+        r#"---
+kind: stage
+id: stage.bad/path
+version: 0.1.0
+title: Bad Stage
+description: bad
+---
+# bad
+"#,
+    );
+
+    let err = load_pipeline_catalog(root).expect_err("invalid stage canonical id should refuse");
+
+    match err {
+        PipelineCatalogError::InvalidStageCanonicalId {
+            path,
+            value,
+            reason,
+        } => {
+            assert_eq!(path, root.join("core/stages/bad.md"));
+            assert_eq!(value, "stage.bad/path");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-stage-canonical-id refusal, got {other:?}"),
+    }
+}
+
 fn write_file(path: &Path, contents: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("mkdirs");

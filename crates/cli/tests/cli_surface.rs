@@ -191,6 +191,22 @@ fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, root)
 }
 
+fn invalid_pipeline_id_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+
+    write_file(
+        &root.join("core/stages/00_base.md"),
+        b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
+    );
+    write_file(
+        &root.join("pipelines/bad-id.yaml"),
+        b"---\nkind: pipeline\nid: pipeline.bad/path\nversion: 0.1.0\ntitle: Bad Id\ndescription: bad\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
+    );
+
+    (dir, root)
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -521,6 +537,35 @@ fn pipeline_commands_refuse_activation_drift_before_operating() {
             args
         );
     }
+}
+
+#[test]
+fn pipeline_list_refuses_invalid_canonical_ids_before_advertising_inventory() {
+    let (_dir, root) = invalid_pipeline_id_repo();
+
+    let output = run_in(root.as_path(), &["pipeline", "list"]);
+    assert!(
+        !output.status.success(),
+        "pipeline list should refuse invalid canonical ids"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
+        "expected catalog refusal: {stdout}"
+    );
+    assert!(
+        stdout.contains("field `id` has invalid canonical id `pipeline.bad/path`"),
+        "expected invalid canonical id detail: {stdout}"
+    );
+    assert!(
+        stdout.contains("canonical ids must not look like raw repo-relative paths"),
+        "expected recovery guidance: {stdout}"
+    );
+    assert!(
+        !stdout.contains("PIPELINE: pipeline.bad/path"),
+        "unreachable id must not be advertised: {stdout}"
+    );
 }
 
 #[test]

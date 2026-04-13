@@ -549,6 +549,180 @@ stages:
 }
 
 #[test]
+fn path_like_pipeline_header_id_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/bad-header-id.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.bad/path
+version: 0.1.0
+title: "Bad Header Id"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/bad-header-id.yaml")
+        .expect_err("path-like pipeline id should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidCanonicalId {
+                    field,
+                    value,
+                    reason,
+                },
+            ..
+        } => {
+            assert_eq!(field, "id");
+            assert_eq!(value, "pipeline.bad/path");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn path_like_stage_id_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.bad/path
+version: 0.1.0
+title: Base
+description: base
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/bad-stage-id.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.valid_stage_id_check
+version: 0.1.0
+title: "Bad Stage Id"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.bad/path
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/bad-stage-id.yaml")
+        .expect_err("path-like stage id should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidCanonicalId {
+                    field,
+                    value,
+                    reason,
+                },
+            ..
+        } => {
+            assert_eq!(field, "stage.id");
+            assert_eq!(value, "stage.bad/path");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn extension_shaped_pipeline_header_id_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_stage_with_front_matter(
+        repo_root,
+        "core/stages/00_base.md",
+        r#"kind: stage
+id: stage.00_base
+version: 0.1.0
+title: Base
+description: base
+"#,
+    );
+    write_file(
+        &repo_root.join("pipelines/bad-header-extension.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.bad.yaml
+version: 0.1.0
+title: "Bad Header Extension"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "pipelines/bad-header-extension.yaml")
+        .expect_err("extension-shaped pipeline id should refuse");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidCanonicalId {
+                    field,
+                    value,
+                    reason,
+                },
+            ..
+        } => {
+            assert_eq!(field, "id");
+            assert_eq!(value, "pipeline.bad.yaml");
+            assert_eq!(
+                reason,
+                "canonical ids must not look like raw repo-relative paths"
+            );
+        }
+        other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn unknown_fields_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();

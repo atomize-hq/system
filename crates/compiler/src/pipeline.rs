@@ -120,6 +120,11 @@ pub enum PipelineCatalogError {
         path: PathBuf,
         actual: String,
     },
+    InvalidStageCanonicalId {
+        path: PathBuf,
+        value: String,
+        reason: &'static str,
+    },
     StageIdMismatch {
         path: PathBuf,
         expected: String,
@@ -171,6 +176,15 @@ impl fmt::Display for PipelineCatalogError {
                     path.display()
                 )
             }
+            PipelineCatalogError::InvalidStageCanonicalId {
+                path,
+                value,
+                reason,
+            } => write!(
+                f,
+                "stage front matter {} declares invalid canonical id `{value}`: {reason}",
+                path.display()
+            ),
             PipelineCatalogError::StageIdMismatch {
                 path,
                 expected,
@@ -352,7 +366,7 @@ pub fn resolve_pipeline_selector(
         });
     }
 
-    if looks_like_repo_path(selector) {
+    if canonical_id_path_like_reason(selector).is_some() {
         return Err(PipelineLookupError::UnsupportedSelector {
             selector: selector.to_string(),
             reason: "raw file paths are evidence only; use a canonical pipeline or stage id",
@@ -522,6 +536,13 @@ fn load_stage_catalog(
                 actual: front_matter.kind,
             });
         }
+        if let Some(reason) = canonical_id_path_like_reason(&front_matter.id) {
+            return Err(PipelineCatalogError::InvalidStageCanonicalId {
+                path: full_path.clone(),
+                value: front_matter.id,
+                reason,
+            });
+        }
 
         out.insert(
             stage_path.clone(),
@@ -610,12 +631,17 @@ fn discover_repo_relative_files(
     Ok(out)
 }
 
-fn looks_like_repo_path(selector: &str) -> bool {
-    selector.contains('/')
-        || selector.contains('\\')
-        || selector.ends_with(".yaml")
-        || selector.ends_with(".yml")
-        || selector.ends_with(".md")
+fn canonical_id_path_like_reason(value: &str) -> Option<&'static str> {
+    if value.contains('/')
+        || value.contains('\\')
+        || value.ends_with(".yaml")
+        || value.ends_with(".yml")
+        || value.ends_with(".md")
+    {
+        Some("canonical ids must not look like raw repo-relative paths")
+    } else {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -708,6 +734,11 @@ pub enum PipelineLoadError {
 pub enum PipelineValidationError {
     EmptyField {
         field: &'static str,
+    },
+    InvalidCanonicalId {
+        field: &'static str,
+        value: String,
+        reason: &'static str,
     },
     UnsupportedKind {
         actual: String,
@@ -937,6 +968,14 @@ impl fmt::Display for PipelineValidationError {
             PipelineValidationError::EmptyField { field } => {
                 write!(f, "field `{field}` must not be empty")
             }
+            PipelineValidationError::InvalidCanonicalId {
+                field,
+                value,
+                reason,
+            } => write!(
+                f,
+                "field `{field}` has invalid canonical id `{value}`: {reason}"
+            ),
             PipelineValidationError::UnsupportedKind { actual } => {
                 write!(f, "field `kind` must be `pipeline`, got `{actual}`")
             }
@@ -1038,6 +1077,7 @@ fn validate_pipeline_definition(
         });
     }
     validate_non_empty(path, "id", &header.id)?;
+    validate_canonical_id(path, "id", &header.id)?;
     validate_non_empty(path, "version", &header.version)?;
     validate_non_empty(path, "title", &header.title)?;
     validate_non_empty(path, "description", &header.description)?;
@@ -1054,6 +1094,7 @@ fn validate_pipeline_definition(
     let mut stage_ids = BTreeSet::new();
     for stage in &body.stages {
         validate_non_empty(path, "stage.id", &stage.id)?;
+        validate_canonical_id(path, "stage.id", &stage.id)?;
         validate_non_empty(path, "stage.file", &stage.file)?;
 
         if !stage_ids.insert(stage.id.clone()) {
@@ -1109,6 +1150,25 @@ fn validate_non_empty(
     }
 
     Ok(())
+}
+
+fn validate_canonical_id(
+    path: &Path,
+    field: &'static str,
+    value: &str,
+) -> Result<(), PipelineLoadError> {
+    let Some(reason) = canonical_id_path_like_reason(value) else {
+        return Ok(());
+    };
+
+    Err(PipelineLoadError::Validation {
+        path: path.to_path_buf(),
+        error: PipelineValidationError::InvalidCanonicalId {
+            field,
+            value: value.to_string(),
+            reason,
+        },
+    })
 }
 
 fn validate_stage_file(
