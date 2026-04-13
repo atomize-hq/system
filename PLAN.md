@@ -322,11 +322,10 @@ Implementation checklist:
    - Active, skipped, blocked, and next stage status must be explicit in the resolved result.
 6. Reproduce activation evaluation.
    - Support `activation.when.any` and `activation.when.all`.
-   - Support only the narrow typed subset needed for the first wedge:
-     - booleans
-     - quoted strings
-     - numbers
-   - Limit comparisons to variable-path equality checks inside that subset.
+   - Support only the narrow reduced-v1 subset needed for the first wedge:
+     - boolean literals only
+   - Limit comparisons to variable-path equality checks in the form `variables.<name> == true|false`.
+   - Treat quoted strings and numbers as out of scope for shipped M1 activation evaluation.
    - Treat any activation shape outside the supported subset as a pipeline load/validation failure, not a late resolve-time surprise.
    - Preserve the foundation and foundation-inputs branching behavior for `needs_project_context` and `charter_gaps_detected`.
 7. Reproduce planning state persistence under the Rust storage model.

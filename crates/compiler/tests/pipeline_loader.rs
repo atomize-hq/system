@@ -909,7 +909,7 @@ stages:
             assert!(
                 source
                     .to_string()
-                    .contains("reduced v1 supports only boolean activation values"),
+                    .contains("reduced v1 supports only boolean activation values (`true` or `false`)"),
                 "unexpected parse error: {source}"
             );
         }
@@ -953,7 +953,7 @@ stages:
             assert!(
                 source
                     .to_string()
-                    .contains("reduced v1 supports only boolean activation values"),
+                    .contains("reduced v1 supports only boolean activation values (`true` or `false`)"),
                 "unexpected parse error: {source}"
             );
         }

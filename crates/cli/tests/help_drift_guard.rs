@@ -185,6 +185,58 @@ fn support_story_docs_match_help_snapshots() {
 }
 
 #[test]
+fn m1_activation_contract_docs_remain_boolean_only() {
+    let root = workspace_root();
+    let plan_path = root.join("PLAN.md");
+    let todos_path = root.join("TODOS.md");
+    let system_model_path = root.join("docs/legacy/SYSTEM_MODEL.md");
+    let contract_path = root.join("docs/contracts/pipeline-route-and-state-core.md");
+
+    let plan_text = fs::read_to_string(&plan_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", plan_path.display(), err));
+    let todos_text = fs::read_to_string(&todos_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", todos_path.display(), err));
+    let system_model_text = fs::read_to_string(&system_model_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", system_model_path.display(), err));
+    let contract_text = fs::read_to_string(&contract_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", contract_path.display(), err));
+
+    assert!(
+        plan_text.contains("variables.<name> == true|false"),
+        "PLAN must describe the boolean-only M1 activation clause shape"
+    );
+    assert!(
+        !plan_text.contains("     - quoted strings\n     - numbers"),
+        "PLAN must not advertise quoted-string or numeric activation support for shipped M1"
+    );
+
+    assert!(
+        todos_text.contains("variable-path equality against boolean literals"),
+        "TODOS must describe M1 activation as boolean-only"
+    );
+    assert!(
+        todos_text.contains("future pipelines may eventually need string or numeric equality"),
+        "TODOS must treat string and numeric activation as future work"
+    );
+
+    assert!(
+        system_model_text.contains(
+            "only boolean equality in the form `variables.<name> == true|false` is supported"
+        ),
+        "legacy system model must call out the boolean-only reduced-v1 boundary"
+    );
+    assert!(
+        system_model_text.contains("legacy harness reference supported simple equality checks"),
+        "legacy system model must preserve the legacy-harness note"
+    );
+
+    assert!(
+        contract_text.contains("Activation values MUST be boolean literals only."),
+        "route/state contract must remain authoritative for the boolean-only M1 activation subset"
+    );
+}
+
+#[test]
 fn cli_product_vocabulary_doc_locks_core_terms() {
     let root = workspace_root();
     let vocab_path = root.join("docs/CLI_PRODUCT_VOCABULARY.md");

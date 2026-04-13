@@ -102,9 +102,9 @@
 
 **What:** Expand the `pipeline` activation evaluator beyond the narrow `M1` subset when real pipeline maturity requires it.
 
-**Why:** `M1` intentionally supports only `when.any`, `when.all`, and variable-path equality against booleans, strings, and numbers. That keeps the first wedge boring and auditable, but future pipelines may eventually need a broader activation language.
+**Why:** `M1` intentionally supports only `when.any`, `when.all`, and variable-path equality against boolean literals. That keeps the first wedge boring and auditable, but future pipelines may eventually need string or numeric equality once real usage justifies the added surface area.
 
-**Context:** The eng review locked `M1` to the smallest typed activation subset that covers the current foundation-family proof corpus. Anything broader was treated as accidental complexity for the first wedge. Revisit this only when real pipeline definitions, repeated refusals, or operator pain show that the narrow evaluator is blocking useful workflows, and expand it with explicit schema/tests rather than ad hoc compatibility hacks.
+**Context:** The eng review locked `M1` to the smallest activation subset that covers the current foundation-family proof corpus: `when.any` / `when.all` plus boolean equality in the form `variables.<name> == true|false`. Anything broader was treated as accidental complexity for the first wedge. Revisit this only when real pipeline definitions, repeated refusals, or operator pain show that the boolean-only evaluator is blocking useful workflows, and expand it with explicit schema/tests rather than ad hoc compatibility hacks.
 
 **Effort:** S
 **Priority:** P2
