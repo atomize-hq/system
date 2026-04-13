@@ -432,17 +432,32 @@ Implementation checklist:
    - CLI and compiler tests must share that one foundation-family proof corpus rather than maintaining duplicate golden case sets.
    - Compiler tests assert typed route/state semantics over the shared cases; CLI tests assert rendered output over those same cases.
    - Every golden update must include an explicit reason and the affected contract surface.
-   - Add M2 compile-specific CLI and compiler tests for explicit `--stage`, route-basis freshness, inactive-stage refusal, and compiled payload contents.
-   - Lock M2 golden outputs for `pipeline compile`.
+   - Add M2 compile-specific CLI and compiler tests for:
+     - explicit `--stage` selection within the chosen pipeline
+     - missing persisted `route_basis` refusal
+     - malformed persisted `route_basis` refusal
+     - stale `route_basis` refusal after route-state mutation without a fresh `pipeline resolve`
+     - inactive-stage refusal when the selected stage is not active in the persisted route basis
+     - selected-stage-not-in-pipeline refusal
+     - missing required artifact refusal for `stage.10_feature_spec`
+     - optional-artifact absence success for `stage.10_feature_spec`
+     - payload-only stdout success for plain `pipeline compile`
+     - proof-only success for `pipeline compile --explain`
+     - shared typed compile-result behavior so payload and explain modes cannot drift semantically
+     - CLI help/docs parity for the new compile surface and `--explain`
+   - Treat stale-route-basis refusal and inactive-stage refusal as regression-critical tests for `M2`; they are contract-preserving tests, not optional coverage.
+   - Lock M2 golden outputs for both `pipeline compile` payload output and `pipeline compile --explain` proof output over the shared foundation-family proof corpus.
+   - CLI and compiler compile tests must share those same M2 goldens instead of maintaining separate payload/proof fixtures.
    - The `pipeline` family is public product contract. Manual verification alone is not sufficient for either milestone.
 13. Record the M1 performance boundary for pipeline parsing.
    - Keep command cost split explicit:
      - `pipeline list` loads pipeline YAML plus minimal validation only
      - `pipeline show` loads pipeline YAML plus the metadata needed for the normalized typed view
      - `pipeline resolve` is the first command allowed to load activation-bearing stage metadata and pipeline state
+     - `pipeline compile` reuses the already-selected pipeline definition, selected stage metadata, persisted `route_basis`, and loaded artifact/profile content in memory within that single command invocation only
    - Reuse parsed pipeline config, parsed stage metadata, and loaded pipeline state in memory within a single command invocation when that command actually needs them.
    - This is tightly scoped per-invocation reuse only.
-   - Do not add persisted caches, cross-command caches, or cached resolved-route/compiled-stage artifacts in M1.
+   - Do not add persisted caches, cross-command caches, cached compiled payloads, or stored explain payloads in `M2`.
    - Add simple latency expectations for the foundation-family proof corpus and treat repeated growth in parse steps or corpus costs as a regression to investigate.
    - Rough local budgets for the proof corpus:
      - `pipeline list`: low tens of milliseconds
@@ -503,6 +518,22 @@ Goal:
 
 - recover the actual prompt-compilation behavior that keeps repo research from being repeated, after M1 has already locked route truth and state truth
 
+Reviewed scope lock, 2026-04-13:
+
+- `M2` is intentionally narrowed to one explicit single-stage compile wedge.
+- The first supported compile target in `M2` is `pipeline.foundation_inputs` stage `stage.10_feature_spec`.
+- `M2` does not attempt generic multi-stage compile coverage, output writing, or broad compile parity across the full legacy harness surface.
+- `M2` must land as one coherent supported slice: compiler behavior, CLI surface, proof corpus, docs/help parity, and tests all green together.
+- Stage selection for that first compile wedge must be explicit in the plan and justified by downstream usefulness rather than convenience alone.
+- `pipeline compile` in `M2` prints the compiled stage payload to stdout; it does not recreate legacy `dist/` writes and does not grow an optional output-path flag.
+- `pipeline resolve` in `M2` becomes the writer of one bounded persisted `route_basis` snapshot, and `pipeline compile` consumes that snapshot for freshness and active-stage checks instead of silently re-running resolve.
+- successful `pipeline compile` output in `M2` is payload-only. Proof metadata, route-basis detail, and freshness evidence stay out of the payload stream and remain the job of refusal output plus `inspect`.
+- `pipeline compile` in `M2` does not accept runner/profile override flags. Compile consumes the persisted `route_basis` exactly as resolved; changing runner or profile requires state mutation plus a fresh `pipeline resolve`.
+- compile proof in `M2` is exposed as `pipeline compile --explain`. Plain `compile` stays payload-only, while `compile --explain` is a proof-only mode for route basis, selected stage metadata, include expansion, and required-input decisions.
+- the implementation budget for `M2` stays intentionally small: thin CLI wiring in `crates/cli`, one new compiler-owned compile module in `crates/compiler`, and only minimal extensions to existing `pipeline` and `route_state` modules for shared contracts and persisted `route_basis`
+- plain `pipeline compile` and `pipeline compile --explain` share one compiler-owned typed compile result. The stage payload is assembled once, then rendered either as payload-only stdout or proof-only explain output.
+- `M2` preserves the useful content classes from the legacy harness, includes, runner/profile material, library inputs, required/optional artifact inputs, and scoped-rule filtering, but normalizes final output shape and refusal language to the reviewed Rust contracts instead of chasing byte-for-byte legacy parity.
+
 Must prove:
 
 - Rust can compile one stage from front matter, includes, profiles, runner guidance, and upstream artifacts
@@ -514,6 +545,23 @@ Must prove:
 Minimum acceptable wedge:
 
 - one compiled stage that matches the useful content classes the Python harness currently assembles
+- one explicit first-stage target, not a vague promise of "single-stage support"
+- the explicit first-stage target is `stage.10_feature_spec`, because it proves real compile assembly over runner/profile/includes/library inputs and upstream artifacts without dragging multi-file output materialization into `M2`
+- the compile payload is a terminal-facing product surface in `M2`; persisted output files stay deferred to `M3`
+- freshness refusal in `M2` is grounded on a persisted `route_basis` snapshot written by `pipeline resolve`, not on implicit resolver reruns or caller-managed ad hoc tokens
+- the copy-paste handoff matters more than decorative proof on success; payload-only stdout keeps `pipeline compile` usable while preserving `inspect` as the proof surface
+- compile must not become a second route-selection surface; runner/profile changes remain explicit route-state changes upstream of compile
+- compile proof stays local to compile semantics instead of widening `inspect` from packet proof into a generic catch-all proof surface
+- payload and explain output must not drift; one typed compile result keeps success rendering and proof rendering on the same truth
+- legacy Python remains behavioral reference, not formatting authority; Rust owns the supported output shape once `M2` lands
+
+Non-goals inside M2:
+
+- no artifact or repo-file writes yet, those stay in `M3`
+- no multi-stage compile orchestration or `--until` / `--only` style compile breadth from the legacy harness
+- no hidden fallback to legacy Python for missing Rust behavior
+- no generalized compile IR, cache layer, or new abstraction stack beyond what the single-stage wedge requires
+- no multi-module compile mini-framework for one stage; if the design needs several new helper modules to explain itself, it is already overbuilt for `M2`
 
 ### M3. Output Materialization Capability
 
@@ -658,7 +706,7 @@ Stay on the wedge until the operator pain is materially reduced.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 4 proposals, 1 accepted, 2 deferred |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 31 issues, 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | CLEAR | 29 issues, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
 **UNRESOLVED:** 0

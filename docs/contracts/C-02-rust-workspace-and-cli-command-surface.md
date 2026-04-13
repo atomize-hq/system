@@ -41,6 +41,9 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - The workspace MUST expose one obvious split between the operator-facing CLI and the compiler core.
 - The CLI crate MUST remain a thin orchestration layer that delegates shared logic into the compiler crate.
 - The compiler crate MUST be the compile-time home for shared packet-result and decision-log types used by downstream seams.
+- For the first supported `M2` compile wedge, the CLI crate MUST stay thin and the compiler crate MUST own compile assembly, compile proof, and compile refusal logic without spreading that behavior across a new abstraction stack.
+- For the first supported `M2` compile wedge, plain `pipeline compile` and `pipeline compile --explain` MUST render from one shared compiler-owned typed compile result rather than maintaining separate assembly paths.
+- For the first supported `M2` compile wedge, legacy Python compile behavior MAY be used as content reference, but the supported Rust payload shape, refusal wording, and proof wording MUST follow current Rust contracts rather than byte-for-byte legacy formatting.
 - The Rust CLI MUST be the only supported packet-resolution authority once Rust setup exists.
 
 ### CLI verbs and help posture
@@ -52,6 +55,8 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - Help text MUST make clear that `setup` is still a placeholder entrypoint, `pipeline` is the orchestration surface, `generate` is the packet surface, `inspect` is the proof surface, and `doctor` is the recovery surface.
 - Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.
 - `pipeline` MUST own route resolution, explicit stage compilation, and narrow pipeline-run state mutation for the supported wedge.
+- Successful `pipeline compile` output MUST remain a payload surface, not a proof surface. Route-basis evidence, freshness detail, and decision proof remain the responsibility of refusal output and `inspect`.
+- When `M2` lands, compile-specific proof MUST be exposed through `pipeline compile --explain`, not by broadening `inspect` beyond its packet-proof meaning.
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery surface for blockers and next safe actions.

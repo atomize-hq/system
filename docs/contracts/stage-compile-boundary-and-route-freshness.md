@@ -69,6 +69,7 @@ This contract defines the compile boundary between published `pipeline` route tr
 - Shorthand ids MAY be accepted only when they resolve through the same canonical-id and shorthand rules published in `C-09`.
 - Raw file paths, hidden aliases, and compile-only lookup forms MUST be refused.
 - Compile MUST treat route truth as an upstream input and MUST NOT rediscover targets from filesystem traversal or stage-front-matter parsing alone.
+- Compile MUST NOT accept runner/profile override flags or any other compile-time override that mutates route-basis truth at call time.
 - The selected stage id MUST exist in the selected pipeline's declared stage list.
 
 ### Source-of-truth split
@@ -87,6 +88,7 @@ This contract defines the compile boundary between published `pipeline` route tr
 
 - Compile MUST consume already-resolved route truth as the route basis for downstream compile work.
 - The route basis includes the resolved route plus the reviewed runtime state surfaces published by `C-08`: `routing`, `refs`, and `run`.
+- For the first supported `M2` wedge, that route basis MUST be persisted as one bounded `route_basis` snapshot written by `pipeline resolve` and then consumed by `pipeline compile`.
 - Freshness checks that depend on runner/profile or artifact references MUST read them from the published route-state fields rather than reconstructing them from legacy harness assumptions.
 - Compile MUST refuse stale route basis instead of silently re-running `pipeline resolve`.
 - Compile MUST refuse inactive stages explicitly when the selected stage is not active in the resolved route truth.
