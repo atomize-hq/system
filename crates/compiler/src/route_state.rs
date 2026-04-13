@@ -57,6 +57,12 @@ pub struct RouteStateRun {
     pub profile: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct RouteStateRunInventory {
+    runners: BTreeSet<String>,
+    profiles: BTreeSet<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouteStateAuditEntry {
@@ -197,6 +203,12 @@ pub enum RouteStateMutationRefusal {
     },
 }
 
+#[derive(Debug)]
+struct RouteStateInventoryLoadError {
+    path: PathBuf,
+    source: std::io::Error,
+}
+
 pub fn load_route_state(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -208,7 +220,12 @@ pub fn load_route_state(
             reason,
         }
     })?;
-    load_route_state_at_path(&state_path, pipeline_id, None)
+    let run_inventory =
+        load_run_inventory(repo_root.as_ref()).map_err(|err| RouteStateReadError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory)
 }
 
 pub fn load_route_state_with_supported_variables(
@@ -223,7 +240,17 @@ pub fn load_route_state_with_supported_variables(
             reason,
         }
     })?;
-    load_route_state_at_path(&state_path, pipeline_id, Some(supported_variables))
+    let run_inventory =
+        load_run_inventory(repo_root.as_ref()).map_err(|err| RouteStateReadError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    load_route_state_at_path(
+        &state_path,
+        pipeline_id,
+        Some(supported_variables),
+        &run_inventory,
+    )
 }
 
 pub fn set_route_state(
@@ -242,7 +269,13 @@ pub fn set_route_state(
     })?;
 
     let supported_variables = normalize_supported_variables(supported_variables)?;
-    validate_mutation(&mutation, &supported_variables)?;
+    let run_inventory = load_run_inventory(repo_root.as_ref()).map_err(|err| {
+        RouteStateStoreError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        }
+    })?;
+    validate_mutation(&mutation, &supported_variables, &run_inventory)?;
 
     let state_path = route_state_path(repo_root.as_ref(), pipeline_id).map_err(|reason| {
         RouteStateStoreError::InvalidPipelineId {
@@ -256,27 +289,31 @@ pub fn set_route_state(
     })?;
 
     let _lock = acquire_advisory_lock(&state_path)?;
-    let mut state =
-        match load_route_state_at_path(&state_path, pipeline_id, Some(&supported_variables)) {
-            Ok(state) => state,
-            Err(RouteStateReadError::MalformedState { reason, .. }) => {
-                return Ok(RouteStateMutationOutcome::Refused(
-                    RouteStateMutationRefusal::MalformedState { reason },
-                ));
-            }
-            Err(RouteStateReadError::InvalidPipelineId {
+    let mut state = match load_route_state_at_path(
+        &state_path,
+        pipeline_id,
+        Some(&supported_variables),
+        &run_inventory,
+    ) {
+        Ok(state) => state,
+        Err(RouteStateReadError::MalformedState { reason, .. }) => {
+            return Ok(RouteStateMutationOutcome::Refused(
+                RouteStateMutationRefusal::MalformedState { reason },
+            ));
+        }
+        Err(RouteStateReadError::InvalidPipelineId {
+            pipeline_id,
+            reason,
+        }) => {
+            return Err(RouteStateStoreError::InvalidPipelineId {
                 pipeline_id,
                 reason,
-            }) => {
-                return Err(RouteStateStoreError::InvalidPipelineId {
-                    pipeline_id,
-                    reason,
-                });
-            }
-            Err(RouteStateReadError::ReadFailure { path, source }) => {
-                return Err(RouteStateStoreError::ReadFailure { path, source });
-            }
-        };
+            });
+        }
+        Err(RouteStateReadError::ReadFailure { path, source }) => {
+            return Err(RouteStateStoreError::ReadFailure { path, source });
+        }
+    };
 
     if let RouteStateMutation::RoutingVariable { variable, .. } = &mutation {
         if !supported_variables.contains(variable) {
@@ -315,6 +352,7 @@ fn load_route_state_at_path(
     state_path: &Path,
     pipeline_id: &str,
     supported_variables: Option<&BTreeSet<String>>,
+    run_inventory: &RouteStateRunInventory,
 ) -> Result<RouteState, RouteStateReadError> {
     let file_meta = match fs::symlink_metadata(state_path) {
         Ok(meta) => Some(meta),
@@ -353,7 +391,13 @@ fn load_route_state_at_path(
         }
     })?;
 
-    validate_loaded_state(&state, pipeline_id, supported_variables, state_path)?;
+    validate_loaded_state(
+        &state,
+        pipeline_id,
+        supported_variables,
+        run_inventory,
+        state_path,
+    )?;
 
     Ok(state)
 }
@@ -362,6 +406,7 @@ fn validate_loaded_state(
     state: &RouteState,
     expected_pipeline_id: &str,
     supported_variables: Option<&BTreeSet<String>>,
+    run_inventory: &RouteStateRunInventory,
     state_path: &Path,
 ) -> Result<(), RouteStateReadError> {
     if state.schema_version != ROUTE_STATE_SCHEMA_VERSION {
@@ -392,11 +437,13 @@ fn validate_loaded_state(
         path: state_path.to_path_buf(),
         reason,
     })?;
-    validate_run(&state.run).map_err(|reason| RouteStateReadError::MalformedState {
-        path: state_path.to_path_buf(),
-        reason,
+    validate_run(&state.run, run_inventory).map_err(|reason| {
+        RouteStateReadError::MalformedState {
+            path: state_path.to_path_buf(),
+            reason,
+        }
     })?;
-    validate_audit_entries(&state.audit, supported_variables).map_err(|reason| {
+    validate_audit_entries(&state.audit, supported_variables, run_inventory).map_err(|reason| {
         RouteStateReadError::MalformedState {
             path: state_path.to_path_buf(),
             reason,
@@ -420,6 +467,7 @@ fn validate_loaded_state(
 fn validate_mutation(
     mutation: &RouteStateMutation,
     supported_variables: &BTreeSet<String>,
+    run_inventory: &RouteStateRunInventory,
 ) -> Result<(), RouteStateStoreError> {
     match mutation {
         RouteStateMutation::RoutingVariable { variable, .. } => {
@@ -441,10 +489,17 @@ fn validate_mutation(
             validate_repo_relative_ref(value)
                 .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
         }
-        RouteStateMutation::RunRunner { value } | RouteStateMutation::RunProfile { value } => {
-            validate_non_empty_string(value)
+        RouteStateMutation::RunRunner { value } => {
+            validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)
                 .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
         }
+        RouteStateMutation::RunProfile { value } => validate_inventory_value(
+            value,
+            FIELD_RUN_PROFILE,
+            "profiles/",
+            &run_inventory.profiles,
+        )
+        .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?,
     }
 
     Ok(())
@@ -453,6 +508,7 @@ fn validate_mutation(
 fn validate_audit_entries(
     audit: &[RouteStateAuditEntry],
     supported_variables: Option<&BTreeSet<String>>,
+    run_inventory: &RouteStateRunInventory,
 ) -> Result<(), String> {
     for entry in audit {
         let field = parse_route_state_field_path(&entry.field_path)?;
@@ -489,7 +545,21 @@ fn validate_audit_entries(
             }
             RouteStateFieldPath::RunRunner | RouteStateFieldPath::RunProfile => {
                 match &entry.value {
-                    RouteStateValue::String(value) => validate_non_empty_string(value)?,
+                    RouteStateValue::String(value) => match field {
+                        RouteStateFieldPath::RunRunner => validate_inventory_value(
+                            value,
+                            &entry.field_path,
+                            "runners/",
+                            &run_inventory.runners,
+                        )?,
+                        RouteStateFieldPath::RunProfile => validate_inventory_value(
+                            value,
+                            &entry.field_path,
+                            "profiles/",
+                            &run_inventory.profiles,
+                        )?,
+                        _ => unreachable!("run field match already constrained"),
+                    },
                     RouteStateValue::Bool(_) => {
                         return Err(format!(
                             "audit field `{}` must use a string value",
@@ -520,12 +590,17 @@ fn validate_refs(refs: &RouteStateRefs) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_run(run: &RouteStateRun) -> Result<(), String> {
+fn validate_run(run: &RouteStateRun, run_inventory: &RouteStateRunInventory) -> Result<(), String> {
     if let Some(value) = &run.runner {
-        validate_non_empty_string(value)?;
+        validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)?;
     }
     if let Some(value) = &run.profile {
-        validate_non_empty_string(value)?;
+        validate_inventory_value(
+            value,
+            FIELD_RUN_PROFILE,
+            "profiles/",
+            &run_inventory.profiles,
+        )?;
     }
     Ok(())
 }
@@ -544,6 +619,22 @@ fn validate_non_empty_string(value: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn validate_inventory_value(
+    value: &str,
+    field_path: &str,
+    inventory_root: &str,
+    allowlisted_ids: &BTreeSet<String>,
+) -> Result<(), String> {
+    validate_non_empty_string(value)?;
+    if allowlisted_ids.contains(value) {
+        return Ok(());
+    }
+
+    Err(format!(
+        "{field_path} `{value}` is not declared under `{inventory_root}`"
+    ))
 }
 
 fn validate_repo_relative_ref(value: &str) -> Result<(), String> {
@@ -619,6 +710,136 @@ where
     })?;
 
     Ok(supported_variables)
+}
+
+fn load_run_inventory(
+    repo_root: &Path,
+) -> Result<RouteStateRunInventory, RouteStateInventoryLoadError> {
+    Ok(RouteStateRunInventory {
+        runners: load_runner_inventory(repo_root)?,
+        profiles: load_profile_inventory(repo_root)?,
+    })
+}
+
+fn load_runner_inventory(
+    repo_root: &Path,
+) -> Result<BTreeSet<String>, RouteStateInventoryLoadError> {
+    let inventory_dir = repo_root.join("runners");
+    let entries = match fs::read_dir(&inventory_dir) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
+        Err(source) => {
+            return Err(RouteStateInventoryLoadError {
+                path: inventory_dir,
+                source,
+            });
+        }
+    };
+
+    let mut ids = BTreeSet::new();
+    for entry in entries {
+        let entry = entry.map_err(|source| RouteStateInventoryLoadError {
+            path: inventory_dir.clone(),
+            source,
+        })?;
+        let entry_path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|source| RouteStateInventoryLoadError {
+                path: entry_path.clone(),
+                source,
+            })?;
+        if !file_type.is_file() {
+            continue;
+        }
+
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        let Some(id) = name.strip_suffix(".md") else {
+            continue;
+        };
+        if !is_inventory_id(id) {
+            continue;
+        }
+
+        ids.insert(id.to_string());
+    }
+
+    Ok(ids)
+}
+
+fn load_profile_inventory(
+    repo_root: &Path,
+) -> Result<BTreeSet<String>, RouteStateInventoryLoadError> {
+    let inventory_dir = repo_root.join("profiles");
+    let entries = match fs::read_dir(&inventory_dir) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
+        Err(source) => {
+            return Err(RouteStateInventoryLoadError {
+                path: inventory_dir,
+                source,
+            });
+        }
+    };
+
+    let mut ids = BTreeSet::new();
+    for entry in entries {
+        let entry = entry.map_err(|source| RouteStateInventoryLoadError {
+            path: inventory_dir.clone(),
+            source,
+        })?;
+        let entry_path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|source| RouteStateInventoryLoadError {
+                path: entry_path.clone(),
+                source,
+            })?;
+        if !file_type.is_dir() {
+            continue;
+        }
+
+        let Some(id) = entry.file_name().to_str().map(str::to_owned) else {
+            continue;
+        };
+        if !is_inventory_id(&id) {
+            continue;
+        }
+
+        let profile_yaml = entry_path.join("profile.yaml");
+        let metadata = match fs::symlink_metadata(&profile_yaml) {
+            Ok(metadata) => metadata,
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(source) => {
+                return Err(RouteStateInventoryLoadError {
+                    path: profile_yaml,
+                    source,
+                });
+            }
+        };
+        if !metadata.is_file() {
+            continue;
+        }
+
+        ids.insert(id);
+    }
+
+    Ok(ids)
+}
+
+fn is_inventory_id(value: &str) -> bool {
+    let Some(first) = value.chars().next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() {
+        return false;
+    }
+
+    value
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_')
 }
 
 fn trim_audit_history(audit: &mut Vec<RouteStateAuditEntry>) {

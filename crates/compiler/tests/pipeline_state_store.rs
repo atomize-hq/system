@@ -16,6 +16,20 @@ fn write_file(path: &Path, contents: &str) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn seed_run_inventory(repo_root: &Path) {
+    write_file(&repo_root.join("runners/codex-cli.md"), "# runner");
+    write_file(&repo_root.join("runners/*.md"), "# ignored noise");
+    write_file(
+        &repo_root.join("profiles/python-uv/profile.yaml"),
+        "kind: profile\nid: python-uv\n",
+    );
+    write_file(
+        &repo_root.join("profiles/_template/profile.yaml"),
+        "kind: profile\nid: _template\n",
+    );
+    write_file(&repo_root.join("profiles/.DS_Store"), "noise");
+}
+
 fn state_path(repo_root: &Path, pipeline_id: &str) -> PathBuf {
     repo_root
         .join(".system")
@@ -59,6 +73,7 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
+    seed_run_inventory(repo_root);
 
     let empty = load_route_state(repo_root, pipeline_id).expect("empty state");
     assert_eq!(empty, RouteState::empty(pipeline_id));
@@ -328,11 +343,68 @@ fn invalid_ref_value_is_rejected_before_write() {
 }
 
 #[test]
+fn invalid_runner_value_is_rejected_before_write() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    seed_run_inventory(repo_root);
+
+    let err = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context"],
+        RouteStateMutation::RunRunner {
+            value: "not-a-runner".to_string(),
+        },
+        0,
+    )
+    .expect_err("invalid mutation");
+
+    match err {
+        RouteStateStoreError::InvalidMutation { reason } => {
+            assert!(reason.contains("run.runner"), "{reason}");
+            assert!(reason.contains("runners/"), "{reason}");
+            assert!(reason.contains("not-a-runner"), "{reason}");
+        }
+        other => panic!("expected invalid mutation error, got {other:?}"),
+    }
+}
+
+#[test]
+fn invalid_profile_value_is_rejected_before_write() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    seed_run_inventory(repo_root);
+
+    let err = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context"],
+        RouteStateMutation::RunProfile {
+            value: "not-a-profile".to_string(),
+        },
+        0,
+    )
+    .expect_err("invalid mutation");
+
+    match err {
+        RouteStateStoreError::InvalidMutation { reason } => {
+            assert!(reason.contains("run.profile"), "{reason}");
+            assert!(reason.contains("profiles/"), "{reason}");
+            assert!(reason.contains("not-a-profile"), "{reason}");
+        }
+        other => panic!("expected invalid mutation error, got {other:?}"),
+    }
+}
+
+#[test]
 fn revision_conflict_refuses_without_overwrite() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
     let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
     write_file(
         &path,
         r#"---
@@ -389,6 +461,7 @@ fn audit_history_trims_oldest_first_across_mixed_fields() {
     let repo_root = dir.path();
     let pipeline_id = "pipeline.route_state";
     let mut expected_revision = 0;
+    seed_run_inventory(repo_root);
 
     for index in 0..(ROUTE_STATE_AUDIT_LIMIT + 3) {
         let mutation = match index % 4 {
@@ -397,10 +470,10 @@ fn audit_history_trims_oldest_first_across_mixed_fields() {
                 value: index % 2 == 0,
             },
             1 => RouteStateMutation::RunRunner {
-                value: format!("runner-{index}"),
+                value: "codex-cli".to_string(),
             },
             2 => RouteStateMutation::RunProfile {
-                value: format!("profile-{index}"),
+                value: "python-uv".to_string(),
             },
             _ => RouteStateMutation::RefCharterRef {
                 value: format!("artifacts/charter/CHARTER-{index}.md"),
@@ -434,6 +507,79 @@ fn audit_history_trims_oldest_first_across_mixed_fields() {
         loaded.audit.last().expect("last audit").revision,
         loaded.revision
     );
+}
+
+#[test]
+fn malformed_state_refuses_unallowlisted_run_runner() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.route_state
+revision: 1
+routing: {}
+refs: {}
+run:
+  runner: not-a-runner
+audit:
+  - revision: 1
+    field_path: run.runner
+    value: not-a-runner
+"#,
+    );
+
+    let err = load_route_state(repo_root, pipeline_id).expect_err("malformed state");
+    match err {
+        RouteStateReadError::MalformedState { reason, .. } => {
+            assert!(reason.contains("run.runner"), "{reason}");
+            assert!(reason.contains("not-a-runner"), "{reason}");
+            assert!(reason.contains("runners/"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_state_refuses_unallowlisted_run_profile_audit_entry() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.route_state
+revision: 2
+routing: {}
+refs: {}
+run:
+  profile: python-uv
+audit:
+  - revision: 1
+    field_path: run.profile
+    value: not-a-profile
+  - revision: 2
+    field_path: run.profile
+    value: python-uv
+"#,
+    );
+
+    let err = load_route_state(repo_root, pipeline_id).expect_err("malformed state");
+    match err {
+        RouteStateReadError::MalformedState { reason, .. } => {
+            assert!(reason.contains("run.profile"), "{reason}");
+            assert!(reason.contains("not-a-profile"), "{reason}");
+            assert!(reason.contains("profiles/"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
 }
 
 #[test]
