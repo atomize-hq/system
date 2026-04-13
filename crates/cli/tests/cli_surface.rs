@@ -2,6 +2,8 @@ mod pipeline_proof_corpus_support;
 
 use std::process::{Command, Output};
 
+const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
+
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
 }
@@ -17,6 +19,16 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> Output {
         .args(args)
         .output()
         .unwrap_or_else(|err| panic!("run `{}`: {err}", args.join(" ")))
+}
+
+fn run_in_with_env(dir: &std::path::Path, args: &[&str], envs: &[(&str, &str)]) -> Output {
+    let mut cmd = binary_in(dir);
+    cmd.args(args);
+    for (key, value) in envs {
+        cmd.env(key, value);
+    }
+    cmd.output()
+        .unwrap_or_else(|err| panic!("run `{}` with env: {err}", args.join(" ")))
 }
 
 fn workspace_root() -> std::path::PathBuf {
@@ -643,15 +655,18 @@ fn pipeline_compile_plain_success_is_payload_only_stdout() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
 
-    let expected = system_compiler::compile_pipeline_stage(
+    let expected = system_compiler::compile_pipeline_stage_with_runtime(
         root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
+        &system_compiler::PipelineCompileRuntimeContext {
+            now_utc_override: Some(FIXED_NOW_UTC.to_string()),
+        },
     )
     .map(|result| system_compiler::render_pipeline_compile_payload(&result))
     .expect("compile should succeed");
 
-    let output = run_in(
+    let output = run_in_with_env(
         root.as_path(),
         &[
             "pipeline",
@@ -661,6 +676,10 @@ fn pipeline_compile_plain_success_is_payload_only_stdout() {
             "--stage",
             "10_feature_spec",
         ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
     );
     assert!(output.status.success(), "pipeline compile should succeed");
 
@@ -685,15 +704,18 @@ fn pipeline_compile_explain_success_is_proof_only_stdout() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
 
-    let expected = system_compiler::compile_pipeline_stage(
+    let expected = system_compiler::compile_pipeline_stage_with_runtime(
         root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
+        &system_compiler::PipelineCompileRuntimeContext {
+            now_utc_override: Some(FIXED_NOW_UTC.to_string()),
+        },
     )
     .map(|result| system_compiler::render_pipeline_compile_explain(&result))
     .expect("compile should succeed");
 
-    let output = run_in(
+    let output = run_in_with_env(
         root.as_path(),
         &[
             "pipeline",
@@ -704,6 +726,10 @@ fn pipeline_compile_explain_success_is_proof_only_stdout() {
             "stage.10_feature_spec",
             "--explain",
         ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
     );
     assert!(
         output.status.success(),
@@ -719,6 +745,48 @@ fn pipeline_compile_explain_success_is_proof_only_stdout() {
     assert!(
         !stdout.starts_with("# stage.10_feature_spec"),
         "explain mode must not include the payload header: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_when_required_variable_is_missing() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let stage_path = root.join("core/stages/10_feature_spec.md");
+    let stage = std::fs::read_to_string(&stage_path).expect("read stage");
+    let updated_stage = stage.replace("    - project_name?\n", "    - project_name\n");
+    assert_ne!(
+        stage, updated_stage,
+        "stage fixture should be updated for the test"
+    );
+    std::fs::write(&stage_path, updated_stage).expect("write stage");
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        !output.status.success(),
+        "missing required variable should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.missing_required_variable.txt",
     );
 }
 

@@ -6,7 +6,7 @@ Produces a single FEATURE_SPEC.md for one feature, aligned with the project Char
 - runner: codex-cli
 - profile: python-uv
 - repo_root: {{REPO_ROOT}}
-- now_utc: <unset>
+- now_utc: 2026-01-28T18:35:10Z
 - project_name: <unset>
 - owner: <unset>
 - team: <unset>

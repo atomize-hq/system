@@ -11,9 +11,14 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
+use time::macros::format_description;
+use time::OffsetDateTime;
 
 const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
+pub const PIPELINE_COMPILE_NOW_UTC_ENV_VAR: &str = "SYSTEM_PIPELINE_COMPILE_NOW_UTC";
+const NOW_UTC_FORMAT: &[time::format_description::FormatItem<'static>] =
+    format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineCompileResult {
@@ -108,10 +113,29 @@ pub enum PipelineCompileRefusalClassification {
     EmptyRequiredInput,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PipelineCompileRuntimeContext {
+    pub now_utc_override: Option<String>,
+}
+
 pub fn compile_pipeline_stage(
     repo_root: impl AsRef<Path>,
     pipeline_selector: &str,
     stage_selector: &str,
+) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
+    compile_pipeline_stage_with_runtime(
+        repo_root,
+        pipeline_selector,
+        stage_selector,
+        &PipelineCompileRuntimeContext::default(),
+    )
+}
+
+pub fn compile_pipeline_stage_with_runtime(
+    repo_root: impl AsRef<Path>,
+    pipeline_selector: &str,
+    stage_selector: &str,
+    runtime: &PipelineCompileRuntimeContext,
 ) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
     let repo_root = repo_root.as_ref();
     let catalog = load_pipeline_catalog(repo_root).map_err(|err| PipelineCompileRefusal {
@@ -222,8 +246,19 @@ pub fn compile_pipeline_stage(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "L1".to_string());
-    let variable_values =
-        resolve_compile_variables(&route_basis, &stage_definition, repo_root, &work_level);
+    let variable_values = resolve_compile_variables(
+        &route_basis,
+        &stage_definition,
+        repo_root,
+        &work_level,
+        runtime,
+    )?;
+    validate_required_variables(
+        &pipeline.definition.header.id,
+        &stage_id,
+        &stage_definition.inputs.variables,
+        &variable_values,
+    )?;
     let declared_variables = render_declared_variables(
         &stage_definition.inputs.variables,
         &variable_values,
@@ -727,7 +762,15 @@ fn resolve_compile_variables(
     stage_definition: &CompileStageDefinition,
     repo_root: &Path,
     work_level: &str,
-) -> BTreeMap<String, String> {
+    runtime: &PipelineCompileRuntimeContext,
+) -> Result<BTreeMap<String, String>, PipelineCompileRefusal> {
+    let now_utc = resolve_now_utc(runtime).map_err(|summary| PipelineCompileRefusal {
+        classification: PipelineCompileRefusalClassification::InvalidState,
+        summary,
+        pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+        stage_id: Some(stage_definition.id.clone()),
+        recovery: "restore the compile runtime context and retry `pipeline compile`".to_string(),
+    })?;
     let mut values = BTreeMap::new();
     for (name, value) in &basis.routing {
         values.insert(name.clone(), value.to_string());
@@ -748,15 +791,58 @@ fn resolve_compile_variables(
             .clone()
             .unwrap_or_else(|| repo_root.to_string_lossy().into_owned()),
     );
+    values.insert("now_utc".to_string(), now_utc);
     values.insert("work_level".to_string(), work_level.to_string());
 
-    for variable in &stage_definition.inputs.variables {
-        values
-            .entry(variable.name.clone())
-            .or_insert_with(String::new);
+    Ok(values)
+}
+
+fn validate_required_variables(
+    pipeline_id: &str,
+    stage_id: &str,
+    declared: &[CompileStageVariable],
+    values: &BTreeMap<String, String>,
+) -> Result<(), PipelineCompileRefusal> {
+    for variable in declared {
+        if variable.optional {
+            continue;
+        }
+
+        match (
+            values.get(&variable.name),
+            normalize_variable_value(values.get(&variable.name)),
+        ) {
+            (None, None) => {
+                return Err(PipelineCompileRefusal {
+                    classification: PipelineCompileRefusalClassification::MissingRequiredInput,
+                    summary: format!(
+                        "required compile variable `{}` is missing for `{stage_id}`",
+                        variable.name
+                    ),
+                    pipeline_id: Some(pipeline_id.to_string()),
+                    stage_id: Some(stage_id.to_string()),
+                    recovery: "restore the required variable source and retry `pipeline compile`"
+                        .to_string(),
+                })
+            }
+            (Some(_), None) => {
+                return Err(PipelineCompileRefusal {
+                    classification: PipelineCompileRefusalClassification::EmptyRequiredInput,
+                    summary: format!(
+                        "required compile variable `{}` is empty for `{stage_id}`",
+                        variable.name
+                    ),
+                    pipeline_id: Some(pipeline_id.to_string()),
+                    stage_id: Some(stage_id.to_string()),
+                    recovery: "fill the required variable source and retry `pipeline compile`"
+                        .to_string(),
+                })
+            }
+            (_, Some(_)) => {}
+        }
     }
 
-    values
+    Ok(())
 }
 
 fn render_declared_variables(
@@ -789,6 +875,20 @@ fn normalize_variable_value(value: Option<&String>) -> Option<String> {
     value
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
+}
+
+fn resolve_now_utc(runtime: &PipelineCompileRuntimeContext) -> Result<String, String> {
+    if let Some(value) = runtime.now_utc_override.as_ref() {
+        return Ok(value.clone());
+    }
+
+    if let Ok(value) = std::env::var(PIPELINE_COMPILE_NOW_UTC_ENV_VAR) {
+        return Ok(value);
+    }
+
+    OffsetDateTime::now_utc()
+        .format(NOW_UTC_FORMAT)
+        .map_err(|err| format!("failed to derive compile variable `now_utc`: {err}"))
 }
 
 fn assemble_documents(

@@ -1,0 +1,6 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+REASON: missing_required_input: required compile variable `project_name` is missing for `stage.10_feature_spec`
+BROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`
+NEXT SAFE ACTION: restore the required variable source and retry `pipeline compile`; then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`

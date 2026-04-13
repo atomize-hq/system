@@ -6,15 +6,16 @@ use std::fs;
 use std::path::Path;
 
 use system_compiler::{
-    build_route_basis, compile_pipeline_stage, load_pipeline_definition,
-    load_route_state_with_supported_variables, persist_route_basis,
+    build_route_basis, compile_pipeline_stage, compile_pipeline_stage_with_runtime,
+    load_pipeline_definition, load_route_state_with_supported_variables, persist_route_basis,
     render_pipeline_compile_explain, render_pipeline_compile_payload, resolve_pipeline_route,
-    set_route_state, supported_route_state_variables, RouteBasisPersistOutcome, RouteStateMutation,
-    RouteStateMutationOutcome, RouteVariables,
+    set_route_state, supported_route_state_variables, PipelineCompileRuntimeContext,
+    RouteBasisPersistOutcome, RouteStateMutation, RouteStateMutationOutcome, RouteVariables,
 };
 
 const PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const STAGE_ID: &str = "stage.10_feature_spec";
+const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
 
 fn pipeline_definition(repo_root: &Path) -> system_compiler::PipelineDefinition {
     load_pipeline_definition(repo_root, "pipelines/foundation_inputs.yaml")
@@ -126,10 +127,18 @@ fn prepare_compile_ready_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, repo_root)
 }
 
+fn fixed_runtime() -> PipelineCompileRuntimeContext {
+    PipelineCompileRuntimeContext {
+        now_utc_override: Some(FIXED_NOW_UTC.to_string()),
+    }
+}
+
 #[test]
 fn compile_success_matches_shared_payload_and_explain_goldens() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
-    let result = compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect("compile result");
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
     let payload = render_pipeline_compile_payload(&result);
     let explain = render_pipeline_compile_explain(&result);
 
@@ -178,6 +187,78 @@ fn compile_refuses_when_required_artifact_is_missing() {
 }
 
 #[test]
+fn compile_refuses_when_required_variable_is_missing() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let stage_path = repo_root.join("core/stages/10_feature_spec.md");
+    let stage = fs::read_to_string(&stage_path).expect("read stage");
+    let updated_stage = stage.replace("    - project_name?\n", "    - project_name\n");
+    assert_ne!(
+        stage, updated_stage,
+        "stage fixture should be updated for the test"
+    );
+    fs::write(&stage_path, updated_stage).expect("write stage");
+
+    let (_, supported_variables) = supported_variables(&repo_root);
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RunRunner {
+            value: "codex-cli".to_string(),
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RunProfile {
+            value: "python-uv".to_string(),
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefProjectContextRef {
+            value: "artifacts/project_context/PROJECT_CONTEXT.md".to_string(),
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
+    );
+    apply_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: false,
+        },
+    );
+    persist_route_basis_for_current_state(&repo_root);
+
+    let err =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        system_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
+    );
+    assert!(err
+        .summary
+        .contains("required compile variable `project_name`"));
+}
+
+#[test]
 fn compile_succeeds_when_optional_artifacts_are_absent() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
     for path in [
@@ -189,7 +270,8 @@ fn compile_succeeds_when_optional_artifacts_are_absent() {
     }
 
     let result =
-        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect("compile success");
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile success");
 
     assert!(
         result.documents.iter().any(|document| {
