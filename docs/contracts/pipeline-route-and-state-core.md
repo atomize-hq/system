@@ -101,8 +101,11 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - `run` MUST be a mapping with exactly these optional string fields:
   - `runner`
   - `profile`
+  - `repo_root`
 - `refs.*` values, when present, MUST be non-empty repo-relative paths.
-- `run.*` values, when present, MUST be non-empty strings.
+- `run.runner` and `run.profile`, when present, MUST be non-empty strings.
+- `run.repo_root`, when present, MUST be a clean absolute path string naming the repo root bound to the successful mutation that last persisted the state file.
+- `run.repo_root` is compiler-derived runtime state. It is part of the published route basis, but it is not a direct user-writable mutation field.
 - `audit` MUST be a sequence of mutation records. Each record MUST contain exactly:
   - `revision`
   - `field_path`
@@ -114,6 +117,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - `run.runner`
   - `run.profile`
 - `audit.value` MUST be a boolean for `routing.*` entries and a string for `refs.*` / `run.*` entries.
+- Derived runtime-state fields such as `run.repo_root` MUST NOT appear in `audit.field_path`; audit records track direct typed mutations only.
 - Unknown top-level keys, unknown nested keys, invalid routing variable names, invalid field paths, or wrong scalar types MUST be refused as malformed state.
 - Audit history MUST be bounded to a fixed implementation-defined maximum entry count and MUST trim oldest-first after a successful mutation. The bound MUST remain stable within one implementation revision and be covered by tests.
 
@@ -124,6 +128,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - Routing mutations MUST target `routing.<variable-name>` and accept boolean values only.
 - `refs.charter_ref` and `refs.project_context_ref` MUST accept repo-relative string values only.
 - `run.runner` and `run.profile` MUST accept non-empty string values only.
+- `run.repo_root` MUST NOT be accepted as a direct mutation field. Successful compiler-owned mutation persistence MUST derive and persist it from the bound repo root instead.
 - Every mutation MUST acquire an advisory lock before the read-modify-write sequence begins.
 - Every mutation MUST compare an expected revision supplied by the caller with the persisted revision. On mismatch, the mutation MUST refuse rather than silently overwrite newer state.
 - Successful writes MUST use write-then-rename atomic replacement within the same state directory.
