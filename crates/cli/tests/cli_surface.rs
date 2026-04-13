@@ -322,14 +322,19 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
 
     let show = run_in(
         root.as_path(),
-        &["pipeline", "show", "--id", "pipeline.foundation"],
+        &["pipeline", "show", "--id", "pipeline.foundation_inputs"],
     );
     assert!(show.status.success(), "pipeline show should succeed");
     let show_stdout = String::from_utf8(show.stdout).expect("show stdout is utf-8");
-    assert!(show_stdout.contains("PIPELINE: pipeline.foundation"));
+    assert!(show_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
     assert!(show_stdout.contains("DEFAULTS:"));
-    assert!(show_stdout.contains("stage.05_charter_interview"));
-    assert!(show_stdout.contains("core/stages/05_charter_interview.md"));
+    assert!(show_stdout.contains("SOURCE: pipelines/foundation_inputs.yaml"));
+    assert!(show_stdout.contains("stage.05_charter_synthesize"));
+    assert!(show_stdout.contains("core/stages/05_charter_synthesize.md"));
+    assert!(show_stdout.contains("sets: [needs_project_context]"));
+    assert!(show_stdout.contains(
+        "activation: activation.when.any [variables.charter_gaps_detected == true, variables.needs_project_context == true]"
+    ));
 
     let shorthand = run_in(root.as_path(), &["pipeline", "show", "--id", "00_base"]);
     assert!(shorthand.status.success(), "stage shorthand should resolve");

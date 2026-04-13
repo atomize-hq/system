@@ -475,7 +475,12 @@ fn render_pipeline_definition(pipeline: &PipelineCatalogEntry) -> String {
         pipeline.definition.body.defaults.enable_complexity
     ));
     out.push_str("STAGES:\n");
-    for (index, stage) in pipeline.stages.iter().enumerate() {
+    for (index, (stage, declared_stage)) in pipeline
+        .stages
+        .iter()
+        .zip(pipeline.definition.declared_stages().iter())
+        .enumerate()
+    {
         out.push_str(&format!(
             "  {}. {} | {}",
             index + 1,
@@ -485,6 +490,15 @@ fn render_pipeline_definition(pipeline: &PipelineCatalogEntry) -> String {
         out.push_str(&format!(" | {}\n", stage.title));
         if let Some(work_level) = &stage.work_level {
             out.push_str(&format!("     work_level: {}\n", work_level));
+        }
+        if let Some(sets) = &declared_stage.sets {
+            out.push_str(&format!("     sets: {}\n", render_sets(sets)));
+        }
+        if let Some(activation) = &declared_stage.activation {
+            out.push_str(&format!(
+                "     activation: {}\n",
+                render_activation(activation)
+            ));
         }
     }
 
@@ -1398,6 +1412,10 @@ fn render_activation(activation: &StageActivation) -> String {
         activation.when.operator.label(),
         clauses
     )
+}
+
+fn render_sets(sets: &[String]) -> String {
+    format!("[{}]", sets.join(", "))
 }
 
 fn load_stage_front_matter(

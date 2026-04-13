@@ -129,6 +129,10 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     assert!(pipeline_render.contains("  1. stage.00_base | core/stages/00_base.md"));
     assert!(pipeline_render.contains("stage.04_charter_inputs"));
     assert!(pipeline_render.contains("core/stages/04_charter_inputs.md"));
+    assert!(pipeline_render.contains("sets: [needs_project_context]"));
+    assert!(pipeline_render.contains(
+        "activation: activation.when.any [variables.charter_gaps_detected == true, variables.needs_project_context == true]"
+    ));
     assert!(pipeline_render
         .contains("  5. stage.07_foundation_pack | core/stages/07_foundation_pack.md"));
     assert!(pipeline_render.contains("DEFAULTS:"));
