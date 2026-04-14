@@ -914,16 +914,425 @@ Goal:
 
 - recover writing behavior so the compiler owns both prompt generation and artifact emission
 
+Reviewed scope lock, 2026-04-14:
+
+- `M3` is intentionally narrowed to the writer surface, not the full end-to-end planning flow.
+- The bounded proof targets are:
+  - one single-file stage with a canonical repo-file mirror
+  - one multi-file stage with exact `--- FILE:` parsing plus one canonical repo-file mirror
+- The recommended proof stages for that boundary are:
+  - `stage.05_charter_synthesize` for single-file artifact + required repo mirror (`CHARTER.md`)
+  - `stage.07_foundation_pack` for multi-file artifact emission + repo mirror fallback (`ENVIRONMENT_INVENTORY.md`)
+- `M3` must also cover the minimum post-capture state updates needed for re-entry:
+  - convenience refs such as `charter_ref` and `project_context_ref`
+  - route-relevant booleans such as `needs_project_context` and `charter_gaps_detected`
+- `M3` does not attempt to prove the whole `foundation_inputs` flow in one milestone. That remains `M4`.
+- `M3` should reuse the existing boring writer rules from the legacy harness wherever they still fit:
+  - exact `--- FILE: <path> ---` parsing
+  - declared-output filtering
+  - repo-file copy fallback by basename when the artifact copy exists and the repo mirror was not emitted directly
+- `M3` must stay compatible with the current Rust compiler posture:
+  - compiler-owned typed truth
+  - CLI as a thin wrapper
+  - explicit runtime state under `.system/state/`
+  - no broadening of `generate` or `inspect` into stage-output writing surfaces
+- reviewed command-shape decision:
+  - `pipeline compile` stays the payload builder and proof boundary from `M2`
+  - `pipeline capture` becomes the explicit stdin-driven writer surface for declared stage outputs
+  - `generate` stays packet-only and does not absorb stage-output writing
+  - `inspect` stays packet proof only and does not become a generic capture proof surface
+- reviewed write-safety decision:
+  - `pipeline capture` must be a two-phase operation, not legacy incremental writes
+  - phase 1 parses stdin, validates exact declared outputs, resolves repo-mirror fallback candidates, and builds one compiler-owned materialization plan
+  - phase 2 applies that plan with temp-file plus rename writes, then persists post-capture state only after every file write succeeds
+  - partial write success is refusal, not an acceptable end state
+  - direct in-place overwrite is out of scope for the shipped M3 path except where a later contract explicitly justifies it
+- reviewed freshness decision:
+  - `pipeline capture` must consume the same persisted fresh `route_basis` contract as `pipeline compile`
+  - capture must refuse when the selected stage is inactive, missing from the persisted route snapshot, or stale against current `routing` / `refs` / `run`
+  - the recovery path for freshness failures remains explicit and boring: re-run `pipeline resolve`, then retry compile/capture
+  - `pipeline capture` does not add a second compile-receipt or session-token mechanism in `M3`
+- reviewed model-boundary decision:
+  - `PipelineCompileResult` remains the compile payload/proof type
+  - `pipeline capture` gets its own compiler-owned typed model for parsed stdin, validated write intents, repo-mirror fallback choices, and post-capture state mutations
+  - CLI glue must not assemble capture semantics ad hoc from raw stdin plus compile metadata
+  - capture reuses compile-owned declared outputs and freshness checks, but it does not collapse compile and write concerns into one overgrown result type
+- reviewed post-capture-state decision:
+  - `pipeline capture` auto-persists deterministic post-capture facts only:
+    - convenience refs already in the reviewed runtime-state contract, such as `charter_ref` and `project_context_ref`
+    - deterministic heuristics such as `charter_gaps_detected`
+  - judgment variables such as `needs_project_context` stay explicit operator state and are updated through `pipeline state set`, not tty prompting inside capture
+  - `M3` must remove the legacy hidden-tty prompt behavior from the supported Rust writer path
+  - when a captured stage declares `sets:` values that still require human judgment, capture must surface the exact follow-up `pipeline state set` command as the next safe action instead of guessing
+
 Must prove:
 
 - Rust can capture single-file outputs
 - Rust can capture multi-file `--- FILE:` outputs exactly
 - Rust can write both artifact outputs and canonical repo-file outputs
 - re-entry state survives enough to continue a multi-stage planning flow without manual bookkeeping
+- preview and apply share one compiler-owned capture truth instead of reparsing or re-deciding writes in CLI glue
+- the operator can preview a capture once, receive a stable `capture_id`, and apply that cached capture later without pasting the same model output twice
+- stale or inactive route truth refuses before any writes happen
+- write failure or state-persistence failure never leaves the repo in a silently partial-success state
 
 Minimum acceptable wedge:
 
-- one multi-file planning stage plus one canonical repo-file mirror
+- one single-file planning stage plus required repo mirror:
+  - `pipeline.foundation_inputs` + `stage.05_charter_synthesize`
+- one multi-file planning stage plus repo mirror fallback:
+  - `pipeline.foundation_inputs` + `stage.07_foundation_pack`
+- one preview/apply cache flow:
+  - `pipeline capture --preview`
+  - `pipeline capture apply --capture-id <capture-id>`
+
+What already exists and must be reused for M3:
+
+- `crates/compiler/src/pipeline.rs` already loads stage front matter and owns ordered `outputs.artifacts` / `outputs.repo_files` metadata
+- `crates/compiler/src/pipeline_compile.rs` already proves the selected-stage freshness and active-stage boundary against persisted `route_basis`
+- `crates/compiler/src/repo_file_access.rs` already owns repo-relative path validation and symlink refusal for read-side file access
+- `crates/compiler/src/route_state.rs` already owns advisory-lock, temp-file, rename, and runtime-state persistence patterns that M3 should reuse instead of inventing a second filesystem protocol
+- the shared proof-corpus support under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/` already gives M3 one realistic repo fixture tree, one state-path convention, and one golden-normalization strategy
+
+ASCII data-flow sketch:
+
+```text
+stdin
+  |
+  v
+pipeline capture --id ... --stage ...
+  |
+  +--> freshness + stage-eligibility gate
+  |      |
+  |      +--> REFUSED: rerun `pipeline resolve`
+  |
+  +--> parse input contract
+  |      |
+  |      +--> single-file body
+  |      +--> or exact FILE blocks
+  |
+  +--> build typed capture plan
+         |
+         +--> artifact write intents
+         +--> repo mirror intents
+         +--> deterministic state updates
+         +--> preview renderer / cache entry
+                    |
+                    +--> --preview
+                    |      |
+                    |      +--> print preview + CAPTURE ID
+                    |      +--> store runtime cache only
+                    |
+                    +--> direct apply or `capture apply --capture-id`
+                           |
+                           +--> stage temp files
+                           +--> commit writes
+                           +--> persist state updates
+                           +--> clear cache on success
+                           +--> rollback on failure
+```
+
+Command surface:
+
+- direct apply:
+  - `system pipeline capture --id <pipeline-id> --stage <stage-id>`
+  - reads the model output from stdin
+  - validates and applies the capture immediately when no preview flag is present
+- preview:
+  - `system pipeline capture --id <pipeline-id> --stage <stage-id> --preview`
+  - reads stdin
+  - validates and renders the capture preview
+  - stores one runtime-only cached capture entry
+  - prints `CAPTURE ID: <capture-id>`
+  - prints `NEXT SAFE ACTION: run \`system pipeline capture apply --capture-id <capture-id>\``
+- cached apply:
+  - `system pipeline capture apply --capture-id <capture-id>`
+  - consumes the cached preview entry instead of stdin
+  - revalidates freshness and stage eligibility before writing anything
+- flag posture:
+  - `--preview` is the supported preview word; do not expose `--dry-run` in M3
+  - do not add `--save` in M3; it is too easy to confuse “cache the preview” with “write the outputs”
+  - `inspect` remains packet proof only, not capture proof
+
+Preview/output anatomy:
+
+- preview success must render in one stable order:
+  - `OUTCOME: PREVIEW`
+  - `PIPELINE`
+  - `STAGE`
+  - `CAPTURE ID`
+  - `ROUTE BASIS REVISION`
+  - `WRITE PLAN`
+  - `POST-CAPTURE STATE UPDATES`
+  - `NEXT SAFE ACTION`
+- apply success must render in one stable order:
+  - `OUTCOME: CAPTURED`
+  - `PIPELINE`
+  - `STAGE`
+  - `WRITTEN FILES`
+  - `STATE UPDATES`
+  - `NEXT SAFE ACTION`
+- refusal output must stay aligned with the reviewed CLI refusal posture:
+  - `OUTCOME: REFUSED`
+  - `PIPELINE`
+  - `STAGE`
+  - `REASON`
+  - `NEXT SAFE ACTION`
+
+Implementation checklist:
+
+1. Lock the compiler-owned capture boundary.
+   - Add one new compiler-owned module, `crates/compiler/src/pipeline_capture.rs`.
+   - Keep CLI glue thin; `crates/cli` parses args and prints renderers, but does not parse FILE blocks or build write plans itself.
+   - Reuse the compile-facing selected-stage freshness gate from `pipeline_compile.rs` rather than duplicating route-basis logic in CLI code.
+2. Lock the typed capture model now.
+   - Public compiler-owned names for M3:
+     - `PipelineCaptureRequest`
+     - `PipelineCapturePlan`
+     - `PipelineCapturePreview`
+     - `PipelineCaptureCacheEntry`
+     - `PipelineCaptureApplyResult`
+     - `PipelineCaptureRefusal`
+   - `PipelineCapturePlan` must carry:
+     - target pipeline/stage identity
+     - accepted route-basis summary
+     - normalized artifact contents in declared-output order
+     - derived repo-mirror writes in declared-output order
+     - deterministic post-capture state updates
+     - the stable `capture_id`
+   - `PipelineCapturePreview` and apply success output must both render from that same typed plan so preview/apply cannot drift semantically.
+3. Define the input-parsing rules.
+   - Single-artifact stages:
+     - accept plain stdin body only
+     - normalize LF newlines and one trailing newline
+     - refuse `--- FILE:` wrappers for the supported single-file wedge
+   - Multi-artifact stages:
+     - require exact `--- FILE: <path> ---` wrappers
+     - require every declared artifact output exactly once
+     - refuse duplicate declared blocks
+     - refuse undeclared blocks instead of silently ignoring them
+   - Declared artifact order from stage front matter becomes the canonical render/apply order, regardless of the order in which blocks were pasted.
+4. Define the repo-file rules for the M3 wedge.
+   - In M3, repo files are compiler-owned mirrors, not independently authored stdin blocks.
+   - Single-file stage rule:
+     - write the sole artifact output
+     - mirror the same normalized content into any declared repo-file target
+   - Multi-file stage rule:
+     - repo mirror targets may be satisfied only by one exact basename match among the declared artifact outputs that were materialized in the same plan
+     - if zero or multiple basename matches exist for a required repo-file target, refuse
+   - This keeps `M3` narrow and covers the actual proof stages:
+     - `CHARTER.md`
+     - `ENVIRONMENT_INVENTORY.md`
+   - Direct repo-file authorship from stdin is deferred until a later milestone proves a real need.
+5. Define preview cache behavior.
+   - Store runtime-only cached previews under `.system/state/pipeline/capture/<capture-id>.yaml`.
+   - The cache entry must include:
+     - pipeline id
+     - stage id
+     - accepted route-basis revision and freshness-critical fingerprints
+     - normalized artifact contents
+     - derived repo-mirror writes
+     - deterministic state updates
+   - `capture_id` should be deterministic from:
+     - pipeline id
+     - stage id
+     - accepted route-basis revision / fingerprints
+     - normalized capture contents
+   - Repeated preview of the same content over the same fresh basis may reuse the same `capture_id`.
+   - Successful `capture apply` deletes the cache entry.
+   - Refused or failed `capture apply` keeps the cache entry so the operator can retry after repair.
+   - M3 does not add cache GC, cache listing, or a `capture show` surface.
+6. Define the write protocol.
+   - Preview builds the full capture plan but performs no writes outside the runtime cache.
+   - Apply must:
+     - snapshot the pre-write state of every target path (missing or prior bytes)
+     - stage temp files for every target in the same parent directory as the final target
+     - fsync staged temp files
+     - commit writes in deterministic order:
+       - artifact outputs first
+       - repo mirrors second
+     - persist state updates only after every file write succeeds
+   - If any file commit fails after the first committed path:
+     - rollback already-committed files to their snapped prior state
+     - refuse loudly
+     - do not persist post-capture state
+   - If post-capture state persistence fails after file writes succeed:
+     - rollback file writes to the snapped prior state
+     - refuse loudly
+     - keep the cached preview entry
+   - Partial write success is not an acceptable steady state for the supported M3 path.
+7. Define freshness/refusal behavior.
+   - `pipeline capture` and `pipeline capture apply` must both require the same fresh persisted `route_basis` contract as `pipeline compile`.
+   - They must refuse:
+     - missing `route_basis`
+     - malformed `route_basis`
+     - stale `route_basis`
+     - stage not present in the persisted route snapshot
+     - inactive selected stage
+   - The recovery path remains:
+     - rerun `pipeline resolve`
+     - rerun `pipeline compile` if the operator wants payload proof
+     - rerun preview or direct capture after route truth is fresh again
+8. Define deterministic post-capture state updates.
+   - Auto-persist only deterministic facts:
+     - `refs.charter_ref`
+     - `refs.project_context_ref`
+     - `routing.charter_gaps_detected` when the charter output contains the existing unknown-marker heuristic
+   - Do not prompt on TTY inside the Rust writer flow.
+   - Do not auto-persist `needs_project_context`.
+   - When the captured stage declares `sets:` values that still require human judgment:
+     - print a next-safe-action command in the form
+       - `system pipeline state set --id <pipeline-id> --var needs_project_context=<true|false>`
+9. Lock the CLI/help/docs surface for M3.
+   - CLI file budget:
+     - `crates/cli/src/main.rs`
+     - `crates/cli/tests/cli_surface.rs`
+     - `crates/cli/tests/help_drift_guard.rs`
+     - `crates/cli/tests/pipeline_proof_corpus_support.rs`
+     - snapshots:
+       - `system-help.txt`
+       - `system-pipeline-help.txt`
+       - `system-pipeline-capture-help.txt`
+       - `system-pipeline-capture-apply-help.txt`
+   - Docs/help budget:
+     - `README.md`
+     - `docs/START_HERE.md`
+     - `docs/README.md`
+     - `docs/SUPPORTED_COMMANDS.md`
+     - `docs/CLI_PRODUCT_VOCABULARY.md`
+     - `docs/CLI_OUTPUT_ANATOMY.md`
+     - `docs/CLI_COMMAND_HIERARCHY.md`
+     - `DESIGN.md`
+     - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
+     - `docs/contracts/pipeline-route-and-state-core.md`
+     - add one capture-specific contract that locks preview/apply semantics, cache posture, mirror rules, and rollback guarantees
+10. Lock the proof corpus and tests before calling M3 done.
+   - Add `crates/compiler/tests/pipeline_capture.rs`.
+   - Extend `crates/compiler/tests/pipeline_state_store.rs` for capture-state interactions when needed.
+   - Extend CLI surface/help tests rather than creating a second ad hoc CLI harness.
+   - Reuse the shared proof corpus at `tests/fixtures/pipeline_proof_corpus/foundation_inputs/`; do not create a second corpus tree for capture.
+   - Add committed goldens under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/`:
+     - `capture.preview.stage_05_charter_synthesize.txt`
+     - `capture.preview.stage_07_foundation_pack.txt`
+     - `capture.apply.stage_05_charter_synthesize.txt`
+     - `capture.apply.stage_07_foundation_pack.txt`
+     - `capture.refused.single_file_with_file_wrapper.txt`
+     - `capture.refused.missing_declared_block.txt`
+     - `capture.refused.duplicate_declared_block.txt`
+     - `capture.refused.undeclared_block.txt`
+     - `capture.refused.stale_route_basis.txt`
+     - `capture.refused.inactive_stage.txt`
+     - `capture.refused.missing_capture_id.txt`
+   - Mandatory compiler tests:
+     - `capture_preview_charter_synthesize_builds_single_file_plan`
+     - `capture_preview_foundation_pack_builds_multi_file_plan`
+     - `capture_preview_and_apply_share_one_typed_plan`
+     - `capture_refuses_single_file_with_file_wrapper`
+     - `capture_refuses_missing_declared_block`
+     - `capture_refuses_duplicate_declared_block`
+     - `capture_refuses_undeclared_block`
+     - `capture_refuses_stale_route_basis`
+     - `capture_refuses_inactive_stage`
+     - `capture_apply_writes_charter_artifact_and_repo_mirror`
+     - `capture_apply_writes_foundation_pack_and_repo_mirror_fallback`
+     - `capture_apply_rolls_back_written_files_when_state_persistence_fails`
+     - `capture_apply_keeps_cached_preview_on_refusal`
+   - Mandatory CLI tests:
+     - `pipeline_capture_preview_charter_matches_shared_golden`
+     - `pipeline_capture_preview_foundation_pack_matches_shared_golden`
+     - `pipeline_capture_apply_charter_matches_shared_golden`
+     - `pipeline_capture_apply_foundation_pack_matches_shared_golden`
+     - `pipeline_capture_apply_refuses_missing_capture_id`
+     - `pipeline_capture_help_matches_snapshot`
+     - `pipeline_capture_apply_help_matches_snapshot`
+
+CODE PATH COVERAGE
+===========================
+[+] crates/compiler/src/pipeline_capture.rs
+    │
+    ├── parse single-file stdin
+    │   ├── [GAP] exact body accepted
+    │   └── [GAP] FILE wrapper refused
+    │
+    ├── parse multi-file stdin
+    │   ├── [GAP] all declared blocks present
+    │   ├── [GAP] missing declared block refused
+    │   ├── [GAP] duplicate block refused
+    │   └── [GAP] undeclared block refused
+    │
+    ├── build capture plan
+    │   ├── [GAP] single-file repo mirror derived
+    │   ├── [GAP] multi-file basename mirror derived
+    │   └── [GAP] ambiguous/missing repo mirror refused
+    │
+    ├── preview cache
+    │   ├── [GAP] preview writes runtime cache entry
+    │   └── [GAP] apply reuses cache entry by capture_id
+    │
+    └── apply path
+        ├── [GAP] fresh route basis required
+        ├── [GAP] inactive stage refused
+        ├── [GAP] writes committed in deterministic order
+        ├── [GAP] rollback on file-write failure
+        └── [GAP] rollback on state-persist failure
+
+USER FLOW COVERAGE
+===========================
+[+] Operator preview flow
+    │
+    ├── [GAP] [→CLI] preview one charter capture and receive a capture_id
+    └── [GAP] [→CLI] preview one foundation-pack capture and inspect the write plan
+
+[+] Operator apply flow
+    │
+    ├── [GAP] [→CLI] direct-apply single-file charter capture from stdin
+    ├── [GAP] [→CLI] preview once, then apply by capture_id without re-pasting stdin
+    └── [GAP] [→CLI] stale cached preview refuses after route-state mutation
+
+─────────────────────────────────
+COVERAGE: 0/17 paths tested today for M3
+  Code paths: 0/12
+  User flows: 0/5
+QUALITY: ★★★: 0  ★★: 0  ★: 0
+GAPS: 17 paths need tests
+─────────────────────────────────
+
+Failure modes that M3 must name explicitly:
+
+| Codepath | Real failure mode | Test required | Error handling required | User-visible posture |
+| --- | --- | --- | --- | --- |
+| single-file capture | model emits FILE wrapper for a single-file stage | yes | yes | explicit refusal |
+| multi-file capture | one declared artifact block is missing | yes | yes | explicit refusal |
+| multi-file capture | model emits an extra undeclared block | yes | yes | explicit refusal |
+| repo mirror derivation | required repo mirror cannot be derived from artifacts | yes | yes | explicit refusal |
+| preview/apply cache | cached preview exists but route basis is stale by apply time | yes | yes | explicit refusal with rerun resolve |
+| file commit | one target rename fails after another already committed | yes | yes | rollback + refusal |
+| state persistence | file writes succeed but runtime-state persistence fails | yes | yes | rollback + refusal |
+
+Any failure mode above that silently succeeds is a release blocker for M3.
+
+Lane split and merge gates:
+
+| Lane | Scope | Modules / directories | Depends on |
+| --- | --- | --- | --- |
+| A | compiler capture core, cache entry, mirror rules, rollback semantics | `crates/compiler/src`, `docs/contracts/`, `.system/state/` runtime-shape docs | — |
+| B | CLI surface, help, operator wording | `crates/cli/`, `README.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/CLI_*`, `DESIGN.md` | A command/result shapes |
+| C | proof corpus, goldens, compiler + CLI tests | `tests/fixtures/pipeline_proof_corpus/`, `crates/compiler/tests/`, `crates/cli/tests/` | A core semantics, B wording for final snapshots |
+
+Execution order:
+
+- Start Lane A first because preview/apply truth, cache posture, and rollback semantics must settle before goldens freeze.
+- Lane C can prepare fixture updates and helper support in parallel with Lane A, but final goldens wait on the Lane A typed plan and Lane B wording.
+- Lane B may wire Clap shapes early, but final help/docs lock only after Lane A and Lane C settle the shipped semantics.
+
+NOT in scope for M3:
+
+- whole-flow `foundation_inputs` replacement, which remains `M4`
+- feature-spec output materialization
+- generic repo-file authorship from stdin when no artifact mirror exists
+- `pipeline run` or any compile-and-capture mega-command
+- cache listing, cache GC, or a `pipeline capture show` surface
+- packet generation or packet proof changes
 
 ### M4. End-to-End Foundation Flow
 
@@ -1051,9 +1460,9 @@ Stay on the wedge until the operator pain is materially reduced.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 4 proposals, 1 accepted, 2 deferred |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | CLEAR | 29 issues, 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 4 | CLEAR | 8 issues, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
 **UNRESOLVED:** 0
 
-**VERDICT:** CEO + ENG CLEARED — ready to implement.
+**VERDICT:** ENG CLEARED — M3 spec is ready to implement.
