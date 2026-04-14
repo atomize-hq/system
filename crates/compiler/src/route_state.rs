@@ -23,6 +23,7 @@ const FIELD_REFS_CHARTER_REF: &str = "refs.charter_ref";
 const FIELD_REFS_PROJECT_CONTEXT_REF: &str = "refs.project_context_ref";
 const FIELD_RUN_RUNNER: &str = "run.runner";
 const FIELD_RUN_PROFILE: &str = "run.profile";
+const PROFILE_PACK_REQUIRED_FILES: [&str; 3] = ["profile.yaml", "commands.yaml", "conventions.md"];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -147,7 +148,13 @@ pub struct RouteStateRun {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct RouteStateRunInventory {
     runners: BTreeSet<String>,
-    profiles: BTreeSet<String>,
+    profiles: ProfilePackInventory,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct ProfilePackInventory {
+    complete_ids: BTreeSet<String>,
+    incomplete_ids: BTreeMap<String, Vec<&'static str>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -277,6 +284,11 @@ pub enum RouteBasisBuildError {
     },
     MissingSelectedProfile {
         pipeline_id: String,
+    },
+    IncompleteSelectedProfilePack {
+        pipeline_id: String,
+        profile_id: String,
+        missing_files: Vec<&'static str>,
     },
     InvalidRouteSnapshot {
         pipeline_id: String,
@@ -503,6 +515,22 @@ pub fn build_route_basis(
     if selected_profile_id.trim().is_empty() {
         return Err(RouteBasisBuildError::MissingSelectedProfile {
             pipeline_id: pipeline.header.id.clone(),
+        });
+    }
+    let profile_inventory =
+        load_profile_inventory(repo_root).map_err(|err| RouteBasisBuildError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    if let Some(missing_files) = profile_inventory
+        .incomplete_ids
+        .get(&selected_profile_id)
+        .cloned()
+    {
+        return Err(RouteBasisBuildError::IncompleteSelectedProfilePack {
+            pipeline_id: pipeline.header.id.clone(),
+            profile_id: selected_profile_id.clone(),
+            missing_files,
         });
     }
 
@@ -960,13 +988,10 @@ fn validate_mutation(
             validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)
                 .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
         }
-        RouteStateMutation::RunProfile { value } => validate_inventory_value(
-            value,
-            FIELD_RUN_PROFILE,
-            "profiles/",
-            &run_inventory.profiles,
-        )
-        .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?,
+        RouteStateMutation::RunProfile { value } => {
+            validate_profile_inventory_value(value, FIELD_RUN_PROFILE, &run_inventory.profiles)
+                .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
+        }
     }
 
     Ok(())
@@ -1019,10 +1044,9 @@ fn validate_audit_entries(
                             "runners/",
                             &run_inventory.runners,
                         )?,
-                        RouteStateFieldPath::RunProfile => validate_inventory_value(
+                        RouteStateFieldPath::RunProfile => validate_profile_inventory_value(
                             value,
                             &entry.field_path,
-                            "profiles/",
                             &run_inventory.profiles,
                         )?,
                         _ => unreachable!("run field match already constrained"),
@@ -1062,12 +1086,7 @@ fn validate_run(run: &RouteStateRun, run_inventory: &RouteStateRunInventory) -> 
         validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)?;
     }
     if let Some(value) = &run.profile {
-        validate_inventory_value(
-            value,
-            FIELD_RUN_PROFILE,
-            "profiles/",
-            &run_inventory.profiles,
-        )?;
+        validate_profile_inventory_value(value, FIELD_RUN_PROFILE, &run_inventory.profiles)?;
     }
     if let Some(value) = &run.repo_root {
         validate_repo_root(value)?;
@@ -1175,10 +1194,9 @@ fn validate_route_basis(
             reason: format!("route_basis runner.file_sha256 is invalid: {reason}"),
         }
     })?;
-    validate_inventory_value(
+    validate_profile_inventory_value(
         &route_basis.profile.id,
         "route_basis.profile.id",
-        "profiles/",
         &run_inventory.profiles,
     )
     .map_err(|reason| RouteStateReadError::MalformedState {
@@ -1267,6 +1285,50 @@ fn validate_inventory_value(
     Err(format!(
         "{field_path} `{value}` is not declared under `{inventory_root}`"
     ))
+}
+
+fn validate_profile_inventory_value(
+    value: &str,
+    field_path: &str,
+    profiles: &ProfilePackInventory,
+) -> Result<(), String> {
+    validate_non_empty_string(value)?;
+    if profiles.complete_ids.contains(value) {
+        return Ok(());
+    }
+
+    if let Some(missing_files) = profiles.incomplete_ids.get(value) {
+        return Err(format_incomplete_profile_pack_reason(
+            field_path,
+            value,
+            missing_files,
+        ));
+    }
+
+    Err(format!(
+        "{field_path} `{value}` is not declared under `profiles/`"
+    ))
+}
+
+fn format_incomplete_profile_pack_reason(
+    field_path: &str,
+    profile_id: &str,
+    missing_files: &[&'static str],
+) -> String {
+    format!(
+        "{field_path} `{profile_id}` points to incomplete profile pack `profiles/{profile_id}/`: missing {}",
+        missing_files.join(", ")
+    )
+}
+
+fn format_selected_profile_pack_incomplete_reason(
+    profile_id: &str,
+    missing_files: &[&'static str],
+) -> String {
+    format!(
+        "selected profile pack `profiles/{profile_id}/` is incomplete: missing {}",
+        missing_files.join(", ")
+    )
 }
 
 fn validate_repo_relative_ref(value: &str) -> Result<(), String> {
@@ -1452,11 +1514,13 @@ fn load_runner_inventory(
 
 fn load_profile_inventory(
     repo_root: &Path,
-) -> Result<BTreeSet<String>, RouteStateInventoryLoadError> {
+) -> Result<ProfilePackInventory, RouteStateInventoryLoadError> {
     let inventory_dir = repo_root.join("profiles");
     let entries = match fs::read_dir(&inventory_dir) {
         Ok(entries) => entries,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ProfilePackInventory::default());
+        }
         Err(source) => {
             return Err(RouteStateInventoryLoadError {
                 path: inventory_dir,
@@ -1465,7 +1529,7 @@ fn load_profile_inventory(
         }
     };
 
-    let mut ids = BTreeSet::new();
+    let mut profiles = ProfilePackInventory::default();
     for entry in entries {
         let entry = entry.map_err(|source| RouteStateInventoryLoadError {
             path: inventory_dir.clone(),
@@ -1504,10 +1568,39 @@ fn load_profile_inventory(
             continue;
         }
 
-        ids.insert(id);
+        let missing_files = missing_profile_pack_files(&entry_path).map_err(|source| {
+            RouteStateInventoryLoadError {
+                path: entry_path.clone(),
+                source,
+            }
+        })?;
+        if missing_files.is_empty() {
+            profiles.complete_ids.insert(id);
+        } else {
+            profiles.incomplete_ids.insert(id, missing_files);
+        }
     }
 
-    Ok(ids)
+    Ok(profiles)
+}
+
+fn missing_profile_pack_files(path: &Path) -> Result<Vec<&'static str>, std::io::Error> {
+    let mut missing_files = Vec::new();
+    for required_file in PROFILE_PACK_REQUIRED_FILES {
+        let metadata = match fs::symlink_metadata(path.join(required_file)) {
+            Ok(metadata) => metadata,
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                missing_files.push(required_file);
+                continue;
+            }
+            Err(source) => return Err(source),
+        };
+        if !metadata.is_file() {
+            missing_files.push(required_file);
+        }
+    }
+
+    Ok(missing_files)
 }
 
 fn is_inventory_id(value: &str) -> bool {
@@ -1960,6 +2053,15 @@ impl fmt::Display for RouteBasisBuildError {
                 f,
                 "cannot build route_basis for `{pipeline_id}` without a selected profile"
             ),
+            RouteBasisBuildError::IncompleteSelectedProfilePack {
+                pipeline_id,
+                profile_id,
+                missing_files,
+            } => write!(
+                f,
+                "cannot build route_basis for `{pipeline_id}` because {}",
+                format_selected_profile_pack_incomplete_reason(profile_id, missing_files)
+            ),
             RouteBasisBuildError::InvalidRouteSnapshot {
                 pipeline_id,
                 stage_id,
@@ -1986,6 +2088,7 @@ impl std::error::Error for RouteBasisBuildError {
             RouteBasisBuildError::ReadFailure { source, .. } => Some(source),
             RouteBasisBuildError::MissingSelectedRunner { .. }
             | RouteBasisBuildError::MissingSelectedProfile { .. }
+            | RouteBasisBuildError::IncompleteSelectedProfilePack { .. }
             | RouteBasisBuildError::InvalidRouteSnapshot { .. }
             | RouteBasisBuildError::InvalidPath { .. } => None,
         }

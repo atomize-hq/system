@@ -244,6 +244,26 @@ fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, root)
 }
 
+fn write_incomplete_profile_pack(root: &std::path::Path, profile_id: &str) {
+    write_file(
+        &root.join(format!("profiles/{profile_id}/profile.yaml")),
+        format!("kind: profile\nid: {profile_id}\n").as_bytes(),
+    );
+}
+
+fn set_foundation_inputs_default_profile(root: &std::path::Path, profile_id: &str) {
+    let pipeline_path = root.join("pipelines/foundation_inputs.yaml");
+    let contents = std::fs::read_to_string(&pipeline_path).expect("read foundation pipeline");
+    std::fs::write(
+        &pipeline_path,
+        contents.replace(
+            "defaults:\n  runner: codex-cli\n  profile: python-uv\n",
+            &format!("defaults:\n  runner: codex-cli\n  profile: {profile_id}\n"),
+        ),
+    )
+    .expect("write foundation pipeline");
+}
+
 fn prepare_foundation_inputs_compile_ready_route_basis(root: &std::path::Path) {
     for args in [
         vec![
@@ -650,6 +670,35 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
         root.as_path(),
         None,
         "resolve.after_full_activation.txt",
+    );
+}
+
+#[test]
+fn pipeline_resolve_refuses_incomplete_default_profile_pack() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    write_incomplete_profile_pack(root.as_path(), "incomplete");
+    set_foundation_inputs_default_profile(root.as_path(), "incomplete");
+
+    let output = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        !output.status.success(),
+        "pipeline resolve should refuse incomplete default profile pack"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: route basis build error:"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("profiles/incomplete/"), "{stdout}");
+    assert!(stdout.contains("commands.yaml"), "{stdout}");
+    assert!(stdout.contains("conventions.md"), "{stdout}");
+    assert!(
+        !stdout.contains("failed to read route_basis input"),
+        "{stdout}"
     );
 }
 
@@ -1322,6 +1371,39 @@ fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
         invalid_value_stdout.trim_end(),
         "REFUSED: route state mutation error: route state mutation is invalid: repo-relative ref `/tmp/CHARTER.md` must not be absolute"
     );
+}
+
+#[test]
+fn pipeline_state_set_field_rejects_incomplete_profile_pack() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    write_incomplete_profile_pack(root.as_path(), "incomplete");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.profile=incomplete",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "incomplete profile pack should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: route state mutation error:"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run.profile `incomplete`"), "{stdout}");
+    assert!(stdout.contains("profiles/incomplete/"), "{stdout}");
+    assert!(stdout.contains("commands.yaml"), "{stdout}");
+    assert!(stdout.contains("conventions.md"), "{stdout}");
 }
 
 #[test]

@@ -23,13 +23,32 @@ fn write_file(path: &Path, contents: &str) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn seed_complete_profile_pack(repo_root: &Path, profile_id: &str) {
+    write_file(
+        &repo_root.join(format!("profiles/{profile_id}/profile.yaml")),
+        &format!("kind: profile\nid: {profile_id}\n"),
+    );
+    write_file(
+        &repo_root.join(format!("profiles/{profile_id}/commands.yaml")),
+        "commands: []\n",
+    );
+    write_file(
+        &repo_root.join(format!("profiles/{profile_id}/conventions.md")),
+        "# conventions\n",
+    );
+}
+
+fn seed_incomplete_profile_pack(repo_root: &Path, profile_id: &str) {
+    write_file(
+        &repo_root.join(format!("profiles/{profile_id}/profile.yaml")),
+        &format!("kind: profile\nid: {profile_id}\n"),
+    );
+}
+
 fn seed_run_inventory(repo_root: &Path) {
     write_file(&repo_root.join("runners/codex-cli.md"), "# runner");
     write_file(&repo_root.join("runners/*.md"), "# ignored noise");
-    write_file(
-        &repo_root.join("profiles/python-uv/profile.yaml"),
-        "kind: profile\nid: python-uv\n",
-    );
+    seed_complete_profile_pack(repo_root, "python-uv");
     write_file(
         &repo_root.join("profiles/_template/profile.yaml"),
         "kind: profile\nid: _template\n",
@@ -270,6 +289,51 @@ fn build_route_basis_refuses_symlinked_runner_file() {
         other => panic!("expected read failure, got {other:?}"),
     }
     assert!(!err.to_string().contains("outside-secret"));
+}
+
+#[test]
+fn build_route_basis_refuses_incomplete_default_profile_pack() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    seed_incomplete_profile_pack(&repo_root, "incomplete");
+
+    let pipeline_path = repo_root.join("pipelines/foundation_inputs.yaml");
+    let pipeline_contents = std::fs::read_to_string(&pipeline_path).expect("read pipeline");
+    std::fs::write(
+        &pipeline_path,
+        pipeline_contents.replace("profile: python-uv", "profile: incomplete"),
+    )
+    .expect("write pipeline");
+
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+
+    let err = build_route_basis(&repo_root, &definition, &state, &route).expect_err("basis error");
+
+    match &err {
+        system_compiler::RouteBasisBuildError::IncompleteSelectedProfilePack {
+            profile_id,
+            missing_files,
+            ..
+        } => {
+            assert_eq!(profile_id, "incomplete");
+            assert_eq!(missing_files, &vec!["commands.yaml", "conventions.md"]);
+        }
+        other => panic!("expected incomplete selected profile pack error, got {other:?}"),
+    }
+    assert!(err.to_string().contains("profiles/incomplete/"));
+    assert!(!err.to_string().contains("failed to read route_basis input"));
 }
 
 #[test]
@@ -647,6 +711,52 @@ fn malformed_route_basis_is_distinct_from_malformed_route_state() {
 }
 
 #[test]
+fn persisted_route_basis_refuses_incomplete_profile_pack_on_reload() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+    let route_basis = build_route_basis(&repo_root, &definition, &state, &route).expect("basis");
+
+    let outcome =
+        persist_route_basis(&repo_root, &definition.header.id, route_basis).expect("persist");
+    match outcome {
+        RouteBasisPersistOutcome::Applied(_) => {}
+        other => panic!("expected route basis persist to apply, got {other:?}"),
+    }
+
+    std::fs::remove_file(repo_root.join("profiles/python-uv/commands.yaml"))
+        .expect("remove commands.yaml");
+
+    let err = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect_err("reloading state should refuse");
+
+    match err {
+        RouteStateReadError::MalformedState { reason, .. } => {
+            assert!(reason.contains("route_basis"), "{reason}");
+            assert!(reason.contains("profiles/python-uv/"), "{reason}");
+            assert!(reason.contains("commands.yaml"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn load_with_supported_variables_refuses_unsupported_persisted_routing_variables() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -794,6 +904,36 @@ fn invalid_profile_value_is_rejected_before_write() {
 }
 
 #[test]
+fn incomplete_profile_pack_is_rejected_before_write() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    seed_run_inventory(repo_root);
+    seed_incomplete_profile_pack(repo_root, "incomplete");
+
+    let err = set_route_state(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context"],
+        RouteStateMutation::RunProfile {
+            value: "incomplete".to_string(),
+        },
+        0,
+    )
+    .expect_err("invalid mutation");
+
+    match err {
+        RouteStateStoreError::InvalidMutation { reason } => {
+            assert!(reason.contains("run.profile"), "{reason}");
+            assert!(reason.contains("profiles/incomplete/"), "{reason}");
+            assert!(reason.contains("commands.yaml"), "{reason}");
+            assert!(reason.contains("conventions.md"), "{reason}");
+        }
+        other => panic!("expected invalid mutation error, got {other:?}"),
+    }
+}
+
+#[test]
 fn revision_conflict_refuses_without_overwrite() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -934,6 +1074,43 @@ audit:
             assert!(reason.contains("run.runner"), "{reason}");
             assert!(reason.contains("not-a-runner"), "{reason}");
             assert!(reason.contains("runners/"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_state_refuses_incomplete_run_profile_pack() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let path = state_path(repo_root, pipeline_id);
+    seed_run_inventory(repo_root);
+    seed_incomplete_profile_pack(repo_root, "incomplete");
+    write_file(
+        &path,
+        r#"---
+schema_version: m1-pipeline-state-v2
+pipeline_id: pipeline.route_state
+revision: 1
+routing: {}
+refs: {}
+run:
+  profile: incomplete
+audit:
+  - revision: 1
+    field_path: run.profile
+    value: incomplete
+"#,
+    );
+
+    let err = load_route_state(repo_root, pipeline_id).expect_err("malformed state");
+    match err {
+        RouteStateReadError::MalformedState { reason, .. } => {
+            assert!(reason.contains("run.profile"), "{reason}");
+            assert!(reason.contains("profiles/incomplete/"), "{reason}");
+            assert!(reason.contains("commands.yaml"), "{reason}");
+            assert!(reason.contains("conventions.md"), "{reason}");
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
     }
