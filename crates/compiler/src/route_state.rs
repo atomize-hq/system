@@ -2,8 +2,8 @@ use crate::pipeline::{load_pipeline_definition, PipelineDefinition};
 use crate::pipeline_route::{
     ResolvedPipelineRoute, RouteStageReason, RouteStageStatus, RouteVariables,
 };
+use crate::repo_file_access::{sha256_repo_relative_file, RepoRelativeFileAccessError};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
@@ -1382,22 +1382,30 @@ fn fingerprint_repo_relative_file(
     repo_root: &Path,
     relative_path: &str,
 ) -> Result<String, RouteBasisBuildError> {
-    validate_repo_relative_ref(relative_path).map_err(|reason| {
-        RouteBasisBuildError::InvalidPath {
+    sha256_repo_relative_file(repo_root, relative_path).map_err(|err| match err {
+        RepoRelativeFileAccessError::InvalidPath(reason) => RouteBasisBuildError::InvalidPath {
             path: relative_path.to_string(),
             reason,
-        }
-    })?;
-
-    let path = repo_root.join(relative_path);
-    let contents =
-        read_file_no_follow(&path).map_err(|source| RouteBasisBuildError::ReadFailure {
+        },
+        RepoRelativeFileAccessError::Missing(path) => RouteBasisBuildError::ReadFailure {
+            path,
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        },
+        RepoRelativeFileAccessError::SymlinkNotAllowed(path)
+        | RepoRelativeFileAccessError::NotRegularFile(path) => RouteBasisBuildError::ReadFailure {
             path: path.clone(),
-            source,
-        })?;
-    let mut hasher = Sha256::new();
-    hasher.update(contents.as_bytes());
-    Ok(format!("{:x}", hasher.finalize()))
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "repo-relative file is not a regular non-symlink file: {}",
+                    path.display()
+                ),
+            ),
+        },
+        RepoRelativeFileAccessError::ReadFailure { path, source } => {
+            RouteBasisBuildError::ReadFailure { path, source }
+        }
+    })
 }
 
 fn trim_audit_history(audit: &mut Vec<RouteStateAuditEntry>) {

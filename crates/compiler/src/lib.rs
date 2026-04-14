@@ -11,6 +11,7 @@ pub mod pipeline_compile;
 pub mod pipeline_route;
 pub mod refusal;
 pub mod rendering;
+mod repo_file_access;
 pub mod resolver;
 pub mod route_state;
 

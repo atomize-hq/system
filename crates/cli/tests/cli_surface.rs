@@ -850,6 +850,49 @@ fn pipeline_compile_refuses_when_required_variable_is_missing() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn pipeline_compile_refuses_symlinked_required_artifact_input() {
+    use std::os::unix::fs::symlink;
+
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+
+    let outside_dir = tempfile::tempdir().expect("outside tempdir");
+    let outside_secret = outside_dir.path().join("system-review-secret.txt");
+    std::fs::write(&outside_secret, "outside-secret").expect("write secret");
+
+    let artifact = root.join("artifacts/base/BASE_CONTEXT.md");
+    std::fs::remove_file(&artifact).expect("remove artifact");
+    symlink(&outside_secret, &artifact).expect("symlink artifact");
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        !output.status.success(),
+        "symlinked required artifact should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"));
+    assert!(!stdout.contains("# stage.10_feature_spec"));
+    assert!(stdout.contains("artifacts/base/BASE_CONTEXT.md"));
+    assert!(!stdout.contains("outside-secret"));
+}
+
 #[test]
 fn pipeline_compile_refuses_missing_route_basis() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();

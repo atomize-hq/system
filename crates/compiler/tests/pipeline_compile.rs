@@ -256,6 +256,31 @@ fn compile_refuses_missing_required_artifact() {
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
 }
 
+#[cfg(unix)]
+#[test]
+fn compile_refuses_symlinked_required_artifact() {
+    use std::os::unix::fs::symlink;
+
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let outside_dir = tempfile::tempdir().expect("outside tempdir");
+    let outside_secret = outside_dir.path().join("system-review-secret.txt");
+    fs::write(&outside_secret, "outside-secret").expect("write secret");
+
+    let target = repo_root.join("artifacts/base/BASE_CONTEXT.md");
+    fs::remove_file(&target).expect("remove artifact");
+    symlink(&outside_secret, &target).expect("symlink artifact");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        system_compiler::PipelineCompileRefusalClassification::InvalidState
+    );
+    assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
+    assert!(!err.summary.contains("outside-secret"));
+}
+
 #[test]
 fn compile_refuses_when_required_variable_is_missing() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();

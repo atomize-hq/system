@@ -3,11 +3,13 @@ use crate::pipeline::{
     supported_route_state_variables, CompileStageDefinition, CompileStageInput,
     CompileStageLoadError, CompileStageVariable, PipelineCatalogEntry, PipelineDefinition,
 };
+use crate::repo_file_access::{
+    read_repo_relative_string, sha256_repo_relative_file, RepoRelativeFileAccessError,
+};
 use crate::route_state::{
     effective_route_basis_run, load_route_state_with_supported_variables, RouteBasis,
     RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateReadError,
 };
-use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
@@ -1094,12 +1096,27 @@ fn load_repo_relative_document(
     relative_path: &str,
     apply_scoping: bool,
 ) -> Result<String, DocumentLoadError> {
-    validate_repo_relative_path(relative_path).map_err(DocumentLoadError::InvalidPath)?;
-    let path = repo_root.join(relative_path);
-    let contents = std::fs::read_to_string(&path).map_err(|source| match source.kind() {
-        std::io::ErrorKind::NotFound => DocumentLoadError::Missing,
-        _ => DocumentLoadError::ReadFailure(path.clone(), source),
-    })?;
+    let contents =
+        read_repo_relative_string(repo_root, relative_path).map_err(|err| match err {
+            RepoRelativeFileAccessError::Missing(_) => DocumentLoadError::Missing,
+            RepoRelativeFileAccessError::InvalidPath(reason) => {
+                DocumentLoadError::InvalidPath(reason)
+            }
+            RepoRelativeFileAccessError::SymlinkNotAllowed(path)
+            | RepoRelativeFileAccessError::NotRegularFile(path) => DocumentLoadError::ReadFailure(
+                path.clone(),
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!(
+                        "repo-relative file is not a regular non-symlink file: {}",
+                        path.display()
+                    ),
+                ),
+            ),
+            RepoRelativeFileAccessError::ReadFailure { path, source } => {
+                DocumentLoadError::ReadFailure(path, source)
+            }
+        })?;
 
     let filtered = if apply_scoping {
         filter_scoped_blocks(&contents)
@@ -1113,36 +1130,27 @@ fn load_repo_relative_document(
     Ok(filtered)
 }
 
-fn validate_repo_relative_path(path: &str) -> Result<(), String> {
-    let trimmed = path.trim();
-    if trimmed.is_empty() {
-        return Err("path must not be empty".to_string());
-    }
-    let path = Path::new(trimmed);
-    if path.is_absolute() {
-        return Err("path must be repo-relative".to_string());
-    }
-    for component in path.components() {
-        match component {
-            Component::Normal(_) => {}
-            Component::CurDir => {}
-            Component::ParentDir => return Err("path must not escape the repo root".to_string()),
-            Component::RootDir | Component::Prefix(_) => {
-                return Err("path must be repo-relative".to_string())
-            }
-        }
-    }
-    Ok(())
-}
-
 fn fingerprint_repo_relative_file(repo_root: &Path, relative_path: &str) -> Result<String, String> {
-    validate_repo_relative_path(relative_path)?;
-    let path = repo_root.join(relative_path);
-    let contents = std::fs::read_to_string(&path)
-        .map_err(|source| format!("failed to read {}: {source}", path.display()))?;
-    let mut hasher = Sha256::new();
-    hasher.update(contents.as_bytes());
-    Ok(format!("{:x}", hasher.finalize()))
+    sha256_repo_relative_file(repo_root, relative_path).map_err(|err| match err {
+        RepoRelativeFileAccessError::Missing(path) => {
+            format!(
+                "failed to read {}: No such file or directory (os error 2)",
+                path.display()
+            )
+        }
+        RepoRelativeFileAccessError::InvalidPath(reason) => reason,
+        RepoRelativeFileAccessError::SymlinkNotAllowed(path) => format!(
+            "failed to read {}: repo-relative file is not a regular non-symlink file",
+            path.display()
+        ),
+        RepoRelativeFileAccessError::NotRegularFile(path) => format!(
+            "failed to read {}: repo-relative file is not a regular non-symlink file",
+            path.display()
+        ),
+        RepoRelativeFileAccessError::ReadFailure { path, source } => {
+            format!("failed to read {}: {source}", path.display())
+        }
+    })
 }
 
 fn substitute_variables(input: &str, values: &BTreeMap<String, String>) -> String {

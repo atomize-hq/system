@@ -192,6 +192,46 @@ fn route_basis_round_trips_when_written_by_resolve() {
     assert_eq!(reloaded_state.route_basis.as_ref(), Some(&route_basis));
 }
 
+#[cfg(unix)]
+#[test]
+fn build_route_basis_refuses_symlinked_runner_file() {
+    use std::os::unix::fs::symlink;
+
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+
+    let outside_dir = tempfile::tempdir().expect("outside tempdir");
+    let outside_secret = outside_dir.path().join("system-review-secret.txt");
+    write_file(&outside_secret, "outside-secret");
+
+    let runner_file = repo_root.join("runners/codex-cli.md");
+    std::fs::remove_file(&runner_file).expect("remove runner file");
+    symlink(&outside_secret, &runner_file).expect("symlink runner");
+
+    let err = build_route_basis(&repo_root, &definition, &state, &route).expect_err("basis error");
+
+    match &err {
+        system_compiler::RouteBasisBuildError::ReadFailure { path, .. } => {
+            assert_eq!(path, &runner_file);
+        }
+        other => panic!("expected read failure, got {other:?}"),
+    }
+    assert!(!err.to_string().contains("outside-secret"));
+}
+
 #[test]
 fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
