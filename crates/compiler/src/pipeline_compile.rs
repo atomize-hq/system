@@ -170,12 +170,20 @@ pub fn compile_pipeline_stage_with_runtime(
 
     let resolved_stage_id =
         resolve_stage_selector(&pipeline, stage_selector).map_err(|summary| {
+            let recovery = if pipeline.header.id == SUPPORTED_PIPELINE_ID
+                && stage_selector.trim() == SUPPORTED_STAGE_ID
+            {
+                "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline"
+                    .to_string()
+            } else {
+                "retry with the canonical stage id `stage.10_feature_spec`".to_string()
+            };
             PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::UnsupportedTarget,
                 summary,
                 pipeline_id: Some(pipeline.header.id.clone()),
                 stage_id: Some(stage_selector.trim().to_string()),
-                recovery: "retry with the canonical stage id `stage.10_feature_spec`".to_string(),
+                recovery,
             }
         })?;
 

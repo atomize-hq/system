@@ -3,4 +3,4 @@ PIPELINE: pipeline.foundation_inputs
 STAGE: stage.10_feature_spec
 REASON: unsupported_target: unknown stage selector `stage.10_feature_spec` for the selected pipeline
 BROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`
-NEXT SAFE ACTION: run `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`
+NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and confirm `stage.10_feature_spec` is declared in pipeline `pipeline.foundation_inputs` before retrying `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`

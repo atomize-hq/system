@@ -553,6 +553,10 @@ fn compile_refuses_stage_not_declared_in_pipeline() {
     );
     assert!(err.summary.contains("unknown stage selector"));
     assert!(err.summary.contains("stage.10_feature_spec"));
+    assert_eq!(
+        err.recovery,
+        "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline"
+    );
 }
 
 #[test]

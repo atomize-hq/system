@@ -798,7 +798,17 @@ fn render_pipeline_compile_next_safe_action(
 ) -> String {
     match refusal.classification {
         system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
-            "run `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`".to_string()
+            if refusal
+                .recovery
+                .trim()
+                .contains("confirm the selected stage is declared in the pipeline")
+            {
+                format!(
+                    "run `system pipeline resolve --id {pipeline_id}` and confirm `{stage_id}` is declared in pipeline `{pipeline_id}` before retrying `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+                )
+            } else {
+                refusal.recovery.trim().to_string()
+            }
         }
         system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
         | system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
