@@ -626,3 +626,35 @@ fn compile_refuses_malformed_route_basis() {
     assert!(err.summary.contains("route_basis"));
     assert!(err.recovery.contains("pipeline resolve"));
 }
+
+#[test]
+fn compile_refuses_forged_route_basis_status() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    persist_route_basis_for_current_state(&repo_root);
+
+    let state_path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let state = fs::read_to_string(&state_path).expect("state file");
+    let forged = state.replace(
+        "  - stage_id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n    status: blocked\n    reason:\n      kind: blocked_by_unresolved_stage\n      upstream_stage_id: stage.06_project_context_interview\n      upstream_status: next\n",
+        "  - stage_id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n    status: active\n    reason: null\n",
+    );
+    assert_ne!(
+        state, forged,
+        "route_basis fixture should be updated for the test"
+    );
+    fs::write(&state_path, forged).expect("write forged state");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+    );
+    pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
+        &err,
+        PIPELINE_ID,
+        STAGE_ID,
+        "compile.refused.malformed_route_basis_forged_status.txt",
+    );
+}

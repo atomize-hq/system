@@ -3,12 +3,11 @@ use crate::pipeline::{
     supported_route_state_variables, CompileStageDefinition, CompileStageInput,
     CompileStageLoadError, CompileStageVariable, PipelineDefinition, SelectedPipelineLoadError,
 };
-use crate::repo_file_access::{
-    read_repo_relative_string, sha256_repo_relative_file, RepoRelativeFileAccessError,
-};
+use crate::repo_file_access::{read_repo_relative_string, RepoRelativeFileAccessError};
 use crate::route_state::{
-    effective_route_basis_run, load_route_state_with_supported_variables, RouteBasis,
-    RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateReadError,
+    effective_route_basis_run, load_route_state_with_supported_variables,
+    rebuild_canonical_route_basis, route_basis_mismatch_reason, RouteBasis, RouteBasisStageReason,
+    RouteBasisStageStatus, RouteState, RouteStateReadError,
 };
 use std::collections::BTreeMap;
 use std::fmt;
@@ -213,7 +212,34 @@ pub fn compile_pipeline_stage_with_runtime(
             recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
         })?;
 
-    check_route_basis_freshness(repo_root, &pipeline, &state, &route_basis, &stage_id)?;
+    let canonical_route_basis = rebuild_canonical_route_basis(repo_root, &pipeline, &state)
+        .map_err(|reason| {
+            stale_basis_refusal(
+                &pipeline.header.id,
+                &stage_id,
+                format!("failed to rebuild canonical route_basis: {reason}"),
+            )
+        })?;
+    check_route_basis_freshness(
+        repo_root,
+        &pipeline,
+        &state,
+        &route_basis,
+        &canonical_route_basis,
+        &stage_id,
+    )?;
+    let route_basis =
+        if let Some(reason) = route_basis_mismatch_reason(&route_basis, &canonical_route_basis) {
+            return Err(PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::MalformedRouteBasis,
+                summary: format!("persisted route_basis is malformed: {reason}"),
+                pipeline_id: Some(pipeline.header.id.clone()),
+                stage_id: Some(stage_id.clone()),
+                recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
+            });
+        } else {
+            canonical_route_basis
+        };
 
     let basis_stage = route_basis
         .route
@@ -656,6 +682,7 @@ fn check_route_basis_freshness(
     pipeline: &PipelineDefinition,
     state: &RouteState,
     basis: &RouteBasis,
+    canonical_basis: &RouteBasis,
     stage_id: &str,
 ) -> Result<(), PipelineCompileRefusal> {
     if state.revision != basis.state_revision {
@@ -676,44 +703,14 @@ fn check_route_basis_freshness(
             "route_state routing/refs/run no longer match the persisted route_basis".to_string(),
         ));
     }
-    if fingerprint_repo_relative_file(repo_root, &pipeline.source_path.to_string_lossy())
-        .map_err(|detail| stale_basis_refusal(&pipeline.header.id, stage_id, detail))?
-        != basis.pipeline_file_sha256
-    {
+    if basis.pipeline_file_sha256 != canonical_basis.pipeline_file_sha256 {
         return Err(stale_basis_refusal(
             &pipeline.header.id,
             stage_id,
             "pipeline definition fingerprint drifted after the last `pipeline resolve`".to_string(),
         ));
     }
-
-    let stage_basis = basis
-        .route
-        .iter()
-        .find(|stage| stage.stage_id == stage_id)
-        .ok_or_else(|| {
-            stale_basis_refusal(
-                &pipeline.header.id,
-                stage_id,
-                "selected stage is missing from the persisted route_basis".to_string(),
-            )
-        })?;
-    let current_stage_sha = fingerprint_repo_relative_file(repo_root, &stage_basis.file)
-        .map_err(|detail| stale_basis_refusal(&pipeline.header.id, stage_id, detail))?;
-    if current_stage_sha != stage_basis.file_sha256 {
-        return Err(stale_basis_refusal(
-            &pipeline.header.id,
-            stage_id,
-            format!(
-                "stage file `{}` changed after the last `pipeline resolve`",
-                stage_basis.file
-            ),
-        ));
-    }
-
-    let current_runner_sha = fingerprint_repo_relative_file(repo_root, &basis.runner.file)
-        .map_err(|detail| stale_basis_refusal(&pipeline.header.id, stage_id, detail))?;
-    if current_runner_sha != basis.runner.file_sha256 {
+    if basis.runner.file_sha256 != canonical_basis.runner.file_sha256 {
         return Err(stale_basis_refusal(
             &pipeline.header.id,
             stage_id,
@@ -723,25 +720,33 @@ fn check_route_basis_freshness(
             ),
         ));
     }
-
-    let profile_yaml = format!("profiles/{}/profile.yaml", basis.profile.id);
-    let commands_yaml = format!("profiles/{}/commands.yaml", basis.profile.id);
-    let conventions_md = format!("profiles/{}/conventions.md", basis.profile.id);
-    if fingerprint_repo_relative_file(repo_root, &profile_yaml)
-        .map_err(|detail| stale_basis_refusal(&pipeline.header.id, stage_id, detail))?
-        != basis.profile.profile_yaml_sha256
-        || fingerprint_repo_relative_file(repo_root, &commands_yaml)
-            .map_err(|detail| stale_basis_refusal(&pipeline.header.id, stage_id, detail))?
-            != basis.profile.commands_yaml_sha256
-        || fingerprint_repo_relative_file(repo_root, &conventions_md)
-            .map_err(|detail| stale_basis_refusal(&pipeline.header.id, stage_id, detail))?
-            != basis.profile.conventions_md_sha256
+    if basis.profile.profile_yaml_sha256 != canonical_basis.profile.profile_yaml_sha256
+        || basis.profile.commands_yaml_sha256 != canonical_basis.profile.commands_yaml_sha256
+        || basis.profile.conventions_md_sha256 != canonical_basis.profile.conventions_md_sha256
     {
         return Err(stale_basis_refusal(
             &pipeline.header.id,
             stage_id,
             "selected profile pack changed after the last `pipeline resolve`".to_string(),
         ));
+    }
+
+    if basis.route.len() == canonical_basis.route.len() {
+        for (basis_stage, canonical_stage) in basis.route.iter().zip(canonical_basis.route.iter()) {
+            if basis_stage.stage_id == canonical_stage.stage_id
+                && basis_stage.file == canonical_stage.file
+                && basis_stage.file_sha256 != canonical_stage.file_sha256
+            {
+                return Err(stale_basis_refusal(
+                    &pipeline.header.id,
+                    stage_id,
+                    format!(
+                        "stage file `{}` changed after the last `pipeline resolve`",
+                        basis_stage.file
+                    ),
+                ));
+            }
+        }
     }
 
     Ok(())
@@ -1131,29 +1136,6 @@ fn load_repo_relative_document(
     }
 
     Ok(filtered)
-}
-
-fn fingerprint_repo_relative_file(repo_root: &Path, relative_path: &str) -> Result<String, String> {
-    sha256_repo_relative_file(repo_root, relative_path).map_err(|err| match err {
-        RepoRelativeFileAccessError::Missing(path) => {
-            format!(
-                "failed to read {}: No such file or directory (os error 2)",
-                path.display()
-            )
-        }
-        RepoRelativeFileAccessError::InvalidPath(reason) => reason,
-        RepoRelativeFileAccessError::SymlinkNotAllowed(path) => format!(
-            "failed to read {}: repo-relative file is not a regular non-symlink file",
-            path.display()
-        ),
-        RepoRelativeFileAccessError::NotRegularFile(path) => format!(
-            "failed to read {}: repo-relative file is not a regular non-symlink file",
-            path.display()
-        ),
-        RepoRelativeFileAccessError::ReadFailure { path, source } => {
-            format!("failed to read {}: {source}", path.display())
-        }
-    })
 }
 
 fn substitute_variables(input: &str, values: &BTreeMap<String, String>) -> String {

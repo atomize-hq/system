@@ -1,0 +1,6 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+REASON: malformed_route_basis: persisted route_basis is malformed: route_basis stage `stage.10_feature_spec` status `active` does not match canonical `blocked`
+BROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`
+NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`

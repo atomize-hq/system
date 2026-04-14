@@ -1076,6 +1076,54 @@ fn pipeline_compile_refuses_malformed_route_basis() {
 }
 
 #[test]
+fn pipeline_compile_refuses_forged_route_basis_status() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "pipeline resolve should succeed");
+
+    let state_path = root
+        .join(".system")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.foundation_inputs.yaml");
+    let state = std::fs::read_to_string(&state_path).expect("state file");
+    let forged = state.replace(
+        "  - stage_id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n    status: blocked\n    reason:\n      kind: blocked_by_unresolved_stage\n      upstream_stage_id: stage.06_project_context_interview\n      upstream_status: next\n",
+        "  - stage_id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n    status: active\n    reason: null\n",
+    );
+    assert_ne!(
+        state, forged,
+        "route_basis fixture should be updated for the test"
+    );
+    std::fs::write(&state_path, forged).expect("write forged state");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(!output.status.success(), "forged route basis should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.malformed_route_basis_forged_status.txt",
+    );
+}
+
+#[test]
 fn pipeline_compile_refuses_stage_not_in_pipeline() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_compile_ready_route_basis(root.as_path());

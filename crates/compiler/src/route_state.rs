@@ -1,6 +1,7 @@
-use crate::pipeline::{load_pipeline_definition, PipelineDefinition};
+use crate::pipeline::{load_selected_pipeline_definition, PipelineDefinition};
 use crate::pipeline_route::{
-    ResolvedPipelineRoute, RouteStageReason, RouteStageStatus, RouteVariables,
+    resolve_pipeline_route, ResolvedPipelineRoute, RouteStageReason, RouteStageStatus,
+    RouteVariables,
 };
 use crate::repo_file_access::{sha256_repo_relative_file, RepoRelativeFileAccessError};
 use serde::{Deserialize, Serialize};
@@ -564,6 +565,155 @@ pub fn build_route_basis(
     })
 }
 
+pub(crate) fn rebuild_canonical_route_basis(
+    repo_root: impl AsRef<Path>,
+    pipeline: &PipelineDefinition,
+    state: &RouteState,
+) -> Result<RouteBasis, String> {
+    let repo_root = repo_root.as_ref();
+    let route_variables =
+        RouteVariables::new(state.routing.clone()).map_err(|err| err.to_string())?;
+    let route =
+        resolve_pipeline_route(pipeline, &route_variables).map_err(|err| err.to_string())?;
+    build_route_basis(repo_root, pipeline, state, &route).map_err(|err| err.to_string())
+}
+
+pub(crate) fn route_basis_mismatch_reason(
+    candidate: &RouteBasis,
+    canonical: &RouteBasis,
+) -> Option<String> {
+    if candidate.schema_version != canonical.schema_version {
+        return Some(format!(
+            "route_basis schema_version `{}` does not match canonical `{}`",
+            candidate.schema_version, canonical.schema_version
+        ));
+    }
+    if candidate.pipeline_id != canonical.pipeline_id {
+        return Some(format!(
+            "route_basis pipeline_id `{}` does not match canonical `{}`",
+            candidate.pipeline_id, canonical.pipeline_id
+        ));
+    }
+    if candidate.pipeline_file != canonical.pipeline_file {
+        return Some(format!(
+            "route_basis pipeline_file `{}` does not match canonical `{}`",
+            candidate.pipeline_file, canonical.pipeline_file
+        ));
+    }
+    if candidate.pipeline_file_sha256 != canonical.pipeline_file_sha256 {
+        return Some(
+            "route_basis pipeline_file_sha256 does not match canonical fingerprint".to_string(),
+        );
+    }
+    if candidate.state_revision != canonical.state_revision {
+        return Some(format!(
+            "route_basis state_revision {} does not match canonical {}",
+            candidate.state_revision, canonical.state_revision
+        ));
+    }
+    if candidate.routing != canonical.routing {
+        return Some("route_basis routing does not match the canonical route snapshot".to_string());
+    }
+    if candidate.refs != canonical.refs {
+        return Some("route_basis refs do not match the canonical route snapshot".to_string());
+    }
+    if candidate.run != canonical.run {
+        return Some("route_basis run does not match the canonical route snapshot".to_string());
+    }
+    if candidate.runner.id != canonical.runner.id {
+        return Some(format!(
+            "route_basis runner.id `{}` does not match canonical `{}`",
+            candidate.runner.id, canonical.runner.id
+        ));
+    }
+    if candidate.runner.file != canonical.runner.file {
+        return Some(format!(
+            "route_basis runner.file `{}` does not match canonical `{}`",
+            candidate.runner.file, canonical.runner.file
+        ));
+    }
+    if candidate.runner.file_sha256 != canonical.runner.file_sha256 {
+        return Some(
+            "route_basis runner.file_sha256 does not match canonical fingerprint".to_string(),
+        );
+    }
+    if candidate.profile.id != canonical.profile.id {
+        return Some(format!(
+            "route_basis profile.id `{}` does not match canonical `{}`",
+            candidate.profile.id, canonical.profile.id
+        ));
+    }
+    if candidate.profile.profile_yaml_sha256 != canonical.profile.profile_yaml_sha256 {
+        return Some(
+            "route_basis profile.profile_yaml_sha256 does not match canonical fingerprint"
+                .to_string(),
+        );
+    }
+    if candidate.profile.commands_yaml_sha256 != canonical.profile.commands_yaml_sha256 {
+        return Some(
+            "route_basis profile.commands_yaml_sha256 does not match canonical fingerprint"
+                .to_string(),
+        );
+    }
+    if candidate.profile.conventions_md_sha256 != canonical.profile.conventions_md_sha256 {
+        return Some(
+            "route_basis profile.conventions_md_sha256 does not match canonical fingerprint"
+                .to_string(),
+        );
+    }
+    if candidate.route.len() != canonical.route.len() {
+        return Some(format!(
+            "route_basis route length {} does not match canonical length {}",
+            candidate.route.len(),
+            canonical.route.len()
+        ));
+    }
+
+    for (index, (candidate_stage, canonical_stage)) in candidate
+        .route
+        .iter()
+        .zip(canonical.route.iter())
+        .enumerate()
+    {
+        if candidate_stage.stage_id != canonical_stage.stage_id {
+            return Some(format!(
+                "route_basis route entry {} stage_id `{}` does not match canonical `{}`",
+                index + 1,
+                candidate_stage.stage_id,
+                canonical_stage.stage_id
+            ));
+        }
+        if candidate_stage.file != canonical_stage.file {
+            return Some(format!(
+                "route_basis stage `{}` file `{}` does not match canonical `{}`",
+                canonical_stage.stage_id, candidate_stage.file, canonical_stage.file
+            ));
+        }
+        if candidate_stage.status != canonical_stage.status {
+            return Some(format!(
+                "route_basis stage `{}` status `{}` does not match canonical `{}`",
+                canonical_stage.stage_id,
+                route_basis_stage_status_label(candidate_stage.status),
+                route_basis_stage_status_label(canonical_stage.status)
+            ));
+        }
+        if candidate_stage.reason != canonical_stage.reason {
+            return Some(format!(
+                "route_basis stage `{}` reason does not match the canonical route result",
+                canonical_stage.stage_id
+            ));
+        }
+        if candidate_stage.file_sha256 != canonical_stage.file_sha256 {
+            return Some(format!(
+                "route_basis stage `{}` file_sha256 does not match canonical fingerprint",
+                canonical_stage.stage_id
+            ));
+        }
+    }
+
+    None
+}
+
 pub fn persist_route_basis(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -616,14 +766,13 @@ pub fn persist_route_basis(
         }
     };
 
-    let pipeline =
-        load_pipeline_definition(repo_root, &route_basis.pipeline_file).map_err(|err| {
-            RouteStateStoreError::InvalidMutation {
-                reason: format!(
-                    "failed to load pipeline definition for route_basis persistence: {err}"
-                ),
-            }
-        })?;
+    let pipeline = load_selected_pipeline_definition(repo_root, pipeline_id).map_err(|err| {
+        RouteStateStoreError::InvalidMutation {
+            reason: format!(
+                "failed to load selected pipeline definition for route_basis persistence: {err}"
+            ),
+        }
+    })?;
     let effective_run = effective_route_basis_run(repo_root, &pipeline, &state);
     state = normalized_state_for_route_basis(&state, repo_root);
     if state.revision != route_basis.state_revision {
@@ -646,8 +795,18 @@ pub fn persist_route_basis(
         ));
     }
 
+    let canonical_route_basis = rebuild_canonical_route_basis(repo_root, &pipeline, &state)
+        .map_err(|reason| RouteStateStoreError::InvalidMutation {
+            reason: format!("failed to rebuild canonical route_basis during persistence: {reason}"),
+        })?;
+    if let Some(reason) = route_basis_mismatch_reason(&route_basis, &canonical_route_basis) {
+        return Ok(RouteBasisPersistOutcome::Refused(
+            RouteBasisPersistRefusal::MalformedState { reason },
+        ));
+    }
+
     state.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
-    state.route_basis = Some(route_basis);
+    state.route_basis = Some(canonical_route_basis);
     persist_route_state(&state_path, &state)?;
 
     Ok(RouteBasisPersistOutcome::Applied(Box::new(state)))
@@ -1082,6 +1241,15 @@ fn validate_non_empty_string(value: &str) -> Result<(), String> {
         Err("value must not be empty".to_string())
     } else {
         Ok(())
+    }
+}
+
+fn route_basis_stage_status_label(status: RouteBasisStageStatus) -> &'static str {
+    match status {
+        RouteBasisStageStatus::Active => "active",
+        RouteBasisStageStatus::Skipped => "skipped",
+        RouteBasisStageStatus::Blocked => "blocked",
+        RouteBasisStageStatus::Next => "next",
     }
 }
 

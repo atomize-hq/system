@@ -312,6 +312,7 @@ fn assert_compile_refusal_next_safe_action_matches_shared_golden(
 
     match refusal.classification {
         PipelineCompileRefusalClassification::MissingRouteBasis
+        | PipelineCompileRefusalClassification::MalformedRouteBasis
         | PipelineCompileRefusalClassification::StaleRouteBasis => {
             assert_eq!(
                 next_safe_action, expected_refresh_action,

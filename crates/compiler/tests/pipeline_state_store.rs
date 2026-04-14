@@ -10,10 +10,10 @@ use std::time::Duration;
 use system_compiler::{
     build_route_basis, effective_route_basis_run, load_pipeline_definition, load_route_state,
     load_route_state_with_supported_variables, persist_route_basis, resolve_pipeline_route,
-    set_route_state, supported_route_state_variables, RouteBasisPersistOutcome, RouteState,
-    RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateStoreError, RouteStateValue, RouteVariables, ROUTE_STATE_AUDIT_LIMIT,
-    ROUTE_STATE_SCHEMA_VERSION,
+    set_route_state, supported_route_state_variables, RouteBasisPersistOutcome,
+    RouteBasisPersistRefusal, RouteState, RouteStateMutation, RouteStateMutationOutcome,
+    RouteStateMutationRefusal, RouteStateReadError, RouteStateStoreError, RouteStateValue,
+    RouteVariables, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
 
 fn write_file(path: &Path, contents: &str) {
@@ -190,6 +190,46 @@ fn route_basis_round_trips_when_written_by_resolve() {
     )
     .expect("reload state");
     assert_eq!(reloaded_state.route_basis.as_ref(), Some(&route_basis));
+}
+
+#[test]
+fn persist_route_basis_refuses_forged_route_status() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+    let mut route_basis =
+        build_route_basis(&repo_root, &definition, &state, &route).expect("route basis");
+    let forged_stage = route_basis
+        .route
+        .iter_mut()
+        .find(|stage| stage.stage_id == "stage.10_feature_spec")
+        .expect("stage.10_feature_spec");
+    forged_stage.status = system_compiler::RouteBasisStageStatus::Active;
+    forged_stage.reason = None;
+
+    let outcome = persist_route_basis(&repo_root, &definition.header.id, route_basis)
+        .expect("persist outcome");
+
+    match outcome {
+        RouteBasisPersistOutcome::Refused(RouteBasisPersistRefusal::MalformedState { reason }) => {
+            assert!(reason.contains("stage.10_feature_spec"), "{reason}");
+            assert!(reason.contains("status `active`"), "{reason}");
+            assert!(reason.contains("canonical `blocked`"), "{reason}");
+        }
+        other => panic!("expected malformed-state refusal, got {other:?}"),
+    }
 }
 
 #[cfg(unix)]

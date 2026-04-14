@@ -130,6 +130,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - the ordered resolved route snapshot for all declared stages, including repo-relative stage file paths, persisted statuses/reasons, and stage file fingerprints
   - the selected runner id plus runner file path/fingerprint
   - the selected profile id plus fingerprints for `profile.yaml`, `commands.yaml`, and `conventions.md`
+- Accepted or persisted `route_basis` snapshots MUST exactly match the selected pipeline's declared stage list/order and the canonical resolve result for the captured `routing` snapshot; consumers MUST refuse mismatches rather than best-effort continuing.
 - `route_basis` MUST NOT contain compiled payload bytes, explain output bytes, copied include/library/artifact contents, duplicated audit history, compile-only overrides, or wall-clock timestamps.
 - Unknown top-level keys, unknown nested keys, invalid routing variable names, invalid field paths, or wrong scalar types MUST be refused as malformed state.
 - Audit history MUST be bounded to a fixed implementation-defined maximum entry count and MUST trim oldest-first after a successful mutation. The bound MUST remain stable within one implementation revision and be covered by tests.
