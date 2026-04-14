@@ -514,6 +514,13 @@ Non-goals inside M1:
 
 ### M2. Compilation Capability
 
+Status: complete
+
+Post-ship QA note, 2026-04-14:
+
+- post-merge QA revalidated the shipped M2 surface end to end: `pipeline compile`, `pipeline compile --explain`, route-basis refusal flows, shared goldens, help/docs parity, and workspace quality gates
+- post-merge QA also fixed the inactive-stage compile refusal wording so the next safe action now tells the operator to adjust route state if needed before retrying compile
+
 Goal:
 
 - recover the actual prompt-compilation behavior that keeps repo research from being repeated, after M1 has already locked route truth and state truth
