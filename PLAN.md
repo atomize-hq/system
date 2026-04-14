@@ -901,10 +901,6 @@ Lane C:
 - [x] stale-basis and inactive-stage regressions are locked as mandatory tests
 - [x] help snapshots and docs/help drift checks cover the shipped compile surface
 
-Residual follow-up after M2 ship:
-
-- fix the `unsupported_target` compile refusal next-safe-action so cases like selected-stage-not-in-pipeline do not point the operator back to the same failing compile command
-
 ### M3. Output Materialization Capability
 
 Goal:
