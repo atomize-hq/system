@@ -266,8 +266,13 @@ pub fn compile_pipeline_stage_with_runtime(
         &variable_values,
         &work_level,
     );
-    let documents =
-        assemble_documents(repo_root, &stage_definition, &route_basis, &variable_values)?;
+    let documents = assemble_documents(
+        repo_root,
+        &stage_definition,
+        &route_basis,
+        &variable_values,
+        &work_level,
+    )?;
     let outputs = render_outputs(&stage_definition, &variable_values);
 
     Ok(PipelineCompileResult {
@@ -899,6 +904,7 @@ fn assemble_documents(
     stage_definition: &CompileStageDefinition,
     basis: &RouteBasis,
     variables: &BTreeMap<String, String>,
+    work_level: &str,
 ) -> Result<Vec<PipelineCompileDocument>, PipelineCompileRefusal> {
     let mut documents = Vec::new();
     let runner_path = basis.runner.file.clone();
@@ -922,6 +928,7 @@ fn assemble_documents(
             &stage_definition.id,
             kind,
             &path,
+            work_level,
         )?);
     }
 
@@ -932,6 +939,7 @@ fn assemble_documents(
             PipelineCompileDocumentKind::Library,
             input,
             variables,
+            work_level,
         )?);
     }
 
@@ -942,6 +950,7 @@ fn assemble_documents(
             PipelineCompileDocumentKind::Artifact,
             input,
             variables,
+            work_level,
         )?);
     }
 
@@ -953,8 +962,9 @@ fn load_required_document(
     stage_id: &str,
     kind: PipelineCompileDocumentKind,
     path: &str,
+    work_level: &str,
 ) -> Result<PipelineCompileDocument, PipelineCompileRefusal> {
-    match load_repo_relative_document(repo_root, path, true) {
+    match load_repo_relative_document(repo_root, path, Some(work_level)) {
         Ok(content) => Ok(PipelineCompileDocument {
             kind,
             path: path.to_string(),
@@ -1002,13 +1012,10 @@ fn load_declared_input(
     kind: PipelineCompileDocumentKind,
     input: &CompileStageInput,
     variables: &BTreeMap<String, String>,
+    work_level: &str,
 ) -> Result<PipelineCompileDocument, PipelineCompileRefusal> {
     let path = substitute_variables(&input.path, variables);
-    match load_repo_relative_document(
-        repo_root,
-        &path,
-        matches!(kind, PipelineCompileDocumentKind::Artifact),
-    ) {
+    match load_repo_relative_document(repo_root, &path, Some(work_level)) {
         Ok(content) => Ok(PipelineCompileDocument {
             kind,
             path,
@@ -1094,7 +1101,7 @@ enum DocumentLoadError {
 fn load_repo_relative_document(
     repo_root: &Path,
     relative_path: &str,
-    apply_scoping: bool,
+    scoped_work_level: Option<&str>,
 ) -> Result<String, DocumentLoadError> {
     let contents =
         read_repo_relative_string(repo_root, relative_path).map_err(|err| match err {
@@ -1118,8 +1125,8 @@ fn load_repo_relative_document(
             }
         })?;
 
-    let filtered = if apply_scoping {
-        filter_scoped_blocks(&contents)
+    let filtered = if let Some(work_level) = scoped_work_level {
+        filter_scoped_blocks(&contents, work_level)
     } else {
         normalize_text(&contents)
     };
@@ -1178,14 +1185,16 @@ fn substitute_variables(input: &str, values: &BTreeMap<String, String>) -> Strin
     out
 }
 
-fn filter_scoped_blocks(text: &str) -> String {
+fn filter_scoped_blocks(text: &str, work_level: &str) -> String {
     let mut out_lines = Vec::new();
     let mut include = true;
 
     for line in text.lines() {
         let trimmed = line.trim();
         if let Some(scopes) = parse_scope_start(trimmed) {
-            include = scopes.iter().any(|scope| scope == "ALL" || scope == "L1");
+            include = scopes
+                .iter()
+                .any(|scope| scope == "ALL" || scope == work_level);
             continue;
         }
         if trimmed == "<!-- END_SCOPE -->" {
@@ -1211,6 +1220,71 @@ fn parse_scope_start(line: &str) -> Option<Vec<String>> {
             .filter(|value| !value.is_empty())
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_scoped_blocks;
+
+    #[test]
+    fn scoped_filter_excludes_l2_and_l3_blocks_for_l1() {
+        let input = "\
+before
+<!-- SCOPE: L2 -->
+l2 only
+<!-- END_SCOPE -->
+<!-- SCOPE: L3 -->
+l3 only
+<!-- END_SCOPE -->
+after
+";
+
+        let filtered = filter_scoped_blocks(input, "L1");
+
+        assert_eq!(filtered, "before\nafter\n");
+    }
+
+    #[test]
+    fn scoped_filter_includes_l2_and_all_blocks_for_l2() {
+        let input = "\
+before
+<!-- SCOPE: ALL -->
+all levels
+<!-- END_SCOPE -->
+<!-- SCOPE: L2 -->
+l2 only
+<!-- END_SCOPE -->
+<!-- SCOPE: L3 -->
+l3 only
+<!-- END_SCOPE -->
+after
+";
+
+        let filtered = filter_scoped_blocks(input, "L2");
+
+        assert_eq!(filtered, "before\nall levels\nl2 only\nafter\n");
+    }
+
+    #[test]
+    fn scoped_filter_includes_l3_and_all_blocks_for_l3() {
+        let input = "\
+before
+<!-- SCOPE: ALL -->
+all levels
+<!-- END_SCOPE -->
+<!-- SCOPE: L2 -->
+l2 only
+<!-- END_SCOPE -->
+<!-- SCOPE: L3 -->
+l3 only
+<!-- END_SCOPE -->
+after
+";
+
+        let filtered = filter_scoped_blocks(input, "L3");
+
+        assert_eq!(filtered, "before\nall levels\nl3 only\nafter\n");
+    }
 }
 
 fn normalize_text(text: &str) -> String {

@@ -170,6 +170,14 @@ fn fixed_runtime() -> PipelineCompileRuntimeContext {
     }
 }
 
+fn set_stage_work_level(repo_root: &Path, work_level: &str) {
+    let stage_path = repo_root.join("core/stages/10_feature_spec.md");
+    let stage = fs::read_to_string(&stage_path).expect("read stage");
+    let updated_stage = stage.replace("work_level: L1", &format!("work_level: {work_level}"));
+    assert_ne!(stage, updated_stage, "stage fixture should be updated");
+    fs::write(&stage_path, updated_stage).expect("write stage");
+}
+
 #[test]
 fn compile_feature_spec_payload_matches_shared_golden() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
@@ -472,6 +480,56 @@ fn compile_refuses_stage_not_declared_in_pipeline() {
     );
     assert!(err.summary.contains("unknown stage selector"));
     assert!(err.summary.contains("stage.10_feature_spec"));
+}
+
+#[test]
+fn compile_uses_selected_stage_work_level_for_scoped_rule_filtering() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    set_stage_work_level(&repo_root, "L2");
+    persist_route_basis_for_current_state(&repo_root);
+
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
+    let payload = render_pipeline_compile_payload(&result);
+
+    assert_eq!(result.target.work_level, "L2");
+    assert!(payload.contains("- work_level: L2"));
+    assert!(payload.contains("One slice implementation in flight per worktree/agent context."));
+    assert!(!payload.contains(
+        "Do not merge multiple slices simultaneously into the same target branch unless:"
+    ));
+}
+
+#[test]
+fn compile_filters_scoped_library_inputs_by_selected_stage_work_level() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    set_stage_work_level(&repo_root, "L2");
+    persist_route_basis_for_current_state(&repo_root);
+
+    let library_path =
+        repo_root.join("core/library/feature_spec/feature_spec_architect_directive.md");
+    let library = fs::read_to_string(&library_path).expect("read library input");
+    let scoped_suffix = "\n<!-- SCOPE: L2 -->\nLibrary scoped L2 content.\n<!-- END_SCOPE -->\n<!-- SCOPE: L3 -->\nLibrary scoped L3 content.\n<!-- END_SCOPE -->\n";
+    fs::write(&library_path, format!("{library}{scoped_suffix}")).expect("write library input");
+
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
+    let library_document = result
+        .documents
+        .iter()
+        .find(|document| {
+            document.path == "core/library/feature_spec/feature_spec_architect_directive.md"
+        })
+        .expect("library document");
+    let content = library_document
+        .content
+        .as_deref()
+        .expect("library document content");
+
+    assert!(content.contains("Library scoped L2 content."));
+    assert!(!content.contains("Library scoped L3 content."));
 }
 
 #[test]
