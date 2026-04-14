@@ -270,12 +270,12 @@ fn compile_refuses_missing_route_basis() {
     let err =
         compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
 
-    assert_eq!(
-        err.classification,
-        system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
+    pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
+        &err,
+        PIPELINE_ID,
+        STAGE_ID,
+        "compile.refused.missing_route_basis.txt",
     );
-    assert!(err.summary.contains("route_basis"));
-    assert!(err.recovery.contains("pipeline resolve"));
 }
 
 #[test]
@@ -489,11 +489,12 @@ fn compile_refuses_stale_route_basis_after_route_state_mutation() {
     let err =
         compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
 
-    assert_eq!(
-        err.classification,
-        system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis
+    pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
+        &err,
+        PIPELINE_ID,
+        STAGE_ID,
+        "compile.refused.stale_route_basis.txt",
     );
-    assert!(err.recovery.contains("pipeline resolve"));
 }
 
 #[test]
@@ -519,11 +520,12 @@ fn compile_refuses_inactive_stage() {
     let err =
         compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
 
-    assert_eq!(
-        err.classification,
-        system_compiler::PipelineCompileRefusalClassification::InactiveStage
+    pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
+        &err,
+        PIPELINE_ID,
+        STAGE_ID,
+        "compile.refused.inactive_stage.txt",
     );
-    assert!(err.summary.contains("not active"));
     drop(dir);
 }
 

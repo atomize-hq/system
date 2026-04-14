@@ -2,7 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
-    ResolvedPipelineRoute, RouteStageReason, RouteState, RouteStateMutationOutcome, RouteStateRun,
+    PipelineCompileRefusal, PipelineCompileRefusalClassification, ResolvedPipelineRoute,
+    RouteStageReason, RouteState, RouteStateMutationOutcome, RouteStateRun,
 };
 
 pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
@@ -73,6 +74,44 @@ pub fn assert_matches_golden_with_placeholders(
             .join("goldens")
             .join(golden_name)
             .display()
+    );
+}
+
+#[allow(dead_code)]
+pub fn assert_compile_refusal_matches_shared_golden(
+    refusal: &PipelineCompileRefusal,
+    pipeline_id: &str,
+    stage_id: &str,
+    golden_name: &str,
+) {
+    let expected = parse_compile_refusal_golden(golden_name);
+    let actual_pipeline_id = refusal.pipeline_id.as_deref().unwrap_or(pipeline_id);
+    let actual_stage_id = refusal.stage_id.as_deref().unwrap_or(stage_id);
+
+    assert_eq!(
+        actual_pipeline_id, expected.pipeline_id,
+        "pipeline proof output drifted for {golden_name}; pipeline id no longer matches the shared golden"
+    );
+    assert_eq!(
+        actual_stage_id, expected.stage_id,
+        "pipeline proof output drifted for {golden_name}; stage id no longer matches the shared golden"
+    );
+    assert_eq!(
+        refusal.classification.to_string(),
+        expected.reason_classification,
+        "pipeline proof output drifted for {golden_name}; refusal classification no longer matches the shared golden"
+    );
+    assert_compile_refusal_summary_matches_shared_golden(
+        refusal,
+        &expected.reason_summary,
+        golden_name,
+    );
+    assert_compile_refusal_next_safe_action_matches_shared_golden(
+        refusal,
+        pipeline_id,
+        stage_id,
+        &expected.next_safe_action,
+        golden_name,
     );
 }
 
@@ -217,6 +256,141 @@ fn normalize_output(actual: &str, repo_root: &Path, placeholders: &[(&Path, &str
 
     normalized = replace_path_candidates(&normalized, repo_root, "{{REPO_ROOT}}");
     normalized.trim_end().to_string()
+}
+
+#[allow(dead_code)]
+struct ParsedCompileRefusalGolden {
+    pipeline_id: String,
+    stage_id: String,
+    reason_classification: String,
+    reason_summary: String,
+    next_safe_action: String,
+}
+
+#[allow(dead_code)]
+fn parse_compile_refusal_golden(golden_name: &str) -> ParsedCompileRefusalGolden {
+    let golden = read_golden(golden_name);
+    let pipeline_id = parse_golden_field(&golden, "PIPELINE: ", golden_name);
+    let stage_id = parse_golden_field(&golden, "STAGE: ", golden_name);
+    let reason = parse_golden_field(&golden, "REASON: ", golden_name);
+    let (reason_classification, reason_summary) = reason.split_once(": ").unwrap_or_else(|| {
+        panic!(
+            "golden {golden_name} has malformed REASON field; expected `classification: summary`"
+        )
+    });
+    let next_safe_action = parse_golden_field(&golden, "NEXT SAFE ACTION: ", golden_name);
+
+    ParsedCompileRefusalGolden {
+        pipeline_id,
+        stage_id,
+        reason_classification: reason_classification.to_string(),
+        reason_summary: reason_summary.to_string(),
+        next_safe_action,
+    }
+}
+
+#[allow(dead_code)]
+fn parse_golden_field(golden: &str, prefix: &str, golden_name: &str) -> String {
+    golden
+        .lines()
+        .find_map(|line| line.strip_prefix(prefix))
+        .map(str::to_string)
+        .unwrap_or_else(|| panic!("golden {golden_name} is missing required field `{prefix}`"))
+}
+
+#[allow(dead_code)]
+fn assert_compile_refusal_next_safe_action_matches_shared_golden(
+    refusal: &PipelineCompileRefusal,
+    pipeline_id: &str,
+    stage_id: &str,
+    next_safe_action: &str,
+    golden_name: &str,
+) {
+    let expected_refresh_action = format!(
+        "run `system pipeline resolve --id {pipeline_id}` and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+    );
+
+    match refusal.classification {
+        PipelineCompileRefusalClassification::MissingRouteBasis
+        | PipelineCompileRefusalClassification::StaleRouteBasis => {
+            assert_eq!(
+                next_safe_action, expected_refresh_action,
+                "pipeline proof output drifted for {golden_name}; next-safe-action no longer matches the shared golden"
+            );
+            assert_eq!(
+                refusal.recovery.trim(),
+                "re-run `pipeline resolve` and retry `pipeline compile`",
+                "pipeline proof output drifted for {golden_name}; compiler recovery no longer supports the shared next-safe-action contract"
+            );
+        }
+        PipelineCompileRefusalClassification::InactiveStage => {
+            assert_eq!(
+                next_safe_action, expected_refresh_action,
+                "pipeline proof output drifted for {golden_name}; next-safe-action no longer matches the shared golden"
+            );
+            assert_eq!(
+                refusal.recovery.trim(),
+                "re-run `pipeline resolve`, adjust route state if needed, and retry `pipeline compile`",
+                "pipeline proof output drifted for {golden_name}; compiler recovery no longer supports the shared next-safe-action contract"
+            );
+        }
+        other => panic!(
+            "assert_compile_refusal_matches_shared_golden does not support {:?} for {}",
+            other, golden_name
+        ),
+    }
+}
+
+#[allow(dead_code)]
+fn assert_compile_refusal_summary_matches_shared_golden(
+    refusal: &PipelineCompileRefusal,
+    expected_summary: &str,
+    golden_name: &str,
+) {
+    match refusal.classification {
+        PipelineCompileRefusalClassification::StaleRouteBasis => {
+            parse_stale_route_basis_summary(expected_summary, golden_name);
+            parse_stale_route_basis_summary(refusal.summary.trim(), golden_name);
+        }
+        _ => assert_eq!(
+            refusal.summary.trim(),
+            expected_summary,
+            "pipeline proof output drifted for {golden_name}; refusal summary no longer matches the shared golden"
+        ),
+    }
+}
+
+#[allow(dead_code)]
+fn parse_stale_route_basis_summary<'a>(summary: &'a str, golden_name: &str) -> (&'a str, &'a str) {
+    let prefix = "route state revision ";
+    let middle = " does not match persisted route_basis revision ";
+    let revision_text = summary.strip_prefix(prefix).unwrap_or_else(|| {
+        panic!(
+            "golden {golden_name} has malformed stale-route-basis summary; expected prefix `{prefix}`"
+        )
+    });
+    let (state_revision, basis_revision) =
+        revision_text.split_once(middle).unwrap_or_else(|| {
+            panic!(
+                "golden {golden_name} has malformed stale-route-basis summary; expected separator `{middle}`"
+            )
+        });
+    assert!(
+        !state_revision.is_empty()
+            && state_revision
+                .chars()
+                .all(|character| character.is_ascii_digit()),
+        "golden {golden_name} has malformed stale-route-basis state revision"
+    );
+    assert!(
+        !basis_revision.is_empty()
+            && basis_revision
+                .chars()
+                .all(|character| character.is_ascii_digit()),
+        "golden {golden_name} has malformed stale-route-basis basis revision"
+    );
+
+    (state_revision, basis_revision)
 }
 
 fn read_golden(golden_name: &str) -> String {

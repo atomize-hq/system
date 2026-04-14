@@ -961,9 +961,11 @@ fn pipeline_compile_refuses_missing_route_basis() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        stdout.trim_end(),
-        "OUTCOME: REFUSED\nPIPELINE: pipeline.foundation_inputs\nSTAGE: stage.10_feature_spec\nREASON: missing_route_basis: persisted route_basis is missing for the selected pipeline\nBROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`\nNEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.missing_route_basis.txt",
     );
 }
 
@@ -994,10 +996,12 @@ fn pipeline_compile_refuses_inactive_stage() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("OUTCOME: REFUSED"));
-    assert!(stdout.contains("REASON: inactive_stage:"));
-    assert!(stdout.contains("stage.06_project_context_interview (next)"));
-    assert!(stdout.contains("NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"));
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.inactive_stage.txt",
+    );
 }
 
 #[test]
@@ -1033,11 +1037,12 @@ fn pipeline_compile_refuses_stale_route_basis_after_state_set() {
     assert!(!output.status.success(), "stale route basis should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("REASON: stale_route_basis:"));
-    assert!(
-        stdout.contains("route state revision 3 does not match persisted route_basis revision 2")
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.stale_route_basis.txt",
     );
-    assert!(stdout.contains("NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"));
 }
 
 #[test]
