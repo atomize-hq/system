@@ -242,6 +242,13 @@ pub enum PipelineMetadataSelectionError {
 }
 
 #[derive(Debug)]
+pub(crate) enum SelectedPipelineLoadError {
+    Catalog(PipelineCatalogError),
+    Lookup(PipelineLookupError),
+    Load(PipelineLoadError),
+}
+
+#[derive(Debug)]
 pub enum PipelineCatalogError {
     ReadPipelineCatalog {
         path: PathBuf,
@@ -388,6 +395,26 @@ impl std::error::Error for PipelineMetadataSelectionError {
         match self {
             PipelineMetadataSelectionError::Catalog(err) => Some(err),
             PipelineMetadataSelectionError::Lookup(err) => Some(err),
+        }
+    }
+}
+
+impl fmt::Display for SelectedPipelineLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SelectedPipelineLoadError::Catalog(err) => write!(f, "{err}"),
+            SelectedPipelineLoadError::Lookup(err) => write!(f, "{err}"),
+            SelectedPipelineLoadError::Load(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for SelectedPipelineLoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            SelectedPipelineLoadError::Catalog(err) => Some(err),
+            SelectedPipelineLoadError::Lookup(err) => Some(err),
+            SelectedPipelineLoadError::Load(err) => Some(err),
         }
     }
 }
@@ -690,6 +717,30 @@ pub fn load_stage_compile_definition(
         tags: front_matter.tags,
         body: normalize_optional_body(&body),
     })
+}
+
+pub(crate) fn load_selected_pipeline_definition(
+    repo_root: impl AsRef<Path>,
+    selector: &str,
+) -> Result<PipelineDefinition, SelectedPipelineLoadError> {
+    let repo_root = repo_root.as_ref();
+    let catalog =
+        load_pipeline_catalog_metadata(repo_root).map_err(SelectedPipelineLoadError::Catalog)?;
+    let pipeline = match resolve_pipeline_only_selector(&catalog, selector) {
+        Ok(pipeline) => pipeline,
+        Err(err @ PipelineLookupError::UnknownSelector { .. }) => {
+            if let Some(metadata_err) = find_selected_pipeline_metadata_error(repo_root, selector)
+                .map_err(SelectedPipelineLoadError::Catalog)?
+            {
+                return Err(SelectedPipelineLoadError::Catalog(metadata_err));
+            }
+            return Err(SelectedPipelineLoadError::Lookup(err));
+        }
+        Err(err) => return Err(SelectedPipelineLoadError::Lookup(err)),
+    };
+
+    load_pipeline_definition(repo_root, &pipeline.definition.source_path)
+        .map_err(SelectedPipelineLoadError::Load)
 }
 
 fn load_pipeline_catalog_with_mode(

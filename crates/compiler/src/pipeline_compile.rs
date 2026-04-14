@@ -1,7 +1,7 @@
 use crate::pipeline::{
-    load_pipeline_catalog, load_stage_compile_definition, resolve_pipeline_only_selector,
+    load_selected_pipeline_definition, load_stage_compile_definition,
     supported_route_state_variables, CompileStageDefinition, CompileStageInput,
-    CompileStageLoadError, CompileStageVariable, PipelineCatalogEntry, PipelineDefinition,
+    CompileStageLoadError, CompileStageVariable, PipelineDefinition, SelectedPipelineLoadError,
 };
 use crate::repo_file_access::{
     read_repo_relative_string, sha256_repo_relative_file, RepoRelativeFileAccessError,
@@ -140,44 +140,53 @@ pub fn compile_pipeline_stage_with_runtime(
     runtime: &PipelineCompileRuntimeContext,
 ) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
     let repo_root = repo_root.as_ref();
-    let catalog = load_pipeline_catalog(repo_root).map_err(|err| PipelineCompileRefusal {
-        classification: PipelineCompileRefusalClassification::InvalidDefinition,
-        summary: format!("failed to load pipeline catalog: {err}"),
-        pipeline_id: None,
-        stage_id: None,
-        recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
-    })?;
+    let pipeline = load_selected_pipeline_definition(repo_root, pipeline_selector).map_err(
+        |err| match err {
+            SelectedPipelineLoadError::Lookup(err) => PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::UnsupportedTarget,
+                summary: err.to_string(),
+                pipeline_id: None,
+                stage_id: None,
+                recovery: "retry with the canonical pipeline id `pipeline.foundation_inputs`"
+                    .to_string(),
+            },
+            SelectedPipelineLoadError::Catalog(err) => PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::InvalidDefinition,
+                summary: format!("failed to load selected pipeline definition: {err}"),
+                pipeline_id: None,
+                stage_id: None,
+                recovery: "fix the pipeline/stage definitions and retry `pipeline compile`"
+                    .to_string(),
+            },
+            SelectedPipelineLoadError::Load(err) => PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::InvalidDefinition,
+                summary: format!("failed to load selected pipeline definition: {err}"),
+                pipeline_id: None,
+                stage_id: None,
+                recovery: "fix the pipeline/stage definitions and retry `pipeline compile`"
+                    .to_string(),
+            },
+        },
+    )?;
 
-    let pipeline = resolve_pipeline_only_selector(&catalog, pipeline_selector).map_err(|err| {
-        PipelineCompileRefusal {
-            classification: PipelineCompileRefusalClassification::UnsupportedTarget,
-            summary: err.to_string(),
-            pipeline_id: None,
-            stage_id: None,
-            recovery: "retry with the canonical pipeline id `pipeline.foundation_inputs`"
-                .to_string(),
-        }
-    })?;
     let resolved_stage_id =
         resolve_stage_selector(&pipeline, stage_selector).map_err(|summary| {
             PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::UnsupportedTarget,
                 summary,
-                pipeline_id: Some(pipeline.definition.header.id.clone()),
+                pipeline_id: Some(pipeline.header.id.clone()),
                 stage_id: Some(stage_selector.trim().to_string()),
                 recovery: "retry with the canonical stage id `stage.10_feature_spec`".to_string(),
             }
         })?;
 
-    if pipeline.definition.header.id != SUPPORTED_PIPELINE_ID
-        || resolved_stage_id != SUPPORTED_STAGE_ID
-    {
+    if pipeline.header.id != SUPPORTED_PIPELINE_ID || resolved_stage_id != SUPPORTED_STAGE_ID {
         return Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::UnsupportedTarget,
             summary: format!(
                 "M2 compile currently supports only `{SUPPORTED_PIPELINE_ID}` + `{SUPPORTED_STAGE_ID}`"
             ),
-            pipeline_id: Some(pipeline.definition.header.id.clone()),
+            pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(resolved_stage_id),
             recovery: format!(
                 "retry with `pipeline compile --id {SUPPORTED_PIPELINE_ID} --stage {SUPPORTED_STAGE_ID}`"
@@ -186,31 +195,25 @@ pub fn compile_pipeline_stage_with_runtime(
     }
 
     let stage_id = SUPPORTED_STAGE_ID.to_string();
-    let supported_variables = supported_route_state_variables(&pipeline.definition);
+    let supported_variables = supported_route_state_variables(&pipeline);
     let state = load_route_state_with_supported_variables(
         repo_root,
-        &pipeline.definition.header.id,
+        &pipeline.header.id,
         &supported_variables,
     )
-    .map_err(|err| classify_state_read_refusal(err, &pipeline.definition.header.id, &stage_id))?;
+    .map_err(|err| classify_state_read_refusal(err, &pipeline.header.id, &stage_id))?;
     let route_basis = state
         .route_basis
         .clone()
         .ok_or_else(|| PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::MissingRouteBasis,
             summary: "persisted route_basis is missing for the selected pipeline".to_string(),
-            pipeline_id: Some(pipeline.definition.header.id.clone()),
+            pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_id.clone()),
             recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
         })?;
 
-    check_route_basis_freshness(
-        repo_root,
-        &pipeline.definition,
-        &state,
-        &route_basis,
-        &stage_id,
-    )?;
+    check_route_basis_freshness(repo_root, &pipeline, &state, &route_basis, &stage_id)?;
 
     let basis_stage = route_basis
         .route
@@ -221,7 +224,7 @@ pub fn compile_pipeline_stage_with_runtime(
             summary: format!(
                 "selected stage `{stage_id}` is absent from the persisted resolved route"
             ),
-            pipeline_id: Some(pipeline.definition.header.id.clone()),
+            pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_id.clone()),
             recovery: "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline".to_string(),
         })?;
@@ -233,16 +236,14 @@ pub fn compile_pipeline_stage_with_runtime(
                 "selected stage `{stage_id}` is not active in the persisted route: {}",
                 render_route_basis_reason(basis_stage.reason.as_ref())
             ),
-            pipeline_id: Some(pipeline.definition.header.id.clone()),
+            pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_id.clone()),
             recovery: "re-run `pipeline resolve`, adjust route state if needed, and retry `pipeline compile`".to_string(),
         });
     }
 
-    let stage_definition =
-        load_stage_compile_definition(repo_root, &pipeline.definition, &stage_id).map_err(
-            |err| classify_compile_stage_error(err, &pipeline.definition.header.id, &stage_id),
-        )?;
+    let stage_definition = load_stage_compile_definition(repo_root, &pipeline, &stage_id)
+        .map_err(|err| classify_compile_stage_error(err, &pipeline.header.id, &stage_id))?;
     let work_level = stage_definition
         .work_level
         .clone()
@@ -256,7 +257,7 @@ pub fn compile_pipeline_stage_with_runtime(
         runtime,
     )?;
     validate_required_variables(
-        &pipeline.definition.header.id,
+        &pipeline.header.id,
         &stage_id,
         &stage_definition.inputs.variables,
         &variable_values,
@@ -277,7 +278,7 @@ pub fn compile_pipeline_stage_with_runtime(
 
     Ok(PipelineCompileResult {
         target: PipelineCompileTarget {
-            pipeline_id: pipeline.definition.header.id.clone(),
+            pipeline_id: pipeline.header.id.clone(),
             stage_id,
             stage_file: stage_definition.stage.file.clone(),
             title: stage_definition.title.clone(),
@@ -602,10 +603,7 @@ fn classify_compile_stage_error(
     }
 }
 
-fn resolve_stage_selector(
-    pipeline: &PipelineCatalogEntry,
-    selector: &str,
-) -> Result<String, String> {
+fn resolve_stage_selector(pipeline: &PipelineDefinition, selector: &str) -> Result<String, String> {
     let selector = selector.trim();
     if selector.is_empty() {
         return Err("stage selector must not be empty".to_string());
@@ -617,7 +615,6 @@ fn resolve_stage_selector(
     }
 
     if pipeline
-        .definition
         .declared_stages()
         .iter()
         .any(|stage| stage.id == selector)
@@ -626,7 +623,6 @@ fn resolve_stage_selector(
     }
 
     let matches = pipeline
-        .definition
         .declared_stages()
         .iter()
         .filter(|stage| stage.id.strip_prefix("stage.") == Some(selector))

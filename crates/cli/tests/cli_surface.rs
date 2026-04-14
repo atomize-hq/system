@@ -766,6 +766,53 @@ fn pipeline_compile_feature_spec_payload_matches_shared_golden() {
 }
 
 #[test]
+fn pipeline_compile_ignores_unrelated_malformed_stage_files() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+    std::fs::write(
+        root.join("core/stages/99_bad.md"),
+        r#"---
+kind: nonsense
+id: stage.99_bad
+version: 0.1.0
+title: Bad Stage
+description: malformed and unrelated
+---
+# bad
+"#,
+    )
+    .expect("write unrelated malformed stage");
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        output.status.success(),
+        "pipeline compile should ignore unrelated malformed stages"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.stage_10_feature_spec.payload.full_context.txt",
+    );
+}
+
+#[test]
 fn pipeline_compile_feature_spec_explain_matches_shared_golden() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_full_context_route_basis(root.as_path());

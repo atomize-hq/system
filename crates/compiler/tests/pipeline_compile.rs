@@ -211,6 +211,36 @@ fn compile_feature_spec_explain_matches_shared_golden() {
 }
 
 #[test]
+fn compile_feature_spec_ignores_unrelated_malformed_stage_files() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    fs::write(
+        repo_root.join("core/stages/99_bad.md"),
+        r#"---
+kind: nonsense
+id: stage.99_bad
+version: 0.1.0
+title: Bad Stage
+description: malformed and unrelated
+---
+# bad
+"#,
+    )
+    .expect("write unrelated malformed stage");
+
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
+    let payload = render_pipeline_compile_payload(&result);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+        &payload,
+        &repo_root,
+        &[],
+        "compile.stage_10_feature_spec.payload.full_context.txt",
+    );
+}
+
+#[test]
 fn compile_payload_and_explain_share_one_typed_result() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
     let result =
@@ -246,6 +276,47 @@ fn compile_refuses_missing_route_basis() {
     );
     assert!(err.summary.contains("route_basis"));
     assert!(err.recovery.contains("pipeline resolve"));
+}
+
+#[test]
+fn compile_refuses_malformed_selected_pipeline_definition() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let pipeline_path = repo_root.join("pipelines/foundation_inputs.yaml");
+    let pipeline = fs::read_to_string(&pipeline_path).expect("read pipeline");
+    let updated_pipeline = pipeline.replace("  runner: codex-cli", "  runner:");
+    assert_ne!(
+        pipeline, updated_pipeline,
+        "pipeline fixture should be updated"
+    );
+    fs::write(&pipeline_path, updated_pipeline).expect("write malformed pipeline");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        system_compiler::PipelineCompileRefusalClassification::InvalidDefinition
+    );
+    assert!(err.summary.contains("selected pipeline definition"));
+}
+
+#[test]
+fn compile_refuses_malformed_selected_stage_definition() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let stage_path = repo_root.join("core/stages/10_feature_spec.md");
+    let stage = fs::read_to_string(&stage_path).expect("read stage");
+    let updated_stage = stage.replacen("kind: stage", "kind: nonsense", 1);
+    assert_ne!(stage, updated_stage, "stage fixture should be updated");
+    fs::write(&stage_path, updated_stage).expect("write malformed stage");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        system_compiler::PipelineCompileRefusalClassification::InvalidDefinition
+    );
+    assert!(err.summary.contains("must declare kind `stage`"));
 }
 
 #[test]
