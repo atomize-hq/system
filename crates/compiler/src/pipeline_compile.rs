@@ -1205,71 +1205,6 @@ fn parse_scope_start(line: &str) -> Option<Vec<String>> {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::filter_scoped_blocks;
-
-    #[test]
-    fn scoped_filter_excludes_l2_and_l3_blocks_for_l1() {
-        let input = "\
-before
-<!-- SCOPE: L2 -->
-l2 only
-<!-- END_SCOPE -->
-<!-- SCOPE: L3 -->
-l3 only
-<!-- END_SCOPE -->
-after
-";
-
-        let filtered = filter_scoped_blocks(input, "L1");
-
-        assert_eq!(filtered, "before\nafter\n");
-    }
-
-    #[test]
-    fn scoped_filter_includes_l2_and_all_blocks_for_l2() {
-        let input = "\
-before
-<!-- SCOPE: ALL -->
-all levels
-<!-- END_SCOPE -->
-<!-- SCOPE: L2 -->
-l2 only
-<!-- END_SCOPE -->
-<!-- SCOPE: L3 -->
-l3 only
-<!-- END_SCOPE -->
-after
-";
-
-        let filtered = filter_scoped_blocks(input, "L2");
-
-        assert_eq!(filtered, "before\nall levels\nl2 only\nafter\n");
-    }
-
-    #[test]
-    fn scoped_filter_includes_l3_and_all_blocks_for_l3() {
-        let input = "\
-before
-<!-- SCOPE: ALL -->
-all levels
-<!-- END_SCOPE -->
-<!-- SCOPE: L2 -->
-l2 only
-<!-- END_SCOPE -->
-<!-- SCOPE: L3 -->
-l3 only
-<!-- END_SCOPE -->
-after
-";
-
-        let filtered = filter_scoped_blocks(input, "L3");
-
-        assert_eq!(filtered, "before\nall levels\nl3 only\nafter\n");
-    }
-}
-
 fn normalize_text(text: &str) -> String {
     let normalized = text.replace("\r\n", "\n");
     let lines = normalized
@@ -1416,5 +1351,70 @@ impl fmt::Display for PipelineCompileRefusalClassification {
             PipelineCompileRefusalClassification::EmptyRequiredInput => "empty_required_input",
         };
         write!(f, "{value}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_scoped_blocks;
+
+    #[test]
+    fn scoped_filter_excludes_l2_and_l3_blocks_for_l1() {
+        let input = "\
+before
+<!-- SCOPE: L2 -->
+l2 only
+<!-- END_SCOPE -->
+<!-- SCOPE: L3 -->
+l3 only
+<!-- END_SCOPE -->
+after
+";
+
+        let filtered = filter_scoped_blocks(input, "L1");
+
+        assert_eq!(filtered, "before\nafter\n");
+    }
+
+    #[test]
+    fn scoped_filter_includes_l2_and_all_blocks_for_l2() {
+        let input = "\
+before
+<!-- SCOPE: ALL -->
+all levels
+<!-- END_SCOPE -->
+<!-- SCOPE: L2 -->
+l2 only
+<!-- END_SCOPE -->
+<!-- SCOPE: L3 -->
+l3 only
+<!-- END_SCOPE -->
+after
+";
+
+        let filtered = filter_scoped_blocks(input, "L2");
+
+        assert_eq!(filtered, "before\nall levels\nl2 only\nafter\n");
+    }
+
+    #[test]
+    fn scoped_filter_includes_l3_and_all_blocks_for_l3() {
+        let input = "\
+before
+<!-- SCOPE: ALL -->
+all levels
+<!-- END_SCOPE -->
+<!-- SCOPE: L2 -->
+l2 only
+<!-- END_SCOPE -->
+<!-- SCOPE: L3 -->
+l3 only
+<!-- END_SCOPE -->
+after
+";
+
+        let filtered = filter_scoped_blocks(input, "L3");
+
+        assert_eq!(filtered, "before\nall levels\nl3 only\nafter\n");
     }
 }
