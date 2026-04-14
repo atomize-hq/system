@@ -812,9 +812,11 @@ fn render_pipeline_compile_next_safe_action(
         }
         system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
         | system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
-        | system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis
-        | system_compiler::PipelineCompileRefusalClassification::InactiveStage => format!(
+        | system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
             "run `system pipeline resolve --id {pipeline_id}` and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+        ),
+        system_compiler::PipelineCompileRefusalClassification::InactiveStage => format!(
+            "run `system pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
         _ => format!(
             "{}; then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`",

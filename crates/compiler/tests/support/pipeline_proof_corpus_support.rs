@@ -347,8 +347,11 @@ fn assert_compile_refusal_next_safe_action_matches_shared_golden(
             );
         }
         PipelineCompileRefusalClassification::InactiveStage => {
+            let expected_inactive_stage_action = format!(
+                "run `system pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+            );
             assert_eq!(
-                next_safe_action, expected_refresh_action,
+                next_safe_action, expected_inactive_stage_action,
                 "pipeline proof output drifted for {golden_name}; next-safe-action no longer matches the shared golden"
             );
             assert_eq!(
