@@ -2,6 +2,8 @@ mod pipeline_proof_corpus_support;
 
 use std::process::{Command, Output};
 
+const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
+
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
 }
@@ -17,6 +19,16 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> Output {
         .args(args)
         .output()
         .unwrap_or_else(|err| panic!("run `{}`: {err}", args.join(" ")))
+}
+
+fn run_in_with_env(dir: &std::path::Path, args: &[&str], envs: &[(&str, &str)]) -> Output {
+    let mut cmd = binary_in(dir);
+    cmd.args(args);
+    for (key, value) in envs {
+        cmd.env(key, value);
+    }
+    cmd.output()
+        .unwrap_or_else(|err| panic!("run `{}` with env: {err}", args.join(" ")))
 }
 
 fn workspace_root() -> std::path::PathBuf {
@@ -38,6 +50,11 @@ fn workspace_root() -> std::path::PathBuf {
         "failed to locate workspace root from CARGO_MANIFEST_DIR={}",
         env!("CARGO_MANIFEST_DIR")
     );
+}
+
+fn canonical_repo_root(path: &std::path::Path) -> std::path::PathBuf {
+    std::fs::canonicalize(path)
+        .unwrap_or_else(|err| panic!("canonicalize {}: {err}", path.display()))
 }
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -227,6 +244,124 @@ fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     (dir, root)
 }
 
+fn write_incomplete_profile_pack(root: &std::path::Path, profile_id: &str) {
+    write_file(
+        &root.join(format!("profiles/{profile_id}/profile.yaml")),
+        format!("kind: profile\nid: {profile_id}\n").as_bytes(),
+    );
+}
+
+fn set_foundation_inputs_default_profile(root: &std::path::Path, profile_id: &str) {
+    let pipeline_path = root.join("pipelines/foundation_inputs.yaml");
+    let contents = std::fs::read_to_string(&pipeline_path).expect("read foundation pipeline");
+    std::fs::write(
+        &pipeline_path,
+        contents.replace(
+            "defaults:\n  runner: codex-cli\n  profile: python-uv\n",
+            &format!("defaults:\n  runner: codex-cli\n  profile: {profile_id}\n"),
+        ),
+    )
+    .expect("write foundation pipeline");
+}
+
+fn prepare_foundation_inputs_compile_ready_route_basis(root: &std::path::Path) {
+    for args in [
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=true",
+        ],
+        vec!["pipeline", "resolve", "--id", "foundation_inputs"],
+    ] {
+        let output = run_in(root, &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+    }
+}
+
+fn prepare_foundation_inputs_full_context_route_basis(root: &std::path::Path) {
+    for args in [
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.runner=codex-cli",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.profile=python-uv",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.project_context_ref=artifacts/project_context/PROJECT_CONTEXT.md",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=false",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=false",
+        ],
+        vec!["pipeline", "resolve", "--id", "foundation_inputs"],
+    ] {
+        let output = run_in(root, &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+    }
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -293,8 +428,8 @@ fn pipeline_help_lists_supported_surface() {
 
     assert_eq!(
         command_lines.len(),
-        4,
-        "expected four pipeline command lines"
+        5,
+        "expected five pipeline command lines"
     );
     assert!(
         command_lines[0].starts_with("list "),
@@ -309,11 +444,15 @@ fn pipeline_help_lists_supported_surface() {
         "resolve should be third: {command_lines:?}"
     );
     assert!(
-        command_lines[3].starts_with("state "),
-        "state should be fourth: {command_lines:?}"
+        command_lines[3].starts_with("compile "),
+        "compile should be fourth: {command_lines:?}"
     );
     assert!(
-        stdout.contains("Pipeline operator surface"),
+        command_lines[4].starts_with("state "),
+        "state should be fifth: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("explicit stage compilation"),
         "expected pipeline help title: {stdout}"
     );
 }
@@ -344,6 +483,29 @@ fn pipeline_state_help_lists_set() {
         stdout.contains("Set one supported route-state field"),
         "expected pipeline state help text: {stdout}"
     );
+}
+
+#[test]
+fn pipeline_compile_help_lists_exact_m2_surface() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "compile", "--help"]);
+    assert!(
+        output.status.success(),
+        "pipeline compile help should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    assert!(
+        stdout.contains("Compile one supported stage payload from persisted route basis"),
+        "expected compile help summary: {stdout}"
+    );
+    assert!(stdout.contains("--id <ID>"), "expected --id: {stdout}");
+    assert!(
+        stdout.contains("--stage <STAGE>"),
+        "expected --stage: {stdout}"
+    );
+    assert!(stdout.contains("--explain"), "expected --explain: {stdout}");
 }
 
 #[test]
@@ -512,6 +674,35 @@ fn pipeline_resolve_and_state_set_use_compiler_route_state_handoff() {
 }
 
 #[test]
+fn pipeline_resolve_refuses_incomplete_default_profile_pack() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    write_incomplete_profile_pack(root.as_path(), "incomplete");
+    set_foundation_inputs_default_profile(root.as_path(), "incomplete");
+
+    let output = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        !output.status.success(),
+        "pipeline resolve should refuse incomplete default profile pack"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: route basis build error:"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("profiles/incomplete/"), "{stdout}");
+    assert!(stdout.contains("commands.yaml"), "{stdout}");
+    assert!(stdout.contains("conventions.md"), "{stdout}");
+    assert!(
+        !stdout.contains("failed to read route_basis input"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
 
@@ -577,6 +768,537 @@ fn pipeline_state_set_field_surfaces_accept_run_and_refs() {
         root.as_path(),
         None,
         "resolve.after_run_and_refs.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_feature_spec_payload_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(output.status.success(), "pipeline compile should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.stage_10_feature_spec.payload.full_context.txt",
+    );
+    assert!(
+        !stdout.contains("OUTCOME:"),
+        "plain compile must stay payload-only: {stdout}"
+    );
+    assert!(
+        !stdout.contains("NEXT SAFE ACTION:"),
+        "plain compile must not include refusal framing: {stdout}"
+    );
+    assert!(
+        !stdout.contains("ROUTE BASIS:"),
+        "plain compile must not include proof sections: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_compile_ignores_unrelated_malformed_stage_files() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+    std::fs::write(
+        root.join("core/stages/99_bad.md"),
+        r#"---
+kind: nonsense
+id: stage.99_bad
+version: 0.1.0
+title: Bad Stage
+description: malformed and unrelated
+---
+# bad
+"#,
+    )
+    .expect("write unrelated malformed stage");
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        output.status.success(),
+        "pipeline compile should ignore unrelated malformed stages"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.stage_10_feature_spec.payload.full_context.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_feature_spec_explain_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+            "--explain",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        output.status.success(),
+        "pipeline compile --explain should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.stage_10_feature_spec.explain.full_context.txt",
+    );
+    assert!(
+        stdout.contains("OUTCOME: COMPILED"),
+        "explain mode should render proof: {stdout}"
+    );
+    assert!(
+        !stdout.starts_with("# stage.10_feature_spec"),
+        "explain mode must not include the payload header: {stdout}"
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_when_required_variable_is_missing() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let stage_path = root.join("core/stages/10_feature_spec.md");
+    let stage = std::fs::read_to_string(&stage_path).expect("read stage");
+    let updated_stage = stage.replace("    - project_name?\n", "    - project_name\n");
+    assert_ne!(
+        stage, updated_stage,
+        "stage fixture should be updated for the test"
+    );
+    std::fs::write(&stage_path, updated_stage).expect("write stage");
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        !output.status.success(),
+        "missing required variable should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.missing_required_variable.txt",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn pipeline_compile_refuses_symlinked_required_artifact_input() {
+    use std::os::unix::fs::symlink;
+
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+
+    let outside_dir = tempfile::tempdir().expect("outside tempdir");
+    let outside_secret = outside_dir.path().join("system-review-secret.txt");
+    std::fs::write(&outside_secret, "outside-secret").expect("write secret");
+
+    let artifact = root.join("artifacts/base/BASE_CONTEXT.md");
+    std::fs::remove_file(&artifact).expect("remove artifact");
+    symlink(&outside_secret, &artifact).expect("symlink artifact");
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        !output.status.success(),
+        "symlinked required artifact should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"));
+    assert!(!stdout.contains("# stage.10_feature_spec"));
+    assert!(stdout.contains("artifacts/base/BASE_CONTEXT.md"));
+    assert!(!stdout.contains("outside-secret"));
+}
+
+#[test]
+fn pipeline_compile_refuses_missing_route_basis() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "pipeline compile should refuse without a persisted route basis"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.missing_route_basis.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_inactive_stage() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "pipeline resolve should succeed");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "inactive-stage compile should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.inactive_stage.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_stale_route_basis_after_state_set() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let mutation = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+    );
+    assert!(mutation.status.success(), "state mutation should succeed");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "10_feature_spec",
+        ],
+    );
+    assert!(!output.status.success(), "stale route basis should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.stale_route_basis.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_malformed_route_basis() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    pipeline_proof_corpus_support::install_state_seed(root.as_path(), "malformed_route_basis.yaml");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "malformed route basis should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.malformed_route_basis.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_forged_route_basis_status() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "pipeline resolve should succeed");
+
+    let state_path = root
+        .join(".system")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.foundation_inputs.yaml");
+    let state = std::fs::read_to_string(&state_path).expect("state file");
+    let forged = state.replace(
+        "  - stage_id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n    status: blocked\n    reason:\n      kind: blocked_by_unresolved_stage\n      upstream_stage_id: stage.06_project_context_interview\n      upstream_status: next\n",
+        "  - stage_id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n    status: active\n    reason: null\n",
+    );
+    assert_ne!(
+        state, forged,
+        "route_basis fixture should be updated for the test"
+    );
+    std::fs::write(&state_path, forged).expect("write forged state");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(!output.status.success(), "forged route basis should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.malformed_route_basis_forged_status.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_stage_not_in_pipeline() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let pipeline_path = root.join("pipelines/foundation_inputs.yaml");
+    let pipeline = std::fs::read_to_string(&pipeline_path).expect("read pipeline");
+    let updated_pipeline = pipeline.replace(
+        "  - id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n",
+        "",
+    );
+    assert_ne!(
+        pipeline, updated_pipeline,
+        "pipeline fixture should be updated for the test"
+    );
+    std::fs::write(&pipeline_path, updated_pipeline).expect("write pipeline");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "missing declared stage should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.stage_not_in_pipeline.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_refuses_missing_required_artifact() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+    std::fs::remove_file(root.join("artifacts/base/BASE_CONTEXT.md"))
+        .expect("remove required artifact");
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        !output.status.success(),
+        "missing required artifact should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden(
+        &stdout,
+        root.as_path(),
+        None,
+        "compile.refused.missing_required_artifact.txt",
+    );
+}
+
+#[test]
+fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+    for path in [
+        "artifacts/project_context/PROJECT_CONTEXT.md",
+        "artifacts/foundation/FOUNDATION_STRATEGY.md",
+        "artifacts/foundation/TECH_ARCH_BRIEF.md",
+    ] {
+        std::fs::remove_file(root.join(path)).expect("remove optional artifact");
+    }
+
+    let canonical_root = canonical_repo_root(root.as_path());
+    let expected = system_compiler::compile_pipeline_stage_with_runtime(
+        canonical_root.as_path(),
+        "pipeline.foundation_inputs",
+        "stage.10_feature_spec",
+        &system_compiler::PipelineCompileRuntimeContext {
+            now_utc_override: Some(FIXED_NOW_UTC.to_string()),
+        },
+    )
+    .map(|result| system_compiler::render_pipeline_compile_payload(&result))
+    .expect("compile should succeed");
+
+    let output = run_in_with_env(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        output.status.success(),
+        "optional artifacts should remain a success path"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_eq!(stdout, format!("{expected}\n"));
+    assert!(
+        !stdout.contains("OUTCOME:"),
+        "plain compile must stay payload-only: {stdout}"
     );
 }
 
@@ -649,6 +1371,39 @@ fn pipeline_state_set_field_rejects_invalid_paths_and_values() {
         invalid_value_stdout.trim_end(),
         "REFUSED: route state mutation error: route state mutation is invalid: repo-relative ref `/tmp/CHARTER.md` must not be absolute"
     );
+}
+
+#[test]
+fn pipeline_state_set_field_rejects_incomplete_profile_pack() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    write_incomplete_profile_pack(root.as_path(), "incomplete");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "run.profile=incomplete",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "incomplete profile pack should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(
+        stdout.contains("REFUSED: route state mutation error:"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run.profile `incomplete`"), "{stdout}");
+    assert!(stdout.contains("profiles/incomplete/"), "{stdout}");
+    assert!(stdout.contains("commands.yaml"), "{stdout}");
+    assert!(stdout.contains("conventions.md"), "{stdout}");
 }
 
 #[test]

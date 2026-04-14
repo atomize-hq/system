@@ -8,9 +8,9 @@ ROUTE BASIS:
     charter_ref = <unset>
     project_context_ref = <unset>
   run:
-    runner = <unset>
-    profile = <unset>
-    repo_root = <unset>
+    runner = codex-cli
+    profile = python-uv
+    repo_root = ${repo_root}
 ROUTE:
   1. stage.00_base | active
   2. stage.04_charter_inputs | active

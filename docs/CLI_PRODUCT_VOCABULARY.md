@@ -38,11 +38,14 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
   - Use when the operator wants the minimum correct planning packet from trusted inputs.
 - `pipeline`
   - The orchestration surface.
-  - Use when the operator needs route truth, explicit stage selection, or narrow route-state mutation.
+  - Use when the operator needs route truth, explicit stage selection, explicit stage compilation, or narrow route-state mutation.
   - Do not describe this as a generic workflow framework unless the product contract actually expands that far.
 - `inspect`
-  - The proof surface.
+  - The packet proof surface.
   - Use when the operator wants to verify why a packet looks the way it does.
+- `pipeline compile --explain`
+  - The compile proof surface for the supported M2 stage-compile wedge.
+  - Use when the operator wants route-basis, input-decision, and output-contract proof for one compiled stage payload.
 - `doctor`
   - The recovery surface.
   - Use when the operator needs blocker aggregation and the next safe recovery path.
@@ -84,9 +87,12 @@ These phrases should remain stable across top-level docs and help text unless th
 - `canonical repo-local `.system/` inputs`
 - `fixture-backed execution demo`
 - `live execution is explicitly refused`
-- "`inspect` is the proof surface"
+- "`inspect` is the packet proof surface"
+- "`pipeline compile --explain` is the compile proof surface"
 - "`doctor` is the recovery surface"
 - "`setup` is still a placeholder"
+- `payload-only stdout`
+- `proof-only stdout`
 - `next safe action`
 
 Use backticks around command verbs when they refer to command names.
@@ -101,6 +107,7 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 - `pipeline`, not generic framework wording, when naming route/control-plane work
 - `generate`, not compile/build/render when describing packet creation
 - `inspect`, not explain/debug when naming the proof command
+- `pipeline compile --explain`, not `inspect`, when naming compile proof
 - `doctor`, not health repair or troubleshoot when naming the recovery command
 - `refusal`, not warning or issue, when a command is blocked
 - `canonical artifacts` or `canonical inputs`, not config files or metadata, when referring to trusted product inputs
@@ -153,7 +160,8 @@ Use:
 
 - `REFUSED: missing required canonical artifact`
 - `NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md`
-- "`inspect` is the proof surface"
+- "`inspect` is the packet proof surface"
+- "`pipeline compile --explain` is the compile proof surface"
 - "`doctor` is the recovery surface"
 
 Do not use:

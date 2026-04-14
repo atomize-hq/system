@@ -26,8 +26,8 @@ fn main() -> ExitCode {
     name = "system",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -38,7 +38,7 @@ struct Cli {
 enum Command {
     /// Placeholder setup entrypoint.
     Setup,
-    /// Pipeline operator surface.
+    /// Pipeline operator surface for route resolution, explicit stage compilation, and route-state operations.
     Pipeline(PipelineArgs),
     /// Generate a reduced-v1 packet.
     Generate(RequestArgs),
@@ -74,6 +74,8 @@ enum PipelineCommand {
     Show(PipelineShowArgs),
     /// Resolve one pipeline route from persisted route state.
     Resolve(PipelineSelectorArgs),
+    /// Compile one supported stage payload from persisted route basis.
+    Compile(PipelineCompileArgs),
     /// Route-state operations.
     State(PipelineStateArgs),
 }
@@ -102,6 +104,19 @@ struct PipelineSelectorArgs {
     /// Canonical id or unambiguous shorthand for a pipeline.
     #[arg(long)]
     id: String,
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineCompileArgs {
+    /// Canonical id or unambiguous shorthand for a pipeline.
+    #[arg(long)]
+    id: String,
+    /// Canonical id or unambiguous shorthand for a stage within the selected pipeline.
+    #[arg(long)]
+    stage: String,
+    /// Render compile proof instead of the stage payload.
+    #[arg(long)]
+    explain: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -414,6 +429,7 @@ fn pipeline(args: PipelineArgs) -> ExitCode {
         PipelineCommand::List => pipeline_list(),
         PipelineCommand::Show(args) => pipeline_show(args),
         PipelineCommand::Resolve(args) => pipeline_resolve(args),
+        PipelineCommand::Compile(args) => pipeline_compile(args),
         PipelineCommand::State(args) => match args.command {
             PipelineStateCommand::Set(args) => pipeline_state_set(args),
         },
@@ -525,11 +541,80 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
             }
         };
 
+    let route_basis = match system_compiler::build_route_basis(
+        &repo_root,
+        &pipeline.definition,
+        &state,
+        &route,
+    ) {
+        Ok(route_basis) => route_basis,
+        Err(err) => {
+            println!("REFUSED: route basis build error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    match system_compiler::persist_route_basis(
+        &repo_root,
+        &pipeline.definition.header.id,
+        route_basis,
+    ) {
+        Ok(system_compiler::RouteBasisPersistOutcome::Applied(_)) => {}
+        Ok(system_compiler::RouteBasisPersistOutcome::Refused(refusal)) => {
+            println!("REFUSED: route basis persistence refused: {refusal}");
+            return ExitCode::from(1);
+        }
+        Err(err) => {
+            println!("REFUSED: route basis persistence error: {err}");
+            return ExitCode::from(1);
+        }
+    }
+
     println!(
         "{}",
-        render_pipeline_resolve_output(&pipeline.definition.header.id, &state, &route)
+        render_pipeline_resolve_output(
+            &pipeline.definition.header.id,
+            &state,
+            &system_compiler::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
+            &route,
+        )
     );
     ExitCode::SUCCESS
+}
+
+fn pipeline_compile(args: PipelineCompileArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    match system_compiler::compile_pipeline_stage(&repo_root, &args.id, &args.stage) {
+        Ok(result) => {
+            if args.explain {
+                println!(
+                    "{}",
+                    system_compiler::render_pipeline_compile_explain(&result)
+                );
+            } else {
+                println!(
+                    "{}",
+                    system_compiler::render_pipeline_compile_payload(&result)
+                );
+            }
+            ExitCode::SUCCESS
+        }
+        Err(refusal) => {
+            println!(
+                "{}",
+                render_pipeline_compile_refusal(refusal, &args.id, &args.stage)
+            );
+            ExitCode::from(1)
+        }
+    }
 }
 
 fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
@@ -644,6 +729,100 @@ fn render_pipeline_selector_refusal(err: system_compiler::PipelineLookupError) -
     }
 }
 
+fn render_pipeline_compile_refusal(
+    refusal: system_compiler::PipelineCompileRefusal,
+    requested_pipeline_id: &str,
+    requested_stage_id: &str,
+) -> String {
+    let pipeline_id = refusal
+        .pipeline_id
+        .as_deref()
+        .unwrap_or(requested_pipeline_id.trim());
+    let stage_id = refusal
+        .stage_id
+        .as_deref()
+        .unwrap_or(requested_stage_id.trim());
+    let mut out = String::new();
+    out.push_str("OUTCOME: REFUSED\n");
+    out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
+    out.push_str(&format!("STAGE: {stage_id}\n"));
+    out.push_str(&format!(
+        "REASON: {}: {}\n",
+        render_pipeline_compile_refusal_classification(refusal.classification),
+        refusal.summary.trim()
+    ));
+    out.push_str(&format!(
+        "BROKEN SUBJECT: pipeline `{pipeline_id}` stage `{stage_id}`\n"
+    ));
+    out.push_str(&format!(
+        "NEXT SAFE ACTION: {}\n",
+        render_pipeline_compile_next_safe_action(&refusal, pipeline_id, stage_id)
+    ));
+    out.trim_end().to_string()
+}
+
+fn render_pipeline_compile_refusal_classification(
+    classification: system_compiler::PipelineCompileRefusalClassification,
+) -> &'static str {
+    match classification {
+        system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
+            "unsupported_target"
+        }
+        system_compiler::PipelineCompileRefusalClassification::InvalidDefinition => {
+            "invalid_definition"
+        }
+        system_compiler::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
+        system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis => {
+            "missing_route_basis"
+        }
+        system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis => {
+            "malformed_route_basis"
+        }
+        system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => {
+            "stale_route_basis"
+        }
+        system_compiler::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
+        system_compiler::PipelineCompileRefusalClassification::MissingRequiredInput => {
+            "missing_required_input"
+        }
+        system_compiler::PipelineCompileRefusalClassification::EmptyRequiredInput => {
+            "empty_required_input"
+        }
+    }
+}
+
+fn render_pipeline_compile_next_safe_action(
+    refusal: &system_compiler::PipelineCompileRefusal,
+    pipeline_id: &str,
+    stage_id: &str,
+) -> String {
+    match refusal.classification {
+        system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
+            if refusal
+                .recovery
+                .trim()
+                .contains("confirm the selected stage is declared in the pipeline")
+            {
+                format!(
+                    "run `system pipeline resolve --id {pipeline_id}` and confirm `{stage_id}` is declared in pipeline `{pipeline_id}` before retrying `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+                )
+            } else {
+                refusal.recovery.trim().to_string()
+            }
+        }
+        system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
+        | system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+        | system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis
+        | system_compiler::PipelineCompileRefusalClassification::InactiveStage => format!(
+            "run `system pipeline resolve --id {pipeline_id}` and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+        ),
+        _ => format!(
+            "{}; then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`",
+            refusal.recovery.trim()
+        ),
+    }
+}
+
 fn parse_route_state_mutation(
     args: &PipelineStateSetArgs,
 ) -> Result<system_compiler::RouteStateMutation, String> {
@@ -726,6 +905,7 @@ fn parse_route_state_field_assignment(
 fn render_pipeline_resolve_output(
     pipeline_id: &str,
     state: &system_compiler::RouteState,
+    effective_run: &system_compiler::RouteStateRun,
     route: &system_compiler::ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
@@ -749,9 +929,9 @@ fn render_pipeline_resolve_output(
         state.refs.project_context_ref.as_deref(),
     );
     out.push_str("  run:\n");
-    render_optional_route_basis_field(&mut out, "runner", state.run.runner.as_deref());
-    render_optional_route_basis_field(&mut out, "profile", state.run.profile.as_deref());
-    render_optional_route_basis_field(&mut out, "repo_root", state.run.repo_root.as_deref());
+    render_optional_route_basis_field(&mut out, "runner", effective_run.runner.as_deref());
+    render_optional_route_basis_field(&mut out, "profile", effective_run.profile.as_deref());
+    render_optional_route_basis_field(&mut out, "repo_root", effective_run.repo_root.as_deref());
     out.push_str("ROUTE:\n");
 
     for (index, stage) in route.stages.iter().enumerate() {
@@ -809,6 +989,7 @@ fn render_pipeline_state_set_output(
     let mut out = String::new();
     match outcome {
         system_compiler::RouteStateMutationOutcome::Applied(state) => {
+            let state = *state;
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REVISION: {}\n", state.revision));

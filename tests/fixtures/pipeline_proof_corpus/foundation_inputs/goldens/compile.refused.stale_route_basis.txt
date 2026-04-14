@@ -1,0 +1,6 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+REASON: stale_route_basis: route state revision 3 does not match persisted route_basis revision 2
+BROKEN SUBJECT: pipeline `pipeline.foundation_inputs` stage `stage.10_feature_spec`
+NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and then retry `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`

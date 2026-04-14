@@ -183,16 +183,21 @@ Finished interaction target:
 Role:
 
 - orchestration surface
-- own route resolution, explicit stage selection, and narrow pipeline-run state mutation
+- own route resolution, one bounded explicit stage-compilation surface, and narrow pipeline-run state mutation
 
 Design rule:
 
 - `pipeline` is not a generic workflow engine brand
-- it exists to make route truth and future compile boundaries explicit and auditable
+- it exists to make route truth and compile boundaries explicit and auditable
 
 Finished interaction target:
 
-- `pipeline resolve` and future compile work stay separate jobs with one shared typed route truth
+- `pipeline resolve` and `pipeline compile` stay separate jobs with one shared typed route truth
+- the shipped compile surface stays intentionally narrow:
+  - `pipeline compile --id <pipeline-id> --stage <stage-id>`
+  - `pipeline compile --id <pipeline-id> --stage <stage-id> --explain`
+- plain `pipeline compile` success is payload-only stdout
+- `pipeline compile --explain` is the compile proof surface for that same typed result
 - `pipeline state set` stays schema-bound, auditable, and narrow
 - `pipeline` should feel like compiler control-plane tooling, not a second front door
 
@@ -200,13 +205,14 @@ Finished interaction target:
 
 Role:
 
-- proof surface
+- packet proof surface
 - explain why the packet looks the way it does
 
 Design rule:
 
 - evidence order matters more than prose
 - `inspect` should feel auditable, not chatty
+- compile-specific proof belongs to `pipeline compile --explain`, not `inspect`
 
 Current quirk:
 
@@ -278,7 +284,7 @@ The highest-value vocabulary rules are:
 - use `refusal` for blocked command outcomes
 - use `next safe action` for the repair handoff line
 - do not rename `setup` to `bootstrap`, `init`, `hydrate`, or `onboard`
-- do not describe `pipeline` as a generic framework when the product meaning is route truth plus explicit stage selection
+- do not describe `pipeline` as a generic framework when the product meaning is route truth plus a bounded explicit stage-compilation surface
 
 ## Hierarchy And Routing Contract
 
@@ -289,7 +295,8 @@ The highest-value hierarchy rules are:
 - the front door is a guided setup experience
 - the stable operation name remains `setup`
 - `generate` is the default ready-path command
-- `inspect` is for proof
+- `inspect` is for packet proof
+- `pipeline compile --explain` is for compile proof
 - `doctor` is for recovery and readiness
 
 Repo-state routing:
@@ -329,6 +336,9 @@ The canonical output anatomy lives in [`docs/CLI_OUTPUT_ANATOMY.md`](docs/CLI_OU
 Current reduced-v1 interaction shape:
 
 - `generate` and `inspect` already have a strong trust-header model
+- `pipeline compile` is now a shipped special case:
+  - plain success is payload-only stdout
+  - `--explain` is proof-only stdout
 - `doctor` is still transitional
 - `setup` is still placeholder-only
 
@@ -352,7 +362,9 @@ Examples:
 
 - say `setup` is the front door, but also say the Rust CLI setup path is still placeholder-only
 - say `doctor` is the canonical recovery surface, but also say its shipped anatomy is still transitional
-- say `inspect` is the proof surface, but do not pretend the current self-referential next action is ideal
+- say `inspect` is the packet proof surface, and say compile proof lives on `pipeline compile --explain`
+- say `pipeline compile` is shipped for one bounded M2 target, but do not describe it as generic multi-stage compile support
+- do not pretend the current self-referential `inspect` next action is ideal
 
 ## Accessibility And Agent Readability
 
@@ -377,9 +389,11 @@ Design rules:
 The target product should create one coherent loop:
 
 1. `setup` establishes or refreshes trusted project truth
-2. `generate` produces the packet quickly
-3. `inspect` proves why the packet looks the way it does
-4. `doctor` recovers the operator from broken or ambiguous state
+2. `pipeline resolve` establishes route truth for stage-specific pipeline work when needed
+3. `pipeline compile` compiles the bounded shipped stage payload when that route is ready
+4. `generate` produces the packet quickly
+5. `inspect` proves why the packet looks the way it does
+6. `doctor` recovers the operator from broken or ambiguous state
 
 That loop breaks when a surface feels semantically wrong even if the code is technically correct.
 

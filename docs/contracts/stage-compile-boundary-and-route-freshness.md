@@ -2,7 +2,7 @@
 contract_id: C-10
 seam_id: SEAM-3
 owner_seam: SEAM-3
-version: m1-v1
+version: m2-v1
 currentness: current
 status: published
 revalidation_triggers:
@@ -27,7 +27,7 @@ This contract defines the compile boundary between published `pipeline` route tr
 - how activation duplication between pipeline YAML and stage front matter is handled during the transition
 - what kind of stage-payload handoff later compile work may expect, without pinning implementation details too early
 
-`C-10` is intentionally downstream-facing. It freezes the handoff rules without widening the shipped M1 `pipeline` help surface.
+`C-10` is intentionally downstream-facing. It freezes the handoff rules for the shipped M2 compile wedge without widening beyond the bounded first-stage target.
 
 ## Canonical location
 
@@ -89,6 +89,7 @@ This contract defines the compile boundary between published `pipeline` route tr
 - Compile MUST consume already-resolved route truth as the route basis for downstream compile work.
 - The route basis includes the resolved route plus the reviewed runtime state surfaces published by `C-08`: `routing`, `refs`, and `run`.
 - For the first supported `M2` wedge, that route basis MUST be persisted as one bounded `route_basis` snapshot written by `pipeline resolve` and then consumed by `pipeline compile`.
+- Compile-facing uses of `run.repo_root` MUST render the stable symbolic root `${repo_root}` rather than the machine-local checkout path.
 - Freshness checks that depend on runner/profile or artifact references MUST read them from the published route-state fields rather than reconstructing them from legacy harness assumptions.
 - Compile MUST refuse stale route basis instead of silently re-running `pipeline resolve`.
 - Compile MUST refuse inactive stages explicitly when the selected stage is not active in the resolved route truth.
@@ -113,11 +114,14 @@ This contract defines the compile boundary between published `pipeline` route tr
 - The handoff MUST describe that boundary without over-specifying future payload field names, materialization steps, or file-write behavior.
 - The handoff MUST remain compatible with future M2 implementation detail changes as long as the source-of-truth split and refusal posture stay intact.
 
-### M1 help/docs posture
+### M2 help/docs posture
 
-- `pipeline compile` MUST remain out of the shipped M1 help/docs surface.
-- This contract MUST NOT be read as a release claim that compile is already supported in M1.
-- This contract MAY define the compile boundary now, but it MUST keep publication of the executable surface deferred to later work.
+- The shipped M2 help/docs surface MUST expose exactly:
+  - `pipeline compile --id <pipeline-id> --stage <stage-id>`
+  - `pipeline compile --id <pipeline-id> --stage <stage-id> --explain`
+- Help/docs MUST describe plain `pipeline compile` success as payload-only stdout.
+- Help/docs MUST describe `pipeline compile --explain` as proof-only stdout.
+- Help/docs MUST keep compile-specific proof out of `inspect`; `inspect` remains the packet proof surface.
 
 ## Compatibility and downstream revalidation
 
@@ -133,6 +137,6 @@ This contract defines the compile boundary between published `pipeline` route tr
 - [ ] The contract names `pipeline` target selection, source-of-truth split, freshness refusal, inactive-stage refusal, activation-equivalence posture, and stage-payload handoff as separate normative concerns.
 - [ ] The contract makes pipeline-YAML-owned fields and stage-front-matter-owned fields explicit enough for downstream implementation.
 - [ ] The contract ties compile-target selection to the published canonical-id and shorthand rules without introducing raw-path targeting.
-- [ ] The contract keeps `pipeline compile` out of the shipped M1 help/docs posture.
+- [ ] The contract defines the shipped M2 compile/help posture without widening beyond the bounded first-stage target.
 - [ ] The contract references only the published upstream truth at `docs/contracts/pipeline-route-and-state-core.md` and `docs/contracts/pipeline-operator-surface-and-id-resolution.md`.
 - [ ] The contract does not over-specify future payload field names or implementation details.

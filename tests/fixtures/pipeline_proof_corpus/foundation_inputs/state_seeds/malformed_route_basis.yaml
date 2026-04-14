@@ -1,0 +1,42 @@
+---
+schema_version: m2-pipeline-state-v3
+pipeline_id: pipeline.foundation_inputs
+revision: 0
+routing: {}
+refs:
+  charter_ref: null
+  project_context_ref: null
+run:
+  runner: null
+  profile: null
+  repo_root: /tmp/foundation-inputs
+audit: []
+route_basis:
+  schema_version: bad-route-basis
+  pipeline_id: pipeline.foundation_inputs
+  pipeline_file: pipelines/foundation_inputs.yaml
+  pipeline_file_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  state_revision: 0
+  routing: {}
+  refs:
+    charter_ref: null
+    project_context_ref: null
+  run:
+    runner: codex-cli
+    profile: python-uv
+    repo_root: /tmp/foundation-inputs
+  route:
+    - stage_id: stage.00_base
+      file: core/stages/00_base.md
+      status: active
+      reason: null
+      file_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  runner:
+    id: codex-cli
+    file: runners/codex-cli.md
+    file_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  profile:
+    id: python-uv
+    profile_yaml_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+    commands_yaml_sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+    conventions_md_sha256: ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff

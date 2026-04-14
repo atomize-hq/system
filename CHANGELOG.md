@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0.0] - 2026-04-14
+
+### Added
+- Added the shipped M2 `pipeline compile` wedge for `pipeline.foundation_inputs` + `stage.10_feature_spec`, including payload-only success output, `--explain` proof mode, and compiler-owned route-basis persistence through `pipeline resolve`.
+- Added bounded compile-time document loading and refusal coverage for missing route basis, stale or forged route snapshots, inactive stages, missing required artifacts or variables, and shared golden outputs reused by both compiler and CLI test suites.
+- Added proof-corpus and CLI regression coverage for the new compile surface, including refusal goldens, help snapshots, and route-basis state seeds that lock the operator contract in place.
+
+### Changed
+- Tightened compile safety by rejecting incomplete profile packs, refusing symlinked compile inputs, honoring the selected stage work level when filtering scoped blocks, and restricting compile selection to the declared M2 stage boundary.
+- Normalized compile-facing `repo_root` handling to the stable `${repo_root}` symbolic root and updated route-state contracts so persisted `route_basis` snapshots stay deterministic and auditable across resolve and compile runs.
+- Realigned README, DESIGN, support docs, and pipeline contracts around the shipped M2 compile surface so docs, help text, snapshots, and proof-corpus expectations all describe the same supported workflow.
+
 ## [0.2.0.0] - 2026-04-13
 
 ### Added

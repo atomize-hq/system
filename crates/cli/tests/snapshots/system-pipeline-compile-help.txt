@@ -1,0 +1,9 @@
+Compile one supported stage payload from persisted route basis
+
+Usage: system pipeline compile [OPTIONS] --id <ID> --stage <STAGE>
+
+Options:
+      --id <ID>        Canonical id or unambiguous shorthand for a pipeline
+      --stage <STAGE>  Canonical id or unambiguous shorthand for a stage within the selected pipeline
+      --explain        Render compile proof instead of the stage payload
+  -h, --help           Print help

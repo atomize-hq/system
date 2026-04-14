@@ -24,6 +24,7 @@ This document depends on:
 - Ready-path output keeps the useful result as the main event.
 - Refusal-path output stays compact.
 - Proof output is allowed to be denser, but section ordering stays stable.
+- `pipeline compile` is a special M2 case: plain success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
 - `doctor` is a special case in current reduced v1: its shipped anatomy is still transitional and does not yet use the same trust-header shape as `generate` and `inspect`.
 - `setup` is also a special case in current reduced v1: it is placeholder-only and therefore has placeholder anatomy, not full reduced-v1 runtime anatomy.
 
@@ -99,6 +100,7 @@ Rules:
 - `## JSON FALLBACK` always appears.
 - Proof order privileges evidence review over narrative prose.
 - The ready-path `NEXT SAFE ACTION` must hand off to the packet surface, not back into `inspect`.
+- `inspect` remains the packet proof surface; compile-specific proof belongs to `pipeline compile --explain`.
 
 ### Blocked or refused
 
@@ -154,6 +156,51 @@ The long-term anatomy should converge on:
 5. readiness or retry guidance
 
 But that is not the full shipped shape today.
+
+## `pipeline compile` Anatomy
+
+### Ready
+
+plain `pipeline compile` success is payload-only stdout.
+
+Rules:
+
+- plain `pipeline compile` success is payload-only stdout with no trust header
+- plain success starts directly with the compiled stage payload
+- plain success must not append route-basis recap, refusal framing, or a trailing next safe action
+
+### Proof mode
+
+`pipeline compile --explain` success is proof-only stdout.
+
+Section order:
+
+1. `OUTCOME: COMPILED`
+2. `TARGET`
+3. `ROUTE BASIS`
+4. `ROUTE SNAPSHOT`
+5. `VARIABLES`
+6. `DOCUMENTS`
+7. `OUTPUTS`
+8. `GATING`
+9. payload summary only
+
+Rules:
+
+- `pipeline compile --explain` success is proof-only stdout
+- explain mode must not include the payload body in addition to proof
+- freshness recovery remains explicit: re-run `pipeline resolve` before retrying compile when route basis is missing, stale, or inactive
+
+### Refused
+
+Compile refusal uses a compact refusal block:
+
+1. `OUTCOME: REFUSED`
+2. `PIPELINE`
+3. `STAGE`
+4. `REASON`
+5. `BROKEN SUBJECT`
+6. `NEXT SAFE ACTION`
 
 ## `setup` Anatomy
 
