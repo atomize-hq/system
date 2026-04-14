@@ -876,30 +876,34 @@ Lane completion checklists:
 
 Lane A:
 
-- [ ] `crates/compiler` owns compile entrypoint, typed result, refusal logic, and both payload/explain renderers
+- [x] `crates/compiler` owns compile entrypoint, typed result, refusal logic, and both payload/explain renderers
 - [x] `pipelines/foundation_inputs.yaml` declares `stage.10_feature_spec`
-- [ ] `route_state` persists one bounded `route_basis` snapshot written by `pipeline resolve`
-- [ ] `docs/contracts/pipeline-route-and-state-core.md` is updated with the new `route_basis` field set and schema version
-- [ ] compile can refuse missing, malformed, or stale `route_basis` without rerunning resolve
-- [ ] compile can refuse inactive stages using persisted route status and reason
-- [ ] required `stage.10_feature_spec` library/artifact inputs refuse on missing or empty content
-- [ ] optional foundation inputs remain non-fatal and visible in explain output
+- [x] `route_state` persists one bounded `route_basis` snapshot written by `pipeline resolve`
+- [x] `docs/contracts/pipeline-route-and-state-core.md` is updated with the new `route_basis` field set and schema version
+- [x] compile can refuse missing, malformed, or stale `route_basis` without rerunning resolve
+- [x] compile can refuse inactive stages using persisted route status and reason
+- [x] required `stage.10_feature_spec` library/artifact inputs refuse on missing or empty content
+- [x] optional foundation inputs remain non-fatal and visible in explain output
 
 Lane B:
 
-- [ ] `pipeline compile` ships with exactly `--id`, `--stage`, and optional `--explain`
-- [ ] plain compile success is payload-only stdout
-- [ ] explain success is proof-only stdout
-- [ ] compile-specific proof stays out of `inspect`
-- [ ] help text, docs, and contracts all describe the same operator boundary
+- [x] `pipeline compile` ships with exactly `--id`, `--stage`, and optional `--explain`
+- [x] plain compile success is payload-only stdout
+- [x] explain success is proof-only stdout
+- [x] compile-specific proof stays out of `inspect`
+- [x] help text, docs, and contracts all describe the same operator boundary
 
 Lane C:
 
 - [x] the shared proof corpus declares `stage.10_feature_spec`
 - [x] the shared corpus contains every compile-time dependency for `stage.10_feature_spec`
-- [ ] shared payload and explain goldens are committed once and reused by both suites
-- [ ] stale-basis and inactive-stage regressions are locked as mandatory tests
-- [ ] help snapshots and docs/help drift checks cover the shipped compile surface
+- [x] shared payload and explain goldens are committed once and reused by both suites
+- [x] stale-basis and inactive-stage regressions are locked as mandatory tests
+- [x] help snapshots and docs/help drift checks cover the shipped compile surface
+
+Residual follow-up after M2 ship:
+
+- fix the `unsupported_target` compile refusal next-safe-action so cases like selected-stage-not-in-pipeline do not point the operator back to the same failing compile command
 
 ### M3. Output Materialization Capability
 
