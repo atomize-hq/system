@@ -89,6 +89,7 @@ This contract defines the compile boundary between published `pipeline` route tr
 - Compile MUST consume already-resolved route truth as the route basis for downstream compile work.
 - The route basis includes the resolved route plus the reviewed runtime state surfaces published by `C-08`: `routing`, `refs`, and `run`.
 - For the first supported `M2` wedge, that route basis MUST be persisted as one bounded `route_basis` snapshot written by `pipeline resolve` and then consumed by `pipeline compile`.
+- Compile-facing uses of `run.repo_root` MUST render the stable symbolic root `${repo_root}` rather than the machine-local checkout path.
 - Freshness checks that depend on runner/profile or artifact references MUST read them from the published route-state fields rather than reconstructing them from legacy harness assumptions.
 - Compile MUST refuse stale route basis instead of silently re-running `pipeline resolve`.
 - Compile MUST refuse inactive stages explicitly when the selected stage is not active in the resolved route truth.

@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m2-pipeline-state-v3";
 const LEGACY_ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v2";
 pub const ROUTE_BASIS_SCHEMA_VERSION: &str = "m2-route-basis-v1";
+pub const ROUTE_BASIS_REPO_ROOT_SENTINEL: &str = "${repo_root}";
 pub const ROUTE_STATE_AUDIT_LIMIT: usize = 50;
 
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -645,7 +646,7 @@ pub(crate) fn route_basis_mismatch_reason(
     if candidate.refs != canonical.refs {
         return Some("route_basis refs do not match the canonical route snapshot".to_string());
     }
-    if candidate.run != canonical.run {
+    if normalize_route_basis_run(&candidate.run) != normalize_route_basis_run(&canonical.run) {
         return Some("route_basis run does not match the canonical route snapshot".to_string());
     }
     if candidate.runner.id != canonical.runner.id {
@@ -802,7 +803,7 @@ pub fn persist_route_basis(
         }
     })?;
     let effective_run = effective_route_basis_run(repo_root, &pipeline, &state);
-    state = normalized_state_for_route_basis(&state, repo_root);
+    state = normalized_state_for_persistence(&state, repo_root);
     if state.revision != route_basis.state_revision {
         return Ok(RouteBasisPersistOutcome::Refused(
             RouteBasisPersistRefusal::RevisionConflict {
@@ -813,7 +814,7 @@ pub fn persist_route_basis(
     }
     if state.routing != route_basis.routing
         || state.refs != route_basis.refs
-        || effective_run != route_basis.run
+        || effective_run != normalize_route_basis_run(&route_basis.run)
     {
         return Ok(RouteBasisPersistOutcome::Refused(
             RouteBasisPersistRefusal::MalformedState {
@@ -931,7 +932,7 @@ fn validate_loaded_state(
         path: state_path.to_path_buf(),
         reason,
     })?;
-    validate_run(&state.run, run_inventory).map_err(|reason| {
+    validate_state_run(&state.run, run_inventory).map_err(|reason| {
         RouteStateReadError::MalformedState {
             path: state_path.to_path_buf(),
             reason,
@@ -1081,7 +1082,10 @@ fn validate_refs(refs: &RouteStateRefs) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_run(run: &RouteStateRun, run_inventory: &RouteStateRunInventory) -> Result<(), String> {
+fn validate_state_run(
+    run: &RouteStateRun,
+    run_inventory: &RouteStateRunInventory,
+) -> Result<(), String> {
     if let Some(value) = &run.runner {
         validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)?;
     }
@@ -1090,6 +1094,22 @@ fn validate_run(run: &RouteStateRun, run_inventory: &RouteStateRunInventory) -> 
     }
     if let Some(value) = &run.repo_root {
         validate_repo_root(value)?;
+    }
+    Ok(())
+}
+
+fn validate_route_basis_run(
+    run: &RouteStateRun,
+    run_inventory: &RouteStateRunInventory,
+) -> Result<(), String> {
+    if let Some(value) = &run.runner {
+        validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)?;
+    }
+    if let Some(value) = &run.profile {
+        validate_profile_inventory_value(value, FIELD_RUN_PROFILE, &run_inventory.profiles)?;
+    }
+    if let Some(value) = &run.repo_root {
+        validate_route_basis_repo_root(value)?;
     }
     Ok(())
 }
@@ -1153,7 +1173,7 @@ fn validate_route_basis(
         path: state_path.to_path_buf(),
         reason: format!("route_basis refs are invalid: {reason}"),
     })?;
-    validate_run(&route_basis.run, run_inventory).map_err(|reason| {
+    validate_route_basis_run(&route_basis.run, run_inventory).map_err(|reason| {
         RouteStateReadError::MalformedState {
             path: state_path.to_path_buf(),
             reason: format!("route_basis run is invalid: {reason}"),
@@ -1403,6 +1423,15 @@ fn validate_repo_root(value: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_route_basis_repo_root(value: &str) -> Result<(), String> {
+    let trimmed = value.trim();
+    if trimmed == ROUTE_BASIS_REPO_ROOT_SENTINEL {
+        return Ok(());
+    }
+
+    validate_repo_root(value)
+}
+
 fn validate_sha256(value: &str) -> Result<(), String> {
     let trimmed = value.trim();
     if trimmed.len() != 64 {
@@ -1417,6 +1446,24 @@ fn validate_sha256(value: &str) -> Result<(), String> {
 
 fn derived_repo_root(repo_root: &Path) -> String {
     repo_root.to_string_lossy().into_owned()
+}
+
+fn derived_route_basis_repo_root() -> String {
+    ROUTE_BASIS_REPO_ROOT_SENTINEL.to_string()
+}
+
+pub(crate) fn normalize_route_basis_run(run: &RouteStateRun) -> RouteStateRun {
+    let mut normalized = run.clone();
+    if let Some(value) = normalized.repo_root.clone() {
+        normalized.repo_root = if value == ROUTE_BASIS_REPO_ROOT_SENTINEL {
+            Some(value)
+        } else if validate_repo_root(&value).is_ok() {
+            Some(derived_route_basis_repo_root())
+        } else {
+            Some(value)
+        };
+    }
+    normalized
 }
 
 fn parse_route_state_field_path(input: &str) -> Result<RouteStateFieldPath<'_>, String> {
@@ -1617,6 +1664,14 @@ fn is_inventory_id(value: &str) -> bool {
 }
 
 fn normalized_state_for_route_basis(state: &RouteState, repo_root: &Path) -> RouteState {
+    let mut normalized = state.clone();
+    normalized.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
+    let _ = repo_root;
+    normalized.run.repo_root = Some(derived_route_basis_repo_root());
+    normalized
+}
+
+fn normalized_state_for_persistence(state: &RouteState, repo_root: &Path) -> RouteState {
     let mut normalized = state.clone();
     normalized.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
     normalized.run.repo_root = Some(derived_repo_root(repo_root));

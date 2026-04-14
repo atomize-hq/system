@@ -10,7 +10,7 @@ ROUTE BASIS:
   run:
     runner = codex-cli
     profile = python-uv
-    repo_root = {{REPO_ROOT}}
+    repo_root = ${repo_root}
 ROUTE:
   1. stage.00_base | active
   2. stage.04_charter_inputs | active

@@ -98,6 +98,7 @@ The proof corpus MUST include cases that exercise:
 - Shared route-bearing goldens MUST live under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/`.
 - Path-bearing proof output MUST normalize temp-repo evidence into committed placeholder tokens before comparing against goldens.
 - The M1 placeholder tokens are `{{REPO_ROOT}}` for the temp proof repo root and `{{STATE_PATH}}` for persisted route-state evidence paths.
+- The compile-facing `repo_root` variable is not a placeholder token; its deterministic committed value is the literal symbolic root `${repo_root}`.
 
 ### Malformed-refusal classes
 

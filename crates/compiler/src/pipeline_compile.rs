@@ -6,8 +6,9 @@ use crate::pipeline::{
 use crate::repo_file_access::{read_repo_relative_string, RepoRelativeFileAccessError};
 use crate::route_state::{
     effective_route_basis_run, load_route_state_with_supported_variables,
-    rebuild_canonical_route_basis, route_basis_mismatch_reason, RouteBasis, RouteBasisStageReason,
-    RouteBasisStageStatus, RouteState, RouteStateReadError,
+    normalize_route_basis_run, rebuild_canonical_route_basis, route_basis_mismatch_reason,
+    RouteBasis, RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateReadError,
+    ROUTE_BASIS_REPO_ROOT_SENTINEL,
 };
 use std::collections::BTreeMap;
 use std::fmt;
@@ -283,13 +284,8 @@ pub fn compile_pipeline_stage_with_runtime(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "L1".to_string());
-    let variable_values = resolve_compile_variables(
-        &route_basis,
-        &stage_definition,
-        repo_root,
-        &work_level,
-        runtime,
-    )?;
+    let variable_values =
+        resolve_compile_variables(&route_basis, &stage_definition, &work_level, runtime)?;
     validate_required_variables(
         &pipeline.header.id,
         &stage_id,
@@ -704,7 +700,10 @@ fn check_route_basis_freshness(
         ));
     }
     let effective_run = effective_route_basis_run(repo_root, pipeline, state);
-    if state.routing != basis.routing || state.refs != basis.refs || effective_run != basis.run {
+    if state.routing != basis.routing
+        || state.refs != basis.refs
+        || effective_run != normalize_route_basis_run(&basis.run)
+    {
         return Err(stale_basis_refusal(
             &pipeline.header.id,
             stage_id,
@@ -777,7 +776,6 @@ fn stale_basis_refusal(
 fn resolve_compile_variables(
     basis: &RouteBasis,
     stage_definition: &CompileStageDefinition,
-    repo_root: &Path,
     work_level: &str,
     runtime: &PipelineCompileRuntimeContext,
 ) -> Result<BTreeMap<String, String>, PipelineCompileRefusal> {
@@ -798,15 +796,14 @@ fn resolve_compile_variables(
     if let Some(value) = &basis.refs.project_context_ref {
         values.insert("project_context_ref".to_string(), value.clone());
     }
+    let normalized_run = normalize_route_basis_run(&basis.run);
     values.insert("runner".to_string(), basis.runner.id.clone());
     values.insert("profile".to_string(), basis.profile.id.clone());
     values.insert(
         "repo_root".to_string(),
-        basis
-            .run
+        normalized_run
             .repo_root
-            .clone()
-            .unwrap_or_else(|| repo_root.to_string_lossy().into_owned()),
+            .unwrap_or_else(|| ROUTE_BASIS_REPO_ROOT_SENTINEL.to_string()),
     );
     values.insert("now_utc".to_string(), now_utc);
     values.insert("work_level".to_string(), work_level.to_string());

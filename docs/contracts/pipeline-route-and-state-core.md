@@ -107,7 +107,8 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - `refs.*` values, when present, MUST be non-empty repo-relative paths.
 - `run.runner` and `run.profile`, when present, MUST match declared allowlisted IDs discovered under `runners/` and `profiles/`.
 - `run.repo_root`, when present, MUST be a clean absolute path string naming the repo root bound to the successful mutation that last persisted the state file.
-- `run.repo_root` is compiler-derived runtime state. It is part of the published route basis, but it is not a direct user-writable mutation field.
+- `run.repo_root` is compiler-derived runtime state. In persisted route state it remains an absolute provenance path; in the published route-basis/compile-facing view it MUST be normalized to the stable symbolic root `${repo_root}`.
+- `run.repo_root` is not a direct user-writable mutation field.
 - `audit` MUST be a sequence of mutation records. Each record MUST contain exactly:
   - `revision`
   - `field_path`
@@ -131,6 +132,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - the selected runner id plus runner file path/fingerprint
   - the selected profile id plus fingerprints for `profile.yaml`, `commands.yaml`, and `conventions.md`
 - Accepted or persisted `route_basis` snapshots MUST exactly match the selected pipeline's declared stage list/order and the canonical resolve result for the captured `routing` snapshot; consumers MUST refuse mismatches rather than best-effort continuing.
+- `route_basis.run.repo_root`, when present, MUST use the stable symbolic root `${repo_root}`. Readers MAY accept legacy absolute values for compatibility, but compiler-owned comparisons and compile-facing output MUST canonicalize them to `${repo_root}`.
 - `route_basis` MUST NOT contain compiled payload bytes, explain output bytes, copied include/library/artifact contents, duplicated audit history, compile-only overrides, or wall-clock timestamps.
 - Unknown top-level keys, unknown nested keys, invalid routing variable names, invalid field paths, or wrong scalar types MUST be refused as malformed state.
 - Audit history MUST be bounded to a fixed implementation-defined maximum entry count and MUST trim oldest-first after a successful mutation. The bound MUST remain stable within one implementation revision and be covered by tests.
@@ -143,6 +145,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - `refs.charter_ref` and `refs.project_context_ref` MUST accept repo-relative string values only.
 - `run.runner` and `run.profile` MUST accept only declared allowlisted IDs discovered under `runners/` and `profiles/`.
 - `run.repo_root` MUST NOT be accepted as a direct mutation field. Successful compiler-owned mutation persistence MUST derive and persist it from the bound repo root instead.
+- `pipeline resolve` MAY derive a compile-facing route-basis copy of `run.repo_root`, but it MUST normalize that copy to `${repo_root}` instead of leaking the machine-local checkout path into downstream proof or payload surfaces.
 - Every mutation MUST acquire an advisory lock before the read-modify-write sequence begins.
 - Every mutation MUST compare an expected revision supplied by the caller with the persisted revision. On mismatch, the mutation MUST refuse rather than silently overwrite newer state.
 - Successful writes MUST use write-then-rename atomic replacement within the same state directory.

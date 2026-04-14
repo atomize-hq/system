@@ -78,7 +78,8 @@ pub use route_state::{
     RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateAuditEntry,
     RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
     RouteStateRefs, RouteStateRun, RouteStateStoreError, RouteStateValue,
-    ROUTE_BASIS_SCHEMA_VERSION, ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    ROUTE_BASIS_REPO_ROOT_SENTINEL, ROUTE_BASIS_SCHEMA_VERSION, ROUTE_STATE_AUDIT_LIMIT,
+    ROUTE_STATE_SCHEMA_VERSION,
 };
 
 pub fn workspace_contract_version() -> &'static str {

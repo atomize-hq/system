@@ -5,7 +5,7 @@ Produces a single FEATURE_SPEC.md for one feature, aligned with the project Char
 ## Run Variables
 - runner: codex-cli
 - profile: python-uv
-- repo_root: {{REPO_ROOT}}
+- repo_root: ${repo_root}
 - now_utc: 2026-01-28T18:35:10Z
 - project_name: <unset>
 - owner: <unset>

@@ -186,12 +186,13 @@ fn compile_feature_spec_payload_matches_shared_golden() {
             .expect("compile result");
     let payload = render_pipeline_compile_payload(&result);
 
-    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
         &payload,
-        &repo_root,
         &[],
         "compile.stage_10_feature_spec.payload.full_context.txt",
     );
+    assert!(!payload.contains(repo_root.to_string_lossy().as_ref()));
+    assert!(payload.contains("- repo_root: ${repo_root}"));
 }
 
 #[test]
@@ -202,12 +203,13 @@ fn compile_feature_spec_explain_matches_shared_golden() {
             .expect("compile result");
     let explain = render_pipeline_compile_explain(&result);
 
-    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
         &explain,
-        &repo_root,
         &[],
         "compile.stage_10_feature_spec.explain.full_context.txt",
     );
+    assert!(!explain.contains(repo_root.to_string_lossy().as_ref()));
+    assert!(explain.contains("repo_root = ${repo_root}"));
 }
 
 #[test]
@@ -232,9 +234,8 @@ description: malformed and unrelated
             .expect("compile result");
     let payload = render_pipeline_compile_payload(&result);
 
-    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
         &payload,
-        &repo_root,
         &[],
         "compile.stage_10_feature_spec.payload.full_context.txt",
     );
@@ -250,18 +251,44 @@ fn compile_payload_and_explain_share_one_typed_result() {
     let explain = render_pipeline_compile_explain(&result);
 
     assert_eq!(result.target.stage_id, STAGE_ID);
-    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
         &payload,
-        &repo_root,
         &[],
         "compile.stage_10_feature_spec.payload.full_context.txt",
     );
-    pipeline_proof_corpus_support::assert_matches_golden_with_placeholders(
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
         &explain,
-        &repo_root,
         &[],
         "compile.stage_10_feature_spec.explain.full_context.txt",
     );
+}
+
+#[test]
+fn compile_sanitizes_legacy_absolute_route_basis_repo_root() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let state_path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let state = fs::read_to_string(&state_path).expect("state file");
+    let updated_state = state.replacen(
+        "    repo_root: ${repo_root}\n",
+        &format!("    repo_root: {}\n", repo_root.display()),
+        1,
+    );
+    assert_ne!(
+        state, updated_state,
+        "route_basis repo_root should be rewritten for the test"
+    );
+    fs::write(&state_path, updated_state).expect("write legacy route_basis repo_root");
+
+    let result =
+        compile_pipeline_stage_with_runtime(&repo_root, PIPELINE_ID, STAGE_ID, &fixed_runtime())
+            .expect("compile result");
+    let payload = render_pipeline_compile_payload(&result);
+    let explain = render_pipeline_compile_explain(&result);
+
+    assert!(!payload.contains(repo_root.to_string_lossy().as_ref()));
+    assert!(!explain.contains(repo_root.to_string_lossy().as_ref()));
+    assert!(payload.contains("- repo_root: ${repo_root}"));
+    assert!(explain.contains("repo_root = ${repo_root}"));
 }
 
 #[test]

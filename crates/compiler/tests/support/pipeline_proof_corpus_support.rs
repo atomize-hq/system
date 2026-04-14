@@ -65,9 +65,23 @@ pub fn assert_matches_golden_with_placeholders(
     golden_name: &str,
 ) {
     let normalized_actual = normalize_output(actual, repo_root, placeholders);
+    assert_matches_normalized_output(&normalized_actual, golden_name);
+}
+
+#[allow(dead_code)]
+pub fn assert_matches_golden_with_explicit_placeholders(
+    actual: &str,
+    placeholders: &[(&Path, &str)],
+    golden_name: &str,
+) {
+    let normalized_actual = normalize_output_with_explicit_placeholders(actual, placeholders);
+    assert_matches_normalized_output(&normalized_actual, golden_name);
+}
+
+fn assert_matches_normalized_output(actual: &str, golden_name: &str) {
     let expected = read_golden(golden_name);
     assert_eq!(
-        normalized_actual,
+        actual,
         expected,
         "pipeline proof output drifted for {golden_name}; update the golden at {} if intentional",
         committed_case_root()
@@ -248,13 +262,21 @@ fn render_route_stage_reason(reason: &RouteStageReason) -> String {
 }
 
 fn normalize_output(actual: &str, repo_root: &Path, placeholders: &[(&Path, &str)]) -> String {
+    let mut normalized = normalize_output_with_explicit_placeholders(actual, placeholders);
+    normalized = replace_path_candidates(&normalized, repo_root, "{{REPO_ROOT}}");
+    normalized.trim_end().to_string()
+}
+
+fn normalize_output_with_explicit_placeholders(
+    actual: &str,
+    placeholders: &[(&Path, &str)],
+) -> String {
     let mut normalized = normalize_newlines(actual);
 
     for (path, placeholder) in placeholders {
         normalized = replace_path_candidates(&normalized, path, placeholder);
     }
 
-    normalized = replace_path_candidates(&normalized, repo_root, "{{REPO_ROOT}}");
     normalized.trim_end().to_string()
 }
 
