@@ -1374,7 +1374,8 @@ NOT in scope for M3:
 
 Goal:
 
-- add the missing stage surfaces and handoff rules that make `M4` end-to-end proof possible
+- make the shipped `pipeline` surfaces compose into one explicit `foundation_inputs` operator path from `stage.04_charter_inputs` through `stage.10_feature_spec`
+- finish the missing writer and handoff boundaries so `M4` can prove a real end-to-end flow without inventing stage-output rules on the fly
 
 Why this exists:
 
@@ -1383,6 +1384,21 @@ Why this exists:
   - `stage.04_charter_inputs` produces `CHARTER_INPUTS.yaml` but has no shipped materialization path
   - `stage.06_project_context_interview` produces `PROJECT_CONTEXT.md` but has no shipped materialization path
   - `stage.10_feature_spec` compiles to stdout but does not yet materialize `FEATURE_SPEC.md`
+
+Shipped product decision for `M3.5`:
+
+- `pipeline capture` remains the only shipped writer surface
+- `pipeline compile` stays payload-only / proof-only stdout, with no `--write` mode and no new `pipeline run` command
+- `stage.04_charter_inputs`, `stage.06_project_context_interview`, and `stage.10_feature_spec` join the supported `pipeline capture` target set for `pipeline.foundation_inputs`
+- `needs_project_context` remains an explicit operator-owned `pipeline state set` decision after `stage.05_charter_synthesize`
+- the write-safety claim remains scoped to `system`-coordinated single-writer flows unless a stronger boundary actually ships in code and tests
+
+In plain English:
+
+- `M3` already proved that Rust can validate stage output, preview a write plan, apply it under the route-state lock, and roll back its own writes on failure
+- `M3.5` does **not** invent a second writer model
+- it extends the same capture boundary to the remaining output-producing stages that block the first real `foundation_inputs` flow
+- the only human judgment handoff that stays manual is `needs_project_context`
 
 Must prove:
 
@@ -1401,26 +1417,190 @@ Minimum acceptable wedge:
 - add shared proof-corpus coverage, CLI help/docs parity, and regression tests for the newly supported stage surfaces
 - document the exact operator sequence for the first `foundation_inputs` path that `M4` will prove
 
-Implementation checklist:
+Exact operator path `M3.5` must ship:
 
-1. Lock the missing output-producing stages.
-   - decide whether `stage.04_charter_inputs`, `stage.06_project_context_interview`, and `stage.10_feature_spec` reuse `pipeline capture`, gain a closely related writer boundary, or require one explicit new bounded surface
-   - do not leave any of the three as an implicit manual step if `M4` is supposed to prove end-to-end compiler-owned flow
-2. Resolve the `needs_project_context` handoff cleanly.
-   - keep it manual and exact, or promote it into a supported compiler-owned transition
-   - remove the current plan ambiguity where `needs_project_context` is both “covered” and “manual”
-3. Extend the proof corpus.
-   - add goldens and regression cases for the newly supported stage surfaces
-   - prove route progression across `04 -> 05 -> 06? -> 07 -> 10`
-4. Keep docs and contracts exact.
-   - update contracts/help/docs so the supported handoff sequence matches the shipped implementation
-   - keep the rollback/concurrency claim scoped to `system`-coordinated single-writer flows
+```text
+pipeline resolve
+  -> stage.04_charter_inputs capture
+  -> stage.05_charter_synthesize capture
+  -> operator sets needs_project_context exactly once
+  -> pipeline resolve
+  -> stage.06_project_context_interview capture (only if active)
+  -> stage.07_foundation_pack capture
+  -> stage.10_feature_spec compile (optional explain proof)
+  -> stage.10_feature_spec capture
+```
+
+Canonical command sequence:
+
+```bash
+system pipeline resolve --id pipeline.foundation_inputs
+
+cat /tmp/CHARTER_INPUTS.yaml \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
+
+cat /tmp/CHARTER.md \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
+
+system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>
+system pipeline resolve --id pipeline.foundation_inputs
+
+# Only when resolve marks stage.06_project_context_interview active:
+cat /tmp/PROJECT_CONTEXT.md \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
+
+cat /tmp/FOUNDATION_PACK.blocks.txt \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack
+
+system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec --explain
+system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+```
+
+`M3.5` architecture:
+
+```text
+fresh route truth
+  -> route_state.rs persists route_basis
+
+selected stage body on stdin
+  -> pipeline_capture.rs validates supported stage + fresh route_basis
+  -> single-file parser for stages 04 / 05 / 06 / 10
+  -> multi-file parser for stage 07
+  -> write plan from stage outputs.artifacts + outputs.repo_files
+  -> repo-file mirrors derived by basename, same as M3
+  -> deterministic state updates:
+       stage 05 -> refs.charter_ref + routing.charter_gaps_detected
+       stage 06 -> refs.project_context_ref
+       all others -> no new automatic route-state mutation
+  -> direct apply or preview/apply cache
+  -> locked apply + rollback + next-safe-action rendering
+
+stage.10 compile/capture handoff
+  -> pipeline_compile.rs produces payload / explain to stdout
+  -> payload body feeds pipeline_capture.rs
+  -> capture materializes artifacts/feature_spec/FEATURE_SPEC.md
+```
+
+Implementation packet:
+
+1. Compiler target expansion.
+   - Extend the supported stage whitelist in [`crates/compiler/src/pipeline_capture.rs`](crates/compiler/src/pipeline_capture.rs) to include:
+     - `stage.04_charter_inputs`
+     - `stage.06_project_context_interview`
+     - `stage.10_feature_spec`
+   - Keep the current parser split:
+     - single-file capture for `04`, `05`, `06`, and `10`
+     - multi-file capture for `07`
+   - Do **not** add a new writer abstraction, new command family, or stage-specific sidecar service.
+   - Keep state-update derivation path-based and boring:
+     - `artifacts/charter/CHARTER.md` drives `refs.charter_ref` plus `routing.charter_gaps_detected`
+     - `artifacts/project_context/PROJECT_CONTEXT.md` drives `refs.project_context_ref`
+     - `stage.04_charter_inputs` and `stage.10_feature_spec` add no automatic route-state updates
+
+2. `needs_project_context` boundary cleanup.
+   - Remove the current ambiguity by locking one exact posture:
+     - capture does **not** auto-set `needs_project_context`
+     - `stage.05_charter_synthesize` success returns the exact next-safe-action sequence:
+       - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
+       - `system pipeline resolve --id pipeline.foundation_inputs`
+   - `stage.06_project_context_interview` remains conditional on the resolved route after that manual decision.
+
+3. Stage-specific writer expectations.
+   - `stage.04_charter_inputs`
+     - accept plain YAML body only
+     - write `artifacts/charter/CHARTER_INPUTS.yaml`
+     - refuse FILE wrappers and empty body
+   - `stage.06_project_context_interview`
+     - accept plain markdown body only
+     - write `artifacts/project_context/PROJECT_CONTEXT.md`
+     - reuse the existing repo-mirror derivation rules for the declared repo-file output
+     - persist `refs.project_context_ref`
+   - `stage.10_feature_spec`
+     - accept plain markdown body only
+     - write `artifacts/feature_spec/FEATURE_SPEC.md`
+     - remain compatible with the current `pipeline compile` payload-only stdout contract
+     - do **not** imply canonical `.system/feature_spec/FEATURE_SPEC.md` promotion in this milestone
+
+4. Proof corpus and regression coverage.
+   - Extend the shared proof corpus under [`tests/fixtures/pipeline_proof_corpus/foundation_inputs/`](tests/fixtures/pipeline_proof_corpus/foundation_inputs/) rather than creating a second corpus tree.
+   - Add capture success goldens for:
+     - `capture.preview.stage_04_charter_inputs.txt`
+     - `capture.apply.stage_04_charter_inputs.txt`
+     - `capture.preview.stage_06_project_context_interview.txt`
+     - `capture.apply.stage_06_project_context_interview.txt`
+     - `capture.preview.stage_10_feature_spec.txt`
+     - `capture.apply.stage_10_feature_spec.txt`
+   - Add compiler / CLI regression tests proving:
+     - single-file wrapper refusal for `04`, `06`, and `10`
+     - empty-body refusal for `04`, `06`, and `10`
+     - `stage.06_project_context_interview` writes the expected artifact path and project-context ref update
+     - `stage.10_feature_spec` capture works with the real compile payload handoff, not only with a synthetic markdown body
+     - route progression across `04 -> 05 -> state set -> resolve -> 06? -> 07 -> 10`
+
+5. Docs, contracts, and wording parity.
+   - Update:
+     - [`docs/contracts/pipeline-capture-preview-and-apply.md`](docs/contracts/pipeline-capture-preview-and-apply.md)
+     - [`docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md)
+     - [`docs/contracts/pipeline-proof-corpus-and-docs-cutover.md`](docs/contracts/pipeline-proof-corpus-and-docs-cutover.md)
+     - [`docs/START_HERE.md`](docs/START_HERE.md)
+     - [`docs/SUPPORTED_COMMANDS.md`](docs/SUPPORTED_COMMANDS.md)
+     - [`docs/CLI_PRODUCT_VOCABULARY.md`](docs/CLI_PRODUCT_VOCABULARY.md)
+     - [`docs/CLI_OUTPUT_ANATOMY.md`](docs/CLI_OUTPUT_ANATOMY.md) if any example output or supported-target wording changes
+   - Keep the transactionality wording exact:
+     - `system`-coordinated single-writer apply is guaranteed
+     - arbitrary external concurrent writers are not covered by `M3.5`
+
+File touch expectation:
+
+- compiler:
+  - `crates/compiler/src/pipeline_capture.rs`
+- compiler tests:
+  - `crates/compiler/tests/pipeline_capture.rs`
+  - `crates/compiler/tests/support/pipeline_proof_corpus_support.rs`
+- CLI tests:
+  - `crates/cli/tests/cli_surface.rs`
+  - help snapshot files only if wording changes
+- proof corpus:
+  - `tests/fixtures/pipeline_proof_corpus/foundation_inputs/goldens/*`
+- docs / contracts:
+  - the exact list above
+
+Test diagram:
+
+| Flow | Command path | Coverage required |
+| --- | --- | --- |
+| Stage 04 capture | stdin -> `pipeline capture stage.04_charter_inputs` | preview/apply success, FILE-wrapper refusal, empty-body refusal |
+| Stage 05 handoff | stdin -> `pipeline capture stage.05_charter_synthesize` -> `state set` -> `resolve` | existing goldens stay green, next-safe-action remains exact |
+| Stage 06 capture | stdin -> `pipeline capture stage.06_project_context_interview` | preview/apply success, repo-mirror derivation, `refs.project_context_ref` persistence |
+| Stage 07 capture | stdin -> `pipeline capture stage.07_foundation_pack` | existing success/refusal/rollback coverage stays green |
+| Stage 10 handoff | `pipeline compile stage.10_feature_spec` -> stdout -> `pipeline capture stage.10_feature_spec` | compile-to-capture integration test, preview/apply success, wrapper refusal, empty-body refusal |
+| Route freshness | stale or inactive route basis during any supported capture target | refusal before writes, same recovery path as M3 |
+
+Biggest hidden risks to close during implementation:
+
+- **Artifact-vs-canonical confusion.** `stage.10_feature_spec` capture writes `artifacts/feature_spec/FEATURE_SPEC.md`, not `.system/feature_spec/FEATURE_SPEC.md`. If docs blur those, later sessions will treat stage output like canonical input.
+- **Manual-decision drift.** If any contract or help text implies capture “covers” `needs_project_context`, operators will skip the required `pipeline state set` step and route truth will drift.
+- **Synthetic handoff proof.** If tests prove stage 10 capture only with hand-authored markdown, the documented compile-to-capture path will still be unproven.
+- **Overclaimed transactionality.** The current apply lock protects the compiler-owned route-state boundary, not arbitrary external concurrent writers touching the same output paths.
+
+NOT in scope for `M3.5`:
+
+- expanding `pipeline compile` to new supported stages beyond the already-shipped `stage.10_feature_spec`
+- auto-deciding `needs_project_context`
+- adding `pipeline run`, `pipeline compile --write`, or any other combined orchestration command
+- promoting captured `FEATURE_SPEC.md` or `PROJECT_CONTEXT.md` directly into canonical `.system/` artifacts
+- strengthening apply safety beyond `system`-coordinated single-writer flows
+- proving downstream consumer trust or operator-outcome reduction, which remains `M4` / `M5`
 
 Exit criteria:
 
-- a future `M4` implementation session can follow one explicit stage sequence without inventing missing materialization rules on the fly
-- stages `04`, `06`, and `10` no longer represent undocumented manual holes in the `foundation_inputs` path
-- the plan, docs, and tests all agree on the supported boundary
+- one exact `foundation_inputs` stage sequence is documented and testable without inventing new writer rules mid-session
+- `pipeline capture` support for `04`, `06`, and `10` is shipped, documented, and covered by shared proof-corpus goldens plus compiler / CLI regression tests
+- `stage.10_feature_spec` has one proven compile-to-capture materialization path
+- `needs_project_context` is documented exactly once as a manual operator decision followed by `pipeline resolve`
+- stages `04`, `06`, and `10` no longer represent undocumented holes in the `foundation_inputs` path
+- the plan, contracts, docs, and tests all agree on the supported `M3.5` boundary
 
 ### M4. End-to-End Foundation Flow
 
@@ -1756,6 +1936,10 @@ Cross-phase themes:
 | 6 | Eng | Use real branch evidence, including full `cargo test --quiet`, instead of plan prose alone | mechanical | explicit over clever | The code, contracts, and tests are already present, so review quality depends on inspecting them directly. | reviewing the plan in isolation |
 | 7 | Eng | Treat M4 materialization/handoff definition as the main engineering gap | taste | completeness | The shipped surfaces do not yet compose into a true end-to-end `foundation_inputs` replacement. | assuming stdout compile plus partial capture is already sufficient |
 | 8 | Eng | Surface the transactionality wording as a boundary decision, not a blocker | taste | explicit over clever | The implementation is coherent for `system`-coordinated flows, but the plan text currently reads broader than the lock model proves. | claiming arbitrary-writer transactional safety |
+| 9 | M3.5 | Reuse `pipeline capture` as the only writer surface for stages `04`, `06`, and `10` | auto-decided | explicit over clever | The existing capture boundary already owns preview, apply, rollback, and route-freshness checks. Extending that whitelist is lower risk than adding a second writer model. | adding `pipeline run`, `pipeline compile --write`, or a new writer command |
+| 10 | M3.5 | Keep `needs_project_context` manual and exact | auto-decided | explicit over clever | The stage-set variable is a human judgment call, and the current compiler contract already has one safe handoff: `pipeline state set`, then `pipeline resolve`. | auto-setting the variable inside capture or leaving the handoff ambiguous |
+| 11 | M3.5 | Make `stage.10_feature_spec` materialization flow through compile-to-capture | taste | pragmatic | `pipeline compile` already owns the payload/proof contract for stage 10, so capture should materialize that body rather than redefining compile semantics. | broadening compile to write files directly |
+| 12 | M3.5 | Prove the stage-10 handoff with a real compile-to-capture integration test | auto-decided | choose completeness | A synthetic markdown-only capture test would leave the documented operator path unverified. | relying only on isolated compile tests plus isolated capture tests |
 
 ## GSTACK REVIEW REPORT
 
