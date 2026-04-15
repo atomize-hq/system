@@ -831,15 +831,17 @@ fn load_capture_cache(
         stage_id: None,
         recovery: "retry with the capture id printed by `pipeline capture --preview`".to_string(),
     })?;
-    let cache_path =
-        capture_cache_path(repo_root, capture_id).map_err(|reason| PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
+    let cache_relative_path =
+        capture_cache_repo_relative_path(capture_id).map_err(|reason| PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::MissingCaptureId,
             summary: reason,
             pipeline_id: None,
             stage_id: None,
-            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+            recovery: "retry with the capture id printed by `pipeline capture --preview`"
                 .to_string(),
         })?;
+    let cache_path = resolve_repo_relative_write_path(repo_root, &cache_relative_path)
+        .map_err(|source| classify_capture_cache_path_failure(&cache_relative_path, source))?;
     let contents = read_string_no_follow_path(&cache_path)
         .map_err(|source| classify_capture_cache_read_failure(&cache_path, capture_id, source))?;
     let cache_entry: PipelineCaptureCacheEntry =
@@ -888,6 +890,34 @@ fn load_capture_cache(
     Ok(cache_entry)
 }
 
+fn classify_capture_cache_path_failure(
+    cache_relative_path: &str,
+    source: RepoRelativeWritePathError,
+) -> PipelineCaptureRefusal {
+    let (classification, recovery) = match &source {
+        RepoRelativeWritePathError::ParentNotDirectory(_)
+        | RepoRelativeWritePathError::NotRegularFile(_)
+        | RepoRelativeWritePathError::SymlinkNotAllowed(_) => (
+            PipelineCaptureRefusalClassification::TamperedCaptureCache,
+            "re-run `system pipeline capture --preview` to rebuild the cached capture".to_string(),
+        ),
+        RepoRelativeWritePathError::InvalidPath(_)
+        | RepoRelativeWritePathError::ReadFailure { .. } => (
+            PipelineCaptureRefusalClassification::CacheFailure,
+            "fix permissions or repair the cache path, or delete/rebuild the cached preview before retrying apply"
+                .to_string(),
+        ),
+    };
+
+    PipelineCaptureRefusal {
+        classification,
+        summary: format_cache_path_error(cache_relative_path, source),
+        pipeline_id: None,
+        stage_id: None,
+        recovery,
+    }
+}
+
 fn classify_capture_cache_read_failure(
     cache_path: &Path,
     capture_id: &str,
@@ -920,9 +950,31 @@ fn classify_capture_cache_read_failure(
                         .to_string(),
             }
         }
-        Ok(_) => not_found_refusal(),
+        Ok(_) => PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::CacheFailure,
+            summary: format!(
+                "failed to read cached preview `{capture_id}` at {}: {source}",
+                cache_path.display()
+            ),
+            pipeline_id: None,
+            stage_id: None,
+            recovery:
+                "fix permissions or delete/rebuild the cached preview, then retry apply"
+                    .to_string(),
+        },
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => not_found_refusal(),
-        Err(_) => not_found_refusal(),
+        Err(err) => PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::CacheFailure,
+            summary: format!(
+                "failed to read cached preview `{capture_id}` at {}: {source}; metadata inspection also failed: {err}",
+                cache_path.display()
+            ),
+            pipeline_id: None,
+            stage_id: None,
+            recovery:
+                "fix permissions or delete/rebuild the cached preview, then retry apply"
+                    .to_string(),
+        },
     }
 }
 

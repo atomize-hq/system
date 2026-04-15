@@ -114,7 +114,8 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - cache file existence
   - cache schema version
   - cache-plan deterministic identity
-- A malformed or mismatched cache entry MUST be treated as tampered cache, not best-effort input.
+- A malformed or mismatched cache entry, or any non-regular/symlinked cache path, MUST be treated as tampered cache, not best-effort input.
+- An unreadable but otherwise regular cache entry, or any non-`NotFound` metadata inspection failure while loading it, MUST be treated as a cache failure, not as a missing preview.
 
 ### Apply and rollback
 

@@ -15,6 +15,9 @@ use system_compiler::{
     RouteStateMutationOutcome,
 };
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;
 const STAGE_05_ID: &str = pipeline_proof_corpus_support::STAGE_05_CHARTER_SYNTHESIZE_ID;
 const STAGE_07_ID: &str = pipeline_proof_corpus_support::STAGE_07_FOUNDATION_PACK_ID;
@@ -542,6 +545,75 @@ fn capture_apply_refuses_missing_capture_id() {
         &[],
         "capture.refused.missing_capture_id.txt",
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn capture_apply_refuses_unreadable_cache_entry_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let cache_path = pipeline_proof_corpus_support::pipeline_capture_cache_path(
+        &repo_root,
+        &preview.plan.capture_id,
+    );
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+    let original_mode = fs::metadata(&cache_path)
+        .expect("cache metadata")
+        .permissions()
+        .mode();
+
+    let mut unreadable_permissions = fs::metadata(&cache_path)
+        .expect("cache metadata")
+        .permissions();
+    unreadable_permissions.set_mode(0o000);
+    fs::set_permissions(&cache_path, unreadable_permissions).expect("make cache unreadable");
+
+    let refusal =
+        apply_pipeline_capture(&repo_root, &preview.plan.capture_id).expect_err("refusal");
+
+    let mut restored_permissions = fs::metadata(&cache_path)
+        .expect("cache metadata")
+        .permissions();
+    restored_permissions.set_mode(original_mode);
+    fs::set_permissions(&cache_path, restored_permissions).expect("restore cache permissions");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::CacheFailure
+    );
+    assert!(
+        refusal.summary.contains(&preview.plan.capture_id)
+            || refusal
+                .summary
+                .contains(cache_path.to_string_lossy().as_ref()),
+        "expected cache id or path in summary, got: {}",
+        refusal.summary
+    );
+    assert!(
+        refusal.summary.contains("Permission denied")
+            || refusal.summary.contains("permission denied"),
+        "expected read failure in summary, got: {}",
+        refusal.summary
+    );
+    assert!(
+        !refusal.recovery.to_ascii_lowercase().contains("not found"),
+        "recovery should not claim the cached preview is missing: {}",
+        refusal.recovery
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(cache_path.is_file(), "cache file should remain present");
 }
 
 #[cfg(unix)]
