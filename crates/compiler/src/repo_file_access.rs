@@ -720,6 +720,46 @@ fn map_write_path_error_to_mutation_error(
     }
 }
 
+fn read_string_no_follow(path: &Path) -> Result<String, std::io::Error> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let mut file = OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(path)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        Ok(contents)
+    }
+
+    #[cfg(not(unix))]
+    {
+        fs::read_to_string(path)
+    }
+}
+
+pub(crate) fn read_bytes_no_follow(path: &Path) -> Result<Vec<u8>, std::io::Error> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let mut file = OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(path)?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    #[cfg(not(unix))]
+    {
+        fs::read(path)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{delete_repo_relative_file, write_repo_relative_bytes, RepoRelativeMutationError};
@@ -807,45 +847,5 @@ mod tests {
             fs::read_to_string(external_root.path().join("output.txt")).expect("read outside"),
             "outside\n"
         );
-    }
-}
-
-fn read_string_no_follow(path: &Path) -> Result<String, std::io::Error> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(path)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-        Ok(contents)
-    }
-
-    #[cfg(not(unix))]
-    {
-        fs::read_to_string(path)
-    }
-}
-
-pub(crate) fn read_bytes_no_follow(path: &Path) -> Result<Vec<u8>, std::io::Error> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(path)?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
-        Ok(bytes)
-    }
-
-    #[cfg(not(unix))]
-    {
-        fs::read(path)
     }
 }
