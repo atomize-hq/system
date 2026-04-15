@@ -123,6 +123,7 @@ pub struct CompileStageOutputs {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompileStageOutput {
     pub path: String,
+    pub required: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -197,9 +198,11 @@ impl CompileStageOutputs {
 impl CompileStageOutput {
     fn from_raw(raw: CompileStageOutputRaw) -> Self {
         match raw {
-            CompileStageOutputRaw::Path(path) | CompileStageOutputRaw::Entry { path } => {
-                Self { path }
-            }
+            CompileStageOutputRaw::Path(path) => Self {
+                path,
+                required: false,
+            },
+            CompileStageOutputRaw::Entry { path, required } => Self { path, required },
         }
     }
 }
@@ -551,7 +554,11 @@ struct CompileStageOutputsRaw {
 #[serde(untagged)]
 enum CompileStageOutputRaw {
     Path(String),
-    Entry { path: String },
+    Entry {
+        path: String,
+        #[serde(default)]
+        required: bool,
+    },
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

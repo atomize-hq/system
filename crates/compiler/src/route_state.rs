@@ -1671,7 +1671,7 @@ fn normalized_state_for_route_basis(state: &RouteState, repo_root: &Path) -> Rou
     normalized
 }
 
-fn normalized_state_for_persistence(state: &RouteState, repo_root: &Path) -> RouteState {
+pub(crate) fn normalized_state_for_persistence(state: &RouteState, repo_root: &Path) -> RouteState {
     let mut normalized = state.clone();
     normalized.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
     normalized.run.repo_root = Some(derived_repo_root(repo_root));
@@ -1733,7 +1733,10 @@ fn trim_audit_history(audit: &mut Vec<RouteStateAuditEntry>) {
     audit.drain(0..overflow);
 }
 
-fn route_state_path(repo_root: &Path, pipeline_id: &str) -> Result<PathBuf, &'static str> {
+pub(crate) fn route_state_path(
+    repo_root: &Path,
+    pipeline_id: &str,
+) -> Result<PathBuf, &'static str> {
     validate_pipeline_id(pipeline_id)?;
 
     Ok(repo_root
@@ -1743,7 +1746,7 @@ fn route_state_path(repo_root: &Path, pipeline_id: &str) -> Result<PathBuf, &'st
         .join(format!("{pipeline_id}.yaml")))
 }
 
-fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
+pub(crate) fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
     if let Some(parent) = state_path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -1751,7 +1754,10 @@ fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-fn persist_route_state(state_path: &Path, state: &RouteState) -> Result<(), RouteStateStoreError> {
+pub(crate) fn persist_route_state(
+    state_path: &Path,
+    state: &RouteState,
+) -> Result<(), RouteStateStoreError> {
     let serialized = serde_yaml_bw::to_string(state).map_err(|source| {
         RouteStateStoreError::SerializationFailure {
             path: state_path.to_path_buf(),
@@ -1791,7 +1797,7 @@ fn persist_route_state(state_path: &Path, state: &RouteState) -> Result<(), Rout
     result
 }
 
-fn open_new_temp_file(path: &Path) -> Result<File, RouteStateStoreError> {
+pub(crate) fn open_new_temp_file(path: &Path) -> Result<File, RouteStateStoreError> {
     let mut options = OpenOptions::new();
     options.create_new(true).write(true).read(true);
 
@@ -1810,7 +1816,7 @@ fn open_new_temp_file(path: &Path) -> Result<File, RouteStateStoreError> {
         })
 }
 
-fn sync_parent_dir(path: &Path) -> Result<(), RouteStateStoreError> {
+pub(crate) fn sync_parent_dir(path: &Path) -> Result<(), RouteStateStoreError> {
     let Some(parent) = path.parent() else {
         return Ok(());
     };
@@ -1827,7 +1833,7 @@ fn sync_parent_dir(path: &Path) -> Result<(), RouteStateStoreError> {
     Ok(())
 }
 
-fn temp_route_state_path(state_path: &Path) -> PathBuf {
+pub(crate) fn temp_route_state_path(state_path: &Path) -> PathBuf {
     let counter = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
     let pid = std::process::id();
     let file_name = state_path
@@ -1872,7 +1878,9 @@ fn validate_pipeline_id(pipeline_id: &str) -> Result<(), &'static str> {
     }
 }
 
-fn acquire_advisory_lock(state_path: &Path) -> Result<RouteStateLockGuard, RouteStateStoreError> {
+pub(crate) fn acquire_advisory_lock(
+    state_path: &Path,
+) -> Result<RouteStateLockGuard, RouteStateStoreError> {
     let lock_path = state_path.with_extension("lock");
     if let Some(parent) = lock_path.parent() {
         fs::create_dir_all(parent).map_err(|source| RouteStateStoreError::LockFailure {
@@ -1927,7 +1935,7 @@ fn lock_file(_file: &File, _operation: libc::c_int) -> Result<(), std::io::Error
     Ok(())
 }
 
-struct RouteStateLockGuard {
+pub(crate) struct RouteStateLockGuard {
     file: File,
     lock_path: PathBuf,
 }

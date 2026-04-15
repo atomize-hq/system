@@ -1,0 +1,12 @@
+Capture one supported stage output and materialize declared artifact and repo-mirror files
+
+Usage: system pipeline capture [OPTIONS] [COMMAND]
+
+Commands:
+  apply  Apply one cached preview by capture id
+
+Options:
+      --id <ID>        Canonical id or unambiguous shorthand for a pipeline
+      --stage <STAGE>  Canonical id or unambiguous shorthand for a stage within the selected pipeline
+      --preview        Validate and cache the capture plan without writing declared outputs
+  -h, --help           Print help

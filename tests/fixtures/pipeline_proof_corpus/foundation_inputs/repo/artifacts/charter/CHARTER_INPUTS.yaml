@@ -1,0 +1,30 @@
+project:
+  name: System
+  owner: Platform Foundations
+  team: Build Systems
+  repo_or_project_ref: system
+
+mission:
+  summary: >
+    Replace the legacy planning harness with a deterministic Rust compiler and CLI
+    that can compile, capture, and prove bounded foundation-stage outputs from
+    canonical repo truth.
+
+posture:
+  baseline_level: 4
+  speed_vs_quality: correctness_over_speed
+  testing_rigor: shared-proof-corpus-plus-focused-integration-tests
+  security_and_privacy: no-secret-capture-in-fixtures-or-proof-output
+  operator_surface: compact-proof-first-cli
+
+success_criteria:
+  - recover deterministic route resolution, stage compilation, and bounded capture semantics
+  - refuse stale or malformed pipeline state before any claimed success
+  - keep compiler and CLI suites locked to one shared proof corpus
+
+red_lines:
+  - do not silently repair stale route truth during compile or capture
+  - do not widen the supported CLI surface beyond the bounded milestone contract
+  - do not fork separate fixture trees for compiler and CLI proof
+
+unknowns: []

@@ -1,0 +1,5 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.07_foundation_pack
+REASON: invalid_capture_input: capture input emitted undeclared artifact block `artifacts/foundation/EXTRA_NOT_DECLARED.md` for the selected stage
+NEXT SAFE ACTION: emit only the declared artifact FILE blocks and retry `pipeline capture`

@@ -1,0 +1,10 @@
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.05_charter_synthesize
+WRITTEN FILES:
+  - artifacts/charter/CHARTER.md
+  - CHARTER.md
+STATE UPDATES:
+  - refs.charter_ref = artifacts/charter/CHARTER.md
+  - routing.charter_gaps_detected = false
+NEXT SAFE ACTION: run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`

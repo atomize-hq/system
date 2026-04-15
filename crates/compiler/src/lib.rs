@@ -7,6 +7,7 @@ pub mod error;
 pub mod freshness;
 pub mod packet_result;
 pub mod pipeline;
+pub mod pipeline_capture;
 pub mod pipeline_compile;
 pub mod pipeline_route;
 pub mod refusal;
@@ -48,6 +49,16 @@ pub use pipeline::{
     PipelineHeader, PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError,
     PipelineSelection, PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
     StageFileValidationError,
+};
+pub use pipeline_capture::{
+    apply_cached_pipeline_capture, apply_pipeline_capture, capture_pipeline_output,
+    load_pipeline_capture_cache_entry, preview_pipeline_capture,
+    render_pipeline_capture_apply_result, render_pipeline_capture_preview,
+    render_pipeline_capture_refusal, PipelineCaptureApplyResult, PipelineCaptureCacheEntry,
+    PipelineCapturePlan, PipelineCapturePreview, PipelineCaptureRefusal,
+    PipelineCaptureRefusalClassification, PipelineCaptureRequest, PipelineCaptureStateEffect,
+    PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCaptureTarget,
+    PipelineCaptureWrite, PipelineCaptureWriteIntent, PIPELINE_CAPTURE_CACHE_SCHEMA_VERSION,
 };
 pub use pipeline_compile::{
     compile_pipeline_stage, compile_pipeline_stage_with_runtime, render_pipeline_compile_explain,

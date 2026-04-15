@@ -25,6 +25,7 @@ This document depends on:
 - Refusal-path output stays compact.
 - Proof output is allowed to be denser, but section ordering stays stable.
 - `pipeline compile` is a special M2 case: plain success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
+- `pipeline capture` is a special M3 case: preview and apply use stable capture-specific section ordering instead of the packet trust-header shape.
 - `doctor` is a special case in current reduced v1: its shipped anatomy is still transitional and does not yet use the same trust-header shape as `generate` and `inspect`.
 - `setup` is also a special case in current reduced v1: it is placeholder-only and therefore has placeholder anatomy, not full reduced-v1 runtime anatomy.
 
@@ -201,6 +202,58 @@ Compile refusal uses a compact refusal block:
 4. `REASON`
 5. `BROKEN SUBJECT`
 6. `NEXT SAFE ACTION`
+
+## `pipeline capture` Anatomy
+
+### Preview
+
+`pipeline capture --preview` success is proof-like preview output.
+
+Section order:
+
+1. `OUTCOME: PREVIEW`
+2. `PIPELINE`
+3. `STAGE`
+4. `CAPTURE ID`
+5. `ROUTE BASIS REVISION`
+6. `WRITE PLAN`
+7. `POST-CAPTURE STATE UPDATES`
+8. `NEXT SAFE ACTION`
+
+Rules:
+
+- preview does not write declared outputs
+- preview writes only the runtime cache entry under `.system/state/pipeline/capture/`
+- preview and apply must render from one shared compiler-owned capture plan
+
+### Apply
+
+`pipeline capture` direct apply and `pipeline capture apply --capture-id <capture-id>` success share one stable captured order.
+
+Section order:
+
+1. `OUTCOME: CAPTURED`
+2. `PIPELINE`
+3. `STAGE`
+4. `WRITTEN FILES`
+5. `STATE UPDATES`
+6. `NEXT SAFE ACTION`
+
+Rules:
+
+- apply success reports written files only after every write and state update has succeeded
+- apply remains transactional at the acceptance boundary
+- cached apply revalidates freshness before writing anything
+
+### Refused
+
+Capture refusal uses the same compact refusal posture as compile:
+
+1. `OUTCOME: REFUSED`
+2. `PIPELINE`
+3. `STAGE`
+4. `REASON`
+5. `NEXT SAFE ACTION`
 
 ## `setup` Anatomy
 

@@ -15,6 +15,18 @@ pub(crate) enum RepoRelativeFileAccessError {
     },
 }
 
+#[derive(Debug)]
+pub(crate) enum RepoRelativeWritePathError {
+    InvalidPath(String),
+    ParentNotDirectory(PathBuf),
+    NotRegularFile(PathBuf),
+    SymlinkNotAllowed(PathBuf),
+    ReadFailure {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+}
+
 pub(crate) fn read_repo_relative_string(
     repo_root: &Path,
     relative_path: &str,
@@ -34,6 +46,63 @@ pub(crate) fn sha256_repo_relative_file(
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+pub(crate) fn resolve_repo_relative_write_path(
+    repo_root: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, RepoRelativeWritePathError> {
+    let relative_path = validate_repo_relative_path(relative_path)
+        .map_err(RepoRelativeWritePathError::InvalidPath)?;
+
+    let mut current = repo_root.to_path_buf();
+    let mut components = relative_path.components().peekable();
+
+    while let Some(component) = components.next() {
+        let Component::Normal(part) = component else {
+            continue;
+        };
+        current.push(part);
+        let is_last = components.peek().is_none();
+
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() {
+                    return Err(RepoRelativeWritePathError::SymlinkNotAllowed(
+                        current.clone(),
+                    ));
+                }
+
+                if is_last {
+                    if metadata.is_dir() {
+                        return Err(RepoRelativeWritePathError::NotRegularFile(current.clone()));
+                    }
+                    if !metadata.is_file() {
+                        return Err(RepoRelativeWritePathError::NotRegularFile(current.clone()));
+                    }
+                } else if !metadata.is_dir() {
+                    return Err(RepoRelativeWritePathError::ParentNotDirectory(
+                        current.clone(),
+                    ));
+                }
+            }
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                continue;
+            }
+            Err(source) => {
+                return Err(RepoRelativeWritePathError::ReadFailure {
+                    path: current.clone(),
+                    source,
+                });
+            }
+        }
+    }
+
+    Ok(current)
+}
+
+pub(crate) fn read_bytes_no_follow_path(path: &Path) -> Result<Vec<u8>, std::io::Error> {
+    read_bytes_no_follow(path)
 }
 
 fn resolve_repo_relative_regular_file(
@@ -84,7 +153,7 @@ fn resolve_repo_relative_regular_file(
     Ok(current)
 }
 
-fn validate_repo_relative_path(path: &str) -> Result<&Path, String> {
+pub(crate) fn validate_repo_relative_path(path: &str) -> Result<&Path, String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err("path must not be empty".to_string());
@@ -129,7 +198,7 @@ fn read_string_no_follow(path: &Path) -> Result<String, std::io::Error> {
     }
 }
 
-fn read_bytes_no_follow(path: &Path) -> Result<Vec<u8>, std::io::Error> {
+pub(crate) fn read_bytes_no_follow(path: &Path) -> Result<Vec<u8>, std::io::Error> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;

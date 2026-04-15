@@ -18,6 +18,9 @@ cargo run -p system-cli -- setup
 cargo run -p system-cli -- pipeline --help
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec --explain
+cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
+cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize --preview
+cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 cargo run -p system-cli -- generate
 cargo run -p system-cli -- inspect
 cargo run -p system-cli -- doctor
@@ -31,6 +34,9 @@ cargo run -p system-cli -- pipeline show --id pipeline.foundation
 cargo run -p system-cli -- pipeline resolve --id pipeline.foundation_inputs
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec --explain
+cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
+cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack --preview
+cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 cargo run -p system-cli -- pipeline state set --id pipeline.foundation_inputs --var needs_project_context=true
 ```
 
@@ -39,10 +45,16 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 ## Current command meanings
 
 - `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
-- `pipeline` owns `list`, `show`, `resolve`, `compile`, and `state set` for the reviewed wedge.
+- `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.
 - Compile freshness is explicit. If route basis is missing, stale, or inactive, re-run `pipeline resolve` before retrying compile.
+- `pipeline capture --id <pipeline-id> --stage <stage-id>` is the supported M3 writer surface for the bounded capture targets:
+  - `pipeline.foundation_inputs` + `stage.05_charter_synthesize`
+  - `pipeline.foundation_inputs` + `stage.07_foundation_pack`
+- `pipeline capture --preview` validates stdin, caches one typed materialization plan, and prints a deterministic `capture_id`.
+- `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
+- Capture freshness is explicit. If route basis is missing, stale, or inactive, re-run `pipeline resolve` before retrying preview or apply.
 - `generate` produces planning packets from canonical repo-local `.system/` inputs and supports the fixture-backed execution demo via `execution.demo.packet`.
 - `inspect` is the packet proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.
@@ -50,11 +62,12 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 ## What to expect right now
 
 - The currently shipped binary exposes `pipeline` as the reviewed operator surface alongside `setup`, `generate`, `inspect`, and `doctor`.
-- `pipeline` now includes one explicit stage compilation wedge in M2 without widening into generic multi-stage compile support.
+- `pipeline` now includes one explicit stage compilation wedge in M2 and one explicit writer wedge in M3 without widening into generic multi-stage compile or run support.
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
 - For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
-- For `pipeline`, list/show/resolve/compile/state-set stay inside the approved repo surface and use one shared resolved-route truth.
+- For `pipeline`, list/show/resolve/compile/capture/state-set stay inside the approved repo surface and use one shared resolved-route truth.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` consumes the persisted route basis written by `pipeline resolve`; `pipeline compile --explain` is the compile proof surface for that same result.
+- `pipeline capture` and `pipeline capture apply` consume the same persisted fresh `route_basis`; they do not silently re-run `pipeline resolve`.
 - If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
 - Once `.system/` canonical artifacts exist, planning packet generation is supported.
 - Execution packets are only supported as fixture-backed demos via `execution.demo.packet`, and live execution is explicitly refused.

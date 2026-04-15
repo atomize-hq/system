@@ -14,12 +14,16 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/project_context/PROJECT_CONTEXT.md`
   - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
-- **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, and `state set` over route truth, one explicit stage compilation wedge, and narrow route-state mutation.
+- **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, and narrow route-state mutation.
   - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
 - **`pipeline compile --id <pipeline-id> --stage <stage-id>`** is the supported M2 compile entrypoint for the first bounded target.
   - Plain `pipeline compile` success is payload-only stdout.
   - `pipeline compile --explain` is proof-only stdout.
   - If compile refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
+- **`pipeline capture --id <pipeline-id> --stage <stage-id>`** is the supported M3 writer entrypoint for the bounded capture wedge.
+  - `pipeline capture --preview` validates stdin, caches one typed materialization plan, and returns `CAPTURE ID`.
+  - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
+  - If capture refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
@@ -42,5 +46,6 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)
 - Docs/help parity and conformance rails for the reviewed `pipeline` subset: [`C-11`](contracts/pipeline-proof-corpus-and-docs-cutover.md)
+- Capture preview/apply, cache, mirror, and rollback rules: [`C-12`](contracts/pipeline-capture-preview-and-apply.md)
 
 Legacy reference docs (Python harness, stage reference, old workflow guides) live under [`docs/legacy/`](legacy/README.md).

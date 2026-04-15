@@ -111,6 +111,24 @@ fn system_pipeline_compile_help_matches_snapshot() {
 }
 
 #[test]
+fn system_pipeline_capture_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "capture", "--help"],
+        "system-pipeline-capture-help.txt",
+        "system pipeline capture --help",
+    );
+}
+
+#[test]
+fn system_pipeline_capture_apply_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "capture", "apply", "--help"],
+        "system-pipeline-capture-apply-help.txt",
+        "system pipeline capture apply --help",
+    );
+}
+
+#[test]
 fn support_story_docs_match_help_snapshots() {
     let root = workspace_root();
     let docs = [
@@ -132,6 +150,8 @@ fn support_story_docs_match_help_snapshots() {
     let inspect_help_text = read_help_snapshot("system-inspect-help.txt");
     let pipeline_help_text = read_help_snapshot("system-pipeline-help.txt");
     let compile_help_text = read_help_snapshot("system-pipeline-compile-help.txt");
+    let capture_help_text = read_help_snapshot("system-pipeline-capture-help.txt");
+    let capture_apply_help_text = read_help_snapshot("system-pipeline-capture-apply-help.txt");
 
     let top_level_required_phrases = [
         "planning packet generation",
@@ -143,6 +163,7 @@ fn support_story_docs_match_help_snapshots() {
         "`doctor` is the recovery surface",
         "`setup` is still a placeholder",
         "explicit stage compilation",
+        "explicit stage-output capture",
     ];
 
     for phrase in top_level_required_phrases {
@@ -187,6 +208,9 @@ fn support_story_docs_match_help_snapshots() {
         "`pipeline`",
         "pipeline resolve",
         "pipeline compile",
+        "pipeline capture",
+        "pipeline capture --preview",
+        "pipeline capture apply --capture-id",
         "pipeline state set",
         "pipeline compile --explain",
         "payload-only stdout",
@@ -208,14 +232,34 @@ fn support_story_docs_match_help_snapshots() {
         pipeline_help_text.contains("compile"),
         "pipeline help snapshot missing compile entry"
     );
+    assert!(
+        pipeline_help_text.contains("capture"),
+        "pipeline help snapshot missing capture entry"
+    );
     for phrase in ["--stage", "--explain"] {
         assert!(
             compile_help_text.contains(phrase),
             "compile help snapshot missing phrase `{phrase}`"
         );
     }
+    for phrase in ["--id", "--stage", "--preview"] {
+        assert!(
+            capture_help_text.contains(phrase),
+            "capture help snapshot missing phrase `{phrase}`"
+        );
+    }
+    for phrase in ["--capture-id", "Deterministic capture id"] {
+        assert!(
+            capture_apply_help_text.contains(phrase),
+            "capture apply help snapshot missing phrase `{phrase}`"
+        );
+    }
     assert!(
         !inspect_help_text.contains("compile"),
+        "inspect help snapshot must remain packet-proof only"
+    );
+    assert!(
+        !inspect_help_text.contains("capture"),
         "inspect help snapshot must remain packet-proof only"
     );
 }
