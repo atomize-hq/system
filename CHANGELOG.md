@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.0.0] - 2026-04-15
+
+### Added
+- Added the shipped M3 `pipeline capture` wedge for `pipeline.foundation_inputs`, including direct apply from stdin, `--preview` with deterministic `capture_id`, and cached `pipeline capture apply --capture-id <capture-id>` for the charter-synthesize and foundation-pack stages.
+- Added compiler-owned capture planning, typed preview/apply models, runtime preview-cache entries, repo-mirror materialization for `CHARTER.md` and `ENVIRONMENT_INVENTORY.md`, and deterministic post-capture route-state updates plus next-safe-action guidance.
+- Added proof-corpus, compiler, and CLI regression coverage for capture preview/apply success paths and refusal paths, including stale route basis, inactive stages, missing capture ids, malformed FILE blocks, tampered cached plans, revision conflicts, symlinked write targets, and rollback behavior.
+
+### Changed
+- Hardened the capture apply path so cached previews are revalidated under lock before writes, writes stay transactional with rollback on later failure, and cache-path plus write-target handling refuses symlink races or tampered plans instead of trusting the filesystem.
+- Realigned README, START_HERE, supported-command docs, CLI vocabulary/output anatomy, DESIGN guidance, and the new `C-12` contract around the shipped capture surface so docs, help text, snapshots, and compiler behavior all describe the same operator workflow.
+
 ## [0.3.0.0] - 2026-04-14
 
 ### Added
