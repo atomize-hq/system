@@ -1425,6 +1425,46 @@ fn pipeline_capture_preview_refuses_invalid_write_target() {
 }
 
 #[test]
+fn pipeline_capture_preview_refuses_unsupported_pipeline_with_current_capture_contract() {
+    let root = workspace_root();
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "pipeline.foundation",
+            "--stage",
+            "stage.00_base",
+            "--preview",
+        ],
+        "ignored input",
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(stdout.contains("PIPELINE: pipeline.foundation"), "{stdout}");
+    assert!(stdout.contains("STAGE: stage.00_base"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "REASON: unsupported_target: `pipeline capture` currently supports only pipeline `pipeline.foundation_inputs`"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "NEXT SAFE ACTION: retry with `pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs`"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        !stdout.contains("M3"),
+        "unsupported-target refusal should not mention milestones: {stdout}"
+    );
+}
+
+#[test]
 fn pipeline_list_and_show_use_canonical_id_discovery() {
     let root = workspace_root();
 

@@ -1501,6 +1501,15 @@ fn capture_apply_refuses_unsupported_stage_id_from_tampered_cache_without_side_e
         PipelineCaptureRefusalClassification::UnsupportedTarget
     );
     assert_eq!(
+        refusal.summary,
+        "`pipeline capture` currently supports only stages `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, `stage.10_feature_spec` for pipeline `pipeline.foundation_inputs`"
+    );
+    assert!(
+        !refusal.summary.contains("M3"),
+        "unsupported-target summary should not mention milestones: {}",
+        refusal.summary
+    );
+    assert_eq!(
         fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
         initial_artifact
     );

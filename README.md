@@ -24,9 +24,12 @@ This repo is in transition.
 - `pipeline` is the orchestration surface for `list`, `show`, `resolve`, `compile`, `capture`, and `state set`.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is supported for the first M2 compile wedge.
 - Plain `pipeline compile` success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
-- `pipeline capture --id <pipeline-id> --stage <stage-id>` is the explicit M3 writer surface for declared stage outputs.
+- `pipeline capture --id <pipeline-id> --stage <stage-id>` is the supported M3 / M3.5 writer surface for declared stage outputs.
+- For `pipeline.foundation_inputs`, the supported capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
 - `pipeline capture --preview` caches one validated materialization plan and returns a deterministic `capture_id`.
-- `pipeline capture apply --capture-id <capture-id>` applies one cached plan with transactional writes and rollback on failure.
+- `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
+- `pipeline capture` remains the only supported stage-output writer surface. `pipeline compile` stays payload-only, and stage `10` materialization is the compile-to-capture handoff.
+- `pipeline capture` apply safety is scoped to `system`-coordinated single-writer flows.
 - Compile freshness recovery is explicit: re-run `pipeline resolve` before retrying compile when route basis is missing, stale, or inactive.
 - Capture freshness recovery is explicit too: re-run `pipeline resolve` before retrying preview or apply when route basis is missing, stale, or inactive.
 - `inspect` is the packet proof surface and `doctor` is the recovery surface.

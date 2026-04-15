@@ -1732,7 +1732,9 @@ fn validate_supported_capture_target(
     if pipeline_id != SUPPORTED_PIPELINE_ID {
         return Err(PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
-            summary: format!("M3 capture currently supports only `{SUPPORTED_PIPELINE_ID}`"),
+            summary: format!(
+                "`pipeline capture` currently supports only pipeline `{SUPPORTED_PIPELINE_ID}`"
+            ),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: format!(
@@ -1744,7 +1746,7 @@ fn validate_supported_capture_target(
         return Err(PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "M3 capture currently supports only {}",
+                "`pipeline capture` currently supports only stages {} for pipeline `{SUPPORTED_PIPELINE_ID}`",
                 render_supported_capture_stage_list()
             ),
             pipeline_id: Some(pipeline_id.to_string()),

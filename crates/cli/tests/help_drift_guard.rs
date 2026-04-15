@@ -131,8 +131,11 @@ fn system_pipeline_capture_apply_help_matches_snapshot() {
 #[test]
 fn support_story_docs_match_help_snapshots() {
     let root = workspace_root();
+    let root_readme_path = root.join("README.md");
+    let root_readme_text = fs::read_to_string(&root_readme_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", root_readme_path.display(), err));
     let docs = [
-        root.join("README.md"),
+        root_readme_path.clone(),
         root.join("docs/START_HERE.md"),
         root.join("docs/SUPPORTED_COMMANDS.md"),
     ];
@@ -165,6 +168,26 @@ fn support_story_docs_match_help_snapshots() {
         "explicit stage compilation",
         "explicit stage-output capture",
     ];
+    let root_readme_required_phrases = [
+        "pipeline capture --preview",
+        "pipeline capture apply --capture-id <capture-id>",
+        "stage.04_charter_inputs",
+        "stage.05_charter_synthesize",
+        "stage.06_project_context_interview",
+        "stage.07_foundation_pack",
+        "stage.10_feature_spec",
+        "only supported stage-output writer surface",
+        "payload-only",
+        "compile-to-capture handoff",
+        "`system`-coordinated single-writer flows",
+    ];
+
+    for phrase in root_readme_required_phrases {
+        assert!(
+            root_readme_text.contains(phrase),
+            "root README missing capture boundary phrase `{phrase}`"
+        );
+    }
 
     for phrase in top_level_required_phrases {
         assert!(
