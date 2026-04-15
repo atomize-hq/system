@@ -248,6 +248,20 @@ fn support_story_docs_match_help_snapshots() {
             "capture help snapshot missing phrase `{phrase}`"
         );
     }
+    for phrase in [
+        "stage.04_charter_inputs",
+        "stage.06_project_context_interview",
+        "stage.10_feature_spec",
+    ] {
+        assert!(
+            docs_text.contains(phrase),
+            "docs missing capture target phrase `{phrase}`"
+        );
+        assert!(
+            capture_help_text.contains(phrase),
+            "capture help snapshot missing capture target phrase `{phrase}`"
+        );
+    }
     for phrase in ["--capture-id", "Deterministic capture id"] {
         assert!(
             capture_apply_help_text.contains(phrase),

@@ -6,26 +6,47 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use system_compiler::{
-    apply_pipeline_capture, capture_pipeline_output, load_pipeline_capture_cache_entry,
-    load_route_state_with_supported_variables, preview_pipeline_capture,
-    render_pipeline_capture_apply_result, render_pipeline_capture_preview,
-    render_pipeline_capture_refusal, set_route_state, PipelineCaptureCacheEntry,
+    apply_pipeline_capture, capture_pipeline_output, compile_pipeline_stage_with_runtime,
+    load_pipeline_capture_cache_entry, load_route_state_with_supported_variables,
+    preview_pipeline_capture, render_pipeline_capture_apply_result,
+    render_pipeline_capture_preview, render_pipeline_capture_refusal,
+    render_pipeline_compile_payload, set_route_state, PipelineCaptureCacheEntry,
     PipelineCapturePlan, PipelineCaptureRefusalClassification, PipelineCaptureRequest,
-    PipelineCaptureStateUpdate, PipelineCaptureStateValue, RouteState, RouteStateMutation,
-    RouteStateMutationOutcome,
+    PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCompileRuntimeContext,
+    RouteState, RouteStateMutation, RouteStateMutationOutcome,
 };
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;
+const STAGE_04_ID: &str = pipeline_proof_corpus_support::STAGE_04_CHARTER_INPUTS_ID;
 const STAGE_05_ID: &str = pipeline_proof_corpus_support::STAGE_05_CHARTER_SYNTHESIZE_ID;
+const STAGE_06_ID: &str = pipeline_proof_corpus_support::STAGE_06_PROJECT_CONTEXT_INTERVIEW_ID;
 const STAGE_07_ID: &str = pipeline_proof_corpus_support::STAGE_07_FOUNDATION_PACK_ID;
+const STAGE_10_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
+const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
+
+fn stage_04_request(input: String) -> PipelineCaptureRequest {
+    PipelineCaptureRequest {
+        pipeline_selector: PIPELINE_ID.to_string(),
+        stage_selector: STAGE_04_ID.to_string(),
+        input,
+    }
+}
 
 fn stage_05_request(input: String) -> PipelineCaptureRequest {
     PipelineCaptureRequest {
         pipeline_selector: PIPELINE_ID.to_string(),
         stage_selector: STAGE_05_ID.to_string(),
+        input,
+    }
+}
+
+fn stage_06_request(input: String) -> PipelineCaptureRequest {
+    PipelineCaptureRequest {
+        pipeline_selector: PIPELINE_ID.to_string(),
+        stage_selector: STAGE_06_ID.to_string(),
         input,
     }
 }
@@ -38,8 +59,26 @@ fn stage_07_request(input: String) -> PipelineCaptureRequest {
     }
 }
 
+fn stage_10_request(input: String) -> PipelineCaptureRequest {
+    PipelineCaptureRequest {
+        pipeline_selector: PIPELINE_ID.to_string(),
+        stage_selector: STAGE_10_ID.to_string(),
+        input,
+    }
+}
+
+fn stage_04_capture_input() -> String {
+    pipeline_proof_corpus_support::read_committed_fixture("artifacts/charter/CHARTER_INPUTS.yaml")
+}
+
 fn stage_05_capture_input() -> String {
     pipeline_proof_corpus_support::read_committed_fixture("artifacts/charter/CHARTER.md")
+}
+
+fn stage_06_capture_input() -> String {
+    pipeline_proof_corpus_support::read_committed_fixture(
+        "artifacts/project_context/PROJECT_CONTEXT.md",
+    )
 }
 
 fn stage_07_capture_input() -> String {
@@ -58,6 +97,19 @@ fn stage_07_capture_input() -> String {
         out.push('\n');
     }
     out
+}
+
+fn fixed_runtime() -> PipelineCompileRuntimeContext {
+    PipelineCompileRuntimeContext {
+        now_utc_override: Some(FIXED_NOW_UTC.to_string()),
+    }
+}
+
+fn stage_10_capture_input(repo_root: &Path) -> String {
+    let result =
+        compile_pipeline_stage_with_runtime(repo_root, PIPELINE_ID, STAGE_10_ID, &fixed_runtime())
+            .expect("compile result");
+    render_pipeline_compile_payload(&result)
 }
 
 fn normalize_capture_id(output: &str, capture_id: &str) -> String {
@@ -157,6 +209,26 @@ fn rewrite_tampered_capture_cache(
 }
 
 #[test]
+fn capture_preview_stage_04_matches_shared_golden() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_04_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_04_request(stage_04_capture_input()))
+        .expect("preview");
+    let rendered = render_pipeline_capture_preview(&preview);
+    let normalized = normalize_capture_id(&rendered, &preview.plan.capture_id);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalized,
+        &[],
+        "capture.preview.stage_04_charter_inputs.txt",
+    );
+    assert!(pipeline_proof_corpus_support::pipeline_capture_cache_path(
+        &repo_root,
+        &preview.plan.capture_id
+    )
+    .is_file());
+}
+
+#[test]
 fn capture_preview_charter_matches_shared_golden() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
     let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
@@ -177,6 +249,21 @@ fn capture_preview_charter_matches_shared_golden() {
 }
 
 #[test]
+fn capture_preview_stage_06_matches_shared_golden() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_06_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_06_request(stage_06_capture_input()))
+        .expect("preview");
+    let rendered = render_pipeline_capture_preview(&preview);
+    let normalized = normalize_capture_id(&rendered, &preview.plan.capture_id);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalized,
+        &[],
+        "capture.preview.stage_06_project_context_interview.txt",
+    );
+}
+
+#[test]
 fn capture_preview_foundation_pack_matches_shared_golden() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_07_capture_ready_repo();
     let preview = preview_pipeline_capture(&repo_root, &stage_07_request(stage_07_capture_input()))
@@ -188,6 +275,43 @@ fn capture_preview_foundation_pack_matches_shared_golden() {
         &normalized,
         &[],
         "capture.preview.stage_07_foundation_pack.txt",
+    );
+}
+
+#[test]
+fn capture_preview_feature_spec_matches_shared_golden_from_real_compile_payload() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let preview = preview_pipeline_capture(
+        &repo_root,
+        &stage_10_request(stage_10_capture_input(&repo_root)),
+    )
+    .expect("preview");
+    let rendered = render_pipeline_capture_preview(&preview);
+    let normalized = normalize_capture_id(&rendered, &preview.plan.capture_id);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalized,
+        &[],
+        "capture.preview.stage_10_feature_spec.txt",
+    );
+}
+
+#[test]
+fn capture_apply_stage_04_matches_shared_golden() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_04_capture_ready_repo();
+    let result = capture_pipeline_output(&repo_root, &stage_04_request(stage_04_capture_input()))
+        .expect("capture");
+    let rendered = render_pipeline_capture_apply_result(&result);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &rendered,
+        &[],
+        "capture.apply.stage_04_charter_inputs.txt",
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER_INPUTS.yaml"))
+            .expect("artifact"),
+        stage_04_capture_input()
     );
 }
 
@@ -225,6 +349,34 @@ fn capture_apply_charter_matches_shared_golden_and_writes_repo_mirror() {
 }
 
 #[test]
+fn capture_apply_stage_06_matches_shared_golden_and_updates_project_context_ref() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_06_capture_ready_repo();
+    let result = capture_pipeline_output(&repo_root, &stage_06_request(stage_06_capture_input()))
+        .expect("capture");
+    let rendered = render_pipeline_capture_apply_result(&result);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &rendered,
+        &[],
+        "capture.apply.stage_06_project_context_interview.txt",
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/project_context/PROJECT_CONTEXT.md"))
+            .expect("artifact"),
+        stage_06_capture_input()
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("PROJECT_CONTEXT.md")).expect("repo mirror"),
+        stage_06_capture_input()
+    );
+    let state = load_route_state(&repo_root);
+    assert_eq!(
+        state.refs.project_context_ref.as_deref(),
+        Some("artifacts/project_context/PROJECT_CONTEXT.md")
+    );
+}
+
+#[test]
 fn capture_apply_foundation_pack_matches_shared_golden_and_uses_cached_preview() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_07_capture_ready_repo();
     let preview = preview_pipeline_capture(&repo_root, &stage_07_request(stage_07_capture_input()))
@@ -256,6 +408,46 @@ fn capture_apply_foundation_pack_matches_shared_golden_and_uses_cached_preview()
 }
 
 #[test]
+fn capture_apply_stage_10_matches_shared_golden_from_real_compile_payload() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let input = stage_10_capture_input(&repo_root);
+    let result =
+        capture_pipeline_output(&repo_root, &stage_10_request(input.clone())).expect("capture");
+    let rendered = render_pipeline_capture_apply_result(&result);
+
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &rendered,
+        &[],
+        "capture.apply.stage_10_feature_spec.txt",
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/feature_spec/FEATURE_SPEC.md"))
+            .expect("artifact"),
+        input
+    );
+}
+
+#[test]
+fn capture_refuses_stage_04_single_file_with_file_wrapper() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_04_capture_ready_repo();
+    let wrapped = format!(
+        "--- FILE: artifacts/charter/CHARTER_INPUTS.yaml ---\n{}",
+        stage_04_capture_input()
+    );
+    let refusal =
+        preview_pipeline_capture(&repo_root, &stage_04_request(wrapped)).expect_err("refusal");
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers"
+    );
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
 fn capture_refuses_single_file_with_file_wrapper() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
     let wrapped = format!(
@@ -273,6 +465,72 @@ fn capture_refuses_single_file_with_file_wrapper() {
         &[],
         "capture.refused.single_file_with_file_wrapper.txt",
     );
+}
+
+#[test]
+fn capture_refuses_stage_06_single_file_with_file_wrapper() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_06_capture_ready_repo();
+    let wrapped = format!(
+        "--- FILE: artifacts/project_context/PROJECT_CONTEXT.md ---\n{}",
+        stage_06_capture_input()
+    );
+    let refusal =
+        preview_pipeline_capture(&repo_root, &stage_06_request(wrapped)).expect_err("refusal");
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers"
+    );
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_refuses_stage_10_single_file_with_file_wrapper() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let input = stage_10_capture_input(&repo_root);
+    let wrapped = format!("--- FILE: artifacts/feature_spec/FEATURE_SPEC.md ---\n{input}",);
+    let refusal =
+        preview_pipeline_capture(&repo_root, &stage_10_request(wrapped)).expect_err("refusal");
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers"
+    );
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_preview_stage_04_refuses_empty_single_file_body_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_04_capture_ready_repo();
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER_INPUTS.yaml"))
+            .expect("artifact");
+    let initial_state = load_route_state(&repo_root);
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_04_request("\n".to_string()))
+        .expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "single-file capture stages must receive a non-empty body"
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER_INPUTS.yaml"))
+            .expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
 }
 
 #[test]
@@ -302,6 +560,74 @@ fn capture_preview_refuses_empty_single_file_body_without_side_effects() {
     assert_eq!(
         fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
         initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_preview_stage_06_refuses_empty_single_file_body_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_06_capture_ready_repo();
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/project_context/PROJECT_CONTEXT.md"))
+            .expect("artifact");
+    let initial_state = load_route_state(&repo_root);
+    assert!(
+        !repo_root.join("PROJECT_CONTEXT.md").exists(),
+        "stage-06 capture-ready fixture should not pre-create the repo mirror"
+    );
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_06_request("\n".to_string()))
+        .expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "single-file capture stages must receive a non-empty body"
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/project_context/PROJECT_CONTEXT.md"))
+            .expect("artifact"),
+        initial_artifact
+    );
+    assert!(
+        !repo_root.join("PROJECT_CONTEXT.md").exists(),
+        "empty-body refusal must not create the project-context repo mirror"
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_preview_stage_10_refuses_empty_single_file_body_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "stage-10 capture-ready fixture should not pre-create the feature-spec artifact"
+    );
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_10_request("\n".to_string()))
+        .expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "single-file capture stages must receive a non-empty body"
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "empty-body refusal must not create the feature-spec artifact"
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);

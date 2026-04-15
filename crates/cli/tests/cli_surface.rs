@@ -391,6 +391,41 @@ fn prepare_stage_05_capture_ready_route_basis(root: &std::path::Path) {
     assert!(output.status.success(), "resolve should succeed");
 }
 
+fn prepare_stage_04_capture_ready_route_basis(root: &std::path::Path) {
+    prepare_stage_05_capture_ready_route_basis(root);
+}
+
+fn prepare_stage_06_capture_ready_route_basis(root: &std::path::Path) {
+    for args in [
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+        vec!["pipeline", "resolve", "--id", "foundation_inputs"],
+    ] {
+        let output = run_in(root, &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+    }
+}
+
 fn prepare_stage_07_capture_ready_route_basis(root: &std::path::Path) {
     for args in [
         vec![
@@ -431,8 +466,22 @@ fn prepare_stage_07_capture_ready_route_basis(root: &std::path::Path) {
     }
 }
 
+fn prepare_stage_10_capture_ready_route_basis(root: &std::path::Path) {
+    prepare_foundation_inputs_full_context_route_basis(root);
+}
+
+fn stage_04_capture_input(root: &std::path::Path) -> String {
+    std::fs::read_to_string(root.join("artifacts/charter/CHARTER_INPUTS.yaml"))
+        .expect("stage 04 input")
+}
+
 fn stage_05_capture_input(root: &std::path::Path) -> String {
     std::fs::read_to_string(root.join("artifacts/charter/CHARTER.md")).expect("stage 05 input")
+}
+
+fn stage_06_capture_input(root: &std::path::Path) -> String {
+    std::fs::read_to_string(root.join("artifacts/project_context/PROJECT_CONTEXT.md"))
+        .expect("stage 06 input")
 }
 
 fn stage_07_capture_input(root: &std::path::Path) -> String {
@@ -451,6 +500,31 @@ fn stage_07_capture_input(root: &std::path::Path) -> String {
         out.push('\n');
     }
     out
+}
+
+fn stage_10_capture_input(root: &std::path::Path) -> String {
+    let output = run_in_with_env(
+        root,
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &[(
+            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            FIXED_NOW_UTC,
+        )],
+    );
+    assert!(
+        output.status.success(),
+        "stage-10 compile should succeed before capture"
+    );
+    let stdout = String::from_utf8(output.stdout).expect("compile stdout is utf-8");
+    let trimmed = stdout.trim_end_matches('\n');
+    format!("{trimmed}\n")
 }
 
 fn normalize_capture_id(output: &str) -> String {
@@ -664,6 +738,34 @@ fn pipeline_capture_help_lists_preview_and_apply_surface() {
 }
 
 #[test]
+fn pipeline_capture_preview_stage_04_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_04_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+            "--preview",
+        ],
+        &stage_04_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "preview should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalize_capture_id(&stdout),
+        &[],
+        "capture.preview.stage_04_charter_inputs.txt",
+    );
+}
+
+#[test]
 fn pipeline_capture_preview_charter_matches_shared_golden() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_stage_05_capture_ready_route_basis(root.as_path());
@@ -688,6 +790,34 @@ fn pipeline_capture_preview_charter_matches_shared_golden() {
         &normalize_capture_id(&stdout),
         &[],
         "capture.preview.stage_05_charter_synthesize.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_06_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_06_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.06_project_context_interview",
+            "--preview",
+        ],
+        &stage_06_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "preview should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalize_capture_id(&stdout),
+        &[],
+        "capture.preview.stage_06_project_context_interview.txt",
     );
 }
 
@@ -720,6 +850,61 @@ fn pipeline_capture_preview_foundation_pack_matches_shared_golden() {
 }
 
 #[test]
+fn pipeline_capture_preview_stage_10_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_10_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+            "--preview",
+        ],
+        &stage_10_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "preview should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalize_capture_id(&stdout),
+        &[],
+        "capture.preview.stage_10_feature_spec.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_apply_stage_04_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_04_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+        ],
+        &stage_04_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "capture should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &stdout,
+        &[],
+        "capture.apply.stage_04_charter_inputs.txt",
+    );
+}
+
+#[test]
 fn pipeline_capture_apply_charter_matches_shared_golden() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_stage_05_capture_ready_route_basis(root.as_path());
@@ -743,6 +928,33 @@ fn pipeline_capture_apply_charter_matches_shared_golden() {
         &stdout,
         &[],
         "capture.apply.stage_05_charter_synthesize.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_apply_stage_06_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_06_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.06_project_context_interview",
+        ],
+        &stage_06_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "capture should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &stdout,
+        &[],
+        "capture.apply.stage_06_project_context_interview.txt",
     );
 }
 
@@ -786,6 +998,33 @@ fn pipeline_capture_apply_foundation_pack_matches_shared_golden() {
 }
 
 #[test]
+fn pipeline_capture_apply_stage_10_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_10_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &stage_10_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "capture should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &stdout,
+        &[],
+        "capture.apply.stage_10_feature_spec.txt",
+    );
+}
+
+#[test]
 fn pipeline_capture_apply_refuses_missing_capture_id() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     let output = run_in(
@@ -805,6 +1044,134 @@ fn pipeline_capture_apply_refuses_missing_capture_id() {
         &stdout,
         &[],
         "capture.refused.missing_capture_id.txt",
+    );
+}
+
+#[test]
+fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "initial resolve should succeed");
+
+    let stage_04 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+        ],
+        &stage_04_capture_input(root.as_path()),
+    );
+    assert!(stage_04.status.success(), "stage 04 capture should succeed");
+
+    let stage_05 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+        ],
+        &stage_05_capture_input(root.as_path()),
+    );
+    assert!(stage_05.status.success(), "stage 05 capture should succeed");
+
+    let state_set = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+    );
+    assert!(
+        state_set.status.success(),
+        "needs_project_context state set should succeed"
+    );
+
+    let second_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        second_resolve.status.success(),
+        "second resolve should succeed"
+    );
+    let second_resolve_stdout =
+        String::from_utf8(second_resolve.stdout).expect("resolve stdout is utf-8");
+    assert!(
+        second_resolve_stdout.contains("stage.06_project_context_interview | active"),
+        "stage 06 should be active after the manual handoff: {second_resolve_stdout}"
+    );
+
+    let stage_06 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.06_project_context_interview",
+        ],
+        &stage_06_capture_input(root.as_path()),
+    );
+    assert!(stage_06.status.success(), "stage 06 capture should succeed");
+
+    let third_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        third_resolve.status.success(),
+        "post-stage-06 resolve should succeed"
+    );
+
+    let stage_07 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.07_foundation_pack",
+        ],
+        &stage_07_capture_input(root.as_path()),
+    );
+    assert!(stage_07.status.success(), "stage 07 capture should succeed");
+
+    let stage_10_payload = stage_10_capture_input(root.as_path());
+    let stage_10 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &stage_10_payload,
+    );
+    assert!(stage_10.status.success(), "stage 10 capture should succeed");
+    assert_eq!(
+        std::fs::read_to_string(root.join("artifacts/feature_spec/FEATURE_SPEC.md"))
+            .expect("feature spec artifact"),
+        stage_10_payload
     );
 }
 

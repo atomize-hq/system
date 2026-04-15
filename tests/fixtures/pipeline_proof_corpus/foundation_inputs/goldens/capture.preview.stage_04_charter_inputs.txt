@@ -1,0 +1,10 @@
+OUTCOME: PREVIEW
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.04_charter_inputs
+CAPTURE ID: {{CAPTURE_ID}}
+ROUTE BASIS REVISION: 0
+WRITE PLAN:
+  - artifact: artifacts/charter/CHARTER_INPUTS.yaml
+POST-CAPTURE STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`

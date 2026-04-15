@@ -20,14 +20,52 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - Plain `pipeline compile` success is payload-only stdout.
   - `pipeline compile --explain` is proof-only stdout.
   - If compile refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
-- **`pipeline capture --id <pipeline-id> --stage <stage-id>`** is the supported M3 writer entrypoint for the bounded capture wedge.
+- **`pipeline capture --id <pipeline-id> --stage <stage-id>`** is the supported M3 / M3.5 writer entrypoint for the bounded capture wedge.
   - `pipeline capture --preview` validates stdin, caches one typed materialization plan, and returns `CAPTURE ID`.
   - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
+  - For `pipeline.foundation_inputs`, the supported capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
+  - `pipeline compile` does not write files. Stage `10` materialization is the compile-to-capture handoff.
   - If capture refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
 - **`setup`** is still a placeholder entrypoint and is not yet a real Rust setup flow.
+
+## Documented `foundation_inputs` operator path
+
+The first complete supported `pipeline.foundation_inputs` path is:
+
+```bash
+system pipeline resolve --id pipeline.foundation_inputs
+
+cat /tmp/CHARTER_INPUTS.yaml \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
+
+cat /tmp/CHARTER.md \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
+
+system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>
+system pipeline resolve --id pipeline.foundation_inputs
+
+# Only when resolve marks stage.06_project_context_interview active:
+cat /tmp/PROJECT_CONTEXT.md \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
+
+system pipeline resolve --id pipeline.foundation_inputs
+
+cat /tmp/FOUNDATION_PACK.blocks.txt \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack
+
+system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec \
+  | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+```
+
+Important boundaries:
+
+- `needs_project_context` stays manual and exact. Capture does not auto-set it.
+- `pipeline capture` remains the only stage-output writer surface.
+- Stage `10` capture writes `artifacts/feature_spec/FEATURE_SPEC.md`; it does not promote into canonical `.system/feature_spec/FEATURE_SPEC.md`.
+- Transactional apply remains scoped to `system`-coordinated single-writer flows.
 
 ## How to navigate this repo
 

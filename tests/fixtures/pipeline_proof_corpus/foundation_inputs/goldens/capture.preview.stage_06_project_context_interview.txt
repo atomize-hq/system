@@ -1,0 +1,11 @@
+OUTCOME: PREVIEW
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.06_project_context_interview
+CAPTURE ID: {{CAPTURE_ID}}
+ROUTE BASIS REVISION: 2
+WRITE PLAN:
+  - artifact: artifacts/project_context/PROJECT_CONTEXT.md
+  - repo_file: PROJECT_CONTEXT.md
+POST-CAPTURE STATE UPDATES:
+  - refs.project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
+NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`
