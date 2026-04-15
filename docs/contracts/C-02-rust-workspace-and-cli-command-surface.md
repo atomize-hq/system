@@ -62,7 +62,19 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
   - `system pipeline capture --id <pipeline-id> --stage <stage-id>`
   - `system pipeline capture --id <pipeline-id> --stage <stage-id> --preview`
   - `system pipeline capture apply --capture-id <capture-id>`
-- `pipeline capture` MUST remain the only supported stage-output writer surface in M3.
+- `pipeline capture` MUST remain the only supported stage-output writer surface in M3 / M3.5.
+- The shipped `pipeline.foundation_inputs` capture target set for that writer wedge is:
+  - `stage.04_charter_inputs`
+  - `stage.05_charter_synthesize`
+  - `stage.06_project_context_interview`
+  - `stage.07_foundation_pack`
+  - `stage.10_feature_spec`
+- `pipeline compile` MUST remain payload-only stdout for the shipped M2 / M3.5 wedge.
+- The only shipped stage-10 materialization path is `pipeline compile ... --stage stage.10_feature_spec` piping payload stdout into `pipeline capture ... --stage stage.10_feature_spec`.
+- The supported `foundation_inputs` operator sequence MUST keep `needs_project_context` as one explicit manual handoff:
+  - capture `stage.05_charter_synthesize`
+  - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
+  - `system pipeline resolve --id pipeline.foundation_inputs`
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery surface for blockers and next safe actions.
@@ -96,7 +108,10 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `--help` shows the currently shipped supported surface in setup-first order and adds `pipeline` in the reviewed order once that family lands.
 - [ ] Help text matches the supported reduced-v1 command story, keeps `setup` explicitly placeholder-only, documents `pipeline` as the orchestration surface once shipped, and exposes the M2 compile wedge plus the M3 capture wedge.
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
-- [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 wedge.
+- [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 / M3.5 wedge.
+- [ ] The documented `pipeline.foundation_inputs` capture targets are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
+- [ ] `pipeline compile` remains payload-only stdout, and stage `10` materialization is documented only as a compile-to-capture handoff.
+- [ ] `needs_project_context` remains documented as a manual `pipeline state set` plus `pipeline resolve` step rather than an automatic capture side effect.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.
 - [ ] `doctor` is documented as the recovery surface.

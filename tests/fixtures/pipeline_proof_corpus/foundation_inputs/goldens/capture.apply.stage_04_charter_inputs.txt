@@ -1,0 +1,8 @@
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.04_charter_inputs
+WRITTEN FILES:
+  - artifacts/charter/CHARTER_INPUTS.yaml
+STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: <none>

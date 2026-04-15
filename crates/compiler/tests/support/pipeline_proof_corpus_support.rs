@@ -12,13 +12,22 @@ use system_compiler::{
 };
 
 pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
+pub const STAGE_04_CHARTER_INPUTS_ID: &str = "stage.04_charter_inputs";
 pub const STAGE_05_CHARTER_SYNTHESIZE_ID: &str = "stage.05_charter_synthesize";
+pub const STAGE_06_PROJECT_CONTEXT_INTERVIEW_ID: &str = "stage.06_project_context_interview";
 pub const STAGE_07_FOUNDATION_PACK_ID: &str = "stage.07_foundation_pack";
+pub const STAGE_10_FEATURE_SPEC_ID: &str = "stage.10_feature_spec";
 pub const CAPTURE_GOLDEN_NAMES: &[&str] = &[
+    "capture.preview.stage_04_charter_inputs.txt",
     "capture.preview.stage_05_charter_synthesize.txt",
+    "capture.preview.stage_06_project_context_interview.txt",
     "capture.preview.stage_07_foundation_pack.txt",
+    "capture.preview.stage_10_feature_spec.txt",
+    "capture.apply.stage_04_charter_inputs.txt",
     "capture.apply.stage_05_charter_synthesize.txt",
+    "capture.apply.stage_06_project_context_interview.txt",
     "capture.apply.stage_07_foundation_pack.txt",
+    "capture.apply.stage_10_feature_spec.txt",
     "capture.refused.empty_single_file_body.txt",
     "capture.refused.empty_declared_block.txt",
     "capture.refused.single_file_with_file_wrapper.txt",
@@ -165,8 +174,34 @@ pub fn persist_foundation_inputs_route_basis(repo_root: &Path) -> RouteState {
     }
 }
 
-pub fn install_stage_05_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
+pub fn install_stage_04_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
     let (dir, repo_root) = install_foundation_inputs_repo();
+    let _ = persist_foundation_inputs_route_basis(&repo_root);
+    (dir, repo_root)
+}
+
+pub fn install_stage_05_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
+    install_stage_04_capture_ready_repo()
+}
+
+pub fn install_stage_06_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
+    let (dir, repo_root) = install_foundation_inputs_repo();
+    let (_, supported_variables) = load_foundation_inputs_definition(&repo_root);
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
+    );
     let _ = persist_foundation_inputs_route_basis(&repo_root);
     (dir, repo_root)
 }
@@ -179,6 +214,57 @@ pub fn install_stage_07_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
         &supported_variables,
         RouteStateMutation::RefCharterRef {
             value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: false,
+        },
+    );
+    let _ = persist_foundation_inputs_route_basis(&repo_root);
+    (dir, repo_root)
+}
+
+pub fn install_stage_10_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
+    let (dir, repo_root) = install_foundation_inputs_repo();
+    let (_, supported_variables) = load_foundation_inputs_definition(&repo_root);
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RunRunner {
+            value: "codex-cli".to_string(),
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RunProfile {
+            value: "python-uv".to_string(),
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefProjectContextRef {
+            value: "artifacts/project_context/PROJECT_CONTEXT.md".to_string(),
         },
     );
     apply_foundation_inputs_state_mutation(

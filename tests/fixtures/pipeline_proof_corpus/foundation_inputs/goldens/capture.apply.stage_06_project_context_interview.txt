@@ -1,0 +1,9 @@
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.06_project_context_interview
+WRITTEN FILES:
+  - artifacts/project_context/PROJECT_CONTEXT.md
+  - PROJECT_CONTEXT.md
+STATE UPDATES:
+  - refs.project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
+NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture

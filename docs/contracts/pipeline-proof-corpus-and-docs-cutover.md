@@ -52,6 +52,7 @@ This contract defines the conformance baseline for the shipped M2 and M3 `pipeli
 - the required shared proof corpus for M1 `pipeline` conformance
 - the golden-output and refusal-output surfaces that must be pinned by tests
 - the docs/help parity baseline for the reviewed `pipeline` subset, including the bounded M2 compile wedge and the bounded M3 capture wedge
+- the M3.5 `foundation_inputs` operator path from `stage.04_charter_inputs` through the stage-10 compile-to-capture handoff
 - the explicit M1 performance, security, and operability boundary for `pipeline`
 - the downstream revalidation triggers that later milestone packs must honor
 
@@ -87,6 +88,16 @@ The proof corpus MUST include cases that exercise:
 - malformed route-state refusal behavior
 - lock/revision conflict behavior for narrow state mutation
 - state mutation success and refusal distinctions
+- the shipped `foundation_inputs` operator path:
+  - `resolve`
+  - `stage.04_charter_inputs` capture
+  - `stage.05_charter_synthesize` capture
+  - manual `needs_project_context` state set
+  - second `resolve`
+  - conditional `stage.06_project_context_interview` capture
+  - third `resolve`
+  - `stage.07_foundation_pack` capture
+  - `stage.10_feature_spec` compile-to-capture
 
 ### Golden outputs
 
@@ -99,6 +110,11 @@ The proof corpus MUST include cases that exercise:
 - Path-bearing proof output MUST normalize temp-repo evidence into committed placeholder tokens before comparing against goldens.
 - The M1 placeholder tokens are `{{REPO_ROOT}}` for the temp proof repo root and `{{STATE_PATH}}` for persisted route-state evidence paths.
 - The compile-facing `repo_root` variable is not a placeholder token; its deterministic committed value is the literal symbolic root `${repo_root}`.
+- The shared `foundation_inputs` goldens MUST include capture success coverage for:
+  - `stage.04_charter_inputs`
+  - `stage.06_project_context_interview`
+  - `stage.10_feature_spec`
+- The stage-10 proof corpus MUST prove the real compile-to-capture handoff, not only a synthetic markdown capture body.
 
 ### Malformed-refusal classes
 
@@ -134,6 +150,17 @@ Malformed pipeline and malformed route-state refusals MUST stay explicit:
   - `pipeline capture apply --capture-id <capture-id>`
 - Docs and help MUST describe plain `pipeline compile` success as payload-only stdout and `pipeline compile --explain` as proof-only stdout.
 - Docs and help MUST describe `pipeline capture` as the explicit writer surface for declared stage outputs and `pipeline capture --preview` as the cached preview surface.
+- Docs and help MUST describe the shipped `pipeline.foundation_inputs` capture target set as:
+  - `stage.04_charter_inputs`
+  - `stage.05_charter_synthesize`
+  - `stage.06_project_context_interview`
+  - `stage.07_foundation_pack`
+  - `stage.10_feature_spec`
+- Docs and help MUST describe `pipeline compile stage.10_feature_spec` as payload-only stdout that feeds the stage-10 capture path; they MUST NOT imply a direct compile write mode.
+- Docs and help MUST preserve the exact manual `needs_project_context` handoff after `stage.05_charter_synthesize`:
+  - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
+  - `system pipeline resolve --id pipeline.foundation_inputs`
+- Docs and help MUST keep the write-safety claim narrow: transactional apply is guaranteed only for `system`-coordinated single-writer flows.
 - Docs and help MUST keep `inspect` scoped to packet proof rather than compile proof.
 - Docs and help MUST not imply that proof-corpus checks, docs/help cutover, or safety rails are optional once the M2 `pipeline` surface is presented as supported.
 - Docs and help MUST not diverge from the reviewed operator-surface language in `C-09` or the compile-boundary posture in `C-10`.
@@ -185,5 +212,8 @@ The following checklist is normative for seam-local execution and closeout:
 - [ ] Docs and help snapshots describe `pipeline` as `list`, `show`, `resolve`, `compile`, `capture`, and `state set`.
 - [ ] Docs and help expose `pipeline compile` and `pipeline compile --explain` as the bounded shipped M2 surface.
 - [ ] Docs and help expose `pipeline capture`, `pipeline capture --preview`, and `pipeline capture apply --capture-id <capture-id>` as the bounded shipped M3 surface.
+- [ ] Docs and help describe the shipped `foundation_inputs` capture targets as `04`, `05`, `06`, `07`, and `10`.
+- [ ] Docs and help preserve the exact manual `needs_project_context` handoff and the stage-10 compile-to-capture path.
+- [ ] Shared goldens cover capture success for stages `04`, `06`, and `10`, and the stage-10 proof uses the real compile payload handoff.
 - [ ] The contract stays aligned with `C-08`, `C-09`, and `C-10` without redefining their semantics.
 - [ ] The M1 performance, security, and operability boundary remains repo-local, deterministic, and free of silent repair.

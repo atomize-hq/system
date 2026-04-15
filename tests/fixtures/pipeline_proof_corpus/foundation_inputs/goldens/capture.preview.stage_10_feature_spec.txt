@@ -1,0 +1,10 @@
+OUTCOME: PREVIEW
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+CAPTURE ID: {{CAPTURE_ID}}
+ROUTE BASIS REVISION: 6
+WRITE PLAN:
+  - artifact: artifacts/feature_spec/FEATURE_SPEC.md
+POST-CAPTURE STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`

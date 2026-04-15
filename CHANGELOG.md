@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.1.0] - 2026-04-15
+
+### Added
+- Added the remaining shipped M3.5 `pipeline capture` targets for `pipeline.foundation_inputs`: `stage.04_charter_inputs`, `stage.06_project_context_interview`, and `stage.10_feature_spec`.
+- Added shared proof-corpus goldens plus compiler and CLI regression coverage for preview/apply success, wrapper refusal, empty-body refusal, route progression, and the real stage-10 compile-to-capture handoff.
+
+### Changed
+- Tightened the capture operator contract so help text, README/start-here guidance, supported-command docs, and pipeline contracts all describe one exact `foundation_inputs` path with the manual `needs_project_context` handoff and the narrow single-writer safety claim.
+- Updated `pipeline capture` wording and refusal messaging to describe the shipped supported stage set instead of the earlier milestone-limited boundary.
+
 ## [0.4.0.0] - 2026-04-15
 
 ### Added

@@ -16,7 +16,7 @@ revalidation_triggers:
 
 ## Purpose
 
-`C-12` defines the bounded M3 writer surface for stage-output capture.
+`C-12` defines the bounded M3 / M3.5 writer surface for stage-output capture.
 
 It exists so downstream CLI, proof, and docs work can treat one compiler-owned contract as authoritative for:
 
@@ -61,12 +61,27 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 
 ### Supported capture wedge
 
-- `pipeline capture` is the only supported writer surface in M3.
+- `pipeline capture` is the only supported writer surface in M3 / M3.5.
+- `pipeline compile` remains payload-only stdout and MUST NOT gain a `--write` mode through this contract.
 - The supported bounded targets are:
+  - `pipeline.foundation_inputs` + `stage.04_charter_inputs`
   - `pipeline.foundation_inputs` + `stage.05_charter_synthesize`
+  - `pipeline.foundation_inputs` + `stage.06_project_context_interview`
   - `pipeline.foundation_inputs` + `stage.07_foundation_pack`
+  - `pipeline.foundation_inputs` + `stage.10_feature_spec`
 - Capture MUST reuse the same route-basis freshness and inactive-stage refusal posture used by the compiler-owned route/compile flow.
 - Capture MUST refuse rather than silently re-running `pipeline resolve`.
+- The supported `foundation_inputs` operator path is:
+  - `pipeline resolve`
+  - `stage.04_charter_inputs` capture
+  - `stage.05_charter_synthesize` capture
+  - manual `pipeline state set --var needs_project_context=<true|false>`
+  - `pipeline resolve`
+  - conditional `stage.06_project_context_interview` capture
+  - `pipeline resolve`
+  - `stage.07_foundation_pack` capture
+  - `stage.10_feature_spec` compile
+  - `stage.10_feature_spec` capture
 
 ### Shared preview/apply plan
 
@@ -82,9 +97,10 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 
 ### Capture-input parsing
 
-- Single-file stages MUST accept plain stdin body content only.
+- Single-file stages (`04`, `05`, `06`, and `10`) MUST accept plain stdin body content only.
 - Single-file stages MUST refuse `--- FILE: <path> ---` wrappers.
 - Multi-file stages MUST require declared artifact `--- FILE: <path> ---` blocks exactly once each.
+- Multi-file capture remains limited to `stage.07_foundation_pack` in the shipped M3 / M3.5 wedge.
 - Multi-file stages MUST refuse:
   - declared artifact blocks with empty bodies
   - undeclared artifact blocks
@@ -102,6 +118,13 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 - Repo files are mirrors only in M3; stdin does not author repo files directly.
 - For multi-artifact stages, repo-file mirror content MUST be derived from exactly one declared artifact output matched by basename.
 - If zero or multiple artifact outputs match one repo-file basename, capture MUST refuse.
+- The stage-specific materialization boundary for the shipped `foundation_inputs` wedge is:
+  - `stage.04_charter_inputs` writes `artifacts/charter/CHARTER_INPUTS.yaml`
+  - `stage.05_charter_synthesize` writes `artifacts/charter/CHARTER.md`
+  - `stage.06_project_context_interview` writes `artifacts/project_context/PROJECT_CONTEXT.md` plus any declared repo-file mirror
+  - `stage.07_foundation_pack` writes its declared artifact set plus any derived repo-file mirrors
+  - `stage.10_feature_spec` writes `artifacts/feature_spec/FEATURE_SPEC.md`
+- `stage.10_feature_spec` capture MUST NOT imply promotion into canonical `.system/feature_spec/FEATURE_SPEC.md`.
 
 ### Preview cache
 
@@ -142,15 +165,20 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - `refs.project_context_ref` when `artifacts/project_context/PROJECT_CONTEXT.md` is written
   - `routing.charter_gaps_detected` derived from captured charter content using the existing marker heuristic
 - Capture MUST NOT auto-set `needs_project_context`.
+- `stage.04_charter_inputs` and `stage.10_feature_spec` add no automatic route-state updates in the shipped wedge.
 - When apply succeeds and route truth is now stale because capture persisted automatic route-state updates, capture MUST tell the operator to run `pipeline resolve` before the next compile or capture.
 - When the selected stage declares `sets:` values that still require human judgment, capture MUST return the exact follow-up sequence the operator can run after apply:
   - emit one `pipeline state set` command per unresolved manual variable
   - preserve declared `stage.sets` order
   - finish with one `pipeline resolve` command before the next compile or capture
+- For `pipeline.foundation_inputs` + `stage.05_charter_synthesize`, the exact manual follow-up sequence remains:
+  - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
+  - `system pipeline resolve --id pipeline.foundation_inputs`
 
 ## Verification checklist
 
 - [ ] The compiler exposes preview, direct apply, cached apply, and cache-load APIs for `pipeline capture`.
+- [ ] The supported capture target set for `pipeline.foundation_inputs` is `04`, `05`, `06`, `07`, and `10`.
 - [ ] The preview cache path is `.system/state/pipeline/capture/<capture-id>.yaml`.
 - [ ] Single-file capture refuses FILE wrappers.
 - [ ] Single-file capture refuses empty bodies.
@@ -160,3 +188,4 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 - [ ] Apply re-checks route-basis freshness under lock before writing.
 - [ ] Apply rolls back file writes if later persistence fails.
 - [ ] Automatic post-capture state updates are limited to the bounded M3 fields listed above.
+- [ ] `pipeline compile` remains payload-only and stage-output writes remain exclusive to `pipeline capture`.

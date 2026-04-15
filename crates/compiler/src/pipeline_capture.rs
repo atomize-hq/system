@@ -24,11 +24,21 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
+const SUPPORTED_STAGE_CHARTER_INPUTS_ID: &str = "stage.04_charter_inputs";
 const SUPPORTED_STAGE_CHARTER_ID: &str = "stage.05_charter_synthesize";
+const SUPPORTED_STAGE_PROJECT_CONTEXT_ID: &str = "stage.06_project_context_interview";
 const SUPPORTED_STAGE_FOUNDATION_ID: &str = "stage.07_foundation_pack";
+const SUPPORTED_STAGE_FEATURE_SPEC_ID: &str = "stage.10_feature_spec";
 const CAPTURE_CACHE_SCHEMA_VERSION: &str = "m3-capture-cache-v1";
 const CAPTURE_UNKNOWN_MARKERS: [&str; 5] = ["TBD", "UNKNOWN", "Unknown", "TODO", "??"];
 pub const PIPELINE_CAPTURE_CACHE_SCHEMA_VERSION: &str = CAPTURE_CACHE_SCHEMA_VERSION;
+const SUPPORTED_CAPTURE_STAGE_IDS: [&str; 5] = [
+    SUPPORTED_STAGE_CHARTER_INPUTS_ID,
+    SUPPORTED_STAGE_CHARTER_ID,
+    SUPPORTED_STAGE_PROJECT_CONTEXT_ID,
+    SUPPORTED_STAGE_FOUNDATION_ID,
+    SUPPORTED_STAGE_FEATURE_SPEC_ID,
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineCaptureRequest {
@@ -349,7 +359,8 @@ fn build_capture_plan(
             pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_selector.trim().to_string()),
             recovery: format!(
-                "retry with one of `{SUPPORTED_STAGE_CHARTER_ID}` or `{SUPPORTED_STAGE_FOUNDATION_ID}`"
+                "retry with one of {}",
+                render_supported_capture_stage_list()
             ),
         }
     })?;
@@ -1721,26 +1732,40 @@ fn validate_supported_capture_target(
     if pipeline_id != SUPPORTED_PIPELINE_ID {
         return Err(PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
-            summary: format!("M3 capture currently supports only `{SUPPORTED_PIPELINE_ID}`"),
-            pipeline_id: Some(pipeline_id.to_string()),
-            stage_id: Some(stage_id.to_string()),
-            recovery: format!("retry with `pipeline capture --id {SUPPORTED_PIPELINE_ID} --stage {SUPPORTED_STAGE_CHARTER_ID}`"),
-        });
-    }
-    if stage_id != SUPPORTED_STAGE_CHARTER_ID && stage_id != SUPPORTED_STAGE_FOUNDATION_ID {
-        return Err(PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "M3 capture currently supports only `{SUPPORTED_STAGE_CHARTER_ID}` and `{SUPPORTED_STAGE_FOUNDATION_ID}`"
+                "`pipeline capture` currently supports only pipeline `{SUPPORTED_PIPELINE_ID}`"
             ),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: format!(
-                "retry with `pipeline capture --id {pipeline_id} --stage {SUPPORTED_STAGE_CHARTER_ID}` or `pipeline capture --id {pipeline_id} --stage {SUPPORTED_STAGE_FOUNDATION_ID}`"
+                "retry with `pipeline capture --id {SUPPORTED_PIPELINE_ID} --stage {SUPPORTED_STAGE_CHARTER_INPUTS_ID}`"
+            ),
+        });
+    }
+    if !SUPPORTED_CAPTURE_STAGE_IDS.contains(&stage_id) {
+        return Err(PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
+            summary: format!(
+                "`pipeline capture` currently supports only stages {} for pipeline `{SUPPORTED_PIPELINE_ID}`",
+                render_supported_capture_stage_list()
+            ),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: format!(
+                "retry with `pipeline capture --id {pipeline_id} --stage {SUPPORTED_STAGE_CHARTER_INPUTS_ID}` or another supported capture stage from {}",
+                render_supported_capture_stage_list()
             ),
         });
     }
     Ok(())
+}
+
+fn render_supported_capture_stage_list() -> String {
+    SUPPORTED_CAPTURE_STAGE_IDS
+        .iter()
+        .map(|stage_id| format!("`{stage_id}`"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn resolve_stage_selector(pipeline: &PipelineDefinition, selector: &str) -> Result<String, String> {
