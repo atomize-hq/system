@@ -1426,6 +1426,7 @@ pipeline resolve
   -> operator sets needs_project_context exactly once
   -> pipeline resolve
   -> stage.06_project_context_interview capture (only if active)
+  -> pipeline resolve
   -> stage.07_foundation_pack capture
   -> stage.10_feature_spec compile (optional explain proof)
   -> stage.10_feature_spec capture
@@ -1448,6 +1449,8 @@ system pipeline resolve --id pipeline.foundation_inputs
 # Only when resolve marks stage.06_project_context_interview active:
 cat /tmp/PROJECT_CONTEXT.md \
   | system pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
+
+system pipeline resolve --id pipeline.foundation_inputs
 
 cat /tmp/FOUNDATION_PACK.blocks.txt \
   | system pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack

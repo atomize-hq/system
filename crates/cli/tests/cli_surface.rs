@@ -547,6 +547,25 @@ fn normalize_capture_id(output: &str) -> String {
         .join("\n")
 }
 
+fn assert_pipeline_capture_preview_refusal(
+    stdout: &str,
+    stage: &str,
+    reason: &str,
+    next_safe_action: &str,
+) {
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(
+        stdout.contains("PIPELINE: pipeline.foundation_inputs"),
+        "{stdout}"
+    );
+    assert!(stdout.contains(&format!("STAGE: {stage}")), "{stdout}");
+    assert!(stdout.contains(&format!("REASON: {reason}")), "{stdout}");
+    assert!(
+        stdout.contains(&format!("NEXT SAFE ACTION: {next_safe_action}")),
+        "{stdout}"
+    );
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -874,6 +893,192 @@ fn pipeline_capture_preview_stage_10_matches_shared_golden() {
         &normalize_capture_id(&stdout),
         &[],
         "capture.preview.stage_10_feature_spec.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_04_refuses_file_wrapper() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_04_capture_ready_route_basis(root.as_path());
+    let wrapped = format!(
+        "--- FILE: artifacts/charter/CHARTER_INPUTS.yaml ---\n{}",
+        stage_04_capture_input(root.as_path())
+    );
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+            "--preview",
+        ],
+        &wrapped,
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_preview_refusal(
+        &stdout,
+        "stage.04_charter_inputs",
+        "invalid_capture_input: single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers",
+        "paste only the stage body and retry `pipeline capture`",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_04_refuses_empty_body() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_04_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+            "--preview",
+        ],
+        "\n",
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_preview_refusal(
+        &stdout,
+        "stage.04_charter_inputs",
+        "invalid_capture_input: single-file capture stages must receive a non-empty body",
+        "paste the generated stage body and retry `pipeline capture`",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_06_refuses_file_wrapper() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_06_capture_ready_route_basis(root.as_path());
+    let wrapped = format!(
+        "--- FILE: artifacts/project_context/PROJECT_CONTEXT.md ---\n{}",
+        stage_06_capture_input(root.as_path())
+    );
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.06_project_context_interview",
+            "--preview",
+        ],
+        &wrapped,
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_preview_refusal(
+        &stdout,
+        "stage.06_project_context_interview",
+        "invalid_capture_input: single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers",
+        "paste only the stage body and retry `pipeline capture`",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_06_refuses_empty_body() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_06_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.06_project_context_interview",
+            "--preview",
+        ],
+        "\n",
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_preview_refusal(
+        &stdout,
+        "stage.06_project_context_interview",
+        "invalid_capture_input: single-file capture stages must receive a non-empty body",
+        "paste the generated stage body and retry `pipeline capture`",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_10_refuses_file_wrapper() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_10_capture_ready_route_basis(root.as_path());
+    let wrapped = format!(
+        "--- FILE: artifacts/feature_spec/FEATURE_SPEC.md ---\n{}",
+        stage_10_capture_input(root.as_path())
+    );
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+            "--preview",
+        ],
+        &wrapped,
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_preview_refusal(
+        &stdout,
+        "stage.10_feature_spec",
+        "invalid_capture_input: single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers",
+        "paste only the stage body and retry `pipeline capture`",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_stage_10_refuses_empty_body() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_10_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+            "--preview",
+        ],
+        "\n",
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_preview_refusal(
+        &stdout,
+        "stage.10_feature_spec",
+        "invalid_capture_input: single-file capture stages must receive a non-empty body",
+        "paste the generated stage body and retry `pipeline capture`",
     );
 }
 
