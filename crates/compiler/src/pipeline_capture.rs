@@ -2067,9 +2067,10 @@ impl fmt::Display for PipelineCaptureRefusalClassification {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_post_apply_next_safe_action, capture_cache_path, rollback_snapshots,
-        snapshot_targets, write_capture_targets, PipelineCapturePlan, PipelineCaptureStateUpdate,
-        PipelineCaptureStateValue, PipelineCaptureTarget, PipelineCaptureWriteIntent,
+        build_post_apply_next_safe_action, build_repo_mirror_writes, capture_cache_path,
+        rollback_snapshots, snapshot_targets, write_capture_targets, PipelineCapturePlan,
+        PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCaptureTarget,
+        PipelineCaptureWriteIntent,
     };
     use crate::pipeline::{
         CompileStageDefinition, CompileStageGating, CompileStageInputs, CompileStageOutputs,
@@ -2415,6 +2416,71 @@ mod tests {
             read_file(&escaped_restore_root.path().join("existing.md")),
             "outside restore\n",
             "rollback should not restore bytes through the swapped symlink"
+        );
+    }
+
+    #[test]
+    fn rollback_snapshots_restores_written_files_for_simulated_state_persistence_failure() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let existing_path = repo_root.path().join("artifact.md");
+        fs::write(&existing_path, "before\n").expect("seed existing target");
+
+        let plan = test_plan(vec![
+            write_intent("artifact.md", "after\n"),
+            write_intent("new-output.md", "created\n"),
+        ]);
+        let mut snapshots = snapshot_targets(repo_root.path(), &plan).expect("snapshot");
+
+        let written =
+            write_capture_targets(repo_root.path(), &plan, &mut snapshots).expect("write targets");
+        assert_eq!(
+            written,
+            vec!["artifact.md".to_string(), "new-output.md".to_string()]
+        );
+        assert_eq!(read_file(&existing_path), "after\n");
+        assert_eq!(read_file(&repo_root.path().join("new-output.md")), "created\n");
+
+        // Simulate a later state-persistence failure after file writes succeeded.
+        rollback_snapshots(repo_root.path(), &snapshots);
+
+        assert_eq!(read_file(&existing_path), "before\n");
+        assert!(
+            !repo_root.path().join("new-output.md").exists(),
+            "rollback should delete files that did not exist before the failed apply"
+        );
+    }
+
+    #[test]
+    fn build_repo_mirror_writes_refuses_missing_basename_match() {
+        let err = build_repo_mirror_writes(
+            &[write_intent(
+                "artifacts/foundation/FOUNDATION_STRATEGY.md",
+                "strategy\n",
+            )],
+            &["ENVIRONMENT_INVENTORY.md".to_string()],
+        )
+        .expect_err("missing basename match should refuse");
+
+        assert!(
+            err.contains("could not be derived from the declared artifact outputs"),
+            "expected missing-match refusal, got: {err}"
+        );
+    }
+
+    #[test]
+    fn build_repo_mirror_writes_refuses_ambiguous_basename_match() {
+        let err = build_repo_mirror_writes(
+            &[
+                write_intent("artifacts/a/ENVIRONMENT_INVENTORY.md", "first\n"),
+                write_intent("artifacts/b/ENVIRONMENT_INVENTORY.md", "second\n"),
+            ],
+            &["ENVIRONMENT_INVENTORY.md".to_string()],
+        )
+        .expect_err("ambiguous basename match should refuse");
+
+        assert!(
+            err.contains("matches multiple artifact outputs by basename"),
+            "expected ambiguous-match refusal, got: {err}"
         );
     }
 }

@@ -547,6 +547,64 @@ fn capture_apply_refuses_missing_capture_id() {
     );
 }
 
+#[test]
+fn capture_apply_refuses_state_revision_conflict_before_writes() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let state_path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+
+    let mut persisted_state: RouteState =
+        serde_yaml_bw::from_str(&fs::read_to_string(&state_path).expect("state file"))
+            .expect("deserialize route state");
+    persisted_state.revision += 1;
+    fs::write(
+        &state_path,
+        serde_yaml_bw::to_string(&persisted_state).expect("serialize route state"),
+    )
+    .expect("write route state");
+
+    let refusal =
+        apply_pipeline_capture(&repo_root, &preview.plan.capture_id).expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::RevisionConflict
+    );
+    assert!(
+        refusal
+            .summary
+            .contains("does not match previewed capture revision"),
+        "expected revision-conflict summary, got: {}",
+        refusal.summary
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(
+        load_route_state(&repo_root).routing,
+        initial_state.routing,
+        "revision-conflict refusal should not mutate route state"
+    );
+    assert!(
+        pipeline_proof_corpus_support::pipeline_capture_cache_path(
+            &repo_root,
+            &preview.plan.capture_id
+        )
+        .exists(),
+        "refused apply should keep the cached preview in place"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn capture_apply_refuses_unreadable_cache_entry_without_side_effects() {
@@ -743,6 +801,44 @@ fn capture_preview_refuses_cache_path_when_capture_parent_is_symlinked() {
         refusal.summary
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[cfg(unix)]
+#[test]
+fn capture_preview_refuses_symlinked_repo_mirror_target_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let external_root = tempfile::tempdir().expect("external tempdir");
+    let repo_mirror = repo_root.join("CHARTER.md");
+    let redirected_target = external_root.path().join("CHARTER.md");
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_state = load_route_state(&repo_root);
+
+    fs::remove_file(&repo_mirror).expect("remove repo mirror");
+    std::os::unix::fs::symlink(&redirected_target, &repo_mirror).expect("replace mirror");
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect_err("preview refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidWriteTarget
+    );
+    assert!(
+        refusal.summary.contains("cannot be written through symlink"),
+        "expected symlink refusal, got: {}",
+        refusal.summary
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(
+        !redirected_target.exists(),
+        "preview refusal should not write through the symlinked repo mirror"
+    );
     assert_no_capture_cache_entries(&repo_root);
 }
 

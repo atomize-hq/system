@@ -808,6 +808,41 @@ fn pipeline_capture_apply_refuses_missing_capture_id() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn pipeline_capture_preview_refuses_invalid_write_target() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_05_capture_ready_route_basis(root.as_path());
+    let external = tempfile::tempdir().expect("tempdir");
+    let repo_mirror = root.join("CHARTER.md");
+
+    std::fs::remove_file(&repo_mirror).expect("remove repo mirror");
+    std::os::unix::fs::symlink(external.path().join("CHARTER.md"), &repo_mirror)
+        .expect("replace repo mirror with symlink");
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+            "--preview",
+        ],
+        &stage_05_capture_input(root.as_path()),
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(stdout.contains("PIPELINE: pipeline.foundation_inputs"), "{stdout}");
+    assert!(stdout.contains("STAGE: stage.05_charter_synthesize"), "{stdout}");
+    assert!(stdout.contains("invalid_write_target"), "{stdout}");
+    assert!(stdout.contains("cannot be written through symlink"), "{stdout}");
+}
+
 #[test]
 fn pipeline_list_and_show_use_canonical_id_discovery() {
     let root = workspace_root();
