@@ -1,0 +1,5 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.05_charter_synthesize
+REASON: invalid_capture_input: single-file capture stages must receive a non-empty body
+NEXT SAFE ACTION: paste the generated stage body and retry `pipeline capture`

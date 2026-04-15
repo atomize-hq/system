@@ -244,6 +244,8 @@ Rules:
 - apply success reports written files only after every write and state update has succeeded
 - apply remains transactional at the acceptance boundary
 - cached apply revalidates freshness before writing anything
+- when apply persisted automatic route-state updates, `NEXT SAFE ACTION` must tell the operator to run `pipeline resolve` before the next compile or capture
+- when apply also leaves a manual `sets:` decision unresolved, `NEXT SAFE ACTION` may be a single exact multi-step line: `pipeline state set` first, then `pipeline resolve`
 
 ### Refused
 

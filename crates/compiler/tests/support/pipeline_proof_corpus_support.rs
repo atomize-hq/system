@@ -19,6 +19,8 @@ pub const CAPTURE_GOLDEN_NAMES: &[&str] = &[
     "capture.preview.stage_07_foundation_pack.txt",
     "capture.apply.stage_05_charter_synthesize.txt",
     "capture.apply.stage_07_foundation_pack.txt",
+    "capture.refused.empty_single_file_body.txt",
+    "capture.refused.empty_declared_block.txt",
     "capture.refused.single_file_with_file_wrapper.txt",
     "capture.refused.missing_declared_block.txt",
     "capture.refused.duplicate_declared_block.txt",

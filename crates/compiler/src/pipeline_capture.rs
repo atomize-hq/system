@@ -133,7 +133,9 @@ pub enum PipelineCaptureRefusalClassification {
 #[derive(Debug)]
 enum CaptureInputParseError {
     InvalidSingleFileWrapper,
+    EmptySingleFileBody,
     InvalidMultifilePrefix,
+    EmptyDeclaredBlock(String),
     DuplicateBlock(String),
     MissingDeclaredBlock(String),
     UndeclaredBlock(String),
@@ -492,8 +494,12 @@ fn build_capture_plan(
         &stage_id,
     )?;
     let state_updates = derive_state_updates(&artifact_contents);
-    let post_apply_next_safe_action =
-        build_post_apply_next_safe_action(&pipeline.header.id, &stage_definition, &state);
+    let post_apply_next_safe_action = build_post_apply_next_safe_action(
+        &pipeline.header.id,
+        &stage_definition,
+        &state,
+        &state_updates,
+    );
 
     let mut plan = PipelineCapturePlan {
         target: PipelineCaptureTarget {
@@ -866,14 +872,15 @@ fn compute_capture_id(plan: &PipelineCapturePlan) -> Result<String, String> {
 }
 
 fn parse_single_file_capture_input(input: &str) -> Result<String, CaptureInputParseError> {
-    let normalized = normalize_capture_content(input);
+    let normalized = normalize_capture_line_endings(input);
     if normalized
         .lines()
         .any(|line| line.starts_with("--- FILE: ") && line.ends_with(" ---"))
     {
         return Err(CaptureInputParseError::InvalidSingleFileWrapper);
     }
-    Ok(normalized)
+    normalize_nonempty_capture_content(&normalized)
+        .ok_or(CaptureInputParseError::EmptySingleFileBody)
 }
 
 fn parse_multi_file_capture_input(
@@ -900,7 +907,7 @@ fn parse_multi_file_capture_input(
                 if blocks
                     .insert(
                         previous_path.clone(),
-                        normalize_capture_content(&current_content),
+                        normalize_declared_block_content(&previous_path, &current_content)?,
                     )
                     .is_some()
                 {
@@ -929,7 +936,7 @@ fn parse_multi_file_capture_input(
         if blocks
             .insert(
                 previous_path.clone(),
-                normalize_capture_content(&current_content),
+                normalize_declared_block_content(&previous_path, &current_content)?,
             )
             .is_some()
         {
@@ -959,14 +966,26 @@ fn parse_file_header_line(line: &str) -> Option<&str> {
     Some(path)
 }
 
-fn normalize_capture_content(input: &str) -> String {
-    let normalized = input.replace("\r\n", "\n");
+fn normalize_capture_line_endings(input: &str) -> String {
+    input.replace("\r\n", "\n")
+}
+
+fn normalize_nonempty_capture_content(input: &str) -> Option<String> {
+    let normalized = normalize_capture_line_endings(input);
     let trimmed = normalized.trim_end_matches('\n');
     if trimmed.is_empty() {
-        "\n".to_string()
+        None
     } else {
-        format!("{trimmed}\n")
+        Some(format!("{trimmed}\n"))
     }
+}
+
+fn normalize_declared_block_content(
+    path: &str,
+    input: &str,
+) -> Result<String, CaptureInputParseError> {
+    normalize_nonempty_capture_content(input)
+        .ok_or_else(|| CaptureInputParseError::EmptyDeclaredBlock(path.to_string()))
 }
 
 fn build_repo_mirror_writes(
@@ -1064,18 +1083,32 @@ fn build_post_apply_next_safe_action(
     pipeline_id: &str,
     stage_definition: &CompileStageDefinition,
     state: &RouteState,
+    state_updates: &[PipelineCaptureStateUpdate],
 ) -> Option<String> {
-    if let Some(sets) = &stage_definition.stage.sets {
-        for variable in sets {
-            if state.routing.contains_key(variable) {
-                continue;
-            }
-            return Some(format!(
-                "run `system pipeline state set --id {pipeline_id} --var {variable}=<true|false>`"
-            ));
-        }
+    if let Some(variable) = next_unresolved_set_variable(stage_definition, state) {
+        return Some(format!(
+            "run `system pipeline state set --id {pipeline_id} --var {variable}=<true|false>`, then run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
+        ));
     }
-    None
+
+    if state_updates.is_empty() {
+        None
+    } else {
+        Some(format!(
+            "run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
+        ))
+    }
+}
+
+fn next_unresolved_set_variable<'a>(
+    stage_definition: &'a CompileStageDefinition,
+    state: &RouteState,
+) -> Option<&'a str> {
+    stage_definition.stage.sets.as_ref().and_then(|sets| {
+        sets.iter()
+            .find(|variable| !state.routing.contains_key(variable.as_str()))
+            .map(String::as_str)
+    })
 }
 
 fn dedupe_state_updates(
@@ -1259,12 +1292,28 @@ fn classify_capture_input_refusal(
             stage_id: Some(stage_id.to_string()),
             recovery: "paste only the stage body and retry `pipeline capture`".to_string(),
         },
+        CaptureInputParseError::EmptySingleFileBody => PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
+            summary: "single-file capture stages must receive a non-empty body".to_string(),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: "paste the generated stage body and retry `pipeline capture`".to_string(),
+        },
         CaptureInputParseError::InvalidMultifilePrefix => PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
             summary: "multi-file capture stages must start with declared `--- FILE: <path> ---` blocks".to_string(),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "emit the declared artifact FILE blocks exactly once and retry `pipeline capture`".to_string(),
+        },
+        CaptureInputParseError::EmptyDeclaredBlock(path) => PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
+            summary: format!("declared artifact block `{path}` must contain a non-empty body"),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery:
+                "emit every declared artifact FILE block with a non-empty body and retry `pipeline capture`"
+                    .to_string(),
         },
         CaptureInputParseError::DuplicateBlock(path) => PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
@@ -1645,5 +1694,118 @@ impl fmt::Display for PipelineCaptureRefusalClassification {
             Self::CacheFailure => "cache_failure",
         };
         write!(f, "{label}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        build_post_apply_next_safe_action, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
+    };
+    use crate::pipeline::{
+        CompileStageDefinition, CompileStageGating, CompileStageInputs, CompileStageOutputs,
+        PipelineStage,
+    };
+    use crate::route_state::RouteState;
+    use std::path::PathBuf;
+
+    fn stage_definition_with_sets(sets: Option<Vec<&str>>) -> CompileStageDefinition {
+        CompileStageDefinition {
+            stage: PipelineStage {
+                id: "stage.test".to_string(),
+                file: "core/stages/test.md".to_string(),
+                sets: sets.map(|values| values.into_iter().map(str::to_string).collect()),
+                activation: None,
+            },
+            source_path: PathBuf::from("core/stages/test.md"),
+            kind: "stage".to_string(),
+            id: "stage.test".to_string(),
+            version: "0.1.0".to_string(),
+            title: "Test Stage".to_string(),
+            description: "Test stage".to_string(),
+            work_level: None,
+            includes: Vec::new(),
+            inputs: CompileStageInputs::default(),
+            outputs: CompileStageOutputs::default(),
+            gating: CompileStageGating::default(),
+            tags: Vec::new(),
+            body: None,
+        }
+    }
+
+    fn state_update(
+        field_path: &str,
+        value: PipelineCaptureStateValue,
+    ) -> PipelineCaptureStateUpdate {
+        PipelineCaptureStateUpdate {
+            field_path: field_path.to_string(),
+            value,
+        }
+    }
+
+    #[test]
+    fn next_safe_action_chains_state_set_then_resolve_when_sets_are_unresolved() {
+        let stage_definition = stage_definition_with_sets(Some(vec!["needs_project_context"]));
+        let state = RouteState::empty("pipeline.foundation_inputs");
+        let updates = vec![state_update(
+            "routing.charter_gaps_detected",
+            PipelineCaptureStateValue::Bool(false),
+        )];
+
+        let action = build_post_apply_next_safe_action(
+            "pipeline.foundation_inputs",
+            &stage_definition,
+            &state,
+            &updates,
+        );
+
+        assert_eq!(
+            action.as_deref(),
+            Some(
+                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+            )
+        );
+    }
+
+    #[test]
+    fn next_safe_action_requires_resolve_when_only_automatic_state_updates_exist() {
+        let stage_definition = stage_definition_with_sets(None);
+        let state = RouteState::empty("pipeline.foundation_inputs");
+        let updates = vec![state_update(
+            "refs.charter_ref",
+            PipelineCaptureStateValue::String("artifacts/charter/CHARTER.md".to_string()),
+        )];
+
+        let action = build_post_apply_next_safe_action(
+            "pipeline.foundation_inputs",
+            &stage_definition,
+            &state,
+            &updates,
+        );
+
+        assert_eq!(
+            action.as_deref(),
+            Some(
+                "run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+            )
+        );
+    }
+
+    #[test]
+    fn next_safe_action_is_none_when_no_follow_up_is_required() {
+        let stage_definition = stage_definition_with_sets(Some(vec!["needs_project_context"]));
+        let mut state = RouteState::empty("pipeline.foundation_inputs");
+        state
+            .routing
+            .insert("needs_project_context".to_string(), false);
+
+        let action = build_post_apply_next_safe_action(
+            "pipeline.foundation_inputs",
+            &stage_definition,
+            &state,
+            &[],
+        );
+
+        assert_eq!(action, None);
     }
 }

@@ -86,10 +86,12 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 - Single-file stages MUST refuse `--- FILE: <path> ---` wrappers.
 - Multi-file stages MUST require declared artifact `--- FILE: <path> ---` blocks exactly once each.
 - Multi-file stages MUST refuse:
+  - declared artifact blocks with empty bodies
   - undeclared artifact blocks
   - duplicate declared blocks
   - missing declared blocks
   - non-empty content outside declared FILE blocks
+- Single-file stages MUST refuse empty bodies.
 - Capture normalization MUST use LF newlines and end persisted text outputs with exactly one trailing newline when content is non-empty.
 
 ### Output materialization
@@ -136,14 +138,17 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - `refs.project_context_ref` when `artifacts/project_context/PROJECT_CONTEXT.md` is written
   - `routing.charter_gaps_detected` derived from captured charter content using the existing marker heuristic
 - Capture MUST NOT auto-set `needs_project_context`.
-- When the selected stage declares `sets:` values that still require human judgment, capture MUST return the exact `pipeline state set` next-safe-action command the operator can run after apply.
+- When apply succeeds and route truth is now stale because capture persisted automatic route-state updates, capture MUST tell the operator to run `pipeline resolve` before the next compile or capture.
+- When the selected stage declares `sets:` values that still require human judgment, capture MUST return the exact follow-up sequence the operator can run after apply: the required `pipeline state set` command and then `pipeline resolve` before the next compile or capture.
 
 ## Verification checklist
 
 - [ ] The compiler exposes preview, direct apply, cached apply, and cache-load APIs for `pipeline capture`.
 - [ ] The preview cache path is `.system/state/pipeline/capture/<capture-id>.yaml`.
 - [ ] Single-file capture refuses FILE wrappers.
+- [ ] Single-file capture refuses empty bodies.
 - [ ] Multi-file capture refuses undeclared, duplicate, or missing declared blocks.
+- [ ] Multi-file capture refuses declared FILE blocks with empty bodies.
 - [ ] Repo-file writes are mirrors only and derive from declared artifact outputs.
 - [ ] Apply re-checks route-basis freshness under lock before writing.
 - [ ] Apply rolls back file writes if later persistence fails.
