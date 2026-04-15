@@ -106,6 +106,7 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 ### Preview cache
 
 - Preview cache entries MUST live under `.system/state/pipeline/capture/<capture-id>.yaml`.
+- Preview cache paths MUST remain inside the in-repo cache directory and MUST NOT traverse symlinked parent directories.
 - Cached previews MUST include an explicit schema version and the typed capture plan.
 - `capture_id` MUST be deterministic from the plan contents.
 - Cached apply MUST validate:

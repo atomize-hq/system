@@ -832,11 +832,11 @@ fn load_capture_cache(
     })?;
     let cache_path =
         capture_cache_path(repo_root, capture_id).map_err(|reason| PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::MissingCaptureId,
+            classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
             summary: reason,
             pipeline_id: None,
             stage_id: None,
-            recovery: "retry with the capture id printed by `pipeline capture --preview`"
+            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
                 .to_string(),
         })?;
     let contents = read_string_no_follow_path(&cache_path)
@@ -938,13 +938,14 @@ fn delete_capture_cache(repo_root: &Path, capture_id: &str) -> Result<(), String
 }
 
 fn capture_cache_path(repo_root: &Path, capture_id: &str) -> Result<PathBuf, String> {
+    let relative_path = capture_cache_repo_relative_path(capture_id)?;
+    resolve_repo_relative_write_path(repo_root, &relative_path)
+        .map_err(|err| format_cache_path_error(&relative_path, err))
+}
+
+fn capture_cache_repo_relative_path(capture_id: &str) -> Result<String, String> {
     validate_capture_id(capture_id)?;
-    Ok(repo_root
-        .join(".system")
-        .join("state")
-        .join("pipeline")
-        .join("capture")
-        .join(format!("{capture_id}.yaml")))
+    Ok(format!(".system/state/pipeline/capture/{capture_id}.yaml"))
 }
 
 fn validate_capture_id(capture_id: &str) -> Result<(), String> {
@@ -968,6 +969,41 @@ fn compute_capture_id(plan: &PipelineCapturePlan) -> Result<String, String> {
     let mut hasher = Sha256::new();
     hasher.update(serialized.as_bytes());
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn format_cache_path_error(path: &str, err: RepoRelativeWritePathError) -> String {
+    match err {
+        RepoRelativeWritePathError::InvalidPath(reason) => {
+            format!("capture cache path `{path}` is invalid: {reason}")
+        }
+        RepoRelativeWritePathError::ParentNotDirectory(found) => {
+            format!(
+                "capture cache path `{path}` cannot be written because parent {} is not a directory",
+                found.display()
+            )
+        }
+        RepoRelativeWritePathError::NotRegularFile(found) => {
+            format!(
+                "capture cache path `{path}` cannot be written because {} is not a regular file target",
+                found.display()
+            )
+        }
+        RepoRelativeWritePathError::SymlinkNotAllowed(found) => {
+            format!(
+                "capture cache path `{path}` cannot be written through symlink {}",
+                found.display()
+            )
+        }
+        RepoRelativeWritePathError::ReadFailure {
+            path: found,
+            source,
+        } => {
+            format!(
+                "failed to inspect capture cache path `{path}` at {}: {source}",
+                found.display()
+            )
+        }
+    }
 }
 
 fn derive_capture_output_paths(
@@ -1933,12 +1969,14 @@ impl fmt::Display for PipelineCaptureRefusalClassification {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_post_apply_next_safe_action, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
+        build_post_apply_next_safe_action, capture_cache_path, PipelineCaptureStateUpdate,
+        PipelineCaptureStateValue,
     };
     use crate::pipeline::{
         CompileStageDefinition, CompileStageGating, CompileStageInputs, CompileStageOutputs,
         PipelineStage,
     };
+    use std::fs;
     use std::path::PathBuf;
 
     fn stage_definition_with_sets(sets: Option<Vec<&str>>) -> CompileStageDefinition {
@@ -2081,5 +2119,43 @@ mod tests {
             build_post_apply_next_safe_action("pipeline.foundation_inputs", &stage_definition, &[]);
 
         assert_eq!(action, None);
+    }
+
+    #[test]
+    fn capture_cache_path_resolves_within_repo_root() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let capture_id = "1111111111111111111111111111111111111111111111111111111111111111";
+
+        let path = capture_cache_path(repo_root.path(), capture_id).expect("cache path");
+
+        assert_eq!(
+            path,
+            repo_root
+                .path()
+                .join(".system")
+                .join("state")
+                .join("pipeline")
+                .join("capture")
+                .join(format!("{capture_id}.yaml"))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn capture_cache_path_rejects_symlinked_parent_chain() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let external_root = tempfile::tempdir().expect("external tempdir");
+        let system_root = repo_root.path().join(".system");
+        let target_root = external_root.path().join("redirected-system");
+        fs::create_dir_all(&target_root).expect("external target root");
+        std::os::unix::fs::symlink(&target_root, &system_root).expect("symlink .system");
+
+        let capture_id = "1111111111111111111111111111111111111111111111111111111111111111";
+        let err = capture_cache_path(repo_root.path(), capture_id).expect_err("symlink refusal");
+
+        assert!(
+            err.contains("cannot be written through symlink"),
+            "expected symlink refusal, got: {err}"
+        );
     }
 }
