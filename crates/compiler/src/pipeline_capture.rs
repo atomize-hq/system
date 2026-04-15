@@ -2438,7 +2438,10 @@ mod tests {
             vec!["artifact.md".to_string(), "new-output.md".to_string()]
         );
         assert_eq!(read_file(&existing_path), "after\n");
-        assert_eq!(read_file(&repo_root.path().join("new-output.md")), "created\n");
+        assert_eq!(
+            read_file(&repo_root.path().join("new-output.md")),
+            "created\n"
+        );
 
         // Simulate a later state-persistence failure after file writes succeeded.
         rollback_snapshots(repo_root.path(), &snapshots);

@@ -562,6 +562,9 @@ fn capture_apply_refuses_state_revision_conflict_before_writes() {
         serde_yaml_bw::from_str(&fs::read_to_string(&state_path).expect("state file"))
             .expect("deserialize route state");
     persisted_state.revision += 1;
+    if let Some(route_basis) = persisted_state.route_basis.as_mut() {
+        route_basis.state_revision = persisted_state.revision;
+    }
     fs::write(
         &state_path,
         serde_yaml_bw::to_string(&persisted_state).expect("serialize route state"),
@@ -826,7 +829,9 @@ fn capture_preview_refuses_symlinked_repo_mirror_target_without_side_effects() {
         PipelineCaptureRefusalClassification::InvalidWriteTarget
     );
     assert!(
-        refusal.summary.contains("cannot be written through symlink"),
+        refusal
+            .summary
+            .contains("cannot be written through symlink"),
         "expected symlink refusal, got: {}",
         refusal.summary
     );

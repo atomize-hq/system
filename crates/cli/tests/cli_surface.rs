@@ -837,10 +837,19 @@ fn pipeline_capture_preview_refuses_invalid_write_target() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
-    assert!(stdout.contains("PIPELINE: pipeline.foundation_inputs"), "{stdout}");
-    assert!(stdout.contains("STAGE: stage.05_charter_synthesize"), "{stdout}");
+    assert!(
+        stdout.contains("PIPELINE: pipeline.foundation_inputs"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("STAGE: stage.05_charter_synthesize"),
+        "{stdout}"
+    );
     assert!(stdout.contains("invalid_write_target"), "{stdout}");
-    assert!(stdout.contains("cannot be written through symlink"), "{stdout}");
+    assert!(
+        stdout.contains("cannot be written through symlink"),
+        "{stdout}"
+    );
 }
 
 #[test]
