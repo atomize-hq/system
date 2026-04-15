@@ -139,7 +139,10 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - `routing.charter_gaps_detected` derived from captured charter content using the existing marker heuristic
 - Capture MUST NOT auto-set `needs_project_context`.
 - When apply succeeds and route truth is now stale because capture persisted automatic route-state updates, capture MUST tell the operator to run `pipeline resolve` before the next compile or capture.
-- When the selected stage declares `sets:` values that still require human judgment, capture MUST return the exact follow-up sequence the operator can run after apply: the required `pipeline state set` command and then `pipeline resolve` before the next compile or capture.
+- When the selected stage declares `sets:` values that still require human judgment, capture MUST return the exact follow-up sequence the operator can run after apply:
+  - emit one `pipeline state set` command per unresolved manual variable
+  - preserve declared `stage.sets` order
+  - finish with one `pipeline resolve` command before the next compile or capture
 
 ## Verification checklist
 

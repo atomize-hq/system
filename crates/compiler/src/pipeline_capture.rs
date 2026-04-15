@@ -474,12 +474,8 @@ fn build_capture_plan(
         &stage_id,
     )?;
     let state_updates = derive_state_updates(&artifact_contents);
-    let post_apply_next_safe_action = build_post_apply_next_safe_action(
-        &pipeline.header.id,
-        &stage_definition,
-        &state,
-        &state_updates,
-    );
+    let post_apply_next_safe_action =
+        build_post_apply_next_safe_action(&pipeline.header.id, &stage_definition, &state_updates);
 
     let mut plan = PipelineCapturePlan {
         target: PipelineCaptureTarget {
@@ -730,7 +726,6 @@ fn canonicalize_capture_plan_for_apply(
     let post_apply_next_safe_action = build_post_apply_next_safe_action(
         &plan.target.pipeline_id,
         stage_definition,
-        state,
         &state_updates,
     );
 
@@ -1286,13 +1281,22 @@ fn derive_state_updates(
 fn build_post_apply_next_safe_action(
     pipeline_id: &str,
     stage_definition: &CompileStageDefinition,
-    state: &RouteState,
     state_updates: &[PipelineCaptureStateUpdate],
 ) -> Option<String> {
-    if let Some(variable) = next_unresolved_set_variable(stage_definition, state) {
-        return Some(format!(
-            "run `system pipeline state set --id {pipeline_id} --var {variable}=<true|false>`, then run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
+    let unresolved_variables = unresolved_manual_set_variables(stage_definition, state_updates);
+    if !unresolved_variables.is_empty() {
+        let mut action_steps = unresolved_variables
+            .into_iter()
+            .map(|variable| {
+                format!(
+                    "run `system pipeline state set --id {pipeline_id} --var {variable}=<true|false>`"
+                )
+            })
+            .collect::<Vec<_>>();
+        action_steps.push(format!(
+            "run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
         ));
+        return Some(format!("{}", action_steps.join(", then ")));
     }
 
     if state_updates.is_empty() {
@@ -1304,15 +1308,26 @@ fn build_post_apply_next_safe_action(
     }
 }
 
-fn next_unresolved_set_variable<'a>(
+fn unresolved_manual_set_variables<'a>(
     stage_definition: &'a CompileStageDefinition,
-    state: &RouteState,
-) -> Option<&'a str> {
-    stage_definition.stage.sets.as_ref().and_then(|sets| {
-        sets.iter()
-            .find(|variable| !state.routing.contains_key(variable.as_str()))
-            .map(String::as_str)
-    })
+    state_updates: &[PipelineCaptureStateUpdate],
+) -> Vec<&'a str> {
+    let deterministic_routing_updates = state_updates
+        .iter()
+        .filter_map(|update| update.field_path.strip_prefix("routing."))
+        .collect::<BTreeSet<_>>();
+
+    stage_definition
+        .stage
+        .sets
+        .as_ref()
+        .map(|sets| {
+            sets.iter()
+                .map(String::as_str)
+                .filter(|variable| !deterministic_routing_updates.contains(variable))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn dedupe_state_updates(
@@ -1924,7 +1939,6 @@ mod tests {
         CompileStageDefinition, CompileStageGating, CompileStageInputs, CompileStageOutputs,
         PipelineStage,
     };
-    use crate::route_state::RouteState;
     use std::path::PathBuf;
 
     fn stage_definition_with_sets(sets: Option<Vec<&str>>) -> CompileStageDefinition {
@@ -1964,7 +1978,6 @@ mod tests {
     #[test]
     fn next_safe_action_chains_state_set_then_resolve_when_sets_are_unresolved() {
         let stage_definition = stage_definition_with_sets(Some(vec!["needs_project_context"]));
-        let state = RouteState::empty("pipeline.foundation_inputs");
         let updates = vec![state_update(
             "routing.charter_gaps_detected",
             PipelineCaptureStateValue::Bool(false),
@@ -1973,7 +1986,6 @@ mod tests {
         let action = build_post_apply_next_safe_action(
             "pipeline.foundation_inputs",
             &stage_definition,
-            &state,
             &updates,
         );
 
@@ -1988,7 +2000,6 @@ mod tests {
     #[test]
     fn next_safe_action_requires_resolve_when_only_automatic_state_updates_exist() {
         let stage_definition = stage_definition_with_sets(None);
-        let state = RouteState::empty("pipeline.foundation_inputs");
         let updates = vec![state_update(
             "refs.charter_ref",
             PipelineCaptureStateValue::String("artifacts/charter/CHARTER.md".to_string()),
@@ -1997,7 +2008,6 @@ mod tests {
         let action = build_post_apply_next_safe_action(
             "pipeline.foundation_inputs",
             &stage_definition,
-            &state,
             &updates,
         );
 
@@ -2010,19 +2020,65 @@ mod tests {
     }
 
     #[test]
-    fn next_safe_action_is_none_when_no_follow_up_is_required() {
+    fn next_safe_action_still_requires_manual_follow_up_when_route_state_already_has_value() {
         let stage_definition = stage_definition_with_sets(Some(vec!["needs_project_context"]));
-        let mut state = RouteState::empty("pipeline.foundation_inputs");
-        state
-            .routing
-            .insert("needs_project_context".to_string(), false);
+
+        let action =
+            build_post_apply_next_safe_action("pipeline.foundation_inputs", &stage_definition, &[]);
+
+        assert_eq!(
+            action.as_deref(),
+            Some(
+                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+            )
+        );
+    }
+
+    #[test]
+    fn next_safe_action_chains_multiple_manual_set_commands_in_declared_order() {
+        let stage_definition =
+            stage_definition_with_sets(Some(vec!["needs_project_context", "needs_repo_scan"]));
+
+        let action =
+            build_post_apply_next_safe_action("pipeline.foundation_inputs", &stage_definition, &[]);
+
+        assert_eq!(
+            action.as_deref(),
+            Some(
+                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline state set --id pipeline.foundation_inputs --var needs_repo_scan=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+            )
+        );
+    }
+
+    #[test]
+    fn next_safe_action_excludes_set_variables_with_deterministic_routing_updates() {
+        let stage_definition =
+            stage_definition_with_sets(Some(vec!["needs_project_context", "needs_repo_scan"]));
+        let updates = vec![state_update(
+            "routing.needs_project_context",
+            PipelineCaptureStateValue::Bool(true),
+        )];
 
         let action = build_post_apply_next_safe_action(
             "pipeline.foundation_inputs",
             &stage_definition,
-            &state,
-            &[],
+            &updates,
         );
+
+        assert_eq!(
+            action.as_deref(),
+            Some(
+                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_repo_scan=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+            )
+        );
+    }
+
+    #[test]
+    fn next_safe_action_is_none_when_no_follow_up_is_required() {
+        let stage_definition = stage_definition_with_sets(None);
+
+        let action =
+            build_post_apply_next_safe_action("pipeline.foundation_inputs", &stage_definition, &[]);
 
         assert_eq!(action, None);
     }

@@ -245,7 +245,7 @@ Rules:
 - apply remains transactional at the acceptance boundary
 - cached apply revalidates freshness before writing anything
 - when apply persisted automatic route-state updates, `NEXT SAFE ACTION` must tell the operator to run `pipeline resolve` before the next compile or capture
-- when apply also leaves a manual `sets:` decision unresolved, `NEXT SAFE ACTION` may be a single exact multi-step line: `pipeline state set` first, then `pipeline resolve`
+- when apply also leaves manual `sets:` decisions unresolved, `NEXT SAFE ACTION` may be a single exact multi-step line: one `pipeline state set` command per unresolved variable in declared `stage.sets` order, then `pipeline resolve`
 
 ### Refused
 

@@ -637,6 +637,72 @@ fn capture_apply_stage_05_guidance_warns_about_resolve_before_follow_up_capture(
 }
 
 #[test]
+fn capture_apply_stage_05_guidance_survives_preexisting_manual_route_value() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    apply_mutation(
+        &repo_root,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
+    );
+    let _ = pipeline_proof_corpus_support::persist_foundation_inputs_route_basis(&repo_root);
+
+    let result = capture_pipeline_output(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("capture");
+    let rendered = render_pipeline_capture_apply_result(&result);
+    let next_safe_action = capture_next_safe_action(&rendered);
+
+    assert!(
+        next_safe_action.contains(
+            "system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
+        ),
+        "stage-05 apply guidance should still include the manual route variable step after re-capture"
+    );
+    assert!(
+        next_safe_action.contains("system pipeline resolve --id pipeline.foundation_inputs"),
+        "stage-05 apply guidance should still include route refresh after re-capture"
+    );
+}
+
+#[test]
+fn capture_preview_and_cached_apply_stage_05_guidance_survive_preexisting_manual_route_value() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    apply_mutation(
+        &repo_root,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
+    );
+    let _ = pipeline_proof_corpus_support::persist_foundation_inputs_route_basis(&repo_root);
+
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    assert_eq!(
+        preview.plan.post_apply_next_safe_action.as_deref(),
+        Some(
+            "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+        )
+    );
+
+    let result = apply_pipeline_capture(&repo_root, &preview.plan.capture_id).expect("apply");
+    let rendered = render_pipeline_capture_apply_result(&result);
+    let next_safe_action = capture_next_safe_action(&rendered);
+
+    assert!(
+        next_safe_action.contains(
+            "system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
+        ),
+        "cached stage-05 apply guidance should still include the manual route variable step after re-capture"
+    );
+    assert!(
+        next_safe_action.contains("system pipeline resolve --id pipeline.foundation_inputs"),
+        "cached stage-05 apply guidance should still include route refresh after re-capture"
+    );
+}
+
+#[test]
 fn capture_apply_refuses_tampered_artifact_path_without_side_effects() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
     let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
