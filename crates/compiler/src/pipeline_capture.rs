@@ -1332,7 +1332,7 @@ fn build_post_apply_next_safe_action(
         action_steps.push(format!(
             "run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
         ));
-        return Some(format!("{}", action_steps.join(", then ")));
+        return Some(action_steps.join(", then "));
     }
 
     if state_updates.is_empty() {
