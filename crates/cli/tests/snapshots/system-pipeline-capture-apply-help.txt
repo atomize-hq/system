@@ -1,0 +1,7 @@
+Apply one cached preview by capture id
+
+Usage: system pipeline capture apply --capture-id <CAPTURE_ID>
+
+Options:
+      --capture-id <CAPTURE_ID>  Deterministic capture id returned by `pipeline capture --preview`
+  -h, --help                     Print help

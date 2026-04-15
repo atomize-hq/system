@@ -1,0 +1,16 @@
+OUTCOME: PREVIEW
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.07_foundation_pack
+CAPTURE ID: {{CAPTURE_ID}}
+ROUTE BASIS REVISION: 3
+WRITE PLAN:
+  - artifact: artifacts/foundation/FOUNDATION_STRATEGY.md
+  - artifact: artifacts/foundation/TECH_ARCH_BRIEF.md
+  - artifact: artifacts/foundation/TEST_STRATEGY_BRIEF.md
+  - artifact: artifacts/foundation/QUALITY_GATES_SPEC.md
+  - artifact: artifacts/foundation/quality_gates.yaml
+  - artifact: artifacts/foundation/ENVIRONMENT_INVENTORY.md
+  - repo_file: ENVIRONMENT_INVENTORY.md
+POST-CAPTURE STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`

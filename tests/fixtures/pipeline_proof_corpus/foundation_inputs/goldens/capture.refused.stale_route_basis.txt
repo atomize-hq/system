@@ -1,0 +1,5 @@
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.05_charter_synthesize
+REASON: stale_route_basis: route state revision 1 does not match persisted route_basis revision 0
+NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` and retry `system pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize`

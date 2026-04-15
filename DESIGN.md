@@ -183,7 +183,7 @@ Finished interaction target:
 Role:
 
 - orchestration surface
-- own route resolution, one bounded explicit stage-compilation surface, and narrow pipeline-run state mutation
+- own route resolution, one bounded explicit stage-compilation surface, one bounded explicit writer surface, and narrow pipeline-run state mutation
 
 Design rule:
 
@@ -196,8 +196,13 @@ Finished interaction target:
 - the shipped compile surface stays intentionally narrow:
   - `pipeline compile --id <pipeline-id> --stage <stage-id>`
   - `pipeline compile --id <pipeline-id> --stage <stage-id> --explain`
+- the shipped capture surface stays intentionally narrow:
+  - `pipeline capture --id <pipeline-id> --stage <stage-id>`
+  - `pipeline capture --id <pipeline-id> --stage <stage-id> --preview`
+  - `pipeline capture apply --capture-id <capture-id>`
 - plain `pipeline compile` success is payload-only stdout
 - `pipeline compile --explain` is the compile proof surface for that same typed result
+- `pipeline capture` is the only supported writer surface for declared stage outputs in M3
 - `pipeline state set` stays schema-bound, auditable, and narrow
 - `pipeline` should feel like compiler control-plane tooling, not a second front door
 

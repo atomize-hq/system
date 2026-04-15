@@ -17,14 +17,18 @@ This repo is in transition.
 - The shipped journey and revision findings live in [CLI Operator Journey And Conformance Review](docs/CLI_OPERATOR_JOURNEY.md).
 - The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
 - The reviewed `pipeline` operator surface baseline is [C-09 Pipeline Operator Surface and ID Resolution Contract](docs/contracts/pipeline-operator-surface-and-id-resolution.md).
-- The reduced live v1 scope is **route resolution, one explicit stage compilation wedge, and planning packet generation over existing project + feature artifacts**.
+- The reduced live v1 scope is **route resolution, one explicit stage compilation wedge, one explicit stage-output capture wedge, and planning packet generation over existing project + feature artifacts**.
 - Planning packet generation is supported from canonical repo-local `.system/`.
 - Fixture-backed execution demo generation is supported via `execution.demo.packet`.
 - Live slice lineage and live execution packets are deferred. Live execution is explicitly refused.
-- `pipeline` is the orchestration surface for `list`, `show`, `resolve`, `compile`, and `state set`.
+- `pipeline` is the orchestration surface for `list`, `show`, `resolve`, `compile`, `capture`, and `state set`.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is supported for the first M2 compile wedge.
 - Plain `pipeline compile` success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
+- `pipeline capture --id <pipeline-id> --stage <stage-id>` is the explicit M3 writer surface for declared stage outputs.
+- `pipeline capture --preview` caches one validated materialization plan and returns a deterministic `capture_id`.
+- `pipeline capture apply --capture-id <capture-id>` applies one cached plan with transactional writes and rollback on failure.
 - Compile freshness recovery is explicit: re-run `pipeline resolve` before retrying compile when route basis is missing, stale, or inactive.
+- Capture freshness recovery is explicit too: re-run `pipeline resolve` before retrying preview or apply when route basis is missing, stale, or inactive.
 - `inspect` is the packet proof surface and `doctor` is the recovery surface.
 - `setup` is still a placeholder entrypoint until Rust setup exists.
 

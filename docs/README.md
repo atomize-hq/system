@@ -8,9 +8,11 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - CLI interaction contract: [`DESIGN.md`](../DESIGN.md)
 - CLI product vocabulary: [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
 - CLI command hierarchy and front door: [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
-- Reviewed orchestration surface: `pipeline` for route resolution, explicit stage compilation, and narrow route-state mutation
+- Reviewed orchestration surface: `pipeline` for route resolution, explicit stage compilation, explicit stage-output capture, and narrow route-state mutation
 - First shipped compile wedge: `pipeline compile --id <pipeline-id> --stage <stage-id>` with payload-only stdout, plus `pipeline compile --explain` for proof-only stdout
+- First shipped writer wedge: `pipeline capture --id <pipeline-id> --stage <stage-id>` plus `pipeline capture --preview` and `pipeline capture apply --capture-id <capture-id>`
 - Packet proof remains `inspect`; compile proof lives under `pipeline compile --explain`
+- Capture preview/apply semantics live under [`docs/contracts/pipeline-capture-preview-and-apply.md`](contracts/pipeline-capture-preview-and-apply.md)
 - CLI tone rules: [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
 - CLI output anatomy: [`docs/CLI_OUTPUT_ANATOMY.md`](CLI_OUTPUT_ANATOMY.md)
 - CLI operator journey and conformance review: [`docs/CLI_OPERATOR_JOURNEY.md`](CLI_OPERATOR_JOURNEY.md)

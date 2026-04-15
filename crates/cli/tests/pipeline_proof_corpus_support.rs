@@ -38,10 +38,36 @@ pub fn assert_matches_golden(
     state_path: Option<&Path>,
     golden_name: &str,
 ) {
-    let normalized_actual = normalize_output(actual, repo_root, state_path);
+    let mut placeholders = Vec::new();
+    if let Some(state_path) = state_path {
+        placeholders.push((state_path, "{{STATE_PATH}}"));
+    }
+    assert_matches_golden_with_placeholders(actual, repo_root, &placeholders, golden_name);
+}
+
+pub fn assert_matches_golden_with_explicit_placeholders(
+    actual: &str,
+    placeholders: &[(&Path, &str)],
+    golden_name: &str,
+) {
+    let normalized_actual = normalize_output_with_explicit_placeholders(actual, placeholders);
+    assert_matches_normalized_output(&normalized_actual, golden_name);
+}
+
+pub fn assert_matches_golden_with_placeholders(
+    actual: &str,
+    repo_root: &Path,
+    placeholders: &[(&Path, &str)],
+    golden_name: &str,
+) {
+    let normalized_actual = normalize_output(actual, repo_root, placeholders);
+    assert_matches_normalized_output(&normalized_actual, golden_name);
+}
+
+fn assert_matches_normalized_output(actual: &str, golden_name: &str) {
     let expected = read_golden(golden_name);
     assert_eq!(
-        normalized_actual,
+        actual,
         expected,
         "pipeline proof output drifted for {golden_name}; update the golden at {} if intentional",
         committed_case_root()
@@ -51,17 +77,24 @@ pub fn assert_matches_golden(
     );
 }
 
-fn normalize_output(actual: &str, repo_root: &Path, state_path: Option<&Path>) -> String {
-    let mut normalized = normalize_newlines(actual);
-
-    if let Some(state_path) = state_path {
-        for candidate in path_candidates(state_path) {
-            normalized = normalized.replace(&candidate, "{{STATE_PATH}}");
-        }
-    }
-
+fn normalize_output(actual: &str, repo_root: &Path, placeholders: &[(&Path, &str)]) -> String {
+    let mut normalized = normalize_output_with_explicit_placeholders(actual, placeholders);
     for candidate in path_candidates(repo_root) {
         normalized = normalized.replace(&candidate, "{{REPO_ROOT}}");
+    }
+    normalized.trim_end().to_string()
+}
+
+fn normalize_output_with_explicit_placeholders(
+    actual: &str,
+    placeholders: &[(&Path, &str)],
+) -> String {
+    let mut normalized = normalize_newlines(actual);
+
+    for (path, placeholder) in placeholders {
+        for candidate in path_candidates(path) {
+            normalized = normalized.replace(&candidate, placeholder);
+        }
     }
     normalized.trim_end().to_string()
 }

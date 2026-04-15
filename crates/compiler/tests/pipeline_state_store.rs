@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 #[path = "support/pipeline_proof_corpus_support.rs"]
 mod pipeline_proof_corpus_support;
 
@@ -822,6 +821,50 @@ fn persisted_route_basis_refuses_incomplete_profile_pack_on_reload() {
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
     }
+}
+
+#[test]
+fn stage_05_capture_ready_fixture_persists_route_basis_without_state_mutation() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID,
+        &supported_variables,
+    )
+    .expect("state");
+
+    assert_eq!(state.revision, 0);
+    assert!(state.route_basis.is_some());
+    assert!(state.routing.is_empty());
+    assert_eq!(state.refs.charter_ref, None);
+    assert_eq!(state.refs.project_context_ref, None);
+}
+
+#[test]
+fn stage_07_capture_ready_fixture_persists_only_post_charter_route_state() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_07_capture_ready_repo();
+    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables(
+        &repo_root,
+        pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID,
+        &supported_variables,
+    )
+    .expect("state");
+
+    assert_eq!(state.revision, 3);
+    assert!(state.route_basis.is_some());
+    assert_eq!(
+        state.refs.charter_ref.as_deref(),
+        Some("artifacts/charter/CHARTER.md")
+    );
+    assert_eq!(state.refs.project_context_ref, None);
+    assert_eq!(state.routing.get("needs_project_context"), Some(&false));
+    assert_eq!(state.routing.get("charter_gaps_detected"), Some(&false));
 }
 
 #[test]

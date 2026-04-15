@@ -38,8 +38,14 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
   - Use when the operator wants the minimum correct planning packet from trusted inputs.
 - `pipeline`
   - The orchestration surface.
-  - Use when the operator needs route truth, explicit stage selection, explicit stage compilation, or narrow route-state mutation.
+  - Use when the operator needs route truth, explicit stage selection, explicit stage compilation, explicit stage-output capture, or narrow route-state mutation.
   - Do not describe this as a generic workflow framework unless the product contract actually expands that far.
+- `pipeline capture --preview`
+  - The capture preview surface for the supported M3 writer wedge.
+  - Use when the operator wants one validated materialization plan and a deterministic `capture_id` before writing.
+- `pipeline capture apply --capture-id`
+  - The cached capture-apply surface for the supported M3 writer wedge.
+  - Use when the operator wants to apply one previously previewed capture plan without re-pasting stdin.
 - `inspect`
   - The packet proof surface.
   - Use when the operator wants to verify why a packet looks the way it does.
@@ -89,6 +95,7 @@ These phrases should remain stable across top-level docs and help text unless th
 - `live execution is explicitly refused`
 - "`inspect` is the packet proof surface"
 - "`pipeline compile --explain` is the compile proof surface"
+- "`pipeline capture` is the explicit writer surface"
 - "`doctor` is the recovery surface"
 - "`setup` is still a placeholder"
 - `payload-only stdout`
@@ -105,6 +112,7 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 
 - `setup`, not generic startup wording
 - `pipeline`, not generic framework wording, when naming route/control-plane work
+- `pipeline capture`, not generic save/apply wording, when naming stage-output materialization
 - `generate`, not compile/build/render when describing packet creation
 - `inspect`, not explain/debug when naming the proof command
 - `pipeline compile --explain`, not `inspect`, when naming compile proof

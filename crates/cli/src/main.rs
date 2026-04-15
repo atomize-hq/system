@@ -1,4 +1,5 @@
 use clap::{CommandFactory, Parser, Subcommand};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -26,8 +27,8 @@ fn main() -> ExitCode {
     name = "system",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -38,7 +39,7 @@ struct Cli {
 enum Command {
     /// Placeholder setup entrypoint.
     Setup,
-    /// Pipeline operator surface for route resolution, explicit stage compilation, and route-state operations.
+    /// Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations.
     Pipeline(PipelineArgs),
     /// Generate a reduced-v1 packet.
     Generate(RequestArgs),
@@ -76,6 +77,8 @@ enum PipelineCommand {
     Resolve(PipelineSelectorArgs),
     /// Compile one supported stage payload from persisted route basis.
     Compile(PipelineCompileArgs),
+    /// Capture one supported stage output and materialize declared artifact and repo-mirror files.
+    Capture(PipelineCaptureArgs),
     /// Route-state operations.
     State(PipelineStateArgs),
 }
@@ -117,6 +120,34 @@ struct PipelineCompileArgs {
     /// Render compile proof instead of the stage payload.
     #[arg(long)]
     explain: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineCaptureArgs {
+    #[command(subcommand)]
+    command: Option<PipelineCaptureCommand>,
+    /// Canonical id or unambiguous shorthand for a pipeline.
+    #[arg(long)]
+    id: Option<String>,
+    /// Canonical id or unambiguous shorthand for a stage within the selected pipeline.
+    #[arg(long)]
+    stage: Option<String>,
+    /// Validate and cache the capture plan without writing declared outputs.
+    #[arg(long)]
+    preview: bool,
+}
+
+#[derive(Subcommand, Debug)]
+enum PipelineCaptureCommand {
+    /// Apply one cached preview by capture id.
+    Apply(PipelineCaptureApplyArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineCaptureApplyArgs {
+    /// Deterministic capture id returned by `pipeline capture --preview`.
+    #[arg(long)]
+    capture_id: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -430,6 +461,7 @@ fn pipeline(args: PipelineArgs) -> ExitCode {
         PipelineCommand::Show(args) => pipeline_show(args),
         PipelineCommand::Resolve(args) => pipeline_resolve(args),
         PipelineCommand::Compile(args) => pipeline_compile(args),
+        PipelineCommand::Capture(args) => pipeline_capture(args),
         PipelineCommand::State(args) => match args.command {
             PipelineStateCommand::Set(args) => pipeline_state_set(args),
         },
@@ -613,6 +645,104 @@ fn pipeline_compile(args: PipelineCompileArgs) -> ExitCode {
                 render_pipeline_compile_refusal(refusal, &args.id, &args.stage)
             );
             ExitCode::from(1)
+        }
+    }
+}
+
+fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    match args.command {
+        Some(PipelineCaptureCommand::Apply(apply_args)) => {
+            match system_compiler::apply_pipeline_capture(&repo_root, &apply_args.capture_id) {
+                Ok(result) => {
+                    println!(
+                        "{}",
+                        system_compiler::render_pipeline_capture_apply_result(&result)
+                    );
+                    ExitCode::SUCCESS
+                }
+                Err(refusal) => {
+                    println!(
+                        "{}",
+                        system_compiler::render_pipeline_capture_refusal(&refusal, None, None)
+                    );
+                    ExitCode::from(1)
+                }
+            }
+        }
+        None => {
+            let Some(pipeline_id) = args.id.as_deref() else {
+                println!("REFUSED: `pipeline capture` requires --id");
+                return ExitCode::from(1);
+            };
+            let Some(stage_id) = args.stage.as_deref() else {
+                println!("REFUSED: `pipeline capture` requires --stage");
+                return ExitCode::from(1);
+            };
+            let stdin = match read_stdin() {
+                Ok(value) => value,
+                Err(err) => {
+                    println!("REFUSED: failed to read capture input from stdin: {err}");
+                    return ExitCode::from(1);
+                }
+            };
+            let request = system_compiler::PipelineCaptureRequest {
+                pipeline_selector: pipeline_id.to_string(),
+                stage_selector: stage_id.to_string(),
+                input: stdin,
+            };
+
+            if args.preview {
+                match system_compiler::preview_pipeline_capture(&repo_root, &request) {
+                    Ok(preview) => {
+                        println!(
+                            "{}",
+                            system_compiler::render_pipeline_capture_preview(&preview)
+                        );
+                        ExitCode::SUCCESS
+                    }
+                    Err(refusal) => {
+                        println!(
+                            "{}",
+                            system_compiler::render_pipeline_capture_refusal(
+                                &refusal,
+                                Some(pipeline_id),
+                                Some(stage_id),
+                            )
+                        );
+                        ExitCode::from(1)
+                    }
+                }
+            } else {
+                match system_compiler::capture_pipeline_output(&repo_root, &request) {
+                    Ok(result) => {
+                        println!(
+                            "{}",
+                            system_compiler::render_pipeline_capture_apply_result(&result)
+                        );
+                        ExitCode::SUCCESS
+                    }
+                    Err(refusal) => {
+                        println!(
+                            "{}",
+                            system_compiler::render_pipeline_capture_refusal(
+                                &refusal,
+                                Some(pipeline_id),
+                                Some(stage_id),
+                            )
+                        );
+                        ExitCode::from(1)
+                    }
+                }
+            }
         }
     }
 }
@@ -834,6 +964,12 @@ fn parse_route_state_mutation(
         (Some(_), Some(_)) => Err("use exactly one of --var or --field".to_string()),
         (None, None) => Err("one of --var or --field is required".to_string()),
     }
+}
+
+fn read_stdin() -> Result<String, std::io::Error> {
+    let mut input = String::new();
+    std::io::stdin().read_to_string(&mut input)?;
+    Ok(input)
 }
 
 fn parse_route_state_var_assignment(

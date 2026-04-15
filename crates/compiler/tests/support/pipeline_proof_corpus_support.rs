@@ -1,12 +1,34 @@
+#![allow(dead_code)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use system_compiler::{
+    build_route_basis, load_pipeline_definition, load_route_state_with_supported_variables,
+    persist_route_basis, resolve_pipeline_route, set_route_state, supported_route_state_variables,
     PipelineCompileRefusal, PipelineCompileRefusalClassification, ResolvedPipelineRoute,
-    RouteStageReason, RouteState, RouteStateMutationOutcome, RouteStateRun,
+    RouteBasisPersistOutcome, RouteStageReason, RouteState, RouteStateMutation,
+    RouteStateMutationOutcome, RouteStateRun, RouteVariables,
 };
 
 pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
+pub const STAGE_05_CHARTER_SYNTHESIZE_ID: &str = "stage.05_charter_synthesize";
+pub const STAGE_07_FOUNDATION_PACK_ID: &str = "stage.07_foundation_pack";
+pub const CAPTURE_GOLDEN_NAMES: &[&str] = &[
+    "capture.preview.stage_05_charter_synthesize.txt",
+    "capture.preview.stage_07_foundation_pack.txt",
+    "capture.apply.stage_05_charter_synthesize.txt",
+    "capture.apply.stage_07_foundation_pack.txt",
+    "capture.refused.empty_single_file_body.txt",
+    "capture.refused.empty_declared_block.txt",
+    "capture.refused.single_file_with_file_wrapper.txt",
+    "capture.refused.missing_declared_block.txt",
+    "capture.refused.duplicate_declared_block.txt",
+    "capture.refused.undeclared_block.txt",
+    "capture.refused.stale_route_basis.txt",
+    "capture.refused.inactive_stage.txt",
+    "capture.refused.missing_capture_id.txt",
+];
 
 pub fn committed_repo_root() -> PathBuf {
     committed_case_root().join("repo")
@@ -43,6 +65,140 @@ pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
         )
     });
     target
+}
+
+pub fn committed_fixture_path(relative_path: &str) -> PathBuf {
+    committed_repo_root().join(relative_path)
+}
+
+pub fn read_committed_fixture(relative_path: &str) -> String {
+    let path = committed_fixture_path(relative_path);
+    normalize_newlines(
+        &fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display())),
+    )
+}
+
+pub fn read_golden_fixture(golden_name: &str) -> String {
+    read_golden(golden_name)
+}
+
+pub fn assert_capture_golden_inventory_is_committed() {
+    for golden_name in CAPTURE_GOLDEN_NAMES {
+        let contents = read_golden(golden_name);
+        assert!(
+            !contents.trim().is_empty(),
+            "capture golden {golden_name} must not be empty"
+        );
+    }
+}
+
+pub fn pipeline_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBuf {
+    repo_root
+        .join(".system")
+        .join("state")
+        .join("pipeline")
+        .join("capture")
+        .join(format!("{capture_id}.yaml"))
+}
+
+pub fn load_foundation_inputs_definition(
+    repo_root: &Path,
+) -> (
+    system_compiler::PipelineDefinition,
+    std::collections::BTreeSet<String>,
+) {
+    let definition = load_pipeline_definition(repo_root, "pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    (definition, supported_variables)
+}
+
+pub fn apply_foundation_inputs_state_mutation(
+    repo_root: &Path,
+    supported_variables: &std::collections::BTreeSet<String>,
+    mutation: RouteStateMutation,
+) {
+    let state = load_route_state_with_supported_variables(
+        repo_root,
+        FOUNDATION_INPUTS_PIPELINE_ID,
+        supported_variables,
+    )
+    .expect("load route state");
+    let outcome = set_route_state(
+        repo_root,
+        FOUNDATION_INPUTS_PIPELINE_ID,
+        supported_variables.iter().map(String::as_str),
+        mutation,
+        state.revision,
+    )
+    .expect("set route state");
+    match outcome {
+        RouteStateMutationOutcome::Applied(_) => {}
+        RouteStateMutationOutcome::Refused(refusal) => {
+            panic!("expected route-state mutation to apply, got {refusal:?}")
+        }
+    }
+}
+
+pub fn persist_foundation_inputs_route_basis(repo_root: &Path) -> RouteState {
+    let (definition, supported_variables) = load_foundation_inputs_definition(repo_root);
+    let state = load_route_state_with_supported_variables(
+        repo_root,
+        FOUNDATION_INPUTS_PIPELINE_ID,
+        &supported_variables,
+    )
+    .expect("load route state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("resolve route");
+    let route_basis = build_route_basis(repo_root, &definition, &state, &route).expect("basis");
+    let outcome = persist_route_basis(repo_root, FOUNDATION_INPUTS_PIPELINE_ID, route_basis)
+        .expect("persist route basis");
+
+    match outcome {
+        RouteBasisPersistOutcome::Applied(state) => *state,
+        RouteBasisPersistOutcome::Refused(refusal) => {
+            panic!("expected route basis persist to apply, got {refusal:?}")
+        }
+    }
+}
+
+pub fn install_stage_05_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
+    let (dir, repo_root) = install_foundation_inputs_repo();
+    let _ = persist_foundation_inputs_route_basis(&repo_root);
+    (dir, repo_root)
+}
+
+pub fn install_stage_07_capture_ready_repo() -> (tempfile::TempDir, PathBuf) {
+    let (dir, repo_root) = install_foundation_inputs_repo();
+    let (_, supported_variables) = load_foundation_inputs_definition(&repo_root);
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
+    );
+    apply_foundation_inputs_state_mutation(
+        &repo_root,
+        &supported_variables,
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: false,
+        },
+    );
+    let _ = persist_foundation_inputs_route_basis(&repo_root);
+    (dir, repo_root)
 }
 
 pub fn assert_matches_golden(

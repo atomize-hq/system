@@ -21,7 +21,7 @@ The reviewed reduced-v1 CLI product has five operator-facing surfaces, in this o
 That ordering is not arbitrary.
 
 - `setup` / `setup refresh` establishes or refreshes trusted project truth.
-- `pipeline` owns orchestration truth, route resolution, explicit stage selection, explicit stage compilation, and narrow route-state mutation.
+- `pipeline` owns orchestration truth, route resolution, explicit stage selection, explicit stage compilation, explicit stage-output capture, and narrow route-state mutation.
 - `generate` is the default ready-path command once trusted truth exists.
 - `inspect` is the packet proof surface when the operator needs to verify why a packet looks the way it does.
 - `doctor` is the recovery and readiness surface when the operator needs blocker aggregation, repair guidance, or a readiness check.
@@ -29,7 +29,7 @@ That ordering is not arbitrary.
 Current implementation note:
 
 - the currently shipped binary exposes `setup`, `pipeline`, `generate`, `inspect`, and `doctor`
-- the reviewed product surface includes `pipeline` as the orchestration surface for `list`, `show`, `resolve`, `compile`, and `state set`
+- the reviewed product surface includes `pipeline` as the orchestration surface for `list`, `show`, `resolve`, `compile`, `capture`, and `state set`
 
 ## Front Door Rule
 
@@ -87,6 +87,7 @@ Use `pipeline` when:
 
 - the operator needs the authoritative route for a pipeline
 - the operator wants to compile one explicitly selected stage payload with `pipeline compile --id <pipeline-id> --stage <stage-id>`
+- the operator wants to capture one explicitly selected stage output with `pipeline capture --id <pipeline-id> --stage <stage-id>`
 - the operator needs to set narrow route-state routing, refs, or run fields inside the declared schema
 
 `pipeline` is not the front door. It is the orchestration surface after trusted project truth already exists.
@@ -142,6 +143,7 @@ The next safe action should reinforce the hierarchy rather than compete with it.
 - Use `pipeline resolve` when the operator needs route truth before future stage-specific compile work.
 - Use `pipeline compile --id <pipeline-id> --stage <stage-id>` only after `pipeline resolve` established the current route basis.
 - Use `pipeline compile --explain` when the operator needs compile proof; keep `inspect` for packet proof.
+- Use `pipeline capture --preview` or `pipeline capture` only after `pipeline resolve` established the current route basis for the selected stage.
 - Use `doctor` when deeper diagnosis or blocker aggregation is needed.
 - Use `inspect` after a ready `generate` result when the operator needs proof.
 - Use `system generate --packet planning.packet` as the fallback from unsupported live execution requests.

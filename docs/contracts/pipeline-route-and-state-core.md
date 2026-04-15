@@ -1,5 +1,5 @@
 ---
-version: m2-v1
+version: m3-v1
 currentness: current
 status: drafted
 revalidation_triggers:
@@ -21,7 +21,7 @@ It exists so downstream pipeline surfaces can consume one explicit route/state b
 ## Canonical Location
 
 - Canonical artifact: `docs/contracts/pipeline-route-and-state-core.md`
-- Downstream consumers: the pipeline operator surface, the compile-boundary handoff, and the proof/docs conformance layer
+- Downstream consumers: the pipeline operator surface, the compile-boundary handoff, the capture preview/apply boundary, and the proof/docs conformance layer
 
 ## Owned Surface
 

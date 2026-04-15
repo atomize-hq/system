@@ -31,6 +31,30 @@ fn run_in_with_env(dir: &std::path::Path, args: &[&str], envs: &[(&str, &str)]) 
         .unwrap_or_else(|err| panic!("run `{}` with env: {err}", args.join(" ")))
 }
 
+fn run_in_with_input(dir: &std::path::Path, args: &[&str], input: &str) -> Output {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    let mut child = binary_in(dir)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap_or_else(|err| panic!("spawn `{}`: {err}", args.join(" ")));
+
+    {
+        let stdin = child.stdin.as_mut().expect("stdin");
+        stdin
+            .write_all(input.as_bytes())
+            .unwrap_or_else(|err| panic!("write stdin for `{}`: {err}", args.join(" ")));
+    }
+
+    child
+        .wait_with_output()
+        .unwrap_or_else(|err| panic!("wait `{}`: {err}", args.join(" ")))
+}
+
 fn workspace_root() -> std::path::PathBuf {
     let start = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in start.ancestors() {
@@ -362,6 +386,93 @@ fn prepare_foundation_inputs_full_context_route_basis(root: &std::path::Path) {
     }
 }
 
+fn prepare_stage_05_capture_ready_route_basis(root: &std::path::Path) {
+    let output = run_in(root, &["pipeline", "resolve", "--id", "foundation_inputs"]);
+    assert!(output.status.success(), "resolve should succeed");
+}
+
+fn prepare_stage_07_capture_ready_route_basis(root: &std::path::Path) {
+    for args in [
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--field",
+            "refs.charter_ref=artifacts/charter/CHARTER.md",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=false",
+        ],
+        vec![
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "charter_gaps_detected=false",
+        ],
+        vec!["pipeline", "resolve", "--id", "foundation_inputs"],
+    ] {
+        let output = run_in(root, &args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
+    }
+}
+
+fn stage_05_capture_input(root: &std::path::Path) -> String {
+    std::fs::read_to_string(root.join("artifacts/charter/CHARTER.md")).expect("stage 05 input")
+}
+
+fn stage_07_capture_input(root: &std::path::Path) -> String {
+    let outputs = [
+        "artifacts/foundation/FOUNDATION_STRATEGY.md",
+        "artifacts/foundation/TECH_ARCH_BRIEF.md",
+        "artifacts/foundation/TEST_STRATEGY_BRIEF.md",
+        "artifacts/foundation/QUALITY_GATES_SPEC.md",
+        "artifacts/foundation/quality_gates.yaml",
+        "artifacts/foundation/ENVIRONMENT_INVENTORY.md",
+    ];
+    let mut out = String::new();
+    for path in outputs {
+        out.push_str(&format!("--- FILE: {path} ---\n"));
+        out.push_str(&std::fs::read_to_string(root.join(path)).expect("stage 07 input"));
+        out.push('\n');
+    }
+    out
+}
+
+fn normalize_capture_id(output: &str) -> String {
+    output
+        .lines()
+        .map(|line| {
+            if line.starts_with("CAPTURE ID: ") {
+                "CAPTURE ID: {{CAPTURE_ID}}".to_string()
+            } else if let Some(prefix) = line
+                .strip_prefix("NEXT SAFE ACTION: run `system pipeline capture apply --capture-id ")
+            {
+                let _ = prefix;
+                "NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`"
+                    .to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[test]
 fn help_lists_setup_first() {
     let output = binary().arg("--help").output().expect("help should run");
@@ -428,8 +539,8 @@ fn pipeline_help_lists_supported_surface() {
 
     assert_eq!(
         command_lines.len(),
-        5,
-        "expected five pipeline command lines"
+        6,
+        "expected six pipeline command lines"
     );
     assert!(
         command_lines[0].starts_with("list "),
@@ -448,11 +559,15 @@ fn pipeline_help_lists_supported_surface() {
         "compile should be fourth: {command_lines:?}"
     );
     assert!(
-        command_lines[4].starts_with("state "),
-        "state should be fifth: {command_lines:?}"
+        command_lines[4].starts_with("capture "),
+        "capture should be fifth: {command_lines:?}"
     );
     assert!(
-        stdout.contains("explicit stage compilation"),
+        command_lines[5].starts_with("state "),
+        "state should be sixth: {command_lines:?}"
+    );
+    assert!(
+        stdout.contains("explicit stage-output capture"),
         "expected pipeline help title: {stdout}"
     );
 }
@@ -506,6 +621,235 @@ fn pipeline_compile_help_lists_exact_m2_surface() {
         "expected --stage: {stdout}"
     );
     assert!(stdout.contains("--explain"), "expected --explain: {stdout}");
+}
+
+#[test]
+fn pipeline_capture_help_lists_preview_and_apply_surface() {
+    let root = workspace_root();
+
+    let output = run_in(root.as_path(), &["pipeline", "capture", "--help"]);
+    assert!(
+        output.status.success(),
+        "pipeline capture help should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("help stdout is utf-8");
+    assert!(
+        stdout.contains(
+            "Capture one supported stage output and materialize declared artifact and repo-mirror files"
+        ),
+        "expected capture help summary: {stdout}"
+    );
+    assert!(stdout.contains("--id <ID>"), "expected --id: {stdout}");
+    assert!(
+        stdout.contains("--stage <STAGE>"),
+        "expected --stage: {stdout}"
+    );
+    assert!(stdout.contains("--preview"), "expected --preview: {stdout}");
+    assert!(
+        stdout.contains("apply"),
+        "expected apply subcommand: {stdout}"
+    );
+
+    let apply = run_in(root.as_path(), &["pipeline", "capture", "apply", "--help"]);
+    assert!(
+        apply.status.success(),
+        "pipeline capture apply help should succeed"
+    );
+    let apply_stdout = String::from_utf8(apply.stdout).expect("apply help stdout is utf-8");
+    assert!(
+        apply_stdout.contains("--capture-id <CAPTURE_ID>"),
+        "expected --capture-id: {apply_stdout}"
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_charter_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_05_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+            "--preview",
+        ],
+        &stage_05_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "preview should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalize_capture_id(&stdout),
+        &[],
+        "capture.preview.stage_05_charter_synthesize.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_preview_foundation_pack_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_07_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.07_foundation_pack",
+            "--preview",
+        ],
+        &stage_07_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "preview should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &normalize_capture_id(&stdout),
+        &[],
+        "capture.preview.stage_07_foundation_pack.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_apply_charter_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_05_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+        ],
+        &stage_05_capture_input(root.as_path()),
+    );
+    assert!(output.status.success(), "capture should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &stdout,
+        &[],
+        "capture.apply.stage_05_charter_synthesize.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_apply_foundation_pack_matches_shared_golden() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_07_capture_ready_route_basis(root.as_path());
+
+    let preview = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.07_foundation_pack",
+            "--preview",
+        ],
+        &stage_07_capture_input(root.as_path()),
+    );
+    assert!(preview.status.success(), "preview should succeed");
+    let preview_stdout = String::from_utf8(preview.stdout).expect("preview stdout is utf-8");
+    let capture_id = preview_stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("CAPTURE ID: "))
+        .expect("capture id");
+
+    let apply = run_in(
+        root.as_path(),
+        &["pipeline", "capture", "apply", "--capture-id", capture_id],
+    );
+    assert!(apply.status.success(), "apply should succeed");
+
+    let stdout = String::from_utf8(apply.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &stdout,
+        &[],
+        "capture.apply.stage_07_foundation_pack.txt",
+    );
+}
+
+#[test]
+fn pipeline_capture_apply_refuses_missing_capture_id() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "apply",
+            "--capture-id",
+            "1111111111111111111111111111111111111111111111111111111111111111",
+        ],
+    );
+    assert!(!output.status.success(), "apply should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &stdout,
+        &[],
+        "capture.refused.missing_capture_id.txt",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn pipeline_capture_preview_refuses_invalid_write_target() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_05_capture_ready_route_basis(root.as_path());
+    let external = tempfile::tempdir().expect("tempdir");
+    let repo_mirror = root.join("CHARTER.md");
+
+    std::fs::remove_file(&repo_mirror).expect("remove repo mirror");
+    std::os::unix::fs::symlink(external.path().join("CHARTER.md"), &repo_mirror)
+        .expect("replace repo mirror with symlink");
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+            "--preview",
+        ],
+        &stage_05_capture_input(root.as_path()),
+    );
+    assert!(!output.status.success(), "preview should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(
+        stdout.contains("PIPELINE: pipeline.foundation_inputs"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("STAGE: stage.05_charter_synthesize"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("invalid_write_target"), "{stdout}");
+    assert!(
+        stdout.contains("cannot be written through symlink"),
+        "{stdout}"
+    );
 }
 
 #[test]

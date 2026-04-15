@@ -1,4 +1,4 @@
-Pipeline operator surface for route resolution, explicit stage compilation, and route-state operations
+Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations
 
 Usage: system pipeline <COMMAND>
 
@@ -7,6 +7,7 @@ Commands:
   show     Show one canonical pipeline or stage declaration
   resolve  Resolve one pipeline route from persisted route state
   compile  Compile one supported stage payload from persisted route basis
+  capture  Capture one supported stage output and materialize declared artifact and repo-mirror files
   state    Route-state operations
 
 Options:

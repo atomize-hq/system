@@ -1,0 +1,5 @@
+OUTCOME: REFUSED
+PIPELINE: <unknown>
+STAGE: <unknown>
+REASON: missing_capture_id: cached preview `1111111111111111111111111111111111111111111111111111111111111111` was not found
+NEXT SAFE ACTION: re-run `system pipeline capture --preview` to generate a fresh capture id

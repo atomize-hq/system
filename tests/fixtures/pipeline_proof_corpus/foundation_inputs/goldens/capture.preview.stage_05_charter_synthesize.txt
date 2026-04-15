@@ -1,0 +1,12 @@
+OUTCOME: PREVIEW
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.05_charter_synthesize
+CAPTURE ID: {{CAPTURE_ID}}
+ROUTE BASIS REVISION: 0
+WRITE PLAN:
+  - artifact: artifacts/charter/CHARTER.md
+  - repo_file: CHARTER.md
+POST-CAPTURE STATE UPDATES:
+  - refs.charter_ref = artifacts/charter/CHARTER.md
+  - routing.charter_gaps_detected = false
+NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`
