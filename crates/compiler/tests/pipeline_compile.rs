@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 #[path = "support/pipeline_proof_corpus_support.rs"]
 mod pipeline_proof_corpus_support;
 

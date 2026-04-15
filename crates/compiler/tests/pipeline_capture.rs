@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 #[path = "support/pipeline_proof_corpus_support.rs"]
 mod pipeline_proof_corpus_support;
 
@@ -267,10 +266,7 @@ fn capture_refuses_stale_route_basis_after_preview() {
     );
     let refusal =
         apply_pipeline_capture(&repo_root, &preview.plan.capture_id).expect_err("refusal");
-    let rendered = render_pipeline_capture_refusal(&refusal, None, None).replace(
-        "route state revision 1 does not match previewed capture revision 0",
-        "route state revision 1 does not match previewed capture revision 0",
-    );
+    let rendered = render_pipeline_capture_refusal(&refusal, None, None);
     pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
         &rendered,
         &[],
