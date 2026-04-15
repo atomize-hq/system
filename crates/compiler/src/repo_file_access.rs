@@ -105,6 +105,10 @@ pub(crate) fn read_bytes_no_follow_path(path: &Path) -> Result<Vec<u8>, std::io:
     read_bytes_no_follow(path)
 }
 
+pub(crate) fn read_string_no_follow_path(path: &Path) -> Result<String, std::io::Error> {
+    read_string_no_follow(path)
+}
+
 fn resolve_repo_relative_regular_file(
     repo_root: &Path,
     relative_path: &str,

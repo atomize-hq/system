@@ -544,6 +544,57 @@ fn capture_apply_refuses_missing_capture_id() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn capture_apply_refuses_symlinked_cache_entry_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let cache_path = pipeline_proof_corpus_support::pipeline_capture_cache_path(
+        &repo_root,
+        &preview.plan.capture_id,
+    );
+    let target_path = repo_root.join("CHARTER.md");
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(&target_path).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+
+    fs::remove_file(&cache_path).expect("remove cached preview file");
+    std::os::unix::fs::symlink(&target_path, &cache_path).expect("replace cache with symlink");
+
+    let refusal =
+        apply_pipeline_capture(&repo_root, &preview.plan.capture_id).expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::TamperedCaptureCache
+    );
+    assert_eq!(
+        refusal.summary,
+        format!(
+            "cached preview `{}` must be a regular non-symlink file",
+            preview.plan.capture_id
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(&target_path).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(
+        fs::symlink_metadata(&cache_path)
+            .expect("cache metadata")
+            .file_type()
+            .is_symlink(),
+        "refused apply should leave the symlinked cache entry in place"
+    );
+}
+
 #[test]
 fn capture_apply_stage_05_guidance_warns_about_resolve_before_follow_up_capture() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();

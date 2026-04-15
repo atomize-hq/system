@@ -4,8 +4,8 @@ use crate::pipeline::{
     SelectedPipelineLoadError,
 };
 use crate::repo_file_access::{
-    read_bytes_no_follow_path, resolve_repo_relative_write_path, validate_repo_relative_path,
-    RepoRelativeWritePathError,
+    read_bytes_no_follow_path, read_string_no_follow_path, resolve_repo_relative_write_path,
+    validate_repo_relative_path, RepoRelativeWritePathError,
 };
 use crate::route_state::{
     acquire_advisory_lock, effective_route_basis_run, load_route_state_with_supported_variables,
@@ -844,32 +844,8 @@ fn load_capture_cache(
             recovery: "retry with the capture id printed by `pipeline capture --preview`"
                 .to_string(),
         })?;
-    let metadata = fs::symlink_metadata(&cache_path).map_err(|_| PipelineCaptureRefusal {
-        classification: PipelineCaptureRefusalClassification::MissingCaptureId,
-        summary: format!("cached preview `{capture_id}` was not found"),
-        pipeline_id: None,
-        stage_id: None,
-        recovery: "re-run `system pipeline capture --preview` to generate a fresh capture id"
-            .to_string(),
-    })?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() {
-        return Err(PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
-            summary: format!("cached preview `{capture_id}` must be a regular non-symlink file"),
-            pipeline_id: None,
-            stage_id: None,
-            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
-                .to_string(),
-        });
-    }
-    let contents = fs::read_to_string(&cache_path).map_err(|_| PipelineCaptureRefusal {
-        classification: PipelineCaptureRefusalClassification::MissingCaptureId,
-        summary: format!("cached preview `{capture_id}` was not found"),
-        pipeline_id: None,
-        stage_id: None,
-        recovery: "re-run `system pipeline capture --preview` to generate a fresh capture id"
-            .to_string(),
-    })?;
+    let contents = read_string_no_follow_path(&cache_path)
+        .map_err(|source| classify_capture_cache_read_failure(&cache_path, capture_id, source))?;
     let cache_entry: PipelineCaptureCacheEntry =
         serde_yaml_bw::from_str(&contents).map_err(|err| PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
@@ -914,6 +890,44 @@ fn load_capture_cache(
         });
     }
     Ok(cache_entry)
+}
+
+fn classify_capture_cache_read_failure(
+    cache_path: &Path,
+    capture_id: &str,
+    source: std::io::Error,
+) -> PipelineCaptureRefusal {
+    let not_found_refusal = || PipelineCaptureRefusal {
+        classification: PipelineCaptureRefusalClassification::MissingCaptureId,
+        summary: format!("cached preview `{capture_id}` was not found"),
+        pipeline_id: None,
+        stage_id: None,
+        recovery: "re-run `system pipeline capture --preview` to generate a fresh capture id"
+            .to_string(),
+    };
+
+    if source.kind() == std::io::ErrorKind::NotFound {
+        return not_found_refusal();
+    }
+
+    match fs::symlink_metadata(cache_path) {
+        Ok(metadata) if !metadata.is_file() || metadata.file_type().is_symlink() => {
+            PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
+                summary: format!(
+                    "cached preview `{capture_id}` must be a regular non-symlink file"
+                ),
+                pipeline_id: None,
+                stage_id: None,
+                recovery:
+                    "re-run `system pipeline capture --preview` to rebuild the cached capture"
+                        .to_string(),
+            }
+        }
+        Ok(_) => not_found_refusal(),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => not_found_refusal(),
+        Err(_) => not_found_refusal(),
+    }
 }
 
 fn delete_capture_cache(repo_root: &Path, capture_id: &str) -> Result<(), String> {
