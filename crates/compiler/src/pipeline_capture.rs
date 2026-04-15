@@ -16,7 +16,7 @@ use crate::route_state::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
 use std::io::Write;
@@ -420,36 +420,16 @@ fn build_capture_plan(
         });
     }
 
-    let output_variables = build_output_variables(&route_basis, &state);
-    let artifact_paths = stage_definition
-        .outputs
-        .artifacts
-        .iter()
-        .map(|output| {
-            normalize_output_relative_path(&substitute_variables(&output.path, &output_variables))
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|reason| PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::InvalidWriteTarget,
-            summary: reason,
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(stage_id.clone()),
-            recovery: "fix the declared output targets and retry `pipeline capture`".to_string(),
-        })?;
-    let repo_paths = stage_definition
-        .outputs
-        .repo_files
-        .iter()
-        .map(|output| {
-            normalize_output_relative_path(&substitute_variables(&output.path, &output_variables))
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|reason| PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::InvalidWriteTarget,
-            summary: reason,
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(stage_id.clone()),
-            recovery: "fix the declared output targets and retry `pipeline capture`".to_string(),
+    let (artifact_paths, repo_paths) =
+        derive_capture_output_paths(&stage_definition, &route_basis, &state).map_err(|reason| {
+            PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::InvalidWriteTarget,
+                summary: reason,
+                pipeline_id: Some(pipeline.header.id.clone()),
+                stage_id: Some(stage_id.clone()),
+                recovery: "fix the declared output targets and retry `pipeline capture`"
+                    .to_string(),
+            }
         })?;
 
     let artifact_contents = if artifact_paths.len() == 1 {
@@ -625,38 +605,54 @@ fn apply_capture_plan(
             ),
         });
     }
+    validate_supported_capture_target(&plan.target.pipeline_id, &plan.target.stage_id)?;
+    let stage_definition = load_stage_compile_definition(
+        repo_root,
+        &pipeline,
+        &plan.target.stage_id,
+    )
+    .map_err(|err| {
+        classify_compile_stage_load_refusal(err, &plan.target.pipeline_id, &plan.target.stage_id)
+    })?;
+    let canonical_plan = canonicalize_capture_plan_for_apply(
+        repo_root,
+        plan,
+        &stage_definition,
+        &current_basis,
+        &state,
+    )?;
 
     let mut snapshots =
-        snapshot_targets(repo_root, plan).map_err(|summary| PipelineCaptureRefusal {
+        snapshot_targets(repo_root, &canonical_plan).map_err(|summary| PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidWriteTarget,
             summary,
-            pipeline_id: Some(plan.target.pipeline_id.clone()),
-            stage_id: Some(plan.target.stage_id.clone()),
+            pipeline_id: Some(canonical_plan.target.pipeline_id.clone()),
+            stage_id: Some(canonical_plan.target.stage_id.clone()),
             recovery: "fix the output targets and retry `pipeline capture`".to_string(),
         })?;
     let written_files =
-        write_capture_targets(repo_root, plan, &mut snapshots).map_err(|summary| {
+        write_capture_targets(repo_root, &canonical_plan, &mut snapshots).map_err(|summary| {
             rollback_snapshots(&snapshots);
             PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::WriteFailure,
                 summary,
-                pipeline_id: Some(plan.target.pipeline_id.clone()),
-                stage_id: Some(plan.target.stage_id.clone()),
+                pipeline_id: Some(canonical_plan.target.pipeline_id.clone()),
+                stage_id: Some(canonical_plan.target.stage_id.clone()),
                 recovery: "fix the file-write failure and retry `pipeline capture`".to_string(),
             }
         })?;
 
-    let persisted_state_revision = if plan.state_updates.is_empty() {
+    let persisted_state_revision = if canonical_plan.state_updates.is_empty() {
         None
     } else {
         let mut next_state = normalized_state_for_persistence(&state, repo_root);
         next_state.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
         next_state.revision = next_state.revision.saturating_add(1);
-        for update in &plan.state_updates {
+        for update in &canonical_plan.state_updates {
             apply_state_update(&mut next_state, update);
         }
         next_state.run.repo_root = Some(repo_root.display().to_string());
-        for update in &plan.state_updates {
+        for update in &canonical_plan.state_updates {
             next_state.audit.push(RouteStateAuditEntry {
                 revision: next_state.revision,
                 field_path: update.field_path.clone(),
@@ -669,8 +665,8 @@ fn apply_capture_plan(
             return Err(PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::StatePersistenceFailure,
                 summary: format!("failed to persist post-capture state: {err}"),
-                pipeline_id: Some(plan.target.pipeline_id.clone()),
-                stage_id: Some(plan.target.stage_id.clone()),
+                pipeline_id: Some(canonical_plan.target.pipeline_id.clone()),
+                stage_id: Some(canonical_plan.target.stage_id.clone()),
                 recovery: "fix the route-state persistence failure and retry `pipeline capture`"
                     .to_string(),
             });
@@ -679,9 +675,103 @@ fn apply_capture_plan(
     };
 
     Ok(PipelineCaptureApplyResult {
-        plan: plan.clone(),
+        plan: canonical_plan,
         written_files,
         persisted_state_revision,
+    })
+}
+
+fn canonicalize_capture_plan_for_apply(
+    repo_root: &Path,
+    plan: &PipelineCapturePlan,
+    stage_definition: &CompileStageDefinition,
+    basis: &RouteBasis,
+    state: &RouteState,
+) -> Result<PipelineCapturePlan, PipelineCaptureRefusal> {
+    let (artifact_paths, repo_paths) = derive_capture_output_paths(stage_definition, basis, state)
+        .map_err(|reason| PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::InvalidWriteTarget,
+            summary: reason,
+            pipeline_id: Some(plan.target.pipeline_id.clone()),
+            stage_id: Some(plan.target.stage_id.clone()),
+            recovery: "fix the declared output targets and retry `pipeline capture`".to_string(),
+        })?;
+    let artifact_writes =
+        canonicalize_cached_artifact_writes(plan, &artifact_paths).map_err(|summary| {
+            PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
+                summary,
+                pipeline_id: Some(plan.target.pipeline_id.clone()),
+                stage_id: Some(plan.target.stage_id.clone()),
+                recovery:
+                    "re-run `system pipeline capture --preview` to rebuild the cached capture"
+                        .to_string(),
+            }
+        })?;
+    let repo_mirror_writes =
+        build_repo_mirror_writes(&artifact_writes, &repo_paths).map_err(|summary| {
+            PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::InvalidWriteTarget,
+                summary,
+                pipeline_id: Some(plan.target.pipeline_id.clone()),
+                stage_id: Some(plan.target.stage_id.clone()),
+                recovery: "fix the declared output targets and retry `pipeline capture`"
+                    .to_string(),
+            }
+        })?;
+    validate_write_targets(
+        repo_root,
+        &artifact_writes,
+        &repo_mirror_writes,
+        &plan.target.pipeline_id,
+        &plan.target.stage_id,
+    )?;
+    let state_updates = derive_state_updates(&artifact_writes);
+    let post_apply_next_safe_action = build_post_apply_next_safe_action(
+        &plan.target.pipeline_id,
+        stage_definition,
+        state,
+        &state_updates,
+    );
+
+    if artifact_writes != plan.artifact_writes {
+        return Err(tampered_capture_cache_refusal(
+            plan,
+            "cached preview artifact writes do not match the canonical stage outputs",
+        ));
+    }
+    if repo_mirror_writes != plan.repo_mirror_writes {
+        return Err(tampered_capture_cache_refusal(
+            plan,
+            "cached preview repo mirror writes do not match the canonical derivation",
+        ));
+    }
+    if state_updates != plan.state_updates {
+        return Err(tampered_capture_cache_refusal(
+            plan,
+            "cached preview state updates do not match the canonical derivation",
+        ));
+    }
+    if post_apply_next_safe_action != plan.post_apply_next_safe_action {
+        return Err(tampered_capture_cache_refusal(
+            plan,
+            "cached preview next safe action does not match the canonical derivation",
+        ));
+    }
+
+    Ok(PipelineCapturePlan {
+        target: PipelineCaptureTarget {
+            pipeline_id: plan.target.pipeline_id.clone(),
+            stage_id: stage_definition.id.clone(),
+            stage_file: stage_definition.stage.file.clone(),
+            title: stage_definition.title.clone(),
+        },
+        basis: basis.clone(),
+        artifact_writes,
+        repo_mirror_writes,
+        state_updates,
+        capture_id: plan.capture_id.clone(),
+        post_apply_next_safe_action,
     })
 }
 
@@ -869,6 +959,106 @@ fn compute_capture_id(plan: &PipelineCapturePlan) -> Result<String, String> {
     let mut hasher = Sha256::new();
     hasher.update(serialized.as_bytes());
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn derive_capture_output_paths(
+    stage_definition: &CompileStageDefinition,
+    basis: &RouteBasis,
+    state: &RouteState,
+) -> Result<(Vec<String>, Vec<String>), String> {
+    let output_variables = build_output_variables(basis, state);
+    let artifact_paths = stage_definition
+        .outputs
+        .artifacts
+        .iter()
+        .map(|output| {
+            normalize_output_relative_path(&substitute_variables(&output.path, &output_variables))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let repo_paths = stage_definition
+        .outputs
+        .repo_files
+        .iter()
+        .map(|output| {
+            normalize_output_relative_path(&substitute_variables(&output.path, &output_variables))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok((artifact_paths, repo_paths))
+}
+
+fn canonicalize_cached_artifact_writes(
+    plan: &PipelineCapturePlan,
+    artifact_paths: &[String],
+) -> Result<Vec<PipelineCaptureWriteIntent>, String> {
+    if artifact_paths.len() == 1 {
+        let write = plan
+            .artifact_writes
+            .first()
+            .ok_or_else(|| "cached preview is missing the declared artifact output".to_string())?;
+        if plan.artifact_writes.len() != 1 {
+            return Err(
+                "cached preview emitted an unexpected number of artifact outputs".to_string(),
+            );
+        }
+        if write.path != artifact_paths[0] {
+            return Err(format!(
+                "cached preview artifact `{}` does not match the declared output `{}`",
+                write.path, artifact_paths[0]
+            ));
+        }
+        let content = normalize_nonempty_capture_content(&write.content).ok_or_else(|| {
+            format!(
+                "cached preview artifact `{}` must contain a non-empty canonical body",
+                write.path
+            )
+        })?;
+        return Ok(vec![PipelineCaptureWriteIntent {
+            path: write.path.clone(),
+            content,
+        }]);
+    }
+
+    let declared = artifact_paths.iter().cloned().collect::<BTreeSet<_>>();
+    let mut writes_by_path = BTreeMap::new();
+    for write in &plan.artifact_writes {
+        if !declared.contains(&write.path) {
+            return Err(format!(
+                "cached preview emitted undeclared artifact `{}` for the selected stage",
+                write.path
+            ));
+        }
+        let content = normalize_nonempty_capture_content(&write.content).ok_or_else(|| {
+            format!(
+                "cached preview artifact `{}` must contain a non-empty canonical body",
+                write.path
+            )
+        })?;
+        if writes_by_path
+            .insert(
+                write.path.clone(),
+                PipelineCaptureWriteIntent {
+                    path: write.path.clone(),
+                    content,
+                },
+            )
+            .is_some()
+        {
+            return Err(format!(
+                "cached preview emitted artifact `{}` more than once",
+                write.path
+            ));
+        }
+    }
+
+    artifact_paths
+        .iter()
+        .map(|path| {
+            writes_by_path
+                .get(path)
+                .cloned()
+                .ok_or_else(|| format!("cached preview is missing declared artifact `{path}`"))
+        })
+        .collect()
 }
 
 fn parse_single_file_capture_input(input: &str) -> Result<String, CaptureInputParseError> {
@@ -1342,6 +1532,20 @@ fn classify_capture_input_refusal(
                 "emit only the declared artifact FILE blocks and retry `pipeline capture`"
                     .to_string(),
         },
+    }
+}
+
+fn tampered_capture_cache_refusal(
+    plan: &PipelineCapturePlan,
+    summary: impl Into<String>,
+) -> PipelineCaptureRefusal {
+    PipelineCaptureRefusal {
+        classification: PipelineCaptureRefusalClassification::TamperedCaptureCache,
+        summary: summary.into(),
+        pipeline_id: Some(plan.target.pipeline_id.clone()),
+        stage_id: Some(plan.target.stage_id.clone()),
+        recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+            .to_string(),
     }
 }
 

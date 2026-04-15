@@ -4,11 +4,14 @@ mod pipeline_proof_corpus_support;
 use std::fs;
 use std::path::Path;
 
+use sha2::{Digest, Sha256};
 use system_compiler::{
-    apply_pipeline_capture, capture_pipeline_output, load_route_state_with_supported_variables,
-    preview_pipeline_capture, render_pipeline_capture_apply_result,
-    render_pipeline_capture_preview, render_pipeline_capture_refusal, set_route_state,
-    PipelineCaptureRefusalClassification, PipelineCaptureRequest, RouteState, RouteStateMutation,
+    apply_pipeline_capture, capture_pipeline_output, load_pipeline_capture_cache_entry,
+    load_route_state_with_supported_variables, preview_pipeline_capture,
+    render_pipeline_capture_apply_result, render_pipeline_capture_preview,
+    render_pipeline_capture_refusal, set_route_state, PipelineCaptureCacheEntry,
+    PipelineCapturePlan, PipelineCaptureRefusalClassification, PipelineCaptureRequest,
+    PipelineCaptureStateUpdate, PipelineCaptureStateValue, RouteState, RouteStateMutation,
     RouteStateMutationOutcome,
 };
 
@@ -114,6 +117,40 @@ fn assert_no_capture_cache_entries(repo_root: &Path) {
             .is_none(),
         "refused capture should not leave cached preview entries"
     );
+}
+
+fn recompute_capture_id(plan: &PipelineCapturePlan) -> String {
+    let mut identity_plan = plan.clone();
+    identity_plan.capture_id.clear();
+    let serialized = serde_yaml_bw::to_string(&identity_plan).expect("serialize capture plan");
+    let mut hasher = Sha256::new();
+    hasher.update(serialized.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn rewrite_tampered_capture_cache(
+    repo_root: &Path,
+    original_capture_id: &str,
+    mutate: impl FnOnce(&mut PipelineCaptureCacheEntry),
+) -> String {
+    let mut cache_entry =
+        load_pipeline_capture_cache_entry(repo_root, original_capture_id).expect("load cache");
+    mutate(&mut cache_entry);
+    cache_entry.plan.capture_id = recompute_capture_id(&cache_entry.plan);
+    cache_entry.capture_id = cache_entry.plan.capture_id.clone();
+
+    let original_path =
+        pipeline_proof_corpus_support::pipeline_capture_cache_path(repo_root, original_capture_id);
+    let next_path = pipeline_proof_corpus_support::pipeline_capture_cache_path(
+        repo_root,
+        &cache_entry.capture_id,
+    );
+    let serialized = serde_yaml_bw::to_string(&cache_entry).expect("serialize tampered cache");
+    if next_path != original_path {
+        fs::remove_file(&original_path).expect("remove original cache file");
+    }
+    fs::write(&next_path, serialized).expect("write tampered cache file");
+    cache_entry.capture_id
 }
 
 #[test]
@@ -545,5 +582,173 @@ fn capture_apply_stage_05_guidance_warns_about_resolve_before_follow_up_capture(
             .recovery
             .contains("system pipeline resolve --id pipeline.foundation_inputs"),
         "follow-up capture without resolve should still require route refresh"
+    );
+}
+
+#[test]
+fn capture_apply_refuses_tampered_artifact_path_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+
+    let tampered_capture_id =
+        rewrite_tampered_capture_cache(&repo_root, &preview.plan.capture_id, |cache_entry| {
+            cache_entry.plan.artifact_writes[0].path = "docs/EVIL.md".to_string();
+        });
+
+    let refusal = apply_pipeline_capture(&repo_root, &tampered_capture_id).expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::TamperedCaptureCache
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(
+        pipeline_proof_corpus_support::pipeline_capture_cache_path(
+            &repo_root,
+            &tampered_capture_id
+        )
+        .exists(),
+        "refused apply should keep the tampered cache entry for inspection"
+    );
+}
+
+#[test]
+fn capture_apply_refuses_tampered_repo_mirror_writes_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+
+    let tampered_capture_id =
+        rewrite_tampered_capture_cache(&repo_root, &preview.plan.capture_id, |cache_entry| {
+            cache_entry.plan.repo_mirror_writes[0].path = "README.md".to_string();
+        });
+
+    let refusal = apply_pipeline_capture(&repo_root, &tampered_capture_id).expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::TamperedCaptureCache
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(
+        pipeline_proof_corpus_support::pipeline_capture_cache_path(
+            &repo_root,
+            &tampered_capture_id
+        )
+        .exists(),
+        "refused apply should keep the tampered cache entry for inspection"
+    );
+}
+
+#[test]
+fn capture_apply_refuses_tampered_state_updates_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+
+    let tampered_capture_id =
+        rewrite_tampered_capture_cache(&repo_root, &preview.plan.capture_id, |cache_entry| {
+            cache_entry
+                .plan
+                .state_updates
+                .push(PipelineCaptureStateUpdate {
+                    field_path: "refs.project_context_ref".to_string(),
+                    value: PipelineCaptureStateValue::String(
+                        "artifacts/project_context/PROJECT_CONTEXT.md".to_string(),
+                    ),
+                });
+        });
+
+    let refusal = apply_pipeline_capture(&repo_root, &tampered_capture_id).expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::TamperedCaptureCache
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(
+        pipeline_proof_corpus_support::pipeline_capture_cache_path(
+            &repo_root,
+            &tampered_capture_id
+        )
+        .exists(),
+        "refused apply should keep the tampered cache entry for inspection"
+    );
+}
+
+#[test]
+fn capture_apply_refuses_unsupported_stage_id_from_tampered_cache_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
+        .expect("preview");
+    let initial_artifact =
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact");
+    let initial_repo_mirror = fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror");
+    let initial_state = load_route_state(&repo_root);
+
+    let tampered_capture_id =
+        rewrite_tampered_capture_cache(&repo_root, &preview.plan.capture_id, |cache_entry| {
+            cache_entry.plan.target.stage_id = "stage.99_not_supported".to_string();
+        });
+
+    let refusal = apply_pipeline_capture(&repo_root, &tampered_capture_id).expect_err("refusal");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::UnsupportedTarget
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("artifacts/charter/CHARTER.md")).expect("artifact"),
+        initial_artifact
+    );
+    assert_eq!(
+        fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
+        initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert!(
+        pipeline_proof_corpus_support::pipeline_capture_cache_path(
+            &repo_root,
+            &tampered_capture_id
+        )
+        .exists(),
+        "refused apply should keep the tampered cache entry for inspection"
     );
 }
