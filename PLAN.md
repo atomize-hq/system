@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/main-autoplan-restore-20260415-144532.md -->
 <!-- previous reduced-v1 baseline archived at .implemented/PLAN-20260409-144209-reduced-v1-baseline.md -->
 # PLAN
 
@@ -910,6 +911,13 @@ Lane C:
 
 ### M3. Output Materialization Capability
 
+Status: complete
+
+Post-ship note, 2026-04-15:
+
+- `M3` shipped on `main` in commit `c5f3072` with compiler-owned capture planning, preview/apply cache flow, contract docs, shared goldens, and green compiler/CLI coverage.
+- The remaining work is not “finish M3.” The remaining work is defining the next bounded milestone that makes a real end-to-end `foundation_inputs` flow possible.
+
 Goal:
 
 - recover writing behavior so the compiler owns both prompt generation and artifact emission
@@ -925,7 +933,7 @@ Reviewed scope lock, 2026-04-14:
   - `stage.07_foundation_pack` for multi-file artifact emission + repo mirror fallback (`ENVIRONMENT_INVENTORY.md`)
 - `M3` must also cover the minimum post-capture state updates needed for re-entry:
   - convenience refs such as `charter_ref` and `project_context_ref`
-  - route-relevant booleans such as `needs_project_context` and `charter_gaps_detected`
+  - deterministic route-relevant booleans such as `charter_gaps_detected`
 - `M3` does not attempt to prove the whole `foundation_inputs` flow in one milestone. That remains `M4`.
 - `M3` should reuse the existing boring writer rules from the legacy harness wherever they still fit:
   - exact `--- FILE: <path> ---` parsing
@@ -946,6 +954,7 @@ Reviewed scope lock, 2026-04-14:
   - phase 1 parses stdin, validates exact declared outputs, resolves repo-mirror fallback candidates, and builds one compiler-owned materialization plan
   - phase 2 applies that plan with temp-file plus rename writes, then persists post-capture state only after every file write succeeds
   - partial write success is refusal, not an acceptable end state
+  - the shipped rollback guarantee is scoped to `system`-coordinated single-writer flows; arbitrary concurrent external writers touching the same targets remain out of scope for `M3`
   - direct in-place overwrite is out of scope for the shipped M3 path except where a later contract explicitly justifies it
 - reviewed freshness decision:
   - `pipeline capture` must consume the same persisted fresh `route_basis` contract as `pipeline compile`
@@ -1153,6 +1162,7 @@ Implementation checklist:
    - M3 does not add cache GC, cache listing, or a `capture show` surface.
 6. Define the write protocol.
    - Preview builds the full capture plan but performs no writes outside the runtime cache.
+   - The shipped apply/rollback contract is for `system`-coordinated single-writer flows. Do not document or imply protection against arbitrary concurrent external writers modifying the same output paths during apply.
    - Apply must:
      - acquire the selected pipeline-state advisory lock before the final freshness check and keep it until either state persistence succeeds or rollback completes
      - validate that the current locked state revision and route-basis summary still match the previewed capture plan
@@ -1360,6 +1370,58 @@ NOT in scope for M3:
 - cache listing, cache GC, or a `pipeline capture show` surface
 - packet generation or packet proof changes
 
+### M3.5. Foundation Inputs Surface Completion
+
+Goal:
+
+- add the missing stage surfaces and handoff rules that make `M4` end-to-end proof possible
+
+Why this exists:
+
+- `M3` proved the writer boundary for stages `05` and `07`, but the current shipped surface does not yet compose into a full `foundation_inputs` planning flow
+- the missing boundary is concrete:
+  - `stage.04_charter_inputs` produces `CHARTER_INPUTS.yaml` but has no shipped materialization path
+  - `stage.06_project_context_interview` produces `PROJECT_CONTEXT.md` but has no shipped materialization path
+  - `stage.10_feature_spec` compiles to stdout but does not yet materialize `FEATURE_SPEC.md`
+
+Must prove:
+
+- Rust can materialize or otherwise explicitly own the output boundary for every output-producing stage that blocks the first real `foundation_inputs` flow
+- the plan names one boring operator path from `stage.04_charter_inputs` through `stage.10_feature_spec` without hidden manual jumps
+- the `needs_project_context` decision boundary is explicit:
+  - either still manual with one exact `pipeline state set` handoff
+  - or promoted into a newly supported compiler-owned boundary with matching contracts and tests
+- the write-safety claim stays exact and scoped to `system`-coordinated single-writer flows unless a stronger concurrency boundary actually ships
+
+Minimum acceptable wedge:
+
+- add the required stage-output surface for `stage.04_charter_inputs`
+- add the required stage-output surface for `stage.06_project_context_interview`
+- define and ship the supported materialization boundary for `stage.10_feature_spec`
+- add shared proof-corpus coverage, CLI help/docs parity, and regression tests for the newly supported stage surfaces
+- document the exact operator sequence for the first `foundation_inputs` path that `M4` will prove
+
+Implementation checklist:
+
+1. Lock the missing output-producing stages.
+   - decide whether `stage.04_charter_inputs`, `stage.06_project_context_interview`, and `stage.10_feature_spec` reuse `pipeline capture`, gain a closely related writer boundary, or require one explicit new bounded surface
+   - do not leave any of the three as an implicit manual step if `M4` is supposed to prove end-to-end compiler-owned flow
+2. Resolve the `needs_project_context` handoff cleanly.
+   - keep it manual and exact, or promote it into a supported compiler-owned transition
+   - remove the current plan ambiguity where `needs_project_context` is both “covered” and “manual”
+3. Extend the proof corpus.
+   - add goldens and regression cases for the newly supported stage surfaces
+   - prove route progression across `04 -> 05 -> 06? -> 07 -> 10`
+4. Keep docs and contracts exact.
+   - update contracts/help/docs so the supported handoff sequence matches the shipped implementation
+   - keep the rollback/concurrency claim scoped to `system`-coordinated single-writer flows
+
+Exit criteria:
+
+- a future `M4` implementation session can follow one explicit stage sequence without inventing missing materialization rules on the fly
+- stages `04`, `06`, and `10` no longer represent undocumented manual holes in the `foundation_inputs` path
+- the plan, docs, and tests all agree on the supported boundary
+
 ### M4. End-to-End Foundation Flow
 
 Goal:
@@ -1375,6 +1437,10 @@ Must prove:
 Preferred first flow:
 
 - foundation-inputs through feature-spec-grade planning, because it captures branching, compilation, and output materialization together
+
+Prerequisite:
+
+- `M3.5` must land first so the stage-output and handoff boundaries for `04`, `06`, and `10` are explicit and shipped before `M4` claims end-to-end flow replacement
 
 Important clarification:
 
@@ -1464,13 +1530,13 @@ The first wedge is only real when all of the following are true for the chosen f
 
 ## Immediate Next Work
 
-1. Implement M3 Lane A in `crates/compiler`: typed capture planning, writer-side path validation, preview cache integrity, locked apply semantics, rollback, and post-capture state persistence.
-2. Implement M3 Lane B in `crates/cli` and docs: `pipeline capture`, `pipeline capture apply`, help snapshots, output anatomy, supported-command docs, and the capture-specific contract.
-3. Implement M3 Lane C in the shared proof corpus and tests: capture goldens, compiler tests, CLI tests, and regression cases for stale basis, tampered cache, invalid write targets, and rollback behavior.
-4. Run the full green gate for M3 before calling it done: compiler tests, CLI tests, help/docs parity, and shared proof-corpus goldens.
-5. After M3 ships, use the now-complete route + compile + capture surface as the basis for M4 end-to-end foundation-flow replacement.
+1. Plan and ship `M3.5`: add the missing output / handoff surfaces for `stage.04_charter_inputs`, `stage.06_project_context_interview`, and `stage.10_feature_spec`.
+2. Remove the remaining ambiguity around `needs_project_context` so the operator-facing path is either explicitly manual or explicitly compiler-owned, not both.
+3. Update contracts/docs/help/tests so the supported `foundation_inputs` sequence is exact and matches the shipped boundary.
+4. Keep the capture rollback claim scoped to `system`-coordinated single-writer flows, and track the stronger arbitrary-writer safety boundary as deferred technical debt.
+5. Use the completed `M3.5` stage surface as the launch point for `M4` end-to-end foundation-flow proof.
 
-## Explicit Non-Goals For M3 Implementation
+## Explicit Non-Goals For M3.5
 
 - do not redesign the whole compiler architecture
 - do not reopen the archived reduced-v1 baseline as the active plan
@@ -1480,7 +1546,223 @@ The first wedge is only real when all of the following are true for the chosen f
 
 Stay on the wedge until the operator pain is materially reduced.
 
+## AUTOPLAN REVIEW (2026-04-15)
+
+Review basis:
+
+- Active plan file: this file
+- Branch / commit reviewed: `main` at `c5f3072` (`feat: ship m3 pipeline capture wedge (#6)`)
+- Recent artifacts consulted:
+  - `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/ceo-plans/2026-04-10-rust-pipeline-parity.md`
+  - `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-design-20260409-125135.md`
+- Environment note:
+  - the installed environment did not contain the downstream `plan-ceo-review`, `plan-design-review`, or `plan-eng-review` skill files that `/autoplan` expected
+  - Claude subagent delegation was unavailable in this session
+  - this review followed the `/autoplan` method directly, used external `codex exec` CEO and engineering challenges, and verified the branch with `cargo test --quiet` (full suite green)
+
+### Phase 1: CEO Review
+
+Premise challenge:
+
+| Premise | Verdict | Why |
+| --- | --- | --- |
+| `system` should stay the generator/compiler layer, not the whole runtime stack | Accepted | The current codebase and shipped command surface are coherent around compiler ownership. Widening into runtime/orchestration now would blur the product boundary before one useful flow is proven. |
+| The immediate user pain is repeated repo research and context shuttling | Accepted with condition | The code now covers resolve, compile, and capture. The open issue is no longer whether the compiler can own those pieces, it is whether operators and downstream consumers actually trust the handoff enough to stop rereading repo truth. |
+| It is still correct for the active plan to frame M3 as the next implementation step | Rejected | `main` already ships M3 capture code, contract docs, goldens, CLI surface, and green tests. Keeping M3 as “Immediate Next Work” makes the active plan mis-sequence future sessions. |
+| It is safe to assume canonical docs already exist and are rich enough to be useful | Questioned | That assumption keeps the current wedge narrow, but it may also hide the true bottleneck. The next milestone must prove that pre-populated canonical docs are enough to replace one real planning loop, not just one idealized one. |
+
+What already exists:
+
+- Route truth and runtime state persistence live in [`crates/compiler/src/route_state.rs`](/Users/spensermcconnell/__Active_Code/system/crates/compiler/src/route_state.rs).
+- Stage compile proof is shipped in [`crates/compiler/src/pipeline_compile.rs`](/Users/spensermcconnell/__Active_Code/system/crates/compiler/src/pipeline_compile.rs) for `pipeline.foundation_inputs` + `stage.10_feature_spec`.
+- Stage output materialization is shipped in [`crates/compiler/src/pipeline_capture.rs`](/Users/spensermcconnell/__Active_Code/system/crates/compiler/src/pipeline_capture.rs) for `stage.05_charter_synthesize` and `stage.07_foundation_pack`.
+- CLI exposure is shipped through [`crates/cli/src/main.rs`](/Users/spensermcconnell/__Active_Code/system/crates/cli/src/main.rs) and backed by CLI surface/help tests.
+- The proof corpus and goldens already exist under [`tests/fixtures/pipeline_proof_corpus/foundation_inputs/`](/Users/spensermcconnell/__Active_Code/system/tests/fixtures/pipeline_proof_corpus/foundation_inputs/).
+
+Dream state delta:
+
+| Horizon | State |
+| --- | --- |
+| Current branch reality | M3 is shipped. The compiler now owns route truth, one compile wedge, and two capture wedges with green tests. |
+| What this plan still says | Implement M3, then later think about proving one end-to-end flow. |
+| 12-month ideal | One real planning flow runs end to end, one downstream consumer trusts the generated artifacts without reopening the repo, and operator-outcome evidence shows babysitting actually dropped. |
+
+Implementation alternatives:
+
+| Approach | Effort | Decision | Reason |
+| --- | --- | --- | --- |
+| Rebaseline the plan immediately around post-M3 proof, adoption, and the first end-to-end flow | S | Recommended | This matches shipped reality and moves the plan back onto the unsolved user-value question. |
+| Continue treating M3 as the active implementation milestone | S | Rejected | It would spend more sessions re-proving shipped work. |
+| Widen now into onboarding/runtime/platform work | L | Rejected | The current plan is still missing proof that the compiler-owned handoff itself is enough to matter. |
+
+NOT in scope from this review:
+
+- widening into UI/MCP companion work
+- reopening the archived reduced-v1 baseline as active strategy
+- redefining the repo as a full runtime/orchestration product before one real planning loop is replaced
+
+Error & Rescue Registry:
+
+| Risk | Trigger | Rescue |
+| --- | --- | --- |
+| Active-plan drift | A later session follows “Immediate Next Work” literally | Advance the active plan to post-M3 status before more implementation begins. |
+| Wrong bottleneck | The real operator pain is canonical-doc creation or downstream trust, not route/compile/capture mechanics | Make the next milestone prove one real operator flow and one downstream consumer handoff. |
+| Adoption proof never arrives | Outcome measurement and provenance stay deferred | Pull operator proof and handoff evidence into the next approved milestone instead of leaving them as vague future work. |
+
+Failure Modes Registry:
+
+| Failure mode | Severity | Why it matters |
+| --- | --- | --- |
+| `PLAN.md` remains the “active execution source of truth” while describing already-shipped M3 work | Critical | The next session can spend effort on solved infrastructure and miss the actual product-risk questions. |
+| The product keeps shipping compiler machinery without downstream consumer trust proof | Critical | Internal correctness without adoption proof does not remove operator tax in the real workflow. |
+| The canonical-doc assumption remains untested against real operator behavior | High | The wedge may be optimizing a narrow happy path instead of the true workflow bottleneck. |
+
+CODEX SAYS (CEO, codex-only external voice):
+
+- The plan is strategically stale because it still treats M3 as prospective work.
+- The plan defers the exact operator-outcome and downstream-trust proof that would validate the product thesis.
+- The next milestone should prove one real operator can complete one real job and one downstream consumer can reuse the outputs without reopening repo truth.
+
+CEO DUAL VOICES - CONSENSUS TABLE:
+
+| Dimension | Claude Subagent | Codex | Consensus |
+| --- | --- | --- | --- |
+| Premises valid? | N/A | partial challenge | single-external-voice |
+| Right problem to solve? | N/A | challenge | single-external-voice |
+| Scope calibration correct? | N/A | challenge | single-external-voice |
+| Alternatives sufficiently explored? | N/A | challenge | single-external-voice |
+| Competitive / market risks covered? | N/A | challenge | single-external-voice |
+| 6-month trajectory sound? | N/A | challenge | single-external-voice |
+
+CEO completion summary:
+
+| Section | Status | Notes |
+| --- | --- | --- |
+| Premise challenge | complete | One premise rejected, one questioned, two accepted. |
+| Existing-code leverage map | complete | Route, compile, capture, CLI, proof corpus are already shipped. |
+| Dream-state / alternatives | complete | The main delta is adoption proof, not more M3 mechanics. |
+| Strategic risk scan | complete | The biggest risk is solving internal correctness before proving user value. |
+
+### Phase 2: Design Review
+
+Skipped, no UI scope.
+
+Reason:
+
+- UI-scope detection only matched incidental CLI/design-contract vocabulary, not a real screen/component/layout surface.
+- This plan is about CLI behavior, compiler boundaries, and planning-flow replacement, so a dedicated product-design pass would add noise rather than signal in this turn.
+
+### Phase 3: Engineering Review
+
+Scope challenge:
+
+- The shipped branch already includes `pipeline_capture.rs`, the capture contract, capture goldens, CLI help snapshots, and compiler/CLI tests.
+- The full Rust test suite is green on this branch via `cargo test --quiet`.
+- The engineering gap is not “is M3 implemented?” It is “does the next milestone describe the remaining flow gaps honestly?”
+
+Architecture ASCII diagram:
+
+```text
+pipeline resolve
+  -> route_state.rs
+  -> persisted route_basis under .system/state/pipeline/<id>.yaml
+
+pipeline compile
+  -> pipeline_compile.rs
+  -> supports stage.10_feature_spec only
+  -> payload / explain proof to stdout
+
+pipeline capture
+  -> pipeline_capture.rs
+  -> supports stage.05_charter_synthesize and stage.07_foundation_pack only
+  -> preview cache + locked apply + rollback + deterministic state updates
+
+foundation_inputs flow
+  -> stage.04_charter_inputs (output-producing, not yet in shipped capture surface)
+  -> stage.05_charter_synthesize (captured)
+  -> stage.06_project_context_interview (optional branch, output-producing, not yet in shipped capture surface)
+  -> stage.07_foundation_pack (captured)
+  -> stage.10_feature_spec (compiled only, no shipped materialization path)
+
+downstream consumer handoff
+  -> not yet proven by plan or code as an accepted end-to-end trust boundary
+```
+
+Test diagram:
+
+| Flow / codepath | Current evidence | Gap |
+| --- | --- | --- |
+| `pipeline resolve` route truth and persisted `route_basis` | compiler route/state tests, full suite green | no current plan-level proof artifact showing operator outcome |
+| `pipeline compile` for `stage.10_feature_spec` | compiler tests, CLI tests, payload/explain goldens | no shipped materialization path for `FEATURE_SPEC.md` |
+| `pipeline capture` for stage 05 | compiler tests, CLI tests, preview/apply goldens, repo mirror assertions | manual `needs_project_context` handoff remains operator-owned |
+| `pipeline capture` for stage 07 | compiler tests, CLI tests, preview/apply goldens, rollback/state persistence assertions | no proof that downstream consumers can use generated outputs without rereading the repo |
+| stage 04 / stage 06 materialization | none in shipped capture surface | major M4 boundary gap |
+| downstream consumer trust handoff | none | major M4/M5 boundary gap |
+
+Failure Modes Registry:
+
+| Failure mode | Severity | Current status | Next move |
+| --- | --- | --- | --- |
+| M4 claims “end-to-end foundation flow” without specifying how stages 04, 06, and 10 are written or handed off | High | unresolved | Add an explicit milestone or contract for the missing materialization boundary. |
+| M3 text says it “must also cover” `needs_project_context`, but later says the variable stays manual | Medium | unresolved | Pick one posture and document it once. |
+| Transactional apply wording reads like arbitrary-writer safety, while the implementation only locks route state | Medium | unresolved | Narrow the guarantee to `system`-coordinated writers or add a stronger file-level concurrency boundary. |
+
+CODEX SAYS (engineering, codex-only external voice):
+
+- `PLAN.md` is stale enough to mis-sequence implementation.
+- M4 is underspecified because the shipped compile/capture wedges do not yet compose into a full `foundation_inputs` replacement.
+- The `needs_project_context` story and the rollback guarantee both need tighter boundaries in the plan.
+
+ENG DUAL VOICES - CONSENSUS TABLE:
+
+| Dimension | Claude Subagent | Codex | Consensus |
+| --- | --- | --- | --- |
+| Architecture sound? | N/A | concern | single-external-voice |
+| Test coverage sufficient? | N/A | partial concern | single-external-voice |
+| Performance risks addressed? | N/A | no major concern raised | single-external-voice |
+| Security / safety threats covered? | N/A | partial concern | single-external-voice |
+| Error paths handled? | N/A | partial concern | single-external-voice |
+| Deployment / release risk manageable? | N/A | concern | single-external-voice |
+
+Engineering test-plan artifact:
+
+- [/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-test-plan-20260415-145214.md](/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-test-plan-20260415-145214.md)
+
+Engineering completion summary:
+
+| Section | Status | Notes |
+| --- | --- | --- |
+| Scope challenge against real code | complete | Verified against shipped compiler, CLI, contracts, proof corpus, and tests. |
+| Architecture review | complete | M3 internals are coherent; the next gap is cross-stage flow composition. |
+| Test review | complete | Full suite green; M4 still lacks flow-level coverage for stage 04 / 06 / 10 materialization and downstream consumer trust. |
+| Performance / safety review | complete | No immediate runtime regressions found; wording overstates transactionality relative to the current lock boundary. |
+
+Cross-phase themes:
+
+- The active plan is stale after M3 shipping, and that is now the highest-severity issue.
+- The next milestone has to prove operator and downstream-consumer value, not more isolated M3 machinery.
+- The M4 boundary is not concrete enough yet. Stage 04, stage 06, and stage 10 still need an explicit materialization / handoff story.
+- Measurement and provenance are drifting toward “nice to have” status even though they are part of the trust thesis.
+
+## Decision Audit Trail
+
+| # | Phase | Decision | Classification | Principle | Rationale | Rejected |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Intake | Treat root `PLAN.md` as the active plan target for `/autoplan` | mechanical | explicit over clever | It is the repo-declared source of truth and the only plan file aligned to current branch work. | scanning historical or seam-local plans as the primary target |
+| 2 | CEO | Keep the repo boundary as compiler/generator first | auto-decided | pragmatic | The shipped code already coheres around that boundary, and widening now would blur the proof target. | runtime/orchestration expansion now |
+| 3 | CEO | Flag “M3 is still next work” as a user challenge | user_challenge | choose completeness | Both the primary review and the external CEO voice agree the plan must advance past shipped M3 reality. | silently accepting the stale milestone ordering |
+| 4 | CEO | Elevate operator-proof / downstream-trust validation into the next milestone conversation | user_challenge | bias toward action | Without proof of reuse, the compiler spine remains internally correct but externally unproven. | leaving proof entirely deferred to M5+ |
+| 5 | Design | Skip dedicated design review | mechanical | pragmatic | No actual UI scope was detected beyond CLI wording and output contracts. | forcing a design phase on non-UI work |
+| 6 | Eng | Use real branch evidence, including full `cargo test --quiet`, instead of plan prose alone | mechanical | explicit over clever | The code, contracts, and tests are already present, so review quality depends on inspecting them directly. | reviewing the plan in isolation |
+| 7 | Eng | Treat M4 materialization/handoff definition as the main engineering gap | taste | completeness | The shipped surfaces do not yet compose into a true end-to-end `foundation_inputs` replacement. | assuming stdout compile plus partial capture is already sufficient |
+| 8 | Eng | Surface the transactionality wording as a boundary decision, not a blocker | taste | explicit over clever | The implementation is coherent for `system`-coordinated flows, but the plan text currently reads broader than the lock model proves. | claiming arbitrary-writer transactional safety |
+
 ## GSTACK REVIEW REPORT
+
+Historical note:
+
+- This table records the earlier pre-ship M3 review snapshot.
+- The current active direction is the `/autoplan` review above, which re-baselines the next deliverable as `M3.5`.
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -1489,6 +1771,6 @@ Stay on the wedge until the operator pain is materially reduced.
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | CLEAR | 3 issues, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
-**UNRESOLVED:** 0
+**UNRESOLVED:** historical snapshot only
 
-**VERDICT:** ENG CLEARED — M3 spec is ready to implement.
+**VERDICT:** HISTORICAL M3 PRE-SHIP REVIEW. SUPERSEDED BY THE `/autoplan` M3.5 REBASE ABOVE.

@@ -8,7 +8,7 @@ status: drafted
 revalidation_triggers:
   - Any change to the supported `pipeline capture` targets, parser rules, or the rule that capture is the only writer surface.
   - Any change to preview-cache identity, cache location, or cache-integrity validation.
-  - Any change to repo-file mirror derivation, transactional apply behavior, rollback guarantees, or post-capture state mutation semantics.
+  - Any change to repo-file mirror derivation, `system`-coordinated single-writer apply behavior, rollback guarantees, or post-capture state mutation semantics.
   - Any change to the refusal taxonomy or recovery guidance for stale route basis, inactive stages, malformed capture input, or tampered capture cache.
 ---
 
@@ -47,7 +47,7 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 - the preview cache shape under `.system/state/pipeline/capture/`
 - capture-input parsing rules
 - repo-file mirror derivation
-- transactional apply and rollback requirements
+- `system`-coordinated single-writer apply and rollback requirements
 - post-capture automatic state updates and the required next-safe-action hint
 
 `C-12` is not authoritative for:
@@ -119,6 +119,8 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 
 ### Apply and rollback
 
+- The shipped reduced-v1 apply/rollback guarantee is scoped to `system`-coordinated single-writer flows.
+- This contract does not claim protection against arbitrary concurrent external writers modifying the same artifact or repo-file targets during apply.
 - Apply MUST acquire the compiler-owned advisory lock for the pipeline route-state file before re-checking current state and before any write begins.
 - Apply MUST re-check:
   - persisted route-state revision

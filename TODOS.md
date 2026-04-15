@@ -122,6 +122,18 @@
 **Priority:** P2
 **Depends on:** Stable `pipeline` command family, stable refusal classes, stable proof corpus and failure classification
 
+### Capture Apply Multi-Writer Safety
+
+**What:** Strengthen `pipeline capture apply` from the current `system`-coordinated single-writer rollback model to a safer boundary for arbitrary concurrent repo writers touching the same output paths.
+
+**Why:** The shipped `M3`/`M3.5` posture is intentionally exact: capture apply locks pipeline route state and rolls back its own writes, but it does not claim full protection if some unrelated external process edits the same artifact or repo-file targets mid-apply. That narrower claim is correct today, but the stronger boundary is still valuable technical debt if this surface becomes more heavily used.
+
+**Context:** `/autoplan` on 2026-04-15 explicitly narrowed the capture transactionality claim in `PLAN.md` and `docs/contracts/pipeline-capture-preview-and-apply.md` to `system`-coordinated single-writer flows. This follow-on is the work required to move beyond that exact-but-limited guarantee. Good candidate directions include file-level compare-and-swap semantics, stronger per-target locking, or another explicit writer-coordination boundary that can be proven in tests and stated honestly in contracts/docs.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Stable capture surface, clear target-path ownership rules, added concurrency test strategy
+
 ## CLI Product Interaction Design
 
 ### Chosen Interaction Direction (2026-04-08)
