@@ -4,8 +4,9 @@ use crate::pipeline::{
     SelectedPipelineLoadError,
 };
 use crate::repo_file_access::{
-    read_bytes_no_follow_path, read_string_no_follow_path, resolve_repo_relative_write_path,
-    validate_repo_relative_path, RepoRelativeWritePathError,
+    delete_repo_relative_file, read_bytes_no_follow_path, read_string_no_follow_path,
+    resolve_repo_relative_write_path, validate_repo_relative_path, write_repo_relative_bytes,
+    RepoRelativeMutationError, RepoRelativeWritePathError,
 };
 use crate::route_state::{
     acquire_advisory_lock, effective_route_basis_run, load_route_state_with_supported_variables,
@@ -143,7 +144,7 @@ enum CaptureInputParseError {
 
 #[derive(Debug)]
 struct SnapshotEntry {
-    absolute_path: PathBuf,
+    repo_relative_path: String,
     prior_bytes: Option<Vec<u8>>,
 }
 
@@ -628,7 +629,7 @@ fn apply_capture_plan(
         })?;
     let written_files =
         write_capture_targets(repo_root, &canonical_plan, &mut snapshots).map_err(|summary| {
-            rollback_snapshots(&snapshots);
+            rollback_snapshots(repo_root, &snapshots);
             PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::WriteFailure,
                 summary,
@@ -657,7 +658,7 @@ fn apply_capture_plan(
         }
         trim_audit_history(&mut next_state.audit);
         if let Err(err) = persist_route_state(&state_path, &next_state) {
-            rollback_snapshots(&snapshots);
+            rollback_snapshots(repo_root, &snapshots);
             return Err(PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::StatePersistenceFailure,
                 summary: format!("failed to persist post-capture state: {err}"),
@@ -1458,7 +1459,7 @@ fn snapshot_targets(
             }
         };
         snapshots.push(SnapshotEntry {
-            absolute_path,
+            repo_relative_path: write.path.clone(),
             prior_bytes,
         });
     }
@@ -1481,22 +1482,28 @@ fn write_capture_targets(
             .get(index)
             .ok_or_else(|| "internal capture snapshot mismatch".to_string())?;
         let bytes = write.content.as_bytes().to_vec();
-        atomic_write_bytes(&snapshot.absolute_path, &bytes)
-            .map_err(|err| format!("failed to commit `{}`: {err}", write.path))?;
+        write_repo_relative_bytes(repo_root, &snapshot.repo_relative_path, &bytes).map_err(
+            |err| {
+                format!(
+                    "failed to commit `{}`: {}",
+                    write.path,
+                    format_repo_relative_mutation_error(&snapshot.repo_relative_path, err)
+                )
+            },
+        )?;
         written.push(write.path.clone());
     }
-    let _ = repo_root;
     Ok(written)
 }
 
-fn rollback_snapshots(snapshots: &[SnapshotEntry]) {
+fn rollback_snapshots(repo_root: &Path, snapshots: &[SnapshotEntry]) {
     for snapshot in snapshots.iter().rev() {
         match &snapshot.prior_bytes {
             Some(bytes) => {
-                let _ = atomic_write_bytes(&snapshot.absolute_path, bytes);
+                let _ = write_repo_relative_bytes(repo_root, &snapshot.repo_relative_path, bytes);
             }
             None => {
-                let _ = fs::remove_file(&snapshot.absolute_path);
+                let _ = delete_repo_relative_file(repo_root, &snapshot.repo_relative_path);
             }
         }
     }
@@ -1886,6 +1893,45 @@ fn format_write_target_error(path: &str, err: RepoRelativeWritePathError) -> Str
     }
 }
 
+fn format_repo_relative_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
+    match err {
+        RepoRelativeMutationError::InvalidPath(reason) => {
+            format!("write target `{path}` is invalid: {reason}")
+        }
+        RepoRelativeMutationError::ParentNotDirectory(found) => {
+            format!(
+                "write target `{path}` cannot be written because {} is not a directory",
+                found.display()
+            )
+        }
+        RepoRelativeMutationError::NotRegularFile(found) => {
+            format!(
+                "write target `{path}` cannot be written because {} is not a regular file target",
+                found.display()
+            )
+        }
+        RepoRelativeMutationError::SymlinkNotAllowed(found) => {
+            format!(
+                "write target `{path}` cannot be written through symlink {}",
+                found.display()
+            )
+        }
+        RepoRelativeMutationError::ReadFailure {
+            path: found,
+            source,
+        }
+        | RepoRelativeMutationError::WriteFailure {
+            path: found,
+            source,
+        } => {
+            format!(
+                "failed to mutate write target `{path}` at {}: {source}",
+                found.display()
+            )
+        }
+    }
+}
+
 fn render_route_basis_status(status: RouteBasisStageStatus) -> &'static str {
     match status {
         RouteBasisStageStatus::Active => "active",
@@ -1969,15 +2015,18 @@ impl fmt::Display for PipelineCaptureRefusalClassification {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_post_apply_next_safe_action, capture_cache_path, PipelineCaptureStateUpdate,
-        PipelineCaptureStateValue,
+        build_post_apply_next_safe_action, capture_cache_path, rollback_snapshots,
+        snapshot_targets, write_capture_targets, PipelineCapturePlan, PipelineCaptureStateUpdate,
+        PipelineCaptureStateValue, PipelineCaptureTarget, PipelineCaptureWriteIntent,
     };
     use crate::pipeline::{
         CompileStageDefinition, CompileStageGating, CompileStageInputs, CompileStageOutputs,
         PipelineStage,
     };
+    use crate::route_state::{RouteBasis, RouteBasisProfilePack, RouteBasisRunner};
+    use std::collections::BTreeMap;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn stage_definition_with_sets(sets: Option<Vec<&str>>) -> CompileStageDefinition {
         CompileStageDefinition {
@@ -2011,6 +2060,55 @@ mod tests {
             field_path: field_path.to_string(),
             value,
         }
+    }
+
+    fn test_plan(writes: Vec<PipelineCaptureWriteIntent>) -> PipelineCapturePlan {
+        PipelineCapturePlan {
+            target: PipelineCaptureTarget {
+                pipeline_id: "pipeline.foundation_inputs".to_string(),
+                stage_id: "stage.test".to_string(),
+                stage_file: "core/stages/test.md".to_string(),
+                title: "Test Stage".to_string(),
+            },
+            basis: RouteBasis {
+                schema_version: "route_basis.v1".to_string(),
+                pipeline_id: "pipeline.foundation_inputs".to_string(),
+                pipeline_file: "core/pipelines/foundation_inputs.yaml".to_string(),
+                pipeline_file_sha256: "pipeline".to_string(),
+                state_revision: 1,
+                routing: BTreeMap::new(),
+                refs: Default::default(),
+                run: Default::default(),
+                route: Vec::new(),
+                runner: RouteBasisRunner {
+                    id: "runner".to_string(),
+                    file: "runner.md".to_string(),
+                    file_sha256: "runner".to_string(),
+                },
+                profile: RouteBasisProfilePack {
+                    id: "default".to_string(),
+                    profile_yaml_sha256: "profile".to_string(),
+                    commands_yaml_sha256: "commands".to_string(),
+                    conventions_md_sha256: "conventions".to_string(),
+                },
+            },
+            artifact_writes: writes,
+            repo_mirror_writes: Vec::new(),
+            state_updates: Vec::new(),
+            capture_id: "capture".to_string(),
+            post_apply_next_safe_action: None,
+        }
+    }
+
+    fn write_intent(path: &str, content: &str) -> PipelineCaptureWriteIntent {
+        PipelineCaptureWriteIntent {
+            path: path.to_string(),
+            content: content.to_string(),
+        }
+    }
+
+    fn read_file(path: &Path) -> String {
+        fs::read_to_string(path).expect("read file")
     }
 
     #[test]
@@ -2156,6 +2254,115 @@ mod tests {
         assert!(
             err.contains("cannot be written through symlink"),
             "expected symlink refusal, got: {err}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_capture_targets_rejects_parent_swap_after_snapshot_without_writing_outside_repo() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let external_root = tempfile::tempdir().expect("external tempdir");
+        let real_parent = repo_root.path().join("mirror");
+        let swapped_parent = repo_root.path().join("mirror-live");
+        let target_path = real_parent.join("target.md");
+        let escaped_path = external_root.path().join("target.md");
+        fs::create_dir_all(&real_parent).expect("create parent");
+        fs::write(&target_path, "before\n").expect("seed target");
+
+        let plan = test_plan(vec![write_intent("mirror/target.md", "after\n")]);
+        let mut snapshots = snapshot_targets(repo_root.path(), &plan).expect("snapshot");
+
+        fs::rename(&real_parent, &swapped_parent).expect("move real parent");
+        std::os::unix::fs::symlink(external_root.path(), repo_root.path().join("mirror"))
+            .expect("swap parent with symlink");
+
+        let err =
+            write_capture_targets(repo_root.path(), &plan, &mut snapshots).expect_err("refusal");
+
+        assert!(
+            err.contains("cannot be written through symlink"),
+            "expected symlink refusal, got: {err}"
+        );
+        assert!(
+            !escaped_path.exists(),
+            "commit should not create or overwrite files outside the repo"
+        );
+        assert_eq!(read_file(&swapped_parent.join("target.md")), "before\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rollback_snapshots_refuses_symlink_swaps_for_restore_and_delete_paths() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let escaped_restore_root = tempfile::tempdir().expect("restore tempdir");
+        let escaped_delete_root = tempfile::tempdir().expect("delete tempdir");
+        let stable_parent = repo_root.path().join("stable");
+        let failing_parent = repo_root.path().join("failing");
+        fs::create_dir_all(&stable_parent).expect("create stable parent");
+        fs::create_dir_all(&failing_parent).expect("create failing parent");
+        fs::write(stable_parent.join("new.md"), "stable outside\n").expect("seed escaped delete");
+        fs::write(failing_parent.join("existing.md"), "before\n").expect("seed existing target");
+
+        let plan = test_plan(vec![
+            write_intent("created/new.md", "created\n"),
+            write_intent("failing/existing.md", "after\n"),
+        ]);
+        let mut snapshots = snapshot_targets(repo_root.path(), &plan).expect("snapshot");
+
+        let real_failing_parent = repo_root.path().join("failing-real");
+        fs::rename(&failing_parent, &real_failing_parent).expect("move failing parent");
+        fs::write(
+            escaped_restore_root.path().join("existing.md"),
+            "outside restore\n",
+        )
+        .expect("seed escaped restore target");
+        std::os::unix::fs::symlink(
+            escaped_restore_root.path(),
+            repo_root.path().join("failing"),
+        )
+        .expect("swap failing parent with symlink");
+
+        let err =
+            write_capture_targets(repo_root.path(), &plan, &mut snapshots).expect_err("refusal");
+        assert!(
+            err.contains("cannot be written through symlink"),
+            "expected symlink refusal, got: {err}"
+        );
+
+        let created_parent = repo_root.path().join("created");
+        assert_eq!(read_file(&created_parent.join("new.md")), "created\n");
+
+        let real_created_parent = repo_root.path().join("created-real");
+        fs::rename(&created_parent, &real_created_parent).expect("move created parent");
+        fs::write(
+            escaped_delete_root.path().join("new.md"),
+            "outside delete\n",
+        )
+        .expect("seed escaped delete target");
+        std::os::unix::fs::symlink(escaped_delete_root.path(), repo_root.path().join("created"))
+            .expect("swap created parent with symlink");
+
+        rollback_snapshots(repo_root.path(), &snapshots);
+
+        assert_eq!(
+            read_file(&real_created_parent.join("new.md")),
+            "created\n",
+            "rollback should refuse deleting through the swapped symlink"
+        );
+        assert_eq!(
+            read_file(&escaped_delete_root.path().join("new.md")),
+            "outside delete\n",
+            "rollback should not delete files outside the repo"
+        );
+        assert_eq!(
+            read_file(&real_failing_parent.join("existing.md")),
+            "before\n",
+            "rollback should leave the original in-repo file untouched when restore is refused"
+        );
+        assert_eq!(
+            read_file(&escaped_restore_root.path().join("existing.md")),
+            "outside restore\n",
+            "rollback should not restore bytes through the swapped symlink"
         );
     }
 }
