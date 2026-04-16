@@ -74,6 +74,18 @@
 **Priority:** P1
 **Depends on:** Stable install smoke, release artifact naming, version tag convention
 
+### Canonical `.system/` Bootstrap Flow
+
+**What:** Ship a real bootstrap flow that creates the canonical repo-local `.system/` tree instead of leaving `setup` as a placeholder.
+
+**Why:** The current product requires `.system/` for `generate`, `inspect`, and `doctor`, but the CLI still does not give the operator a first-class way to initialize that state. That leaves the front door named correctly and functionally incomplete.
+
+**Context:** Reduced v1 already treats repo-local `.system/` as the only canonical planning input surface, and refusal behavior correctly stops on `SystemRootMissing` when that root does not exist. At the same time, `system setup` is still placeholder-only, so new repos hit a real product gap: the trust model is shipped, but the bootstrap path is not. This follow-on should add one boring, explicit initialization path that creates the required canonical directories and files, tells the operator exactly what was created, and aligns docs/help/recovery output around that path.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Stable canonical `.system/` contract, locked setup ownership boundary, stable startup routing language
+
 ### Operator Outcome Scoreboard
 
 **What:** Add an operator-outcome scoreboard for the pipeline/compiler wedge.
