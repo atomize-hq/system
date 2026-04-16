@@ -1,0 +1,888 @@
+$ system pipeline resolve --id foundation_inputs
+OUTCOME: RESOLVED
+PIPELINE: pipeline.foundation_inputs
+ROUTE BASIS:
+  revision = 0
+  routing:
+    <empty>
+  refs:
+    charter_ref = <unset>
+    project_context_ref = <unset>
+  run:
+    runner = codex-cli
+    profile = python-uv
+    repo_root = ${repo_root}
+ROUTE:
+  1. stage.00_base | active
+  2. stage.04_charter_inputs | active
+  3. stage.05_charter_synthesize | active
+  4. stage.06_project_context_interview | next
+     REASON: missing route variables: charter_gaps_detected, needs_project_context
+  5. stage.07_foundation_pack | blocked
+     REASON: blocked by unresolved stage stage.06_project_context_interview (next)
+  6. stage.10_feature_spec | blocked
+     REASON: blocked by unresolved stage stage.06_project_context_interview (next)
+
+$ system pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_04_charter_inputs.txt
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.04_charter_inputs
+WRITTEN FILES:
+  - artifacts/charter/CHARTER_INPUTS.yaml
+STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: <none>
+
+$ system pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_05_charter_synthesize.md
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.05_charter_synthesize
+WRITTEN FILES:
+  - artifacts/charter/CHARTER.md
+  - CHARTER.md
+STATE UPDATES:
+  - refs.charter_ref = artifacts/charter/CHARTER.md
+  - routing.charter_gaps_detected = false
+NEXT SAFE ACTION: run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture
+
+$ system pipeline state set --id foundation_inputs --var needs_project_context=true
+OUTCOME: APPLIED
+PIPELINE: pipeline.foundation_inputs
+REVISION: 2
+ROUTING:
+  charter_gaps_detected = false
+  needs_project_context = true
+REFS:
+  charter_ref = artifacts/charter/CHARTER.md
+  project_context_ref = <unset>
+RUN:
+  runner = <unset>
+  profile = <unset>
+  repo_root = {{REPO_ROOT}}
+
+$ system pipeline resolve --id foundation_inputs
+OUTCOME: RESOLVED
+PIPELINE: pipeline.foundation_inputs
+ROUTE BASIS:
+  revision = 2
+  routing:
+    charter_gaps_detected = false
+    needs_project_context = true
+  refs:
+    charter_ref = artifacts/charter/CHARTER.md
+    project_context_ref = <unset>
+  run:
+    runner = codex-cli
+    profile = python-uv
+    repo_root = ${repo_root}
+ROUTE:
+  1. stage.00_base | active
+  2. stage.04_charter_inputs | active
+  3. stage.05_charter_synthesize | active
+  4. stage.06_project_context_interview | active
+  5. stage.07_foundation_pack | active
+  6. stage.10_feature_spec | active
+
+$ system pipeline capture --id foundation_inputs --stage stage.06_project_context_interview < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_06_project_context_interview.md
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.06_project_context_interview
+WRITTEN FILES:
+  - artifacts/project_context/PROJECT_CONTEXT.md
+  - PROJECT_CONTEXT.md
+STATE UPDATES:
+  - refs.project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
+NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture
+
+$ system pipeline resolve --id foundation_inputs
+OUTCOME: RESOLVED
+PIPELINE: pipeline.foundation_inputs
+ROUTE BASIS:
+  revision = 3
+  routing:
+    charter_gaps_detected = false
+    needs_project_context = true
+  refs:
+    charter_ref = artifacts/charter/CHARTER.md
+    project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
+  run:
+    runner = codex-cli
+    profile = python-uv
+    repo_root = ${repo_root}
+ROUTE:
+  1. stage.00_base | active
+  2. stage.04_charter_inputs | active
+  3. stage.05_charter_synthesize | active
+  4. stage.06_project_context_interview | active
+  5. stage.07_foundation_pack | active
+  6. stage.10_feature_spec | active
+
+$ system pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_07_foundation_pack.txt
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.07_foundation_pack
+WRITTEN FILES:
+  - artifacts/foundation/FOUNDATION_STRATEGY.md
+  - artifacts/foundation/TECH_ARCH_BRIEF.md
+  - artifacts/foundation/TEST_STRATEGY_BRIEF.md
+  - artifacts/foundation/QUALITY_GATES_SPEC.md
+  - artifacts/foundation/quality_gates.yaml
+  - artifacts/foundation/ENVIRONMENT_INVENTORY.md
+  - ENVIRONMENT_INVENTORY.md
+STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: <none>
+
+$ SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z system pipeline compile --id foundation_inputs --stage stage.10_feature_spec
+# stage.10_feature_spec - Feature Specification
+
+Produces a single FEATURE_SPEC.md for one feature, aligned with the project Charter and Foundation Pack.
+
+## Run Variables
+- runner: codex-cli
+- profile: python-uv
+- repo_root: ${repo_root}
+- now_utc: 2026-01-28T18:35:10Z
+- project_name: <unset>
+- owner: <unset>
+- team: <unset>
+- repo_or_project_ref: <unset>
+- charter_ref: artifacts/charter/CHARTER.md
+- work_level: L1
+
+## Selected Runner
+
+### runners/codex-cli.md
+# Runner: codex-cli
+
+This runner assumes the agent can:
+- run shell commands in the repo
+- read/write files
+- show command evidence (cmd, exit code, tail)
+
+## Command execution rules
+- Use the selected profile’s command keys (e.g., `commands.tests`) as the source of truth.
+- Capture evidence for every gate you claim passed (see Evidence Policy).
+
+## File edits
+- Prefer minimal diffs.
+- Keep changes within slice scope.
+- If a change introduces/changes env vars, services, ports, or runtime assumptions:
+  - update `ENVIRONMENT_INVENTORY.md` at the repo/project root (the repo root for this run)
+  - keep the pipeline artifact copy in sync when applicable (`artifacts/foundation/ENVIRONMENT_INVENTORY.md`)
+
+## Output discipline
+- For “document stages”, output only the document content (no extra commentary).
+- For multi-artifact stages, output `--- FILE: <path> ---` blocks exactly.
+
+## Selected Profile
+
+### profiles/python-uv/profile.yaml
+kind: profile
+id: python-uv
+version: 0.1.0
+title: "Python (uv)"
+description: >
+  Python projects managed with uv. Assumes ruff for lint/format, mypy for typing, pytest for tests.
+
+compatibility:
+  languages: ["python"]
+  package_managers: ["uv"]
+  runners: ["codex-cli", "cursor", "claude-tools", "plain-chat"]
+
+project_defaults:
+  python_requires: ">=3.11"
+  code_dirs: ["src"]
+  test_dirs: ["tests"]
+  config_files:
+    - pyproject.toml
+    - uv.lock
+
+gates:
+  required: ["format", "lint", "tests"]
+  optional: ["typecheck", "security", "docs", "complexity", "coverage"]
+
+evidence:
+  required_fields: ["cmd", "exit", "tail", "timestamp"]
+  tail_lines: 80
+
+### profiles/python-uv/commands.yaml
+commands:
+  install: "uv sync"
+  format: "uv run ruff format {code_dirs} {test_dirs}"
+  format_check: "uv run ruff format --check {code_dirs} {test_dirs}"
+  lint: "uv run ruff check {code_dirs} {test_dirs}"
+  typecheck: "uv run mypy {code_dirs}"
+  tests: "uv run pytest -q"
+  coverage: "uv run pytest --cov={code_dirs} --cov-report=term-missing --cov-fail-under={coverage_min}"
+  docs: "uv run ruff check --select D {code_dirs}"
+  security: "uv run pip-audit && uv run bandit -r {code_dirs}"
+  complexity: "uv run ruff check --select C90 {code_dirs}"
+
+### profiles/python-uv/conventions.md
+# Profile conventions: Python (uv)
+
+These are **project/tooling conventions** for Python projects managed with **uv**.
+Core system prompts should not hardcode any of the commands below; they should reference
+**command keys** from `commands.yaml` (e.g., `commands.tests`).
+
+## Layout assumptions
+- Preferred code root: `src/` (unless repo already uses a different layout)
+- Preferred tests root: `tests/`
+- Keep module depth shallow; prefer composition.
+
+## Style
+- Formatting: `ruff format` (Black-compatible)
+- Linting: `ruff check`
+- Docstrings: Google-style recommended; enforce via Ruff `D` rules if enabled.
+
+## Typing
+- Use type annotations for public APIs and non-trivial functions.
+- Prefer `mypy` (strict posture for new modules if feasible).
+- Avoid blanket `# type: ignore` (allowed only with justification and minimal scope).
+
+## Testing
+- Use `pytest`.
+- New modules: target 100% coverage (Charter/Foundation Pack may override).
+- Prefer unit tests for business logic; integration tests only when crossing boundaries.
+
+## Evidence capture (runner-agnostic)
+When you run a command, capture:
+- command line
+- exit code
+- last ~80 lines of stdout/stderr
+- timestamp (UTC)
+
+## Placeholders used in commands.yaml
+- `{code_dirs}`: typically `src`
+- `{test_dirs}`: typically `tests`
+- `{coverage_min}`: numeric threshold (e.g., 90.0)
+
+## Includes
+
+### core/rules/p0_absolute.md
+# P0 Absolute Rules (Scoped)
+
+These rules are **non-negotiable** across languages, stacks, and runners.
+
+Some P0 rules are scoped by **work level** so you can run parallel workstreams
+at higher planning levels without creating execution drift.
+
+## Work levels (hierarchy)
+
+- **L0 Program**: roadmap/portfolio decisions and sequencing. Parallelism is normal.
+- **L1 Project/Planning**: charter, project context, foundation, feature specs, phase plans. Parallelism is normal.
+- **L2 Slice Execution**: implementing *one* slice in a single working context (worktree/branch). Keep execution single-threaded.
+- **L3 Quality Gate & Merge**: final verification/integration/merge discipline.
+
+### Scoped rule blocks
+
+This ruleset supports optional scoped blocks in the form:
+
+- `<!-- SCOPE: L2,L3 -->` (start)
+- `<!-- END_SCOPE -->` (end)
+
+Only include scoped blocks when the current stage `work_level` matches.
+
+## P0-ABSOLUTE: Safety & Security
+- **Never compromise security** for speed or convenience.
+- **Never introduce secret leakage**:
+  - do not hardcode credentials/tokens/keys
+  - do not print secrets in logs
+  - prefer secure defaults
+
+## P0-ABSOLUTE: Truthfulness & Evidence
+- **No evidence, no pass**: do not claim tests/lint/typecheck/security passed unless you have evidence.
+- If you cannot run commands (no tools), you must:
+  - state that you did not run them
+  - provide the exact command(s) to run (from the selected profile)
+
+## P0-ABSOLUTE: Scope & Determinism
+- Do only what the current slice/stage requires.
+- If requirements are ambiguous and would change behavior, **ask** (do not guess).
+- Prefer deterministic, machine-checkable outputs:
+  - avoid vague acceptance criteria
+  - prefer explicit checks and exit-code based gates
+
+## P0-ABSOLUTE: Change Discipline
+- Keep changes minimal and reversible when touching contracts or production systems.
+- If a change introduces/changes env vars, services, ports, or runtime assumptions:
+  - update `ENVIRONMENT_INVENTORY.md` **at the project root** (repo root), in the same change.
+    - canonical: `${repo_root}/ENVIRONMENT_INVENTORY.md`
+    - pipeline/system artifact copy: `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+
+
+
+## P0-ABSOLUTE: Output Contract
+- When a stage/template requires “output only the final document”, do not add extra commentary.
+- When a stage requires multi-file output blocks, follow the wrapper format exactly.
+
+### core/rules/p1_pragmatic.md
+# P1 Pragmatic Rules (Universal)
+
+These rules are strong defaults intended to prevent over-engineering.
+
+## P1-PRAGMATIC: Prefer Existing Helpers
+- Use existing project utilities and patterns before inventing new ones.
+- Prefer small, composable functions and modules.
+
+## P1-PRAGMATIC: Don’t Over-Build
+- Don’t add “frameworks for the future” unless required by the Charter/Foundation posture.
+- Optimize only when you have measurements or explicit requirements.
+
+## P1-PRAGMATIC: Tests Should Match Complexity
+- Simple logic → unit tests.
+- Boundary crossings (IO/network/db) → integration tests.
+- Avoid testing the standard library or trivial plumbing.
+
+## P1-PRAGMATIC: Keep Docs Lean
+- Prefer short checklists and explicit contracts over long prose.
+- Avoid restating upstream docs; reference them instead.
+
+## P1-PRAGMATIC: Bias to Clarity
+- Use explicit naming, stable IDs, and traceability links.
+- Keep artifacts readable by both humans and machines.
+
+### core/rules/traceability_policy.md
+# Traceability Policy
+
+Traceability prevents drift between roadmap → feature spec → slices → execution.
+
+## Stable IDs
+- Every feature spec must have a stable Spec ID (e.g., `FS-2026-001`).
+- Slices must have stable IDs (e.g., `S0.1`, `S1.2`).
+- Quality gate reports should reference the slice ID they validate.
+
+## Upstream anchors
+Artifacts should reference upstream sources, not paraphrase them:
+- Feature spec references Charter + Foundation Pack outputs.
+- Slice plan references Feature spec sections and acceptance criteria IDs.
+- Execution report references Slice ID and includes evidence log pointers.
+
+## Drift prevention
+If downstream artifacts introduce requirements not present upstream:
+- mark them explicitly as “new requirement”
+- link to the decision source (Charter exception / ADR / stakeholder approval)
+
+### core/rules/evidence_policy.md
+# Evidence Policy
+
+This system treats “it passed” as a claim that must be backed by evidence.
+
+## Evidence requirements
+When you claim a gate passed, include an evidence record with:
+- `cmd`: the exact command executed
+- `exit`: exit code
+- `tail`: last N lines of output (stderr + stdout)
+- `timestamp`: UTC timestamp
+
+## Format (recommended)
+```yaml
+- cmd: "<command>"
+  exit: 0
+  timestamp: "2026-01-27T00:00:00Z"
+  tail: |
+    <last ~80 lines>
+```
+
+## No-tools context
+If you cannot run commands:
+- Do not claim pass/fail.
+- Provide the exact commands to run, using the selected profile (e.g., `commands.tests`).
+
+## Library Inputs
+
+### core/library/feature_spec/feature_spec_architect_directive.md
+You are the Feature Spec Architect.
+
+## Purpose
+Produce a complete, implementation-ready Feature Specification that will be used as the contract for phase decomposition and slicing.
+
+## Inputs (must be provided)
+- Project Charter (CHARTER.md): posture, constraints, standards, risk tolerance.
+- Feature request context: problem statement or request text + any links/notes available.
+- Project Profile (conceptual): codebase shape, tooling, and standard quality gates exist elsewhere; do not invent commands.
+
+## Operating Rules (language/tooling agnostic)
+1) No guessing: If essential details are missing, ask clarifying questions.
+2) Keep it minimal but sufficient: include only what is needed to build, test, and ship.
+3) Traceability: Every requirement must map to acceptance criteria.
+4) Design must be explicit: include a proposed approach AND at least 1 credible alternative with trade-offs.
+5) Do not bake in stack commands: reference “profile-defined commands” generically where needed.
+
+## Interview Mode (default)
+Ask one question at a time. Stop when the spec can be completed confidently.
+- Ask up to 10 questions max.
+- If the user says “generate” or “go ahead”, produce the final spec immediately.
+
+## Output Contract
+When generating the final document, output ONLY the completed `FEATURE_SPEC.md` (using the provided template).
+
+## Required Content (must appear in the final spec)
+- Problem + context
+- Goals and non-goals
+- Scope (in/out)
+- Stakeholders/users (who this is for)
+- Acceptance criteria (testable; include IDs)
+- Non-functional requirements (security, performance, reliability, compatibility, etc.)
+- Technical design (high-level architecture + integration touchpoints)
+- Alternatives considered (with reasons rejected)
+- Testing strategy (what to test + where; reference profile commands generically)
+- Rollout plan (flags, migration, backward compatibility, monitoring)
+- Risks + open questions
+
+## Spec Quality Gate (self-check before final output)
+Before outputting the final spec, verify:
+- Every goal has ≥1 acceptance criterion.
+- Every acceptance criterion is objectively testable.
+- At least one alternative is documented.
+- NFRs include security + performance + reliability (or explicitly “not applicable” with reason).
+- Integration touchpoints are named (files/modules/APIs) or clearly scoped as TBD.
+
+### core/library/feature_spec/FEATURE_SPEC.md.tmpl
+# {{FEATURE_TITLE}} — Feature Specification
+- Spec ID: {{SPEC_ID}}
+- Date (UTC): {{NOW_UTC}}
+- Owner: {{OWNER}}
+- Team: {{TEAM}}
+- Repo / Project Ref: {{REPO_OR_PROJECT_REF}}
+- Charter Ref: {{CHARTER_REF}}  <!-- e.g., link or section reference -->
+
+## 0) Charter Alignment
+- Charter Ref: {{CHARTER_REF}}
+- Baseline posture (from Charter): Level {{CHARTER_BASELINE_LEVEL}} — {{CHARTER_BASELINE_LABEL}}
+- Feature risk delta vs Charter context snapshot: {{RISK_DELTA_NONE_OR_LIST}}
+
+### Dimension alignment
+> Inherit by default. Only override when this feature triggers “raise-the-bar” conditions.
+
+| Dimension | Charter default level | Feature stance (inherit/raise/lower) | Reason |
+|---|---:|---|---|
+| Speed vs Quality |  |  |  |
+| Type safety / static analysis |  |  |  |
+| Testing rigor |  |  |  |
+| Scalability & performance |  |  |  |
+| Reliability & operability |  |  |  |
+| Security & privacy |  |  |  |
+| Observability |  |  |  |
+| DX & automation |  |  |  |
+| UX polish / API usability |  |  |  |
+
+### Charter red lines check
+- Global red lines touched? {{YES_NO}}
+- Dimension red lines touched? {{YES_NO}}
+- Notes / impacted areas: {{REDLINES_NOTES_OR_NONE}}
+
+## 1) Summary
+One paragraph describing what will be built and why.
+
+## 2) Problem & Context
+- Current state:
+- Pain / opportunity:
+- Background / constraints from Charter:
+- Related links:
+
+## 3) Goals
+- G1:
+- G2:
+
+## 4) Non-Goals
+- NG1:
+- NG2:
+
+## 5) Users & Stakeholders
+- Primary users:
+- Secondary users:
+- Stakeholders:
+
+## 6) Scope
+### In Scope
+- S1:
+- S2:
+
+### Out of Scope
+- O1:
+- O2:
+
+## 7) Requirements
+### Functional Requirements
+- R1:
+- R2:
+
+### Non-Functional Requirements (NFRs)
+- Security (Charter target: {{LVL_SECURITY}}):
+- Performance (Charter target: {{LVL_PERFORMANCE}}):
+- Reliability (Charter target: {{LVL_RELIABILITY}}):
+- Observability (Charter target: {{LVL_OBSERVABILITY}}):
+- Compatibility / Portability:
+- Maintainability:
+- Compliance (if any):
+
+## 8) Acceptance Criteria (testable)
+Provide IDs and objective checks.
+
+- AC-001: …
+- AC-002: …
+- AC-003: …
+
+## 9) Technical Design
+### Proposed Approach (recommended)
+- Overview:
+- Key components:
+- Data flow / control flow:
+- Interfaces (APIs, CLI commands, library calls, events):
+- Storage / persistence (if any):
+- Error handling expectations:
+- Integration touchpoints (files/modules/services):
+  - Touchpoint 1:
+  - Touchpoint 2:
+
+### Data Model (if applicable)
+- Entities:
+- Schemas:
+- Migrations:
+
+### Security Considerations
+- Threats:
+- Mitigations:
+- Secrets handling:
+
+### Observability
+- Signals (logs/metrics/traces):
+- Key dashboards/alerts (conceptual):
+
+## 10) Alternatives Considered
+- Alt A: …
+  - Pros:
+  - Cons:
+  - Why not chosen:
+- Alt B: …
+
+## 11) Testing Strategy
+(Do not hardcode tool commands; reference profile-defined gates generically.)
+- Unit tests: what modules/behaviors
+- Integration tests: what boundaries
+- E2E tests (if applicable): what workflows
+- Negative tests: failure modes
+- Performance tests (if applicable):
+
+## 12) Rollout Plan
+- Rollout strategy (flags, staged release, canary):
+- Rollout strategy appropriate for Charter reliability level:
+- Monitoring/alerts appropriate for Charter observability level:
+- Backward compatibility:
+- Migration plan:
+- Monitoring during rollout:
+- Rollback plan:
+
+## 13) Risks & Mitigations
+- Risk 1 → mitigation
+- Risk 2 → mitigation
+
+## 14) Open Questions
+- Q1:
+- Q2:
+
+## 15) Traceability Map
+- Goals → Acceptance Criteria:
+  - G1 → AC-…
+  - G2 → AC-…
+- Requirements → Acceptance Criteria:
+  - R1 → AC-…
+  - R2 → AC-…
+- Charter constraints referenced:
+  - …
+
+## X) Exceptions (if any)
+If any charter red line would be violated, document an exception proposal:
+- What:
+- Why:
+- Scope:
+- Risk:
+- Expiry / revisit date:
+- Owner:
+- Approver:
+- Record location:
+
+## Y) Debt Tracking (Charter-aligned)
+- Expected debt introduced by this feature: {{NONE_OR_LIST}}
+- Where tracked: {{DEBT_TRACKER_REF}}
+- When paid down: {{TIMELINE_OR_TRIGGER}}
+
+## Appendix (optional)
+- Glossary:
+- Diagrams (links):
+
+## Artifact Inputs
+
+### artifacts/base/BASE_CONTEXT.md
+# Base Context
+
+## Project
+- Name: System
+- Repo / Project Ref: `system`
+- Owner: Platform Foundations
+- Team: Build Systems
+
+## Problem Statement
+The repository is proving the `M4` foundation journey: a realistic route progression from
+charter inputs through foundation-pack synthesis and a truthful stage-10 handoff where
+`pipeline compile` produces model input while `pipeline capture` consumes a completed
+external `FEATURE_SPEC.md`.
+
+## Delivery Snapshot
+- Active milestone: `M4` Foundation Journey Proof And Handoff Contract
+- Locked compile target: `stage.10_feature_spec`
+- Journey requirement: prove one happy path, one skip path, and one deterministic rerun story
+- Current delivery concern: remove the invalid `compile | capture` shortcut from tests and docs
+
+## Repository Shape
+- `crates/compiler`: pipeline loading, route-state validation, compile/capture contracts
+- `crates/cli`: operator-facing `pipeline` commands and rendered proof surfaces
+- `core/stages`: stage metadata and activation rules for the foundation route
+- `core/library`: directives and templates for charter, context, foundation, and feature-spec work
+- `tests/fixtures/foundation_flow_demo`: dedicated M4 demo corpus for journey-proof tests
+
+## Constraints
+- Canonical pipeline and stage ids are the source of truth.
+- `pipeline resolve` owns persisted route basis state.
+- `pipeline compile` must remain payload-only and must not materialize `FEATURE_SPEC.md`.
+- Stage 10 capture is valid only after an external model response exists.
+- The demo corpus stays separate from `pipeline_proof_corpus` and `execution_demo`.
+
+### artifacts/charter/CHARTER.md
+# Project Charter
+- Charter Ref: `CH-M4-FOUNDATION-2026-04`
+- Project: System
+- Owner: Platform Foundations
+- Team: Build Systems
+
+## Mission
+Ship an M4 proof corpus that demonstrates the full `pipeline.foundation_inputs` journey with
+truthful operator evidence. The route must show that `pipeline compile` produces stage-10 model
+input only, while `pipeline capture` writes the final `FEATURE_SPEC.md` only after a completed
+external model response is supplied.
+
+## Baseline Posture
+- Baseline level: 4 - High rigor with delivery pragmatism
+- Speed vs Quality: prefer correctness over speed whenever proof surfaces and wording disagree
+- Type safety / static analysis: strict for compiler-owned and CLI-owned route contracts
+- Testing rigor: deterministic fixture corpus plus focused integration tests for happy and skip paths
+- Scalability & performance: optimize for local CLI repeatability, not distributed orchestration
+- Reliability & operability: refuse stale route basis, malformed inputs, and unproved stage-10 writes
+- Security & privacy: fixtures and captured outputs must stay free of secrets and production data
+- Observability: prove route status transitions, skip reasons, capture ids, and next safe actions
+- DX & automation: keep the operator surface small, explicit, and aligned with docs/help
+
+## Red Lines
+- Do not teach or prove a raw `compile | capture` handoff at stage 10.
+- Do not imply that stage 10 capture can reconstruct missing external model output.
+- Do not blur manual operator decisions into automatic reroute behavior.
+- Do not merge this journey corpus into the shared proof corpus or `execution_demo`.
+
+## Success Criteria
+- One realistic happy path reaches `stage.10_feature_spec` through stage 06 and stage 07.
+- One realistic skip path proves stage 06 stays skipped because both route predicates remain false.
+- Docs/help/test proof surfaces all state the same compile-to-external-output-to-capture boundary.
+- Final stage-10 artifacts are deterministic across reruns with fixed `now_utc` and normalized capture ids.
+
+## Required Follow-Up Before Final Foundation Pack
+Project context follow-up is required before the final foundation pack because these decisions
+still need a factual repo snapshot:
+- Which operator-visible evidence belongs in the M4 journey scorecard.
+- Which rerun expectations should be proved in tests versus described in docs.
+- Which manual decisions remain required after the happy-path proof lands.
+
+### artifacts/project_context/PROJECT_CONTEXT.md
+# Project Context
+
+## Users
+- Primary: engineers maintaining the Rust compiler and CLI route proofs
+- Secondary: operators validating that stage-10 handoff semantics stay truthful
+- Reviewers: docs owners checking that help text and narrative docs match shipped behavior
+
+## Current State
+`M4` is replacing the old stage-10 shortcut with a real external-model boundary. The live route
+already resolves and captures upstream stages, but existing proof surfaces still need one
+realistic journey that separates compile payload generation from final feature-spec capture.
+
+## Operational Reality To Preserve
+- The happy path must show stage 06 as manually activated after stage 05 establishes the need for
+  project context.
+- The skip path must remain truthful because both `needs_project_context=false` and
+  `charter_gaps_detected=false` are evidenced, not inferred from missing text.
+- The operator journey artifact must call out where manual decisions still exist after `M4`.
+- The rerun story must show deterministic output when `now_utc` is fixed and capture ids are normalized.
+
+## Repo Constraints
+- The dedicated M4 fixture tree must remain under `tests/fixtures/foundation_flow_demo`.
+- No product commands, flags, or writer modes are added for this proof.
+- The same canonical stage metadata must drive both the proof corpus and the M4 demo corpus.
+
+## Integration Touchpoints
+- `crates/cli/tests/cli_surface.rs`
+- `crates/cli/tests/help_drift_guard.rs`
+- `crates/compiler/tests/pipeline_capture.rs`
+- `docs/CLI_OPERATOR_JOURNEY.md`
+
+## Decisions Confirmed Here
+- The M4 journey scorecard must cover manual decisions, model-output boundaries, repo rereads
+  avoided, and what remains manual for `M5`.
+- The rerun story belongs in the proof tests and is summarized in the journey doc.
+- External model output for stage 10 is a completed `FEATURE_SPEC.md`, not compile payload.
+
+### artifacts/foundation/FOUNDATION_STRATEGY.md
+# Foundation Strategy
+
+## Objective
+Deliver `M4` as one believable journey proof:
+- one happy path proving stage 06 activation when context is genuinely required
+- one skip path proving stage 06 remains skipped when both route predicates are false
+- one truthful stage-10 handoff where compile produces model input and capture consumes completed external output
+
+## Strategy Pillars
+1. Keep the M4 demo corpus separate from the shared proof corpus and from `execution_demo`.
+2. Reuse canonical stage metadata, rules, directives, and templates so the journey still reflects repo truth.
+3. Preserve deterministic evidence surfaces for reruns by fixing `now_utc` and normalizing capture ids.
+4. Keep operator-facing docs aligned with the shipped handoff contract.
+
+## Delivery Guardrails
+- No new product surface area.
+- No raw `compile | capture` examples for stage 10.
+- No speculative journey documentation before the tests prove the boundary.
+
+### artifacts/foundation/TECH_ARCH_BRIEF.md
+# Technical Architecture Brief
+
+## Journey Flow
+1. `pipeline resolve` establishes route basis and active stages.
+2. Stage 04 capture writes `CHARTER_INPUTS.yaml`.
+3. Stage 05 capture writes `CHARTER.md`.
+4. Manual state handoff sets `needs_project_context=true`, then resolve activates stage 06.
+5. Stage 06 capture writes `PROJECT_CONTEXT.md`.
+6. Stage 07 capture writes the foundation pack and environment inventory.
+7. Stage 10 compile produces payload for an external model.
+8. Stage 10 capture writes `FEATURE_SPEC.md` only after a completed external response exists.
+
+## Key Contracts
+- Route basis remains the source of stage activation truth.
+- Stage 10 compile is payload-only.
+- Stage 10 capture writes the final artifact from external model output.
+- Deterministic reruns depend on fixed timestamps and normalized capture ids.
+
+## Integration Touchpoints
+- `crates/compiler`
+- `crates/cli`
+- `docs/CLI_OPERATOR_JOURNEY.md`
+- `tests/fixtures/foundation_flow_demo`
+
+### artifacts/foundation/TEST_STRATEGY_BRIEF.md
+# Test Strategy Brief
+
+## Required Coverage
+- happy-path CLI journey through stage 06, stage 07, compile stage 10, and capture stage 10
+- skip-path CLI journey where stage 06 stays skipped for the correct reason
+- compiler and CLI stage-10 success tests that use completed external `FEATURE_SPEC.md` bodies
+- docs/help drift guards that fail if stage 10 reverts to raw `compile | capture`
+- deterministic rerun checks with fixed `now_utc` and normalized capture ids
+
+## Evidence Rules
+- Use the dedicated M4 demo corpus for journey tests.
+- Keep final feature-spec outputs as full markdown bodies, not compile payload fragments.
+- Keep skip-path charter content explicit so no gap markers accidentally imply missing context.
+
+### artifacts/foundation/QUALITY_GATES_SPEC.md
+# Quality Gates Specification
+
+## Mandatory Gates
+- targeted CLI journey tests for happy and skip paths
+- targeted compiler and CLI stage-10 capture tests using completed feature-spec outputs
+- docs/help drift guard coverage for the stage-10 external-model boundary
+- deterministic rerun validation with fixed clock input
+
+## Gate Policy
+- No M4 success claim unless the route proof and documentation agree on the same stage-10 handoff.
+- No skip-path success claim unless the skip reason names both false activation predicates.
+- No journey doc rewrite before the underlying proof tests are green.
+
+### artifacts/foundation/quality_gates.yaml
+gates:
+  - id: cli_happy_path_journey
+    category: integration
+    requirement: required
+    description: Prove the full happy path through stage 10 using external completed model output.
+  - id: cli_skip_path_journey
+    category: integration
+    requirement: required
+    description: Prove stage 06 remains skipped because both activation predicates are false.
+  - id: stage_10_handoff_contract
+    category: regression
+    requirement: required
+    description: Fail if any stage-10 success test captures raw compile payload.
+  - id: docs_help_boundary_parity
+    category: docs
+    requirement: required
+    description: Fail if docs or help text reintroduce a direct compile-to-capture story.
+  - id: deterministic_rerun_story
+    category: regression
+    requirement: required
+    description: Keep fixed timestamp and normalized capture-id proof stable across reruns.
+
+### artifacts/foundation/ENVIRONMENT_INVENTORY.md
+# Environment Inventory
+
+## Toolchains
+- Rust stable toolchain for CLI and compiler tests
+- Cargo for focused proof execution
+
+## Runtime Assumptions
+- local filesystem access for repo-truth stage metadata and fixture content
+- no network dependency for journey proof tests
+- external model output is represented by committed markdown fixtures
+
+## Important Paths
+- `pipelines/foundation_inputs.yaml`
+- `core/stages/10_feature_spec.md`
+- `tests/fixtures/foundation_flow_demo`
+
+## Outputs
+
+### Artifacts
+- artifacts/feature_spec/FEATURE_SPEC.md
+
+### Repo Files
+(none declared)
+
+## Gating
+mode: strict
+fail_on:
+- missing_required_inputs
+- output_missing
+notes:
+- Output must be ONLY the completed FEATURE_SPEC.md (no extra commentary).
+- NFRs and rollout/testing sections must explicitly reference Charter posture and Foundation Pack defaults (if present).
+
+## Stage Body
+# core/stages/10_feature_spec.md
+
+<!--
+Stage body intentionally minimal.
+The directive + template define the content.
+-->
+
+$ system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+REASON: invalid_capture_input: stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload
+NEXT SAFE ACTION: run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`
+
+$ system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_10_feature_spec.md
+OUTCOME: CAPTURED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+WRITTEN FILES:
+  - artifacts/feature_spec/FEATURE_SPEC.md
+STATE UPDATES:
+  <none>
+NEXT SAFE ACTION: <none>

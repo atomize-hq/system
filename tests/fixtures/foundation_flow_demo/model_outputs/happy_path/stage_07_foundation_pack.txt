@@ -1,0 +1,113 @@
+--- FILE: artifacts/foundation/FOUNDATION_STRATEGY.md ---
+# Foundation Strategy
+
+## Objective
+Deliver `M4` as one believable journey proof:
+- one happy path proving stage 06 activation when context is genuinely required
+- one skip path proving stage 06 remains skipped when both route predicates are false
+- one truthful stage-10 handoff where compile produces model input and capture consumes completed external output
+
+## Strategy Pillars
+1. Keep the M4 demo corpus separate from the shared proof corpus and from `execution_demo`.
+2. Reuse canonical stage metadata, rules, directives, and templates so the journey still reflects repo truth.
+3. Preserve deterministic evidence surfaces for reruns by fixing `now_utc` and normalizing capture ids.
+4. Keep operator-facing docs aligned with the shipped handoff contract.
+
+## Delivery Guardrails
+- No new product surface area.
+- No raw `compile | capture` examples for stage 10.
+- No speculative journey documentation before the tests prove the boundary.
+
+--- FILE: artifacts/foundation/TECH_ARCH_BRIEF.md ---
+# Technical Architecture Brief
+
+## Journey Flow
+1. `pipeline resolve` establishes route basis and active stages.
+2. Stage 04 capture writes `CHARTER_INPUTS.yaml`.
+3. Stage 05 capture writes `CHARTER.md`.
+4. Manual state handoff sets `needs_project_context=true`, then resolve activates stage 06.
+5. Stage 06 capture writes `PROJECT_CONTEXT.md`.
+6. Stage 07 capture writes the foundation pack and environment inventory.
+7. Stage 10 compile produces payload for an external model.
+8. Stage 10 capture writes `FEATURE_SPEC.md` only after a completed external response exists.
+
+## Key Contracts
+- Route basis remains the source of stage activation truth.
+- Stage 10 compile is payload-only.
+- Stage 10 capture writes the final artifact from external model output.
+- Deterministic reruns depend on fixed timestamps and normalized capture ids.
+
+## Integration Touchpoints
+- `crates/compiler`
+- `crates/cli`
+- `docs/CLI_OPERATOR_JOURNEY.md`
+- `tests/fixtures/foundation_flow_demo`
+
+--- FILE: artifacts/foundation/TEST_STRATEGY_BRIEF.md ---
+# Test Strategy Brief
+
+## Required Coverage
+- happy-path CLI journey through stage 06, stage 07, compile stage 10, and capture stage 10
+- skip-path CLI journey where stage 06 stays skipped for the correct reason
+- compiler and CLI stage-10 success tests that use completed external `FEATURE_SPEC.md` bodies
+- docs/help drift guards that fail if stage 10 reverts to raw `compile | capture`
+- deterministic rerun checks with fixed `now_utc` and normalized capture ids
+
+## Evidence Rules
+- Use the dedicated M4 demo corpus for journey tests.
+- Keep final feature-spec outputs as full markdown bodies, not compile payload fragments.
+- Keep skip-path charter content explicit so no gap markers accidentally imply missing context.
+
+--- FILE: artifacts/foundation/QUALITY_GATES_SPEC.md ---
+# Quality Gates Specification
+
+## Mandatory Gates
+- targeted CLI journey tests for happy and skip paths
+- targeted compiler and CLI stage-10 capture tests using completed feature-spec outputs
+- docs/help drift guard coverage for the stage-10 external-model boundary
+- deterministic rerun validation with fixed clock input
+
+## Gate Policy
+- No M4 success claim unless the route proof and documentation agree on the same stage-10 handoff.
+- No skip-path success claim unless the skip reason names both false activation predicates.
+- No journey doc rewrite before the underlying proof tests are green.
+
+--- FILE: artifacts/foundation/quality_gates.yaml ---
+gates:
+  - id: cli_happy_path_journey
+    category: integration
+    requirement: required
+    description: Prove the full happy path through stage 10 using external completed model output.
+  - id: cli_skip_path_journey
+    category: integration
+    requirement: required
+    description: Prove stage 06 remains skipped because both activation predicates are false.
+  - id: stage_10_handoff_contract
+    category: regression
+    requirement: required
+    description: Fail if any stage-10 success test captures raw compile payload.
+  - id: docs_help_boundary_parity
+    category: docs
+    requirement: required
+    description: Fail if docs or help text reintroduce a direct compile-to-capture story.
+  - id: deterministic_rerun_story
+    category: regression
+    requirement: required
+    description: Keep fixed timestamp and normalized capture-id proof stable across reruns.
+
+--- FILE: artifacts/foundation/ENVIRONMENT_INVENTORY.md ---
+# Environment Inventory
+
+## Toolchains
+- Rust stable toolchain for CLI and compiler tests
+- Cargo for focused proof execution
+
+## Runtime Assumptions
+- local filesystem access for repo-truth stage metadata and fixture content
+- no network dependency for journey proof tests
+- external model output is represented by committed markdown fixtures
+
+## Important Paths
+- `pipelines/foundation_inputs.yaml`
+- `core/stages/10_feature_spec.md`
+- `tests/fixtures/foundation_flow_demo`

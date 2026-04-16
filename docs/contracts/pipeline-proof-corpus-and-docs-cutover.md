@@ -52,7 +52,7 @@ This contract defines the conformance baseline for the shipped M2 and M3 `pipeli
 - the required shared proof corpus for M1 `pipeline` conformance
 - the golden-output and refusal-output surfaces that must be pinned by tests
 - the docs/help parity baseline for the reviewed `pipeline` subset, including the bounded M2 compile wedge and the bounded M3 capture wedge
-- the M3.5 `foundation_inputs` operator path from `stage.04_charter_inputs` through the stage-10 compile-to-capture handoff
+- the M4 `foundation_inputs` operator path from `stage.04_charter_inputs` through the stage-10 `compile -> external model output -> capture` handoff
 - the explicit M1 performance, security, and operability boundary for `pipeline`
 - the downstream revalidation triggers that later milestone packs must honor
 
@@ -97,7 +97,7 @@ The proof corpus MUST include cases that exercise:
   - conditional `stage.06_project_context_interview` capture
   - third `resolve`
   - `stage.07_foundation_pack` capture
-  - `stage.10_feature_spec` compile-to-capture
+  - `stage.10_feature_spec` compile -> external model output -> capture
 
 ### Golden outputs
 
@@ -114,7 +114,8 @@ The proof corpus MUST include cases that exercise:
   - `stage.04_charter_inputs`
   - `stage.06_project_context_interview`
   - `stage.10_feature_spec`
-- The stage-10 proof corpus MUST prove the real compile-to-capture handoff, not only a synthetic markdown capture body.
+- The stage-10 proof corpus MUST prove the real `compile -> external model output -> capture` handoff, not direct raw compile stdout capture and not only a synthetic markdown capture body.
+- The stage-10 proof corpus MUST prove that raw `pipeline compile` payload is refused as `invalid_capture_input` when presented directly to `pipeline capture`.
 
 ### Malformed-refusal classes
 
@@ -156,7 +157,7 @@ Malformed pipeline and malformed route-state refusals MUST stay explicit:
   - `stage.06_project_context_interview`
   - `stage.07_foundation_pack`
   - `stage.10_feature_spec`
-- Docs and help MUST describe `pipeline compile stage.10_feature_spec` as payload-only stdout that feeds the stage-10 capture path; they MUST NOT imply a direct compile write mode.
+- Docs and help MUST describe `pipeline compile stage.10_feature_spec` as payload-only stdout that becomes model input for an external operator or model runner; they MUST describe `pipeline capture stage.10_feature_spec` as materializing the completed `FEATURE_SPEC.md` body, they MUST state that raw `pipeline compile` payload is refused as `invalid_capture_input`, and they MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path.
 - Docs and help MUST preserve the exact manual `needs_project_context` handoff after `stage.05_charter_synthesize`:
   - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
   - `system pipeline resolve --id pipeline.foundation_inputs`
@@ -213,7 +214,7 @@ The following checklist is normative for seam-local execution and closeout:
 - [ ] Docs and help expose `pipeline compile` and `pipeline compile --explain` as the bounded shipped M2 surface.
 - [ ] Docs and help expose `pipeline capture`, `pipeline capture --preview`, and `pipeline capture apply --capture-id <capture-id>` as the bounded shipped M3 surface.
 - [ ] Docs and help describe the shipped `foundation_inputs` capture targets as `04`, `05`, `06`, `07`, and `10`.
-- [ ] Docs and help preserve the exact manual `needs_project_context` handoff and the stage-10 compile-to-capture path.
+- [ ] Docs and help preserve the exact manual `needs_project_context` handoff and the stage-10 `compile -> external model output -> capture` path.
 - [ ] Shared goldens cover capture success for stages `04`, `06`, and `10`, and the stage-10 proof uses the real compile payload handoff.
 - [ ] The contract stays aligned with `C-08`, `C-09`, and `C-10` without redefining their semantics.
 - [ ] The M1 performance, security, and operability boundary remains repo-local, deterministic, and free of silent repair.

@@ -1,0 +1,396 @@
+# Engineering Charter — {{PROJECT_NAME}}
+
+> **File:** `CHARTER.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}
+
+## What this is
+{{ONE_PARAGRAPH_DEFINITION}}
+<!--
+Example (replace with your own):
+“This Engineering Charter defines our default tradeoffs and decision guardrails across engineering dimensions (speed, correctness, testing, reliability, security, etc.). It’s a day-to-day decision tool: it clarifies what we optimize for, where shortcuts are allowed, and what is non-negotiable.”
+-->
+
+## How to use this charter
+- **Primary use:** When making engineering choices, pick options that fit the baseline posture + dimension stances below.
+- **When unsure:** default to baseline, and log an assumption or open question.
+- **When writing Decision Records (ADRs):** map each option to these dimensions/levels and check against red lines.
+- **Scope:** applies to {{SCOPE_DESCRIPTION}}.
+- **Non-goals:** {{NON_GOALS}}
+
+---
+
+## Rubric: 1–5 rigor levels
+**We use a 1–5 scale across dimensions.** (A higher level means more rigor, safety, and long-term cost—usually slower delivery.)
+
+| Level | Label | Meaning |
+|------:|-------|---------|
+| 1 | {{LEVEL_1_LABEL}} | {{LEVEL_1_MEANING}} |
+| 2 | {{LEVEL_2_LABEL}} | {{LEVEL_2_MEANING}} |
+| 3 | {{LEVEL_3_LABEL}} | {{LEVEL_3_MEANING}} |
+| 4 | {{LEVEL_4_LABEL}} | {{LEVEL_4_MEANING}} |
+| 5 | {{LEVEL_5_LABEL}} | {{LEVEL_5_MEANING}} |
+
+<!-- Defaults (edit freely):
+1 Exploratory — throwaway ok; optimize learning; minimal gates
+2 Prototype — demoable/internal use; some structure; still speed-first
+3 Product — real users; balanced; maintainability matters
+4 Production — GA/customer-facing; strong quality/reliability/security defaults
+5 Hardened — critical/regulated/high blast radius; strict gates; defense-in-depth
+-->
+
+### Anti-bikeshedding rules
+- **Baseline first:** choose one baseline rigor level for the project; everything inherits it unless overridden.
+- **Override only deltas:** only specify overrides where you truly differ from baseline.
+- **Whole numbers only:** no half-levels.
+- **Use triggers to decide:** “raise the bar when…” and “shortcuts allowed when…” settle adjacent-level debates.
+- **If uncertain:** use baseline and record an assumption + revisit trigger.
+
+---
+
+## Project baseline posture
+- **Baseline level:** {{BASELINE_LEVEL}} — {{BASELINE_LABEL}}
+- **Rationale (2–4 bullets):**
+  - {{BASELINE_RATIONALE_1}}
+  - {{BASELINE_RATIONALE_2}}
+  - {{BASELINE_RATIONALE_3}}
+  - {{BASELINE_RATIONALE_4}}
+
+### Context snapshot
+- **Users:** {{USERS_INTERNAL_OR_EXTERNAL}}
+- **Lifetime:** {{LIFETIME_EXPECTATION}}
+- **Runtime environments:** {{RUNTIME_ENVIRONMENTS}}
+- **Stack (expected / unknowns):** {{STACK_EXPECTED_AND_UNKNOWNS}}
+- **Risk flags:** {{RISK_FLAGS}}
+  - Examples: auth, payments, PII, regulated data, critical uptime, model inference, supply chain risk
+
+### Project classification (planning defaults)
+- **Type:** {{PROJECT_TYPE}}
+  - Options (choose one):
+    - **Greenfield** — new system; no existing prod users/data; migrations/back-compat usually N/A.
+    - **Brownfield** — existing live system/users/data; compatibility and safe rollout often required.
+    - **Integration** — new component that must plug into existing systems/contracts; compatibility applies at boundaries.
+    - **Modernization** — reshaping/replacing an existing system (refactor/replatform/strangler); migration plan usually required.
+    - **Hardening** — stability/security/perf/ops work only; minimal new features; tighten gates.
+- **Operational reality:** {{OPERATIONAL_REALITY}}
+  - e.g., prod today?, live users?, existing data?, SLAs/SLOs?, external contracts?
+- **Default implications (inherit unless overridden by a feature):**
+  - **Backward compatibility:** {{DEFAULT_BACKWARD_COMPATIBILITY}}
+  - **Migration planning:** {{DEFAULT_MIGRATION_PLANNING}}
+  - **Rollout controls (flags/canary/gradual):** {{DEFAULT_ROLLOUT_CONTROLS}}
+  - **Deprecation policy:** {{DEFAULT_DEPRECATION_POLICY}}
+  - **Observability threshold:** {{DEFAULT_OBSERVABILITY_THRESHOLD}}
+
+---
+
+## Domains / areas (optional overrides)
+> Use this section for **coarse areas** (domains/services) like Auth/Identity, PII/Privacy, Billing, ML inference, Customer UX, Admin tools, Integrations, Deployment pipeline.  
+> **Not** per-class or per-function.
+
+<!-- If none, write: “None — baseline applies everywhere.” -->
+{{DOMAINS_SUMMARY}}
+
+<!-- COPY/PASTE this block for each domain/area that needs special posture -->
+### {{DOMAIN_NAME}}
+- **What it is:** {{DOMAIN_DESCRIPTION}}
+- **Touches / trust boundary:** {{DOMAIN_TRUST_BOUNDARY}}
+- **What can go wrong (blast radius):** {{DOMAIN_BLAST_RADIUS}}
+- **Special constraints:** {{DOMAIN_CONSTRAINTS}}
+- **Overrides (if any):**
+  - {{DOMAIN_OVERRIDE_1}}
+  - {{DOMAIN_OVERRIDE_2}}
+
+---
+
+## Posture at a glance (quick scan)
+> If a field below is blank, it inherits the baseline level.
+
+| Dimension | Default level (1–5) | Notes / intent |
+|---|---:|---|
+| Speed vs Quality | {{LVL_SPEED_QUALITY}} | {{NOTE_SPEED_QUALITY}} |
+| Type safety / static analysis | {{LVL_TYPE_SAFETY}} | {{NOTE_TYPE_SAFETY}} |
+| Testing rigor | {{LVL_TESTING}} | {{NOTE_TESTING}} |
+| Scalability & performance | {{LVL_PERFORMANCE}} | {{NOTE_PERFORMANCE}} |
+| Reliability & operability | {{LVL_RELIABILITY}} | {{NOTE_RELIABILITY}} |
+| Security & privacy | {{LVL_SECURITY}} | {{NOTE_SECURITY}} |
+| Observability | {{LVL_OBSERVABILITY}} | {{NOTE_OBSERVABILITY}} |
+| Developer experience (DX) | {{LVL_DX}} | {{NOTE_DX}} |
+| UX polish (or API usability) | {{LVL_UX}} | {{NOTE_UX}} |
+
+---
+
+## Dimensions (details + guardrails)
+
+> **Format per dimension:**  
+> - Default stance (level)  
+> - Raise-the-bar triggers  
+> - Allowed shortcuts  
+> - Non-negotiables (red lines)  
+> - Domain/area overrides (only where needed)
+
+---
+
+### 1) Speed vs Quality
+- **Default stance (level):** {{LVL_SPEED_QUALITY}}
+- **Default posture statement:** {{SPEED_QUALITY_POSTURE_STATEMENT}}
+
+**Raise the bar when:**
+- {{SPEED_QUALITY_RAISE_1}}
+- {{SPEED_QUALITY_RAISE_2}}
+- {{SPEED_QUALITY_RAISE_3}}
+
+**Allowed shortcuts when:**
+- {{SPEED_QUALITY_SHORTCUT_1}}
+- {{SPEED_QUALITY_SHORTCUT_2}}
+- {{SPEED_QUALITY_SHORTCUT_3}}
+
+**Non-negotiables / red lines:**
+- {{SPEED_QUALITY_REDLINE_1}}
+- {{SPEED_QUALITY_REDLINE_2}}
+
+**Domain overrides (if any):**
+- {{SPEED_QUALITY_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 2) Type safety / static analysis strictness
+- **Default stance (level):** {{LVL_TYPE_SAFETY}}
+- **Default posture statement:** {{TYPE_SAFETY_POSTURE_STATEMENT}}
+- **Tooling assumptions:** {{TYPE_SAFETY_TOOLING_ASSUMPTIONS}}
+  - e.g., TS `strict`, lint rules, formatters, static analysis, schema validation
+
+**Raise the bar when:**
+- {{TYPE_SAFETY_RAISE_1}}
+- {{TYPE_SAFETY_RAISE_2}}
+
+**Allowed shortcuts when:**
+- {{TYPE_SAFETY_SHORTCUT_1}}
+- {{TYPE_SAFETY_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{TYPE_SAFETY_REDLINE_1}}
+- {{TYPE_SAFETY_REDLINE_2}}
+
+**Domain overrides (if any):**
+- {{TYPE_SAFETY_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 3) Testing rigor
+- **Default stance (level):** {{LVL_TESTING}}
+- **Default posture statement:** {{TESTING_POSTURE_STATEMENT}}
+- **Test pyramid expectation:** {{TEST_PYRAMID_EXPECTATION}}
+  - e.g., unit vs integration vs e2e; contract tests; CI gating
+
+**Raise the bar when:**
+- {{TESTING_RAISE_1}}
+- {{TESTING_RAISE_2}}
+- {{TESTING_RAISE_3}}
+
+**Allowed shortcuts when:**
+- {{TESTING_SHORTCUT_1}}
+- {{TESTING_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{TESTING_REDLINE_1}}
+- {{TESTING_REDLINE_2}}
+
+**Domain overrides (if any):**
+- {{TESTING_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 4) Scalability & performance
+- **Default stance (level):** {{LVL_PERFORMANCE}}
+- **Default posture statement:** {{PERFORMANCE_POSTURE_STATEMENT}}
+- **Performance targets (if any):** {{PERFORMANCE_TARGETS}}
+
+**Raise the bar when:**
+- {{PERFORMANCE_RAISE_1}}
+- {{PERFORMANCE_RAISE_2}}
+
+**Allowed shortcuts when:**
+- {{PERFORMANCE_SHORTCUT_1}}
+- {{PERFORMANCE_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{PERFORMANCE_REDLINE_1}}
+
+**Domain overrides (if any):**
+- {{PERFORMANCE_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 5) Reliability & operability
+- **Default stance (level):** {{LVL_RELIABILITY}}
+- **Default posture statement:** {{RELIABILITY_POSTURE_STATEMENT}}
+- **Reliability targets (if any):** {{RELIABILITY_TARGETS}}
+  - e.g., basic SLOs, rollback expectations, on-call/ownership
+
+**Raise the bar when:**
+- {{RELIABILITY_RAISE_1}}
+- {{RELIABILITY_RAISE_2}}
+
+**Allowed shortcuts when:**
+- {{RELIABILITY_SHORTCUT_1}}
+- {{RELIABILITY_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{RELIABILITY_REDLINE_1}}
+- {{RELIABILITY_REDLINE_2}}
+
+**Domain overrides (if any):**
+- {{RELIABILITY_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 6) Security & privacy
+- **Default stance (level):** {{LVL_SECURITY}}
+- **Default posture statement:** {{SECURITY_POSTURE_STATEMENT}}
+- **Threat model scope:** {{THREAT_MODEL_SCOPE}}
+- **Data sensitivity:** {{DATA_SENSITIVITY}}
+
+**Raise the bar when:**
+- {{SECURITY_RAISE_1}}
+- {{SECURITY_RAISE_2}}
+- {{SECURITY_RAISE_3}}
+
+**Allowed shortcuts when:**
+- {{SECURITY_SHORTCUT_1}}
+- {{SECURITY_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{SECURITY_REDLINE_1}}
+- {{SECURITY_REDLINE_2}}
+- {{SECURITY_REDLINE_3}}
+
+**Domain overrides (if any):**
+- {{SECURITY_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 7) Observability
+- **Default stance (level):** {{LVL_OBSERVABILITY}}
+- **Default posture statement:** {{OBSERVABILITY_POSTURE_STATEMENT}}
+- **Minimum telemetry:** {{MIN_TELEMETRY_EXPECTATION}}
+  - e.g., structured logs, metrics, traces, alerts
+
+**Raise the bar when:**
+- {{OBSERVABILITY_RAISE_1}}
+- {{OBSERVABILITY_RAISE_2}}
+
+**Allowed shortcuts when:**
+- {{OBSERVABILITY_SHORTCUT_1}}
+- {{OBSERVABILITY_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{OBSERVABILITY_REDLINE_1}}
+- {{OBSERVABILITY_REDLINE_2}}
+
+**Domain overrides (if any):**
+- {{OBSERVABILITY_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 8) Developer experience (DX) & automation
+- **Default stance (level):** {{LVL_DX}}
+- **Default posture statement:** {{DX_POSTURE_STATEMENT}}
+- **Automation baseline:** {{DX_AUTOMATION_BASELINE}}
+  - e.g., CI, formatting, linting, release automation, local dev scripts
+
+**Raise the bar when:**
+- {{DX_RAISE_1}}
+- {{DX_RAISE_2}}
+
+**Allowed shortcuts when:**
+- {{DX_SHORTCUT_1}}
+- {{DX_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{DX_REDLINE_1}}
+
+**Domain overrides (if any):**
+- {{DX_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+### 9) UX polish (or API usability if no UI)
+- **Default stance (level):** {{LVL_UX}}
+- **Default posture statement:** {{UX_POSTURE_STATEMENT}}
+- **Usability targets:** {{UX_TARGETS}}
+  - e.g., accessibility baseline, performance perception, error messaging clarity
+
+**Raise the bar when:**
+- {{UX_RAISE_1}}
+- {{UX_RAISE_2}}
+
+**Allowed shortcuts when:**
+- {{UX_SHORTCUT_1}}
+- {{UX_SHORTCUT_2}}
+
+**Non-negotiables / red lines:**
+- {{UX_REDLINE_1}}
+- {{UX_REDLINE_2}}
+
+**Domain overrides (if any):**
+- {{UX_DOMAIN_OVERRIDE_NOTES}}
+
+---
+
+## Cross-cutting red lines (global non-negotiables)
+- {{GLOBAL_REDLINE_1}}
+- {{GLOBAL_REDLINE_2}}
+- {{GLOBAL_REDLINE_3}}
+
+---
+
+## Exceptions / overrides process
+- **Who can approve:** {{EXCEPTION_APPROVER}}
+- **Where exceptions are recorded:** {{EXCEPTION_RECORD_LOCATION}}
+- **Minimum required fields for an exception:**
+  - **What:** {{EXCEPTION_FIELD_WHAT}}
+  - **Why:** {{EXCEPTION_FIELD_WHY}}
+  - **Scope:** {{EXCEPTION_FIELD_SCOPE}}
+  - **Risk:** {{EXCEPTION_FIELD_RISK}}
+  - **Expiry / revisit date:** {{EXCEPTION_FIELD_EXPIRY}}
+  - **Owner:** {{EXCEPTION_FIELD_OWNER}}
+- **Default rule:** exceptions are time-boxed; if not renewed, revert to baseline posture.
+
+---
+
+## Debt tracking expectations
+- **Where debt is tracked:** {{DEBT_TRACKING_LOCATION}}
+- **What counts as “debt” worth logging:** {{DEBT_DEFINITION}}
+- **Required fields per debt item:**
+  - {{DEBT_FIELD_1}}
+  - {{DEBT_FIELD_2}}
+  - {{DEBT_FIELD_3}}
+- **Review cadence:** {{DEBT_REVIEW_CADENCE}}
+- **Paydown trigger(s):** {{DEBT_PAYDOWN_TRIGGERS}}
+
+---
+
+## Decision Records (ADRs): how to use this charter
+- **Decision record format:** {{ADR_FORMAT}}
+- **Decision record location:** {{ADR_LOCATION}}
+- When evaluating options, explicitly map each option to:
+  - impacted dimensions
+  - expected level (1–5) per impacted dimension
+  - conflicts with any red lines
+- Always include at least:
+  - **Fast path** option (optimize speed / lower rigor where allowed)
+  - **Robust path** option (optimize reliability/security/maintainability)
+  - **Balanced** option (default unless project says otherwise)
+- The chosen decision must state **why it matches this charter**, or link to an approved exception.
+
+---
+
+## Review & updates
+- **Review cadence:** {{CHARTER_REVIEW_CADENCE}}
+- **Update triggers:** {{CHARTER_UPDATE_TRIGGERS}}
+  - e.g., production launch, first external customers, incident, scope change, new domain added
+
+<!-- End of CHARTER.md.tmpl -->
+

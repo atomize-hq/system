@@ -28,7 +28,8 @@ This repo is in transition.
 - For `pipeline.foundation_inputs`, the supported capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
 - `pipeline capture --preview` caches one validated materialization plan and returns a deterministic `capture_id`.
 - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
-- `pipeline capture` remains the only supported stage-output writer surface. `pipeline compile` stays payload-only, and stage `10` materialization is the compile-to-capture handoff.
+- `pipeline capture` remains the only supported stage-output writer surface. `pipeline compile` stays payload-only, and stage `10` materialization is `compile -> external model output -> capture`.
+- For stage `10`, raw `pipeline compile` payload is refused as `invalid_capture_input`; `pipeline capture` must receive a completed `FEATURE_SPEC.md` body.
 - `pipeline capture` apply safety is scoped to `system`-coordinated single-writer flows.
 - Compile freshness recovery is explicit: re-run `pipeline resolve` before retrying compile when route basis is missing, stale, or inactive.
 - Capture freshness recovery is explicit too: re-run `pipeline resolve` before retrying preview or apply when route basis is missing, stale, or inactive.

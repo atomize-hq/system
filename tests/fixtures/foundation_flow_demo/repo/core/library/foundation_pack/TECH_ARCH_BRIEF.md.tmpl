@@ -1,0 +1,87 @@
+# Technical Architecture Brief — {{PROJECT_NAME}}
+
+> **File:** `TECH_ARCH_BRIEF.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}  
+> **Charter Ref:** {{CHARTER_REF}}  
+> **Project Context Ref:** {{PROJECT_CONTEXT_REF_OR_NONE}}  
+> **Profile:** {{PROFILE_ID_OR_TBD}}
+
+## 1) Intent
+A concrete, minimal technical direction for this project that downstream feature specs and slices must follow.
+
+## 2) System shape (pick one primary)
+Primary shape: {{SYSTEM_SHAPE}}  
+(e.g., CLI, library, API/service, desktop app, web app, infra/tooling, mixed)
+
+- If mixed: list primary + secondary shapes and boundaries:
+  - {{SHAPE_BOUNDARIES_OR_NONE}}
+
+## 3) Boundaries and ownership
+### What we own
+- {{OWN_1}}
+- {{OWN_2}}
+
+### Integrations / dependencies (top 1–5)
+- {{INTEGRATION_1_OR_NONE}}
+- {{INTEGRATION_2_OR_NONE}}
+
+## 4) Architectural style (keep it actionable)
+- Style: {{ARCH_STYLE}} (modular monolith / layered / hexagonal / plugin / event-driven / other)
+- Rationale: {{ARCH_STYLE_RATIONALE}}
+- Default module boundaries:
+  - {{BOUNDARY_1}}
+  - {{BOUNDARY_2}}
+
+## 5) Data & persistence (if applicable)
+- Data stores: {{DATA_STORES_NONE_OR_LIST}}
+- Data model posture: {{DATA_MODEL_POSTURE}}
+- Migration posture (from project classification): {{MIGRATIONS_REQUIRED_YES_NO_NA}}
+
+## 6) Interfaces & contracts
+- Primary interfaces: {{INTERFACES}}
+- Contract stability requirements:
+  - Backward compatibility: {{BACKCOMPAT_REQUIRED_YES_NO_NA}}
+  - Versioning policy: {{VERSIONING_POLICY_OR_NONE}}
+
+## 7) Reliability / operability (Charter-aligned)
+- Operational level target (from Charter): {{LVL_RELIABILITY}}
+- Expectations:
+  - Rollback strategy: {{ROLLBACK_STRATEGY}}
+  - Failure handling: {{FAILURE_HANDLING_DEFAULTS}}
+  - SLO/SLA (if any): {{SLO_SLA_NONE_OR_VALUES}}
+
+## 8) Observability (Charter-aligned)
+- Observability target level (from Charter): {{LVL_OBSERVABILITY}}
+- Default signals:
+  - Logs: {{LOGS_DEFAULT}}
+  - Metrics: {{METRICS_DEFAULT}}
+  - Traces: {{TRACES_DEFAULT}}
+- Alerting posture: {{ALERTING_POSTURE_NONE_OR_SUMMARY}}
+
+## 9) Security (Charter-aligned)
+- Security target level (from Charter): {{LVL_SECURITY}}
+- Threat surface summary: {{THREAT_SURFACE_SUMMARY}}
+- Default mitigations:
+  - Secrets: {{SECRETS_POLICY}}
+  - AuthN/AuthZ: {{AUTH_POLICY_OR_NA}}
+  - Input validation: {{VALIDATION_POLICY}}
+  - Dependency supply chain: {{SUPPLY_CHAIN_POLICY}}
+
+## 10) “Do not do” list (prevents drift)
+- {{DONT_DO_1}}
+- {{DONT_DO_2}}
+- {{DONT_DO_3}}
+
+## 11) ADR triggers for architecture
+Create an ADR if we:
+- change architectural style/module boundaries materially
+- introduce persistent storage or new integration contract
+- introduce new security posture or regulated data handling
+- introduce new deployment topology / production operations
+
+## 12) Known unknowns / TBDs
+- {{ARCH_UNKNOWN_1_OR_NONE}}
+- {{ARCH_UNKNOWN_2_OR_NONE}}

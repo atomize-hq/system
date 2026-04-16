@@ -105,11 +105,15 @@ fn fixed_runtime() -> PipelineCompileRuntimeContext {
     }
 }
 
-fn stage_10_capture_input(repo_root: &Path) -> String {
+fn stage_10_compile_payload(repo_root: &Path) -> String {
     let result =
         compile_pipeline_stage_with_runtime(repo_root, PIPELINE_ID, STAGE_10_ID, &fixed_runtime())
             .expect("compile result");
     render_pipeline_compile_payload(&result)
+}
+
+fn stage_10_completed_feature_spec_input() -> String {
+    pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md")
 }
 
 fn normalize_capture_id(output: &str, capture_id: &str) -> String {
@@ -279,13 +283,16 @@ fn capture_preview_foundation_pack_matches_shared_golden() {
 }
 
 #[test]
-fn capture_preview_feature_spec_matches_shared_golden_from_real_compile_payload() {
+fn capture_preview_feature_spec_matches_shared_golden_from_completed_external_output() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    let preview = preview_pipeline_capture(
-        &repo_root,
-        &stage_10_request(stage_10_capture_input(&repo_root)),
-    )
-    .expect("preview");
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    let completed_output = stage_10_completed_feature_spec_input();
+    assert_ne!(
+        compile_payload, completed_output,
+        "stage-10 compile payload must stay distinct from completed external model output"
+    );
+    let preview =
+        preview_pipeline_capture(&repo_root, &stage_10_request(completed_output)).expect("preview");
     let rendered = render_pipeline_capture_preview(&preview);
     let normalized = normalize_capture_id(&rendered, &preview.plan.capture_id);
 
@@ -408,9 +415,14 @@ fn capture_apply_foundation_pack_matches_shared_golden_and_uses_cached_preview()
 }
 
 #[test]
-fn capture_apply_stage_10_matches_shared_golden_from_real_compile_payload() {
+fn capture_apply_stage_10_matches_shared_golden_from_completed_external_output() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    let input = stage_10_capture_input(&repo_root);
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    let input = stage_10_completed_feature_spec_input();
+    assert_ne!(
+        compile_payload, input,
+        "stage-10 compile payload must stay distinct from completed external model output"
+    );
     let result =
         capture_pipeline_output(&repo_root, &stage_10_request(input.clone())).expect("capture");
     let rendered = render_pipeline_capture_apply_result(&result);
@@ -490,7 +502,7 @@ fn capture_refuses_stage_06_single_file_with_file_wrapper() {
 #[test]
 fn capture_refuses_stage_10_single_file_with_file_wrapper() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    let input = stage_10_capture_input(&repo_root);
+    let input = stage_10_completed_feature_spec_input();
     let wrapped = format!("--- FILE: artifacts/feature_spec/FEATURE_SPEC.md ---\n{input}",);
     let refusal =
         preview_pipeline_capture(&repo_root, &stage_10_request(wrapped)).expect_err("refusal");
@@ -502,6 +514,40 @@ fn capture_refuses_stage_10_single_file_with_file_wrapper() {
         refusal.summary,
         "single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers"
     );
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_preview_stage_10_refuses_raw_compile_payload_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "stage-10 capture-ready fixture should not pre-create the feature-spec artifact"
+    );
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_10_request(compile_payload))
+        .expect_err("raw compile payload should refuse");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &render_pipeline_capture_refusal(&refusal, Some(PIPELINE_ID), Some(STAGE_10_ID)),
+        &[],
+        "capture.refused.stage_10_raw_compile_payload.txt",
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "raw compile payload refusal must not create the feature-spec artifact"
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);
 }
 
@@ -659,6 +705,40 @@ fn capture_apply_refuses_empty_single_file_body_without_side_effects() {
     assert_eq!(
         fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
         initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_apply_stage_10_refuses_raw_compile_payload_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "stage-10 capture-ready fixture should not pre-create the feature-spec artifact"
+    );
+
+    let refusal = capture_pipeline_output(&repo_root, &stage_10_request(compile_payload))
+        .expect_err("raw compile payload should refuse");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &render_pipeline_capture_refusal(&refusal, Some(PIPELINE_ID), Some(STAGE_10_ID)),
+        &[],
+        "capture.refused.stage_10_raw_compile_payload.txt",
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "raw compile payload refusal must not create the feature-spec artifact"
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);

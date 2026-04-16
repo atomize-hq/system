@@ -1,0 +1,107 @@
+version: "0.1.0"
+project:
+  name: "{{PROJECT_NAME}}"
+  repo_or_project_ref: "{{REPO_OR_PROJECT_REF}}"
+  charter_ref: "{{CHARTER_REF}}"
+  project_context_ref: "{{PROJECT_CONTEXT_REF_OR_NONE}}"
+
+profile:
+  id: "{{PROFILE_ID_OR_TBD}}"
+  # Optional: profile overrides applied for this project
+  overrides: "{{PROFILE_OVERRIDES_OR_NONE}}"
+
+execution:
+  cwd: "{{REPO_ROOT}}"
+  # how evidence is captured by the automation runner
+  evidence_log_path: "{{EVIDENCE_LOG_PATH}}"   # e.g., artifacts/foundation/quality_gates_evidence.jsonl
+  required_evidence_fields: ["cmd", "exit_code", "timestamp", "stdout_tail", "stderr_tail"]
+
+policy:
+  # required gates must pass for CI/merge
+  fail_fast: false
+  required_all_must_pass: true
+  allow_manual_override: false
+
+gates:
+  - id: "format"
+    required: true
+    kind: "command"
+    command_ref: "commands.format"
+    scope:
+      paths: ["{{CODE_DIRS}}", "{{TEST_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "lint"
+    required: true
+    kind: "command"
+    command_ref: "commands.lint"
+    scope:
+      paths: ["{{CODE_DIRS}}", "{{TEST_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "typecheck"
+    required: "{{TYPECHECK_REQUIRED_TRUE_FALSE}}"
+    kind: "command"
+    command_ref: "commands.typecheck"
+    scope:
+      paths: ["{{CODE_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "tests"
+    required: true
+    kind: "command"
+    command_ref: "commands.tests"
+    scope:
+      paths: ["{{TEST_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "security"
+    required: "{{SECURITY_REQUIRED_TRUE_FALSE}}"
+    kind: "command"
+    command_ref: "commands.security"
+    pass:
+      exit_code: 0
+
+  - id: "complexity"
+    required: "{{COMPLEXITY_REQUIRED_TRUE_FALSE}}"
+    kind: "command"
+    command_ref: "commands.complexity"
+    scope:
+      paths: ["{{CODE_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "docs"
+    required: "{{DOCS_REQUIRED_TRUE_FALSE}}"
+    kind: "command"
+    command_ref: "commands.docs"
+    scope:
+      paths: ["{{CODE_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "coverage"
+    required: "{{COVERAGE_REQUIRED_TRUE_FALSE}}"
+    kind: "command"
+    command_ref: "commands.coverage"
+    scope:
+      paths: ["{{TEST_DIRS}}"]
+    pass:
+      exit_code: 0
+
+  - id: "build"
+    required: "{{BUILD_REQUIRED_TRUE_FALSE}}"
+    kind: "command"
+    command_ref: "commands.build"
+    scope:
+      paths: ["{{REPO_ROOT}}"]
+    pass:
+      exit_code: 0
+
+order:
+  fast: ["format", "lint", "tests"]
+  full: ["format", "lint", "typecheck", "tests", "security", "complexity", "docs", "coverage", "build"]

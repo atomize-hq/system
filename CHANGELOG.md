@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.0.0] - 2026-04-16
+
+### Added
+- Added a realistic `foundation_flow_demo` proof corpus with committed happy-path and skip-path evidence transcripts, expected artifacts, stage model outputs, and demo repo inputs for the M4 journey proof.
+- Added CLI journey coverage for the full `pipeline.foundation_inputs` happy and skip paths, including deterministic rerun evidence and a structural `FEATURE_SPEC.md` contract checker tied to the shipped directive and template.
+
+### Changed
+- Solidified `PLAN.md` around the actual M4 stopping point: one believable operator journey, one truthful stage-10 handoff contract, deterministic evidence, and no premature downstream-adoption claims.
+- Updated README, START_HERE, supported-command docs, operator-journey guidance, and pipeline contracts so stage `10` is consistently documented as `compile -> external model output -> capture`.
+
+### Fixed
+- Hardened `pipeline capture` for `stage.10_feature_spec` so raw compile payload is refused as `invalid_capture_input` and only a completed `FEATURE_SPEC.md` body can be materialized.
+
 ## [0.4.1.0] - 2026-04-15
 
 ### Added

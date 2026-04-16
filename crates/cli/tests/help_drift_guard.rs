@@ -178,14 +178,39 @@ fn support_story_docs_match_help_snapshots() {
         "stage.10_feature_spec",
         "only supported stage-output writer surface",
         "payload-only",
-        "compile-to-capture handoff",
+        "compile -> external model output -> capture",
         "`system`-coordinated single-writer flows",
+    ];
+    let stage_10_required_doc_phrases = [
+        "external model output",
+        "completed `FEATURE_SPEC.md`",
+        "compile emits model input payload",
+        "raw `pipeline compile` payload is refused as `invalid_capture_input`",
+    ];
+    let stage_10_banned_doc_phrases = [
+        "compile-to-capture handoff",
+        "compile | capture",
+        "payload stdout piped into capture",
     ];
 
     for phrase in root_readme_required_phrases {
         assert!(
             root_readme_text.contains(phrase),
             "root README missing capture boundary phrase `{phrase}`"
+        );
+    }
+
+    for phrase in stage_10_required_doc_phrases {
+        assert!(
+            docs_text.contains(phrase),
+            "docs missing M4 stage-10 boundary phrase `{phrase}`"
+        );
+    }
+
+    for phrase in stage_10_banned_doc_phrases {
+        assert!(
+            !docs_text.contains(phrase),
+            "docs must not reintroduce invalid M4 stage-10 wording `{phrase}`"
         );
     }
 
@@ -298,6 +323,78 @@ fn support_story_docs_match_help_snapshots() {
     assert!(
         !inspect_help_text.contains("capture"),
         "inspect help snapshot must remain packet-proof only"
+    );
+}
+
+fn assert_doc_matches_m4_stage_10_boundary(
+    path: &std::path::Path,
+    required_phrases: &[&str],
+    banned_phrases: &[&str],
+) {
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|err| panic!("read {}: {}", path.display(), err));
+
+    for phrase in required_phrases {
+        assert!(
+            text.contains(phrase),
+            "{} missing M4 stage-10 boundary phrase `{}`",
+            path.display(),
+            phrase
+        );
+    }
+
+    for phrase in banned_phrases {
+        assert!(
+            !text.contains(phrase),
+            "{} must not reintroduce invalid M4 stage-10 wording `{}`",
+            path.display(),
+            phrase
+        );
+    }
+}
+
+#[test]
+fn m4_stage_10_boundary_docs_remain_truthful() {
+    let root = workspace_root();
+
+    assert_doc_matches_m4_stage_10_boundary(
+        &root.join("docs/CLI_OPERATOR_JOURNEY.md"),
+        &[
+            "compile -> external model output -> capture",
+            "payload-only",
+            "completed `FEATURE_SPEC.md`",
+            "raw `pipeline compile` payload is refused as `invalid_capture_input`",
+        ],
+        &[
+            "compile-to-capture handoff",
+            "compile | capture",
+            "payload stdout piped into capture",
+        ],
+    );
+    assert_doc_matches_m4_stage_10_boundary(
+        &root.join("docs/contracts/pipeline-proof-corpus-and-docs-cutover.md"),
+        &[
+            "compile -> external model output -> capture",
+            "payload-only stdout that becomes model input for an external operator or model runner",
+            "materializing the completed `FEATURE_SPEC.md` body",
+            "raw `pipeline compile` payload is refused as `invalid_capture_input`",
+            "MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path",
+        ],
+        &["compile-to-capture handoff", "payload stdout piped into capture"],
+    );
+    assert_doc_matches_m4_stage_10_boundary(
+        &root.join("docs/contracts/C-02-rust-workspace-and-cli-command-surface.md"),
+        &[
+            "emits model input payload",
+            "completed `FEATURE_SPEC.md`",
+            "refuses raw `pipeline compile` payload as `invalid_capture_input`",
+            "materializes that completed body",
+        ],
+        &[
+            "compile-to-capture handoff",
+            "compile | capture",
+            "payload stdout piped into capture",
+        ],
     );
 }
 

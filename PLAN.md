@@ -1,4 +1,4 @@
-<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/main-autoplan-restore-20260415-203905.md -->
+<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m4-autoplan-restore-20260415-211546.md -->
 <!-- previous reduced-v1 baseline archived at .implemented/PLAN-20260409-144209-reduced-v1-baseline.md -->
 # PLAN
 
@@ -1609,7 +1609,13 @@ Exit criteria:
 - stages `04`, `06`, and `10` no longer represent undocumented holes in the `foundation_inputs` path
 - the plan, contracts, docs, and tests all agree on the supported `M3.5` boundary
 
-### M4. End-to-End Foundation Flow Proof
+Historical correction, 2026-04-15:
+
+- the original M3.5 wording treated direct `pipeline compile ... | pipeline capture ...` as the stage-10 materialization path
+- the shipped code actually supports `pipeline compile` payload generation plus `pipeline capture` of a completed single-file body
+- `M4` owns the docs/tests/contract correction for that boundary; if any M3.5 wording below or above implies direct raw compile stdout capture is valid, treat that as superseded by the M4 section
+
+### M4. Foundation Journey Proof And Handoff Contract
 
 Status:
 
@@ -1617,86 +1623,266 @@ Status:
 
 Goal:
 
-- prove one believable `pipeline.foundation_inputs` planning run from `stage.04_charter_inputs` through `stage.10_feature_spec`
-- prove the generated `artifacts/feature_spec/FEATURE_SPEC.md` is stable enough to serve as a downstream planning handoff basis without reopening repo truth in the same session
+- prove one realistic `pipeline.foundation_inputs` journey from `stage.04_charter_inputs` through `stage.10_feature_spec` using the shipped Rust CLI boundaries plus the explicit human-in-the-loop model step the code actually requires
+- produce one contract-valid `artifacts/feature_spec/FEATURE_SPEC.md` handoff package with deterministic evidence, without claiming real downstream consumer adoption yet
+- collapse the active M4 truth into this section so later sessions do not have to reconstruct it from review appendices
 
 Why this exists now:
 
-- `M3.5` already shipped the missing writer and handoff surface for stages `04`, `06`, and `10`
-- docs already describe the exact operator path, and tests already prove most component boundaries
-- that is still not the same thing as proving one real operator can run the flow end to end and trust the output as planning basis
+- `M3.5` already shipped the missing writer boundary for stages `04`, `06`, and `10`
+- the current docs, tests, and milestone prose still overstate the stage-10 handoff by treating `pipeline compile` output like a completed `FEATURE_SPEC.md`
+- the repo now needs one honest journey-proof milestone before `M5` can claim that downstream consumers actually trust and adopt the generated artifacts
+
+Premise lock:
+
+- `pipeline compile --stage stage.10_feature_spec` emits a compile payload, not a completed feature spec body
+- `pipeline capture --stage stage.10_feature_spec` writes any non-empty single-file body verbatim to `artifacts/feature_spec/FEATURE_SPEC.md`
+- therefore the valid M4 stage-10 path is:
+  1. `pipeline compile` produces the stage payload
+  2. an operator or model runner uses that payload and produces the completed `FEATURE_SPEC.md`
+  3. `pipeline capture` materializes that completed markdown body
+- direct `pipeline compile ... | pipeline capture ...` is not valid end-to-end proof and must be removed from plan/docs/contracts/tests during this milestone
+- the `needs_project_context=false` branch is only a real skip-path proof when both `needs_project_context=false` and `charter_gaps_detected=false`; the demo fixture must make that route truth explicit instead of relying on accidental stage-05 content
 
 Exact user outcome:
 
-- an operator can execute one realistic `foundation_inputs` journey with the shipped Rust CLI, make the one explicit `needs_project_context` decision, and finish with a generated `FEATURE_SPEC.md`
-- the operator does **not** have to restitch prior stage outputs, repo paths, or route truth between stages
-- the only manual boundary left in `M4` is stage-local model invocation or pasted stage output. Rust owns route truth, compile truth, capture truth, and the phase-to-phase handoff
+- an operator can run one believable `foundation_inputs` journey on a realistic demo corpus and finish with the full artifact chain:
+  - `artifacts/charter/CHARTER_INPUTS.yaml`
+  - `artifacts/charter/CHARTER.md`
+  - `artifacts/project_context/PROJECT_CONTEXT.md` on the primary branch
+  - `artifacts/foundation/*`
+  - `artifacts/feature_spec/FEATURE_SPEC.md`
+- the operator still owns exactly two manual boundaries:
+  - deciding `needs_project_context`
+  - supplying stage-local model output bodies
+- `M4` proves journey correctness, handoff-contract correctness, and deterministic rerun evidence
+- `M4` does **not** claim that operator tax is already paid back in real workflows, and it does **not** claim that a live downstream consumer already starts from artifact outputs; those claims remain `M5`
 
-Concrete proof target:
+What already exists:
 
-- use `pipeline.foundation_inputs` as the single M4 proof flow
-- treat the `needs_project_context=true` branch as the primary happy path because it exercises the optional branch, the state mutation handoff, the foundation pack, and the stage-10 compile-to-capture path together
-- keep one secondary skip-path proof for `needs_project_context=false` so the branch boundary remains honest
+- route truth and persisted `route_basis` already live in [`crates/compiler/src/route_state.rs`](crates/compiler/src/route_state.rs)
+- compile payload / explain proof for `stage.10_feature_spec` already ship in [`crates/compiler/src/pipeline_compile.rs`](crates/compiler/src/pipeline_compile.rs)
+- stage-output materialization for `04`, `05`, `06`, `07`, and `10` already ships in [`crates/compiler/src/pipeline_capture.rs`](crates/compiler/src/pipeline_capture.rs)
+- the CLI already exposes the bounded `pipeline` family in [`crates/cli/src/main.rs`](crates/cli/src/main.rs)
+- shared proof-corpus and capture goldens already exist under [`tests/fixtures/pipeline_proof_corpus/foundation_inputs/`](tests/fixtures/pipeline_proof_corpus/foundation_inputs/)
+- the CLI suite already proves most route progression in [`crates/cli/tests/cli_surface.rs`](crates/cli/tests/cli_surface.rs), but the stage-10 handoff is still modeled incorrectly as compile stdout flowing directly into capture
 
 Must prove:
 
-- the exact shipped CLI path works with one believable repo corpus, not only the narrow proof-corpus fixture
-- the stage-10 boundary is exercised through the real shell-pipe handoff:
-  - `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec`
-- the primary happy path (`needs_project_context=true`) produces the full artifact chain:
-  - `artifacts/charter/CHARTER_INPUTS.yaml`
-  - `artifacts/charter/CHARTER.md`
-  - `artifacts/project_context/PROJECT_CONTEXT.md`
-  - `artifacts/foundation/*`
-  - `artifacts/feature_spec/FEATURE_SPEC.md`
-- the secondary skip path (`needs_project_context=false`) cleanly skips `stage.06_project_context_interview` and still produces a valid feature-spec output
-- the generated `FEATURE_SPEC.md` passes one bounded downstream consumer-readiness check:
-  - required sections are present
-  - traceability back to Charter and Foundation inputs is explicit
-  - no repo reread is required to understand what problem, scope, and constraints the document carries forward
-- docs, tests, and plan text all say the same stopping point:
-  - `M4` proves operator replacement plus consumer-readiness
-  - `M5` proves actual downstream consumer adoption
+- the exact shipped CLI path works on one believable demo corpus, not only on the narrow contract proof corpus
+- the primary happy path uses `needs_project_context=true` and exercises the optional stage-06 branch explicitly
+- the secondary skip path uses `needs_project_context=false` **and** charter content that keeps `charter_gaps_detected=false`, so stage 06 is skipped for the right reason
+- the stage-10 journey is exercised through the real boundary:
+  - `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`
+  - external model execution against that payload
+  - `system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec`
+- the generated `FEATURE_SPEC.md` passes one bounded contract checker tied to [`core/library/feature_spec/feature_spec_architect_directive.md`](core/library/feature_spec/feature_spec_architect_directive.md) and [`core/library/feature_spec/FEATURE_SPEC.md.tmpl`](core/library/feature_spec/FEATURE_SPEC.md.tmpl)
+- docs, tests, contracts, and this plan all agree on the same stopping point:
+  - `M4` proves one complete journey plus one contract-valid handoff artifact
+  - `M5` proves actual downstream consumer adoption from that artifact set
 
-Required deliverables:
+### Architecture Review
 
-1. A dedicated realistic demo corpus under `tests/fixtures/foundation_flow_demo/` rather than stretching the shared proof corpus into two jobs.
-2. One operator-journey document that names the exact commands, branch decision, expected outputs, and stopping point for the shipped Rust flow.
-3. One CLI integration test that executes the real happy path through the binary, including the actual stage-10 compile-to-capture shell pipe.
-4. One CLI integration test that proves the `needs_project_context=false` skip path without reintroducing manual restitching.
-5. One bounded downstream consumer-readiness checker in tests, not a new product surface, that validates the generated `FEATURE_SPEC.md` contract shape.
-6. One evidence bundle or golden set for the demo journey so future sessions can re-run the same proof without hand-waving.
-7. Docs parity updates in `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, and the new operator-journey doc so the repo stops describing M4 as an abstract future.
-
-Architecture for `M4`:
+Architecture ASCII diagram:
 
 ```text
-realistic demo corpus
-  -> shipped CLI path only
-     -> pipeline resolve
-     -> capture stage.04
-     -> capture stage.05
-     -> operator sets needs_project_context exactly once
-     -> pipeline resolve
-     -> optional capture stage.06
-     -> pipeline resolve
-     -> capture stage.07
-     -> pipeline compile stage.10
-     -> shell pipe into pipeline capture stage.10
-  -> generated artifacts/feature_spec/FEATURE_SPEC.md
-  -> bounded consumer-readiness check
-  -> proof bundle / journey doc
+tests/fixtures/foundation_flow_demo/
+  -> realistic repo-local canonical inputs
+  -> committed stage outputs for happy-path and skip-path model responses
+
+happy path
+  -> system pipeline resolve
+  -> capture stage.04_charter_inputs
+  -> capture stage.05_charter_synthesize
+  -> system pipeline state set needs_project_context=true
+  -> system pipeline resolve
+  -> capture stage.06_project_context_interview
+  -> system pipeline resolve
+  -> capture stage.07_foundation_pack
+  -> system pipeline compile stage.10_feature_spec
+  -> external model response fixture (completed FEATURE_SPEC.md)
+  -> system pipeline capture stage.10_feature_spec
+  -> feature-spec contract checker
+  -> evidence bundle + operator-journey doc
+
+skip path
+  -> same through stage.05
+  -> state set needs_project_context=false
+  -> charter_gaps_detected remains false by fixture design
+  -> resolve skips stage.06
+  -> capture stage.07
+  -> compile stage.10
+  -> external model response fixture
+  -> capture stage.10
+  -> same contract checker + evidence bundle
 ```
 
-Important clarification:
+Opinionated architecture decisions:
 
-- `M4` does **not** require Rust to own onboarding chat, runner invocation, or live multi-stage orchestration
-- `M4` does **not** add `pipeline run`, `pipeline compile --write`, or any other combined orchestration surface
-- `M4` proves that the current Rust-owned stage boundaries are enough to replace one planning loop once the operator stops re-grounding the repo between stages
+- keep `pipeline compile` and `pipeline capture` as separate verbs
+- do not add a new writer command, orchestration command, or live model-runner surface in `M4`
+- keep the realistic demo corpus separate from the shared proof corpus so contract tests stay small and the journey proof can be more believable
+- keep the feature-spec checker test-only; it is evidence for M4, not a new product surface
+- docs/help/contract wording correction is part of the milestone, not optional cleanup, because the current stage-10 narrative is wrong
+
+### Code Quality Review
+
+Minimum-diff implementation posture:
+
+- reuse existing compile and capture modules rather than introducing a new stage-10 handoff abstraction
+- keep test support boring:
+  - one installable demo fixture tree under `tests/fixtures/foundation_flow_demo/`
+  - optional small helper support in existing CLI test support
+  - no second route-state engine, no second capture parser, no ad hoc shell wrapper crate
+- correct the docs/contracts/help wording in the same milestone that adds the proof, so the repo stops teaching a false compile-to-capture story
+- anchor the contract checker to the existing feature-spec directive/template rather than inventing fuzzy “consumer-readiness” heuristics
+
+File / module touch expectation:
+
+| Area | Expected modules |
+| --- | --- |
+| Demo fixture | `tests/fixtures/foundation_flow_demo/` |
+| CLI journey proof | `crates/cli/tests/cli_surface.rs`, optional CLI test support helpers |
+| Docs / contract wording | `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/CLI_OPERATOR_JOURNEY.md`, `docs/contracts/pipeline-proof-corpus-and-docs-cutover.md`, `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md` |
+| Plan / milestone truth | `PLAN.md` |
+
+### Test Review
+
+CODE PATH COVERAGE
+===========================
+[+] foundation journey proof
+    │
+    ├── [GAP] [→CLI] resolve -> 04 capture -> 05 capture -> state set(true) -> 06 -> 07
+    │               -> compile stage.10 -> external response -> capture stage.10
+    │               Needs one exact happy-path integration using the demo fixture.
+    │
+    ├── [GAP] [→CLI] resolve -> 04 capture -> 05 capture -> state set(false) -> resolve skips 06
+    │               -> 07 -> compile stage.10 -> external response -> capture stage.10
+    │               Must prove skip-path truth with `charter_gaps_detected=false`.
+    │
+    ├── [GAP] [→CLI] stage-10 boundary contract
+    │               compile payload is not captured directly; only completed model output is.
+    │
+    └── [GAP] [→CLI] deterministic rerun evidence
+                    fixed `now_utc`, normalized capture ids, stable fixture outputs.
+
+HANDOFF CONTRACT COVERAGE
+===========================
+[+] generated FEATURE_SPEC.md
+    │
+    ├── [GAP] [→TEST] Required sections from directive/template are present
+    ├── [GAP] [→TEST] Goals map to acceptance criteria
+    ├── [GAP] [→TEST] At least one alternative is documented
+    ├── [GAP] [→TEST] Security / performance / reliability NFR rows are present or explicit N/A
+    └── [GAP] [→TEST] Integration touchpoints are named or explicitly scoped TBD
+
+DOC / CONTRACT PARITY
+===========================
+[+] operator journey wording
+    │
+    ├── [GAP] [→TEST] Docs stop claiming direct `compile | capture` as valid stage-10 materialization
+    └── [GAP] [→TEST] M4 stopping point is described consistently as journey proof + handoff contract, not downstream adoption
+
+─────────────────────────────────
+COVERAGE: 0/9 gaps closed in plan text alone
+  Journey paths: 0/4
+  Handoff contract checks: 0/5
+QUALITY TARGET: every gap closed before M4 is marked complete
+─────────────────────────────────
+
+Required test artifacts:
+
+1. One happy-path CLI integration in [`crates/cli/tests/cli_surface.rs`](crates/cli/tests/cli_surface.rs) that uses the demo fixture, fixed `now_utc`, explicit external stage-10 response input, and final artifact assertions.
+2. One skip-path CLI integration in the same suite that proves stage 06 stays skipped because the fixture keeps `charter_gaps_detected=false`.
+3. One contract-check test that validates the captured `FEATURE_SPEC.md` against the required sections and traceability rules from the directive/template.
+4. One docs/help drift assertion that fails if the repo reintroduces direct `compile | capture` wording for stage 10.
+5. One evidence normalization path for capture ids and clock-driven values so the rerun artifact stays deterministic.
+
+### Performance Review
+
+Performance / determinism requirements:
+
+- pin `PIPELINE_COMPILE_NOW_UTC_ENV_VAR` in journey tests and evidence generation
+- normalize volatile `capture_id` values anywhere they are compared or stored as proof
+- keep the demo fixture repo-local and static; do not require live model execution, network access, or external services in automated tests
+- keep the feature-spec contract checker structural and bounded; do not attempt semantic grading or expensive diffing against multiple ideal outputs
+- do not duplicate the full proof corpus into the demo fixture; the new fixture should prove journey realism, not replace contract regression coverage
+
+### Failure Modes Registry
+
+| Failure mode | Severity | Test required | Why it matters |
+| --- | --- | --- | --- |
+| stage-10 compile payload is captured directly as `FEATURE_SPEC.md` | Critical | yes | This would prove a semantically invalid operator path and preserve false docs. |
+| skip path accidentally activates stage 06 because charter output still contains `TBD` / `TODO` / `UNKNOWN` markers | Critical | yes | The plan would appear deterministic while actually depending on accidental content. |
+| docs and contracts continue to teach direct `compile | capture` wording | High | yes | Later sessions will keep implementing against the wrong boundary. |
+| evidence bundle flakes because `now_utc` or `capture_id` changes between runs | High | yes | The proof stops being rerunnable and loses value as milestone evidence. |
+| feature-spec checker is vague prose instead of template/directive-backed assertions | High | yes | “Consumer-readiness” becomes unreviewable vibes instead of a contract. |
+
+### Required Deliverables
+
+1. A dedicated realistic demo corpus under `tests/fixtures/foundation_flow_demo/`.
+2. One exact operator-journey document that names the happy path, the skip path, the manual branch decision, the stage-10 external-model boundary, and the stopping point.
+3. One happy-path CLI integration test that proves the real M4 journey without piping raw compile payload directly into capture.
+4. One skip-path CLI integration test that proves stage 06 stays skipped only because both route predicates say so.
+5. One feature-spec contract checker in tests, anchored to the current directive/template.
+6. One deterministic evidence bundle for the demo journey, including clock and capture-id normalization rules.
+7. Docs / contract parity updates that remove direct `compile | capture` wording and replace it with the real stage-10 boundary.
+8. One small journey scorecard capturing manual decisions, model-output boundaries, repo rereads avoided, and what still remains manual going into `M5`.
+
+### NOT In Scope
+
+- `pipeline run`, `pipeline compile --write`, or any orchestration mega-command
+- auto-deciding `needs_project_context`
+- live model execution inside the Rust CLI
+- promoting captured outputs directly into canonical `.system/` artifacts
+- real downstream consumer adoption, consumer rewiring, or seam execution integration
+- public distribution, UI/MCP wrapper work, or onboarding-chat work
+
+### Worktree Parallelization Strategy
+
+| Step | Modules touched | Depends on |
+| --- | --- | --- |
+| A. Correct stage-10 boundary wording in plan/docs/contracts | `PLAN.md`, `docs/`, `docs/contracts/` | — |
+| B. Add demo corpus and fixture helpers | `tests/fixtures/`, CLI test support | — |
+| C. Add happy-path and skip-path CLI journey tests | `crates/cli/tests/` | A, B |
+| D. Add feature-spec contract checker + evidence normalization | `crates/cli/tests/`, optional shared test support | B |
+| E. Publish operator-journey artifact and scorecard | `docs/`, `tests/fixtures/` | A, B, C, D |
+
+Parallel lanes:
+
+- Lane A: A
+- Lane B: B
+- Lane C: C after A + B
+- Lane D: D after B
+- Lane E: E after A + B + C + D
+
+Execution order:
+
+- Launch A and B in parallel.
+- Launch D once B lands.
+- Launch C after A and B land.
+- Finish with E once the proof and checker outputs exist.
+
+Conflict flags:
+
+- C and D both touch CLI test surfaces, so they should merge sequentially or share one owner.
+
+### Completion Summary
+
+| Section | Status | Notes |
+| --- | --- | --- |
+| Scope challenge | complete | M4 is now pinned to journey proof + handoff contract, not downstream adoption. |
+| Architecture review | complete | Stage-10 model boundary is explicit and docs correction is part of scope. |
+| Code quality review | complete | Reuse current compile/capture modules, add only boring fixture/test support. |
+| Test review | complete | Nine concrete gaps identified, all tied to exact journey or handoff assertions. |
+| Performance review | complete | Determinism requirements for `now_utc` and `capture_id` are locked. |
+| NOT in scope | written | six items |
+| What already exists | written | current route, compile, capture, CLI, and proof-corpus surfaces mapped |
 
 Prerequisite status:
 
-- satisfied on `main` by `8ac7aeb`, which shipped the explicit `04` / `06` / `10` capture boundary and the documented `foundation_inputs` operator path
+- satisfied on `main` by `8ac7aeb`, which shipped the explicit `04` / `06` / `10` capture boundary
+- not satisfied for stage 10 journey proof until docs/tests stop treating raw compile stdout like a completed feature spec
 
 ### M5. Downstream Consumer Adoption
 
@@ -1785,11 +1971,13 @@ The first wedge is only real when all of the following are true for the chosen f
 
 ## Immediate Next Work
 
-1. Rebaseline the active plan around shipped `M3.5` reality so later sessions stop reopening stage-surface questions that `8ac7aeb` already settled.
-2. Define one exact `M4` demo fixture under `tests/fixtures/foundation_flow_demo/`, including the primary `needs_project_context=true` path and the secondary skip path.
-3. Add a real CLI end-to-end proof that exercises the actual stage-10 shell pipe, not just an in-process compiled payload handed directly to capture.
-4. Add one bounded downstream consumer-readiness check on the generated `artifacts/feature_spec/FEATURE_SPEC.md`, while keeping actual consumer adoption deferred to `M5`.
-5. Publish one operator-journey artifact plus docs parity updates so the shipped stopping point, manual boundaries, and deferred work are explicit.
+1. Correct the active M4 boundary everywhere it appears: stage 10 is `compile -> external model output -> capture`, not direct `compile | capture`.
+2. Define one exact demo fixture under `tests/fixtures/foundation_flow_demo/`, including:
+   - primary `needs_project_context=true` path
+   - secondary `needs_project_context=false` path with `charter_gaps_detected=false` by fixture design
+3. Add happy-path and skip-path CLI journey tests that use the demo fixture, fixed `now_utc`, explicit stage-10 response fixtures, and final artifact assertions.
+4. Add one feature-spec contract checker tied to the current directive/template, plus deterministic evidence normalization for `capture_id` and clock-driven fields.
+5. Publish one operator-journey artifact, one small journey scorecard, and docs/contract parity updates so the shipped stopping point and remaining manual boundaries are exact.
 
 ## Explicit Non-Goals For M4
 
@@ -1800,6 +1988,10 @@ The first wedge is only real when all of the following are true for the chosen f
 - do not widen into onboarding chat, public distribution, or UI wrapper work
 
 Stay on the wedge until the operator pain is materially reduced.
+
+## Historical Review Appendices
+
+If any historical appendix below conflicts with the active milestone text above, the milestone text wins. The appendices are evidence for how the plan evolved, not the current execution contract.
 
 ## AUTOPLAN REVIEW (2026-04-15, historical M3.5 rebase)
 

@@ -1,0 +1,140 @@
+# CHARTER_INPUTS.yaml (template)
+#
+# Purpose: Stable, testable inputs for generating CHARTER.md without an interview loop.
+# - Keep values small and explicit.
+# - Prefer selecting from enumerations over free-form prose.
+# - Use this file as a fixture during system development.
+#
+# Notes:
+# - `baseline_level` is the default for all dimensions unless overridden.
+# - `dimensions[*].level` is optional; if omitted, baseline_level applies.
+# - For triggers/shortcuts/red_lines: keep bullets crisp (if X then Y).
+#
+schema_version: 0.1.0
+
+project:
+  name: "{{PROJECT_NAME}}"
+  classification: greenfield # greenfield|brownfield|integration|modernization|hardening
+  team_size: 1
+  users: internal # internal|external|mixed
+  expected_lifetime: "months" # days|weeks|months|years
+  surfaces: ["api"] # e.g. ["web_app","api","cli","lib","infra","ml"]
+  runtime_environments: ["server"] # e.g. ["browser","server","cloud","on_prem","edge"]
+  constraints:
+    deadline: ""
+    budget: ""
+    experience_notes: ""
+    must_use_tech: []
+  operational_reality:
+    in_production_today: false
+    prod_users_or_data: ""
+    external_contracts_to_preserve: []
+    uptime_expectations: ""
+  default_implications:
+    backward_compatibility: "not_required" # required|not_required|boundary_only
+    migration_planning: "not_required" # required|not_required
+    rollout_controls: "lightweight" # none|lightweight|required
+    deprecation_policy: "not_required_yet" # required|not_required_yet
+    observability_threshold: "standard" # minimal|standard|high|regulated
+
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 3
+  baseline_rationale:
+    - ""
+
+domains: []
+# domains:
+#   - name: "auth"
+#     blast_radius: "high"
+#     touches: ["pii","money","external_users"]
+#     constraints: []
+
+dimensions:
+  - name: "speed_vs_quality"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "type_safety_static_analysis"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "testing_rigor"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "scalability_performance"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "reliability_operability"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "security_privacy"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "observability"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "dx_tooling_automation"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+  - name: "ux_polish_api_usability"
+    level: null
+    default_stance: ""
+    raise_the_bar_triggers: []
+    allowed_shortcuts: []
+    red_lines: []
+    domain_overrides: []
+
+exceptions:
+  approvers: ["project_owner"]
+  record_location: "CHARTER.md#exceptions"
+  minimum_fields: ["what", "why", "scope", "risk", "owner", "expiry_or_revisit_date"]
+
+debt_tracking:
+  system: "issues"
+  labels: ["debt"]
+  review_cadence: "monthly"
+
+decision_records:
+  enabled: true
+  path: "docs/decisions"
+  format: "md"
+
