@@ -1,4 +1,4 @@
-<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m4-autoplan-restore-20260415-211546.md -->
+<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/main-autoplan-restore-20260416-191254.md -->
 <!-- previous reduced-v1 baseline archived at .implemented/PLAN-20260409-144209-reduced-v1-baseline.md -->
 # PLAN
 
@@ -1892,19 +1892,378 @@ Prerequisite status:
 
 ### M5. Downstream Consumer Adoption
 
+Status:
+
+- next active milestone after shipped `M4` on `main`
+- this is the active implementation plan for proving real downstream adoption, not just handoff plausibility
+
 Goal:
 
-- replace one real downstream planning consumer's repo-grounding step with the artifacts proven in `M4`
+- prove one named downstream planning consumer, `feature-slice-decomposer`, can complete one real feature-to-slice planning job from compiler outputs without reopening repo truth outside an explicit fallback contract
+- add one compiler-owned, versioned downstream handoff bundle plus manifest in a clearly non-canonical zone so downstream trust has an explicit authority model
+- capture before / after adoption evidence that shows fewer repo rereads, smaller grounding, fewer manual patch-ups, and a bounded trust path
 
-Must prove:
+Why this exists now:
 
-- one named downstream planning consumer can start from the `M4` handoff artifact set without reopening the repo to rediscover the same truth
-- freshness and provenance rules tell that consumer exactly what is trustworthy, stale, derived, and still manual
-- the handoff is materially smaller than raw repo re-grounding, using an explicit before/after comparison instead of intuition
+- `M4` ended honestly at a derived handoff package, not at canonical promotion:
+  - `artifacts/charter/CHARTER.md`
+  - optional `artifacts/project_context/PROJECT_CONTEXT.md`
+  - `artifacts/foundation/*`
+  - `artifacts/feature_spec/FEATURE_SPEC.md`
+- the current planning packet and manifest contracts still treat only repo-local `.system/*` as canonical project truth
+- raw artifact reuse is not proof of downstream adoption, because it can hide repo rereads or accidental canonical promotion
 
-Preferred first consumer:
+### Step 0. Scope Challenge
 
-- the first downstream feature-to-slice planning consumer that currently re-reads charter, project context, and foundation files before it can trust a feature-spec basis
+Exact user outcome:
+
+- after the shipped `M4` flow, the operator runs one explicit downstream handoff emission step:
+  - `system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
+- that step emits one non-canonical bundle under `artifacts/handoff/feature_slice/<feature-id>/`
+- the bundle is the only admissible downstream basis for the named consumer and contains:
+  - a versioned `handoff_manifest.json`
+  - a `trust_matrix.md` or equivalent machine-readable trust-class listing
+  - fingerprints for the canonical `.system/*` inputs the bundle was derived from
+  - fingerprints for the derived `artifacts/foundation/*` and `artifacts/feature_spec/FEATURE_SPEC.md` inputs the consumer may read
+  - `route_basis` fingerprint and revision, compile payload hash, directive or template version, producer version, and explicit manual-boundary disclosures
+  - the exact allowed read set plus explicit fallback conditions
+- the named consumer or repo-local harness reads only that bundle and produces one concrete downstream planning output:
+  - `artifacts/planning/feature_slice/<feature-id>/SLICE_PLAN.md`
+- the repo captures one before / after scorecard for that same job:
+  - repo files reopened
+  - grounding bytes and sections passed to the consumer
+  - manual patch-ups required
+  - elapsed operator steps
+
+Premise lock:
+
+- `.system/*` remains the only canonical project-truth input set under [`docs/contracts/C-03-canonical-artifact-manifest-contract.md`](docs/contracts/C-03-canonical-artifact-manifest-contract.md); `M5` does **not** broaden canonical inputs
+- `artifacts/*` remain derived; `M5` does **not** silently promote captured stage outputs into canonical `.system/*`
+- the final stage-10 `FEATURE_SPEC.md` remains `external_manual_derived`, not compiler-derived, and the downstream consumer must see that trust class explicitly
+- `M5` succeeds only when the named consumer finishes one real planning job from the emitted handoff bundle and explicit fallback rules; “consumer can start from artifacts” is not enough
+- if the consumer reopens charter, project context, foundation, or feature-spec repo files outside the declared bundle, `M5` fails unless the fallback condition is explicitly allowed and recorded
+
+Assumption ledger:
+
+| Premise | Status | What disproves it | Handling |
+| --- | --- | --- | --- |
+| Current canonical docs are already good enough to support downstream adoption | assumed | the named consumer still falls back because the basis bundle is missing decisions or conflicts | stop and run a canonical-input quality audit before widening compiler surfaces |
+| `feature-slice-decomposer` can consume compiler outputs with a handoff change rather than a repo-reread change | must prove | the consumer still needs charter/project context/foundation repo archaeology outside the bundle | `M5` fails; do not claim adoption |
+| Downstream trust can be established without changing canonical `.system/*` authority | accepted with contract work | the only working path requires silent canonical promotion or raw artifact-as-truth behavior | treat that as a separate plan change, not hidden implementation detail |
+| Operator-pain reduction is measurable on one real job | accepted | the team cannot show concrete before / after read-set and manual-step reduction | keep expansion blocked until the scorecard exists |
+
+Implementation alternatives:
+
+| Approach | Effort | Risk | Why it is or is not the `M5` choice |
+| --- | --- | --- | --- |
+| Let the consumer read raw `artifacts/*` directly and call that adoption | S | Critical | Rejected. It collides with the canonical-input contract and makes trust informal. |
+| Promote `artifacts/*` into canonical `.system/*` as part of stage-10 capture | M | Critical | Rejected. It hides a new authority boundary inside the wrong milestone and breaks the explicit `M4` contract. |
+| Emit one explicit downstream handoff bundle plus manifest, then run one named consumer from that bundle only | M | Medium | Recommended. It keeps `.system/*` canonical while giving the consumer one explicit derived trust surface. |
+| Implement the full downstream seam and slice ecosystem inside this repo | L | High | Deferred. That widens the repo far beyond the next proof we need. |
+
+Implementation slices:
+
+1. Lock the derived handoff contract, trust classes, fallback rules, and success criteria in one contract doc and in this milestone.
+2. Add the handoff emitter surface and compiler-owned manifest builder without changing canonical `.system/*` rules.
+3. Add one named-consumer harness that can only read the emitted bundle and that writes one `SLICE_PLAN.md` proof output.
+4. Add the refusal corpus for stale canonical inputs, tampered derived inputs, missing provenance, trust-class mismatch, and undeclared repo rereads.
+5. Add the before / after scorecard plus docs and vocabulary parity so the trust story is exact everywhere the operator will read it.
+
+### What Already Exists
+
+- route truth, `route_basis`, and stage-output materialization already exist in:
+  - [`crates/compiler/src/route_state.rs`](crates/compiler/src/route_state.rs)
+  - [`crates/compiler/src/pipeline_capture.rs`](crates/compiler/src/pipeline_capture.rs)
+  - [`crates/compiler/src/pipeline_compile.rs`](crates/compiler/src/pipeline_compile.rs)
+- canonical manifest and freshness truth already exist for `.system/*` in:
+  - [`crates/compiler/src/canonical_artifacts.rs`](crates/compiler/src/canonical_artifacts.rs)
+  - [`crates/compiler/src/artifact_manifest.rs`](crates/compiler/src/artifact_manifest.rs)
+  - [`docs/contracts/C-03-canonical-artifact-manifest-contract.md`](docs/contracts/C-03-canonical-artifact-manifest-contract.md)
+- resolver decision logs already surface `C-03` provenance for canonical packet flows in [`crates/compiler/src/resolver.rs`](crates/compiler/src/resolver.rs)
+- the shipped planning packet surfaces still read only canonical `.system/*`; this is correct today and must remain true unless a later contract changes it
+- `M4` already ships the realistic journey proof corpus and evidence bundle under [`tests/fixtures/foundation_flow_demo/`](tests/fixtures/foundation_flow_demo/) and [`docs/CLI_OPERATOR_JOURNEY.md`](docs/CLI_OPERATOR_JOURNEY.md)
+- what does **not** exist yet is:
+  - a derived downstream handoff contract
+  - a named consumer harness with bundle-only read rules
+  - a trust-class model for external/manual stage-10 output
+  - a concrete before / after adoption scorecard
+
+### Architecture Review
+
+Architecture ASCII diagram:
+
+```text
+canonical truth
+  .system/charter/CHARTER.md
+  .system/project_context/PROJECT_CONTEXT.md?
+  .system/feature_spec/FEATURE_SPEC.md?   [canonical boundary unchanged]
+          │
+          ├── existing C-03 manifest + freshness
+          └── existing resolver provenance
+          │
+          v
+M4 derived outputs
+  artifacts/charter/CHARTER.md
+  artifacts/project_context/PROJECT_CONTEXT.md?
+  artifacts/foundation/*
+  artifacts/feature_spec/FEATURE_SPEC.md   [external_manual_derived]
+          │
+          v
+new M5 handoff emitter
+  system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
+          │
+          v
+artifacts/handoff/feature_slice/<feature-id>/
+  handoff_manifest.json
+  trust_matrix.md
+  read_allowlist.json
+  scorecard/
+          │
+          v
+feature-slice-decomposer harness
+  - reads bundle only
+  - refuses on stale, tampered, missing, or misclassified inputs
+          │
+          v
+artifacts/planning/feature_slice/<feature-id>/SLICE_PLAN.md
+```
+
+Opinionated architecture decisions:
+
+- add one explicit handoff emission surface under `pipeline`; do not overload `generate` or `inspect`
+- the handoff bundle is derived, versioned, and consumer-specific; it is not a shadow canonical zone
+- the bundle manifest, not raw `artifacts/*` paths, is the thing the consumer trusts
+- trust must be file-by-file and explicit:
+  - `canonical`
+  - `compiler_derived`
+  - `external_manual_derived`
+- consumer fallback must refuse first and only allow repo rereads when the fallback condition is explicitly declared and logged
+- do not build a multi-consumer framework in `M5`; one allowlisted consumer is enough to prove the thesis
+
+Concrete module boundaries:
+
+- compiler ownership:
+  - manifest assembly
+  - provenance and fingerprint checks
+  - trust-class encoding
+  - bundle directory layout
+- CLI ownership:
+  - argument parsing
+  - refusal rendering
+  - operator-facing proof output
+- harness ownership:
+  - bundle-only read enforcement
+  - acceptance output generation
+  - before / after scorecard capture
+
+Implementation file budget:
+
+- prefer one new compiler module such as `crates/compiler/src/pipeline_handoff.rs`
+- keep CLI wiring thin in [`crates/cli/src/main.rs`](crates/cli/src/main.rs) or the current command-surface split if that file is already too dense
+- add one contract doc for the derived handoff bundle rather than scattering the boundary across multiple prose files
+- if a second compiler module is needed, use it only for manifest schema or renderer separation, not for a generic handoff framework
+
+ASCII comments that should land with implementation:
+
+- `crates/compiler/src/pipeline_handoff.rs`, include a short directory-layout and provenance-flow diagram
+- consumer harness test support, include a short allowed-read versus refusal-path diagram if the fixture rules become non-obvious
+
+### Code Quality Review
+
+Minimum-diff posture:
+
+- reuse existing manifest, provenance, route-basis, and capture metadata instead of inventing a second freshness engine
+- keep the first consumer path explicit and allowlisted, not plugin-driven
+- keep trust-class decisions data-driven in the manifest, not spread across hardcoded branch logic in multiple modules
+- keep bundle writing one-way: emit derived output, do not mutate canonical `.system/*`
+
+Expected touch surfaces:
+
+| Area | Expected modules |
+| --- | --- |
+| Handoff bundle builder | `crates/compiler/src/`, `crates/cli/src/` |
+| Handoff contract | `docs/contracts/` |
+| Consumer harness + scorecard | `tests/fixtures/`, `crates/cli/tests/`, optional shared test support |
+| Docs / vocabulary parity | `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/CLI_PRODUCT_VOCABULARY.md`, `docs/CLI_OPERATOR_JOURNEY.md`, `PLAN.md` |
+
+Overbuild traps to reject:
+
+- a generic consumer adapter registry
+- a second manifest system that duplicates `C-03`
+- background mutation or auto-heal behavior when provenance mismatches
+- any implementation that requires bundle consumers to know repo internals to succeed
+
+### Test Review
+
+```text
+CONSUMER ADOPTION COVERAGE
+===========================
+[+] emit handoff bundle
+    │
+    ├── [GAP] [→CLI] happy path emit from real `M4` fixture
+    ├── [GAP] [→CLI/HARNESS] consumer reads bundle only and writes
+    │                       `artifacts/planning/feature_slice/<feature-id>/SLICE_PLAN.md`
+    └── [GAP] [→ARTIFACT] before/after scorecard captures read-set, grounding size,
+                          manual patch-ups, and operator steps
+
+TRUST / PROVENANCE COVERAGE
+===========================
+[+] bundle truth
+    │
+    ├── [GAP] [→TEST] stale canonical-basis refusal after `.system/*` mutation
+    ├── [GAP] [→TEST] tampered derived-artifact refusal after `artifacts/*` mutation
+    ├── [GAP] [→TEST] missing or corrupt provenance refusal
+    ├── [GAP] [→TEST] trust-class mismatch refusal
+    └── [GAP] [→TEST] consumer-assumption mismatch refusal instead of silent repo reread
+
+CANONICAL BOUNDARY COVERAGE
+===========================
+[+] existing planning packet truth
+    │
+    ├── [GAP] [→TEST] `generate` and `inspect` still treat only `.system/*` as canonical
+    └── [GAP] [→TEST] handoff emission does not silently create or mutate canonical `.system/*`
+
+─────────────────────────────────
+COVERAGE: 0/8 gaps closed in plan text alone
+  Consumer adoption: 0/3
+  Trust / provenance: 0/5
+QUALITY TARGET: every gap closed before `M5` is marked complete
+─────────────────────────────────
+```
+
+Required test artifacts:
+
+1. One happy-path bundle-emission plus consumer-adoption proof using a real `M4` fixture.
+2. One stale-canonical-input refusal test.
+3. One tampered-derived-artifact refusal test.
+4. One missing-provenance refusal test.
+5. One trust-class mismatch refusal test.
+6. One consumer-assumption mismatch refusal test.
+7. One canonical-boundary regression test for existing planning packet flows.
+8. One committed before / after scorecard artifact with exact read-set and grounding-size deltas.
+
+Required assertions:
+
+- the consumer reads only the allowlisted bundle paths on the happy path
+- every refusal class is distinct and points to the next safe action
+- `external_manual_derived` stays explicit all the way through bundle emission and consumer validation
+- existing packet flows stay green without learning anything about downstream handoff bundles
+
+### Performance Review
+
+Performance and determinism rules:
+
+- bundle emission must hash only the declared canonical and derived inputs, not the whole repo
+- proof runs stay offline and fixture-backed; no live model execution or network access in automated tests
+- handoff manifests and scorecards must be deterministic across reruns
+- the consumer harness must log allowed reads and fallbacks in stable order so the before / after comparison stays reviewable
+- refuse on stale or mismatched provenance before the consumer does expensive work
+
+Expected hot paths:
+
+- manifest assembly over a bounded read set
+- fingerprint verification over already-declared files
+- harness read logging over one allowlisted bundle tree
+
+Performance smells that fail review:
+
+- full-repo scans during emit
+- recomputing unrelated compiler state to validate one bundle
+- nondeterministic scorecard ordering that makes adoption evidence noisy
+
+### Failure Modes Registry
+
+| Failure mode | Severity | Test required | Error handling required | User-visible outcome |
+| --- | --- | --- | --- | --- |
+| raw `artifacts/*` are treated like canonical runtime inputs | Critical | yes | hard refusal | explicit contract-boundary refusal |
+| stage-10 `FEATURE_SPEC.md` is mislabeled as compiler-derived | Critical | yes | hard refusal | explicit trust-class mismatch |
+| downstream consumer silently reopens repo files outside the bundle | Critical | yes | hard refusal plus read-log evidence | explicit undeclared-read refusal |
+| bundle provenance is missing, stale, or tampered but consumer proceeds | Critical | yes | hard refusal before planning starts | explicit provenance refusal |
+| scorecard cherry-picks a friendly baseline instead of the actual old flow | High | yes | deterministic baseline definition in fixtures | explicit scorecard provenance note |
+| bundle emission mutates canonical `.system/*` | High | yes | hard refusal or test failure | explicit canonical-mutation regression |
+
+Critical gaps:
+
+- any path that has no test, no refusal, and no operator-visible error is a release blocker for `M5`
+- silent fallback to repo rereads is a release blocker even if the happy path looks good
+
+### Required Deliverables
+
+1. One explicit derived handoff contract in `docs/contracts/`.
+2. One explicit `pipeline handoff emit` surface or equivalent narrow compiler-owned emission step.
+3. One versioned handoff bundle manifest with trust classes, fingerprints, provenance, and fallback rules.
+4. One repo-local harness for `feature-slice-decomposer` if the real consumer stays off-repo.
+5. One accepted `SLICE_PLAN.md` happy-path proof artifact.
+6. One refusal corpus for stale, tampered, missing-provenance, and trust-class mismatch cases.
+7. One before / after grounding scorecard and transcript bundle.
+8. Docs and vocabulary parity updates that keep canonical truth, derived trust, and manual boundaries exact.
+
+### NOT In Scope
+
+- broadening the canonical `.system/*` input contract
+- silently promoting `artifacts/*` into canonical `.system/*`
+- building a multi-consumer plugin system
+- wiring the full seam, slice, or execution ecosystem inside this repo
+- live model execution inside the Rust CLI
+- UI or MCP wrapper work
+- broad generic command provenance beyond what the `M5` bundle needs
+
+### Worktree Parallelization Strategy
+
+Dependency table:
+
+| Step | Modules touched | Depends on |
+| --- | --- | --- |
+| A. Lock the derived handoff contract, trust classes, and success criteria | `docs/contracts/`, `PLAN.md` | — |
+| B. Add bundle emission surface and compiler manifest builder | `crates/compiler/`, `crates/cli/` | A |
+| C. Add named-consumer harness and happy-path proof | `tests/fixtures/`, `crates/cli/tests/` | A, B |
+| D. Add stale, tampered, provenance, and canonical-boundary refusal corpus | `tests/fixtures/`, `crates/cli/tests/`, optional compiler tests | A, B |
+| E. Publish scorecard plus docs and vocabulary cutover | `docs/`, `PLAN.md`, `tests/fixtures/` | A, B, C, D |
+
+Parallel lanes:
+
+- Lane A: A
+- Lane B: B
+- Lane C: C
+- Lane D: D
+- Lane E: E
+
+Execution order:
+
+- launch Lane A first and merge it before code starts
+- launch Lane B next
+- once Lane B freezes the manifest shape and CLI wording, launch Lane C and Lane D in parallel worktrees
+- merge Lane C and Lane D, then finish Lane E as the final cutover pass
+
+Conflict flags:
+
+- Lanes C and D both touch `tests/fixtures/` and `crates/cli/tests/`, so parallel work is valid only if fixture directories or test files are pre-split; otherwise run them sequentially inside one lane
+- Lane E touches `PLAN.md` and docs already touched by Lane A, so do not start Lane E early
+
+### Exit Criteria
+
+- one named consumer is proved, not merely suggested
+- the derived handoff bundle has one explicit authority model and one explicit trust-class model
+- the happy path produces one accepted downstream planning output from bundle-only inputs
+- stale, tampered, missing-provenance, and undeclared-read cases refuse explicitly
+- canonical `.system/*` authority stays unchanged for existing planning packet flows
+- the before / after scorecard shows concrete repo-reread and grounding-size reduction for the same job
+- docs, contracts, tests, and milestone prose all agree on the same boundary
+
+### Completion Summary
+
+- Step 0: Scope Challenge, scope accepted as-is and narrowed to one named consumer plus one derived handoff contract
+- Architecture Review: 0 open architecture questions, 6 architecture decisions locked
+- Code Quality Review: 4 code-structure guardrails locked, no generic framework work admitted
+- Test Review: diagram produced, 8 required coverage gaps enumerated
+- Performance Review: 5 determinism and hot-path rules locked
+- NOT in scope: written
+- What already exists: written
+- TODOS.md updates: none required, existing deferred items remain valid
+- Failure modes: 4 release-blocking critical gaps identified
+- Outside voice: historical review inputs already incorporated, no new external review run in this rewrite
+- Parallelization: 5 lanes total, 2 lanes parallelizable after compiler surface freeze, 3 sequential gates
+- Lake Score: complete option preserved across boundary, trust, proof, and refusal design
 
 This is where the wedge starts paying back the operator tax for real.
 
@@ -1977,21 +2336,22 @@ The first wedge is only real when all of the following are true for the chosen f
 
 ## Immediate Next Work
 
-1. Correct the active M4 boundary everywhere it appears: stage 10 is `compile -> external model output -> capture`, not direct `compile | capture`.
-2. Define one exact demo fixture under `tests/fixtures/foundation_flow_demo/`, including:
-   - primary `needs_project_context=true` path
-   - secondary `needs_project_context=false` path with `charter_gaps_detected=false` by fixture design
-3. Add happy-path and skip-path CLI journey tests that use the demo fixture, fixed `now_utc`, explicit stage-10 response fixtures, and final artifact assertions.
-4. Add one feature-spec contract checker tied to the current directive/template, plus deterministic evidence normalization for `capture_id` and clock-driven fields.
-5. Publish one operator-journey artifact, one small journey scorecard, and docs/contract parity updates so the shipped stopping point and remaining manual boundaries are exact.
+1. Lock the `M5` authority model in one place:
+   - `.system/*` stays canonical
+   - `artifacts/*` stay derived
+   - the new downstream bundle is explicit, versioned, and non-canonical
+2. Name `feature-slice-decomposer` as the first consumer and define the exact accepted output plus allowed read set.
+3. Add one explicit bundle-emission surface plus handoff manifest with trust classes, fingerprints, and fallback rules.
+4. Add happy-path, stale, tampered, missing-provenance, and trust-class mismatch regressions for the named consumer path.
+5. Publish one before / after scorecard, one transcript bundle, and docs / vocabulary parity updates so `M5` can prove operator-pain reduction honestly.
 
-## Explicit Non-Goals For M4
+## Explicit Non-Goals For M5
 
-- do not add `pipeline run`, `pipeline compile --write`, or any other orchestration mega-command
-- do not auto-decide `needs_project_context`
-- do not promote captured stage outputs directly into canonical `.system/` artifacts
-- do not wire live downstream seam or execution consumers yet
-- do not widen into onboarding chat, public distribution, or UI wrapper work
+- do not broaden the canonical `.system/*` input contract
+- do not silently promote captured stage outputs into canonical `.system/*`
+- do not build a multi-consumer framework
+- do not wire the full seam or execution ecosystem into this repo
+- do not widen into live model execution, UI wrapper work, or public-distribution work
 
 Stay on the wedge until the operator pain is materially reduced.
 
@@ -2218,6 +2578,13 @@ Cross-phase themes:
 | 15 | CEO | Pull one bounded downstream consumer-readiness check into M4, but keep actual consumer adoption in M5 | taste | choose completeness | An operator-only path would duplicate what the repo already nearly proves; one light handoff check closes the usefulness gap without widening into real downstream integration. | stopping M4 at a pure operator journey or moving full downstream adoption into M4 |
 | 16 | Eng | Require the actual stage-10 shell pipe in M4 proof coverage | auto-decided | explicit over clever | The current route-progression test still hands capture an in-process compiled payload, which is weaker than the documented operator path. | treating the existing stage-10 shortcut as sufficient end-to-end proof |
 | 17 | Eng | Use a dedicated realistic demo corpus for M4 instead of overloading the shared proof corpus | taste | pragmatic | The proof corpus should stay small and contract-focused; M4 needs a more believable operator story fixture. | cramming adoption-proof concerns into the contract regression corpus |
+| 18 | Intake | Refresh the restore point on `main` before reworking M5 | mechanical | explicit over clever | The top-of-file restore marker still pointed at a `feat/m4` snapshot, which made the new M5 rewrite harder to reverse cleanly. | editing the active plan against a stale restore breadcrumb |
+| 19 | CEO | Reframe M5 from artifact substitution to workflow replacement | user_challenge | choose completeness | Both outside CEO voices agreed that “consumer can start from artifacts” is too weak. The proof target has to be one named consumer finishing one real job without repo archaeology. | treating smaller handoff input alone as product proof |
+| 20 | CEO | Name `feature-slice-decomposer` as the first M5 consumer | taste | bias toward action | A generic “downstream consumer” is not falsifiable. Naming one exact feature-to-slice consumer forces a concrete input contract, output target, and failure condition. | leaving the first consumer abstract |
+| 21 | Eng | Keep `.system/*` canonical and introduce one explicit non-canonical downstream handoff bundle | auto-decided | explicit over clever | Current contracts reject raw `artifacts/*` as canonical runtime inputs. The cleanest path is a derived, versioned bundle plus manifest rather than silent promotion or shadow truth. | direct raw-artifact adoption or hidden canonical promotion |
+| 22 | Eng | Pull minimal provenance and trust classes into M5 itself | auto-decided | choose completeness | M5 cannot ask a downstream consumer to trust derived outputs while leaving the trust model in TODO-only form. Route-basis fingerprint, payload hash, producer version, and trust class are part of the milestone. | deferring all provenance to later generic work |
+| 23 | Eng | Add a before / after scorecard as an M5 deliverable | auto-decided | pragmatic | The repo’s success criteria already hinge on reduced rereads and less babysitting. Without a concrete scorecard, M5 can pass on narrative instead of evidence. | claiming operator-pain reduction without measurement |
+| 24 | Eng | Replace the stale M4 “Immediate Next Work” list with M5 actions | mechanical | explicit over clever | Leaving shipped M4 tasks at the active frontier would blur the post-M4 baseline and make the next milestone look half-open. | keeping old M4 closure tasks as the active next work list |
 
 ## GSTACK REVIEW REPORT
 
