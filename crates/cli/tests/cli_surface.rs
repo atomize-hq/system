@@ -113,6 +113,10 @@ fn foundation_flow_demo_root() -> std::path::PathBuf {
     workspace_root().join("tests/fixtures/foundation_flow_demo")
 }
 
+fn foundation_flow_demo_evidence_root() -> std::path::PathBuf {
+    foundation_flow_demo_root().join("evidence")
+}
+
 fn install_foundation_flow_demo_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
@@ -138,6 +142,11 @@ fn read_foundation_flow_demo_expected(case: &str, filename: &str) -> String {
             .join(filename),
     )
     .unwrap_or_else(|err| panic!("read demo expected output {case}/{filename}: {err}"))
+}
+
+fn read_foundation_flow_demo_evidence(filename: &str) -> String {
+    std::fs::read_to_string(foundation_flow_demo_evidence_root().join(filename))
+        .unwrap_or_else(|err| panic!("read demo evidence {filename}: {err}"))
 }
 
 fn canonical_repo_root(path: &std::path::Path) -> std::path::PathBuf {
@@ -592,7 +601,7 @@ fn stage_10_compile_payload(root: &std::path::Path) -> String {
 }
 
 fn stage_10_completed_feature_spec_input() -> String {
-    read_foundation_flow_demo_model_output("happy_path", "stage_10_feature_spec.md")
+    pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md")
 }
 
 fn normalize_capture_id(output: &str) -> String {
@@ -613,6 +622,331 @@ fn normalize_capture_id(output: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn normalize_evidence_output(output: &str, repo_root: &std::path::Path) -> String {
+    pipeline_proof_corpus_support::normalize_output_for_proof(
+        &normalize_capture_id(output),
+        repo_root,
+        &[],
+    )
+}
+
+fn append_evidence_step(transcript: &mut String, command: &str, stdout: &str) {
+    if !transcript.is_empty() {
+        transcript.push('\n');
+    }
+    transcript.push_str("$ ");
+    transcript.push_str(command);
+    transcript.push('\n');
+    transcript.push_str(stdout.trim_end());
+    transcript.push('\n');
+}
+
+fn record_evidence_step(
+    transcript: &mut String,
+    repo_root: &std::path::Path,
+    command: &str,
+    output: Output,
+) {
+    assert!(output.status.success(), "command should succeed: {command}");
+    let stdout = String::from_utf8(output.stdout).expect("command stdout is utf-8");
+    append_evidence_step(
+        transcript,
+        command,
+        &normalize_evidence_output(&stdout, repo_root),
+    );
+}
+
+fn happy_path_evidence_transcript() -> String {
+    let (_dir, root) = install_foundation_flow_demo_repo();
+    let mut transcript = String::new();
+
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline resolve --id foundation_inputs",
+        run_in(
+            root.as_path(),
+            &["pipeline", "resolve", "--id", "foundation_inputs"],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_04_charter_inputs.txt",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.04_charter_inputs",
+            ],
+            &read_foundation_flow_demo_model_output("happy_path", "stage_04_charter_inputs.txt"),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_05_charter_synthesize.md",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.05_charter_synthesize",
+            ],
+            &read_foundation_flow_demo_model_output("happy_path", "stage_05_charter_synthesize.md"),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline state set --id foundation_inputs --var needs_project_context=true",
+        run_in(
+            root.as_path(),
+            &[
+                "pipeline",
+                "state",
+                "set",
+                "--id",
+                "foundation_inputs",
+                "--var",
+                "needs_project_context=true",
+            ],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline resolve --id foundation_inputs",
+        run_in(
+            root.as_path(),
+            &["pipeline", "resolve", "--id", "foundation_inputs"],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.06_project_context_interview < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_06_project_context_interview.md",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.06_project_context_interview",
+            ],
+            &read_foundation_flow_demo_model_output(
+                "happy_path",
+                "stage_06_project_context_interview.md",
+            ),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline resolve --id foundation_inputs",
+        run_in(
+            root.as_path(),
+            &["pipeline", "resolve", "--id", "foundation_inputs"],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_07_foundation_pack.txt",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.07_foundation_pack",
+            ],
+            &read_foundation_flow_demo_model_output("happy_path", "stage_07_foundation_pack.txt"),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z system pipeline compile --id foundation_inputs --stage stage.10_feature_spec",
+        run_in_with_env(
+            root.as_path(),
+            &[
+                "pipeline",
+                "compile",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.10_feature_spec",
+            ],
+            &[(
+                system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                FIXED_NOW_UTC,
+            )],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_10_feature_spec.md",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.10_feature_spec",
+            ],
+            &read_foundation_flow_demo_model_output("happy_path", "stage_10_feature_spec.md"),
+        ),
+    );
+
+    transcript
+}
+
+fn skip_path_evidence_transcript() -> String {
+    let (_dir, root) = install_foundation_flow_demo_repo();
+    let mut transcript = String::new();
+
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline resolve --id foundation_inputs",
+        run_in(
+            root.as_path(),
+            &["pipeline", "resolve", "--id", "foundation_inputs"],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_04_charter_inputs.txt",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.04_charter_inputs",
+            ],
+            &read_foundation_flow_demo_model_output("skip_path", "stage_04_charter_inputs.txt"),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_05_charter_synthesize.md",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.05_charter_synthesize",
+            ],
+            &read_foundation_flow_demo_model_output("skip_path", "stage_05_charter_synthesize.md"),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline state set --id foundation_inputs --var needs_project_context=false",
+        run_in(
+            root.as_path(),
+            &[
+                "pipeline",
+                "state",
+                "set",
+                "--id",
+                "foundation_inputs",
+                "--var",
+                "needs_project_context=false",
+            ],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline resolve --id foundation_inputs",
+        run_in(
+            root.as_path(),
+            &["pipeline", "resolve", "--id", "foundation_inputs"],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_07_foundation_pack.txt",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.07_foundation_pack",
+            ],
+            &read_foundation_flow_demo_model_output("skip_path", "stage_07_foundation_pack.txt"),
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z system pipeline compile --id foundation_inputs --stage stage.10_feature_spec",
+        run_in_with_env(
+            root.as_path(),
+            &[
+                "pipeline",
+                "compile",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.10_feature_spec",
+            ],
+            &[(
+                system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                FIXED_NOW_UTC,
+            )],
+        ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_10_feature_spec.md",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.10_feature_spec",
+            ],
+            &read_foundation_flow_demo_model_output("skip_path", "stage_10_feature_spec.md"),
+        ),
+    );
+
+    transcript
 }
 
 fn assert_pipeline_capture_preview_refusal(
@@ -1600,6 +1934,42 @@ fn pipeline_foundation_inputs_m4_skip_path_skips_stage_06_when_both_route_predic
             .expect("feature spec artifact"),
         read_foundation_flow_demo_expected("skip_path", "final_feature_spec.md")
     );
+}
+
+#[test]
+fn pipeline_foundation_inputs_m4_happy_path_matches_committed_evidence_bundle() {
+    assert_eq!(
+        happy_path_evidence_transcript(),
+        read_foundation_flow_demo_evidence("happy_path.transcript.txt"),
+        "happy-path evidence transcript drifted; update the committed bundle under tests/fixtures/foundation_flow_demo/evidence/ if intentional"
+    );
+}
+
+#[test]
+fn pipeline_foundation_inputs_m4_skip_path_matches_committed_evidence_bundle() {
+    assert_eq!(
+        skip_path_evidence_transcript(),
+        read_foundation_flow_demo_evidence("skip_path.transcript.txt"),
+        "skip-path evidence transcript drifted; update the committed bundle under tests/fixtures/foundation_flow_demo/evidence/ if intentional"
+    );
+}
+
+#[test]
+fn pipeline_foundation_inputs_m4_evidence_bundle_manifest_declares_normalization_rules() {
+    let manifest = read_foundation_flow_demo_evidence("README.md");
+
+    for phrase in [
+        "SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z",
+        "`{{CAPTURE_ID}}`",
+        "`{{REPO_ROOT}}`",
+        "`{{STATE_PATH}}`",
+        "Shared stage-10 contract regressions read their completed external output from `tests/fixtures/pipeline_proof_corpus/foundation_inputs/model_outputs/stage_10_feature_spec.md`.",
+    ] {
+        assert!(
+            manifest.contains(phrase),
+            "evidence manifest missing phrase `{phrase}`"
+        );
+    }
 }
 
 #[cfg(unix)]

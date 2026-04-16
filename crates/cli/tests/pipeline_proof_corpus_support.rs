@@ -64,6 +64,14 @@ pub fn assert_matches_golden_with_placeholders(
     assert_matches_normalized_output(&normalized_actual, golden_name);
 }
 
+pub fn normalize_output_for_proof(
+    actual: &str,
+    repo_root: &Path,
+    placeholders: &[(&Path, &str)],
+) -> String {
+    normalize_output(actual, repo_root, placeholders)
+}
+
 fn assert_matches_normalized_output(actual: &str, golden_name: &str) {
     let expected = read_golden(golden_name);
     assert_eq!(
@@ -159,6 +167,15 @@ fn copy_tree(source: &Path, target: &Path) {
 
 fn committed_repo_root() -> PathBuf {
     committed_case_root().join("repo")
+}
+
+pub fn read_committed_model_output(relative_path: &str) -> String {
+    let path = committed_case_root()
+        .join("model_outputs")
+        .join(relative_path);
+    normalize_newlines(
+        &fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display())),
+    )
 }
 
 fn committed_case_root() -> PathBuf {

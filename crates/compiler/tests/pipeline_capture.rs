@@ -2,7 +2,7 @@
 mod pipeline_proof_corpus_support;
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use system_compiler::{
@@ -112,38 +112,8 @@ fn stage_10_compile_payload(repo_root: &Path) -> String {
     render_pipeline_compile_payload(&result)
 }
 
-fn workspace_root() -> PathBuf {
-    let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for ancestor in start.ancestors() {
-        let cargo_toml = ancestor.join("Cargo.toml");
-        if !cargo_toml.is_file() {
-            continue;
-        }
-        let Ok(contents) = fs::read_to_string(&cargo_toml) else {
-            continue;
-        };
-        if contents.contains("[workspace]") {
-            return ancestor.to_path_buf();
-        }
-    }
-
-    panic!(
-        "failed to locate workspace root from CARGO_MANIFEST_DIR={}",
-        env!("CARGO_MANIFEST_DIR")
-    );
-}
-
 fn stage_10_completed_feature_spec_input() -> String {
-    fs::read_to_string(
-        workspace_root()
-            .join("tests")
-            .join("fixtures")
-            .join("foundation_flow_demo")
-            .join("model_outputs")
-            .join("happy_path")
-            .join("stage_10_feature_spec.md"),
-    )
-    .expect("stage 10 completed feature spec fixture")
+    pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md")
 }
 
 fn normalize_capture_id(output: &str, capture_id: &str) -> String {

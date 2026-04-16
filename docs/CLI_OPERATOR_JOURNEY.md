@@ -20,6 +20,7 @@ M4 stops at:
 The current M4 proof is grounded in these repo surfaces:
 
 - Fixture corpus: [`tests/fixtures/foundation_flow_demo/`](../tests/fixtures/foundation_flow_demo/)
+- Deterministic evidence bundle: [`tests/fixtures/foundation_flow_demo/evidence/`](../tests/fixtures/foundation_flow_demo/evidence/)
 - CLI journey proofs:
   - [`pipeline_foundation_inputs_m4_happy_path_proves_real_stage_10_handoff`](../crates/cli/tests/cli_surface.rs)
   - [`pipeline_foundation_inputs_m4_skip_path_skips_stage_06_when_both_route_predicates_are_false`](../crates/cli/tests/cli_surface.rs)
@@ -112,6 +113,9 @@ The proof surfaces keep reruns stable in two ways:
   `now_utc` value.
 - CLI and compiler capture-preview assertions normalize the generated `capture_id` to
   `{{CAPTURE_ID}}`, so deterministic preview/apply evidence does not drift on rerun.
+- The committed transcripts under
+  [`tests/fixtures/foundation_flow_demo/evidence/`](../tests/fixtures/foundation_flow_demo/evidence/)
+  are the operator-visible proof bundle for the happy and skip paths.
 
 The dedicated corpus under `tests/fixtures/foundation_flow_demo/` keeps the journey local,
 committed, and independent of any network call during proof execution.

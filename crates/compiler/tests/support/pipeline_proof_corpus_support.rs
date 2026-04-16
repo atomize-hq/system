@@ -87,6 +87,15 @@ pub fn read_committed_fixture(relative_path: &str) -> String {
     )
 }
 
+pub fn read_committed_model_output(relative_path: &str) -> String {
+    let path = committed_case_root()
+        .join("model_outputs")
+        .join(relative_path);
+    normalize_newlines(
+        &fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display())),
+    )
+}
+
 pub fn read_golden_fixture(golden_name: &str) -> String {
     read_golden(golden_name)
 }

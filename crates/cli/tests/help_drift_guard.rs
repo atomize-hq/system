@@ -325,6 +325,75 @@ fn support_story_docs_match_help_snapshots() {
     );
 }
 
+fn assert_doc_matches_m4_stage_10_boundary(
+    path: &std::path::Path,
+    required_phrases: &[&str],
+    banned_phrases: &[&str],
+) {
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|err| panic!("read {}: {}", path.display(), err));
+
+    for phrase in required_phrases {
+        assert!(
+            text.contains(phrase),
+            "{} missing M4 stage-10 boundary phrase `{}`",
+            path.display(),
+            phrase
+        );
+    }
+
+    for phrase in banned_phrases {
+        assert!(
+            !text.contains(phrase),
+            "{} must not reintroduce invalid M4 stage-10 wording `{}`",
+            path.display(),
+            phrase
+        );
+    }
+}
+
+#[test]
+fn m4_stage_10_boundary_docs_remain_truthful() {
+    let root = workspace_root();
+
+    assert_doc_matches_m4_stage_10_boundary(
+        &root.join("docs/CLI_OPERATOR_JOURNEY.md"),
+        &[
+            "compile -> external model output -> capture",
+            "payload-only",
+            "completed `FEATURE_SPEC.md`",
+        ],
+        &[
+            "compile-to-capture handoff",
+            "compile | capture",
+            "payload stdout piped into capture",
+        ],
+    );
+    assert_doc_matches_m4_stage_10_boundary(
+        &root.join("docs/contracts/pipeline-proof-corpus-and-docs-cutover.md"),
+        &[
+            "compile -> external model output -> capture",
+            "payload-only stdout that becomes model input for an external operator or model runner",
+            "materializing the completed `FEATURE_SPEC.md` body",
+            "MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path",
+        ],
+        &["compile-to-capture handoff", "payload stdout piped into capture"],
+    );
+    assert_doc_matches_m4_stage_10_boundary(
+        &root.join("docs/contracts/C-02-rust-workspace-and-cli-command-surface.md"),
+        &[
+            "emits model input payload",
+            "completed `FEATURE_SPEC.md`",
+            "materializes that completed body",
+        ],
+        &[
+            "compile-to-capture handoff",
+            "compile | capture",
+            "payload stdout piped into capture",
+        ],
+    );
+}
+
 #[test]
 fn m1_activation_contract_docs_remain_boolean_only() {
     let root = workspace_root();
