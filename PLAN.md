@@ -1619,7 +1619,13 @@ Historical correction, 2026-04-15:
 
 Status:
 
-- next milestone
+- complete on `main` in `efdaf42` (`feat: prove M4 foundation journey and stage-10 handoff (#8)`)
+
+Post-ship note, 2026-04-16:
+
+- `M4` shipped the realistic `foundation_flow_demo` corpus, happy-path and skip-path CLI journey proofs, the structural `FEATURE_SPEC.md` contract checker, deterministic evidence-bundle regression coverage, and the docs/contract cutover that removes the false direct `compile | capture` stage-10 story.
+- the bounded stage-10 handoff contract is now the active repo truth: `pipeline compile` produces payload, an external model produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that completed single-file body.
+- post-merge follow-up `6a43779` (`fix: avoid pipefail false positive in install smoke (#9)`) corrected the macOS install-smoke shell assertion so the shipped M4 surface stays green on `main`.
 
 Goal:
 
@@ -1882,7 +1888,7 @@ Conflict flags:
 Prerequisite status:
 
 - satisfied on `main` by `8ac7aeb`, which shipped the explicit `04` / `06` / `10` capture boundary
-- not satisfied for stage 10 journey proof until docs/tests stop treating raw compile stdout like a completed feature spec
+- satisfied on `main` by `efdaf42`, which shipped the stage-10 journey proof, truthful docs/tests/contracts, and the bounded handoff artifact evidence needed before `M5`
 
 ### M5. Downstream Consumer Adoption
 
