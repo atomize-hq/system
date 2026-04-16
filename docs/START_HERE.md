@@ -32,6 +32,12 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
 - **`setup`** is still a placeholder entrypoint and is not yet a real Rust setup flow.
 
+Fixture orientation for operators:
+
+- `tests/fixtures/foundation_flow_demo/` is the dedicated `pipeline.foundation_inputs` journey-proof corpus only.
+- Planning packet success examples need a canonical repo fixture with repo-local `.system/` inputs; do not substitute the journey-proof corpus for that command family.
+- For manual nested-directory QA against either fixture family, prepare a temp checkout with `tools/qa/prepare_fixture_checkout.sh` instead of ad hoc `cp -R`.
+
 ## Documented `foundation_inputs` operator path
 
 The first complete supported `pipeline.foundation_inputs` path is:

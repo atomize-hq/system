@@ -161,19 +161,17 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn planning_ready_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    pipeline_proof_corpus_support::install_committed_fixture_repo(
+        "tests/fixtures/planning_ready_repo",
+    )
+}
+
 fn planning_ready_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
-
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
-    );
-
-    let nested = root.join("work/nested");
-    std::fs::create_dir_all(&nested).expect("nested cwd");
-
+    let (dir, _root, nested) =
+        pipeline_proof_corpus_support::install_committed_fixture_checkout_with_nested_cwd(
+            "tests/fixtures/planning_ready_repo",
+        );
     (dir, nested)
 }
 
@@ -189,22 +187,11 @@ fn nested_git_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) 
 }
 
 fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
-
-    std::fs::create_dir_all(root.join(".git")).expect("git root");
-    write_file(
-        &root.join("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md"),
-        b"demo charter",
-    );
-    write_file(
-        &root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md"),
-        b"demo feature",
-    );
-
-    let nested = root.join("work/nested");
-    std::fs::create_dir_all(&nested).expect("nested cwd");
-
+    let (dir, _root, nested) =
+        pipeline_proof_corpus_support::install_committed_fixture_under_repo_with_nested_cwd(
+            "tests/fixtures/execution_demo/basic",
+            "tests/fixtures/execution_demo/basic",
+        );
     (dir, nested)
 }
 
@@ -3704,16 +3691,9 @@ fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
 
 #[test]
 fn generate_emits_real_packet_body_when_ready() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
+    let (_dir, root) = planning_ready_repo();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
-    );
-
-    let output = binary_in(root)
+    let output = binary_in(&root)
         .arg("generate")
         .output()
         .expect("generate should run");
@@ -3766,16 +3746,16 @@ fn generate_emits_real_packet_body_when_ready() {
         "expected charter body section: {stdout}"
     );
     assert!(
-        stdout.contains("charter"),
-        "expected charter contents: {stdout}"
+        stdout.contains("# Canonical planning-ready charter fixture"),
+        "expected committed charter fixture contents: {stdout}"
     );
     assert!(
         stdout.contains("### FEATURE_SPEC"),
         "expected feature body section: {stdout}"
     );
     assert!(
-        stdout.contains("feature"),
-        "expected feature contents: {stdout}"
+        stdout.contains("# Canonical planning-ready feature spec fixture"),
+        "expected committed feature spec fixture contents: {stdout}"
     );
 }
 
@@ -3804,27 +3784,20 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
         "expected packet body: {stdout}"
     );
     assert!(
-        stdout.contains("charter"),
-        "expected charter contents: {stdout}"
+        stdout.contains("# Canonical planning-ready charter fixture"),
+        "expected committed charter fixture contents: {stdout}"
     );
     assert!(
-        stdout.contains("feature"),
-        "expected feature contents: {stdout}"
+        stdout.contains("# Canonical planning-ready feature spec fixture"),
+        "expected committed feature spec fixture contents: {stdout}"
     );
 }
 
 #[test]
 fn doctor_reports_ready_when_required_artifacts_present() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
+    let (_dir, root) = planning_ready_repo();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
-    );
-
-    let output = binary_in(root)
+    let output = binary_in(&root)
         .arg("doctor")
         .output()
         .expect("doctor should run");
@@ -3852,16 +3825,9 @@ fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
 
 #[test]
 fn inspect_reports_ready_when_required_artifacts_present() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
+    let (_dir, root) = planning_ready_repo();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
-    write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
-    );
-
-    let output = binary_in(root)
+    let output = binary_in(&root)
         .arg("inspect")
         .output()
         .expect("inspect should run");
@@ -3902,6 +3868,14 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         "expected charter body section: {stdout}"
     );
     assert!(
+        stdout.contains("# Canonical planning-ready charter fixture"),
+        "expected committed charter fixture contents: {stdout}"
+    );
+    assert!(
+        stdout.contains("# Canonical planning-ready feature spec fixture"),
+        "expected committed feature spec fixture contents: {stdout}"
+    );
+    assert!(
         stdout.contains("selection packet_id=planning.packet status=Selected"),
         "expected selected decision summary: {stdout}"
     );
@@ -3934,6 +3908,14 @@ fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
     assert!(
         stdout.contains("## PACKET BODY"),
         "expected packet body: {stdout}"
+    );
+    assert!(
+        stdout.contains("# Canonical planning-ready charter fixture"),
+        "expected committed charter fixture contents: {stdout}"
+    );
+    assert!(
+        stdout.contains("# Canonical planning-ready feature spec fixture"),
+        "expected committed feature spec fixture contents: {stdout}"
     );
 }
 

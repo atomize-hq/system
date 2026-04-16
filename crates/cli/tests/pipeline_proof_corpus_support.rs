@@ -3,11 +3,39 @@ use std::path::{Path, PathBuf};
 
 pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
 
-pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
+pub fn install_committed_fixture_repo(relative_fixture_repo: &str) -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
-    copy_tree(&committed_repo_root(), &root);
+    copy_tree(&workspace_root().join(relative_fixture_repo), &root);
     (dir, root)
+}
+
+pub fn install_committed_fixture_checkout_with_nested_cwd(
+    relative_fixture_repo: &str,
+) -> (tempfile::TempDir, PathBuf, PathBuf) {
+    let (dir, root) = install_committed_fixture_repo(relative_fixture_repo);
+    fs::create_dir_all(root.join(".git")).expect("git root");
+    let nested = root.join("work").join("nested");
+    fs::create_dir_all(&nested).expect("nested cwd");
+    (dir, root, nested)
+}
+
+pub fn install_committed_fixture_under_repo_with_nested_cwd(
+    relative_fixture_repo: &str,
+    relative_target_root: &str,
+) -> (tempfile::TempDir, PathBuf, PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+    let target_root = root.join(relative_target_root);
+    copy_tree(&workspace_root().join(relative_fixture_repo), &target_root);
+    fs::create_dir_all(root.join(".git")).expect("git root");
+    let nested = root.join("work").join("nested");
+    fs::create_dir_all(&nested).expect("nested cwd");
+    (dir, root, nested)
+}
+
+pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
+    install_committed_fixture_repo("tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo")
 }
 
 pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
@@ -163,10 +191,6 @@ fn copy_tree(source: &Path, target: &Path) {
             });
         }
     }
-}
-
-fn committed_repo_root() -> PathBuf {
-    committed_case_root().join("repo")
 }
 
 pub fn read_committed_model_output(relative_path: &str) -> String {

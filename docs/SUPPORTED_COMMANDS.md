@@ -93,6 +93,10 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `pipeline capture` applies transactionally only for `system`-coordinated single-writer flows; arbitrary concurrent external writers are outside the shipped claim.
 - If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
 - Once `.system/` canonical artifacts exist, planning packet generation is supported.
+- Fixture guidance for manual QA and proof runs is exact:
+  - `tests/fixtures/foundation_flow_demo/` is only for the `pipeline.foundation_inputs` journey-proof flow.
+  - Planning packet success examples require a canonical repo fixture with top-level `.system/` inputs; the journey-proof corpus is not that fixture family.
+  - If you need to invoke from a nested directory during manual QA, use `tools/qa/prepare_fixture_checkout.sh --fixture-root <path> [--nested-cwd <relative-path>]` instead of ad hoc `cp -R`.
 - Execution packets are only supported as fixture-backed demos via `execution.demo.packet`, and live execution is explicitly refused.
 
 ## Exact `foundation_inputs` path
