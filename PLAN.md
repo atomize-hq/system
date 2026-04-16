@@ -1,4 +1,4 @@
-<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/main-autoplan-restore-20260415-144532.md -->
+<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/main-autoplan-restore-20260415-203905.md -->
 <!-- previous reduced-v1 baseline archived at .implemented/PLAN-20260409-144209-reduced-v1-baseline.md -->
 # PLAN
 
@@ -1372,6 +1372,10 @@ NOT in scope for M3:
 
 ### M3.5. Foundation Inputs Surface Completion
 
+Status:
+
+- complete on `main` in `8ac7aeb` (`feat: complete M3.5 foundation-inputs capture surface (#7)`)
+
 Goal:
 
 - make the shipped `pipeline` surfaces compose into one explicit `foundation_inputs` operator path from `stage.04_charter_inputs` through `stage.10_feature_spec`
@@ -1605,42 +1609,110 @@ Exit criteria:
 - stages `04`, `06`, and `10` no longer represent undocumented holes in the `foundation_inputs` path
 - the plan, contracts, docs, and tests all agree on the supported `M3.5` boundary
 
-### M4. End-to-End Foundation Flow
+### M4. End-to-End Foundation Flow Proof
+
+Status:
+
+- next milestone
 
 Goal:
 
-- replace one real planning-generation path that the operator actually uses
+- prove one believable `pipeline.foundation_inputs` planning run from `stage.04_charter_inputs` through `stage.10_feature_spec`
+- prove the generated `artifacts/feature_spec/FEATURE_SPEC.md` is stable enough to serve as a downstream planning handoff basis without reopening repo truth in the same session
+
+Why this exists now:
+
+- `M3.5` already shipped the missing writer and handoff surface for stages `04`, `06`, and `10`
+- docs already describe the exact operator path, and tests already prove most component boundaries
+- that is still not the same thing as proving one real operator can run the flow end to end and trust the output as planning basis
+
+Exact user outcome:
+
+- an operator can execute one realistic `foundation_inputs` journey with the shipped Rust CLI, make the one explicit `needs_project_context` decision, and finish with a generated `FEATURE_SPEC.md`
+- the operator does **not** have to restitch prior stage outputs, repo paths, or route truth between stages
+- the only manual boundary left in `M4` is stage-local model invocation or pasted stage output. Rust owns route truth, compile truth, capture truth, and the phase-to-phase handoff
+
+Concrete proof target:
+
+- use `pipeline.foundation_inputs` as the single M4 proof flow
+- treat the `needs_project_context=true` branch as the primary happy path because it exercises the optional branch, the state mutation handoff, the foundation pack, and the stage-10 compile-to-capture path together
+- keep one secondary skip-path proof for `needs_project_context=false` so the branch boundary remains honest
 
 Must prove:
 
-- the operator can complete one useful planning-generation flow through Rust without copy/paste context shuttling between phases
-- the result is stable enough to trust as the generated planning basis
-- the source corpus looks like a believable real project, not a synthetic two-line demo
+- the exact shipped CLI path works with one believable repo corpus, not only the narrow proof-corpus fixture
+- the stage-10 boundary is exercised through the real shell-pipe handoff:
+  - `system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec`
+- the primary happy path (`needs_project_context=true`) produces the full artifact chain:
+  - `artifacts/charter/CHARTER_INPUTS.yaml`
+  - `artifacts/charter/CHARTER.md`
+  - `artifacts/project_context/PROJECT_CONTEXT.md`
+  - `artifacts/foundation/*`
+  - `artifacts/feature_spec/FEATURE_SPEC.md`
+- the secondary skip path (`needs_project_context=false`) cleanly skips `stage.06_project_context_interview` and still produces a valid feature-spec output
+- the generated `FEATURE_SPEC.md` passes one bounded downstream consumer-readiness check:
+  - required sections are present
+  - traceability back to Charter and Foundation inputs is explicit
+  - no repo reread is required to understand what problem, scope, and constraints the document carries forward
+- docs, tests, and plan text all say the same stopping point:
+  - `M4` proves operator replacement plus consumer-readiness
+  - `M5` proves actual downstream consumer adoption
 
-Preferred first flow:
+Required deliverables:
 
-- foundation-inputs through feature-spec-grade planning, because it captures branching, compilation, and output materialization together
+1. A dedicated realistic demo corpus under `tests/fixtures/foundation_flow_demo/` rather than stretching the shared proof corpus into two jobs.
+2. One operator-journey document that names the exact commands, branch decision, expected outputs, and stopping point for the shipped Rust flow.
+3. One CLI integration test that executes the real happy path through the binary, including the actual stage-10 compile-to-capture shell pipe.
+4. One CLI integration test that proves the `needs_project_context=false` skip path without reintroducing manual restitching.
+5. One bounded downstream consumer-readiness checker in tests, not a new product surface, that validates the generated `FEATURE_SPEC.md` contract shape.
+6. One evidence bundle or golden set for the demo journey so future sessions can re-run the same proof without hand-waving.
+7. Docs parity updates in `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, and the new operator-journey doc so the repo stops describing M4 as an abstract future.
 
-Prerequisite:
+Architecture for `M4`:
 
-- `M3.5` must land first so the stage-output and handoff boundaries for `04`, `06`, and `10` are explicit and shipped before `M4` claims end-to-end flow replacement
+```text
+realistic demo corpus
+  -> shipped CLI path only
+     -> pipeline resolve
+     -> capture stage.04
+     -> capture stage.05
+     -> operator sets needs_project_context exactly once
+     -> pipeline resolve
+     -> optional capture stage.06
+     -> pipeline resolve
+     -> capture stage.07
+     -> pipeline compile stage.10
+     -> shell pipe into pipeline capture stage.10
+  -> generated artifacts/feature_spec/FEATURE_SPEC.md
+  -> bounded consumer-readiness check
+  -> proof bundle / journey doc
+```
 
 Important clarification:
 
-- this does **not** mean Rust must own the initial onboarding chat first
-- it means Rust must prove it can take already-populated canonical docs and generate the useful planning outputs from them
+- `M4` does **not** require Rust to own onboarding chat, runner invocation, or live multi-stage orchestration
+- `M4` does **not** add `pipeline run`, `pipeline compile --write`, or any other combined orchestration surface
+- `M4` proves that the current Rust-owned stage boundaries are enough to replace one planning loop once the operator stops re-grounding the repo between stages
 
-### M5. Downstream Consumer Handoff
+Prerequisite status:
+
+- satisfied on `main` by `8ac7aeb`, which shipped the explicit `04` / `06` / `10` capture boundary and the documented `foundation_inputs` operator path
+
+### M5. Downstream Consumer Adoption
 
 Goal:
 
-- make Rust outputs useful to the downstream seam and execution workflow, not just locally correct
+- replace one real downstream planning consumer's repo-grounding step with the artifacts proven in `M4`
 
 Must prove:
 
-- at least one downstream planning consumer can use Rust-generated artifacts without redoing the same repo research
-- output size and structure reduce token bloat instead of amplifying it
-- provenance and freshness are explicit enough that downstream consumers know what they can trust
+- one named downstream planning consumer can start from the `M4` handoff artifact set without reopening the repo to rediscover the same truth
+- freshness and provenance rules tell that consumer exactly what is trustworthy, stale, derived, and still manual
+- the handoff is materially smaller than raw repo re-grounding, using an explicit before/after comparison instead of intuition
+
+Preferred first consumer:
+
+- the first downstream feature-to-slice planning consumer that currently re-reads charter, project context, and foundation files before it can trust a feature-spec basis
 
 This is where the wedge starts paying back the operator tax for real.
 
@@ -1713,23 +1785,23 @@ The first wedge is only real when all of the following are true for the chosen f
 
 ## Immediate Next Work
 
-1. Plan and ship `M3.5`: add the missing output / handoff surfaces for `stage.04_charter_inputs`, `stage.06_project_context_interview`, and `stage.10_feature_spec`.
-2. Remove the remaining ambiguity around `needs_project_context` so the operator-facing path is either explicitly manual or explicitly compiler-owned, not both.
-3. Update contracts/docs/help/tests so the supported `foundation_inputs` sequence is exact and matches the shipped boundary.
-4. Keep the capture rollback claim scoped to `system`-coordinated single-writer flows, and track the stronger arbitrary-writer safety boundary as deferred technical debt.
-5. Use the completed `M3.5` stage surface as the launch point for `M4` end-to-end foundation-flow proof.
+1. Rebaseline the active plan around shipped `M3.5` reality so later sessions stop reopening stage-surface questions that `8ac7aeb` already settled.
+2. Define one exact `M4` demo fixture under `tests/fixtures/foundation_flow_demo/`, including the primary `needs_project_context=true` path and the secondary skip path.
+3. Add a real CLI end-to-end proof that exercises the actual stage-10 shell pipe, not just an in-process compiled payload handed directly to capture.
+4. Add one bounded downstream consumer-readiness check on the generated `artifacts/feature_spec/FEATURE_SPEC.md`, while keeping actual consumer adoption deferred to `M5`.
+5. Publish one operator-journey artifact plus docs parity updates so the shipped stopping point, manual boundaries, and deferred work are explicit.
 
-## Explicit Non-Goals For M3.5
+## Explicit Non-Goals For M4
 
-- do not redesign the whole compiler architecture
-- do not reopen the archived reduced-v1 baseline as the active plan
-- do not start with public release packaging
-- do not add UI wrappers
-- do not widen into all downstream seam skills
+- do not add `pipeline run`, `pipeline compile --write`, or any other orchestration mega-command
+- do not auto-decide `needs_project_context`
+- do not promote captured stage outputs directly into canonical `.system/` artifacts
+- do not wire live downstream seam or execution consumers yet
+- do not widen into onboarding chat, public distribution, or UI wrapper work
 
 Stay on the wedge until the operator pain is materially reduced.
 
-## AUTOPLAN REVIEW (2026-04-15)
+## AUTOPLAN REVIEW (2026-04-15, historical M3.5 rebase)
 
 Review basis:
 
@@ -1943,6 +2015,11 @@ Cross-phase themes:
 | 10 | M3.5 | Keep `needs_project_context` manual and exact | auto-decided | explicit over clever | The stage-set variable is a human judgment call, and the current compiler contract already has one safe handoff: `pipeline state set`, then `pipeline resolve`. | auto-setting the variable inside capture or leaving the handoff ambiguous |
 | 11 | M3.5 | Make `stage.10_feature_spec` materialization flow through compile-to-capture | taste | pragmatic | `pipeline compile` already owns the payload/proof contract for stage 10, so capture should materialize that body rather than redefining compile semantics. | broadening compile to write files directly |
 | 12 | M3.5 | Prove the stage-10 handoff with a real compile-to-capture integration test | auto-decided | choose completeness | A synthetic markdown-only capture test would leave the documented operator path unverified. | relying only on isolated compile tests plus isolated capture tests |
+| 13 | Intake | Treat shipped `M3.5` on `main` as the active baseline for M4 planning | mechanical | explicit over clever | `8ac7aeb` and the green suite are stronger truth than stale milestone prose. | continuing to plan from the pre-ship M3.5 review state |
+| 14 | CEO | Define M4 around operator replacement proof, not more surface-area expansion | auto-decided | pragmatic | The product risk is usefulness now, not missing command verbs. | inventing new orchestration commands before proving the current flow matters |
+| 15 | CEO | Pull one bounded downstream consumer-readiness check into M4, but keep actual consumer adoption in M5 | taste | choose completeness | An operator-only path would duplicate what the repo already nearly proves; one light handoff check closes the usefulness gap without widening into real downstream integration. | stopping M4 at a pure operator journey or moving full downstream adoption into M4 |
+| 16 | Eng | Require the actual stage-10 shell pipe in M4 proof coverage | auto-decided | explicit over clever | The current route-progression test still hands capture an in-process compiled payload, which is weaker than the documented operator path. | treating the existing stage-10 shortcut as sufficient end-to-end proof |
+| 17 | Eng | Use a dedicated realistic demo corpus for M4 instead of overloading the shared proof corpus | taste | pragmatic | The proof corpus should stay small and contract-focused; M4 needs a more believable operator story fixture. | cramming adoption-proof concerns into the contract regression corpus |
 
 ## GSTACK REVIEW REPORT
 
@@ -1961,3 +2038,109 @@ Historical note:
 **UNRESOLVED:** historical snapshot only
 
 **VERDICT:** HISTORICAL M3 PRE-SHIP REVIEW. SUPERSEDED BY THE `/autoplan` M3.5 REBASE ABOVE.
+
+## AUTOPLAN REVIEW (2026-04-15, M4 solidification)
+
+Review basis:
+
+- Active plan file: this file
+- Branch / commit reviewed: `main` at `8ac7aeb` (`feat: complete M3.5 foundation-inputs capture surface (#7)`)
+- Current supporting evidence reviewed:
+  - [`docs/START_HERE.md`](docs/START_HERE.md)
+  - [`docs/SUPPORTED_COMMANDS.md`](docs/SUPPORTED_COMMANDS.md)
+  - [`core/stages/04_charter_inputs.md`](core/stages/04_charter_inputs.md)
+  - [`core/stages/05_charter_synthesize.md`](core/stages/05_charter_synthesize.md)
+  - [`core/stages/06_project_context_interview.md`](core/stages/06_project_context_interview.md)
+  - [`core/stages/07_foundation_pack.md`](core/stages/07_foundation_pack.md)
+  - [`core/stages/10_feature_spec.md`](core/stages/10_feature_spec.md)
+  - [`crates/compiler/tests/pipeline_capture.rs`](crates/compiler/tests/pipeline_capture.rs)
+  - [`crates/compiler/tests/pipeline_compile.rs`](crates/compiler/tests/pipeline_compile.rs)
+  - [`crates/cli/tests/cli_surface.rs`](crates/cli/tests/cli_surface.rs)
+- Verification:
+  - `cargo test --quiet` is green on this branch
+  - external Codex challenge partially completed before timeout and still surfaced one useful engineering gap: the existing route-progression test does not exercise the literal stage-10 shell pipe
+
+### Phase 1: CEO Review
+
+Premise challenge:
+
+| Premise | Verdict | Why |
+| --- | --- | --- |
+| `M4` can stay vague because `M3.5` already shipped the path | Rejected | The repo now proves components and most of the sequence. A vague next milestone would just create more “prove the path exists” churn. |
+| `M4` should prove a real operator outcome, not add more verbs | Accepted | The missing question is usefulness, not surface area. |
+| `M5` should still own actual downstream consumer adoption | Accepted with expansion | `M4` needs one bounded consumer-readiness check so the handoff is not vibes, but full consumer adoption still belongs in `M5`. |
+
+What already exists:
+
+- the docs already state the exact `foundation_inputs` command path, including the manual `needs_project_context` handoff and the stage-10 compile-to-capture boundary
+- capture goldens already exist for stages `04`, `05`, `06`, `07`, and `10`
+- the CLI suite already includes [`pipeline_foundation_inputs_route_progression_supports_full_m35_path`](crates/cli/tests/cli_surface.rs), which proves most of the sequence
+
+Error & Rescue Registry:
+
+| Risk | Trigger | Rescue |
+| --- | --- | --- |
+| M4 turns into another surface-area milestone | The plan focuses on new commands instead of one believable proof | Keep M4 pinned to one demo corpus, one operator journey, and one bounded handoff check. |
+| M4 duplicates existing evidence | The team adds more route/capture unit coverage but still does not prove the operator path matters | Require the real stage-10 shell pipe and a realistic journey artifact. |
+| M5 gets collapsed into M4 | The plan tries to wire real downstream consumers immediately | Keep M4 at readiness-check level and defer actual consumer adoption to M5. |
+
+### Phase 2: Design Review
+
+Skipped, no UI scope.
+
+Reason:
+
+- this milestone is still CLI/compiler proof work, not a screen, workflow UI, or design-system surface
+
+### Phase 3: Engineering Review
+
+Architecture ASCII diagram:
+
+```text
+realistic foundation-flow demo fixture
+  -> system pipeline resolve
+  -> capture 04
+  -> capture 05
+  -> manual needs_project_context decision
+  -> resolve
+  -> optional capture 06
+  -> resolve
+  -> capture 07
+  -> system pipeline compile stage.10
+  -> shell pipe into system pipeline capture stage.10
+  -> artifacts/feature_spec/FEATURE_SPEC.md
+  -> bounded downstream-readiness validator
+```
+
+Test diagram:
+
+| Flow / codepath | Current evidence | M4 gap to close |
+| --- | --- | --- |
+| Full `04 -> 05 -> state set -> 06? -> 07 -> 10` route progression | [`crates/cli/tests/cli_surface.rs`](crates/cli/tests/cli_surface.rs) route-progression test | upgrade stage `10` from in-process payload injection to the literal CLI shell pipe |
+| Stage `10` payload/explain correctness | compile goldens plus compiler/CLI tests | tie the real CLI pipe into the same end-to-end operator proof |
+| Capture boundaries for `04`, `06`, and `10` | preview/apply goldens already committed | prove them on a believable demo corpus, not only the shared contract corpus |
+| Downstream trust | none beyond artifact existence | add a bounded readiness checker for generated `FEATURE_SPEC.md` |
+
+Failure Modes Registry:
+
+| Failure mode | Severity | Why it matters |
+| --- | --- | --- |
+| M4 proves only another synthetic path test | High | That does not answer whether the operator can trust the result as planning basis. |
+| The stage-10 handoff still bypasses the literal CLI shell pipe | High | The repo would keep documenting a path it does not actually prove end to end. |
+| The generated `FEATURE_SPEC.md` exists but is not checked for downstream-readiness | High | File existence alone is not handoff quality. |
+
+Engineering test-plan artifact:
+
+- [/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-test-plan-20260415-203952.md](/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-test-plan-20260415-203952.md)
+
+Cross-phase themes:
+
+- `M4` has to answer usefulness now, not surface coverage
+- the exact stage-10 handoff is the engineering edge that still needs explicit end-to-end proof
+- bounded downstream-readiness belongs in `M4`, but real downstream consumer adoption still belongs in `M5`
+
+Latest verdict:
+
+- `M3.5` is shipped and no longer the planning target
+- `M4` is now concrete enough to execute
+- `M5` remains the first milestone that should claim actual downstream consumer adoption
