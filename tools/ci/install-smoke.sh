@@ -16,11 +16,11 @@ system inspect --help >/dev/null
 
 echo "==> execution demo smoke (fixture-backed)"
 demo_out="$(system generate --packet execution.demo.packet --fixture-set basic || true)"
-echo "$demo_out" | grep -qF "fixture-backed" || {
+[[ "$demo_out" == *"fixture-backed"* ]] || {
   echo "expected fixture-backed labeling in execution demo output"
   exit 1
 }
-echo "$demo_out" | grep -qF "FIXTURE SET: basic" || {
+[[ "$demo_out" == *"FIXTURE SET: basic"* ]] || {
   echo "expected fixture set id in execution demo output"
   exit 1
 }
@@ -44,7 +44,7 @@ if [[ $live_status -eq 0 ]]; then
   exit 1
 fi
 
-echo "$live_out" | grep -qF "CATEGORY: UnsupportedRequest" || {
+[[ "$live_out" == *"CATEGORY: UnsupportedRequest"* ]] || {
   echo "expected UnsupportedRequest refusal category; got:"
   echo "$live_out"
   exit 1
