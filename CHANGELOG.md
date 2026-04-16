@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.0.1] - 2026-04-16
+
+### Fixed
+- Fixed the cross-platform install smoke script so fixture-output checks no longer fail on macOS when `grep -q` exits early under `pipefail`, keeping the post-install execution-demo proof stable on `main`.
+
 ## [0.5.0.0] - 2026-04-16
 
 ### Added
