@@ -1,0 +1,34 @@
+---
+kind: pipeline
+id: pipeline.foundation_inputs
+version: 0.1.0
+title: "Foundation Pipeline (Dev/Test Charter Inputs → Charter → Context? → Foundation Pack)"
+description: >
+  Development/testing pipeline that avoids the multi-turn Charter interview by generating
+  CHARTER_INPUTS.yaml and synthesizing CHARTER.md from it in a single shot.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.04_charter_inputs
+    file: core/stages/04_charter_inputs.md
+  - id: stage.05_charter_synthesize
+    file: core/stages/05_charter_synthesize.md
+    sets:
+      - needs_project_context
+  - id: stage.06_project_context_interview
+    file: core/stages/06_project_context_interview.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+          - variables.charter_gaps_detected == true
+  - id: stage.07_foundation_pack
+    file: core/stages/07_foundation_pack.md
+  - id: stage.10_feature_spec
+    file: core/stages/10_feature_spec.md

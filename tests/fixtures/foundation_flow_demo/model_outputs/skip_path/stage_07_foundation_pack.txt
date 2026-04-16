@@ -1,0 +1,98 @@
+--- FILE: artifacts/foundation/FOUNDATION_STRATEGY.md ---
+# Foundation Strategy
+
+## Objective
+Deliver the skip-path proof for `M4`:
+- keep stage 06 skipped because the charter already answers the required planning questions
+- still prove the same stage-10 external-model handoff as the happy path
+- preserve deterministic rerun behavior for local CLI tests
+
+## Strategy Pillars
+1. Keep skip-path fixture content complete and explicit.
+2. Reuse canonical stage metadata and library content from the repo-shaped fixture.
+3. Preserve the same stage-10 contract as the happy path.
+
+## Delivery Guardrails
+- No placeholder-driven activation of stage 06.
+- No direct compile-to-capture story.
+- No product-surface expansion.
+
+--- FILE: artifacts/foundation/TECH_ARCH_BRIEF.md ---
+# Technical Architecture Brief
+
+## Journey Flow
+1. `pipeline resolve` establishes route basis.
+2. Stage 04 capture writes `CHARTER_INPUTS.yaml`.
+3. Stage 05 capture writes a charter that already contains the needed planning context.
+4. Resolve leaves stage 06 skipped because both activation predicates are false.
+5. Stage 07 capture writes the foundation pack.
+6. Stage 10 compile produces model input for an external authoring step.
+7. Stage 10 capture writes `FEATURE_SPEC.md` from completed external output.
+
+## Key Contracts
+- Skip logic must be explicit and evidence-backed.
+- Stage 10 compile remains payload-only.
+- Stage 10 capture still requires completed external markdown.
+
+## Integration Touchpoints
+- `crates/cli/tests/cli_surface.rs`
+- `crates/compiler/tests/pipeline_capture.rs`
+- `tests/fixtures/foundation_flow_demo`
+
+--- FILE: artifacts/foundation/TEST_STRATEGY_BRIEF.md ---
+# Test Strategy Brief
+
+## Required Coverage
+- skip-path CLI journey proving stage 06 stays skipped for the correct reason
+- stage-10 capture success using a completed external feature-spec body
+- docs/help drift checks for the corrected stage-10 boundary
+
+## Evidence Rules
+- Keep skip-path charter content explicit and complete.
+- Use committed external markdown for stage 10 capture.
+- Preserve deterministic rerun expectations with fixed clock input.
+
+--- FILE: artifacts/foundation/QUALITY_GATES_SPEC.md ---
+# Quality Gates Specification
+
+## Mandatory Gates
+- targeted skip-path CLI journey test
+- stage-10 handoff regression checks
+- docs/help drift guard coverage
+
+## Gate Policy
+- The skip path fails if stage 06 activates.
+- The skip path fails if stage 10 capture accepts compile payload instead of completed external markdown.
+
+--- FILE: artifacts/foundation/quality_gates.yaml ---
+gates:
+  - id: cli_skip_path_journey
+    category: integration
+    requirement: required
+    description: Prove stage 06 remains skipped for the correct explicit reason.
+  - id: stage_10_external_output_required
+    category: regression
+    requirement: required
+    description: Fail if stage 10 capture succeeds without completed external markdown.
+  - id: deterministic_skip_rerun
+    category: regression
+    requirement: required
+    description: Keep the skip-path proof stable across reruns.
+
+--- FILE: artifacts/foundation/ENVIRONMENT_INVENTORY.md ---
+# Environment Inventory
+
+## Toolchains
+- Rust stable toolchain
+- Cargo for focused local tests
+
+## Runtime Assumptions
+- local filesystem only
+- no network calls
+- committed text fixtures represent external model output
+
+## Important Paths
+- `pipelines/foundation_inputs.yaml`
+- `core/stages/06_project_context_interview.md`
+- `core/stages/10_feature_spec.md`
+- `tests/fixtures/foundation_flow_demo`

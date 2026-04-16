@@ -178,14 +178,38 @@ fn support_story_docs_match_help_snapshots() {
         "stage.10_feature_spec",
         "only supported stage-output writer surface",
         "payload-only",
-        "compile-to-capture handoff",
+        "compile -> external model output -> capture",
         "`system`-coordinated single-writer flows",
+    ];
+    let stage_10_required_doc_phrases = [
+        "external model output",
+        "completed `FEATURE_SPEC.md`",
+        "compile emits model input payload",
+    ];
+    let stage_10_banned_doc_phrases = [
+        "compile-to-capture handoff",
+        "compile | capture",
+        "payload stdout piped into capture",
     ];
 
     for phrase in root_readme_required_phrases {
         assert!(
             root_readme_text.contains(phrase),
             "root README missing capture boundary phrase `{phrase}`"
+        );
+    }
+
+    for phrase in stage_10_required_doc_phrases {
+        assert!(
+            docs_text.contains(phrase),
+            "docs missing M4 stage-10 boundary phrase `{phrase}`"
+        );
+    }
+
+    for phrase in stage_10_banned_doc_phrases {
+        assert!(
+            !docs_text.contains(phrase),
+            "docs must not reintroduce invalid M4 stage-10 wording `{phrase}`"
         );
     }
 

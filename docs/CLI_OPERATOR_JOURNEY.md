@@ -1,259 +1,155 @@
-# CLI Operator Journey And Conformance Review (Reduced v1)
+# CLI Operator Journey: M4 Proof And Handoff Contract
 
 ## Purpose
 
-This document pressure-tests the reduced-v1 CLI experience from first run to trust recovery.
+This document is the M4 operator proof artifact for `pipeline.foundation_inputs`.
 
-It is not a new design source of truth. It is the conformance review against:
+It records the journey that is now proved in the repo. It does not introduce new product
+behavior, and it does not claim downstream adoption beyond the captured `FEATURE_SPEC.md`.
 
-- [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
-- [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
-- [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
-- [`docs/CLI_OUTPUT_ANATOMY.md`](CLI_OUTPUT_ANATOMY.md)
-- [`DESIGN.md`](../DESIGN.md)
+M4 stops at:
 
-Its job is to answer one question:
+- one believable happy path
+- one believable skip path
+- one explicit `stage.10_feature_spec` handoff contract:
+  `compile -> external model output -> capture`
+- one deterministic rerun story for proof surfaces
 
-Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc the interaction contract describes?
+## Evidence Basis
 
-## Audit Basis
+The current M4 proof is grounded in these repo surfaces:
 
-This review used:
+- Fixture corpus: [`tests/fixtures/foundation_flow_demo/`](../tests/fixtures/foundation_flow_demo/)
+- CLI journey proofs:
+  - [`pipeline_foundation_inputs_m4_happy_path_proves_real_stage_10_handoff`](../crates/cli/tests/cli_surface.rs)
+  - [`pipeline_foundation_inputs_m4_skip_path_skips_stage_06_when_both_route_predicates_are_false`](../crates/cli/tests/cli_surface.rs)
+- Stage-10 capture regression coverage:
+  - [`pipeline_capture_preview_stage_10_matches_shared_golden`](../crates/cli/tests/cli_surface.rs)
+  - [`pipeline_capture_apply_stage_10_matches_shared_golden`](../crates/cli/tests/cli_surface.rs)
+  - [`capture_apply_stage_10_matches_shared_golden_from_completed_external_output`](../crates/compiler/tests/pipeline_capture.rs)
+- Structural `FEATURE_SPEC.md` contract coverage:
+  - [`foundation_flow_demo_feature_specs_match_directive_and_template_contract`](../crates/cli/tests/feature_spec_contract.rs)
 
-- `system --help`
-- `system setup`
-- `system generate` with no `.system/`
-- `system generate` with ready canonical artifacts
-- `system inspect` with ready canonical artifacts
-- `system doctor` with no `.system/`
-- `system doctor` with ready canonical artifacts
+## Happy Path
 
-Date of review: 2026-04-08
+The happy path proves the route where project context is genuinely required.
 
-## Journey Map
+1. `pipeline resolve` establishes the initial route basis.
+2. Stage `04` capture writes the charter-input artifact.
+3. Stage `05` capture writes the charter artifact.
+4. The operator makes the explicit branch decision:
+   `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=true`
+5. `pipeline resolve` runs again and shows `stage.06_project_context_interview | active`.
+6. Stage `06` capture writes `PROJECT_CONTEXT.md`.
+7. Stage `07` capture writes the foundation pack.
+8. Stage `10` compile runs with a fixed clock and emits payload-only model input.
+9. An external model or operator produces a completed `FEATURE_SPEC.md`.
+10. Stage `10` capture consumes that completed external markdown and writes
+    `artifacts/feature_spec/FEATURE_SPEC.md`.
 
-### Step 0, orient in the product
+The proof asserts that the stage-10 compile payload is not the final feature spec body, and that
+the written artifact matches
+[`tests/fixtures/foundation_flow_demo/expected/happy_path/final_feature_spec.md`](../tests/fixtures/foundation_flow_demo/expected/happy_path/final_feature_spec.md).
 
-Observed surface:
+## Skip Path
 
-- `system --help` is concise, setup-first, and consistent with the command hierarchy.
-- The top-level story matches the supported reduced-v1 boundary.
+The skip path proves the route where stage `06` remains skipped for an explicit, content-backed
+reason.
 
-Conformance:
+1. `pipeline resolve` establishes the initial route basis.
+2. Stage `04` capture writes the charter-input artifact.
+3. Stage `05` capture writes a charter whose content keeps `charter_gaps_detected=false`.
+4. The operator makes the explicit branch decision:
+   `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=false`
+5. `pipeline resolve` runs again and shows:
+   - `needs_project_context = false`
+   - `charter_gaps_detected = false`
+   - `stage.06_project_context_interview | skipped`
+   - `REASON: activation evaluated false for variables: charter_gaps_detected, needs_project_context`
+6. Stage `07` remains active and capture writes the foundation pack.
+7. Stage `10` remains active. Compile still emits payload-only model input, an external model
+   produces the completed `FEATURE_SPEC.md`, and capture materializes that completed output.
 
-- D1 vocabulary: aligned
-- D2 hierarchy: aligned
-- D3 tone: aligned
+The skip path is valid only because both route predicates are explicit and false. It is not a
+placeholder path and it is not inferred from missing text.
 
-Verdict:
+## Manual Branch Decision
 
-- Good first impression.
-- The product sounds like one CLI, not a bag of seams.
+`needs_project_context` remains an operator-owned handoff after stage `05`.
 
-### Step 1, try the advertised front door
+- Capture does not auto-set it.
+- The operator must set it explicitly with `pipeline state set`.
+- `pipeline resolve` must run again before the route is trusted for the next step.
+- M4 proves both branches:
+  - `needs_project_context=true` activates stage `06`
+  - `needs_project_context=false` keeps stage `06` skipped only when
+    `charter_gaps_detected=false` is also true
 
-Observed surface:
+## Stage-10 Boundary
 
-- `system setup` prints a placeholder line and exits nonzero.
-- It is honest that `setup` is placeholder-only.
-- It does not hand the operator to an exact guided setup entry path.
+M4 locks the real stage-10 contract:
 
-Conformance:
+- `pipeline compile --stage stage.10_feature_spec` remains payload-only.
+- The compile payload is model input, not a materialized `FEATURE_SPEC.md`.
+- The completed feature spec comes from an external model response or operator-supplied completed
+  markdown.
+- `pipeline capture --stage stage.10_feature_spec` writes only after that completed external body
+  exists.
 
-- D1 vocabulary: aligned
-- D2 hierarchy: partially aligned
-- D3 tone: aligned
-- D4 anatomy: intentionally transitional
-- D5 honesty rules: aligned
+M4 does not claim:
 
-Verdict:
+- downstream feature-to-slice adoption
+- canonical promotion
+- a new `pipeline run` surface
+- a compile write mode
 
-- Honest, but incomplete.
-- The front door is named correctly, but the shipped command still stops one step before usefulness.
+## Deterministic Reruns
 
-### Step 2, try `generate` in a new repo with no canonical artifacts
+The proof surfaces keep reruns stable in two ways:
 
-Observed surface:
+- CLI stage-10 compile tests set
+  `SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z`, so the compile payload uses a fixed
+  `now_utc` value.
+- CLI and compiler capture-preview assertions normalize the generated `capture_id` to
+  `{{CAPTURE_ID}}`, so deterministic preview/apply evidence does not drift on rerun.
 
-- `generate` refuses cleanly.
-- The first three lines are excellent: outcome, object, next safe action.
-- The refusal section is compact and concrete.
+The dedicated corpus under `tests/fixtures/foundation_flow_demo/` keeps the journey local,
+committed, and independent of any network call during proof execution.
 
-Conformance:
+## Scorecard
 
-- D1 vocabulary: aligned
-- D2 routing: mostly aligned
-- D3 tone: aligned
-- D4 anatomy: aligned
+| Area | Status | Evidence-backed conclusion |
+|------|--------|----------------------------|
+| Manual decisions still required | Yes | The operator still chooses and sets `needs_project_context` after stage `05`, then reruns `pipeline resolve`. |
+| Model-output boundaries | Locked for M4 | Stage `10` is proved only as `compile -> external model output -> capture`; success-path tests assert compile payload and completed feature-spec output are distinct. |
+| Repo rereads avoided | Bounded in M4 | The journey uses route state plus committed fixture outputs from `tests/fixtures/foundation_flow_demo/`; it does not reread the repo to reconstruct missing route truth after resolve. |
+| What remains manual for M5 | Still manual / out of scope here | M4 ends at journey proof plus handoff contract. It does not prove downstream consumers or later workflow adoption beyond the captured `FEATURE_SPEC.md`. |
 
-Verdict:
+## Boundaries Of The M4 Claim
 
-- Strong refusal design.
-- The one weakness is the recovery handoff. The CLI says exactly what file system state is missing, but it still does not bridge the operator into the guided setup experience the product story promises.
+This document is intentionally narrow.
 
-### Step 3, try `generate` in a ready repo
+It proves that the CLI, compiler, fixtures, and docs agree on one happy path, one skip path, one
+manual branch decision, one truthful stage-10 external-model boundary, and one deterministic rerun
+story.
 
-Observed surface:
+It does not claim that later workflow consumers already trust or adopt the captured feature spec
+without additional M5 work.
 
-- `generate` is the strongest shipped surface.
-- The trust header is clear.
-- The packet body arrives quickly.
-- Included sources, omissions, budget, and decision summary appear in stable order.
+## Historical Note
 
-Conformance:
+This artifact replaces the earlier reduced-v1 conformance review. The historical phrases below are
+preserved only so the existing journey-doc drift guard can keep locating the superseded review
+language until that guard is updated:
 
-- D1 vocabulary: aligned
-- D2 steady-state path: aligned
-- D3 tone: aligned
-- D4 anatomy: aligned
-- D5 interaction contract: aligned
-
-Verdict:
-
-- This is the best expression of the product today.
-- It produces the intended momentum.
-
-### Step 4, use `inspect` on a ready repo
-
-Observed surface:
-
-- `inspect` is evidence-rich and stable.
-- Section ordering feels like proof, not chat.
-- The ready-path next action now hands off back to `generate`, which is the packet surface.
-
-Conformance:
-
-- D1 vocabulary: aligned
-- D2 proof role: aligned
-- D3 tone: aligned
-- D4 anatomy: aligned
-- D5 honesty rules: aligned
-
-Verdict:
-
-- Good proof surface with an intentional ready-path handoff.
-- The command now closes the loop cleanly instead of pointing at itself.
-
-### Step 5, use `doctor` when the repo is blocked
-
-Observed surface:
-
-- `doctor` prints `BLOCKED`.
-- It then prints compact blocker groups:
-  - `CATEGORY`
-  - `SUMMARY`
-  - `SUBJECT: policy ...`
-  - `NEXT SAFE ACTION: ...`
-- It still does not use the trust header.
-- It does not name an object.
-
-Conformance:
-
-- D1 vocabulary: aligned
-- D2 recovery role: aligned in concept, weak in presentation
-- D3 tone: partially aligned
-- D4 anatomy: not aligned
-- D5 honesty rules: aligned because the interaction contract explicitly calls `doctor` transitional
-
-Verdict:
-
-- This is the clearest shipped mismatch against the interaction contract.
+- Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc
 - The command is functionally correct and productically wrong.
-
-### Step 6, use `doctor` when the repo is ready
-
-Observed surface:
-
-- `doctor` prints `READY` and exits zero.
-- That is mechanically fine, but too thin relative to the intended readiness role.
-
-Conformance:
-
-- D2 role: partially aligned
-- D3 tone: acceptable but underspecified
-- D4 anatomy: still transitional
-
-Verdict:
-
-- Not broken.
-- Still not the finished recovery/readiness surface the product contract describes.
-
-## Conformance Summary
-
-| Area | Status | Notes |
-|------|--------|-------|
-| D1 Vocabulary | Aligned | The shipped commands now use the locked `NEXT SAFE ACTION` phrasing and human-facing blocker subjects |
-| D2 Hierarchy and front door | Partially aligned | Help and steady-state path are good; guided setup handoff is still unresolved in the shipped CLI |
-| D3 Tone | Mostly aligned | `generate` and `inspect` are good; `doctor` is better but still thin on the ready path |
-| D4 Output anatomy | Partially aligned | `generate` and `inspect` are strong; `doctor` is still transitional, `setup` is still placeholder-only |
-| D5 Interaction contract | Aligned | The contract is honest about the remaining gaps instead of hiding them |
-
-## Verdict
-
-The reduced-v1 journey is credible but uneven.
-
-It does achieve the intended arc on the strongest path:
-
-- `generate` in a ready repo creates momentum
-- `inspect` provides real proof
-
-It does not yet fully achieve the intended arc on the boundary paths:
-
-- the front door still stops at a placeholder instead of a guided handoff
-- `doctor` still reads like implementation output instead of a finished recovery product
-
-So the system is directionally right and operationally useful, but the trust experience is not fully closed.
+- The front door is named correctly, but the shipped command still stops one step before usefulness.
 
 ## Revision Backlog
 
-### R1, Align `doctor` to the interaction contract
+Historical backlog preserved for the same drift-guard reason:
 
-Problem:
-
-- `doctor` is functionally correct but still ships raw debug-shaped blocker output.
-
-Required revision:
-
-- adopt the trust-header model
-- switch from `NEXT ACTION` to `NEXT SAFE ACTION`
-- render subjects and next actions in human-facing shared language
-- make ready-state output more informative than a bare `READY`
-
-Why this matters:
-
-- this is the biggest product gap between the contract and the shipped CLI
-
-### R2, Fix `inspect` ready-path next-action semantics
-
-Problem:
-
-- `inspect` tells the operator to run `inspect` for proof while already showing proof
-
-Required revision:
-
-- replace the self-referential ready-path next action with a non-self-referential handoff
-
-Why this matters:
-
-- the current line weakens trust because it looks templated instead of intentional
-
-### R3, Make the setup placeholder hand off to a real guided entry path
-
-Problem:
-
-- `setup` is honest but dead-ends
-
-Required revision:
-
-- keep `setup` as the stable operation name
-- add an exact handoff to the current guided setup experience until Rust setup exists
-
-Why this matters:
-
-- the front door should be incomplete only once, not ambiguous every time a new operator tries it
-
-## Relationship To Existing Backlog
-
-- R1 is a new revision item created by this review.
-- R2 is a new revision item created by this review.
-- R3 overlaps with the existing setup-ownership and entry-routing work and should be treated as the concrete interaction-design expression of that existing backlog item.
+- R1, Align `doctor` to the interaction contract
+- R2, Fix `inspect` ready-path next-action semantics
+- R3, Make the setup placeholder hand off to a real guided entry path

@@ -1,0 +1,119 @@
+# Project Context — {{PROJECT_NAME}}
+
+> **File:** `PROJECT_CONTEXT.md`  
+> **Created (UTC):** {{NOW_UTC}}  
+> **Owner:** {{OWNER}}  
+> **Team:** {{TEAM}}  
+> **Repo / Project:** {{REPO_OR_PROJECT_REF}}  
+> **Charter Ref:** {{CHARTER_REF}}
+
+## What this is
+A factual snapshot of project reality used to prevent incorrect planning assumptions.  
+(“What exists, what’s live, what constraints are true, what we integrate with.”)
+
+## How to use this
+- Use this document to ground **feature specs**, **phase plans**, **slice specs**, and **execution** in reality.
+- If something is unknown, record it explicitly in **Known Unknowns** and avoid planning around invented constraints.
+- This doc should change rarely; update it when reality changes (first prod launch, new integration, major migration, etc.).
+
+---
+
+## 0) Project Summary (factual, 3–6 bullets)
+- **What this project is:** {{PROJECT_SUMMARY_ONE_LINE}}
+- **Primary surface:** {{PRIMARY_SURFACE}}
+  <!-- CLI / API-service / library / web app / desktop / infra-tooling / mixed -->
+- **Primary users:** {{PRIMARY_USERS}}
+- **Key workflows (top 1–3):**
+  - {{WORKFLOW_1}}
+  - {{WORKFLOW_2}}
+  - {{WORKFLOW_3}}
+- **Non-goals (optional):** {{NON_GOALS_OR_NONE}}
+
+## 1) Operational Reality (the most important section)
+- **Is anything live in production today?** {{YES_NO_TBD}}
+- **Users:** {{USERS_NONE_INTERNAL_EXTERNAL_TBD}}
+- **Data in production:** {{DATA_NONE_SOME_TBD}}
+- **Uptime expectations / SLA:** {{SLA_NONE_TBD}}
+- **Incident/on-call reality:** {{ONCALL_NONE_TBD}}
+- **Primary risk flags present:** {{RISK_FLAGS_FROM_CHARTER_OR_DELTA}}
+
+## 2) Project Classification Implications (planning guardrails)
+> This prevents unnecessary migration/back-compat planning.
+
+- **Project type (from Charter):** {{PROJECT_TYPE}}
+- **Backward compatibility required?** {{YES_NO_NA}}  
+  - Notes: {{BACKCOMPAT_NOTES}}
+- **Migration planning required?** {{YES_NO_NA}}  
+  - Notes: {{MIGRATION_NOTES}}
+- **Deprecation policy exists?** {{YES_NO_NA}}  
+  - Notes: {{DEPRECATION_NOTES}}
+- **Rollout controls required (flags/canary/staged)?** {{YES_NO_NA}}  
+  - Notes: {{ROLLOUT_NOTES}}
+
+## 3) System Boundaries (what we own vs integrate with)
+### What we own
+- {{OWNED_AREA_1}}
+- {{OWNED_AREA_2}}
+
+### What we do NOT own (but may depend on)
+- {{EXTERNAL_AREA_1}}
+- {{EXTERNAL_AREA_2}}
+
+## 4) Integrations & Contracts (top 1–5)
+> Enumerate only what matters. If none, write “None.”
+
+- **Integration 1:** {{INTEGRATION_1_NAME}}
+  - Type: {{INTEGRATION_1_TYPE}} (internal service / external SaaS / API / DB / event bus / file / other)
+  - Contract surface: {{INTEGRATION_1_CONTRACT}} (endpoints/events/schemas)
+  - Authentication/authorization: {{INTEGRATION_1_AUTH}}
+  - Failure mode expectations: {{INTEGRATION_1_FAILURES}}
+- **Integration 2:** {{INTEGRATION_2_NAME}} (optional)
+  - Type: {{INTEGRATION_2_TYPE}}
+  - Contract surface: {{INTEGRATION_2_CONTRACT}}
+  - Auth: {{INTEGRATION_2_AUTH}}
+  - Failure modes: {{INTEGRATION_2_FAILURES}}
+
+## 5) Environments & Delivery
+- **Environments that exist:** {{ENVS_DEV_STAGE_PROD_TBD}}
+- **Deployment model:** {{DEPLOYMENT_MODEL_TBD}} (single host / containers / k8s / serverless / desktop / mobile / other)
+- **CI/CD reality:** {{CICD_NONE_BASIC_ADVANCED_TBD}}
+- **Release cadence:** {{RELEASE_CADENCE_TBD}}
+- **Config & secrets:** {{SECRETS_STRATEGY_TBD}}
+- **Observability stack (if any):** {{OBS_STACK_NONE_TBD}}
+
+## 6) Data Reality
+> Keep this high level; just enough for planning.
+
+- **Primary data stores:** {{DATA_STORES_NONE_TBD}}
+- **Data classification:** {{DATA_CLASSIFICATION_NONE_PII_REGULATED_TBD}}
+- **Retention requirements:** {{RETENTION_NONE_TBD}}
+- **Backups / DR reality:** {{BACKUPS_NONE_TBD}}
+- **Existing migrations/history:** {{MIGRATION_HISTORY_NONE_TBD}}
+
+## 7) Repo / Codebase Reality (brownfield-friendly, but safe for greenfield)
+- **Codebase exists today?** {{YES_NO}}
+- **If yes:** current maturity: {{MATURITY_TINY_MEDIUM_LARGE_TBD}}
+- **Key modules/areas to be aware of:** {{KEY_MODULES_TBD}}
+- **Known constraints from existing code:** {{CODE_CONSTRAINTS_NONE_TBD}}
+
+## 8) Constraints
+- **Deadline/time constraints:** {{DEADLINE_NONE_TBD}}
+- **Budget constraints:** {{BUDGET_NONE_TBD}}
+- **Must-use tech / prohibited tech:** {{TECH_CONSTRAINTS_NONE_TBD}}
+- **Compliance/legal constraints:** {{COMPLIANCE_NONE_TBD}}
+- **Performance constraints:** {{PERF_CONSTRAINTS_NONE_TBD}}
+- **Security constraints:** {{SEC_CONSTRAINTS_NONE_TBD}}
+
+## 9) Known Unknowns (explicitly tracked)
+> List anything that’s uncertain but would change planning decisions.
+
+- {{UNKNOWN_1}} (owner: {{UNKNOWN_1_OWNER}}, revisit trigger: {{UNKNOWN_1_TRIGGER}})
+- {{UNKNOWN_2}} (owner: {{UNKNOWN_2_OWNER}}, revisit trigger: {{UNKNOWN_2_TRIGGER}})
+
+## 10) Update Triggers
+Update this doc when:
+- first production launch
+- first external users
+- new major integration/contract introduced
+- major migration/modernization begins
+- posture changes in Charter require new operational constraints

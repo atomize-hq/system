@@ -1,0 +1,31 @@
+project:
+  name: System
+  owner: Platform Foundations
+  team: Build Systems
+  repo_or_project_ref: system
+
+mission:
+  summary: >
+    Prove the M4 skip path for foundation inputs so the Rust CLI can show that stage 06
+    remains skipped when the charter already provides the required planning context.
+
+posture:
+  baseline_level: 4
+  speed_vs_quality: correctness_over_speed_for_operator_proof
+  testing_rigor: deterministic-fixtures-plus-focused-cli-and-compiler-journeys
+  security_and_privacy: no-secrets-in-fixtures-or-captured-proof-output
+  operator_surface: explicit-skip-reason-with-no-hidden-context-recovery
+
+success_criteria:
+  - prove stage 06 remains skipped because both activation predicates are false
+  - prove stage 10 still follows compile to external output to capture
+  - keep the skip-path charter complete enough that no context gap is implied
+
+red_lines:
+  - do not depend on placeholder text to justify the skip
+  - do not reintroduce a direct compile-to-capture story at stage 10
+  - do not expand beyond the bounded M4 proof
+
+follow_up:
+  project_context_required: false
+  reasons: []

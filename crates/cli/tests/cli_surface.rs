@@ -76,6 +76,70 @@ fn workspace_root() -> std::path::PathBuf {
     );
 }
 
+fn copy_tree(source: &std::path::Path, target: &std::path::Path) {
+    std::fs::create_dir_all(target)
+        .unwrap_or_else(|err| panic!("mkdir {}: {err}", target.display()));
+
+    for entry in std::fs::read_dir(source)
+        .unwrap_or_else(|err| panic!("read_dir {}: {err}", source.display()))
+    {
+        let entry =
+            entry.unwrap_or_else(|err| panic!("dir entry under {}: {err}", source.display()));
+        let source_path = entry.path();
+        let target_path = target.join(entry.file_name());
+        let file_type = entry
+            .file_type()
+            .unwrap_or_else(|err| panic!("file_type {}: {err}", source_path.display()));
+
+        if file_type.is_dir() {
+            copy_tree(&source_path, &target_path);
+        } else if file_type.is_file() {
+            if let Some(parent) = target_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .unwrap_or_else(|err| panic!("mkdir {}: {err}", parent.display()));
+            }
+            std::fs::copy(&source_path, &target_path).unwrap_or_else(|err| {
+                panic!(
+                    "copy {} -> {}: {err}",
+                    source_path.display(),
+                    target_path.display()
+                )
+            });
+        }
+    }
+}
+
+fn foundation_flow_demo_root() -> std::path::PathBuf {
+    workspace_root().join("tests/fixtures/foundation_flow_demo")
+}
+
+fn install_foundation_flow_demo_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().to_path_buf();
+    copy_tree(&foundation_flow_demo_root().join("repo"), &root);
+    (dir, root)
+}
+
+fn read_foundation_flow_demo_model_output(case: &str, filename: &str) -> String {
+    std::fs::read_to_string(
+        foundation_flow_demo_root()
+            .join("model_outputs")
+            .join(case)
+            .join(filename),
+    )
+    .unwrap_or_else(|err| panic!("read demo model output {case}/{filename}: {err}"))
+}
+
+fn read_foundation_flow_demo_expected(case: &str, filename: &str) -> String {
+    std::fs::read_to_string(
+        foundation_flow_demo_root()
+            .join("expected")
+            .join(case)
+            .join(filename),
+    )
+    .unwrap_or_else(|err| panic!("read demo expected output {case}/{filename}: {err}"))
+}
+
 fn canonical_repo_root(path: &std::path::Path) -> std::path::PathBuf {
     std::fs::canonicalize(path)
         .unwrap_or_else(|err| panic!("canonicalize {}: {err}", path.display()))
@@ -502,7 +566,7 @@ fn stage_07_capture_input(root: &std::path::Path) -> String {
     out
 }
 
-fn stage_10_capture_input(root: &std::path::Path) -> String {
+fn stage_10_compile_payload(root: &std::path::Path) -> String {
     let output = run_in_with_env(
         root,
         &[
@@ -525,6 +589,10 @@ fn stage_10_capture_input(root: &std::path::Path) -> String {
     let stdout = String::from_utf8(output.stdout).expect("compile stdout is utf-8");
     let trimmed = stdout.trim_end_matches('\n');
     format!("{trimmed}\n")
+}
+
+fn stage_10_completed_feature_spec_input() -> String {
+    read_foundation_flow_demo_model_output("happy_path", "stage_10_feature_spec.md")
 }
 
 fn normalize_capture_id(output: &str) -> String {
@@ -884,7 +952,7 @@ fn pipeline_capture_preview_stage_10_matches_shared_golden() {
             "stage.10_feature_spec",
             "--preview",
         ],
-        &stage_10_capture_input(root.as_path()),
+        &stage_10_completed_feature_spec_input(),
     );
     assert!(output.status.success(), "preview should succeed");
 
@@ -1026,7 +1094,7 @@ fn pipeline_capture_preview_stage_10_refuses_file_wrapper() {
     prepare_stage_10_capture_ready_route_basis(root.as_path());
     let wrapped = format!(
         "--- FILE: artifacts/feature_spec/FEATURE_SPEC.md ---\n{}",
-        stage_10_capture_input(root.as_path())
+        stage_10_completed_feature_spec_input()
     );
 
     let output = run_in_with_input(
@@ -1217,7 +1285,7 @@ fn pipeline_capture_apply_stage_10_matches_shared_golden() {
             "--stage",
             "stage.10_feature_spec",
         ],
-        &stage_10_capture_input(root.as_path()),
+        &stage_10_completed_feature_spec_input(),
     );
     assert!(output.status.success(), "capture should succeed");
 
@@ -1253,8 +1321,8 @@ fn pipeline_capture_apply_refuses_missing_capture_id() {
 }
 
 #[test]
-fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
-    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+fn pipeline_foundation_inputs_m4_happy_path_proves_real_stage_10_handoff() {
+    let (_dir, root) = install_foundation_flow_demo_repo();
 
     let resolve = run_in(
         root.as_path(),
@@ -1272,7 +1340,7 @@ fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
             "--stage",
             "stage.04_charter_inputs",
         ],
-        &stage_04_capture_input(root.as_path()),
+        &read_foundation_flow_demo_model_output("happy_path", "stage_04_charter_inputs.txt"),
     );
     assert!(stage_04.status.success(), "stage 04 capture should succeed");
 
@@ -1286,7 +1354,7 @@ fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
             "--stage",
             "stage.05_charter_synthesize",
         ],
-        &stage_05_capture_input(root.as_path()),
+        &read_foundation_flow_demo_model_output("happy_path", "stage_05_charter_synthesize.md"),
     );
     assert!(stage_05.status.success(), "stage 05 capture should succeed");
 
@@ -1321,6 +1389,10 @@ fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
         second_resolve_stdout.contains("stage.06_project_context_interview | active"),
         "stage 06 should be active after the manual handoff: {second_resolve_stdout}"
     );
+    assert!(
+        second_resolve_stdout.contains("needs_project_context = true"),
+        "route basis should record the explicit stage-05 handoff: {second_resolve_stdout}"
+    );
 
     let stage_06 = run_in_with_input(
         root.as_path(),
@@ -1332,7 +1404,10 @@ fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
             "--stage",
             "stage.06_project_context_interview",
         ],
-        &stage_06_capture_input(root.as_path()),
+        &read_foundation_flow_demo_model_output(
+            "happy_path",
+            "stage_06_project_context_interview.md",
+        ),
     );
     assert!(stage_06.status.success(), "stage 06 capture should succeed");
 
@@ -1355,11 +1430,21 @@ fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
             "--stage",
             "stage.07_foundation_pack",
         ],
-        &stage_07_capture_input(root.as_path()),
+        &read_foundation_flow_demo_model_output("happy_path", "stage_07_foundation_pack.txt"),
     );
     assert!(stage_07.status.success(), "stage 07 capture should succeed");
 
-    let stage_10_payload = stage_10_capture_input(root.as_path());
+    let stage_10_payload = stage_10_compile_payload(root.as_path());
+    assert!(
+        stage_10_payload.starts_with("# stage.10_feature_spec - Feature Specification"),
+        "stage-10 compile should remain payload-only stage input: {stage_10_payload}"
+    );
+    let completed_feature_spec =
+        read_foundation_flow_demo_model_output("happy_path", "stage_10_feature_spec.md");
+    assert_ne!(
+        stage_10_payload, completed_feature_spec,
+        "stage-10 compile payload must stay distinct from completed external model output"
+    );
     let stage_10 = run_in_with_input(
         root.as_path(),
         &[
@@ -1370,13 +1455,150 @@ fn pipeline_foundation_inputs_route_progression_supports_full_m35_path() {
             "--stage",
             "stage.10_feature_spec",
         ],
-        &stage_10_payload,
+        &completed_feature_spec,
     );
     assert!(stage_10.status.success(), "stage 10 capture should succeed");
     assert_eq!(
         std::fs::read_to_string(root.join("artifacts/feature_spec/FEATURE_SPEC.md"))
             .expect("feature spec artifact"),
-        stage_10_payload
+        read_foundation_flow_demo_expected("happy_path", "final_feature_spec.md")
+    );
+}
+
+#[test]
+fn pipeline_foundation_inputs_m4_skip_path_skips_stage_06_when_both_route_predicates_are_false() {
+    let (_dir, root) = install_foundation_flow_demo_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "initial resolve should succeed");
+
+    let stage_04 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+        ],
+        &read_foundation_flow_demo_model_output("skip_path", "stage_04_charter_inputs.txt"),
+    );
+    assert!(stage_04.status.success(), "stage 04 capture should succeed");
+
+    let stage_05 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+        ],
+        &read_foundation_flow_demo_model_output("skip_path", "stage_05_charter_synthesize.md"),
+    );
+    assert!(stage_05.status.success(), "stage 05 capture should succeed");
+
+    let state_set = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=false",
+        ],
+    );
+    assert!(
+        state_set.status.success(),
+        "needs_project_context state set should succeed"
+    );
+
+    let second_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        second_resolve.status.success(),
+        "second resolve should succeed"
+    );
+    let second_resolve_stdout =
+        String::from_utf8(second_resolve.stdout).expect("resolve stdout is utf-8");
+    assert!(
+        second_resolve_stdout.contains("charter_gaps_detected = false"),
+        "skip path should keep charter gaps false by content: {second_resolve_stdout}"
+    );
+    assert!(
+        second_resolve_stdout.contains("needs_project_context = false"),
+        "skip path should preserve explicit operator decision: {second_resolve_stdout}"
+    );
+    assert!(
+        second_resolve_stdout.contains("stage.06_project_context_interview | skipped"),
+        "stage 06 should stay skipped: {second_resolve_stdout}"
+    );
+    assert!(
+        second_resolve_stdout.contains(
+            "REASON: activation evaluated false for variables: charter_gaps_detected, needs_project_context"
+        ),
+        "stage 06 skip reason must stay explicit: {second_resolve_stdout}"
+    );
+    assert!(
+        second_resolve_stdout.contains("stage.07_foundation_pack | active"),
+        "stage 07 should remain active on the skip path: {second_resolve_stdout}"
+    );
+    assert!(
+        second_resolve_stdout.contains("stage.10_feature_spec | active"),
+        "stage 10 should remain active on the skip path: {second_resolve_stdout}"
+    );
+
+    let stage_07 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.07_foundation_pack",
+        ],
+        &read_foundation_flow_demo_model_output("skip_path", "stage_07_foundation_pack.txt"),
+    );
+    assert!(stage_07.status.success(), "stage 07 capture should succeed");
+
+    let stage_10_payload = stage_10_compile_payload(root.as_path());
+    assert!(
+        stage_10_payload.starts_with("# stage.10_feature_spec - Feature Specification"),
+        "stage-10 compile should remain payload-only stage input: {stage_10_payload}"
+    );
+    let completed_feature_spec =
+        read_foundation_flow_demo_model_output("skip_path", "stage_10_feature_spec.md");
+    assert_ne!(
+        stage_10_payload, completed_feature_spec,
+        "stage-10 compile payload must stay distinct from completed external model output"
+    );
+    let stage_10 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &completed_feature_spec,
+    );
+    assert!(stage_10.status.success(), "stage 10 capture should succeed");
+    assert_eq!(
+        std::fs::read_to_string(root.join("artifacts/feature_spec/FEATURE_SPEC.md"))
+            .expect("feature spec artifact"),
+        read_foundation_flow_demo_expected("skip_path", "final_feature_spec.md")
     );
 }
 

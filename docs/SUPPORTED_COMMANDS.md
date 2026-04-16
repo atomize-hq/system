@@ -22,7 +22,8 @@ cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --st
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack --preview
-cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec | cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
+cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec < /tmp/FEATURE_SPEC.md
 cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 cargo run -p system-cli -- generate
 cargo run -p system-cli -- inspect
@@ -45,7 +46,9 @@ cargo run -p system-cli -- pipeline resolve --id pipeline.foundation_inputs
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
 cargo run -p system-cli -- pipeline resolve --id pipeline.foundation_inputs
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack --preview
-cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec | cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
+# External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
+cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec < /tmp/FEATURE_SPEC.md
 cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 ```
 
@@ -66,7 +69,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
   - `pipeline.foundation_inputs` + `stage.10_feature_spec`
 - `pipeline capture --preview` validates stdin, caches one typed materialization plan, and prints a deterministic `capture_id`.
 - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
-- `pipeline capture` remains the only supported stage-output writer surface. `pipeline compile` stays payload-only, and the shipped stage-10 materialization path is `pipeline compile ... | pipeline capture ...`.
+- `pipeline capture` remains the only supported stage-output writer surface. For stage `10`, `pipeline compile` emits model input payload, an external operator or model runner produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
 - `needs_project_context` remains an explicit operator-owned handoff:
   - `pipeline capture --stage stage.05_charter_synthesize`
   - `pipeline state set --var needs_project_context=<true|false>`
@@ -80,7 +83,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 
 - The currently shipped binary exposes `pipeline` as the reviewed operator surface alongside `setup`, `generate`, `inspect`, and `doctor`.
 - `pipeline` now includes one explicit stage compilation wedge in M2 and one explicit writer wedge in M3 without widening into generic multi-stage compile or run support.
-- The documented `pipeline.foundation_inputs` path is `04` capture -> `05` capture -> manual `state set` -> `resolve` -> conditional `06` capture -> `resolve` -> `07` capture -> `10` compile-to-capture.
+- The documented `pipeline.foundation_inputs` path is `04` capture -> `05` capture -> manual `state set` -> `resolve` -> conditional `06` capture -> `resolve` -> `07` capture -> `10` compile -> external model output -> capture.
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
 - For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
 - For `pipeline`, list/show/resolve/compile/capture/state-set stay inside the approved repo surface and use one shared resolved-route truth.
@@ -114,6 +117,9 @@ cargo run -p system-cli -- pipeline resolve --id pipeline.foundation_inputs
 cat /tmp/FOUNDATION_PACK.blocks.txt \
   | cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack
 
-cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec \
+cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
+
+# External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
+cat /tmp/FEATURE_SPEC.md \
   | cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
 ```

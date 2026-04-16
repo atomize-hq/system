@@ -70,7 +70,10 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
   - `stage.07_foundation_pack`
   - `stage.10_feature_spec`
 - `pipeline compile` MUST remain payload-only stdout for the shipped M2 / M3.5 wedge.
-- The only shipped stage-10 materialization path is `pipeline compile ... --stage stage.10_feature_spec` piping payload stdout into `pipeline capture ... --stage stage.10_feature_spec`.
+- The shipped M4 stage-10 materialization path is:
+  - `pipeline compile ... --stage stage.10_feature_spec` emits model input payload
+  - an external operator or model runner produces the completed `FEATURE_SPEC.md`
+  - `pipeline capture ... --stage stage.10_feature_spec` materializes that completed body
 - The supported `foundation_inputs` operator sequence MUST keep `needs_project_context` as one explicit manual handoff:
   - capture `stage.05_charter_synthesize`
   - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
@@ -110,7 +113,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 / M3.5 wedge.
 - [ ] The documented `pipeline.foundation_inputs` capture targets are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
-- [ ] `pipeline compile` remains payload-only stdout, and stage `10` materialization is documented only as a compile-to-capture handoff.
+- [ ] `pipeline compile` remains payload-only stdout, and stage `10` materialization is documented only as `compile -> external model output -> capture`.
 - [ ] `needs_project_context` remains documented as a manual `pipeline state set` plus `pipeline resolve` step rather than an automatic capture side effect.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.

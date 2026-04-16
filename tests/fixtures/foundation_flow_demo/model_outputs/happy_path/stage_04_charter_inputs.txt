@@ -1,0 +1,35 @@
+project:
+  name: System
+  owner: Platform Foundations
+  team: Build Systems
+  repo_or_project_ref: system
+
+mission:
+  summary: >
+    Prove the M4 foundation journey end to end so the Rust CLI can show one truthful
+    happy path and one truthful skip path for foundation inputs without inventing
+    downstream state.
+
+posture:
+  baseline_level: 4
+  speed_vs_quality: correctness_over_speed_for_operator_proof
+  testing_rigor: deterministic-fixtures-plus-focused-cli-and-compiler-journeys
+  security_and_privacy: no-secrets-in-fixtures-or-captured-proof-output
+  operator_surface: compile-produces-model-input-capture-consumes-model-output
+
+success_criteria:
+  - prove route progression from stage 04 through stage 10 with deterministic evidence
+  - require an external completed FEATURE_SPEC.md before stage 10 capture writes files
+  - keep docs, help text, and proof fixtures aligned on the same handoff contract
+
+red_lines:
+  - do not pipe raw compile stdout directly into stage 10 capture
+  - do not reread the repo to synthesize missing route truth after resolve
+  - do not expand product surface area beyond the bounded M4 proof
+
+follow_up:
+  project_context_required: true
+  reasons:
+    - confirm which operator evidence must be preserved in the journey artifact
+    - confirm the rerun expectations after the happy-path proof lands
+    - confirm how manual decisions remain visible without implying automation

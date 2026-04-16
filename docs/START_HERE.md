@@ -24,7 +24,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `pipeline capture --preview` validates stdin, caches one typed materialization plan, and returns `CAPTURE ID`.
   - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
   - For `pipeline.foundation_inputs`, the supported capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
-  - `pipeline compile` does not write files. Stage `10` materialization is the compile-to-capture handoff.
+  - `pipeline compile` does not write files. For stage `10`, compile emits model input payload, an external operator or model runner produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
   - If capture refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.
@@ -56,7 +56,10 @@ system pipeline resolve --id pipeline.foundation_inputs
 cat /tmp/FOUNDATION_PACK.blocks.txt \
   | system pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack
 
-system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec \
+system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
+
+# External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
+cat /tmp/FEATURE_SPEC.md \
   | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
 ```
 

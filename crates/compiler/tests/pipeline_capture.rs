@@ -2,7 +2,7 @@
 mod pipeline_proof_corpus_support;
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 use system_compiler::{
@@ -105,11 +105,45 @@ fn fixed_runtime() -> PipelineCompileRuntimeContext {
     }
 }
 
-fn stage_10_capture_input(repo_root: &Path) -> String {
+fn stage_10_compile_payload(repo_root: &Path) -> String {
     let result =
         compile_pipeline_stage_with_runtime(repo_root, PIPELINE_ID, STAGE_10_ID, &fixed_runtime())
             .expect("compile result");
     render_pipeline_compile_payload(&result)
+}
+
+fn workspace_root() -> PathBuf {
+    let start = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for ancestor in start.ancestors() {
+        let cargo_toml = ancestor.join("Cargo.toml");
+        if !cargo_toml.is_file() {
+            continue;
+        }
+        let Ok(contents) = fs::read_to_string(&cargo_toml) else {
+            continue;
+        };
+        if contents.contains("[workspace]") {
+            return ancestor.to_path_buf();
+        }
+    }
+
+    panic!(
+        "failed to locate workspace root from CARGO_MANIFEST_DIR={}",
+        env!("CARGO_MANIFEST_DIR")
+    );
+}
+
+fn stage_10_completed_feature_spec_input() -> String {
+    fs::read_to_string(
+        workspace_root()
+            .join("tests")
+            .join("fixtures")
+            .join("foundation_flow_demo")
+            .join("model_outputs")
+            .join("happy_path")
+            .join("stage_10_feature_spec.md"),
+    )
+    .expect("stage 10 completed feature spec fixture")
 }
 
 fn normalize_capture_id(output: &str, capture_id: &str) -> String {
@@ -279,13 +313,16 @@ fn capture_preview_foundation_pack_matches_shared_golden() {
 }
 
 #[test]
-fn capture_preview_feature_spec_matches_shared_golden_from_real_compile_payload() {
+fn capture_preview_feature_spec_matches_shared_golden_from_completed_external_output() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    let preview = preview_pipeline_capture(
-        &repo_root,
-        &stage_10_request(stage_10_capture_input(&repo_root)),
-    )
-    .expect("preview");
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    let completed_output = stage_10_completed_feature_spec_input();
+    assert_ne!(
+        compile_payload, completed_output,
+        "stage-10 compile payload must stay distinct from completed external model output"
+    );
+    let preview =
+        preview_pipeline_capture(&repo_root, &stage_10_request(completed_output)).expect("preview");
     let rendered = render_pipeline_capture_preview(&preview);
     let normalized = normalize_capture_id(&rendered, &preview.plan.capture_id);
 
@@ -408,9 +445,14 @@ fn capture_apply_foundation_pack_matches_shared_golden_and_uses_cached_preview()
 }
 
 #[test]
-fn capture_apply_stage_10_matches_shared_golden_from_real_compile_payload() {
+fn capture_apply_stage_10_matches_shared_golden_from_completed_external_output() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    let input = stage_10_capture_input(&repo_root);
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    let input = stage_10_completed_feature_spec_input();
+    assert_ne!(
+        compile_payload, input,
+        "stage-10 compile payload must stay distinct from completed external model output"
+    );
     let result =
         capture_pipeline_output(&repo_root, &stage_10_request(input.clone())).expect("capture");
     let rendered = render_pipeline_capture_apply_result(&result);
@@ -490,7 +532,7 @@ fn capture_refuses_stage_06_single_file_with_file_wrapper() {
 #[test]
 fn capture_refuses_stage_10_single_file_with_file_wrapper() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    let input = stage_10_capture_input(&repo_root);
+    let input = stage_10_completed_feature_spec_input();
     let wrapped = format!("--- FILE: artifacts/feature_spec/FEATURE_SPEC.md ---\n{input}",);
     let refusal =
         preview_pipeline_capture(&repo_root, &stage_10_request(wrapped)).expect_err("refusal");
