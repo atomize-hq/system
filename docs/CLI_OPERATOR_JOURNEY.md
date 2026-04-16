@@ -44,12 +44,13 @@ The happy path proves the route where project context is genuinely required.
 6. Stage `06` capture writes `PROJECT_CONTEXT.md`.
 7. Stage `07` capture writes the foundation pack.
 8. Stage `10` compile runs with a fixed clock and emits payload-only model input.
-9. An external model or operator produces a completed `FEATURE_SPEC.md`.
-10. Stage `10` capture consumes that completed external markdown and writes
+9. If that raw compile payload is passed directly to `pipeline capture`, raw `pipeline compile` payload is refused as `invalid_capture_input`.
+10. An external model or operator produces a completed `FEATURE_SPEC.md`.
+11. Stage `10` capture consumes that completed external markdown and writes
     `artifacts/feature_spec/FEATURE_SPEC.md`.
 
-The proof asserts that the stage-10 compile payload is not the final feature spec body, and that
-the written artifact matches
+The proof asserts that the stage-10 compile payload is not the final feature spec body, that raw
+compile payload is refused by `pipeline capture`, and that the written artifact matches
 [`tests/fixtures/foundation_flow_demo/expected/happy_path/final_feature_spec.md`](../tests/fixtures/foundation_flow_demo/expected/happy_path/final_feature_spec.md).
 
 ## Skip Path
@@ -68,8 +69,9 @@ reason.
    - `stage.06_project_context_interview | skipped`
    - `REASON: activation evaluated false for variables: charter_gaps_detected, needs_project_context`
 6. Stage `07` remains active and capture writes the foundation pack.
-7. Stage `10` remains active. Compile still emits payload-only model input, an external model
-   produces the completed `FEATURE_SPEC.md`, and capture materializes that completed output.
+7. Stage `10` remains active. Compile still emits payload-only model input, capture refuses that
+   raw compile payload as `invalid_capture_input`, an external model produces the completed
+   `FEATURE_SPEC.md`, and capture materializes that completed output.
 
 The skip path is valid only because both route predicates are explicit and false. It is not a
 placeholder path and it is not inferred from missing text.
@@ -92,6 +94,7 @@ M4 locks the real stage-10 contract:
 
 - `pipeline compile --stage stage.10_feature_spec` remains payload-only.
 - The compile payload is model input, not a materialized `FEATURE_SPEC.md`.
+- Passing raw `pipeline compile` payload directly into `pipeline capture` means raw `pipeline compile` payload is refused as `invalid_capture_input`.
 - The completed feature spec comes from an external model response or operator-supplied completed
   markdown.
 - `pipeline capture --stage stage.10_feature_spec` writes only after that completed external body
@@ -125,7 +128,7 @@ committed, and independent of any network call during proof execution.
 | Area | Status | Evidence-backed conclusion |
 |------|--------|----------------------------|
 | Manual decisions still required | Yes | The operator still chooses and sets `needs_project_context` after stage `05`, then reruns `pipeline resolve`. |
-| Model-output boundaries | Locked for M4 | Stage `10` is proved only as `compile -> external model output -> capture`; success-path tests assert compile payload and completed feature-spec output are distinct. |
+| Model-output boundaries | Locked for M4 | Stage `10` is proved only as `compile -> external model output -> capture`; success-path tests assert compile payload and completed feature-spec output are distinct, and raw compile payload capture is refused as `invalid_capture_input`. |
 | Repo rereads avoided | Bounded in M4 | The journey uses route state plus committed fixture outputs from `tests/fixtures/foundation_flow_demo/`; it does not reread the repo to reconstruct missing route truth after resolve. |
 | What remains manual for M5 | Still manual / out of scope here | M4 ends at journey proof plus handoff contract. It does not prove downstream consumers or later workflow adoption beyond the captured `FEATURE_SPEC.md`. |
 

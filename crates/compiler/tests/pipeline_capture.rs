@@ -518,6 +518,40 @@ fn capture_refuses_stage_10_single_file_with_file_wrapper() {
 }
 
 #[test]
+fn capture_preview_stage_10_refuses_raw_compile_payload_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "stage-10 capture-ready fixture should not pre-create the feature-spec artifact"
+    );
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_10_request(compile_payload))
+        .expect_err("raw compile payload should refuse");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &render_pipeline_capture_refusal(&refusal, Some(PIPELINE_ID), Some(STAGE_10_ID)),
+        &[],
+        "capture.refused.stage_10_raw_compile_payload.txt",
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "raw compile payload refusal must not create the feature-spec artifact"
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
 fn capture_preview_stage_04_refuses_empty_single_file_body_without_side_effects() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_04_capture_ready_repo();
     let initial_artifact =
@@ -671,6 +705,40 @@ fn capture_apply_refuses_empty_single_file_body_without_side_effects() {
     assert_eq!(
         fs::read_to_string(repo_root.join("CHARTER.md")).expect("mirror"),
         initial_repo_mirror
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_apply_stage_10_refuses_raw_compile_payload_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    let compile_payload = stage_10_compile_payload(&repo_root);
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "stage-10 capture-ready fixture should not pre-create the feature-spec artifact"
+    );
+
+    let refusal = capture_pipeline_output(&repo_root, &stage_10_request(compile_payload))
+        .expect_err("raw compile payload should refuse");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    pipeline_proof_corpus_support::assert_matches_golden_with_explicit_placeholders(
+        &render_pipeline_capture_refusal(&refusal, Some(PIPELINE_ID), Some(STAGE_10_ID)),
+        &[],
+        "capture.refused.stage_10_raw_compile_payload.txt",
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "raw compile payload refusal must not create the feature-spec artifact"
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);

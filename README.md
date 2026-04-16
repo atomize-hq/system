@@ -29,6 +29,7 @@ This repo is in transition.
 - `pipeline capture --preview` caches one validated materialization plan and returns a deterministic `capture_id`.
 - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
 - `pipeline capture` remains the only supported stage-output writer surface. `pipeline compile` stays payload-only, and stage `10` materialization is `compile -> external model output -> capture`.
+- For stage `10`, raw `pipeline compile` payload is refused as `invalid_capture_input`; `pipeline capture` must receive a completed `FEATURE_SPEC.md` body.
 - `pipeline capture` apply safety is scoped to `system`-coordinated single-writer flows.
 - Compile freshness recovery is explicit: re-run `pipeline resolve` before retrying compile when route basis is missing, stale, or inactive.
 - Capture freshness recovery is explicit too: re-run `pipeline resolve` before retrying preview or apply when route basis is missing, stale, or inactive.

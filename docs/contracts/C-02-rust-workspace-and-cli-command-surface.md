@@ -72,6 +72,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - `pipeline compile` MUST remain payload-only stdout for the shipped M2 / M3.5 wedge.
 - The shipped M4 stage-10 materialization path is:
   - `pipeline compile ... --stage stage.10_feature_spec` emits model input payload
+  - `pipeline capture ... --stage stage.10_feature_spec` refuses raw `pipeline compile` payload as `invalid_capture_input`
   - an external operator or model runner produces the completed `FEATURE_SPEC.md`
   - `pipeline capture ... --stage stage.10_feature_spec` materializes that completed body
 - The supported `foundation_inputs` operator sequence MUST keep `needs_project_context` as one explicit manual handoff:
@@ -113,7 +114,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 / M3.5 wedge.
 - [ ] The documented `pipeline.foundation_inputs` capture targets are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
-- [ ] `pipeline compile` remains payload-only stdout, and stage `10` materialization is documented only as `compile -> external model output -> capture`.
+- [ ] `pipeline compile` remains payload-only stdout, raw stage-10 compile payload is documented as refused by `pipeline capture` with `invalid_capture_input`, and stage `10` materialization is documented only as `compile -> external model output -> capture`.
 - [ ] `needs_project_context` remains documented as a manual `pipeline state set` plus `pipeline resolve` step rather than an automatic capture side effect.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.

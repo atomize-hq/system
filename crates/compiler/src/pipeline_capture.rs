@@ -145,6 +145,7 @@ pub enum PipelineCaptureRefusalClassification {
 enum CaptureInputParseError {
     InvalidSingleFileWrapper,
     EmptySingleFileBody,
+    RawStage10CompilePayload,
     InvalidMultifilePrefix,
     EmptyDeclaredBlock(String),
     DuplicateBlock(String),
@@ -445,7 +446,7 @@ fn build_capture_plan(
         })?;
 
     let artifact_contents = if artifact_paths.len() == 1 {
-        parse_single_file_capture_input(input).map(|content| {
+        parse_single_file_capture_input(&stage_definition.id, input).map(|content| {
             vec![PipelineCaptureWriteIntent {
                 path: artifact_paths[0].clone(),
                 content,
@@ -1170,7 +1171,10 @@ fn canonicalize_cached_artifact_writes(
         .collect()
 }
 
-fn parse_single_file_capture_input(input: &str) -> Result<String, CaptureInputParseError> {
+fn parse_single_file_capture_input(
+    stage_id: &str,
+    input: &str,
+) -> Result<String, CaptureInputParseError> {
     let normalized = normalize_capture_line_endings(input);
     if normalized
         .lines()
@@ -1178,8 +1182,10 @@ fn parse_single_file_capture_input(input: &str) -> Result<String, CaptureInputPa
     {
         return Err(CaptureInputParseError::InvalidSingleFileWrapper);
     }
-    normalize_nonempty_capture_content(&normalized)
-        .ok_or(CaptureInputParseError::EmptySingleFileBody)
+    let content = normalize_nonempty_capture_content(&normalized)
+        .ok_or(CaptureInputParseError::EmptySingleFileBody)?;
+    validate_single_file_capture_content(stage_id, &content)?;
+    Ok(content)
 }
 
 fn parse_multi_file_capture_input(
@@ -1277,6 +1283,32 @@ fn normalize_nonempty_capture_content(input: &str) -> Option<String> {
     } else {
         Some(format!("{trimmed}\n"))
     }
+}
+
+fn validate_single_file_capture_content(
+    stage_id: &str,
+    content: &str,
+) -> Result<(), CaptureInputParseError> {
+    if stage_id == SUPPORTED_STAGE_FEATURE_SPEC_ID && is_raw_stage_10_compile_payload(content) {
+        return Err(CaptureInputParseError::RawStage10CompilePayload);
+    }
+    Ok(())
+}
+
+fn is_raw_stage_10_compile_payload(content: &str) -> bool {
+    let mut lines = content.lines();
+    if lines.next() != Some("# stage.10_feature_spec - Feature Specification") {
+        return false;
+    }
+
+    [
+        "## Run Variables",
+        "## Selected Runner",
+        "## Selected Profile",
+        "## Outputs",
+    ]
+    .into_iter()
+    .all(|marker| content.contains(marker))
 }
 
 fn normalize_declared_block_content(
@@ -1623,6 +1655,13 @@ fn classify_capture_input_refusal(
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "paste the generated stage body and retry `pipeline capture`".to_string(),
+        },
+        CaptureInputParseError::RawStage10CompilePayload => PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
+            summary: "stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload".to_string(),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: "run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`".to_string(),
         },
         CaptureInputParseError::InvalidMultifilePrefix => PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,

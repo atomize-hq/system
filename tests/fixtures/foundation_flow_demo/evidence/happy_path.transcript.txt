@@ -870,6 +870,13 @@ Stage body intentionally minimal.
 The directive + template define the content.
 -->
 
+$ system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>
+OUTCOME: REFUSED
+PIPELINE: pipeline.foundation_inputs
+STAGE: stage.10_feature_spec
+REASON: invalid_capture_input: stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload
+NEXT SAFE ACTION: run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`
+
 $ system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_10_feature_spec.md
 OUTCOME: CAPTURED
 PIPELINE: pipeline.foundation_inputs

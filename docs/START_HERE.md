@@ -25,6 +25,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
   - For `pipeline.foundation_inputs`, the supported capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
   - `pipeline compile` does not write files. For stage `10`, compile emits model input payload, an external operator or model runner produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
+  - For stage `10`, raw `pipeline compile` payload is refused as `invalid_capture_input`; capture must receive the completed `FEATURE_SPEC.md`.
   - If capture refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.

@@ -185,6 +185,7 @@ fn support_story_docs_match_help_snapshots() {
         "external model output",
         "completed `FEATURE_SPEC.md`",
         "compile emits model input payload",
+        "raw `pipeline compile` payload is refused as `invalid_capture_input`",
     ];
     let stage_10_banned_doc_phrases = [
         "compile-to-capture handoff",
@@ -362,6 +363,7 @@ fn m4_stage_10_boundary_docs_remain_truthful() {
             "compile -> external model output -> capture",
             "payload-only",
             "completed `FEATURE_SPEC.md`",
+            "raw `pipeline compile` payload is refused as `invalid_capture_input`",
         ],
         &[
             "compile-to-capture handoff",
@@ -375,6 +377,7 @@ fn m4_stage_10_boundary_docs_remain_truthful() {
             "compile -> external model output -> capture",
             "payload-only stdout that becomes model input for an external operator or model runner",
             "materializing the completed `FEATURE_SPEC.md` body",
+            "raw `pipeline compile` payload is refused as `invalid_capture_input`",
             "MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path",
         ],
         &["compile-to-capture handoff", "payload stdout piped into capture"],
@@ -384,6 +387,7 @@ fn m4_stage_10_boundary_docs_remain_truthful() {
         &[
             "emits model input payload",
             "completed `FEATURE_SPEC.md`",
+            "refuses raw `pipeline compile` payload as `invalid_capture_input`",
             "materializes that completed body",
         ],
         &[

@@ -115,6 +115,7 @@ The proof corpus MUST include cases that exercise:
   - `stage.06_project_context_interview`
   - `stage.10_feature_spec`
 - The stage-10 proof corpus MUST prove the real `compile -> external model output -> capture` handoff, not direct raw compile stdout capture and not only a synthetic markdown capture body.
+- The stage-10 proof corpus MUST prove that raw `pipeline compile` payload is refused as `invalid_capture_input` when presented directly to `pipeline capture`.
 
 ### Malformed-refusal classes
 
@@ -156,7 +157,7 @@ Malformed pipeline and malformed route-state refusals MUST stay explicit:
   - `stage.06_project_context_interview`
   - `stage.07_foundation_pack`
   - `stage.10_feature_spec`
-- Docs and help MUST describe `pipeline compile stage.10_feature_spec` as payload-only stdout that becomes model input for an external operator or model runner; they MUST describe `pipeline capture stage.10_feature_spec` as materializing the completed `FEATURE_SPEC.md` body, and they MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path.
+- Docs and help MUST describe `pipeline compile stage.10_feature_spec` as payload-only stdout that becomes model input for an external operator or model runner; they MUST describe `pipeline capture stage.10_feature_spec` as materializing the completed `FEATURE_SPEC.md` body, they MUST state that raw `pipeline compile` payload is refused as `invalid_capture_input`, and they MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path.
 - Docs and help MUST preserve the exact manual `needs_project_context` handoff after `stage.05_charter_synthesize`:
   - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
   - `system pipeline resolve --id pipeline.foundation_inputs`

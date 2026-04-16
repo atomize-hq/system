@@ -658,6 +658,21 @@ fn record_evidence_step(
     );
 }
 
+fn record_refused_evidence_step(
+    transcript: &mut String,
+    repo_root: &std::path::Path,
+    command: &str,
+    output: Output,
+) {
+    assert!(!output.status.success(), "command should refuse: {command}");
+    let stdout = String::from_utf8(output.stdout).expect("command stdout is utf-8");
+    append_evidence_step(
+        transcript,
+        command,
+        &normalize_evidence_output(&stdout, repo_root),
+    );
+}
+
 fn happy_path_evidence_transcript() -> String {
     let (_dir, root) = install_foundation_flow_demo_repo();
     let mut transcript = String::new();
@@ -797,6 +812,23 @@ fn happy_path_evidence_transcript() -> String {
             )],
         ),
     );
+    record_refused_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.10_feature_spec",
+            ],
+            &stage_10_compile_payload(root.as_path()),
+        ),
+    );
     record_evidence_step(
         &mut transcript,
         root.as_path(),
@@ -928,6 +960,23 @@ fn skip_path_evidence_transcript() -> String {
             )],
         ),
     );
+    record_refused_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>",
+        run_in_with_input(
+            root.as_path(),
+            &[
+                "pipeline",
+                "capture",
+                "--id",
+                "foundation_inputs",
+                "--stage",
+                "stage.10_feature_spec",
+            ],
+            &stage_10_compile_payload(root.as_path()),
+        ),
+    );
     record_evidence_step(
         &mut transcript,
         root.as_path(),
@@ -949,7 +998,7 @@ fn skip_path_evidence_transcript() -> String {
     transcript
 }
 
-fn assert_pipeline_capture_preview_refusal(
+fn assert_pipeline_capture_refusal(
     stdout: &str,
     stage: &str,
     reason: &str,
@@ -1323,7 +1372,7 @@ fn pipeline_capture_preview_stage_04_refuses_file_wrapper() {
     assert!(!output.status.success(), "preview should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_pipeline_capture_preview_refusal(
+    assert_pipeline_capture_refusal(
         &stdout,
         "stage.04_charter_inputs",
         "invalid_capture_input: single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers",
@@ -1352,7 +1401,7 @@ fn pipeline_capture_preview_stage_04_refuses_empty_body() {
     assert!(!output.status.success(), "preview should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_pipeline_capture_preview_refusal(
+    assert_pipeline_capture_refusal(
         &stdout,
         "stage.04_charter_inputs",
         "invalid_capture_input: single-file capture stages must receive a non-empty body",
@@ -1385,7 +1434,7 @@ fn pipeline_capture_preview_stage_06_refuses_file_wrapper() {
     assert!(!output.status.success(), "preview should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_pipeline_capture_preview_refusal(
+    assert_pipeline_capture_refusal(
         &stdout,
         "stage.06_project_context_interview",
         "invalid_capture_input: single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers",
@@ -1414,7 +1463,7 @@ fn pipeline_capture_preview_stage_06_refuses_empty_body() {
     assert!(!output.status.success(), "preview should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_pipeline_capture_preview_refusal(
+    assert_pipeline_capture_refusal(
         &stdout,
         "stage.06_project_context_interview",
         "invalid_capture_input: single-file capture stages must receive a non-empty body",
@@ -1447,7 +1496,7 @@ fn pipeline_capture_preview_stage_10_refuses_file_wrapper() {
     assert!(!output.status.success(), "preview should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_pipeline_capture_preview_refusal(
+    assert_pipeline_capture_refusal(
         &stdout,
         "stage.10_feature_spec",
         "invalid_capture_input: single-file capture stages must receive plain body content and must not use `--- FILE:` wrappers",
@@ -1476,7 +1525,7 @@ fn pipeline_capture_preview_stage_10_refuses_empty_body() {
     assert!(!output.status.success(), "preview should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_pipeline_capture_preview_refusal(
+    assert_pipeline_capture_refusal(
         &stdout,
         "stage.10_feature_spec",
         "invalid_capture_input: single-file capture stages must receive a non-empty body",
@@ -1632,6 +1681,41 @@ fn pipeline_capture_apply_stage_10_matches_shared_golden() {
 }
 
 #[test]
+fn pipeline_capture_stage_10_refuses_raw_compile_payload() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_stage_10_capture_ready_route_basis(root.as_path());
+
+    let output = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &stage_10_compile_payload(root.as_path()),
+    );
+    assert!(
+        !output.status.success(),
+        "raw compile payload should refuse"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_pipeline_capture_refusal(
+        &stdout,
+        "stage.10_feature_spec",
+        "invalid_capture_input: stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload",
+        "run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`",
+    );
+    assert!(
+        !root.join("artifacts/feature_spec/FEATURE_SPEC.md").exists(),
+        "raw compile payload refusal must not create the feature-spec artifact"
+    );
+}
+
+#[test]
 fn pipeline_capture_apply_refuses_missing_capture_id() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     let output = run_in(
@@ -1779,6 +1863,34 @@ fn pipeline_foundation_inputs_m4_happy_path_proves_real_stage_10_handoff() {
         stage_10_payload, completed_feature_spec,
         "stage-10 compile payload must stay distinct from completed external model output"
     );
+    let raw_stage_10 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &stage_10_payload,
+    );
+    assert!(
+        !raw_stage_10.status.success(),
+        "raw stage-10 compile payload capture must refuse"
+    );
+    let raw_stage_10_stdout =
+        String::from_utf8(raw_stage_10.stdout).expect("refusal stdout is utf-8");
+    assert_pipeline_capture_refusal(
+        &raw_stage_10_stdout,
+        "stage.10_feature_spec",
+        "invalid_capture_input: stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload",
+        "run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`",
+    );
+    assert!(
+        !root.join("artifacts/feature_spec/FEATURE_SPEC.md").exists(),
+        "raw stage-10 compile payload refusal must not create the feature-spec artifact"
+    );
     let stage_10 = run_in_with_input(
         root.as_path(),
         &[
@@ -1915,6 +2027,34 @@ fn pipeline_foundation_inputs_m4_skip_path_skips_stage_06_when_both_route_predic
     assert_ne!(
         stage_10_payload, completed_feature_spec,
         "stage-10 compile payload must stay distinct from completed external model output"
+    );
+    let raw_stage_10 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &stage_10_payload,
+    );
+    assert!(
+        !raw_stage_10.status.success(),
+        "raw stage-10 compile payload capture must refuse"
+    );
+    let raw_stage_10_stdout =
+        String::from_utf8(raw_stage_10.stdout).expect("refusal stdout is utf-8");
+    assert_pipeline_capture_refusal(
+        &raw_stage_10_stdout,
+        "stage.10_feature_spec",
+        "invalid_capture_input: stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload",
+        "run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`",
+    );
+    assert!(
+        !root.join("artifacts/feature_spec/FEATURE_SPEC.md").exists(),
+        "raw stage-10 compile payload refusal must not create the feature-spec artifact"
     );
     let stage_10 = run_in_with_input(
         root.as_path(),

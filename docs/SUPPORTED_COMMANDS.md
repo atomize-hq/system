@@ -84,6 +84,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - The currently shipped binary exposes `pipeline` as the reviewed operator surface alongside `setup`, `generate`, `inspect`, and `doctor`.
 - `pipeline` now includes one explicit stage compilation wedge in M2 and one explicit writer wedge in M3 without widening into generic multi-stage compile or run support.
 - The documented `pipeline.foundation_inputs` path is `04` capture -> `05` capture -> manual `state set` -> `resolve` -> conditional `06` capture -> `resolve` -> `07` capture -> `10` compile -> external model output -> capture.
+- For `stage.10_feature_spec`, raw `pipeline compile` payload is refused as `invalid_capture_input`; capture only accepts a completed `FEATURE_SPEC.md` body.
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
 - For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
 - For `pipeline`, list/show/resolve/compile/capture/state-set stay inside the approved repo surface and use one shared resolved-route truth.
