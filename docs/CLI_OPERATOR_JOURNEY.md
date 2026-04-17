@@ -1,11 +1,12 @@
-# CLI Operator Journey: M4 Proof And Handoff Contract
+# CLI Operator Journey: M4 Proof And M5 Downstream Adoption
 
 ## Purpose
 
-This document is the M4 operator proof artifact for `pipeline.foundation_inputs`.
+This document records the shipped M4 operator proof artifact for `pipeline.foundation_inputs`
+and the bounded M5 downstream adoption proof layered on top of it.
 
-It records the journey that is now proved in the repo. It does not introduce new product
-behavior, and it does not claim downstream adoption beyond the captured `FEATURE_SPEC.md`.
+It records the journey that is now proved in the repo. It does not widen the product beyond the
+bounded reduced-v1 wedge, and it does not promote derived bundle outputs into canonical truth.
 
 M4 stops at:
 
@@ -14,6 +15,13 @@ M4 stops at:
 - one explicit `stage.10_feature_spec` handoff contract:
   `compile -> external model output -> capture`
 - one deterministic rerun story for proof surfaces
+
+M5 adds:
+
+- one explicit downstream handoff emission step:
+  `pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
+- one bundle-only consumer proof that writes a deterministic `SLICE_PLAN.md`
+- one before / after scorecard proving the same planning job completes with zero repo rereads
 
 ## Evidence Basis
 
@@ -30,6 +38,10 @@ The current M4 proof is grounded in these repo surfaces:
   - [`capture_apply_stage_10_matches_shared_golden_from_completed_external_output`](../crates/compiler/tests/pipeline_capture.rs)
 - Structural `FEATURE_SPEC.md` contract coverage:
   - [`foundation_flow_demo_feature_specs_match_directive_and_template_contract`](../crates/cli/tests/feature_spec_contract.rs)
+- M5 downstream-adoption proof:
+  - [`pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slice_plan`](../crates/cli/tests/cli_surface.rs)
+  - [`tests/fixtures/foundation_flow_demo/expected/happy_path/SLICE_PLAN.md`](../tests/fixtures/foundation_flow_demo/expected/happy_path/SLICE_PLAN.md)
+  - [`tests/fixtures/foundation_flow_demo/evidence/m5_handoff_scorecard.md`](../tests/fixtures/foundation_flow_demo/evidence/m5_handoff_scorecard.md)
 
 ## Happy Path
 
@@ -107,6 +119,33 @@ M4 does not claim:
 - a new `pipeline run` surface
 - a compile write mode
 
+## M5 Downstream Adoption
+
+M5 starts only after the truthful M4 boundary is complete.
+
+1. The operator or proof harness finishes the M4 path through stage-10 capture.
+2. `pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
+   emits one derived bundle under
+   `artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/`.
+3. The emitted bundle contains the handoff manifest, trust matrix, read allowlist, scorecard
+   metadata, and copied bundle-local inputs needed by the named consumer.
+4. The repo-local proof harness validates that emitted bundle before reading it.
+5. The repo-local proof harness reads only the allowlisted bundle files and writes
+   `artifacts/planning/feature_slice/fs-m4-foundation-journey-2026-04/SLICE_PLAN.md`.
+
+M5 proves:
+
+- one named downstream consumer, `feature-slice-decomposer`
+- one bundle-only happy path with repo reread fallback disabled
+- one derived trust model where stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` remains
+  `external_manual_derived`
+
+M5 still does not claim:
+
+- canonical promotion of `artifacts/*`
+- a generic multi-consumer framework
+- a public consumer command surface inside this repo
+
 ## Deterministic Reruns
 
 The proof surfaces keep reruns stable in two ways:
@@ -123,6 +162,12 @@ The proof surfaces keep reruns stable in two ways:
 The dedicated corpus under `tests/fixtures/foundation_flow_demo/` keeps the journey local,
 committed, and independent of any network call during proof execution.
 
+The M5 extension keeps the same posture:
+
+- the feature id is deterministic from the emitted feature spec
+- the happy-path transcript now includes handoff emit, bundle validation, and consumer output
+- the downstream scorecard is committed and reviewable
+
 ## Scorecard
 
 | Area | Status | Evidence-backed conclusion |
@@ -132,6 +177,18 @@ committed, and independent of any network call during proof execution.
 | Repo rereads avoided | Bounded in M4 | The journey uses route state plus committed fixture outputs from `tests/fixtures/foundation_flow_demo/`; it does not reread the repo to reconstruct missing route truth after resolve. |
 | What remains manual for M5 | Still manual / out of scope here | M4 ends at journey proof plus handoff contract. It does not prove downstream consumers or later workflow adoption beyond the captured `FEATURE_SPEC.md`. |
 
+## M5 Scorecard
+
+The downstream adoption scorecard is now committed at:
+
+- [`tests/fixtures/foundation_flow_demo/evidence/m5_handoff_scorecard.md`](../tests/fixtures/foundation_flow_demo/evidence/m5_handoff_scorecard.md)
+
+That scorecard proves the same planning job completes with:
+
+- identical `SLICE_PLAN.md` output
+- zero repo rereads on the bundle-only path
+- reduced total grounding reads compared with the repo-reread baseline
+
 ## Boundaries Of The M4 Claim
 
 This document is intentionally narrow.
@@ -140,8 +197,11 @@ It proves that the CLI, compiler, fixtures, and docs agree on one happy path, on
 manual branch decision, one truthful stage-10 external-model boundary, and one deterministic rerun
 story.
 
-It does not claim that later workflow consumers already trust or adopt the captured feature spec
-without additional M5 work.
+It now claims exactly one bounded downstream adoption proof and no more:
+
+- the M4 journey stops truthfully at captured stage-10 output
+- the M5 extension proves one bundle-only downstream planning job from that emitted trust surface
+- no other downstream consumer or canonical promotion claim is implied
 
 ## Historical Note
 

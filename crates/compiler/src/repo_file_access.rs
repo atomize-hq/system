@@ -232,6 +232,23 @@ pub(crate) fn validate_repo_relative_path(path: &str) -> Result<&Path, String> {
     Ok(path)
 }
 
+pub(crate) fn normalize_repo_relative_path(path: &str) -> Result<String, String> {
+    let path = validate_repo_relative_path(path)?;
+    let normalized = path
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
+            Component::CurDir => None,
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/");
+    if normalized.is_empty() {
+        return Err("path must not be empty".to_string());
+    }
+    Ok(normalized)
+}
+
 #[cfg(unix)]
 fn write_repo_relative_bytes_unix(
     repo_root: &Path,

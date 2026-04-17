@@ -1,0 +1,8 @@
+Emit one bounded handoff bundle for `pipeline.foundation_inputs` -> `feature-slice-decomposer`
+
+Usage: system pipeline handoff emit --id <ID> --consumer <CONSUMER>
+
+Options:
+      --id <ID>              Canonical id or unambiguous shorthand for a pipeline
+      --consumer <CONSUMER>  Supported downstream consumer id
+  -h, --help                 Print help

@@ -1922,12 +1922,14 @@ Exact user outcome:
 - that step emits one non-canonical bundle under `artifacts/handoff/feature_slice/<feature-id>/`
 - the bundle is the only admissible downstream basis for the named consumer and contains:
   - a versioned `handoff_manifest.json`
-  - a `trust_matrix.md` or equivalent machine-readable trust-class listing
+  - a `trust_matrix.md`
+  - a `read_allowlist.json`
+  - `scorecard/*`
   - fingerprints for the canonical `.system/*` inputs the bundle was derived from
   - fingerprints for the derived `artifacts/foundation/*` and `artifacts/feature_spec/FEATURE_SPEC.md` inputs the consumer may read
   - `route_basis` fingerprint and revision, compile payload hash, directive or template version, producer version, and explicit manual-boundary disclosures
   - the exact allowed read set plus explicit fallback conditions
-- the named consumer or repo-local harness reads only that bundle and produces one concrete downstream planning output:
+- the named consumer or repo-local harness may read only that emitted bundle unless an explicit fallback condition is declared and logged, and produces one concrete downstream planning output:
   - `artifacts/planning/feature_slice/<feature-id>/SLICE_PLAN.md`
 - the repo captures one before / after scorecard for that same job:
   - repo files reopened
@@ -1939,8 +1941,9 @@ Premise lock:
 
 - `.system/*` remains the only canonical project-truth input set under [`docs/contracts/C-03-canonical-artifact-manifest-contract.md`](docs/contracts/C-03-canonical-artifact-manifest-contract.md); `M5` does **not** broaden canonical inputs
 - `artifacts/*` remain derived; `M5` does **not** silently promote captured stage outputs into canonical `.system/*`
-- the final stage-10 `FEATURE_SPEC.md` remains `external_manual_derived`, not compiler-derived, and the downstream consumer must see that trust class explicitly
+- stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` remains `external_manual_derived`, not compiler-derived, and the downstream consumer must see that trust class explicitly
 - `M5` succeeds only when the named consumer finishes one real planning job from the emitted handoff bundle and explicit fallback rules; “consumer can start from artifacts” is not enough
+- the named consumer may read only the emitted bundle unless an explicit fallback condition is declared and logged
 - if the consumer reopens charter, project context, foundation, or feature-spec repo files outside the declared bundle, `M5` fails unless the fallback condition is explicitly allowed and recorded
 
 Assumption ledger:

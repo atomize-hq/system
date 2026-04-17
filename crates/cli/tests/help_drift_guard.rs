@@ -129,6 +129,24 @@ fn system_pipeline_capture_apply_help_matches_snapshot() {
 }
 
 #[test]
+fn system_pipeline_handoff_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "handoff", "--help"],
+        "system-pipeline-handoff-help.txt",
+        "system pipeline handoff --help",
+    );
+}
+
+#[test]
+fn system_pipeline_handoff_emit_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["pipeline", "handoff", "emit", "--help"],
+        "system-pipeline-handoff-emit-help.txt",
+        "system pipeline handoff emit --help",
+    );
+}
+
+#[test]
 fn support_story_docs_match_help_snapshots() {
     let root = workspace_root();
     let root_readme_path = root.join("README.md");

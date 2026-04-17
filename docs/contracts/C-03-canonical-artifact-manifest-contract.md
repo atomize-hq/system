@@ -63,6 +63,7 @@ Reduced-v1 runtime-zone rule:
 - Derived views MUST NOT be treated as runtime inputs, including (non-exhaustive):
   - `README.md`, `PLAN.md`, `docs/README.md`
   - any renderer output (`inspect`, markdown, JSON) or generated artifacts under `dist/` or `artifacts/`
+  - emitted downstream handoff bundles under `artifacts/handoff/**`, including any `handoff_manifest.json`, `trust_matrix.md`, `read_allowlist.json`, or `scorecard/*` contents
   - runtime-zone files such as `.system/state/**`
   - any prompt packs, stage outputs, or other derived documentation
 

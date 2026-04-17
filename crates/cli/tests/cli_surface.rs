@@ -1,8 +1,35 @@
 mod pipeline_proof_corpus_support;
 
+use std::collections::BTreeSet;
 use std::process::{Command, Output};
 
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
+const FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID: &str = "fs-m4-foundation-journey-2026-04";
+
+#[derive(Debug)]
+struct ConsumerHarnessRun {
+    feature_id: String,
+    bundle_root: String,
+    plan_path: String,
+    plan_body: String,
+    bundle_reads: Vec<String>,
+    repo_rereads: Vec<String>,
+}
+
+#[derive(Debug)]
+struct PlanningInputs {
+    feature_id: String,
+    bundle_root: String,
+    pipeline_id: String,
+    consumer_id: String,
+    repo_reread_fallback: String,
+    summary: String,
+    goals: Vec<String>,
+    acceptance_criteria: Vec<String>,
+    strategy_pillars: Vec<String>,
+    journey_flow: Vec<String>,
+    mandatory_gates: Vec<String>,
+}
 
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
@@ -147,6 +174,10 @@ fn read_foundation_flow_demo_expected(case: &str, filename: &str) -> String {
 fn read_foundation_flow_demo_evidence(filename: &str) -> String {
     std::fs::read_to_string(foundation_flow_demo_evidence_root().join(filename))
         .unwrap_or_else(|err| panic!("read demo evidence {filename}: {err}"))
+}
+
+fn foundation_flow_demo_happy_path_bundle_root() -> String {
+    format!("artifacts/handoff/feature_slice/{FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID}")
 }
 
 fn canonical_repo_root(path: &std::path::Path) -> std::path::PathBuf {
@@ -660,6 +691,604 @@ fn record_refused_evidence_step(
     );
 }
 
+fn record_virtual_evidence_step(transcript: &mut String, command: &str, stdout: &str) {
+    append_evidence_step(transcript, command, stdout);
+}
+
+fn read_bundle_manifest_from_disk(
+    repo_root: &std::path::Path,
+    bundle_root: &str,
+) -> system_compiler::PipelineHandoffManifest {
+    system_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+        .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
+        .manifest
+}
+
+fn read_bundle_allowlist_from_disk(
+    repo_root: &std::path::Path,
+    bundle_root: &str,
+) -> system_compiler::PipelineHandoffReadAllowlist {
+    system_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+        .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
+        .read_allowlist
+}
+
+fn read_bundle_text(
+    repo_root: &std::path::Path,
+    bundle_root: &str,
+    allow_read_paths: &BTreeSet<String>,
+    bundle_reads: &mut Vec<String>,
+    relative_path: &str,
+) -> String {
+    assert!(
+        allow_read_paths.contains(relative_path),
+        "bundle path `{relative_path}` is not allowlisted"
+    );
+    let path = repo_root.join(bundle_root).join(relative_path);
+    let body = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("read bundle file {}: {err}", path.display()));
+    bundle_reads.push(relative_path.to_string());
+    body
+}
+
+fn read_repo_text(
+    repo_root: &std::path::Path,
+    repo_rereads: &mut Vec<String>,
+    relative_path: &str,
+) -> String {
+    let path = repo_root.join(relative_path);
+    let body = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("read repo file {}: {err}", path.display()));
+    repo_rereads.push(relative_path.to_string());
+    body
+}
+
+fn bundle_path_for_source_path(
+    manifest: &system_compiler::PipelineHandoffManifest,
+    source_path: &str,
+) -> String {
+    manifest
+        .inputs
+        .iter()
+        .find(|input| input.source_path == source_path)
+        .map(|input| input.bundle_path.clone())
+        .unwrap_or_else(|| panic!("missing handoff input for `{source_path}`"))
+}
+
+fn markdown_section_body(document: &str, heading: &str) -> String {
+    let lines = document.lines().collect::<Vec<_>>();
+    let start = lines
+        .iter()
+        .position(|line| *line == heading)
+        .unwrap_or_else(|| panic!("missing heading `{heading}`"));
+    let level = heading.chars().take_while(|ch| *ch == '#').count();
+    let end = lines[start + 1..]
+        .iter()
+        .position(|line| {
+            let trimmed = line.trim_start();
+            if !trimmed.starts_with('#') {
+                return false;
+            }
+            trimmed.chars().take_while(|ch| *ch == '#').count() <= level
+        })
+        .map(|offset| start + 1 + offset)
+        .unwrap_or(lines.len());
+    lines[start + 1..end].join("\n")
+}
+
+fn markdown_bullet_lines(section: &str) -> Vec<String> {
+    section
+        .lines()
+        .filter_map(|line| line.trim_start().strip_prefix("- "))
+        .map(|line| line.trim().to_string())
+        .collect()
+}
+
+fn markdown_numbered_lines(section: &str) -> Vec<String> {
+    section
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            let split = trimmed.split_once(". ")?;
+            if split.0.chars().all(|ch| ch.is_ascii_digit()) {
+                Some(split.1.trim().to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn planning_input_line<'a>(lines: &'a [String], prefix: &str) -> &'a str {
+    lines
+        .iter()
+        .find(|line| line.starts_with(prefix))
+        .map(String::as_str)
+        .unwrap_or_else(|| panic!("missing line with prefix `{prefix}`"))
+}
+
+fn collect_repo_reread_planning_inputs(
+    repo_root: &std::path::Path,
+    bundle_root: &str,
+    bundle_reads: &mut Vec<String>,
+    repo_rereads: &mut Vec<String>,
+) -> PlanningInputs {
+    let manifest = read_bundle_manifest_from_disk(repo_root, bundle_root);
+    let allowlist = read_bundle_allowlist_from_disk(repo_root, bundle_root);
+    let allow_read_paths = allowlist
+        .allow_read_paths
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+
+    let _ = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        bundle_reads,
+        "handoff_manifest.json",
+    );
+    let allowlist_body = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        bundle_reads,
+        "read_allowlist.json",
+    );
+    assert!(
+        allowlist_body.contains(&format!(r#""consumer_id": "{}""#, allowlist.consumer_id)),
+        "allowlist bundle text should name the consumer id"
+    );
+    let trust_matrix = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        bundle_reads,
+        "trust_matrix.md",
+    );
+    assert!(
+        trust_matrix.contains("- repo reread fallback: disabled"),
+        "trust matrix should keep repo reread fallback disabled"
+    );
+
+    let feature_spec = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/feature_spec/FEATURE_SPEC.md",
+    );
+    let foundation_strategy = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/foundation/FOUNDATION_STRATEGY.md",
+    );
+    let tech_arch_brief = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/foundation/TECH_ARCH_BRIEF.md",
+    );
+    let quality_gates_spec = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/foundation/QUALITY_GATES_SPEC.md",
+    );
+    let _ = read_repo_text(repo_root, repo_rereads, "pipelines/foundation_inputs.yaml");
+    let _ = read_repo_text(repo_root, repo_rereads, "core/stages/10_feature_spec.md");
+
+    build_planning_inputs(
+        &manifest,
+        &feature_spec,
+        &foundation_strategy,
+        &tech_arch_brief,
+        &quality_gates_spec,
+    )
+}
+
+fn build_planning_inputs(
+    manifest: &system_compiler::PipelineHandoffManifest,
+    feature_spec: &str,
+    foundation_strategy: &str,
+    tech_arch_brief: &str,
+    quality_gates_spec: &str,
+) -> PlanningInputs {
+    let summary = markdown_section_body(feature_spec, "## 1) Summary")
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .map(str::trim)
+        .unwrap_or_else(|| panic!("feature spec summary should not be empty"))
+        .to_string();
+    let goals = markdown_bullet_lines(&markdown_section_body(feature_spec, "## 3) Goals"));
+    let acceptance_criteria = markdown_bullet_lines(&markdown_section_body(
+        feature_spec,
+        "## 8) Acceptance Criteria (testable)",
+    ));
+    let strategy_pillars = markdown_numbered_lines(&markdown_section_body(
+        foundation_strategy,
+        "## Strategy Pillars",
+    ));
+    let journey_flow =
+        markdown_numbered_lines(&markdown_section_body(tech_arch_brief, "## Journey Flow"));
+    let mandatory_gates = markdown_bullet_lines(&markdown_section_body(
+        quality_gates_spec,
+        "## Mandatory Gates",
+    ));
+
+    PlanningInputs {
+        feature_id: manifest.feature_id.clone(),
+        bundle_root: manifest.bundle_root.clone(),
+        pipeline_id: manifest.pipeline_id.clone(),
+        consumer_id: manifest.consumer_id.clone(),
+        repo_reread_fallback: if manifest.fallback.repo_reread_allowed {
+            "enabled".to_string()
+        } else {
+            "disabled".to_string()
+        },
+        summary,
+        goals,
+        acceptance_criteria,
+        strategy_pillars,
+        journey_flow,
+        mandatory_gates,
+    }
+}
+
+fn render_slice_plan(inputs: &PlanningInputs) -> String {
+    let g1 = planning_input_line(&inputs.goals, "G1:");
+    let g2 = planning_input_line(&inputs.goals, "G2:");
+    let g3 = planning_input_line(&inputs.goals, "G3:");
+    let ac001 = planning_input_line(&inputs.acceptance_criteria, "AC-001:");
+    let ac002 = planning_input_line(&inputs.acceptance_criteria, "AC-002:");
+    let ac003 = planning_input_line(&inputs.acceptance_criteria, "AC-003:");
+    let ac004 = planning_input_line(&inputs.acceptance_criteria, "AC-004:");
+    let ac005 = planning_input_line(&inputs.acceptance_criteria, "AC-005:");
+    let pillar_one = inputs.strategy_pillars.first().expect("strategy pillar 1");
+    let pillar_three = inputs.strategy_pillars.get(2).expect("strategy pillar 3");
+    let pillar_four = inputs.strategy_pillars.get(3).expect("strategy pillar 4");
+    let journey_stage_06 = inputs.journey_flow.get(3).expect("journey flow step 4");
+    let journey_stage_10_compile = inputs.journey_flow.get(6).expect("journey flow step 7");
+    let journey_stage_10_capture = inputs.journey_flow.get(7).expect("journey flow step 8");
+    let gate_happy = inputs.mandatory_gates.first().expect("mandatory gate 1");
+    let gate_skip = inputs.mandatory_gates.get(1).expect("mandatory gate 2");
+    let gate_handoff = inputs.mandatory_gates.get(2).expect("mandatory gate 3");
+    let gate_determinism = inputs.mandatory_gates.get(3).expect("mandatory gate 4");
+
+    format!(
+        "\
+# Slice Plan
+- Feature ID: `{feature_id}`
+- Handoff Target: `{pipeline_id}` -> `{consumer_id}`
+- Bundle Root: `{bundle_root}`
+- Repo Reread Fallback: {repo_reread_fallback}
+
+## Planning Intent
+{summary}
+
+## Evidence Pack
+- Goals:
+  - {g1}
+  - {g2}
+  - {g3}
+- Strategy pillars:
+  - {pillar_one}
+  - {pillar_three}
+  - {pillar_four}
+- Journey anchors:
+  - {journey_stage_06}
+  - {journey_stage_10_compile}
+  - {journey_stage_10_capture}
+- Mandatory gates:
+  - {gate_happy}
+  - {gate_skip}
+  - {gate_handoff}
+  - {gate_determinism}
+
+## Proposed Slices
+### Slice 1: Route Journey Proof
+- Objective: {g1}
+- Acceptance:
+  - {ac001}
+  - {ac003}
+- Grounding:
+  - {journey_stage_06}
+  - {gate_happy}
+  - {gate_skip}
+- Deliverable: keep the happy path and skip path evidence truthful through stage 07 before the external-model boundary.
+
+### Slice 2: Stage-10 Handoff Boundary
+- Objective: {g3}
+- Acceptance:
+  - {ac002}
+  - {ac004}
+- Grounding:
+  - {journey_stage_10_compile}
+  - {journey_stage_10_capture}
+  - {gate_handoff}
+- Deliverable: preserve payload-only compile and completed-output capture with no raw compile payload success path.
+
+### Slice 3: Deterministic Downstream Adoption
+- Objective: turn the emitted bundle into a bounded planning artifact without repo rereads.
+- Acceptance:
+  - {ac005}
+- Grounding:
+  - {pillar_three}
+  - {pillar_four}
+  - {gate_determinism}
+- Deliverable: validate the emitted bundle, write `artifacts/planning/feature_slice/{feature_id}/SLICE_PLAN.md`, and keep bundle-only reads sufficient for the same planning job.
+
+## Sequence
+1. Reconfirm the route-journey proof so the happy path and skip path remain believable.
+2. Lock the stage-10 handoff boundary so compile stays payload-only and capture consumes completed external output.
+3. Emit, validate, and consume the handoff bundle to produce the downstream slice plan without repo rereads.
+",
+        feature_id = inputs.feature_id,
+        pipeline_id = inputs.pipeline_id,
+        consumer_id = inputs.consumer_id,
+        bundle_root = inputs.bundle_root,
+        repo_reread_fallback = inputs.repo_reread_fallback,
+        summary = inputs.summary,
+        g1 = g1,
+        g2 = g2,
+        g3 = g3,
+        pillar_one = pillar_one,
+        pillar_three = pillar_three,
+        pillar_four = pillar_four,
+        journey_stage_06 = journey_stage_06,
+        journey_stage_10_compile = journey_stage_10_compile,
+        journey_stage_10_capture = journey_stage_10_capture,
+        gate_happy = gate_happy,
+        gate_skip = gate_skip,
+        gate_handoff = gate_handoff,
+        gate_determinism = gate_determinism,
+        ac001 = ac001,
+        ac002 = ac002,
+        ac003 = ac003,
+        ac004 = ac004,
+        ac005 = ac005,
+    )
+}
+
+fn run_bundle_only_feature_slice_consumer_harness(
+    repo_root: &std::path::Path,
+    bundle_root: &str,
+) -> ConsumerHarnessRun {
+    let manifest = read_bundle_manifest_from_disk(repo_root, bundle_root);
+    let allowlist = read_bundle_allowlist_from_disk(repo_root, bundle_root);
+    let allow_read_paths = allowlist
+        .allow_read_paths
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut bundle_reads = Vec::new();
+
+    let _ = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        "handoff_manifest.json",
+    );
+    let _ = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        "read_allowlist.json",
+    );
+    let trust_matrix = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        "trust_matrix.md",
+    );
+    assert!(
+        trust_matrix.contains("- repo reread fallback: disabled"),
+        "bundle-only harness requires reread fallback disabled"
+    );
+
+    let feature_spec = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        &bundle_path_for_source_path(&manifest, "artifacts/feature_spec/FEATURE_SPEC.md"),
+    );
+    let foundation_strategy = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        &bundle_path_for_source_path(&manifest, "artifacts/foundation/FOUNDATION_STRATEGY.md"),
+    );
+    let tech_arch_brief = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        &bundle_path_for_source_path(&manifest, "artifacts/foundation/TECH_ARCH_BRIEF.md"),
+    );
+    let quality_gates_spec = read_bundle_text(
+        repo_root,
+        bundle_root,
+        &allow_read_paths,
+        &mut bundle_reads,
+        &bundle_path_for_source_path(&manifest, "artifacts/foundation/QUALITY_GATES_SPEC.md"),
+    );
+
+    let inputs = build_planning_inputs(
+        &manifest,
+        &feature_spec,
+        &foundation_strategy,
+        &tech_arch_brief,
+        &quality_gates_spec,
+    );
+    let plan_body = render_slice_plan(&inputs);
+    let plan_path = format!(
+        "artifacts/planning/feature_slice/{}/SLICE_PLAN.md",
+        manifest.feature_id
+    );
+    write_file(&repo_root.join(&plan_path), plan_body.as_bytes());
+
+    ConsumerHarnessRun {
+        feature_id: manifest.feature_id,
+        bundle_root: manifest.bundle_root,
+        plan_path,
+        plan_body,
+        bundle_reads,
+        repo_rereads: Vec::new(),
+    }
+}
+
+fn run_repo_reread_feature_slice_consumer_baseline(
+    repo_root: &std::path::Path,
+    bundle_root: &str,
+) -> ConsumerHarnessRun {
+    let mut bundle_reads = Vec::new();
+    let mut repo_rereads = Vec::new();
+    let inputs = collect_repo_reread_planning_inputs(
+        repo_root,
+        bundle_root,
+        &mut bundle_reads,
+        &mut repo_rereads,
+    );
+    let plan_body = render_slice_plan(&inputs);
+    ConsumerHarnessRun {
+        feature_id: inputs.feature_id.clone(),
+        bundle_root: inputs.bundle_root,
+        plan_path: format!(
+            "artifacts/planning/feature_slice/{}/SLICE_PLAN.md",
+            inputs.feature_id
+        ),
+        plan_body,
+        bundle_reads,
+        repo_rereads,
+    }
+}
+
+fn render_handoff_validation_output(
+    validated: &system_compiler::PipelineHandoffValidatedBundle,
+) -> String {
+    format!(
+        "\
+OUTCOME: VALID
+PIPELINE: {pipeline_id}
+CONSUMER: {consumer_id}
+FEATURE ID: {feature_id}
+BUNDLE ROOT: {bundle_root}
+INPUT COUNT: {input_count}
+ALLOW READ PATH COUNT: {allow_count}
+REPO REREAD FALLBACK: disabled
+",
+        pipeline_id = validated.manifest.pipeline_id,
+        consumer_id = validated.manifest.consumer_id,
+        feature_id = validated.manifest.feature_id,
+        bundle_root = validated.manifest.bundle_root,
+        input_count = validated.manifest.inputs.len(),
+        allow_count = validated.read_allowlist.allow_read_paths.len(),
+    )
+}
+
+fn render_consumer_harness_output(run: &ConsumerHarnessRun) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: WROTE\n");
+    out.push_str(&format!("FEATURE ID: {}\n", run.feature_id));
+    out.push_str(&format!("BUNDLE ROOT: {}\n", run.bundle_root));
+    out.push_str(&format!("PLAN PATH: {}\n", run.plan_path));
+    out.push_str("BUNDLE READS:\n");
+    for path in &run.bundle_reads {
+        out.push_str(&format!("  - {path}\n"));
+    }
+    out.push_str(&format!("REPO REREADS: {}\n", run.repo_rereads.len()));
+    out.push_str("READ ONLY EMITTED BUNDLE: yes\n");
+    out
+}
+
+fn render_m5_handoff_scorecard(
+    baseline: &ConsumerHarnessRun,
+    bundle_only: &ConsumerHarnessRun,
+) -> String {
+    assert_eq!(
+        baseline.plan_body, bundle_only.plan_body,
+        "scorecard must compare the same planning output"
+    );
+    format!(
+        "\
+# M5 Handoff Scorecard
+
+## Same Job
+- Job: derive a bounded slice plan for the M4 happy-path feature from the emitted handoff bundle.
+- Feature ID: `{feature_id}`
+- Output parity: identical `SLICE_PLAN.md`
+- Bundle Root: `{bundle_root}`
+
+## Access Comparison
+| Metric | Repo-reread baseline | Bundle-only consumer | Delta |
+| --- | ---: | ---: | ---: |
+| Repo rereads | {baseline_repo_rereads} | {bundle_repo_rereads} | {delta_repo_rereads} |
+| Total grounding reads | {baseline_total_reads} | {bundle_total_reads} | {delta_total_reads} |
+| Bundle reads | {baseline_bundle_reads} | {bundle_bundle_reads} | +{delta_bundle_reads} |
+
+## Before: Repo-Reread Baseline
+- Bundle reads:
+  - {baseline_bundle_read_1}
+  - {baseline_bundle_read_2}
+  - {baseline_bundle_read_3}
+- Repo rereads:
+  - {baseline_repo_read_1}
+  - {baseline_repo_read_2}
+  - {baseline_repo_read_3}
+  - {baseline_repo_read_4}
+  - {baseline_repo_read_5}
+  - {baseline_repo_read_6}
+
+## After: Bundle-Only Consumer
+- Bundle reads:
+  - {bundle_read_1}
+  - {bundle_read_2}
+  - {bundle_read_3}
+  - {bundle_read_4}
+  - {bundle_read_5}
+  - {bundle_read_6}
+  - {bundle_read_7}
+- Repo rereads:
+  - none
+
+## Conclusion
+- The same planning job now completes with zero repo rereads.
+- Grounding moved from canonical repo surfaces to emitted bundle copies, reducing total reads while keeping the output identical.
+",
+        feature_id = bundle_only.feature_id,
+        bundle_root = bundle_only.bundle_root,
+        baseline_repo_rereads = baseline.repo_rereads.len(),
+        bundle_repo_rereads = bundle_only.repo_rereads.len(),
+        delta_repo_rereads = bundle_only.repo_rereads.len() as isize
+            - baseline.repo_rereads.len() as isize,
+        baseline_total_reads = baseline.bundle_reads.len() + baseline.repo_rereads.len(),
+        bundle_total_reads = bundle_only.bundle_reads.len() + bundle_only.repo_rereads.len(),
+        delta_total_reads = (bundle_only.bundle_reads.len() + bundle_only.repo_rereads.len())
+            as isize
+            - (baseline.bundle_reads.len() + baseline.repo_rereads.len()) as isize,
+        baseline_bundle_reads = baseline.bundle_reads.len(),
+        bundle_bundle_reads = bundle_only.bundle_reads.len(),
+        delta_bundle_reads = bundle_only.bundle_reads.len() - baseline.bundle_reads.len(),
+        baseline_bundle_read_1 = baseline.bundle_reads[0],
+        baseline_bundle_read_2 = baseline.bundle_reads[1],
+        baseline_bundle_read_3 = baseline.bundle_reads[2],
+        baseline_repo_read_1 = baseline.repo_rereads[0],
+        baseline_repo_read_2 = baseline.repo_rereads[1],
+        baseline_repo_read_3 = baseline.repo_rereads[2],
+        baseline_repo_read_4 = baseline.repo_rereads[3],
+        baseline_repo_read_5 = baseline.repo_rereads[4],
+        baseline_repo_read_6 = baseline.repo_rereads[5],
+        bundle_read_1 = bundle_only.bundle_reads[0],
+        bundle_read_2 = bundle_only.bundle_reads[1],
+        bundle_read_3 = bundle_only.bundle_reads[2],
+        bundle_read_4 = bundle_only.bundle_reads[3],
+        bundle_read_5 = bundle_only.bundle_reads[4],
+        bundle_read_6 = bundle_only.bundle_reads[5],
+        bundle_read_7 = bundle_only.bundle_reads[6],
+    )
+}
+
 fn happy_path_evidence_transcript() -> String {
     let (_dir, root) = install_foundation_flow_demo_repo();
     let mut transcript = String::new();
@@ -832,6 +1461,44 @@ fn happy_path_evidence_transcript() -> String {
             ],
             &read_foundation_flow_demo_model_output("happy_path", "stage_10_feature_spec.md"),
         ),
+    );
+    record_evidence_step(
+        &mut transcript,
+        root.as_path(),
+        "system pipeline handoff emit --id foundation_inputs --consumer feature-slice-decomposer",
+        run_in(
+            root.as_path(),
+            &[
+                "pipeline",
+                "handoff",
+                "emit",
+                "--id",
+                "foundation_inputs",
+                "--consumer",
+                "feature-slice-decomposer",
+            ],
+        ),
+    );
+
+    let validated = system_compiler::validate_pipeline_handoff_bundle(
+        root.as_path(),
+        &foundation_flow_demo_happy_path_bundle_root(),
+    )
+    .expect("freshly emitted handoff bundle should validate");
+    record_virtual_evidence_step(
+        &mut transcript,
+        "test-only: validate emitted handoff bundle",
+        &render_handoff_validation_output(&validated),
+    );
+
+    let consumer_run = run_bundle_only_feature_slice_consumer_harness(
+        root.as_path(),
+        &foundation_flow_demo_happy_path_bundle_root(),
+    );
+    record_virtual_evidence_step(
+        &mut transcript,
+        "test-only: consume emitted bundle into artifacts/planning/feature_slice/fs-m4-foundation-journey-2026-04/SLICE_PLAN.md",
+        &render_consumer_harness_output(&consumer_run),
     );
 
     transcript
@@ -1070,8 +1737,8 @@ fn pipeline_help_lists_supported_surface() {
 
     assert_eq!(
         command_lines.len(),
-        6,
-        "expected six pipeline command lines"
+        7,
+        "expected seven pipeline command lines"
     );
     assert!(
         command_lines[0].starts_with("list "),
@@ -1094,8 +1761,12 @@ fn pipeline_help_lists_supported_surface() {
         "capture should be fifth: {command_lines:?}"
     );
     assert!(
-        command_lines[5].starts_with("state "),
-        "state should be sixth: {command_lines:?}"
+        command_lines[5].starts_with("handoff "),
+        "handoff should be sixth: {command_lines:?}"
+    );
+    assert!(
+        command_lines[6].starts_with("state "),
+        "state should be seventh: {command_lines:?}"
     );
     assert!(
         stdout.contains("explicit stage-output capture"),
@@ -1895,6 +2566,207 @@ fn pipeline_foundation_inputs_m4_happy_path_proves_real_stage_10_handoff() {
         std::fs::read_to_string(root.join("artifacts/feature_spec/FEATURE_SPEC.md"))
             .expect("feature spec artifact"),
         read_foundation_flow_demo_expected("happy_path", "final_feature_spec.md")
+    );
+}
+
+#[test]
+fn pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slice_plan() {
+    let (_dir, root) = install_foundation_flow_demo_repo();
+
+    let resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(resolve.status.success(), "initial resolve should succeed");
+
+    let stage_04 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.04_charter_inputs",
+        ],
+        &read_foundation_flow_demo_model_output("happy_path", "stage_04_charter_inputs.txt"),
+    );
+    assert!(stage_04.status.success(), "stage 04 capture should succeed");
+
+    let stage_05 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.05_charter_synthesize",
+        ],
+        &read_foundation_flow_demo_model_output("happy_path", "stage_05_charter_synthesize.md"),
+    );
+    assert!(stage_05.status.success(), "stage 05 capture should succeed");
+
+    let state_set = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "state",
+            "set",
+            "--id",
+            "foundation_inputs",
+            "--var",
+            "needs_project_context=true",
+        ],
+    );
+    assert!(
+        state_set.status.success(),
+        "needs_project_context state set should succeed"
+    );
+
+    let second_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        second_resolve.status.success(),
+        "second resolve should succeed"
+    );
+
+    let stage_06 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.06_project_context_interview",
+        ],
+        &read_foundation_flow_demo_model_output(
+            "happy_path",
+            "stage_06_project_context_interview.md",
+        ),
+    );
+    assert!(stage_06.status.success(), "stage 06 capture should succeed");
+
+    let third_resolve = run_in(
+        root.as_path(),
+        &["pipeline", "resolve", "--id", "foundation_inputs"],
+    );
+    assert!(
+        third_resolve.status.success(),
+        "post-stage-06 resolve should succeed"
+    );
+
+    let stage_07 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.07_foundation_pack",
+        ],
+        &read_foundation_flow_demo_model_output("happy_path", "stage_07_foundation_pack.txt"),
+    );
+    assert!(stage_07.status.success(), "stage 07 capture should succeed");
+
+    let stage_10 = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &read_foundation_flow_demo_model_output("happy_path", "stage_10_feature_spec.md"),
+    );
+    assert!(stage_10.status.success(), "stage 10 capture should succeed");
+
+    let emit = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "handoff",
+            "emit",
+            "--id",
+            "foundation_inputs",
+            "--consumer",
+            "feature-slice-decomposer",
+        ],
+    );
+    assert!(emit.status.success(), "handoff emit should succeed");
+
+    let emit_stdout = String::from_utf8(emit.stdout).expect("emit stdout is utf-8");
+    assert!(
+        emit_stdout.contains("OUTCOME: EMITTED"),
+        "emit output should report success: {emit_stdout}"
+    );
+    assert!(
+        emit_stdout.contains(&format!(
+            "FEATURE ID: {FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID}"
+        )),
+        "emit output should keep the stable feature id: {emit_stdout}"
+    );
+    assert!(
+        emit_stdout.contains(&format!(
+            "BUNDLE ROOT: {}",
+            foundation_flow_demo_happy_path_bundle_root()
+        )),
+        "emit output should keep the stable bundle root: {emit_stdout}"
+    );
+
+    let validated = system_compiler::validate_pipeline_handoff_bundle(
+        root.as_path(),
+        &foundation_flow_demo_happy_path_bundle_root(),
+    )
+    .expect("freshly emitted bundle should validate");
+    assert_eq!(
+        validated.manifest.feature_id,
+        FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID
+    );
+    assert_eq!(
+        validated.manifest.bundle_root,
+        foundation_flow_demo_happy_path_bundle_root()
+    );
+    assert!(
+        !validated.read_allowlist.repo_reread_allowed,
+        "handoff allowlist must keep repo reread fallback disabled"
+    );
+
+    let bundle_only_run = run_bundle_only_feature_slice_consumer_harness(
+        root.as_path(),
+        &foundation_flow_demo_happy_path_bundle_root(),
+    );
+    assert!(
+        bundle_only_run.repo_rereads.is_empty(),
+        "happy-path consumer harness must not reread the repo"
+    );
+    assert_eq!(
+        bundle_only_run.plan_body,
+        read_foundation_flow_demo_expected("happy_path", "SLICE_PLAN.md")
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join(&bundle_only_run.plan_path))
+            .expect("slice plan artifact"),
+        bundle_only_run.plan_body
+    );
+
+    let baseline_run = run_repo_reread_feature_slice_consumer_baseline(
+        root.as_path(),
+        &foundation_flow_demo_happy_path_bundle_root(),
+    );
+    assert_eq!(
+        baseline_run.plan_body, bundle_only_run.plan_body,
+        "scorecard should compare the same downstream plan"
+    );
+    assert_eq!(
+        render_m5_handoff_scorecard(&baseline_run, &bundle_only_run),
+        read_foundation_flow_demo_evidence("m5_handoff_scorecard.md")
     );
 }
 
