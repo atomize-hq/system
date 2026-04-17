@@ -1,9 +1,16 @@
-# Glossary
+# Glossary (Legacy Harness Terms)
 
-This is an index of the mechanisms that are **actually in use today** in the `system/` repo.
-It’s written to be practical: each entry names the thing, what it’s for, and where it lives on disk.
+This file preserves the Python-harness terms that still appear in the frozen legacy docs.
 
-> Tip: If you’re trying to understand the legacy stage runner (“what runs when”), start with [`pipeline.yaml`](../pipeline.yaml) and then the stage reference in `docs/legacy/stages/`.
+For the supported reduced-v1 product language, start with:
+
+- [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
+- [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
+- [`docs/SUPPORTED_COMMANDS.md`](SUPPORTED_COMMANDS.md)
+
+Use this glossary when you need to decode older scaffold docs, `pipeline.yaml`, or legacy stage references.
+
+> Tip: If you’re trying to understand the legacy stage runner ("what runs when"), start with [`pipeline.yaml`](../pipeline.yaml) and then the stage reference in [`docs/legacy/stages/`](legacy/stages/README.md).
 
 ---
 

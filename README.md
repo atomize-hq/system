@@ -1,129 +1,104 @@
-# Prompt Pipeline System (Scaffold)
+# System
+
+Rust-first planning/compiler CLI for the reduced-v1 `system` product.
+
+The supported path is the Rust workspace in `crates/`. The older Python harness still ships in this repo, but only as frozen reference material while the cutover finishes.
 
 ## Current Status
 
-This repo is in transition.
+- The governing repo-surface truth is [C-01 Approved Repo Surface](docs/contracts/C-01-approved-repo-surface.md).
+- The command-surface truth is [C-02 Rust Workspace and CLI Command Surface](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
+- The interaction contract lives in [DESIGN.md](DESIGN.md).
+- The current top-level CLI surface is `setup`, `pipeline`, `generate`, `inspect`, and `doctor`.
+- `setup` is still placeholder-only.
+- `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
+- Planning packet generation reads canonical repo-local `.system/` inputs.
+- `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.
+- Stage `10` stays truthful: `pipeline compile` emits payload-only model input, external model output produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
+- `pipeline handoff emit --id <pipeline-id> --consumer <consumer-id>` is the shipped downstream handoff-emission wedge for the named consumer flow.
 
-- The reviewed v1 direction is a **Rust-first planning/compiler CLI**.
-- The current Python harness remains in the repo as **legacy reference material only**.
-- Python is not the supported product path, not a compatibility wrapper, and will be archived during cutover, then removed.
-- The governing repo-surface truth is [C-01 Approved Repo-Surface Contract](docs/contracts/C-01-approved-repo-surface.md).
-- The command-surface truth for the Rust workspace and CLI is [C-02 Rust Workspace and CLI Command-Surface Contract](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
-- The operator-facing product language is locked in [CLI Product Vocabulary](docs/CLI_PRODUCT_VOCABULARY.md).
-- The front door and steady-state routing model is locked in [CLI Command Hierarchy And Front Door](docs/CLI_COMMAND_HIERARCHY.md).
-- The operator-facing tone rules live in [CLI Tone Rules](docs/CLI_TONE_RULES.md).
-- The output-shape and section-order rules live in [CLI Output Anatomy](docs/CLI_OUTPUT_ANATOMY.md).
-- The composed CLI interaction contract lives in [DESIGN.md](DESIGN.md).
-- The shipped journey and revision findings live in [CLI Operator Journey And Conformance Review](docs/CLI_OPERATOR_JOURNEY.md).
-- The canonical `.system/` manifest + freshness truth is [C-03 Canonical Artifact Manifest Contract](docs/contracts/C-03-canonical-artifact-manifest-contract.md).
-- The reviewed `pipeline` operator surface baseline is [C-09 Pipeline Operator Surface and ID Resolution Contract](docs/contracts/pipeline-operator-surface-and-id-resolution.md).
-- The reduced live v1 scope is **route resolution, one explicit stage compilation wedge, one explicit stage-output capture wedge, and planning packet generation over existing project + feature artifacts**.
-- Planning packet generation is supported from canonical repo-local `.system/`.
-- Fixture-backed execution demo generation is supported via `execution.demo.packet`.
-- Live slice lineage and live execution packets are deferred. Live execution is explicitly refused.
-- `pipeline` is the orchestration surface for `list`, `show`, `resolve`, `compile`, `capture`, and `state set`.
-- `pipeline compile --id <pipeline-id> --stage <stage-id>` is supported for the first M2 compile wedge.
-- Plain `pipeline compile` success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
-- `pipeline capture --id <pipeline-id> --stage <stage-id>` is the supported M3 / M3.5 writer surface for declared stage outputs.
-- For `pipeline.foundation_inputs`, the supported capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
-- `pipeline capture --preview` caches one validated materialization plan and returns a deterministic `capture_id`.
+Repo-specific note:
+
+- This checkout includes pipeline runtime state under `.system/state/`, but it does not include the canonical `.system/charter/CHARTER.md` and `.system/feature_spec/FEATURE_SPEC.md` inputs required for a ready planning packet. In this repo root, `generate` and `inspect` therefore refuse until those canonical artifacts exist.
+
+## Start Here
+
+- Supported docs index: [docs/README.md](docs/README.md)
+- Supported product entrypoint: [docs/START_HERE.md](docs/START_HERE.md)
+- Exact command surface: [docs/SUPPORTED_COMMANDS.md](docs/SUPPORTED_COMMANDS.md)
+- CLI vocabulary: [docs/CLI_PRODUCT_VOCABULARY.md](docs/CLI_PRODUCT_VOCABULARY.md)
+- Command hierarchy and front door: [docs/CLI_COMMAND_HIERARCHY.md](docs/CLI_COMMAND_HIERARCHY.md)
+- Output anatomy: [docs/CLI_OUTPUT_ANATOMY.md](docs/CLI_OUTPUT_ANATOMY.md)
+- Operator journey and conformance notes: [docs/CLI_OPERATOR_JOURNEY.md](docs/CLI_OPERATOR_JOURNEY.md)
+
+## Repo Entry Points
+
+- Release notes: [CHANGELOG.md](CHANGELOG.md)
+- Active implementation plan: [PLAN.md](PLAN.md)
+- Broader long-range vision: [docs/VISION.md](docs/VISION.md)
+- Current backlog: [TODOS.md](TODOS.md)
+- Reduced-v1 seam pack: [artifacts/planning/reduced-v1-seam-pack/README.md](artifacts/planning/reduced-v1-seam-pack/README.md)
+- Legacy docs index: [docs/legacy/README.md](docs/legacy/README.md)
+
+## Useful Commands In This Repo
+
+Inspect the shipped command surface:
+
+```bash
+cargo run -p system-cli -- --help
+cargo run -p system-cli -- pipeline --help
+```
+
+Inspect the current pipeline inventory:
+
+```bash
+cargo run -p system-cli -- pipeline list
+cargo run -p system-cli -- pipeline show --id pipeline.foundation_inputs
+```
+
+See the current transitional front door and recovery surface:
+
+```bash
+cargo run -p system-cli -- setup
+cargo run -p system-cli -- doctor
+```
+
+Exercise the packet surfaces once canonical `.system/` artifacts exist:
+
+```bash
+cargo run -p system-cli -- generate
+cargo run -p system-cli -- inspect
+```
+
+## Reduced-v1 Boundaries
+
+- `pipeline compile --id <pipeline-id> --stage <stage-id>` is the bounded M2 compile surface.
+- Plain `pipeline compile` success is payload-only stdout.
+- `pipeline compile --explain` is the compile proof surface for that same result.
+- `pipeline capture --id <pipeline-id> --stage <stage-id>` is the bounded M3/M3.5 writer surface.
+- `pipeline capture --preview` validates stdin, caches one typed materialization plan, and returns a deterministic `capture_id`.
 - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
-- `pipeline capture` remains the only supported stage-output writer surface. `pipeline compile` stays payload-only, and stage `10` materialization is `compile -> external model output -> capture`.
-- For stage `10`, raw `pipeline compile` payload is refused as `invalid_capture_input`; `pipeline capture` must receive a completed `FEATURE_SPEC.md` body.
-- `pipeline capture` apply safety is scoped to `system`-coordinated single-writer flows.
-- Compile freshness recovery is explicit: re-run `pipeline resolve` before retrying compile when route basis is missing, stale, or inactive.
-- Capture freshness recovery is explicit too: re-run `pipeline resolve` before retrying preview or apply when route basis is missing, stale, or inactive.
-- `inspect` is the packet proof surface and `doctor` is the recovery surface.
-- `setup` is still a placeholder entrypoint until Rust setup exists.
+- For `pipeline.foundation_inputs`, the shipped capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
+- `pipeline capture` remains the only supported stage-output writer surface.
+- Stage `10` materialization stays `compile -> external model output -> capture`.
+- Compile and capture freshness recovery are explicit. Re-run `pipeline resolve` before retrying when route basis is missing, stale, or inactive.
+- Capture apply safety is scoped to `system`-coordinated single-writer flows.
+- `inspect` is the packet proof surface.
+- `doctor` is the recovery surface.
 
-The next artifact is the implementation plan for the reduced v1 wedge at [PLAN.md](PLAN.md). The reviewed reduced-v1 seam pack lives at [artifacts/planning/reduced-v1-seam-pack/README.md](artifacts/planning/reduced-v1-seam-pack/README.md).
+## Repo Layout
 
-This repo is a **human-in-the-loop** prompt pipeline that produces structured artifacts
-(Charter, Project Context, Foundation Pack, Feature Specs, etc.) using a selected **profile** (stack pack)
-and **runner** (how the agent interacts with the repo).
+- `crates/cli/`: CLI binary and command-surface tests
+- `crates/compiler/`: compiler, resolver, rendering, and pipeline runtime logic
+- `docs/`: supported docs, contracts, and frozen legacy docs
+- `tests/fixtures/foundation_flow_demo/`: committed proof corpus for the `pipeline.foundation_inputs` happy/skip journey
+- `artifacts/planning/reduced-v1-seam-pack/`: reviewed reduced-v1 planning pack
+- `tools/`: legacy harness helpers plus current QA helpers
 
-It intentionally does **not** call any LLM APIs. You copy/paste prompts into your LLM of choice and paste
-the outputs back into the harness.
+## Legacy Reference
 
-## Legacy Quick Start
+The Python harness remains in the repo to preserve prior scaffold behavior and generated-artifact examples. It is not the supported product path.
 
-The steps below describe the legacy Python harness that still exists in the repo today. They do **not** describe the reviewed Rust-first product path.
-
-### 1) Pick a profile + runner
-Profiles live in `profiles/<profile-id>/` (commands + conventions).
-
-Runners live in `runners/<runner-id>.md`.
-
-### 2) Compile prompts for the stages you want
-```bash
-./tools/harness.sh compile --until stage.06_project_context_interview \
-  --profile python-uv \
-  --runner codex-cli \
-  --project-name "MyProject" \
-  --repo-or-project-ref "github.com/me/myproject"
-```
-
-This writes compiled prompts to `dist/` (e.g., `dist/stage.05_charter_interview.md`).
-
-### 3) Copy/paste into your LLM, then capture outputs
-For **single-file** stages, paste the model output directly into:
-
-```bash
-./tools/harness.sh capture stage.05_charter_interview
-# paste output, then Ctrl-D
-```
-
-For **multi-file** stages (e.g., `stage.07_foundation_pack`), the model must output `--- FILE: ... ---` blocks.
-The harness will write each declared artifact.
-
-### 4) State is stored automatically
-The harness stores run variables (runner/profile/etc.) in:
-- `artifacts/_harness_state.yaml`
-
-After capturing `stage.05_charter_interview`, the harness will prompt you to set `needs_project_context`
-(because it’s required to decide whether `stage.06_project_context_interview` should run).
-
-## Useful commands
-
-List stages:
-```bash
-./tools/harness.sh list
-```
-
-List overlays:
-```bash
-./tools/harness.sh overlays
-```
-
-Validate profiles:
-```bash
-python3 tools/validate_profile.py --all
-```
-
-## Design notes
-- Core stages/rules are language-agnostic.
-- Stack/tool commands belong in **profiles/**.
-- Optional “modules” belong in **core/overlays/**.
-- Generated artifacts live in **artifacts/**.
-
-## Work levels and scoped rules
-Stages declare a `work_level` (`L0`..`L3`). Included markdown can use scoped blocks:
-
-```md
-<!-- SCOPE: L2,L3 -->
-...only included for those levels...
-<!-- END_SCOPE -->
-```
-
-The harness filters these blocks when compiling prompts, which keeps context packs
-lean while still enforcing strict execution/merge discipline.
-
-## Repo outputs vs pipeline artifacts
-
-> NOTE: `artifacts/` is legacy-harness output. A snapshot of legacy generated outputs is kept under `archived/legacy-generated-artifacts/` to keep the repo easier to navigate during the Rust-first transition.
-
-Some stages write a canonical document **into the project repo** (via `${repo_root}/...`)
-and also keep a pipeline copy under `artifacts/...` for traceability.
-
-Example: `ENVIRONMENT_INVENTORY.md` is canonical at the repo/project root, with a pipeline copy at
-`artifacts/foundation/ENVIRONMENT_INVENTORY.md`.
+- Legacy docs index: [docs/legacy/README.md](docs/legacy/README.md)
+- Harness mechanics: [docs/legacy/HARNESS.md](docs/legacy/HARNESS.md)
+- Legacy system model: [docs/legacy/SYSTEM_MODEL.md](docs/legacy/SYSTEM_MODEL.md)
