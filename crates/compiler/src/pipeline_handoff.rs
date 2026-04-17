@@ -262,12 +262,7 @@ pub fn emit_pipeline_handoff_bundle(
 
     let feature_id = derive_feature_id(&feature_spec_body, &feature_spec_sha256);
     let bundle_root = format!("artifacts/handoff/feature_slice/{feature_id}");
-    let input_plans = build_input_copy_plans(
-        repo_root,
-        &compile_result,
-        &feature_spec_body,
-        &feature_spec_sha256,
-    )?;
+    let input_plans = build_input_copy_plans(&compile_result, &feature_spec_body)?;
 
     let canonical_manifest = ArtifactManifest::generate(repo_root, ManifestInputs::default())
         .map_err(|err| PipelineHandoffRefusal {
@@ -738,10 +733,8 @@ fn validate_supported_manifest_target(
 }
 
 fn build_input_copy_plans(
-    repo_root: &Path,
     compile_result: &PipelineCompileResult,
     feature_spec_body: &str,
-    feature_spec_sha256: &str,
 ) -> Result<Vec<InputCopyPlan>, PipelineHandoffRefusal> {
     let mut plans = Vec::new();
     for document in &compile_result.documents {
@@ -761,28 +754,17 @@ fn build_input_copy_plans(
                     .to_string(),
             }
         })?;
-        let sha256 = sha256_repo_relative_file(repo_root, &document.path).map_err(|err| {
-            PipelineHandoffRefusal {
-                classification: PipelineHandoffRefusalClassification::MissingRequiredInput,
-                summary: format!(
-                    "required handoff source `{}` is unavailable: {}",
-                    document.path,
-                    format_repo_file_access_error(&err)
-                ),
-                pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-                consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
-                recovery: "repair the compile inputs and retry `pipeline handoff emit`".to_string(),
-            }
-        })?;
+        let bundle_bytes = content.as_bytes().to_vec();
         plans.push(InputCopyPlan {
             source_path: document.path.clone(),
             bundle_path: format!("inputs/{}/{}", trust_class.bundle_segment(), document.path),
             trust_class,
-            sha256,
-            bytes: content.as_bytes().to_vec(),
+            sha256: sha256_hex(&bundle_bytes),
+            bytes: bundle_bytes,
         });
     }
 
+    let feature_spec_bytes = feature_spec_body.as_bytes().to_vec();
     plans.push(InputCopyPlan {
         source_path: FEATURE_SPEC_ARTIFACT_PATH.to_string(),
         bundle_path: format!(
@@ -791,8 +773,8 @@ fn build_input_copy_plans(
             FEATURE_SPEC_ARTIFACT_PATH
         ),
         trust_class: PipelineHandoffTrustClass::ExternalManualDerived,
-        sha256: feature_spec_sha256.to_string(),
-        bytes: feature_spec_body.as_bytes().to_vec(),
+        sha256: sha256_hex(&feature_spec_bytes),
+        bytes: feature_spec_bytes,
     });
     Ok(plans)
 }

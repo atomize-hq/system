@@ -16,6 +16,7 @@ From repo root:
 cargo run -p system-cli -- --help
 cargo run -p system-cli -- setup
 cargo run -p system-cli -- pipeline --help
+cargo run -p system-cli -- pipeline handoff --help
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec --explain
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
@@ -24,6 +25,7 @@ cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --st
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack --preview
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec < /tmp/FEATURE_SPEC.md
+cargo run -p system-cli -- pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
 cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 cargo run -p system-cli -- generate
 cargo run -p system-cli -- inspect
@@ -49,6 +51,7 @@ cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --st
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
 # External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
 cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec < /tmp/FEATURE_SPEC.md
+cargo run -p system-cli -- pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
 cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 ```
 
@@ -57,7 +60,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 ## Current command meanings
 
 - `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
-- `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, and `state set` for the reviewed wedge.
+- `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.
 - Compile freshness is explicit. If route basis is missing, stale, or inactive, re-run `pipeline resolve` before retrying compile.
@@ -70,6 +73,11 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `pipeline capture --preview` validates stdin, caches one typed materialization plan, and prints a deterministic `capture_id`.
 - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
 - `pipeline capture` remains the only supported stage-output writer surface. For stage `10`, `pipeline compile` emits model input payload, an external operator or model runner produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
+- `pipeline handoff emit --id <pipeline-id> --consumer <consumer-id>` is the supported M5 downstream handoff-emission surface for the first bounded adoption proof.
+  - Today it supports only `pipeline.foundation_inputs` + `feature-slice-decomposer`.
+  - It emits one derived bundle under `artifacts/handoff/feature_slice/<feature-id>/`.
+  - The emitted bundle contains `handoff_manifest.json`, `trust_matrix.md`, `read_allowlist.json`, `scorecard/metadata.json`, and copied bundle-local inputs for the named consumer.
+  - The emitted bundle is derived, not canonical; the happy-path consumer is expected to read only the emitted bundle.
 - `needs_project_context` remains an explicit operator-owned handoff:
   - `pipeline capture --stage stage.05_charter_synthesize`
   - `pipeline state set --var needs_project_context=<true|false>`
@@ -84,7 +92,9 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - The currently shipped binary exposes `pipeline` as the reviewed operator surface alongside `setup`, `generate`, `inspect`, and `doctor`.
 - `pipeline` now includes one explicit stage compilation wedge in M2 and one explicit writer wedge in M3 without widening into generic multi-stage compile or run support.
 - The documented `pipeline.foundation_inputs` path is `04` capture -> `05` capture -> manual `state set` -> `resolve` -> conditional `06` capture -> `resolve` -> `07` capture -> `10` compile -> external model output -> capture.
+- The downstream adoption extension to that path is explicit: after stage-10 capture, `pipeline handoff emit` writes the derived handoff bundle for `feature-slice-decomposer`.
 - For `stage.10_feature_spec`, raw `pipeline compile` payload is refused as `invalid_capture_input`; capture only accepts a completed `FEATURE_SPEC.md` body.
+- Stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` remains `external_manual_derived` inside the emitted handoff trust model.
 - `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
 - For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
 - For `pipeline`, list/show/resolve/compile/capture/state-set stay inside the approved repo surface and use one shared resolved-route truth.
@@ -127,4 +137,6 @@ cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --st
 # External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
 cat /tmp/FEATURE_SPEC.md \
   | cargo run -p system-cli -- pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+
+cargo run -p system-cli -- pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
 ```

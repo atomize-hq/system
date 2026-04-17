@@ -7,9 +7,9 @@
 | WS-INT | `codex/m5-ws-int` | primary repo checkout | main thread | in_progress |
 | WS-A | `codex/m5-ws-a` | `../system-m5-ws-a` | worker | completed |
 | WS-B | `codex/m5-ws-b` | `../system-m5-ws-b` | worker | completed |
-| WS-C | `codex/m5-ws-c` | `../system-m5-ws-c` | worker | pending |
-| WS-D | `codex/m5-ws-d` | `../system-m5-ws-d` | worker | pending |
-| WS-E | `codex/m5-ws-e` | `../system-m5-ws-e` | worker | pending |
+| WS-C | `codex/m5-ws-c` | `../system-m5-ws-c` | worker | completed |
+| WS-D | `codex/m5-ws-d` | `../system-m5-ws-d` | worker | completed |
+| WS-E | `codex/m5-ws-e` | `../system-m5-ws-e` | main thread | completed |
 
 ## Ownership
 

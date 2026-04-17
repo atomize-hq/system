@@ -14,7 +14,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/project_context/PROJECT_CONTEXT.md`
   - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
-- **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, and narrow route-state mutation.
+- **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, one explicit downstream handoff-emission wedge, and narrow route-state mutation.
   - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
 - **`pipeline compile --id <pipeline-id> --stage <stage-id>`** is the supported M2 compile entrypoint for the first bounded target.
   - Plain `pipeline compile` success is payload-only stdout.
@@ -27,6 +27,13 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `pipeline compile` does not write files. For stage `10`, compile emits model input payload, an external operator or model runner produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
   - For stage `10`, raw `pipeline compile` payload is refused as `invalid_capture_input`; capture must receive the completed `FEATURE_SPEC.md`.
   - If capture refuses because route basis is missing, stale, or inactive, re-run `pipeline resolve` and retry.
+- **`pipeline handoff emit --id <pipeline-id> --consumer <consumer-id>`** is the supported M5 downstream handoff-emission surface for the first bounded adoption proof.
+  - Today it supports only `pipeline.foundation_inputs` + `feature-slice-decomposer`.
+  - It emits one derived bundle under `artifacts/handoff/feature_slice/<feature-id>/`.
+  - The emitted bundle includes `handoff_manifest.json`, `trust_matrix.md`, `read_allowlist.json`, `scorecard/metadata.json`, and copied bundle-local input files.
+  - The emitted bundle is a derived trust surface, not canonical project truth.
+  - The stage-10 handoff input `artifacts/feature_spec/FEATURE_SPEC.md` stays explicitly `external_manual_derived`.
+  - If handoff emit refuses because stage-10 output is missing or provenance is stale, repair the upstream state and retry.
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
@@ -68,6 +75,8 @@ system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature
 # External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
 cat /tmp/FEATURE_SPEC.md \
   | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+
+system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
 ```
 
 Important boundaries:
@@ -75,6 +84,8 @@ Important boundaries:
 - `needs_project_context` stays manual and exact. Capture does not auto-set it.
 - `pipeline capture` remains the only stage-output writer surface.
 - Stage `10` capture writes `artifacts/feature_spec/FEATURE_SPEC.md`; it does not promote into canonical `.system/feature_spec/FEATURE_SPEC.md`.
+- `pipeline handoff emit` writes a derived downstream bundle; it does not promote bundle contents into canonical truth.
+- The named downstream consumer is expected to read only the emitted bundle on the happy path.
 - Transactional apply remains scoped to `system`-coordinated single-writer flows.
 
 ## How to navigate this repo
@@ -90,6 +101,7 @@ Important boundaries:
 - CLI command surface and wording: [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md)
 - Pipeline operator surface and ID resolution: [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md)
 - Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
+- Downstream handoff bundle + trust model: [`C-13`](contracts/C-13-pipeline-handoff-and-downstream-trust.md)
 - Refusal + doctor blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)

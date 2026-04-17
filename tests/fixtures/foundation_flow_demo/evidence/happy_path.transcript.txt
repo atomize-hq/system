@@ -886,3 +886,62 @@ WRITTEN FILES:
 STATE UPDATES:
   <none>
 NEXT SAFE ACTION: <none>
+
+$ system pipeline handoff emit --id foundation_inputs --consumer feature-slice-decomposer
+OUTCOME: EMITTED
+PIPELINE: pipeline.foundation_inputs
+CONSUMER: feature-slice-decomposer
+FEATURE ID: fs-m4-foundation-journey-2026-04
+BUNDLE ROOT: artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04
+WRITTEN FILES:
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/core/rules/p0_absolute.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/core/rules/p1_pragmatic.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/core/rules/traceability_policy.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/core/rules/evidence_policy.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/runners/codex-cli.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/profiles/python-uv/profile.yaml
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/profiles/python-uv/commands.yaml
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/profiles/python-uv/conventions.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/core/library/feature_spec/feature_spec_architect_directive.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/canonical/core/library/feature_spec/FEATURE_SPEC.md.tmpl
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/base/BASE_CONTEXT.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/charter/CHARTER.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/project_context/PROJECT_CONTEXT.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/foundation/FOUNDATION_STRATEGY.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/foundation/TECH_ARCH_BRIEF.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/foundation/TEST_STRATEGY_BRIEF.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/foundation/QUALITY_GATES_SPEC.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/foundation/quality_gates.yaml
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/compiler_derived/artifacts/foundation/ENVIRONMENT_INVENTORY.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/inputs/external_manual_derived/artifacts/feature_spec/FEATURE_SPEC.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/handoff_manifest.json
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/trust_matrix.md
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/read_allowlist.json
+  - artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04/scorecard/metadata.json
+REPO REREAD FALLBACK: disabled
+
+$ test-only: validate emitted handoff bundle
+OUTCOME: VALID
+PIPELINE: pipeline.foundation_inputs
+CONSUMER: feature-slice-decomposer
+FEATURE ID: fs-m4-foundation-journey-2026-04
+BUNDLE ROOT: artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04
+INPUT COUNT: 20
+ALLOW READ PATH COUNT: 24
+REPO REREAD FALLBACK: disabled
+
+$ test-only: consume emitted bundle into artifacts/planning/feature_slice/fs-m4-foundation-journey-2026-04/SLICE_PLAN.md
+OUTCOME: WROTE
+FEATURE ID: fs-m4-foundation-journey-2026-04
+BUNDLE ROOT: artifacts/handoff/feature_slice/fs-m4-foundation-journey-2026-04
+PLAN PATH: artifacts/planning/feature_slice/fs-m4-foundation-journey-2026-04/SLICE_PLAN.md
+BUNDLE READS:
+  - handoff_manifest.json
+  - read_allowlist.json
+  - trust_matrix.md
+  - inputs/external_manual_derived/artifacts/feature_spec/FEATURE_SPEC.md
+  - inputs/compiler_derived/artifacts/foundation/FOUNDATION_STRATEGY.md
+  - inputs/compiler_derived/artifacts/foundation/TECH_ARCH_BRIEF.md
+  - inputs/compiler_derived/artifacts/foundation/QUALITY_GATES_SPEC.md
+REPO REREADS: 0
+READ ONLY EMITTED BUNDLE: yes

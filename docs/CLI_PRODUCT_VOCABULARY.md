@@ -46,6 +46,9 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `pipeline capture apply --capture-id`
   - The cached capture-apply surface for the supported M3 writer wedge.
   - Use when the operator wants to apply one previously previewed capture plan without re-pasting stdin.
+- `pipeline handoff emit`
+  - The downstream handoff-emission surface for the supported M5 adoption wedge.
+  - Use when the operator wants one derived bundle that a named downstream consumer can trust without rereading the repo on the happy path.
 - `inspect`
   - The packet proof surface.
   - Use when the operator wants to verify why a packet looks the way it does.
@@ -70,6 +73,14 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
   - Avoid defining `canonical artifacts` and `canonical inputs` side by side in the same explanation unless the sentence needs the input framing.
 - `derived views`
   - Human-facing or renderer-facing outputs that are derived from canonical truth and are not runtime inputs.
+- `handoff bundle`
+  - The derived downstream bundle emitted by `pipeline handoff emit`.
+  - It is a trust surface for one named consumer, not canonical project truth.
+- `trust class`
+  - The per-file trust label inside the emitted handoff bundle.
+  - In M5 the supported trust classes are `canonical`, `compiler_derived`, and `external_manual_derived`.
+- `bundle-only read set`
+  - The allowlisted emitted-bundle files a downstream consumer may read on the happy path.
 - `planning packet`
   - The default live reduced-v1 packet product.
 - `execution demo packet`
@@ -96,10 +107,13 @@ These phrases should remain stable across top-level docs and help text unless th
 - "`inspect` is the packet proof surface"
 - "`pipeline compile --explain` is the compile proof surface"
 - "`pipeline capture` is the explicit writer surface"
+- "`pipeline handoff emit` is the downstream handoff-emission surface"
 - "`doctor` is the recovery surface"
 - "`setup` is still a placeholder"
 - `payload-only stdout`
 - `proof-only stdout`
+- `bundle-only reads`
+- `external_manual_derived`
 - `next safe action`
 
 Use backticks around command verbs when they refer to command names.
@@ -113,6 +127,7 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 - `setup`, not generic startup wording
 - `pipeline`, not generic framework wording, when naming route/control-plane work
 - `pipeline capture`, not generic save/apply wording, when naming stage-output materialization
+- `pipeline handoff emit`, not generic export/package wording, when naming the M5 downstream bundle surface
 - `generate`, not compile/build/render when describing packet creation
 - `inspect`, not explain/debug when naming the proof command
 - `pipeline compile --explain`, not `inspect`, when naming compile proof
@@ -120,6 +135,8 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 - `refusal`, not warning or issue, when a command is blocked
 - `canonical artifacts` or `canonical inputs`, not config files or metadata, when referring to trusted product inputs
 - `derived views`, not source of truth, for human-facing copies or render outputs
+- `handoff bundle`, not canonical bundle or source of truth, for the emitted downstream trust surface
+- `trust class`, not confidence score or quality tier, for emitted handoff trust labels
 - `next safe action`, not recommendation or suggestion, for the operator handoff line
 
 ### Ban On Operator-Facing Supported Surfaces
