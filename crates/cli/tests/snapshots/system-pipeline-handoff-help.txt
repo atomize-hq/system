@@ -1,0 +1,9 @@
+Emit one supported downstream handoff bundle from persisted stage and provenance surfaces
+
+Usage: system pipeline handoff <COMMAND>
+
+Commands:
+  emit  Emit one bounded handoff bundle for `pipeline.foundation_inputs` -> `feature-slice-decomposer`
+
+Options:
+  -h, --help  Print help

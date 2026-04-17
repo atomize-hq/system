@@ -9,6 +9,7 @@ pub mod packet_result;
 pub mod pipeline;
 pub mod pipeline_capture;
 pub mod pipeline_compile;
+pub mod pipeline_handoff;
 pub mod pipeline_route;
 pub mod refusal;
 pub mod rendering;
@@ -67,6 +68,17 @@ pub use pipeline_compile::{
     PipelineCompileOutputKind, PipelineCompileRefusal, PipelineCompileRefusalClassification,
     PipelineCompileResult, PipelineCompileRuntimeContext, PipelineCompileTarget,
     PipelineCompileVariable, PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+};
+pub use pipeline_handoff::{
+    emit_pipeline_handoff_bundle, render_pipeline_handoff_emit_result,
+    render_pipeline_handoff_refusal, validate_pipeline_handoff_bundle,
+    PipelineHandoffCanonicalArtifactFingerprint, PipelineHandoffCanonicalProvenance,
+    PipelineHandoffEmitRequest, PipelineHandoffEmitResult, PipelineHandoffFallbackMetadata,
+    PipelineHandoffFeatureSpecCompileProvenance, PipelineHandoffInput, PipelineHandoffManifest,
+    PipelineHandoffProducer, PipelineHandoffReadAllowlist, PipelineHandoffRefusal,
+    PipelineHandoffRefusalClassification, PipelineHandoffRouteBasisProvenance,
+    PipelineHandoffTrustClass, PipelineHandoffValidatedBundle, PipelineHandoffValidationFailure,
+    PipelineHandoffValidationFailureClassification,
 };
 pub use pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,

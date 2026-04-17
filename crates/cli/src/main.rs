@@ -79,8 +79,32 @@ enum PipelineCommand {
     Compile(PipelineCompileArgs),
     /// Capture one supported stage output and materialize declared artifact and repo-mirror files for `pipeline.foundation_inputs` stages `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
     Capture(PipelineCaptureArgs),
+    /// Emit one supported downstream handoff bundle from persisted stage and provenance surfaces.
+    Handoff(PipelineHandoffArgs),
     /// Route-state operations.
     State(PipelineStateArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineHandoffArgs {
+    #[command(subcommand)]
+    command: PipelineHandoffCommand,
+}
+
+#[derive(Subcommand, Debug)]
+enum PipelineHandoffCommand {
+    /// Emit one bounded handoff bundle for `pipeline.foundation_inputs` -> `feature-slice-decomposer`.
+    Emit(PipelineHandoffEmitArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct PipelineHandoffEmitArgs {
+    /// Canonical id or unambiguous shorthand for a pipeline.
+    #[arg(long)]
+    id: String,
+    /// Supported downstream consumer id.
+    #[arg(long)]
+    consumer: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -462,6 +486,7 @@ fn pipeline(args: PipelineArgs) -> ExitCode {
         PipelineCommand::Resolve(args) => pipeline_resolve(args),
         PipelineCommand::Compile(args) => pipeline_compile(args),
         PipelineCommand::Capture(args) => pipeline_capture(args),
+        PipelineCommand::Handoff(args) => pipeline_handoff(args),
         PipelineCommand::State(args) => match args.command {
             PipelineStateCommand::Set(args) => pipeline_state_set(args),
         },
@@ -741,6 +766,44 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                         );
                         ExitCode::from(1)
                     }
+                }
+            }
+        }
+    }
+}
+
+fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    match args.command {
+        PipelineHandoffCommand::Emit(emit_args) => {
+            let request = system_compiler::PipelineHandoffEmitRequest {
+                pipeline_selector: emit_args.id,
+                consumer_selector: emit_args.consumer,
+                producer_command: "system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer".to_string(),
+                producer_version: RELEASE_VERSION.to_string(),
+            };
+            match system_compiler::emit_pipeline_handoff_bundle(&repo_root, &request) {
+                Ok(result) => {
+                    println!(
+                        "{}",
+                        system_compiler::render_pipeline_handoff_emit_result(&result)
+                    );
+                    ExitCode::SUCCESS
+                }
+                Err(refusal) => {
+                    println!(
+                        "{}",
+                        system_compiler::render_pipeline_handoff_refusal(&refusal)
+                    );
+                    ExitCode::from(1)
                 }
             }
         }
