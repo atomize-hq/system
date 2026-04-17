@@ -67,7 +67,11 @@ fn capture_feature_spec(repo_root: &Path) {
 
 fn emit_valid_bundle(
     repo_root: &Path,
-) -> (String, PipelineHandoffValidatedBundle, PipelineHandoffManifest) {
+) -> (
+    String,
+    PipelineHandoffValidatedBundle,
+    PipelineHandoffManifest,
+) {
     let result = emit_pipeline_handoff_bundle(
         repo_root,
         &PipelineHandoffEmitRequest {
@@ -187,8 +191,12 @@ fn handoff_validation_refuses_tampered_derived_input() {
 fn handoff_validation_refuses_missing_or_corrupt_provenance() {
     let (_dir, repo_root, bundle_root, _validated, _manifest) = prepare_emitted_bundle_repo();
 
-    fs::remove_file(bundle_path(&repo_root, &bundle_root, "handoff_manifest.json"))
-        .expect("remove manifest");
+    fs::remove_file(bundle_path(
+        &repo_root,
+        &bundle_root,
+        "handoff_manifest.json",
+    ))
+    .expect("remove manifest");
 
     let failure = validate_pipeline_handoff_bundle(&repo_root, &bundle_root)
         .expect_err("missing handoff manifest should refuse");
@@ -197,7 +205,9 @@ fn handoff_validation_refuses_missing_or_corrupt_provenance() {
         PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance
     );
     assert!(
-        failure.summary.contains("handoff manifest is missing or unreadable"),
+        failure
+            .summary
+            .contains("handoff manifest is missing or unreadable"),
         "{}",
         failure.summary
     );
@@ -226,9 +236,15 @@ fn handoff_validation_refuses_trust_class_mismatch() {
         failure.classification,
         PipelineHandoffValidationFailureClassification::TrustClassMismatch
     );
-    assert!(failure.summary.contains(&source_path), "{}", failure.summary);
     assert!(
-        failure.summary.contains("does not match expected `canonical`"),
+        failure.summary.contains(&source_path),
+        "{}",
+        failure.summary
+    );
+    assert!(
+        failure
+            .summary
+            .contains("does not match expected `canonical`"),
         "{}",
         failure.summary
     );
@@ -238,12 +254,17 @@ fn handoff_validation_refuses_trust_class_mismatch() {
 fn test_consumer_refuses_undeclared_repo_reread_outside_bundle_allowlist() {
     let (_dir, repo_root, _bundle_root, validated, _manifest) = prepare_emitted_bundle_repo();
 
-    let manifest_body = test_consumer_read_bundle_path(&repo_root, &validated, "handoff_manifest.json")
-        .expect("declared bundle path should read");
-    assert!(manifest_body.contains("\"schema_version\""), "{manifest_body}");
+    let manifest_body =
+        test_consumer_read_bundle_path(&repo_root, &validated, "handoff_manifest.json")
+            .expect("declared bundle path should read");
+    assert!(
+        manifest_body.contains("\"schema_version\""),
+        "{manifest_body}"
+    );
 
-    let refusal = test_consumer_read_bundle_path(&repo_root, &validated, "core/stages/10_feature_spec.md")
-        .expect_err("undeclared repo reread should refuse");
+    let refusal =
+        test_consumer_read_bundle_path(&repo_root, &validated, "core/stages/10_feature_spec.md")
+            .expect_err("undeclared repo reread should refuse");
     assert_eq!(
         refusal.classification,
         TestConsumerRefusalClassification::UndeclaredRepoReread
@@ -253,5 +274,9 @@ fn test_consumer_refuses_undeclared_repo_reread_outside_bundle_allowlist() {
         "{}",
         refusal.summary
     );
-    assert!(refusal.summary.contains("declared allowlist"), "{}", refusal.summary);
+    assert!(
+        refusal.summary.contains("declared allowlist"),
+        "{}",
+        refusal.summary
+    );
 }

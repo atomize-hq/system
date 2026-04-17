@@ -177,9 +177,7 @@ fn read_foundation_flow_demo_evidence(filename: &str) -> String {
 }
 
 fn foundation_flow_demo_happy_path_bundle_root() -> String {
-    format!(
-        "artifacts/handoff/feature_slice/{FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID}"
-    )
+    format!("artifacts/handoff/feature_slice/{FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID}")
 }
 
 fn canonical_repo_root(path: &std::path::Path) -> std::path::PathBuf {
@@ -802,7 +800,8 @@ fn markdown_numbered_lines(section: &str) -> Vec<String> {
 }
 
 fn planning_input_line<'a>(lines: &'a [String], prefix: &str) -> &'a str {
-    lines.iter()
+    lines
+        .iter()
         .find(|line| line.starts_with(prefix))
         .map(String::as_str)
         .unwrap_or_else(|| panic!("missing line with prefix `{prefix}`"))
@@ -852,13 +851,26 @@ fn collect_repo_reread_planning_inputs(
         "trust matrix should keep repo reread fallback disabled"
     );
 
-    let feature_spec = read_repo_text(repo_root, repo_rereads, "artifacts/feature_spec/FEATURE_SPEC.md");
-    let foundation_strategy =
-        read_repo_text(repo_root, repo_rereads, "artifacts/foundation/FOUNDATION_STRATEGY.md");
-    let tech_arch_brief =
-        read_repo_text(repo_root, repo_rereads, "artifacts/foundation/TECH_ARCH_BRIEF.md");
-    let quality_gates_spec =
-        read_repo_text(repo_root, repo_rereads, "artifacts/foundation/QUALITY_GATES_SPEC.md");
+    let feature_spec = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/feature_spec/FEATURE_SPEC.md",
+    );
+    let foundation_strategy = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/foundation/FOUNDATION_STRATEGY.md",
+    );
+    let tech_arch_brief = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/foundation/TECH_ARCH_BRIEF.md",
+    );
+    let quality_gates_spec = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "artifacts/foundation/QUALITY_GATES_SPEC.md",
+    );
     let _ = read_repo_text(repo_root, repo_rereads, "pipelines/foundation_inputs.yaml");
     let _ = read_repo_text(repo_root, repo_rereads, "core/stages/10_feature_spec.md");
 
@@ -889,12 +901,16 @@ fn build_planning_inputs(
         feature_spec,
         "## 8) Acceptance Criteria (testable)",
     ));
-    let strategy_pillars =
-        markdown_numbered_lines(&markdown_section_body(foundation_strategy, "## Strategy Pillars"));
+    let strategy_pillars = markdown_numbered_lines(&markdown_section_body(
+        foundation_strategy,
+        "## Strategy Pillars",
+    ));
     let journey_flow =
         markdown_numbered_lines(&markdown_section_body(tech_arch_brief, "## Journey Flow"));
-    let mandatory_gates =
-        markdown_bullet_lines(&markdown_section_body(quality_gates_spec, "## Mandatory Gates"));
+    let mandatory_gates = markdown_bullet_lines(&markdown_section_body(
+        quality_gates_spec,
+        "## Mandatory Gates",
+    ));
 
     PlanningInputs {
         feature_id: manifest.feature_id.clone(),
@@ -1721,8 +1737,8 @@ fn pipeline_help_lists_supported_surface() {
 
     assert_eq!(
         command_lines.len(),
-        6,
-        "expected six pipeline command lines"
+        7,
+        "expected seven pipeline command lines"
     );
     assert!(
         command_lines[0].starts_with("list "),
@@ -1745,8 +1761,12 @@ fn pipeline_help_lists_supported_surface() {
         "capture should be fifth: {command_lines:?}"
     );
     assert!(
-        command_lines[5].starts_with("state "),
-        "state should be sixth: {command_lines:?}"
+        command_lines[5].starts_with("handoff "),
+        "handoff should be sixth: {command_lines:?}"
+    );
+    assert!(
+        command_lines[6].starts_with("state "),
+        "state should be seventh: {command_lines:?}"
     );
     assert!(
         stdout.contains("explicit stage-output capture"),
@@ -2687,7 +2707,9 @@ fn pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slic
         "emit output should report success: {emit_stdout}"
     );
     assert!(
-        emit_stdout.contains(&format!("FEATURE ID: {FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID}")),
+        emit_stdout.contains(&format!(
+            "FEATURE ID: {FOUNDATION_FLOW_DEMO_HAPPY_PATH_FEATURE_ID}"
+        )),
         "emit output should keep the stable feature id: {emit_stdout}"
     );
     assert!(
@@ -2729,7 +2751,8 @@ fn pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slic
         read_foundation_flow_demo_expected("happy_path", "SLICE_PLAN.md")
     );
     assert_eq!(
-        std::fs::read_to_string(root.join(&bundle_only_run.plan_path)).expect("slice plan artifact"),
+        std::fs::read_to_string(root.join(&bundle_only_run.plan_path))
+            .expect("slice plan artifact"),
         bundle_only_run.plan_body
     );
 

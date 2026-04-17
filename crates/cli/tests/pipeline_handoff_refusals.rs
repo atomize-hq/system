@@ -1,3 +1,5 @@
+// This integration test only uses a subset of the shared proof corpus helpers.
+#[allow(dead_code)]
 mod pipeline_proof_corpus_support;
 
 use std::path::Path;
@@ -96,7 +98,11 @@ fn prepare_foundation_inputs_full_context_route_basis(root: &Path) {
         vec!["pipeline", "resolve", "--id", "foundation_inputs"],
     ] {
         let output = run_in(root, &args);
-        assert!(output.status.success(), "command should succeed: {:?}", args);
+        assert!(
+            output.status.success(),
+            "command should succeed: {:?}",
+            args
+        );
     }
 }
 
@@ -144,8 +150,14 @@ fn pipeline_handoff_emit_refuses_when_feature_spec_artifact_is_missing() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
-    assert!(stdout.contains("PIPELINE: pipeline.foundation_inputs"), "{stdout}");
-    assert!(stdout.contains("CONSUMER: feature-slice-decomposer"), "{stdout}");
+    assert!(
+        stdout.contains("PIPELINE: pipeline.foundation_inputs"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("CONSUMER: feature-slice-decomposer"),
+        "{stdout}"
+    );
     assert!(
         stdout.contains(
             "REASON: missing_required_input: required handoff source `artifacts/feature_spec/FEATURE_SPEC.md` is unavailable"
@@ -165,23 +177,35 @@ fn generate_ignores_non_system_handoff_and_derived_files() {
     let (_dir, root) = planning_ready_repo();
 
     let baseline = run_in(root.as_path(), &["generate"]);
-    assert!(baseline.status.success(), "baseline generate should succeed");
+    assert!(
+        baseline.status.success(),
+        "baseline generate should succeed"
+    );
     let baseline_stdout = String::from_utf8(baseline.stdout).expect("baseline stdout is utf-8");
 
     seed_non_canonical_boundary_noise(root.as_path());
 
     let output = run_in(root.as_path(), &["generate"]);
-    assert!(output.status.success(), "generate should ignore non-.system noise");
+    assert!(
+        output.status.success(),
+        "generate should ignore non-.system noise"
+    );
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
 
     assert_eq!(stdout, baseline_stdout);
     assert!(stdout.contains(".system/charter/CHARTER.md"), "{stdout}");
-    assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"), "{stdout}");
+    assert!(
+        stdout.contains(".system/feature_spec/FEATURE_SPEC.md"),
+        "{stdout}"
+    );
     assert!(
         !stdout.contains("artifacts/feature_spec/FEATURE_SPEC.md"),
         "{stdout}"
     );
-    assert!(!stdout.contains("artifacts/handoff/feature_slice/poison"), "{stdout}");
+    assert!(
+        !stdout.contains("artifacts/handoff/feature_slice/poison"),
+        "{stdout}"
+    );
     assert!(!stdout.contains("POISON"), "{stdout}");
 }
 
@@ -196,16 +220,25 @@ fn inspect_ignores_non_system_handoff_and_derived_files() {
     seed_non_canonical_boundary_noise(root.as_path());
 
     let output = run_in(root.as_path(), &["inspect"]);
-    assert!(output.status.success(), "inspect should ignore non-.system noise");
+    assert!(
+        output.status.success(),
+        "inspect should ignore non-.system noise"
+    );
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
 
     assert_eq!(stdout, baseline_stdout);
     assert!(stdout.contains(".system/charter/CHARTER.md"), "{stdout}");
-    assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"), "{stdout}");
+    assert!(
+        stdout.contains(".system/feature_spec/FEATURE_SPEC.md"),
+        "{stdout}"
+    );
     assert!(
         !stdout.contains("artifacts/feature_spec/FEATURE_SPEC.md"),
         "{stdout}"
     );
-    assert!(!stdout.contains("artifacts/handoff/feature_slice/poison"), "{stdout}");
+    assert!(
+        !stdout.contains("artifacts/handoff/feature_slice/poison"),
+        "{stdout}"
+    );
     assert!(!stdout.contains("POISON"), "{stdout}");
 }
