@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.1.0] - 2026-04-17
+
+### Changed
+- Refreshed the top-level README so it now points straight at the shipped Rust CLI surface, the real docs entrypoints, and the current reduced-v1 command boundaries instead of the old scaffold-first story.
+- Updated the docs index to highlight the supported command surface, release notes, backlog, and shipped downstream handoff-emission wedge.
+- Re-scoped the glossary as legacy-harness terminology and cleaned the broad vision doc so the long-range docs stop mixing product guidance with chat residue.
+
 ## [0.5.0.1] - 2026-04-16
 
 ### Fixed
