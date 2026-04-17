@@ -1746,6 +1746,153 @@ pub(crate) fn route_state_path(
         .join(format!("{pipeline_id}.yaml")))
 }
 
+pub(crate) fn preview_runtime_state_reset(repo_root: &Path) -> Result<Vec<String>, String> {
+    collect_runtime_state_reset_paths(repo_root, false)
+}
+
+pub(crate) fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, String> {
+    collect_runtime_state_reset_paths(repo_root, true)
+}
+
+fn collect_runtime_state_reset_paths(repo_root: &Path, apply: bool) -> Result<Vec<String>, String> {
+    let state_root = repo_root.join(".system").join("state");
+    let root_metadata = match fs::symlink_metadata(&state_root) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(source) => {
+            return Err(format!(
+                "failed to inspect runtime state root `.system/state` at {}: {source}",
+                state_root.display()
+            ));
+        }
+    };
+
+    if root_metadata.file_type().is_symlink() {
+        return Err(format!(
+            "runtime state root `.system/state` cannot be reset through symlink {}",
+            state_root.display()
+        ));
+    }
+    if !root_metadata.is_dir() {
+        return Err(format!(
+            "runtime state root `.system/state` is not a directory at {}",
+            state_root.display()
+        ));
+    }
+
+    let mut entries = fs::read_dir(&state_root)
+        .map_err(|source| {
+            format!(
+                "failed to read runtime state root `.system/state` at {}: {source}",
+                state_root.display()
+            )
+        })?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| {
+            format!(
+                "failed to enumerate runtime state root `.system/state` at {}: {source}",
+                state_root.display()
+            )
+        })?;
+    entries.sort();
+
+    let mut reset_paths = Vec::new();
+    for entry in entries {
+        collect_runtime_state_reset_entry(repo_root, &entry, apply, &mut reset_paths)?;
+    }
+
+    reset_paths.sort();
+    Ok(reset_paths)
+}
+
+fn collect_runtime_state_reset_entry(
+    repo_root: &Path,
+    path: &Path,
+    apply: bool,
+    reset_paths: &mut Vec<String>,
+) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(path).map_err(|source| {
+        format!(
+            "failed to inspect runtime state path `{}` at {}: {source}",
+            repo_relative_display(repo_root, path),
+            path.display()
+        )
+    })?;
+
+    if metadata.file_type().is_symlink() {
+        return Err(format!(
+            "runtime state path `{}` cannot be reset through symlink {}",
+            repo_relative_display(repo_root, path),
+            path.display()
+        ));
+    }
+
+    if metadata.is_dir() {
+        let mut children = fs::read_dir(path)
+            .map_err(|source| {
+                format!(
+                    "failed to read runtime state directory `{}` at {}: {source}",
+                    repo_relative_display(repo_root, path),
+                    path.display()
+                )
+            })?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|source| {
+                format!(
+                    "failed to enumerate runtime state directory `{}` at {}: {source}",
+                    repo_relative_display(repo_root, path),
+                    path.display()
+                )
+            })?;
+        children.sort();
+
+        for child in children {
+            collect_runtime_state_reset_entry(repo_root, &child, apply, reset_paths)?;
+        }
+
+        if apply {
+            fs::remove_dir(path).map_err(|source| {
+                format!(
+                    "failed to remove runtime state directory `{}` at {}: {source}",
+                    repo_relative_display(repo_root, path),
+                    path.display()
+                )
+            })?;
+        }
+        reset_paths.push(repo_relative_display(repo_root, path));
+        return Ok(());
+    }
+
+    if metadata.is_file() {
+        if apply {
+            fs::remove_file(path).map_err(|source| {
+                format!(
+                    "failed to remove runtime state file `{}` at {}: {source}",
+                    repo_relative_display(repo_root, path),
+                    path.display()
+                )
+            })?;
+        }
+        reset_paths.push(repo_relative_display(repo_root, path));
+        return Ok(());
+    }
+
+    Err(format!(
+        "runtime state path `{}` is not a regular file or directory",
+        repo_relative_display(repo_root, path)
+    ))
+}
+
+fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
+    path.strip_prefix(repo_root)
+        .ok()
+        .and_then(|relative| relative.to_str())
+        .map(|relative| relative.replace('\\', "/"))
+        .unwrap_or_else(|| path.display().to_string())
+}
+
 pub(crate) fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
     if let Some(parent) = state_path.parent() {
         fs::create_dir_all(parent)?;

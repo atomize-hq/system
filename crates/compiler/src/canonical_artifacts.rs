@@ -11,7 +11,7 @@ pub enum CanonicalArtifactKind {
 }
 
 impl CanonicalArtifactKind {
-    fn required(self) -> bool {
+    pub(crate) fn required(self) -> bool {
         match self {
             CanonicalArtifactKind::Charter => true,
             CanonicalArtifactKind::ProjectContext => false,
@@ -19,7 +19,7 @@ impl CanonicalArtifactKind {
         }
     }
 
-    fn relative_path(self) -> &'static str {
+    pub(crate) fn relative_path(self) -> &'static str {
         match self {
             CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
             CanonicalArtifactKind::ProjectContext => ".system/project_context/PROJECT_CONTEXT.md",
@@ -33,6 +33,39 @@ const CANONICAL_ARTIFACT_KINDS: [CanonicalArtifactKind; 3] = [
     CanonicalArtifactKind::ProjectContext,
     CanonicalArtifactKind::FeatureSpec,
 ];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CanonicalArtifactDescriptor {
+    pub kind: CanonicalArtifactKind,
+    pub relative_path: &'static str,
+    pub namespace_dir: &'static str,
+    pub required: bool,
+}
+
+const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 3] = [
+    CanonicalArtifactDescriptor {
+        kind: CanonicalArtifactKind::Charter,
+        relative_path: ".system/charter/CHARTER.md",
+        namespace_dir: ".system/charter",
+        required: true,
+    },
+    CanonicalArtifactDescriptor {
+        kind: CanonicalArtifactKind::ProjectContext,
+        relative_path: ".system/project_context/PROJECT_CONTEXT.md",
+        namespace_dir: ".system/project_context",
+        required: false,
+    },
+    CanonicalArtifactDescriptor {
+        kind: CanonicalArtifactKind::FeatureSpec,
+        relative_path: ".system/feature_spec/FEATURE_SPEC.md",
+        namespace_dir: ".system/feature_spec",
+        required: true,
+    },
+];
+
+pub fn canonical_artifact_descriptors() -> &'static [CanonicalArtifactDescriptor; 3] {
+    &CANONICAL_ARTIFACT_DESCRIPTORS
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemRootStatus {

@@ -1,6 +1,7 @@
 mod pipeline_proof_corpus_support;
 
 use std::collections::BTreeSet;
+use std::fs;
 use std::process::{Command, Output};
 
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
@@ -4201,8 +4202,341 @@ fn pipeline_state_set_preserves_distinct_refusals() {
 }
 
 #[test]
-fn setup_prints_placeholder_and_fails() {
-    assert_placeholder("setup", "placeholder-only entrypoint");
+fn setup_help_matches_snapshot() {
+    assert_help_snapshot(&["setup", "--help"], "system-setup-help.txt");
+}
+
+#[test]
+fn setup_init_help_matches_snapshot() {
+    assert_help_snapshot(&["setup", "init", "--help"], "system-setup-init-help.txt");
+}
+
+#[test]
+fn setup_refresh_help_matches_snapshot() {
+    assert_help_snapshot(
+        &["setup", "refresh", "--help"],
+        "system-setup-refresh-help.txt",
+    );
+}
+
+#[test]
+fn bare_setup_routes_to_init_on_uninitialized_repo() {
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    let output = run_in(dir.path(), &["setup"]);
+    assert!(output.status.success(), "setup should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        Some("system setup init"),
+        "init",
+        &[
+            "created .system/charter/CHARTER.md",
+            "created .system/feature_spec/FEATURE_SPEC.md",
+            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+        ],
+    );
+
+    assert!(dir.path().join(".system/charter/CHARTER.md").is_file());
+    assert!(dir
+        .path()
+        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .is_file());
+    assert!(dir
+        .path()
+        .join(".system/project_context/PROJECT_CONTEXT.md")
+        .is_file());
+}
+
+#[test]
+fn bare_setup_routes_to_refresh_on_initialized_repo() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        b"custom charter\n",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"custom feature\n",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"custom context\n",
+    );
+
+    let output = run_in(root, &["setup"]);
+    assert!(output.status.success(), "setup should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        Some("system setup refresh"),
+        "refresh",
+        &[
+            "preserved .system/charter/CHARTER.md",
+            "preserved .system/feature_spec/FEATURE_SPEC.md",
+            "preserved .system/project_context/PROJECT_CONTEXT.md",
+        ],
+    );
+
+    assert_eq!(
+        fs::read(root.join(".system/charter/CHARTER.md")).expect("charter"),
+        b"custom charter\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature"),
+        b"custom feature\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
+        b"custom context\n"
+    );
+}
+
+#[test]
+fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    let output = run_in(dir.path(), &["setup", "init"]);
+    assert!(output.status.success(), "setup init should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        None,
+        "init",
+        &[
+            "created .system/charter/CHARTER.md",
+            "created .system/feature_spec/FEATURE_SPEC.md",
+            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+        ],
+    );
+}
+
+#[test]
+fn setup_init_refuses_when_canonical_system_already_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+
+    let output = run_in(root, &["setup", "init"]);
+    assert!(!output.status.success(), "setup init should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_eq!(
+        stdout.trim(),
+        "REFUSED: canonical .system root already exists; use `system setup refresh` instead"
+    );
+}
+
+#[test]
+fn setup_refresh_default_preserves_canonical_files_by_default() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"keep charter\n");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"keep feature\n",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"keep context\n",
+    );
+
+    let output = run_in(root, &["setup", "refresh"]);
+    assert!(output.status.success(), "setup refresh should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        None,
+        "refresh",
+        &[
+            "preserved .system/charter/CHARTER.md",
+            "preserved .system/feature_spec/FEATURE_SPEC.md",
+            "preserved .system/project_context/PROJECT_CONTEXT.md",
+        ],
+    );
+}
+
+#[test]
+fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        b"custom charter\n",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"custom feature\n",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"custom context\n",
+    );
+    write_file(
+        &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        b"state: keep\n",
+    );
+    write_file(&root.join(".system/custom/KEEP.md"), b"keep me\n");
+
+    let state_before =
+        fs::read(root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
+            .expect("state before");
+    let custom_before = fs::read(root.join(".system/custom/KEEP.md")).expect("custom before");
+
+    let output = run_in(root, &["setup", "refresh", "--rewrite"]);
+    assert!(
+        output.status.success(),
+        "setup refresh --rewrite should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        None,
+        "refresh",
+        &[
+            "rewritten .system/charter/CHARTER.md",
+            "rewritten .system/feature_spec/FEATURE_SPEC.md",
+            "rewritten .system/project_context/PROJECT_CONTEXT.md",
+        ],
+    );
+
+    assert_ne!(
+        fs::read(root.join(".system/charter/CHARTER.md")).expect("charter after"),
+        b"custom charter\n"
+    );
+    assert_ne!(
+        fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature after"),
+        b"custom feature\n"
+    );
+    assert_ne!(
+        fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context after"),
+        b"custom context\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
+            .expect("state after"),
+        state_before
+    );
+    assert_eq!(
+        fs::read(root.join(".system/custom/KEEP.md")).expect("custom after"),
+        custom_before
+    );
+}
+
+#[test]
+fn setup_refresh_reset_state_mutates_only_system_state() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"context\n",
+    );
+    write_file(
+        &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        b"pipeline state\n",
+    );
+    write_file(
+        &root.join(".system/state/pipeline/capture/cache.yaml"),
+        b"capture state\n",
+    );
+    write_file(&root.join(".system/custom/KEEP.md"), b"keep me\n");
+
+    let output = run_in(root, &["setup", "refresh", "--reset-state"]);
+    assert!(
+        output.status.success(),
+        "setup refresh --reset-state should succeed"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        None,
+        "refresh",
+        &[
+            "preserved .system/charter/CHARTER.md",
+            "preserved .system/feature_spec/FEATURE_SPEC.md",
+            "preserved .system/project_context/PROJECT_CONTEXT.md",
+            "reset .system/state/pipeline",
+            "reset .system/state/pipeline/capture",
+            "reset .system/state/pipeline/capture/cache.yaml",
+            "reset .system/state/pipeline/pipeline.foundation_inputs.yaml",
+        ],
+    );
+
+    assert_eq!(
+        fs::read(root.join(".system/charter/CHARTER.md")).expect("charter"),
+        b"charter\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature"),
+        b"feature\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
+        b"context\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/custom/KEEP.md")).expect("custom"),
+        b"keep me\n"
+    );
+    assert!(!root
+        .join(".system/state/pipeline/pipeline.foundation_inputs.yaml")
+        .exists());
+    assert!(!root
+        .join(".system/state/pipeline/capture/cache.yaml")
+        .exists());
+}
+
+#[test]
+fn bare_setup_respects_nested_git_root_boundary() {
+    let (_dir, nested) = nested_git_repo_inside_managed_parent_with_nested_cwd();
+    let child_root = nested.join("../..");
+
+    let output = binary_in(&nested)
+        .arg("setup")
+        .output()
+        .expect("setup should run");
+
+    assert!(output.status.success(), "setup should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        Some("system setup init"),
+        "init",
+        &[
+            "created .system/charter/CHARTER.md",
+            "created .system/feature_spec/FEATURE_SPEC.md",
+            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+        ],
+    );
+
+    assert!(child_root.join(".system/charter/CHARTER.md").is_file());
+    assert!(child_root
+        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .is_file());
+    assert!(child_root
+        .join(".system/project_context/PROJECT_CONTEXT.md")
+        .is_file());
 }
 
 #[test]
@@ -4218,7 +4552,7 @@ fn generate_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
 
@@ -4256,7 +4590,7 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
 
@@ -4324,7 +4658,7 @@ fn generate_refuses_when_system_root_missing() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
     assert!(
@@ -4354,7 +4688,7 @@ fn generate_refuses_when_feature_spec_missing_in_partial_system_tree() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md",
+            "NEXT SAFE ACTION: run `system setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: RequiredArtifactMissing"));
@@ -4376,7 +4710,7 @@ fn inspect_refuses_when_system_root_missing() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
     assert!(
@@ -4398,7 +4732,7 @@ fn inspect_refuses_when_feature_spec_missing_in_partial_system_tree() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md",
+            "NEXT SAFE ACTION: run `system setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: RequiredArtifactMissing"));
@@ -4431,7 +4765,7 @@ fn doctor_blocks_when_system_root_missing() {
         "expected human-facing subject: {stdout}"
     );
     assert!(
-        stdout.contains("NEXT SAFE ACTION: create canonical .system root at .system"),
+        stdout.contains("NEXT SAFE ACTION: run `system setup`"),
         "expected human-facing next action: {stdout}"
     );
     assert!(
@@ -4451,9 +4785,7 @@ fn doctor_blocks_when_feature_spec_missing_in_partial_system_tree() {
     assert!(stdout.contains("BLOCKED"));
     assert!(stdout.contains("RequiredArtifactMissing"));
     assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"));
-    assert!(stdout.contains(
-        "NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
-    ));
+    assert!(stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"));
 }
 
 #[test]
@@ -4474,7 +4806,7 @@ fn generate_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_ro
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: ensure canonical .system root is a directory at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
     assert!(
@@ -4501,7 +4833,7 @@ fn inspect_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_roo
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: ensure canonical .system root is a directory at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
     assert!(
@@ -5138,7 +5470,7 @@ fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
 }
 
 #[test]
-fn generate_from_committed_fixture_dir_refuses_against_git_root() {
+fn generate_from_committed_fixture_dir_refuses_against_workspace_git_root() {
     let fixture_dir = committed_execution_demo_fixture_dir();
 
     let output = binary_in(&fixture_dir)
@@ -5154,21 +5486,21 @@ fn generate_from_committed_fixture_dir_refuses_against_git_root() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
     assert!(
         stdout.contains("CATEGORY: SystemRootMissing"),
-        "expected git-root refusal instead of fixture-root success: {stdout}"
+        "expected refusal against workspace git root: {stdout}"
     );
     assert!(
-        !stdout.contains("Fixture demo charter (basic)"),
-        "planning flow should not read fixture bodies as live inputs: {stdout}"
+        stdout.contains("BROKEN SUBJECT: policy system_root"),
+        "expected system root refusal subject: {stdout}"
     );
 }
 
 #[test]
-fn inspect_from_committed_fixture_dir_refuses_against_git_root() {
+fn inspect_from_committed_fixture_dir_refuses_against_workspace_git_root() {
     let fixture_dir = committed_execution_demo_fixture_dir();
 
     let output = binary_in(&fixture_dir)
@@ -5184,21 +5516,21 @@ fn inspect_from_committed_fixture_dir_refuses_against_git_root() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ],
     );
     assert!(
         stdout.contains("CATEGORY: SystemRootMissing"),
-        "expected git-root refusal instead of fixture-root success: {stdout}"
+        "expected refusal against workspace git root: {stdout}"
     );
     assert!(
-        !stdout.contains("Fixture demo charter (basic)"),
-        "planning flow should not read fixture bodies as live inputs: {stdout}"
+        stdout.contains("## JSON FALLBACK"),
+        "expected inspect refusal output with json fallback: {stdout}"
     );
 }
 
 #[test]
-fn doctor_from_committed_fixture_dir_blocks_against_git_root() {
+fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
     let fixture_dir = committed_execution_demo_fixture_dir();
 
     let output = binary_in(&fixture_dir)
@@ -5206,7 +5538,10 @@ fn doctor_from_committed_fixture_dir_blocks_against_git_root() {
         .output()
         .expect("doctor should run");
 
-    assert!(!output.status.success(), "doctor should return nonzero");
+    assert!(
+        !output.status.success(),
+        "doctor should return nonzero when blocked"
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(
@@ -5215,7 +5550,11 @@ fn doctor_from_committed_fixture_dir_blocks_against_git_root() {
     );
     assert!(
         stdout.contains("SystemRootMissing"),
-        "expected git-root blocker instead of fixture-root success: {stdout}"
+        "expected system root blocker: {stdout}"
+    );
+    assert!(
+        stdout.contains("NEXT SAFE ACTION: run `system setup`"),
+        "expected setup-family guidance: {stdout}"
     );
 }
 
@@ -5416,24 +5755,6 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     assert!(stdout.contains(".system/project_context/PROJECT_CONTEXT.md"));
 }
 
-fn assert_placeholder(command: &str, expected_phrase: &str) {
-    let output = binary().arg(command).output().expect("command should run");
-
-    assert!(!output.status.success(), "{command} should return nonzero");
-
-    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains(expected_phrase),
-        "expected placeholder phrase in stdout for {command}: {stdout}"
-    );
-    assert!(
-        stdout.contains(
-            "planning packet generation, `inspect`, and `doctor` are implemented in reduced v1"
-        ),
-        "expected honest placeholder-only message for {command}: {stdout}"
-    );
-}
-
 fn command_section_lines(help: &str) -> Vec<&str> {
     let mut in_commands = false;
     let mut lines = Vec::new();
@@ -5461,4 +5782,69 @@ fn command_section_lines(help: &str) -> Vec<&str> {
 fn assert_first_three_lines(stdout: &str, expected: [&str; 3]) {
     let lines: Vec<&str> = stdout.lines().take(3).collect();
     assert_eq!(lines, expected, "unexpected trust header: {stdout}");
+}
+
+fn assert_help_snapshot(args: &[&str], snapshot_filename: &str) {
+    let stdout = run_in(workspace_root().as_path(), args).stdout;
+    let rendered = String::from_utf8(stdout).expect("help is utf-8");
+    assert_eq!(rendered, read_snapshot(snapshot_filename));
+}
+
+fn read_snapshot(filename: &str) -> String {
+    let path = workspace_root()
+        .join("crates/cli/tests/snapshots")
+        .join(filename);
+    fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()))
+}
+
+fn assert_setup_success(
+    stdout: &str,
+    routed_command: Option<&str>,
+    expected_mode: &str,
+    expected_actions: &[&str],
+) {
+    let lines: Vec<&str> = stdout.lines().collect();
+    let mut index = 0;
+
+    if let Some(routed_command) = routed_command {
+        let expected = format!("ROUTED: system setup -> {routed_command}");
+        assert_eq!(
+            lines.get(index).copied(),
+            Some(expected.as_str()),
+            "unexpected routing line: {stdout}"
+        );
+        index += 1;
+    }
+
+    assert_eq!(lines.get(index).copied(), Some("OUTCOME: OK"), "{stdout}");
+    index += 1;
+    let expected_mode_line = format!("MODE: {expected_mode}");
+    assert_eq!(
+        lines.get(index).copied(),
+        Some(expected_mode_line.as_str()),
+        "{stdout}"
+    );
+    index += 1;
+    assert_eq!(lines.get(index).copied(), Some("ACTIONS:"), "{stdout}");
+    index += 1;
+
+    for expected_action in expected_actions {
+        assert_eq!(
+            lines.get(index).copied(),
+            Some(*expected_action),
+            "{stdout}"
+        );
+        index += 1;
+    }
+
+    assert_eq!(
+        lines.get(index).copied(),
+        Some("NEXT SAFE ACTION: system doctor"),
+        "{stdout}"
+    );
+    assert_eq!(
+        index + 1,
+        lines.len(),
+        "unexpected trailing setup output: {stdout}"
+    );
 }

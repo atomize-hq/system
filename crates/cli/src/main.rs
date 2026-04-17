@@ -27,8 +27,8 @@ fn main() -> ExitCode {
     name = "system",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` is still a placeholder, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -37,8 +37,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Placeholder setup entrypoint.
-    Setup,
+    /// Initialize or refresh canonical repo-local `.system/` inputs.
+    Setup(SetupArgs),
     /// Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations.
     Pipeline(PipelineArgs),
     /// Generate a reduced-v1 packet.
@@ -52,13 +52,37 @@ enum Command {
 impl Command {
     fn run(self) -> ExitCode {
         match self {
-            Command::Setup => placeholder_exit("setup", "placeholder-only entrypoint"),
+            Command::Setup(args) => setup(args),
             Command::Pipeline(args) => pipeline(args),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
             Command::Doctor => doctor(),
         }
     }
+}
+
+#[derive(clap::Args, Debug)]
+struct SetupArgs {
+    #[command(subcommand)]
+    command: Option<SetupCommand>,
+}
+
+#[derive(Subcommand, Debug)]
+enum SetupCommand {
+    /// Create canonical `.system/` scaffold and starter files for first-run setup.
+    Init,
+    /// Preserve canonical files by default and optionally rewrite starter files or reset `.system/state/**`.
+    Refresh(SetupRefreshArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct SetupRefreshArgs {
+    /// Rewrite setup-owned starter files in place.
+    #[arg(long)]
+    rewrite: bool,
+    /// Reset only `.system/state/**`.
+    #[arg(long = "reset-state")]
+    reset_state: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -426,12 +450,117 @@ fn generate(args: RequestArgs) -> ExitCode {
     }
 }
 
-fn placeholder_exit(command: &str, description: &str) -> ExitCode {
-    let contract_version = system_compiler::workspace_contract_version();
-    println!(
-        "system CLI placeholder (contract {contract_version}): `{command}` is a {description}; planning packet generation, `inspect`, and `doctor` are implemented in reduced v1."
-    );
-    ExitCode::from(1)
+fn setup(args: SetupArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!("REFUSED: failed to determine repo root: {err}");
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    let (request, routed_from_auto) = match args.command {
+        None => (
+            system_compiler::SetupRequest {
+                mode: system_compiler::SetupMode::Auto,
+                ..system_compiler::SetupRequest::default()
+            },
+            true,
+        ),
+        Some(SetupCommand::Init) => (
+            system_compiler::SetupRequest {
+                mode: system_compiler::SetupMode::Init,
+                ..system_compiler::SetupRequest::default()
+            },
+            false,
+        ),
+        Some(SetupCommand::Refresh(refresh)) => (
+            system_compiler::SetupRequest {
+                mode: system_compiler::SetupMode::Refresh,
+                rewrite: refresh.rewrite,
+                reset_state: refresh.reset_state,
+            },
+            false,
+        ),
+    };
+
+    match system_compiler::run_setup(&repo_root, &request) {
+        Ok(outcome) => {
+            println!("{}", render_setup_success(&outcome, routed_from_auto));
+            ExitCode::SUCCESS
+        }
+        Err(refusal) => {
+            println!("REFUSED: {}", refusal.summary);
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_auto: bool) -> String {
+    let mut out = String::new();
+
+    if routed_from_auto {
+        out.push_str("ROUTED: system setup -> ");
+        out.push_str(setup_command_name(outcome.plan.resolved_mode));
+        out.push('\n');
+    }
+
+    out.push_str("OUTCOME: OK\n");
+    out.push_str(&format!(
+        "MODE: {}\n",
+        setup_mode_name(outcome.plan.resolved_mode)
+    ));
+    out.push_str("ACTIONS:\n");
+    for action in &outcome.plan.actions {
+        out.push_str(&format!(
+            "{} {}\n",
+            setup_action_label_name(action.label),
+            setup_action_path(action, outcome.plan.resolved_mode)
+        ));
+    }
+    out.push_str("NEXT SAFE ACTION: ");
+    out.push_str(&outcome.next_command);
+
+    out
+}
+
+fn setup_command_name(mode: system_compiler::SetupMode) -> &'static str {
+    match mode {
+        system_compiler::SetupMode::Auto => "system setup",
+        system_compiler::SetupMode::Init => "system setup init",
+        system_compiler::SetupMode::Refresh => "system setup refresh",
+    }
+}
+
+fn setup_mode_name(mode: system_compiler::SetupMode) -> &'static str {
+    match mode {
+        system_compiler::SetupMode::Auto => "auto",
+        system_compiler::SetupMode::Init => "init",
+        system_compiler::SetupMode::Refresh => "refresh",
+    }
+}
+
+fn setup_action_label_name(label: system_compiler::SetupActionLabel) -> &'static str {
+    match label {
+        system_compiler::SetupActionLabel::Created => "created",
+        system_compiler::SetupActionLabel::Preserved => "preserved",
+        system_compiler::SetupActionLabel::Rewritten => "rewritten",
+        system_compiler::SetupActionLabel::Reset => "reset",
+    }
+}
+
+fn setup_action_path(
+    action: &system_compiler::SetupAction,
+    resolved_mode: system_compiler::SetupMode,
+) -> String {
+    if resolved_mode == system_compiler::SetupMode::Init
+        && action.path == ".system/project_context/PROJECT_CONTEXT.md"
+    {
+        format!("{} (optional)", action.path)
+    } else {
+        action.path.clone()
+    }
 }
 
 fn doctor() -> ExitCode {

@@ -1,9 +1,9 @@
-Rust CLI for the reduced v1 system. `setup` is still a placeholder. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface.
+Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface.
 
 Usage: system [COMMAND]
 
 Commands:
-  setup     Placeholder setup entrypoint
+  setup     Initialize or refresh canonical repo-local `.system/` inputs
   pipeline  Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations
   generate  Generate a reduced-v1 packet
   inspect   Inspect packet composition and decision evidence

@@ -557,9 +557,7 @@ fn compute_refusal(
                 broken_subject: SubjectRef::Policy {
                     policy_id: "system_root",
                 },
-                next_safe_action: NextSafeAction::CreateSystemRoot {
-                    canonical_repo_relative_path: SYSTEM_ROOT_PATH,
-                },
+                next_safe_action: NextSafeAction::RunSetup,
             });
         }
         SystemRootStatus::NotDir => {
@@ -569,9 +567,7 @@ fn compute_refusal(
                 broken_subject: SubjectRef::Policy {
                     policy_id: "system_root",
                 },
-                next_safe_action: NextSafeAction::EnsureSystemRootIsDirectory {
-                    canonical_repo_relative_path: SYSTEM_ROOT_PATH,
-                },
+                next_safe_action: NextSafeAction::RunSetup,
             });
         }
         SystemRootStatus::SymlinkNotAllowed => {
@@ -581,9 +577,7 @@ fn compute_refusal(
                 broken_subject: SubjectRef::Policy {
                     policy_id: "system_root",
                 },
-                next_safe_action: NextSafeAction::RemoveSystemRootSymlink {
-                    canonical_repo_relative_path: SYSTEM_ROOT_PATH,
-                },
+                next_safe_action: NextSafeAction::RunSetup,
             });
         }
     }
@@ -610,9 +604,7 @@ fn compute_refusal(
                         kind: artifact.kind,
                         canonical_repo_relative_path: artifact.relative_path,
                     },
-                    next_safe_action: NextSafeAction::CreateCanonicalArtifact {
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
+                    next_safe_action: NextSafeAction::RunSetupRefresh,
                 });
             }
             crate::ArtifactPresence::PresentEmpty => {
@@ -789,9 +781,7 @@ fn compute_blockers(
                 policy_id: "system_root",
             },
             summary: "missing canonical .system root".to_string(),
-            next_safe_action: NextSafeAction::CreateSystemRoot {
-                canonical_repo_relative_path: SYSTEM_ROOT_PATH,
-            },
+            next_safe_action: NextSafeAction::RunSetup,
         }),
         SystemRootStatus::NotDir => blockers.push(Blocker {
             category: BlockerCategory::SystemRootNotDir,
@@ -799,9 +789,7 @@ fn compute_blockers(
                 policy_id: "system_root",
             },
             summary: "canonical .system root is not a directory".to_string(),
-            next_safe_action: NextSafeAction::EnsureSystemRootIsDirectory {
-                canonical_repo_relative_path: SYSTEM_ROOT_PATH,
-            },
+            next_safe_action: NextSafeAction::RunSetup,
         }),
         SystemRootStatus::SymlinkNotAllowed => blockers.push(Blocker {
             category: BlockerCategory::SystemRootSymlinkNotAllowed,
@@ -809,9 +797,7 @@ fn compute_blockers(
                 policy_id: "system_root",
             },
             summary: "canonical .system root must not be a symlink".to_string(),
-            next_safe_action: NextSafeAction::RemoveSystemRootSymlink {
-                canonical_repo_relative_path: SYSTEM_ROOT_PATH,
-            },
+            next_safe_action: NextSafeAction::RunSetup,
         }),
     }
 
@@ -833,9 +819,7 @@ fn compute_blockers(
                         canonical_repo_relative_path: artifact.relative_path,
                     },
                     summary: "missing required canonical artifact".to_string(),
-                    next_safe_action: NextSafeAction::CreateCanonicalArtifact {
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
+                    next_safe_action: NextSafeAction::RunSetupRefresh,
                 }),
                 crate::ArtifactPresence::PresentEmpty => blockers.push(Blocker {
                     category: BlockerCategory::RequiredArtifactEmpty,

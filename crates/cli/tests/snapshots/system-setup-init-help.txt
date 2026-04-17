@@ -1,0 +1,6 @@
+Create canonical `.system/` scaffold and starter files for first-run setup
+
+Usage: system setup init
+
+Options:
+  -h, --help  Print help
