@@ -86,6 +86,18 @@
 **Priority:** P1
 **Depends on:** Stable canonical `.system/` contract, locked setup ownership boundary, stable startup routing language
 
+### Post-Setup Onboarding Upgrade
+
+**What:** Extend the `setup` success path beyond the immediate `doctor` handoff with a richer onboarding flow once the Rust front door is stable.
+
+**Why:** `M6` can honestly end at `system doctor`, but that still leaves a lot of operator guidance value on the table. After the front door is real, the next improvement is a tighter onboarding path that helps the operator move from scaffolded `.system/` files to a ready planning flow with less guesswork.
+
+**Context:** The current CEO review for post-`M5` work locked `setup init` to a scaffold-first bootstrap, a short checklist, and one explicit next command: `system doctor`. That keeps `M6` bounded and honest. It also intentionally defers a richer onboarding experience so the team does not mix front-door truth establishment with a bigger guidance or workflow-orchestration redesign. Revisit this after the Rust `setup` family is shipped, docs/help drift is updated, and the team has real usage feedback on where operators still get stuck after `doctor`.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Shipped Rust `setup` family, updated `doctor` readiness guidance, real operator feedback on post-setup friction
+
 ### Operator Outcome Scoreboard
 
 **What:** Add an operator-outcome scoreboard for the pipeline/compiler wedge.

@@ -2270,16 +2270,18 @@ Conflict flags:
 
 This is where the wedge starts paying back the operator tax for real.
 
-### M6. Historical Reference Cleanup And Coverage Expansion
+### M6. Rust Front Door Completion And Historical Cleanup
 
 Goal:
 
-- keep the Rust product story coherent while expanding coverage and keeping historical reference material clearly non-authoritative
+- replace the placeholder-only `setup` story with one real Rust-owned front door for establishing and re-establishing trusted project truth
+- keep the Rust product story coherent while historical reference material becomes explicitly non-authoritative
 
 Must prove:
 
-- the chosen foundation-family flow is fully supported through the Rust surface
-- docs and entrypoints describe one coherent Rust-first product story
+- new and stale repos have one honest Rust front door instead of a docs-only setup story
+- first-run bootstrap and later truth re-establishment share one coherent setup family
+- docs, help, contracts, refusal copy, and recovery entrypoints describe one coherent Rust-first product story
 - the remaining historical reference surface is explicitly non-authoritative, not vaguely half-supported
 
 ## What Already Exists And Must Be Preserved
@@ -2311,6 +2313,54 @@ These decisions were locked during `/plan-ceo-review` and are now part of the ac
 - Latency and output-size discipline are part of the wedge, not post-ship cleanup.
 - Future work is justified by reduced operator work and more trustworthy downstream artifacts, not by generic YAML workflow-engine flexibility.
 
+## CEO Review Addendum (2026-04-17)
+
+These decisions were locked during the current `/plan-ceo-review` and now govern post-`M5` work:
+
+- the next active milestone is not generic “coverage expansion”; it is Rust front-door completion
+- the highest-leverage remaining product gap is that `setup` is still placeholder-only while the rest of the support story already treats it like the front door
+- `setup` remains the durable front-door family name; do not rename the whole surface away from `setup` unless a later review finds a clearly better product story
+- the planned command-family shape is:
+  - `system setup init` for first-time bootstrap
+  - `system setup refresh` for deliberate truth re-establishment
+  - bare `system setup` auto-routes based on repo state:
+    - missing or uninitialized canonical `.system/` artifact zones -> `setup init`
+    - canonical setup surface exists -> `setup refresh`
+    - runtime-state presence or staleness does not change that routing decision
+- `setup init` is scaffold-first in `M6`:
+  - create the canonical `.system/` tree and starter files
+  - create starter canonical files for:
+    - `.system/charter/CHARTER.md`
+    - `.system/feature_spec/FEATURE_SPEC.md`
+    - `.system/project_context/PROJECT_CONTEXT.md`
+  - starter files use structured templates with required section headings, short inline guidance, and explicit replace-this-text posture
+  - `.system/project_context/PROJECT_CONTEXT.md` is still created in the scaffold, but its template must mark it explicitly optional
+  - success output should:
+    - list the created paths
+    - give a short next-step checklist for filling required files, optionally filling project context, and running the next command
+    - point to `system doctor` as the one explicit next command after the operator edits the starter files
+  - if the canonical setup surface already exists, `setup init` must refuse and route the operator to `setup refresh`
+  - do not import or infer starter canonical content from ambient repo evidence in this milestone
+- `setup refresh` is explicit-mode only in `M6`:
+  - default refresh preserves existing canonical files and reports stale or missing surfaces
+  - any overwrite or reset behavior requires explicit flags on `setup refresh`
+  - the destructive flags are:
+    - `--rewrite` for replacing existing setup-created files
+    - `--reset-state` for pruning or resetting runtime `.system/state/**`
+  - if the canonical setup surface is missing, `setup refresh` must refuse and route the operator to `setup init`
+  - success output should point to `system doctor` as the one explicit next command
+  - silent canonical-file rewrite is out of scope
+- runtime `.system/state/**` remains non-canonical in `M6`:
+  - `setup init` may create the minimum runtime-state scaffold needed for a clean initialized repo
+  - default refresh does not treat runtime state as project truth
+  - explicit destructive refresh modes may prune or reset stale runtime state
+- bare `setup` routing in `M6` is driven by canonical `.system/` readiness only:
+  - do not use runtime-state freshness, generated artifacts, docs presence, or other repo heuristics to choose between `init` and `refresh`
+  - bare `system setup` should print one short routing line before dispatching into the chosen action
+- this is not inventing a new refresh concept from scratch; the repo already uses `setup refresh` in docs and vocabulary, so `M6` must resolve that semantic debt by making the command surface and docs agree
+- bare `setup` must remain a setup action, not a disguised status or `doctor` surface
+- cleanup work counts only when it supports the honest front door, the canonical `.system/` contract, or the legacy-reference boundary
+
 ## Deferred Work
 
 These items are explicitly deferred behind the first wedge:
@@ -2321,6 +2371,7 @@ These items are explicitly deferred behind the first wedge:
 - public CLI distribution from [TODOS.md](TODOS.md)
 - CLI release workflow from [TODOS.md](TODOS.md)
 - operator-outcome scoreboard from [TODOS.md](TODOS.md)
+- richer post-setup onboarding beyond the immediate `doctor` handoff from [TODOS.md](TODOS.md)
 - `pipeline validate` preflight surface from [TODOS.md](TODOS.md)
 - structured run provenance for `resolve`, `compile`, and `state set` from [TODOS.md](TODOS.md)
 
@@ -2328,35 +2379,53 @@ If a session proposes one of these before the first wedge proves replacement val
 
 ## Success Criteria
 
-The first wedge is only real when all of the following are true for the chosen flow:
+`M6` is only real when all of the following are true for the chosen flow:
 
-1. the operator does not repeat the same repo research at multiple planning stages
-2. the operator does not manually shuttle context between compiler-owned steps
-3. outputs are consistent across repeated runs
-4. downstream planning/execution consumers receive smaller, more trustworthy grounding
-5. the operator can handle more concurrent work because babysitting is reduced
-6. the proof corpus is rich enough that success actually demonstrates usefulness, not just parser correctness
+1. the operator can establish canonical `.system/` truth from the Rust CLI without a placeholder handoff story
+2. the operator can deliberately re-establish that truth later through the same setup family without semantic weirdness
+3. `generate`, `inspect`, `doctor`, and missing-system-root recovery all point at the same setup story
+4. docs, help, contracts, and drift guards stop describing `setup` as placeholder-only
+5. historical reference material remains explicit evidence, not active product authority
+6. the proof corpus is rich enough to prove both first-run bootstrap and later refresh behavior honestly
 
 ## Immediate Next Work
 
-1. Lock the `M5` authority model in one place:
-   - `.system/*` stays canonical
-   - `artifacts/*` stay derived
-   - the new downstream bundle is explicit, versioned, and non-canonical
-2. Name `feature-slice-decomposer` as the first consumer and define the exact accepted output plus allowed read set.
-3. Add one explicit bundle-emission surface plus handoff manifest with trust classes, fingerprints, and fallback rules.
-4. Add happy-path, stale, tampered, missing-provenance, and trust-class mismatch regressions for the named consumer path.
-5. Publish one before / after scorecard, one transcript bundle, and docs / vocabulary parity updates so `M5` can prove operator-pain reduction honestly.
+1. Replace placeholder-only `setup` with one real Rust-owned setup family:
+   - lock `setup` as the namespace
+   - ship `system setup init` for first-time bootstrap
+   - ship `system setup refresh` for deliberate truth re-establishment
+   - make bare `system setup` auto-route into the correct setup action based on repo state
+2. Define the exact canonical `.system/` bootstrap contract:
+   - which directories and files are created
+   - which files are seeded as starter templates versus left for later operator/model population
+   - starter templates in `M6` should be structured skeletons, not empty stubs and not long tutorial prose
+   - when existing files refuse, preserve, or refresh
+   - how runtime `.system/state/**` is treated during init and refresh
+   - keep `setup init` scaffold-first; defer import or migration of repo-local evidence to later work
+   - starter file creation in `M6` means explicit template headings/placeholders, not inferred project truth
+   - refresh safety in `M6` means preserve-by-default plus explicit overwrite/reset flags only
+   - runtime-state handling in `M6` means minimal initialization plus explicit prune/reset modes, never canonical promotion
+3. Align recovery and front-door routing:
+   - `doctor` and `SystemRootMissing` next-safe-action guidance must route to the setup family
+   - `generate` / `inspect` refusal copy must stop talking around the missing front door
+   - bare `setup` routing must key off canonical `.system/` readiness rather than runtime-state or artifact heuristics
+4. Add proof corpus, goldens, and help/docs parity for the shipped setup family:
+   - uninitialized repo
+   - partially initialized repo
+   - stale-but-valid repo needing refresh
+   - refusal paths for unsafe overwrite or malformed existing state
+   - explicit overwrite/reset-flag coverage so destructive refresh behavior never hides behind the default path
+5. Demote historical-reference wording that still implies a split setup story after Rust setup lands.
 
-## Explicit Non-Goals For M5
+## Explicit Non-Goals For M6
 
-- do not broaden the canonical `.system/*` input contract
-- do not silently promote captured stage outputs into canonical `.system/*`
-- do not build a multi-consumer framework
-- do not wire the full seam or execution ecosystem into this repo
-- do not widen into live model execution, UI wrapper work, or public-distribution work
+- do not widen `setup` into an everyday incremental pipeline rebuild command
+- do not invent a generic onboarding chat/runtime orchestrator in this milestone
+- do not broaden the canonical `.system/*` input contract without an explicit contract revision
+- do not hide destructive refresh semantics behind silent overwrite behavior
+- do not use docs cleanup as a substitute for a real command surface
 
-Stay on the wedge until the operator pain is materially reduced.
+Stay on the wedge until the front door is honest.
 
 ## Historical Review Appendices
 
