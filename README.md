@@ -11,7 +11,7 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - The interaction contract lives in [DESIGN.md](DESIGN.md).
 - The current top-level CLI surface is `setup`, `pipeline`, `generate`, `inspect`, and `doctor`.
 - `setup` is still placeholder-only.
-- `pipeline` is the orchestration surface for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
+- `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.
 - Stage `10` stays truthful: `pipeline compile` emits payload-only model input, external model output produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
@@ -79,7 +79,10 @@ cargo run -p system-cli -- inspect
 - `pipeline capture --preview` validates stdin, caches one typed materialization plan, and returns a deterministic `capture_id`.
 - `pipeline capture apply --capture-id <capture-id>` revalidates freshness and applies the cached plan transactionally.
 - For `pipeline.foundation_inputs`, the shipped capture stages are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
+- `pipeline capture` remains the only supported stage-output writer surface.
+- Stage `10` materialization stays `compile -> external model output -> capture`.
 - Compile and capture freshness recovery are explicit. Re-run `pipeline resolve` before retrying when route basis is missing, stale, or inactive.
+- Capture apply safety is scoped to `system`-coordinated single-writer flows.
 - `inspect` is the packet proof surface.
 - `doctor` is the recovery surface.
 
