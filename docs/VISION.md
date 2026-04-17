@@ -1,7 +1,3 @@
-Heres the updated North Star / Vision summary with your clarification baked in  written as something you can hand directly to an execution agent in your dev environment.
-
----
-
 # North Star Vision for System
 
 ## Review Status
@@ -18,7 +14,7 @@ Build a **modular, deterministic context + posture generation system** that enab
 This system exists to make AI-driven delivery safe and repeatable by ensuring agents always have:
 
 * the right constraints (posture, guardrails)
-* the right reality (what exists, whats live)
+* the right reality (what exists, what's live)
 * the right tooling assumptions (profiles)
 * the right workflow enhancements (overlays)
 * the right output contracts (machine-parseable, traceable artifacts)
@@ -121,7 +117,7 @@ Overlays should be organized by purpose (e.g., `task/`, `sprint/`, `release/`, `
 
 ### Work-level hierarchy (scoping and concision)
 
-Introduce a level system (L0L3) to scope strict rules and keep context packs small:
+Introduce a level system (`L0`-`L3`) to scope strict rules and keep context packs small:
 
 * L0 Program (big picture)
 * L1 Planning (charter/context/foundation/specs)
@@ -152,9 +148,3 @@ This allows parallel workstreams in planning while enforcing discipline at execu
 * Gates are represented as **typed tasks** inside sprints, which block sprint close.
 
 This keeps the system continuously operational with minimal human involvement beyond release-level steering.
-
----
-
-If you want, I can also rewrite this into a shorter SYSTEM_VISION.md (1 page, tighter language) optimized to paste as an execution-agent system prompt.
-
-One quick note: some earlier uploaded files from the chat have expired on my side. If you want the execution agent summary to include direct quotes or exact structures from those files, re-upload them and Ill fold them in verbatim where helpful.
