@@ -7,13 +7,15 @@ use std::path::{Path, PathBuf};
 use system_compiler::{
     capture_pipeline_output, emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle,
     PipelineCaptureRequest, PipelineHandoffEmitRequest, PipelineHandoffManifest,
-    PipelineHandoffTrustClass, PipelineHandoffValidatedBundle,
-    PipelineHandoffValidationFailureClassification,
+    PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
+    PipelineHandoffValidatedBundle, PipelineHandoffValidationFailureClassification,
 };
 
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;
 const STAGE_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
 const CONSUMER_ID: &str = "feature-slice-decomposer";
+const STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
+    ".system/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TestConsumerRefusalClassification {
@@ -103,6 +105,27 @@ fn prepare_emitted_bundle_repo() -> (
     (dir, repo_root, bundle_root, validated, manifest)
 }
 
+fn copy_dir_all(source: &Path, dest: &Path) {
+    fs::create_dir_all(dest).expect("mkdirs");
+    for entry in fs::read_dir(source).expect("read dir") {
+        let entry = entry.expect("dir entry");
+        let source_path = entry.path();
+        let dest_path = dest.join(entry.file_name());
+        let metadata = entry.metadata().expect("metadata");
+        if metadata.is_dir() {
+            copy_dir_all(&source_path, &dest_path);
+        } else {
+            fs::copy(&source_path, &dest_path).unwrap_or_else(|err| {
+                panic!(
+                    "copy {} -> {}: {err}",
+                    source_path.display(),
+                    dest_path.display()
+                )
+            });
+        }
+    }
+}
+
 fn test_consumer_read_bundle_path(
     repo_root: &Path,
     bundle: &PipelineHandoffValidatedBundle,
@@ -157,6 +180,84 @@ fn handoff_validation_refuses_stale_canonical_provenance() {
         "{}",
         failure.summary
     );
+}
+
+#[test]
+fn handoff_emit_refuses_stale_stage_10_feature_spec_capture_provenance() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    install_canonical_inputs(&repo_root);
+    capture_feature_spec(&repo_root);
+
+    write_file(
+        &repo_root.join("artifacts/foundation/FOUNDATION_STRATEGY.md"),
+        "# drifted foundation strategy\n",
+    );
+
+    let refusal = emit_pipeline_handoff_bundle(
+        &repo_root,
+        &PipelineHandoffEmitRequest {
+            pipeline_selector: PIPELINE_ID.to_string(),
+            consumer_selector: CONSUMER_ID.to_string(),
+            producer_command: format!(
+                "system pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
+            ),
+            producer_version: "test-suite".to_string(),
+        },
+    )
+    .expect_err("stale stage-10 capture provenance should refuse");
+    assert_eq!(
+        refusal.classification,
+        PipelineHandoffRefusalClassification::InvalidProvenance
+    );
+    assert!(
+        refusal.summary.contains("payload_sha256")
+            || refusal.summary.contains("route-basis revision/hash"),
+        "{}",
+        refusal.summary
+    );
+}
+
+#[test]
+fn handoff_emit_refuses_missing_or_corrupt_stage_10_capture_provenance() {
+    for case in ["missing", "corrupt"] {
+        let (_dir, repo_root) =
+            pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+        install_canonical_inputs(&repo_root);
+        capture_feature_spec(&repo_root);
+
+        let provenance_path = repo_root.join(STAGE_10_CAPTURE_PROVENANCE_PATH);
+        match case {
+            "missing" => {
+                fs::remove_file(&provenance_path).expect("remove stage-10 capture provenance");
+            }
+            "corrupt" => {
+                write_file(&provenance_path, "{not-valid-json");
+            }
+            _ => unreachable!("unexpected case"),
+        }
+
+        let refusal = emit_pipeline_handoff_bundle(
+            &repo_root,
+            &PipelineHandoffEmitRequest {
+                pipeline_selector: PIPELINE_ID.to_string(),
+                consumer_selector: CONSUMER_ID.to_string(),
+                producer_command: format!(
+                    "system pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
+                ),
+                producer_version: "test-suite".to_string(),
+            },
+        )
+        .expect_err("missing or corrupt stage-10 provenance should refuse");
+        assert_eq!(
+            refusal.classification,
+            PipelineHandoffRefusalClassification::InvalidProvenance
+        );
+        assert!(
+            refusal.summary.contains("stage-10 capture provenance"),
+            "{}",
+            refusal.summary
+        );
+    }
 }
 
 #[test]
@@ -245,6 +346,36 @@ fn handoff_validation_refuses_trust_class_mismatch() {
         failure
             .summary
             .contains("does not match expected `canonical`"),
+        "{}",
+        failure.summary
+    );
+}
+
+#[test]
+fn handoff_validation_accepts_same_root_aliases_and_refuses_relocated_copy() {
+    let (_dir, repo_root, bundle_root, _validated, _manifest) = prepare_emitted_bundle_repo();
+
+    validate_pipeline_handoff_bundle(&repo_root, &format!("./{bundle_root}"))
+        .expect("same-root alias with leading ./ should validate");
+    validate_pipeline_handoff_bundle(&repo_root, &format!("{bundle_root}/"))
+        .expect("same-root alias with trailing slash should validate");
+
+    let relocated_bundle_root = "artifacts/handoff/feature_slice/copied-root";
+    copy_dir_all(
+        &repo_root.join(&bundle_root),
+        &repo_root.join(relocated_bundle_root),
+    );
+
+    let failure = validate_pipeline_handoff_bundle(&repo_root, relocated_bundle_root)
+        .expect_err("relocated bundle copy should refuse");
+    assert_eq!(
+        failure.classification,
+        PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance
+    );
+    assert!(
+        failure
+            .summary
+            .contains("does not match handoff manifest bundle_root"),
         "{}",
         failure.summary
     );

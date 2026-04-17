@@ -86,6 +86,7 @@ Trust classification rules:
 - repo-local `.system/*` sources referenced by the bundle MUST be labeled `canonical`
 - compiler-emitted derived artifacts included in the bundle MUST be labeled `compiler_derived`
 - stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` MUST be labeled `external_manual_derived`
+- stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` MUST be provenance-bound to the same stage-10 compile payload and route-basis result that the emitter validates before bundling it
 
 The consumer MUST validate trust class per file from emitted trust metadata before treating any file as admissible input.
 
@@ -100,6 +101,7 @@ The consumer MUST validate trust class per file from emitted trust metadata befo
 - the canonical `.system/*` sources the bundle was derived from, with fingerprints
 - the derived artifact sources exposed to the consumer, with fingerprints
 - route-basis provenance sufficient to bind the bundle to the upstream pipeline result
+- stage-10 compile provenance sufficient to prove the emitted `artifacts/feature_spec/FEATURE_SPEC.md` still matches the compile payload and route basis it was captured from
 - the declared fallback conditions for any read outside the emitted bundle
 
 `trust_matrix.md` MUST present the emitted file set together with each file's trust class in a reviewable, deterministic form.
@@ -107,6 +109,7 @@ The consumer MUST validate trust class per file from emitted trust metadata befo
 ### Allowlisted reads and fallback
 
 - `read_allowlist.json` MUST enumerate the exact emitted-bundle files the named consumer may read on the happy path.
+- Bundle validation MUST reject any on-disk bundle directory whose requested path does not match the normalized `bundle_root` declared in emitted handoff metadata.
 - The named consumer MUST read only the emitted bundle by default.
 - Any read outside the emitted bundle is forbidden unless an explicit fallback condition is:
   - declared in emitted handoff metadata, and
@@ -128,6 +131,8 @@ The consumer MUST validate trust class per file from emitted trust metadata befo
 - [ ] The emitted bundle contains `handoff_manifest.json`, `trust_matrix.md`, `read_allowlist.json`, and `scorecard/*`.
 - [ ] Trust classes are exactly `canonical`, `compiler_derived`, and `external_manual_derived`.
 - [ ] `artifacts/feature_spec/FEATURE_SPEC.md` remains `external_manual_derived`.
+- [ ] `artifacts/feature_spec/FEATURE_SPEC.md` is provenance-bound to the same validated stage-10 compile payload and route basis used for emission.
 - [ ] The named consumer is exactly `feature-slice-decomposer`.
+- [ ] Validation rejects a copied or relocated bundle whose requested path does not match the declared normalized `bundle_root`.
 - [ ] The consumer may read only the emitted bundle unless an explicit fallback condition is declared and logged.
 - [ ] `M5` remains one real downstream adoption proof, not canonical promotion and not a multi-consumer framework.

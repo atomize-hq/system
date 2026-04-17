@@ -3,7 +3,7 @@
 mod pipeline_proof_corpus_support;
 
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
@@ -20,6 +20,25 @@ fn run_in(dir: &Path, args: &[&str]) -> Output {
         .args(args)
         .output()
         .unwrap_or_else(|err| panic!("run `{}`: {err}", args.join(" ")))
+}
+
+fn run_in_with_input(dir: &Path, args: &[&str], input: &str) -> Output {
+    let mut child = binary_in(dir)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap_or_else(|err| panic!("spawn `{}`: {err}", args.join(" ")));
+    {
+        let stdin = child.stdin.as_mut().expect("child stdin");
+        use std::io::Write as _;
+        stdin
+            .write_all(input.as_bytes())
+            .unwrap_or_else(|err| panic!("write stdin for `{}`: {err}", args.join(" ")));
+    }
+    child
+        .wait_with_output()
+        .unwrap_or_else(|err| panic!("wait for `{}`: {err}", args.join(" ")))
 }
 
 fn write_file(path: &Path, contents: &[u8]) {
@@ -106,6 +125,23 @@ fn prepare_foundation_inputs_full_context_route_basis(root: &Path) {
     }
 }
 
+fn install_canonical_inputs(root: &Path) {
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        &std::fs::read(root.join("artifacts/charter/CHARTER.md")).expect("read charter fixture"),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &std::fs::read(root.join("artifacts/project_context/PROJECT_CONTEXT.md"))
+            .expect("read project context fixture"),
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md")
+            .as_bytes(),
+    );
+}
+
 fn seed_non_canonical_boundary_noise(root: &Path) {
     write_file(
         &root.join("artifacts/feature_spec/FEATURE_SPEC.md"),
@@ -167,6 +203,60 @@ fn pipeline_handoff_emit_refuses_when_feature_spec_artifact_is_missing() {
     assert!(
         stdout.contains(
             "NEXT SAFE ACTION: capture `stage.10_feature_spec` output before retrying `pipeline handoff emit`"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn pipeline_handoff_emit_refuses_when_stage_10_capture_provenance_is_stale() {
+    let (_dir, root) = foundation_inputs_repo();
+    prepare_foundation_inputs_full_context_route_basis(root.as_path());
+    install_canonical_inputs(root.as_path());
+
+    let capture = run_in_with_input(
+        root.as_path(),
+        &[
+            "pipeline",
+            "capture",
+            "--id",
+            "foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+        &pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md"),
+    );
+    assert!(capture.status.success(), "stage 10 capture should succeed");
+
+    write_file(
+        &root.join("artifacts/foundation/FOUNDATION_STRATEGY.md"),
+        b"# drifted foundation strategy\n",
+    );
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "handoff",
+            "emit",
+            "--id",
+            "foundation_inputs",
+            "--consumer",
+            "feature-slice-decomposer",
+        ],
+    );
+    assert!(!output.status.success(), "handoff emit should refuse");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(stdout.contains("REASON: invalid_provenance:"), "{stdout}");
+    assert!(
+        stdout.contains("stage-10 capture provenance") || stdout.contains("payload_sha256"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "NEXT SAFE ACTION: recapture `stage.10_feature_spec` from the current compile payload before retrying `pipeline handoff emit`"
         ),
         "{stdout}"
     );

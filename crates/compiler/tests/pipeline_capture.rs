@@ -26,6 +26,8 @@ const STAGE_06_ID: &str = pipeline_proof_corpus_support::STAGE_06_PROJECT_CONTEX
 const STAGE_07_ID: &str = pipeline_proof_corpus_support::STAGE_07_FOUNDATION_PACK_ID;
 const STAGE_10_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
+const STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
+    ".system/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 
 fn stage_04_request(input: String) -> PipelineCaptureRequest {
     PipelineCaptureRequest {
@@ -210,6 +212,27 @@ fn rewrite_tampered_capture_cache(
     }
     fs::write(&next_path, serialized).expect("write tampered cache file");
     cache_entry.capture_id
+}
+
+fn route_basis_sha256(route_basis: &system_compiler::RouteBasis) -> String {
+    let bytes = serde_json::to_vec(route_basis).expect("serialize route basis");
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+fn normalized_compile_payload_sha256(payload: &str) -> String {
+    let mut normalized = payload
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("- now_utc: "))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if payload.ends_with('\n') {
+        normalized.push('\n');
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(normalized.as_bytes());
+    format!("{:x}", hasher.finalize())
 }
 
 #[test]
@@ -436,6 +459,42 @@ fn capture_apply_stage_10_matches_shared_golden_from_completed_external_output()
         fs::read_to_string(repo_root.join("artifacts/feature_spec/FEATURE_SPEC.md"))
             .expect("artifact"),
         input
+    );
+    let provenance: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(repo_root.join(STAGE_10_CAPTURE_PROVENANCE_PATH))
+            .expect("stage-10 capture provenance"),
+    )
+    .expect("parse stage-10 capture provenance");
+    let expected_feature_spec_sha256 = {
+        let mut hasher = Sha256::new();
+        hasher.update(input.as_bytes());
+        format!("{:x}", hasher.finalize())
+    };
+    assert_eq!(
+        provenance["schema_version"],
+        "m5-stage-10-feature-spec-capture-provenance-v1"
+    );
+    assert_eq!(provenance["pipeline_id"], PIPELINE_ID);
+    assert_eq!(provenance["stage_id"], STAGE_10_ID);
+    assert_eq!(
+        provenance["feature_spec_path"],
+        "artifacts/feature_spec/FEATURE_SPEC.md"
+    );
+    assert_eq!(
+        provenance["feature_spec_sha256"],
+        expected_feature_spec_sha256
+    );
+    assert_eq!(
+        provenance["route_basis_state_revision"],
+        result.plan.basis.state_revision
+    );
+    assert_eq!(
+        provenance["route_basis_fingerprint_sha256"],
+        route_basis_sha256(&result.plan.basis)
+    );
+    assert_eq!(
+        provenance["payload_sha256"],
+        normalized_compile_payload_sha256(&compile_payload)
     );
 }
 

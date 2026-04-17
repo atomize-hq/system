@@ -1,24 +1,24 @@
 use crate::artifact_manifest::{ArtifactManifest, ManifestInputs};
 use crate::canonical_artifacts::ArtifactPresence;
-use crate::pipeline::{
-    load_selected_pipeline_definition, load_stage_compile_definition,
-    supported_route_state_variables,
-};
+use crate::pipeline::{load_selected_pipeline_definition, supported_route_state_variables};
 use crate::pipeline_compile::{
-    compile_pipeline_stage, render_pipeline_compile_payload, PipelineCompileDocument,
-    PipelineCompileDocumentKind, PipelineCompileDocumentStatus, PipelineCompileRefusal,
-    PipelineCompileRefusalClassification, PipelineCompileResult,
+    compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
+    PipelineCompileDocumentStatus, PipelineCompileRefusal, PipelineCompileRefusalClassification,
+    PipelineCompileResult,
 };
 use crate::repo_file_access::{
-    read_repo_relative_string, sha256_repo_relative_file, validate_repo_relative_path,
+    normalize_repo_relative_path, read_repo_relative_string, sha256_repo_relative_file,
     write_repo_relative_bytes, RepoRelativeFileAccessError, RepoRelativeMutationError,
 };
 use crate::route_state::{
-    load_route_state_with_supported_variables, rebuild_canonical_route_basis, RouteBasis,
-    RouteStateReadError,
+    load_route_state_with_supported_variables, rebuild_canonical_route_basis, RouteStateReadError,
+};
+use crate::stage_10_feature_spec_provenance::{
+    build_stage_10_feature_spec_capture_provenance, load_stage_10_feature_spec_capture_provenance,
+    route_basis_fingerprint_sha256, sha256_hex,
+    validate_stage_10_feature_spec_capture_provenance_match, FEATURE_SPEC_ARTIFACT_PATH,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::Path;
@@ -26,7 +26,6 @@ use std::path::Path;
 const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const SUPPORTED_CONSUMER_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
-const FEATURE_SPEC_ARTIFACT_PATH: &str = "artifacts/feature_spec/FEATURE_SPEC.md";
 const HANDOFF_SCHEMA_VERSION: &str = "m5-pipeline-handoff-v1";
 const READ_ALLOWLIST_SCHEMA_VERSION: &str = "m5-pipeline-handoff-read-allowlist-v1";
 const SCORECARD_SCHEMA_VERSION: &str = "m5-pipeline-handoff-scorecard-v1";
@@ -259,6 +258,37 @@ pub fn emit_pipeline_handoff_bundle(
                 "capture `{SUPPORTED_STAGE_ID}` output before retrying `pipeline handoff emit`"
             ),
         })?;
+    let current_capture_provenance = build_stage_10_feature_spec_capture_provenance(
+        repo_root,
+        &compile_result,
+        &feature_spec_sha256,
+    )
+    .map_err(|reason| PipelineHandoffRefusal {
+        classification: PipelineHandoffRefusalClassification::InvalidProvenance,
+        summary: format!("failed to rebuild current stage-10 compile provenance: {reason}"),
+        pipeline_id: Some(compile_result.target.pipeline_id.clone()),
+        consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+        recovery: stage_10_provenance_recovery(),
+    })?;
+    let stored_capture_provenance = load_stage_10_feature_spec_capture_provenance(repo_root)
+        .map_err(|reason| PipelineHandoffRefusal {
+            classification: PipelineHandoffRefusalClassification::InvalidProvenance,
+            summary: reason,
+            pipeline_id: Some(compile_result.target.pipeline_id.clone()),
+            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+            recovery: stage_10_provenance_recovery(),
+        })?;
+    validate_stage_10_feature_spec_capture_provenance_match(
+        &stored_capture_provenance,
+        &current_capture_provenance,
+    )
+    .map_err(|reason| PipelineHandoffRefusal {
+        classification: PipelineHandoffRefusalClassification::InvalidProvenance,
+        summary: reason,
+        pipeline_id: Some(compile_result.target.pipeline_id.clone()),
+        consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+        recovery: stage_10_provenance_recovery(),
+    })?;
 
     let feature_id = derive_feature_id(&feature_spec_body, &feature_spec_sha256);
     let bundle_root = format!("artifacts/handoff/feature_slice/{feature_id}");
@@ -293,42 +323,6 @@ pub fn emit_pipeline_handoff_bundle(
             .collect(),
     };
 
-    let route_basis_fingerprint =
-        route_basis_fingerprint_sha256(&compile_result.basis).map_err(|reason| {
-            PipelineHandoffRefusal {
-                classification: PipelineHandoffRefusalClassification::InvalidProvenance,
-                summary: format!("failed to fingerprint route_basis: {reason}"),
-                pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-                consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
-                recovery:
-                    "stabilize route-basis serialization inputs and retry `pipeline handoff emit`"
-                        .to_string(),
-            }
-        })?;
-
-    let stage_definition = load_stage_definition(repo_root, &compile_result.target.pipeline_id)?;
-    let payload_sha256 = sha256_hex(render_pipeline_compile_payload(&compile_result).as_bytes());
-    let template_path = compile_result
-        .documents
-        .iter()
-        .find(|document| document.path.ends_with("FEATURE_SPEC.md.tmpl"))
-        .map(|document| document.path.clone());
-    let template_sha256 = template_path
-        .as_ref()
-        .map(|path| sha256_repo_relative_file(repo_root, path))
-        .transpose()
-        .map_err(|err| PipelineHandoffRefusal {
-            classification: PipelineHandoffRefusalClassification::InvalidProvenance,
-            summary: format!(
-                "failed to fingerprint feature-spec template provenance: {}",
-                format_repo_file_access_error(&err)
-            ),
-            pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
-            recovery: "repair the feature-spec template input and retry `pipeline handoff emit`"
-                .to_string(),
-        })?;
-
     let manifest = PipelineHandoffManifest {
         schema_version: HANDOFF_SCHEMA_VERSION.to_string(),
         producer: PipelineHandoffProducer {
@@ -340,8 +334,10 @@ pub fn emit_pipeline_handoff_bundle(
         feature_id: feature_id.clone(),
         bundle_root: bundle_root.clone(),
         route_basis: PipelineHandoffRouteBasisProvenance {
-            state_revision: compile_result.basis.state_revision,
-            fingerprint_sha256: route_basis_fingerprint,
+            state_revision: current_capture_provenance.route_basis_state_revision,
+            fingerprint_sha256: current_capture_provenance
+                .route_basis_fingerprint_sha256
+                .clone(),
         },
         canonical_provenance,
         inputs: input_plans
@@ -354,12 +350,12 @@ pub fn emit_pipeline_handoff_bundle(
             })
             .collect(),
         feature_spec_compile: PipelineHandoffFeatureSpecCompileProvenance {
-            stage_id: stage_definition.id.clone(),
-            stage_file: stage_definition.source_path.to_string_lossy().into_owned(),
-            stage_version: stage_definition.version,
-            template_path,
-            template_sha256,
-            payload_sha256,
+            stage_id: current_capture_provenance.stage_id.clone(),
+            stage_file: current_capture_provenance.stage_file.clone(),
+            stage_version: current_capture_provenance.stage_version.clone(),
+            template_path: current_capture_provenance.template_path.clone(),
+            template_sha256: current_capture_provenance.template_sha256.clone(),
+            payload_sha256: current_capture_provenance.payload_sha256.clone(),
         },
         fallback: PipelineHandoffFallbackMetadata {
             repo_reread_allowed: false,
@@ -453,7 +449,7 @@ pub fn validate_pipeline_handoff_bundle(
 ) -> Result<PipelineHandoffValidatedBundle, PipelineHandoffValidationFailure> {
     let repo_root = repo_root.as_ref();
     let bundle_root = bundle_root.trim();
-    validate_repo_relative_path(bundle_root).map_err(|reason| {
+    let normalized_bundle_root = normalize_repo_relative_path(bundle_root).map_err(|reason| {
         PipelineHandoffValidationFailure {
             classification:
                 PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
@@ -467,6 +463,18 @@ pub fn validate_pipeline_handoff_bundle(
         "handoff manifest",
     )?;
     validate_supported_manifest_target(&manifest)?;
+    let normalized_manifest_bundle_root =
+        normalize_bundle_root_from_metadata("handoff manifest", &manifest.bundle_root)?;
+    if normalized_bundle_root != normalized_manifest_bundle_root {
+        return Err(PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+            summary: format!(
+                "requested bundle root `{}` does not match handoff manifest bundle_root `{}`",
+                normalized_bundle_root, normalized_manifest_bundle_root
+            ),
+        });
+    }
 
     let read_allowlist = read_bundle_json::<PipelineHandoffReadAllowlist>(
         repo_root,
@@ -483,7 +491,9 @@ pub fn validate_pipeline_handoff_bundle(
             ),
         });
     }
-    if read_allowlist.bundle_root != manifest.bundle_root
+    let normalized_allowlist_bundle_root =
+        normalize_bundle_root_from_metadata("read allowlist", &read_allowlist.bundle_root)?;
+    if normalized_allowlist_bundle_root != normalized_manifest_bundle_root
         || read_allowlist.pipeline_id != manifest.pipeline_id
         || read_allowlist.consumer_id != manifest.consumer_id
         || read_allowlist.feature_id != manifest.feature_id
@@ -953,32 +963,6 @@ fn validate_canonical_provenance(
     Ok(())
 }
 
-fn load_stage_definition(
-    repo_root: &Path,
-    pipeline_id: &str,
-) -> Result<crate::pipeline::CompileStageDefinition, PipelineHandoffRefusal> {
-    let pipeline = load_selected_pipeline_definition(repo_root, pipeline_id).map_err(|err| {
-        PipelineHandoffRefusal {
-            classification: PipelineHandoffRefusalClassification::InvalidState,
-            summary: format!("failed to reload selected pipeline definition: {err}"),
-            pipeline_id: Some(pipeline_id.to_string()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
-            recovery: "repair the selected pipeline definition and retry `pipeline handoff emit`"
-                .to_string(),
-        }
-    })?;
-    load_stage_compile_definition(repo_root, &pipeline, SUPPORTED_STAGE_ID).map_err(|err| {
-        PipelineHandoffRefusal {
-            classification: PipelineHandoffRefusalClassification::InvalidState,
-            summary: format!("failed to load feature-spec stage definition: {err}"),
-            pipeline_id: Some(pipeline_id.to_string()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
-            recovery: "repair the feature-spec stage definition and retry `pipeline handoff emit`"
-                .to_string(),
-        }
-    })
-}
-
 fn render_trust_matrix(manifest: &PipelineHandoffManifest) -> String {
     let mut out = String::new();
     out.push_str("# Trust Matrix\n\n");
@@ -1052,15 +1036,20 @@ fn bundle_repo_relative_path(bundle_root: &str, bundle_relative_path: &str) -> S
     )
 }
 
-fn route_basis_fingerprint_sha256(route_basis: &RouteBasis) -> Result<String, String> {
-    let bytes = serde_json::to_vec(route_basis).map_err(|err| err.to_string())?;
-    Ok(sha256_hex(&bytes))
+fn normalize_bundle_root_from_metadata(
+    label: &str,
+    bundle_root: &str,
+) -> Result<String, PipelineHandoffValidationFailure> {
+    normalize_repo_relative_path(bundle_root).map_err(|reason| PipelineHandoffValidationFailure {
+        classification: PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+        summary: format!("{label} bundle_root `{bundle_root}` is invalid: {reason}"),
+    })
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+fn stage_10_provenance_recovery() -> String {
+    format!(
+        "recapture `{SUPPORTED_STAGE_ID}` from the current compile payload before retrying `pipeline handoff emit`"
+    )
 }
 
 fn derive_feature_id(feature_spec_body: &str, feature_spec_sha256: &str) -> String {

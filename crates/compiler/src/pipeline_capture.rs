@@ -3,6 +3,7 @@ use crate::pipeline::{
     supported_route_state_variables, CompileStageDefinition, PipelineDefinition,
     SelectedPipelineLoadError,
 };
+use crate::pipeline_compile::{compile_pipeline_stage, PipelineCompileRefusal};
 use crate::repo_file_access::{
     delete_repo_relative_file, read_bytes_no_follow_path, read_string_no_follow_path,
     resolve_repo_relative_write_path, validate_repo_relative_path, write_repo_relative_bytes,
@@ -14,6 +15,10 @@ use crate::route_state::{
     rebuild_canonical_route_basis, route_basis_mismatch_reason, route_state_path, RouteBasis,
     RouteBasisStageStatus, RouteState, RouteStateAuditEntry, RouteStateReadError, RouteStateValue,
     ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+};
+use crate::stage_10_feature_spec_provenance::{
+    build_stage_10_feature_spec_capture_provenance,
+    persist_stage_10_feature_spec_capture_provenance, sha256_hex, FEATURE_SPEC_ARTIFACT_PATH,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -630,6 +635,8 @@ fn apply_capture_plan(
         &current_basis,
         &state,
     )?;
+    let stage_10_capture_provenance =
+        build_stage_10_capture_provenance_for_apply(repo_root, &canonical_plan)?;
 
     let mut snapshots =
         snapshot_targets(repo_root, &canonical_plan).map_err(|summary| PipelineCaptureRefusal {
@@ -682,12 +689,107 @@ fn apply_capture_plan(
         }
         Some(next_state.revision)
     };
+    if let Some(provenance) = stage_10_capture_provenance.as_ref() {
+        if let Err(summary) =
+            persist_stage_10_feature_spec_capture_provenance(repo_root, provenance)
+        {
+            rollback_snapshots(repo_root, &snapshots);
+            return Err(PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::StatePersistenceFailure,
+                summary: format!("failed to persist stage-10 capture provenance: {summary}"),
+                pipeline_id: Some(canonical_plan.target.pipeline_id.clone()),
+                stage_id: Some(canonical_plan.target.stage_id.clone()),
+                recovery:
+                    "fix the stage-10 capture provenance persistence failure and retry `pipeline capture`"
+                        .to_string(),
+            });
+        }
+    }
 
     Ok(PipelineCaptureApplyResult {
         plan: canonical_plan,
         written_files,
         persisted_state_revision,
     })
+}
+
+fn build_stage_10_capture_provenance_for_apply(
+    repo_root: &Path,
+    plan: &PipelineCapturePlan,
+) -> Result<
+    Option<crate::stage_10_feature_spec_provenance::Stage10FeatureSpecCaptureProvenance>,
+    PipelineCaptureRefusal,
+> {
+    if plan.target.stage_id != SUPPORTED_STAGE_FEATURE_SPEC_ID {
+        return Ok(None);
+    }
+
+    let feature_spec_write = plan
+        .artifact_writes
+        .iter()
+        .find(|write| write.path == FEATURE_SPEC_ARTIFACT_PATH)
+        .ok_or_else(|| PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::InvalidState,
+            summary: format!(
+                "stage `{}` capture is missing required artifact write `{FEATURE_SPEC_ARTIFACT_PATH}`",
+                plan.target.stage_id
+            ),
+            pipeline_id: Some(plan.target.pipeline_id.clone()),
+            stage_id: Some(plan.target.stage_id.clone()),
+            recovery:
+                "repair the declared stage outputs and retry `pipeline capture`".to_string(),
+        })?;
+
+    let compile_result =
+        compile_pipeline_stage(repo_root, &plan.target.pipeline_id, &plan.target.stage_id)
+            .map_err(classify_stage_10_provenance_compile_refusal)?;
+    let feature_spec_sha256 = sha256_hex(feature_spec_write.content.as_bytes());
+    let provenance = build_stage_10_feature_spec_capture_provenance(
+        repo_root,
+        &compile_result,
+        &feature_spec_sha256,
+    )
+    .map_err(|reason| PipelineCaptureRefusal {
+        classification: PipelineCaptureRefusalClassification::InvalidState,
+        summary: format!("failed to build stage-10 capture provenance: {reason}"),
+        pipeline_id: Some(plan.target.pipeline_id.clone()),
+        stage_id: Some(plan.target.stage_id.clone()),
+        recovery: "repair the stage-10 compile provenance inputs and retry `pipeline capture`"
+            .to_string(),
+    })?;
+    Ok(Some(provenance))
+}
+
+fn classify_stage_10_provenance_compile_refusal(
+    refusal: PipelineCompileRefusal,
+) -> PipelineCaptureRefusal {
+    let classification = match refusal.classification {
+        crate::pipeline_compile::PipelineCompileRefusalClassification::UnsupportedTarget => {
+            PipelineCaptureRefusalClassification::UnsupportedTarget
+        }
+        crate::pipeline_compile::PipelineCompileRefusalClassification::InvalidDefinition => {
+            PipelineCaptureRefusalClassification::InvalidDefinition
+        }
+        crate::pipeline_compile::PipelineCompileRefusalClassification::MissingRequiredInput
+        | crate::pipeline_compile::PipelineCompileRefusalClassification::EmptyRequiredInput
+        | crate::pipeline_compile::PipelineCompileRefusalClassification::InvalidState
+        | crate::pipeline_compile::PipelineCompileRefusalClassification::MissingRouteBasis
+        | crate::pipeline_compile::PipelineCompileRefusalClassification::MalformedRouteBasis
+        | crate::pipeline_compile::PipelineCompileRefusalClassification::StaleRouteBasis
+        | crate::pipeline_compile::PipelineCompileRefusalClassification::InactiveStage => {
+            PipelineCaptureRefusalClassification::InvalidState
+        }
+    };
+    PipelineCaptureRefusal {
+        classification,
+        summary: format!(
+            "failed to rebuild stage-10 compile provenance during capture apply: {}",
+            refusal.summary
+        ),
+        pipeline_id: refusal.pipeline_id,
+        stage_id: refusal.stage_id,
+        recovery: refusal.recovery,
+    }
 }
 
 fn canonicalize_capture_plan_for_apply(
