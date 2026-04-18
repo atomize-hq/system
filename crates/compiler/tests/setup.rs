@@ -1,8 +1,8 @@
 use std::fs;
 
 use system_compiler::{
-    render_next_safe_action_value, resolve, run_setup, ResolveRequest, SetupActionLabel, SetupMode,
-    SetupRefusalKind, SetupRequest,
+    plan_setup, render_next_safe_action_value, resolve, run_setup, ResolveRequest,
+    SetupActionLabel, SetupMode, SetupRefusalKind, SetupRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -123,6 +123,71 @@ fn setup_mutation_refuses_symlinked_or_escaping_paths() {
         !external.path().join("CHARTER.md").exists(),
         "setup must not write through a repo-escaping symlink"
     );
+}
+
+#[test]
+fn setup_init_repairs_file_backed_invalid_system_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system"), b"not a directory\n");
+
+    let outcome = run_setup(
+        repo_root,
+        &SetupRequest {
+            mode: SetupMode::Init,
+            rewrite: false,
+            reset_state: false,
+        },
+    )
+    .expect("setup init should repair invalid root");
+
+    assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
+    assert!(repo_root.join(".system").is_dir());
+    for path in starter_paths() {
+        assert!(
+            repo_root.join(path).is_file(),
+            "missing starter file: {path}"
+        );
+    }
+    assert!(outcome
+        .plan
+        .actions
+        .iter()
+        .all(|action| action.label == SetupActionLabel::Created));
+}
+
+#[cfg(unix)]
+#[test]
+fn setup_auto_repairs_symlinked_invalid_system_root() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let external = tempfile::tempdir().expect("external tempdir");
+    let repo_root = dir.path();
+
+    symlink(external.path(), repo_root.join(".system")).expect("system symlink");
+
+    let outcome = run_setup(repo_root, &SetupRequest::default())
+        .expect("auto setup should repair symlinked invalid root");
+
+    assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
+    assert!(repo_root.join(".system").is_dir());
+    assert!(
+        external
+            .path()
+            .read_dir()
+            .expect("external dir")
+            .next()
+            .is_none(),
+        "repair must unlink the blocking symlink without touching its target"
+    );
+    for path in starter_paths() {
+        assert!(
+            repo_root.join(path).is_file(),
+            "missing starter file: {path}"
+        );
+    }
 }
 
 #[test]
@@ -347,6 +412,99 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
             action.path
         );
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn setup_refresh_reset_state_refuses_without_partial_deletion() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"context\n",
+    );
+    write_file(&repo_root.join(".system/state/a.yaml"), b"a: 1\n");
+    let external = tempfile::tempdir().expect("external tempdir");
+    symlink(external.path(), repo_root.join(".system/state/z_symlink")).expect("state symlink");
+
+    let refusal = run_setup(
+        repo_root,
+        &SetupRequest {
+            mode: SetupMode::Refresh,
+            rewrite: false,
+            reset_state: true,
+        },
+    )
+    .expect_err("reset-state should refuse on symlink");
+
+    assert_eq!(refusal.kind, SetupRefusalKind::MutationRefused);
+    assert!(refusal.summary.contains("symlink"), "{}", refusal.summary);
+    assert!(
+        repo_root.join(".system/state/a.yaml").is_file(),
+        "preflight refusal must leave earlier files intact"
+    );
+}
+
+#[test]
+fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
+    let plan_dir = tempfile::tempdir().expect("plan tempdir");
+    let plan_root = plan_dir.path();
+    write_file(&plan_root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(
+        &plan_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+    write_file(
+        &plan_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"context\n",
+    );
+    write_file(
+        &plan_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        b"pipeline state\n",
+    );
+    write_file(
+        &plan_root.join(".system/state/pipeline/capture/cache.yaml"),
+        b"capture state\n",
+    );
+
+    let request = SetupRequest {
+        mode: SetupMode::Refresh,
+        rewrite: false,
+        reset_state: true,
+    };
+    let planned = plan_setup(plan_root, &request).expect("plan setup");
+
+    let run_dir = tempfile::tempdir().expect("run tempdir");
+    let run_root = run_dir.path();
+    write_file(&run_root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(
+        &run_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+    write_file(
+        &run_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"context\n",
+    );
+    write_file(
+        &run_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        b"pipeline state\n",
+    );
+    write_file(
+        &run_root.join(".system/state/pipeline/capture/cache.yaml"),
+        b"capture state\n",
+    );
+
+    let outcome = run_setup(run_root, &request).expect("run setup");
+
+    assert_eq!(planned.actions, outcome.plan.actions);
 }
 
 #[test]

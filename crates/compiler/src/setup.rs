@@ -6,8 +6,11 @@ use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
     RepoRelativeWritePathError,
 };
-use crate::route_state::{preview_runtime_state_reset, reset_runtime_state_tree};
+use crate::route_state::{
+    apply_runtime_state_reset, plan_runtime_state_reset, RuntimeStateResetPlan,
+};
 use std::collections::BTreeSet;
+use std::fs;
 use std::path::Path;
 
 const SYSTEM_DOCTOR_COMMAND: &str = "system doctor";
@@ -90,62 +93,25 @@ impl std::error::Error for SetupRefusal {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlannedMutation {
+    RepairInvalidSystemRoot,
     Write {
         path: &'static str,
         bytes: &'static [u8],
     },
 }
 
+#[derive(Debug, Clone)]
+struct SetupExecutionPlan {
+    plan: SetupPlan,
+    mutations: Vec<PlannedMutation>,
+    reset_plan: Option<RuntimeStateResetPlan>,
+}
+
 pub fn plan_setup(
     repo_root: impl AsRef<Path>,
     request: &SetupRequest,
 ) -> Result<SetupPlan, SetupRefusal> {
-    let repo_root = repo_root.as_ref();
-    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
-    })?;
-    let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
-    validate_request(&artifacts, request, resolved_mode)?;
-
-    let ingest_issue_paths = artifacts
-        .ingest_issues
-        .iter()
-        .map(|issue| issue.canonical_repo_relative_path)
-        .collect::<BTreeSet<_>>();
-    let starter_actions = canonical_artifact_descriptors()
-        .iter()
-        .map(|descriptor| {
-            plan_starter_action(
-                repo_root,
-                &artifacts,
-                &ingest_issue_paths,
-                descriptor,
-                resolved_mode,
-                request.rewrite,
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let mut actions = starter_actions
-        .into_iter()
-        .map(|planned| planned.action)
-        .collect::<Vec<_>>();
-
-    if request.reset_state {
-        actions.extend(plan_state_reset(repo_root)?);
-    }
-
-    actions.sort_by(|a, b| {
-        a.path
-            .cmp(&b.path)
-            .then_with(|| action_rank(a).cmp(&action_rank(b)))
-    });
-
-    Ok(SetupPlan {
-        requested_mode: request.mode,
-        resolved_mode,
-        actions,
-    })
+    build_setup_execution_plan(repo_root.as_ref(), request).map(|planned| planned.plan)
 }
 
 pub fn run_setup(
@@ -153,18 +119,49 @@ pub fn run_setup(
     request: &SetupRequest,
 ) -> Result<SetupOutcome, SetupRefusal> {
     let repo_root = repo_root.as_ref();
+    let planned = build_setup_execution_plan(repo_root, request)?;
+
+    for mutation in planned.mutations {
+        apply_mutation(repo_root, planned.plan.resolved_mode, mutation)?;
+    }
+
+    if let Some(reset_plan) = &planned.reset_plan {
+        apply_runtime_state_reset(reset_plan).map_err(|reason| {
+            setup_mutation_refusal(
+                request.mode,
+                reason,
+                "runtime-state target under `.system/state/**`",
+            )
+        })?;
+    }
+
+    Ok(SetupOutcome {
+        plan: planned.plan,
+        next_command: SYSTEM_DOCTOR_COMMAND.to_string(),
+    })
+}
+
+fn build_setup_execution_plan(
+    repo_root: &Path,
+    request: &SetupRequest,
+) -> Result<SetupExecutionPlan, SetupRefusal> {
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
         setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
     })?;
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
     validate_request(&artifacts, request, resolved_mode)?;
 
+    let repair_invalid_root = resolved_mode == SetupMode::Init
+        && matches!(
+            artifacts.system_root_status,
+            SystemRootStatus::NotDir | SystemRootStatus::SymlinkNotAllowed
+        );
     let ingest_issue_paths = artifacts
         .ingest_issues
         .iter()
         .map(|issue| issue.canonical_repo_relative_path)
         .collect::<BTreeSet<_>>();
-    let planned = canonical_artifact_descriptors()
+    let planned_starter_actions = canonical_artifact_descriptors()
         .iter()
         .map(|descriptor| {
             plan_starter_action(
@@ -174,48 +171,57 @@ pub fn run_setup(
                 descriptor,
                 resolved_mode,
                 request.rewrite,
+                repair_invalid_root,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    for planned_action in &planned {
-        if let Some(mutation) = planned_action.mutation {
-            apply_mutation(repo_root, resolved_mode, mutation)?;
-        }
-    }
-
-    let mut actions = planned
-        .into_iter()
-        .map(|planned_action| planned_action.action)
-        .collect::<Vec<_>>();
-
-    if request.reset_state {
-        let reset_paths = reset_runtime_state_tree(repo_root).map_err(|reason| {
+    let reset_plan = if request.reset_state {
+        Some(plan_runtime_state_reset(repo_root).map_err(|reason| {
             setup_mutation_refusal(
                 request.mode,
                 reason,
                 "runtime-state target under `.system/state/**`",
             )
-        })?;
-        actions.extend(reset_paths.into_iter().map(|path| SetupAction {
+        })?)
+    } else {
+        None
+    };
+
+    let mut actions = planned_starter_actions
+        .iter()
+        .map(|planned| planned.action.clone())
+        .collect::<Vec<_>>();
+    if let Some(reset_plan) = &reset_plan {
+        actions.extend(reset_plan.paths().iter().cloned().map(|path| SetupAction {
             label: SetupActionLabel::Reset,
             path,
         }));
     }
-
     actions.sort_by(|a, b| {
         a.path
             .cmp(&b.path)
             .then_with(|| action_rank(a).cmp(&action_rank(b)))
     });
 
-    Ok(SetupOutcome {
+    let mut mutations = Vec::new();
+    if repair_invalid_root {
+        mutations.push(PlannedMutation::RepairInvalidSystemRoot);
+    }
+    mutations.extend(
+        planned_starter_actions
+            .into_iter()
+            .filter_map(|planned| planned.mutation),
+    );
+
+    Ok(SetupExecutionPlan {
         plan: SetupPlan {
             requested_mode: request.mode,
             resolved_mode,
             actions,
         },
-        next_command: SYSTEM_DOCTOR_COMMAND.to_string(),
+        mutations,
+        reset_plan,
     })
 }
 
@@ -308,6 +314,7 @@ fn plan_starter_action(
     descriptor: &CanonicalArtifactDescriptor,
     resolved_mode: SetupMode,
     rewrite: bool,
+    repair_invalid_root: bool,
 ) -> Result<PlannedStarterAction, SetupRefusal> {
     let artifact = match descriptor.kind {
         crate::CanonicalArtifactKind::Charter => &artifacts.charter,
@@ -328,10 +335,11 @@ fn plan_starter_action(
         });
     }
 
-    if ingest_issue_paths.contains(descriptor.relative_path)
+    if (ingest_issue_paths.contains(descriptor.relative_path)
         || matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
         || rewrite
-        || resolved_mode == SetupMode::Init
+        || resolved_mode == SetupMode::Init)
+        && !repair_invalid_root
     {
         validate_write_target(repo_root, descriptor.relative_path, resolved_mode)?;
     }
@@ -372,32 +380,13 @@ fn validate_write_target(
         })
 }
 
-fn plan_state_reset(repo_root: &Path) -> Result<Vec<SetupAction>, SetupRefusal> {
-    preview_runtime_state_reset(repo_root)
-        .map(|paths| {
-            paths
-                .into_iter()
-                .map(|path| SetupAction {
-                    label: SetupActionLabel::Reset,
-                    path,
-                })
-                .collect::<Vec<_>>()
-        })
-        .map_err(|reason| {
-            setup_mutation_refusal(
-                SetupMode::Refresh,
-                reason,
-                "runtime-state target under `.system/state/**`",
-            )
-        })
-}
-
 fn apply_mutation(
     repo_root: &Path,
     mode: SetupMode,
     mutation: PlannedMutation,
 ) -> Result<(), SetupRefusal> {
     match mutation {
+        PlannedMutation::RepairInvalidSystemRoot => repair_invalid_system_root(repo_root, mode),
         PlannedMutation::Write { path, bytes } => write_repo_relative_bytes(repo_root, path, bytes)
             .map_err(|err| {
                 setup_mutation_refusal(
@@ -407,6 +396,39 @@ fn apply_mutation(
                 )
             }),
     }
+}
+
+fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), SetupRefusal> {
+    let system_root = repo_root.join(".system");
+    let metadata = match fs::symlink_metadata(&system_root) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(setup_mutation_refusal(
+                mode,
+                format!(
+                    "failed to inspect canonical `.system` root at {}: {source}",
+                    system_root.display()
+                ),
+                "canonical `.system` root",
+            ));
+        }
+    };
+
+    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+        return Ok(());
+    }
+
+    fs::remove_file(&system_root).map_err(|source| {
+        setup_mutation_refusal(
+            mode,
+            format!(
+                "failed to remove invalid canonical `.system` root at {}: {source}",
+                system_root.display()
+            ),
+            "canonical `.system` root",
+        )
+    })
 }
 
 fn setup_refusal(

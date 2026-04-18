@@ -4237,6 +4237,7 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
             "created .system/project_context/PROJECT_CONTEXT.md (optional)",
         ],
         &[],
+        true,
         Some("system setup init"),
     );
 
@@ -4249,6 +4250,74 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
         .path()
         .join(".system/project_context/PROJECT_CONTEXT.md")
         .is_file());
+}
+
+#[test]
+fn bare_setup_repairs_file_backed_invalid_system_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    write_file(&root.join(".system"), b"not a directory\n");
+
+    let output = run_in(root, &["setup"]);
+    assert!(output.status.success(), "setup should repair invalid root");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        "setup init",
+        "STATUS: established canonical `.system/` root",
+        &[
+            "created .system/charter/CHARTER.md",
+            "created .system/feature_spec/FEATURE_SPEC.md",
+            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+        ],
+        &[],
+        true,
+        Some("system setup init"),
+    );
+    assert!(root.join(".system/charter/CHARTER.md").is_file());
+}
+
+#[cfg(unix)]
+#[test]
+fn bare_setup_repairs_symlinked_invalid_system_root() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let external = tempfile::tempdir().expect("external tempdir");
+    let root = dir.path();
+    symlink(external.path(), root.join(".system")).expect("system symlink");
+
+    let output = run_in(root, &["setup"]);
+    assert!(
+        output.status.success(),
+        "setup should repair symlinked root"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &stdout,
+        "setup init",
+        "STATUS: established canonical `.system/` root",
+        &[
+            "created .system/charter/CHARTER.md",
+            "created .system/feature_spec/FEATURE_SPEC.md",
+            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+        ],
+        &[],
+        true,
+        Some("system setup init"),
+    );
+    assert!(
+        external
+            .path()
+            .read_dir()
+            .expect("external dir")
+            .next()
+            .is_none(),
+        "repair must unlink the blocking symlink without touching the target"
+    );
+    assert!(root.join(".system/charter/CHARTER.md").is_file());
 }
 
 #[test]
@@ -4283,6 +4352,7 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
             "preserved .system/project_context/PROJECT_CONTEXT.md",
         ],
         &[],
+        false,
         Some("system setup refresh"),
     );
 
@@ -4318,6 +4388,7 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
             "created .system/project_context/PROJECT_CONTEXT.md (optional)",
         ],
         &[],
+        true,
         None,
     );
 }
@@ -4387,6 +4458,7 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
             "preserved .system/project_context/PROJECT_CONTEXT.md",
         ],
         &[],
+        false,
         None,
     );
 }
@@ -4436,6 +4508,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
             "rewritten .system/project_context/PROJECT_CONTEXT.md",
         ],
         &[],
+        true,
         None,
     );
 
@@ -4508,6 +4581,7 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
             "reset .system/state/pipeline/capture/cache.yaml",
             "reset .system/state/pipeline/pipeline.foundation_inputs.yaml",
         ],
+        false,
         None,
     );
 
@@ -4535,6 +4609,55 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
         .exists());
 }
 
+#[cfg(unix)]
+#[test]
+fn setup_refresh_reset_state_refusal_is_fail_safe() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"context\n",
+    );
+    write_file(&root.join(".system/state/a.yaml"), b"a: 1\n");
+    let external = tempfile::tempdir().expect("external tempdir");
+    symlink(external.path(), root.join(".system/state/z_symlink")).expect("state symlink");
+
+    let output = run_in(root, &["setup", "refresh", "--reset-state"]);
+    assert!(
+        !output.status.success(),
+        "setup refresh --reset-state should refuse on symlink"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: BLOCKED",
+            "OBJECT: setup",
+            "NEXT SAFE ACTION: repair the blocked target and rerun `system setup refresh`",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: MutationRefused"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "SUMMARY: runtime state path `.system/state/z_symlink` cannot be reset through symlink"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        root.join(".system/state/a.yaml").is_file(),
+        "preflight refusal must leave earlier files intact"
+    );
+}
+
 #[test]
 fn bare_setup_respects_nested_git_root_boundary() {
     let (_dir, nested) = nested_git_repo_inside_managed_parent_with_nested_cwd();
@@ -4558,6 +4681,7 @@ fn bare_setup_respects_nested_git_root_boundary() {
             "created .system/project_context/PROJECT_CONTEXT.md (optional)",
         ],
         &[],
+        true,
         Some("system setup init"),
     );
 
@@ -5835,6 +5959,7 @@ fn assert_setup_success(
     expected_root_status: &str,
     expected_starter_actions: &[&str],
     expected_state_updates: &[&str],
+    expect_fill_guidance: bool,
     routed_command: Option<&str>,
 ) {
     let lines: Vec<&str> = stdout.lines().collect();
@@ -5914,6 +6039,14 @@ fn assert_setup_success(
         assert_eq!(
             lines.get(index).copied(),
             Some(expected.as_str()),
+            "{stdout}"
+        );
+        index += 1;
+    }
+    if expect_fill_guidance {
+        assert_eq!(
+            lines.get(index).copied(),
+            Some("Fill the starter files with canonical truth before retrying packet work."),
             "{stdout}"
         );
         index += 1;

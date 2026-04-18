@@ -511,6 +511,13 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
         .iter()
         .filter(|action| action.label == system_compiler::SetupActionLabel::Reset)
         .collect::<Vec<_>>();
+    let should_fill_starters = starter_actions.iter().any(|action| {
+        matches!(
+            action.label,
+            system_compiler::SetupActionLabel::Created
+                | system_compiler::SetupActionLabel::Rewritten
+        )
+    });
 
     out.push_str("OUTCOME: READY\n");
     out.push_str(&format!(
@@ -552,6 +559,9 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
         out.push_str("ROUTED FROM: system setup -> ");
         out.push_str(setup_command_name(outcome.plan.resolved_mode));
         out.push('\n');
+    }
+    if should_fill_starters {
+        out.push_str("Fill the starter files with canonical truth before retrying packet work.\n");
     }
     out.push_str(
         "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned.\n",
