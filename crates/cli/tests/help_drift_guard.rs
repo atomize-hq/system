@@ -674,6 +674,27 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
 }
 
 #[test]
+fn root_readme_locks_setup_story_individually() {
+    let root = workspace_root();
+    let readme_path = root.join("README.md");
+    let readme_text = fs::read_to_string(&readme_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", readme_path.display(), err));
+
+    let required_phrases = [
+        "The shipped starter templates are scaffolding only.",
+        "Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.",
+        "This repository does not ship completed canonical `.system/` truth at repo root.",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            readme_text.contains(phrase),
+            "README.md missing phrase `{phrase}`"
+        );
+    }
+}
+
+#[test]
 fn design_doc_locks_cli_interaction_contract() {
     let root = workspace_root();
     let design_path = root.join("DESIGN.md");
@@ -687,6 +708,9 @@ fn design_doc_locks_cli_interaction_contract() {
         "the public setup family is `system setup`, `system setup init`, and `system setup refresh`",
         "bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`",
         "`setup` should stay one durable family name even when it routes between `setup init` and `setup refresh`",
+        "scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`",
+        "this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`",
+        "end with one exact next safe action: `fill canonical artifact ...` for scaffolded setup or `system doctor` for ready setup",
         "`doctor` still uses a transitional output anatomy",
         "`inspect` currently emits a self-referential ready-path next action",
         "update the relevant D1-D4 source document",

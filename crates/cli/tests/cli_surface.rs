@@ -137,6 +137,50 @@ fn copy_tree(source: &std::path::Path, target: &std::path::Path) {
     }
 }
 
+fn tracked_workspace_checkout() -> (tempfile::TempDir, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let checkout_root = dir.path().to_path_buf();
+    let workspace = workspace_root();
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(&workspace)
+        .arg("ls-files")
+        .arg("-z")
+        .output()
+        .unwrap_or_else(|err| panic!("git ls-files: {err}"));
+    assert!(
+        output.status.success(),
+        "git ls-files failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    for entry in output.stdout.split(|byte| *byte == 0) {
+        if entry.is_empty() {
+            continue;
+        }
+        let relative = std::str::from_utf8(entry).expect("git ls-files output must be utf-8");
+        let source = workspace.join(relative);
+        if !source.is_file() {
+            continue;
+        }
+        let target = checkout_root.join(relative);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .unwrap_or_else(|err| panic!("mkdir {}: {err}", parent.display()));
+        }
+        std::fs::copy(&source, &target).unwrap_or_else(|err| {
+            panic!(
+                "copy tracked file {} -> {}: {err}",
+                source.display(),
+                target.display()
+            )
+        });
+    }
+
+    (dir, checkout_root)
+}
+
 fn foundation_flow_demo_root() -> std::path::PathBuf {
     workspace_root().join("tests/fixtures/foundation_flow_demo")
 }
@@ -4867,6 +4911,38 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
     assert_eq!(second_stdout.trim(), "READY");
+}
+
+#[test]
+fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() {
+    let (_dir, root) = tracked_workspace_checkout();
+
+    for path in [
+        ".system/charter/CHARTER.md",
+        ".system/feature_spec/FEATURE_SPEC.md",
+        ".system/project_context/PROJECT_CONTEXT.md",
+    ] {
+        assert!(
+            !root.join(path).exists(),
+            "workspace root should not ship committed scaffold file {path}"
+        );
+    }
+
+    let output = run_in(root.as_path(), &["doctor"]);
+    assert!(
+        !output.status.success(),
+        "doctor should stay blocked in the checked-in workspace root"
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("BLOCKED"), "{stdout}");
+    assert!(
+        stdout.contains("NEXT SAFE ACTION: run `system setup`"),
+        "{stdout}"
+    );
+    assert!(
+        !stdout.contains("RequiredArtifactStarterTemplate"),
+        "{stdout}"
+    );
 }
 
 #[test]

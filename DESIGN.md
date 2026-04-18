@@ -150,12 +150,13 @@ Current reduced-v1 reality:
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` rewrites only the setup-owned starter files
 - `setup refresh --reset-state` resets only `.system/state/**`
-- successful setup flows end with `system doctor`
+- scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`
 - the canonical setup-owned starter files are exactly:
   - `.system/charter/CHARTER.md`
   - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
+- this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`
 
 Design rule:
 
@@ -166,7 +167,7 @@ Finished interaction target:
 
 - expose the routed subcommand when bare `system setup` selects one
 - keep setup-owned file semantics explicit: preserve by default, rewrite only starter files, reset only `.system/state/**`
-- end with one exact next safe action: `system doctor`
+- end with one exact next safe action: `fill canonical artifact ...` for scaffolded setup or `system doctor` for ready setup
 
 ### `generate`
 
