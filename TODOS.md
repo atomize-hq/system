@@ -420,3 +420,13 @@ Recommended implementation order for the remaining interaction backlog:
 **Effort:** M
 **Priority:** P2
 **Depends on:** Setup ownership decision, packet body contract direction
+
+## Completed
+
+### Canonical `.system/` Bootstrap Flow
+
+**What:** Shipped the Rust-owned setup family that creates or refreshes canonical repo-local `.system/` truth through `system setup`, `system setup init`, and `system setup refresh`.
+
+**Why:** `generate`, `inspect`, and `doctor` already depended on canonical `.system/` inputs, so the product needed a real front door instead of a placeholder setup surface.
+
+**Completed:** v0.5.2.0 (2026-04-18)
