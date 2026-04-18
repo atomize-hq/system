@@ -76,6 +76,8 @@ pub enum SetupRefusalKind {
 pub struct SetupRefusal {
     pub kind: SetupRefusalKind,
     pub summary: String,
+    pub broken_subject: String,
+    pub next_safe_action: String,
 }
 
 impl std::fmt::Display for SetupRefusal {
@@ -99,9 +101,8 @@ pub fn plan_setup(
     request: &SetupRequest,
 ) -> Result<SetupPlan, SetupRefusal> {
     let repo_root = repo_root.as_ref();
-    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| SetupRefusal {
-        kind: SetupRefusalKind::MutationRefused,
-        summary: err.to_string(),
+    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
     })?;
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
     validate_request(&artifacts, request, resolved_mode)?;
@@ -152,9 +153,8 @@ pub fn run_setup(
     request: &SetupRequest,
 ) -> Result<SetupOutcome, SetupRefusal> {
     let repo_root = repo_root.as_ref();
-    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| SetupRefusal {
-        kind: SetupRefusalKind::MutationRefused,
-        summary: err.to_string(),
+    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
     })?;
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
     validate_request(&artifacts, request, resolved_mode)?;
@@ -180,7 +180,7 @@ pub fn run_setup(
 
     for planned_action in &planned {
         if let Some(mutation) = planned_action.mutation {
-            apply_mutation(repo_root, mutation)?;
+            apply_mutation(repo_root, resolved_mode, mutation)?;
         }
     }
 
@@ -190,9 +190,12 @@ pub fn run_setup(
         .collect::<Vec<_>>();
 
     if request.reset_state {
-        let reset_paths = reset_runtime_state_tree(repo_root).map_err(|reason| SetupRefusal {
-            kind: SetupRefusalKind::MutationRefused,
-            summary: reason,
+        let reset_paths = reset_runtime_state_tree(repo_root).map_err(|reason| {
+            setup_mutation_refusal(
+                request.mode,
+                reason,
+                "runtime-state target under `.system/state/**`",
+            )
         })?;
         actions.extend(reset_paths.into_iter().map(|path| SetupAction {
             label: SetupActionLabel::Reset,
@@ -241,53 +244,56 @@ fn validate_request(
 ) -> Result<(), SetupRefusal> {
     match resolved_mode {
         SetupMode::Auto => {
-            return Err(SetupRefusal {
-                kind: SetupRefusalKind::InvalidRequest,
-                summary: "setup mode must resolve to init or refresh".to_string(),
-            });
+            return Err(setup_refusal(
+                SetupRefusalKind::InvalidRequest,
+                "setup mode must resolve to init or refresh",
+                "setup request",
+                "retry `system setup`",
+            ));
         }
         SetupMode::Init => {
             if request.rewrite || request.reset_state {
-                return Err(SetupRefusal {
-                    kind: SetupRefusalKind::InvalidRequest,
-                    summary:
-                        "setup init does not accept refresh-only flags; retry without --rewrite or --reset-state"
-                            .to_string(),
-                });
+                return Err(setup_refusal(
+                    SetupRefusalKind::InvalidRequest,
+                    "setup init does not accept refresh-only flags; retry without --rewrite or --reset-state",
+                    "setup request",
+                    "retry `system setup init` without --rewrite or --reset-state",
+                ));
             }
             if artifacts.system_root_status == SystemRootStatus::Ok {
-                return Err(SetupRefusal {
-                    kind: SetupRefusalKind::AlreadyInitialized,
-                    summary:
-                        "canonical .system root already exists; use `system setup refresh` instead"
-                            .to_string(),
-                });
+                return Err(setup_refusal(
+                    SetupRefusalKind::AlreadyInitialized,
+                    "canonical .system root already exists; use `system setup refresh` instead",
+                    "canonical `.system` root",
+                    "run `system setup refresh`",
+                ));
             }
         }
         SetupMode::Refresh => match artifacts.system_root_status {
             SystemRootStatus::Ok => {}
             SystemRootStatus::Missing => {
-                return Err(SetupRefusal {
-                    kind: SetupRefusalKind::MissingCanonicalRoot,
-                    summary: "canonical .system root is missing; run `system setup init` first"
-                        .to_string(),
-                });
+                return Err(setup_refusal(
+                    SetupRefusalKind::MissingCanonicalRoot,
+                    "canonical .system root is missing; run `system setup init` first",
+                    "canonical `.system` root",
+                    "run `system setup`",
+                ));
             }
             SystemRootStatus::NotDir => {
-                return Err(SetupRefusal {
-                    kind: SetupRefusalKind::InvalidCanonicalRoot,
-                    summary:
-                        "canonical .system root is invalid; run `system setup` to re-establish it"
-                            .to_string(),
-                });
+                return Err(setup_refusal(
+                    SetupRefusalKind::InvalidCanonicalRoot,
+                    "canonical .system root is invalid; run `system setup` to re-establish it",
+                    "canonical `.system` root",
+                    "run `system setup`",
+                ));
             }
             SystemRootStatus::SymlinkNotAllowed => {
-                return Err(SetupRefusal {
-                    kind: SetupRefusalKind::InvalidCanonicalRoot,
-                    summary:
-                        "canonical .system root must not be a symlink; run `system setup` to re-establish it"
-                            .to_string(),
-                });
+                return Err(setup_refusal(
+                    SetupRefusalKind::InvalidCanonicalRoot,
+                    "canonical .system root must not be a symlink; run `system setup` to re-establish it",
+                    "canonical `.system` root",
+                    "run `system setup`",
+                ));
             }
         },
     }
@@ -327,7 +333,7 @@ fn plan_starter_action(
         || rewrite
         || resolved_mode == SetupMode::Init
     {
-        validate_write_target(repo_root, descriptor.relative_path)?;
+        validate_write_target(repo_root, descriptor.relative_path, resolved_mode)?;
     }
 
     let label = if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
@@ -353,12 +359,16 @@ fn plan_starter_action(
 fn validate_write_target(
     repo_root: &Path,
     relative_path: &'static str,
+    mode: SetupMode,
 ) -> Result<(), SetupRefusal> {
     resolve_repo_relative_write_path(repo_root, relative_path)
         .map(|_| ())
-        .map_err(|err| SetupRefusal {
-            kind: SetupRefusalKind::MutationRefused,
-            summary: format_repo_write_path_error(relative_path, err),
+        .map_err(|err| {
+            setup_mutation_refusal(
+                mode,
+                format_repo_write_path_error(relative_path, err),
+                "setup-owned starter-file write target",
+            )
         })
 }
 
@@ -373,20 +383,62 @@ fn plan_state_reset(repo_root: &Path) -> Result<Vec<SetupAction>, SetupRefusal> 
                 })
                 .collect::<Vec<_>>()
         })
-        .map_err(|reason| SetupRefusal {
-            kind: SetupRefusalKind::MutationRefused,
-            summary: reason,
+        .map_err(|reason| {
+            setup_mutation_refusal(
+                SetupMode::Refresh,
+                reason,
+                "runtime-state target under `.system/state/**`",
+            )
         })
 }
 
-fn apply_mutation(repo_root: &Path, mutation: PlannedMutation) -> Result<(), SetupRefusal> {
+fn apply_mutation(
+    repo_root: &Path,
+    mode: SetupMode,
+    mutation: PlannedMutation,
+) -> Result<(), SetupRefusal> {
     match mutation {
         PlannedMutation::Write { path, bytes } => write_repo_relative_bytes(repo_root, path, bytes)
-            .map_err(|err| SetupRefusal {
-                kind: SetupRefusalKind::MutationRefused,
-                summary: format_repo_mutation_error(path, err),
+            .map_err(|err| {
+                setup_mutation_refusal(
+                    mode,
+                    format_repo_mutation_error(path, err),
+                    "setup-owned starter-file write target",
+                )
             }),
     }
+}
+
+fn setup_refusal(
+    kind: SetupRefusalKind,
+    summary: impl Into<String>,
+    broken_subject: impl Into<String>,
+    next_safe_action: impl Into<String>,
+) -> SetupRefusal {
+    SetupRefusal {
+        kind,
+        summary: summary.into(),
+        broken_subject: broken_subject.into(),
+        next_safe_action: next_safe_action.into(),
+    }
+}
+
+fn setup_mutation_refusal(
+    mode: SetupMode,
+    summary: impl Into<String>,
+    broken_subject: impl Into<String>,
+) -> SetupRefusal {
+    let rerun_command = match mode {
+        SetupMode::Auto | SetupMode::Init => "system setup",
+        SetupMode::Refresh => "system setup refresh",
+    };
+
+    setup_refusal(
+        SetupRefusalKind::MutationRefused,
+        summary,
+        broken_subject,
+        format!("repair the blocked target and rerun `{rerun_command}`"),
+    )
 }
 
 fn action_rank(action: &SetupAction) -> usize {

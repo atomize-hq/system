@@ -416,7 +416,6 @@ That loop breaks when a surface feels semantically wrong even if the code is tec
 
 Current examples of semantically wrong behavior:
 
-- setup help/runtime still lag the M6 setup-family contract in some local surfaces
 - `inspect` gives a self-referential handoff
 - `doctor` exposes implementation-shaped output instead of a finished recovery report
 
@@ -446,7 +445,6 @@ Do this in order:
 
 These are acknowledged interaction-design debts, not hidden contradictions:
 
-- local setup help/runtime still reflect older placeholder wording instead of the M6 setup-family contract
 - `doctor` still uses a transitional output anatomy
 - `inspect` currently emits a self-referential ready-path next action
 

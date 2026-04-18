@@ -1,6 +1,6 @@
 use system_compiler::{
-    packet_result::PacketSectionMode, resolve, BlockerCategory, BudgetDisposition, BudgetPolicy,
-    PacketSelectionStatus, ResolveRequest,
+    packet_result::PacketSectionMode, render_next_safe_action_value, resolve, BlockerCategory,
+    BudgetDisposition, BudgetPolicy, PacketSelectionStatus, ResolveRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -78,7 +78,9 @@ fn optional_artifact_read_error_blocks_without_refusal() {
                 canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
                 ..
             }
-        )));
+        )
+        && render_next_safe_action_value(&blocker.next_safe_action)
+            == "run `system setup refresh`"));
 }
 
 #[test]

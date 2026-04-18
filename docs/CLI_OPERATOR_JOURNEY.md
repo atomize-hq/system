@@ -223,7 +223,6 @@ language until that guard is updated:
 
 - Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc
 - The command is functionally correct and productically wrong.
-- The front door is named correctly, but the shipped command still stops one step before usefulness.
 
 ## Revision Backlog
 
@@ -231,4 +230,3 @@ Historical backlog preserved for the same drift-guard reason:
 
 - R1, Align `doctor` to the interaction contract
 - R2, Fix `inspect` ready-path next-action semantics
-- R3, Retire the old setup placeholder/help wording so runtime matches the M6 setup family

@@ -709,9 +709,7 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<Refusal> {
                 kind,
                 canonical_repo_relative_path,
             },
-            next_safe_action: NextSafeAction::CreateCanonicalArtifact {
-                canonical_repo_relative_path,
-            },
+            next_safe_action: NextSafeAction::RunSetupRefresh,
         });
     }
 
@@ -725,9 +723,7 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<Refusal> {
                 kind,
                 canonical_repo_relative_path,
             },
-            next_safe_action: NextSafeAction::CreateCanonicalArtifact {
-                canonical_repo_relative_path,
-            },
+            next_safe_action: NextSafeAction::RunSetupRefresh,
         });
     }
 
@@ -767,9 +763,7 @@ fn compute_blockers(
                     "failed to read canonical artifact".to_string()
                 }
             },
-            next_safe_action: NextSafeAction::CreateCanonicalArtifact {
-                canonical_repo_relative_path: issue.canonical_repo_relative_path,
-            },
+            next_safe_action: NextSafeAction::RunSetupRefresh,
         });
     }
 

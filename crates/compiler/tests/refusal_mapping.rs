@@ -1,6 +1,6 @@
 use system_compiler::{
-    resolve, BudgetDisposition, BudgetPolicy, CanonicalArtifactKind, RefusalCategory,
-    ResolveRequest, SubjectRef,
+    render_next_safe_action_value, resolve, BudgetDisposition, BudgetPolicy, CanonicalArtifactKind,
+    RefusalCategory, ResolveRequest, SubjectRef,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -57,6 +57,10 @@ fn refusal_non_canonical_input_attempt_is_selected_for_symlinked_canonical_artif
             canonical_repo_relative_path: ".system/charter/CHARTER.md",
         }
     );
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "run `system setup refresh`"
+    );
 }
 
 #[test]
@@ -89,6 +93,10 @@ fn refusal_required_artifact_read_error_is_selected_for_malformed_required_path(
             kind: CanonicalArtifactKind::Charter,
             canonical_repo_relative_path: ".system/charter/CHARTER.md",
         }
+    );
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "run `system setup refresh`"
     );
 }
 

@@ -4229,13 +4229,15 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        Some("system setup init"),
-        "init",
+        "setup init",
+        "STATUS: established canonical `.system/` root",
         &[
             "created .system/charter/CHARTER.md",
             "created .system/feature_spec/FEATURE_SPEC.md",
             "created .system/project_context/PROJECT_CONTEXT.md (optional)",
         ],
+        &[],
+        Some("system setup init"),
     );
 
     assert!(dir.path().join(".system/charter/CHARTER.md").is_file());
@@ -4273,13 +4275,15 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        Some("system setup refresh"),
-        "refresh",
+        "setup refresh",
+        "STATUS: reused canonical `.system/` root",
         &[
             "preserved .system/charter/CHARTER.md",
             "preserved .system/feature_spec/FEATURE_SPEC.md",
             "preserved .system/project_context/PROJECT_CONTEXT.md",
         ],
+        &[],
+        Some("system setup refresh"),
     );
 
     assert_eq!(
@@ -4306,13 +4310,15 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        None,
-        "init",
+        "setup init",
+        "STATUS: established canonical `.system/` root",
         &[
             "created .system/charter/CHARTER.md",
             "created .system/feature_spec/FEATURE_SPEC.md",
             "created .system/project_context/PROJECT_CONTEXT.md (optional)",
         ],
+        &[],
+        None,
     );
 }
 
@@ -4330,9 +4336,25 @@ fn setup_init_refuses_when_canonical_system_already_exists() {
     assert!(!output.status.success(), "setup init should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_eq!(
-        stdout.trim(),
-        "REFUSED: canonical .system root already exists; use `system setup refresh` instead"
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: setup",
+            "NEXT SAFE ACTION: run `system setup refresh`",
+        ],
+    );
+    assert!(stdout.contains("## REFUSAL"), "{stdout}");
+    assert!(stdout.contains("CATEGORY: AlreadyInitialized"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "SUMMARY: canonical .system root already exists; use `system setup refresh` instead"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("BROKEN SUBJECT: canonical `.system` root"),
+        "{stdout}"
     );
 }
 
@@ -4357,13 +4379,15 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        None,
-        "refresh",
+        "setup refresh",
+        "STATUS: reused canonical `.system/` root",
         &[
             "preserved .system/charter/CHARTER.md",
             "preserved .system/feature_spec/FEATURE_SPEC.md",
             "preserved .system/project_context/PROJECT_CONTEXT.md",
         ],
+        &[],
+        None,
     );
 }
 
@@ -4404,13 +4428,15 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        None,
-        "refresh",
+        "setup refresh",
+        "STATUS: reused canonical `.system/` root",
         &[
             "rewritten .system/charter/CHARTER.md",
             "rewritten .system/feature_spec/FEATURE_SPEC.md",
             "rewritten .system/project_context/PROJECT_CONTEXT.md",
         ],
+        &[],
+        None,
     );
 
     assert_ne!(
@@ -4469,17 +4495,20 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        None,
-        "refresh",
+        "setup refresh",
+        "STATUS: reused canonical `.system/` root",
         &[
             "preserved .system/charter/CHARTER.md",
             "preserved .system/feature_spec/FEATURE_SPEC.md",
             "preserved .system/project_context/PROJECT_CONTEXT.md",
+        ],
+        &[
             "reset .system/state/pipeline",
             "reset .system/state/pipeline/capture",
             "reset .system/state/pipeline/capture/cache.yaml",
             "reset .system/state/pipeline/pipeline.foundation_inputs.yaml",
         ],
+        None,
     );
 
     assert_eq!(
@@ -4521,13 +4550,15 @@ fn bare_setup_respects_nested_git_root_boundary() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        Some("system setup init"),
-        "init",
+        "setup init",
+        "STATUS: established canonical `.system/` root",
         &[
             "created .system/charter/CHARTER.md",
             "created .system/feature_spec/FEATURE_SPEC.md",
             "created .system/project_context/PROJECT_CONTEXT.md (optional)",
         ],
+        &[],
+        Some("system setup init"),
     );
 
     assert!(child_root.join(".system/charter/CHARTER.md").is_file());
@@ -5714,7 +5745,7 @@ fn generate_blocks_when_optional_project_context_path_is_malformed() {
         [
             "OUTCOME: BLOCKED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical artifact at .system/project_context/PROJECT_CONTEXT.md",
+            "NEXT SAFE ACTION: run `system setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: ArtifactReadError"));
@@ -5734,7 +5765,7 @@ fn inspect_blocks_when_optional_project_context_path_is_malformed() {
         [
             "OUTCOME: BLOCKED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical artifact at .system/project_context/PROJECT_CONTEXT.md",
+            "NEXT SAFE ACTION: run `system setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: ArtifactReadError"));
@@ -5753,6 +5784,7 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     assert!(stdout.contains("BLOCKED"));
     assert!(stdout.contains("ArtifactReadError"));
     assert!(stdout.contains(".system/project_context/PROJECT_CONTEXT.md"));
+    assert!(stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"));
 }
 
 fn command_section_lines(help: &str) -> Vec<&str> {
@@ -5799,36 +5831,54 @@ fn read_snapshot(filename: &str) -> String {
 
 fn assert_setup_success(
     stdout: &str,
+    expected_object: &str,
+    expected_root_status: &str,
+    expected_starter_actions: &[&str],
+    expected_state_updates: &[&str],
     routed_command: Option<&str>,
-    expected_mode: &str,
-    expected_actions: &[&str],
 ) {
     let lines: Vec<&str> = stdout.lines().collect();
     let mut index = 0;
 
-    if let Some(routed_command) = routed_command {
-        let expected = format!("ROUTED: system setup -> {routed_command}");
-        assert_eq!(
-            lines.get(index).copied(),
-            Some(expected.as_str()),
-            "unexpected routing line: {stdout}"
-        );
-        index += 1;
-    }
-
-    assert_eq!(lines.get(index).copied(), Some("OUTCOME: OK"), "{stdout}");
-    index += 1;
-    let expected_mode_line = format!("MODE: {expected_mode}");
     assert_eq!(
         lines.get(index).copied(),
-        Some(expected_mode_line.as_str()),
+        Some("OUTCOME: READY"),
         "{stdout}"
     );
     index += 1;
-    assert_eq!(lines.get(index).copied(), Some("ACTIONS:"), "{stdout}");
+    let expected_object_line = format!("OBJECT: {expected_object}");
+    assert_eq!(
+        lines.get(index).copied(),
+        Some(expected_object_line.as_str()),
+        "{stdout}"
+    );
+    index += 1;
+    assert_eq!(
+        lines.get(index).copied(),
+        Some("NEXT SAFE ACTION: run `system doctor`"),
+        "{stdout}"
+    );
+    index += 1;
+    assert_eq!(
+        lines.get(index).copied(),
+        Some("## CANONICAL ROOT"),
+        "{stdout}"
+    );
+    index += 1;
+    assert_eq!(
+        lines.get(index).copied(),
+        Some(expected_root_status),
+        "{stdout}"
+    );
+    index += 1;
+    assert_eq!(
+        lines.get(index).copied(),
+        Some("## STARTER FILES"),
+        "{stdout}"
+    );
     index += 1;
 
-    for expected_action in expected_actions {
+    for expected_action in expected_starter_actions {
         assert_eq!(
             lines.get(index).copied(),
             Some(*expected_action),
@@ -5839,7 +5889,40 @@ fn assert_setup_success(
 
     assert_eq!(
         lines.get(index).copied(),
-        Some("NEXT SAFE ACTION: system doctor"),
+        Some("## STATE UPDATES"),
+        "{stdout}"
+    );
+    index += 1;
+    if expected_state_updates.is_empty() {
+        assert_eq!(lines.get(index).copied(), Some("<none>"), "{stdout}");
+        index += 1;
+    } else {
+        for expected_update in expected_state_updates {
+            assert_eq!(
+                lines.get(index).copied(),
+                Some(*expected_update),
+                "{stdout}"
+            );
+            index += 1;
+        }
+    }
+
+    assert_eq!(lines.get(index).copied(), Some("## MODE NOTES"), "{stdout}");
+    index += 1;
+    if let Some(routed_command) = routed_command {
+        let expected = format!("ROUTED FROM: system setup -> {routed_command}");
+        assert_eq!(
+            lines.get(index).copied(),
+            Some(expected.as_str()),
+            "{stdout}"
+        );
+        index += 1;
+    }
+    assert_eq!(
+        lines.get(index).copied(),
+        Some(
+            "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned."
+        ),
         "{stdout}"
     );
     assert_eq!(

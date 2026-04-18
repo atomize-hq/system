@@ -83,6 +83,8 @@ fn setup_init_refuses_when_canonical_system_already_exists() {
 
     assert_eq!(refusal.kind, SetupRefusalKind::AlreadyInitialized);
     assert!(refusal.summary.contains("system setup refresh"));
+    assert_eq!(refusal.broken_subject, "canonical `.system` root");
+    assert_eq!(refusal.next_safe_action, "run `system setup refresh`");
 }
 
 #[cfg(unix)]
@@ -109,6 +111,14 @@ fn setup_mutation_refuses_symlinked_or_escaping_paths() {
 
     assert_eq!(refusal.kind, SetupRefusalKind::MutationRefused);
     assert!(refusal.summary.contains("symlink"), "{}", refusal.summary);
+    assert_eq!(
+        refusal.broken_subject,
+        "setup-owned starter-file write target"
+    );
+    assert_eq!(
+        refusal.next_safe_action,
+        "repair the blocked target and rerun `system setup`"
+    );
     assert!(
         !external.path().join("CHARTER.md").exists(),
         "setup must not write through a repo-escaping symlink"
@@ -370,6 +380,51 @@ fn next_safe_action_mapping_for_missing_invalid_canonical_truth_points_to_setup_
     let artifact_refusal = artifact_result.refusal.expect("missing artifact refusal");
     assert_eq!(
         render_next_safe_action_value(&artifact_refusal.next_safe_action),
+        "run `system setup refresh`"
+    );
+}
+
+#[test]
+fn required_artifact_read_error_points_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/charter/CHARTER.md")).expect("charter dir");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+
+    let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
+    let refusal = result.refusal.expect("required read-error refusal");
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "run `system setup refresh`"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_required_artifact_points_to_setup_refresh() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("charter dir");
+    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("feature dir");
+    let real = repo_root.join("real_charter.md");
+    write_file(&real, b"charter\n");
+    symlink(&real, repo_root.join(".system/charter/CHARTER.md")).expect("charter symlink");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature\n",
+    );
+
+    let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
+    let refusal = result.refusal.expect("symlink refusal");
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
         "run `system setup refresh`"
     );
 }

@@ -491,7 +491,7 @@ fn setup(args: SetupArgs) -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(refusal) => {
-            println!("REFUSED: {}", refusal.summary);
+            println!("{}", render_setup_refusal(&refusal));
             ExitCode::from(1)
         }
     }
@@ -499,30 +499,88 @@ fn setup(args: SetupArgs) -> ExitCode {
 
 fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_auto: bool) -> String {
     let mut out = String::new();
+    let starter_actions = outcome
+        .plan
+        .actions
+        .iter()
+        .filter(|action| action.label != system_compiler::SetupActionLabel::Reset)
+        .collect::<Vec<_>>();
+    let state_updates = outcome
+        .plan
+        .actions
+        .iter()
+        .filter(|action| action.label == system_compiler::SetupActionLabel::Reset)
+        .collect::<Vec<_>>();
 
-    if routed_from_auto {
-        out.push_str("ROUTED: system setup -> ");
-        out.push_str(setup_command_name(outcome.plan.resolved_mode));
-        out.push('\n');
-    }
-
-    out.push_str("OUTCOME: OK\n");
+    out.push_str("OUTCOME: READY\n");
     out.push_str(&format!(
-        "MODE: {}\n",
-        setup_mode_name(outcome.plan.resolved_mode)
+        "OBJECT: {}\n",
+        setup_object_name(outcome.plan.resolved_mode)
     ));
-    out.push_str("ACTIONS:\n");
-    for action in &outcome.plan.actions {
+    out.push_str(&format!(
+        "NEXT SAFE ACTION: run `{}`\n",
+        outcome.next_command
+    ));
+    out.push_str("## CANONICAL ROOT\n");
+    out.push_str(match outcome.plan.resolved_mode {
+        system_compiler::SetupMode::Init => "STATUS: established canonical `.system/` root\n",
+        system_compiler::SetupMode::Refresh => "STATUS: reused canonical `.system/` root\n",
+        system_compiler::SetupMode::Auto => unreachable!("setup mode should resolve before render"),
+    });
+    out.push_str("## STARTER FILES\n");
+    for action in starter_actions {
         out.push_str(&format!(
             "{} {}\n",
             setup_action_label_name(action.label),
-            setup_action_path(action, outcome.plan.resolved_mode)
+            setup_action_path(action)
         ));
     }
-    out.push_str("NEXT SAFE ACTION: ");
-    out.push_str(&outcome.next_command);
+    out.push_str("## STATE UPDATES\n");
+    if state_updates.is_empty() {
+        out.push_str("<none>\n");
+    } else {
+        for action in state_updates {
+            out.push_str(&format!(
+                "{} {}\n",
+                setup_action_label_name(action.label),
+                action.path
+            ));
+        }
+    }
+    out.push_str("## MODE NOTES\n");
+    if routed_from_auto {
+        out.push_str("ROUTED FROM: system setup -> ");
+        out.push_str(setup_command_name(outcome.plan.resolved_mode));
+        out.push('\n');
+    }
+    out.push_str(
+        "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned.\n",
+    );
 
-    out
+    out.trim_end().to_string()
+}
+
+fn render_setup_refusal(refusal: &system_compiler::SetupRefusal) -> String {
+    let mut out = String::new();
+    let next_safe_action = refusal.next_safe_action.trim();
+    out.push_str(&format!(
+        "OUTCOME: {}\n",
+        setup_refusal_outcome_name(refusal.kind)
+    ));
+    out.push_str("OBJECT: setup\n");
+    out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
+    out.push_str("## REFUSAL\n");
+    out.push_str(&format!(
+        "CATEGORY: {}\n",
+        setup_refusal_kind_name(refusal.kind)
+    ));
+    out.push_str(&format!("SUMMARY: {}\n", refusal.summary.trim()));
+    out.push_str(&format!(
+        "BROKEN SUBJECT: {}\n",
+        refusal.broken_subject.trim()
+    ));
+    out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
+    out.trim_end().to_string()
 }
 
 fn setup_command_name(mode: system_compiler::SetupMode) -> &'static str {
@@ -533,11 +591,11 @@ fn setup_command_name(mode: system_compiler::SetupMode) -> &'static str {
     }
 }
 
-fn setup_mode_name(mode: system_compiler::SetupMode) -> &'static str {
+fn setup_object_name(mode: system_compiler::SetupMode) -> &'static str {
     match mode {
-        system_compiler::SetupMode::Auto => "auto",
-        system_compiler::SetupMode::Init => "init",
-        system_compiler::SetupMode::Refresh => "refresh",
+        system_compiler::SetupMode::Auto => "setup",
+        system_compiler::SetupMode::Init => "setup init",
+        system_compiler::SetupMode::Refresh => "setup refresh",
     }
 }
 
@@ -550,16 +608,33 @@ fn setup_action_label_name(label: system_compiler::SetupActionLabel) -> &'static
     }
 }
 
-fn setup_action_path(
-    action: &system_compiler::SetupAction,
-    resolved_mode: system_compiler::SetupMode,
-) -> String {
-    if resolved_mode == system_compiler::SetupMode::Init
+fn setup_action_path(action: &system_compiler::SetupAction) -> String {
+    if action.label == system_compiler::SetupActionLabel::Created
         && action.path == ".system/project_context/PROJECT_CONTEXT.md"
     {
         format!("{} (optional)", action.path)
     } else {
         action.path.clone()
+    }
+}
+
+fn setup_refusal_outcome_name(kind: system_compiler::SetupRefusalKind) -> &'static str {
+    match kind {
+        system_compiler::SetupRefusalKind::AlreadyInitialized
+        | system_compiler::SetupRefusalKind::InvalidRequest => "REFUSED",
+        system_compiler::SetupRefusalKind::MissingCanonicalRoot
+        | system_compiler::SetupRefusalKind::InvalidCanonicalRoot
+        | system_compiler::SetupRefusalKind::MutationRefused => "BLOCKED",
+    }
+}
+
+fn setup_refusal_kind_name(kind: system_compiler::SetupRefusalKind) -> &'static str {
+    match kind {
+        system_compiler::SetupRefusalKind::AlreadyInitialized => "AlreadyInitialized",
+        system_compiler::SetupRefusalKind::MissingCanonicalRoot => "MissingCanonicalRoot",
+        system_compiler::SetupRefusalKind::InvalidCanonicalRoot => "InvalidCanonicalRoot",
+        system_compiler::SetupRefusalKind::InvalidRequest => "InvalidRequest",
+        system_compiler::SetupRefusalKind::MutationRefused => "MutationRefused",
     }
 }
 
