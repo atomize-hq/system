@@ -227,6 +227,17 @@ fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathB
     (dir, nested)
 }
 
+fn committed_execution_demo_fixture_dir_under_temp_git_root(
+) -> (tempfile::TempDir, std::path::PathBuf) {
+    let (dir, root, _nested) =
+        pipeline_proof_corpus_support::install_committed_fixture_under_repo_with_nested_cwd(
+            "tests/fixtures/execution_demo/basic",
+            "tests/fixtures/execution_demo/basic",
+        );
+    let fixture_dir = root.join("tests/fixtures/execution_demo/basic");
+    (dir, fixture_dir)
+}
+
 fn committed_execution_demo_fixture_dir() -> std::path::PathBuf {
     workspace_root().join("tests/fixtures/execution_demo/basic")
 }
@@ -5626,7 +5637,7 @@ fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
 
 #[test]
 fn generate_from_committed_fixture_dir_refuses_against_workspace_git_root() {
-    let fixture_dir = committed_execution_demo_fixture_dir();
+    let (_dir, fixture_dir) = committed_execution_demo_fixture_dir_under_temp_git_root();
 
     let output = binary_in(&fixture_dir)
         .arg("generate")
@@ -5656,7 +5667,7 @@ fn generate_from_committed_fixture_dir_refuses_against_workspace_git_root() {
 
 #[test]
 fn inspect_from_committed_fixture_dir_refuses_against_workspace_git_root() {
-    let fixture_dir = committed_execution_demo_fixture_dir();
+    let (_dir, fixture_dir) = committed_execution_demo_fixture_dir_under_temp_git_root();
 
     let output = binary_in(&fixture_dir)
         .arg("inspect")
@@ -5686,7 +5697,7 @@ fn inspect_from_committed_fixture_dir_refuses_against_workspace_git_root() {
 
 #[test]
 fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
-    let fixture_dir = committed_execution_demo_fixture_dir();
+    let (_dir, fixture_dir) = committed_execution_demo_fixture_dir_under_temp_git_root();
 
     let output = binary_in(&fixture_dir)
         .arg("doctor")
