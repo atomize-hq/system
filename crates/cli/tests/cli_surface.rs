@@ -250,6 +250,23 @@ fn repair_to_ready(root: &std::path::Path) {
     );
 }
 
+fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
+    match path {
+        ".system/charter/CHARTER.md" => system_compiler::setup_starter_template_bytes(
+            system_compiler::CanonicalArtifactKind::Charter,
+        ),
+        ".system/feature_spec/FEATURE_SPEC.md" => system_compiler::setup_starter_template_bytes(
+            system_compiler::CanonicalArtifactKind::FeatureSpec,
+        ),
+        ".system/project_context/PROJECT_CONTEXT.md" => {
+            system_compiler::setup_starter_template_bytes(
+                system_compiler::CanonicalArtifactKind::ProjectContext,
+            )
+        }
+        _ => panic!("unexpected starter path: {path}"),
+    }
+}
+
 fn partial_system_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     write_file(
@@ -4233,8 +4250,9 @@ fn setup_refresh_help_matches_snapshot() {
 #[test]
 fn bare_setup_routes_to_init_on_uninitialized_repo() {
     let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
 
-    let output = run_in(dir.path(), &["setup"]);
+    let output = run_in(root, &["setup"]);
     assert!(output.status.success(), "setup should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
@@ -4252,15 +4270,16 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
         Some("system setup init"),
     );
 
-    assert!(dir.path().join(".system/charter/CHARTER.md").is_file());
-    assert!(dir
-        .path()
-        .join(".system/feature_spec/FEATURE_SPEC.md")
-        .is_file());
-    assert!(dir
-        .path()
-        .join(".system/project_context/PROJECT_CONTEXT.md")
-        .is_file());
+    for path in [
+        ".system/charter/CHARTER.md",
+        ".system/feature_spec/FEATURE_SPEC.md",
+        ".system/project_context/PROJECT_CONTEXT.md",
+    ] {
+        assert_eq!(
+            std::fs::read(root.join(path)).expect("starter bytes"),
+            starter_template_bytes_for_path(path),
+        );
+    }
 }
 
 #[test]
@@ -4806,6 +4825,58 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
     assert_eq!(second_stdout.trim(), "READY");
+}
+
+#[test]
+fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_replaced() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    let setup = run_in(root, &["setup"]);
+    assert!(setup.status.success(), "setup should succeed");
+
+    let doctor_after_setup = run_in(root, &["doctor"]);
+    assert!(
+        !doctor_after_setup.status.success(),
+        "doctor should stay blocked on shipped starter templates"
+    );
+    let doctor_stdout = String::from_utf8(doctor_after_setup.stdout).expect("stdout is utf-8");
+    assert!(doctor_stdout.contains("BLOCKED"));
+    assert!(doctor_stdout.contains("RequiredArtifactStarterTemplate"));
+    assert!(doctor_stdout.contains(".system/charter/CHARTER.md"));
+
+    let generate_after_setup = run_in(root, &["generate"]);
+    assert!(
+        !generate_after_setup.status.success(),
+        "generate should refuse on shipped starter templates"
+    );
+    let generate_stdout = String::from_utf8(generate_after_setup.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &generate_stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+        ],
+    );
+    assert!(generate_stdout.contains("CATEGORY: RequiredArtifactStarterTemplate"));
+
+    repair_to_ready(root);
+
+    let doctor_after_repair = run_in(root, &["doctor"]);
+    assert!(
+        doctor_after_repair.status.success(),
+        "doctor should report ready once required truth is replaced"
+    );
+    let doctor_after_repair_stdout =
+        String::from_utf8(doctor_after_repair.stdout).expect("stdout is utf-8");
+    assert_eq!(doctor_after_repair_stdout.trim(), "READY");
+
+    let generate_after_repair = run_in(root, &["generate"]);
+    assert!(
+        generate_after_repair.status.success(),
+        "generate should succeed once required truth is replaced"
+    );
 }
 
 #[test]

@@ -620,7 +620,23 @@ fn compute_refusal(
                     },
                 });
             }
-            crate::ArtifactPresence::PresentNonEmpty => {}
+            crate::ArtifactPresence::PresentNonEmpty => {
+                if artifact.matches_setup_starter_template {
+                    return Some(Refusal {
+                        category: RefusalCategory::RequiredArtifactStarterTemplate,
+                        summary:
+                            "required canonical artifact still contains the shipped starter template"
+                                .to_string(),
+                        broken_subject: SubjectRef::CanonicalArtifact {
+                            kind: artifact.kind,
+                            canonical_repo_relative_path: artifact.relative_path,
+                        },
+                        next_safe_action: NextSafeAction::FillCanonicalArtifact {
+                            canonical_repo_relative_path: artifact.relative_path,
+                        },
+                    });
+                }
+            }
         }
     }
 
@@ -826,7 +842,23 @@ fn compute_blockers(
                         canonical_repo_relative_path: artifact.relative_path,
                     },
                 }),
-                crate::ArtifactPresence::PresentNonEmpty => {}
+                crate::ArtifactPresence::PresentNonEmpty => {
+                    if artifact.matches_setup_starter_template {
+                        blockers.push(Blocker {
+                            category: BlockerCategory::RequiredArtifactStarterTemplate,
+                            subject: SubjectRef::CanonicalArtifact {
+                                kind: artifact.kind,
+                                canonical_repo_relative_path: artifact.relative_path,
+                            },
+                            summary:
+                                "required canonical artifact still contains the shipped starter template"
+                                    .to_string(),
+                            next_safe_action: NextSafeAction::FillCanonicalArtifact {
+                                canonical_repo_relative_path: artifact.relative_path,
+                            },
+                        });
+                    }
+                }
             }
         }
     }

@@ -31,6 +31,7 @@ This M4/M5 journey now sits downstream of the M6 setup family.
 - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 - `setup refresh` preserves canonical files by default, `--rewrite` rewrites only setup-owned starter files, and `--reset-state` resets only `.system/state/**`.
 - The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`.
+- The shipped starter templates are scaffolding only. This journey starts only after the required starter files are replaced with completed canonical truth.
 - Successful setup-family flows end with `system doctor`.
 
 This journey starts only after that setup-family work has established or repaired canonical `.system/` truth. Missing-root, invalid-root, and missing-artifact recovery belongs to the setup family rather than to raw file-creation instructions.

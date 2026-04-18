@@ -28,6 +28,7 @@ fn identity(
         presence,
         byte_len,
         content_sha256: content_sha256.map(|s| s.to_string()),
+        matches_setup_starter_template: false,
     }
 }
 
@@ -214,5 +215,50 @@ fn override_targeting_canonical_artifact_is_forbidden_and_recorded() {
     assert_ne!(
         with_override_a.fingerprint_sha256,
         with_override_b.fingerprint_sha256
+    );
+}
+
+#[test]
+fn required_starter_template_is_invalid_and_changes_fingerprint() {
+    let charter = CanonicalArtifactIdentity {
+        matches_setup_starter_template: true,
+        ..identity(
+            CanonicalArtifactKind::Charter,
+            ArtifactPresence::PresentNonEmpty,
+            Some("aaa"),
+            Some(123),
+        )
+    };
+    let feature_spec = identity(
+        CanonicalArtifactKind::FeatureSpec,
+        ArtifactPresence::PresentNonEmpty,
+        Some("ccc"),
+        Some(456),
+    );
+
+    let starter_truth = compute_freshness(&[charter.clone(), feature_spec.clone()], &[], &[]);
+    let completed_truth = compute_freshness(
+        &[
+            CanonicalArtifactIdentity {
+                matches_setup_starter_template: false,
+                ..charter
+            },
+            feature_spec,
+        ],
+        &[],
+        &[],
+    );
+
+    assert_eq!(starter_truth.status, FreshnessStatus::Invalid);
+    assert_eq!(
+        starter_truth.issues,
+        vec![system_compiler::FreshnessIssue {
+            kind: FreshnessIssueKind::RequiredArtifactStarterTemplate,
+            detail: "required canonical artifact still contains the shipped starter template: Charter at .system/charter/CHARTER.md".to_string(),
+        }]
+    );
+    assert_ne!(
+        starter_truth.fingerprint_sha256,
+        completed_truth.fingerprint_sha256
     );
 }

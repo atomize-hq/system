@@ -1,6 +1,7 @@
 use system_compiler::{
-    packet_result::PacketSectionMode, render_next_safe_action_value, resolve, BlockerCategory,
-    BudgetDisposition, BudgetPolicy, PacketSelectionStatus, ResolveRequest,
+    packet_result::PacketSectionMode, render_next_safe_action_value, resolve,
+    setup_starter_template_bytes, BlockerCategory, BudgetDisposition, BudgetPolicy,
+    PacketSelectionStatus, ResolveRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -100,6 +101,39 @@ fn missing_optional_project_context_emits_omission_note() {
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text == "optional source omitted: .system/project_context/PROJECT_CONTEXT.md"
     }));
+}
+
+#[test]
+fn required_starter_template_blocks_without_ready_packet() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::Charter),
+    );
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::ProjectContext),
+    );
+
+    let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
+
+    assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(
+        refusal.category,
+        system_compiler::RefusalCategory::RequiredArtifactStarterTemplate
+    );
+    assert!(result
+        .blockers
+        .iter()
+        .any(|blocker| blocker.category == BlockerCategory::RequiredArtifactStarterTemplate));
+    assert!(result.packet_result.sections.is_empty());
 }
 
 #[test]

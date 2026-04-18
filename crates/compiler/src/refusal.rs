@@ -8,6 +8,7 @@ pub enum RefusalCategory {
     SystemRootSymlinkNotAllowed,
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
+    RequiredArtifactStarterTemplate,
     ArtifactReadError,
     FreshnessInvalid,
     BudgetRefused,

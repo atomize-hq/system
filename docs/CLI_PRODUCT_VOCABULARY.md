@@ -77,6 +77,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
     - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
   - `PROJECT_CONTEXT.md` is optional semantically, but it remains one of the starter files created by setup.
+  - The shipped starter templates are scaffolding only until the required files are replaced with completed canonical truth.
 - `runtime zone`
   - The preferred term for non-canonical derived state kept under `.system/`.
   - Runtime zones are not canonical inputs and must never be described as project truth.

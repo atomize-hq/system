@@ -1,6 +1,6 @@
 use crate::canonical_artifacts::{
-    canonical_artifact_descriptors, CanonicalArtifactDescriptor, CanonicalArtifacts,
-    SystemRootStatus,
+    canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
+    CanonicalArtifacts, SystemRootStatus,
 };
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
@@ -359,7 +359,7 @@ fn plan_starter_action(
         },
         mutation: Some(PlannedMutation::Write {
             path: descriptor.relative_path,
-            bytes: starter_template_bytes(descriptor.kind),
+            bytes: setup_starter_template_bytes(descriptor.kind),
         }),
     })
 }
@@ -472,14 +472,6 @@ fn action_rank(action: &SetupAction) -> usize {
     }
 }
 
-fn starter_template_bytes(kind: crate::CanonicalArtifactKind) -> &'static [u8] {
-    match kind {
-        crate::CanonicalArtifactKind::Charter => CHARTER_TEMPLATE.as_bytes(),
-        crate::CanonicalArtifactKind::ProjectContext => PROJECT_CONTEXT_TEMPLATE.as_bytes(),
-        crate::CanonicalArtifactKind::FeatureSpec => FEATURE_SPEC_TEMPLATE.as_bytes(),
-    }
-}
-
 fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
     match err {
         RepoRelativeMutationError::InvalidPath(reason) => {
@@ -553,54 +545,3 @@ fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> 
         }
     }
 }
-
-const CHARTER_TEMPLATE: &str = "\
-# Charter
-\n\
-Describe the durable operating rules for this system.\n\
-\n\
-## Purpose\n\
-\n\
-- TODO\n\
-\n\
-## Constraints\n\
-\n\
-- TODO\n\
-\n\
-## Review Cadence\n\
-\n\
-- TODO\n";
-
-const FEATURE_SPEC_TEMPLATE: &str = "\
-# Feature Spec
-\n\
-Describe the product behavior that trusted project truth should produce.\n\
-\n\
-## Problem\n\
-\n\
-- TODO\n\
-\n\
-## Outcomes\n\
-\n\
-- TODO\n\
-\n\
-## Scope\n\
-\n\
-- TODO\n";
-
-const PROJECT_CONTEXT_TEMPLATE: &str = "\
-# Project Context
-\n\
-Optional: capture surrounding architecture, constraints, and local context that help planning.\n\
-\n\
-## Current State\n\
-\n\
-- TODO\n\
-\n\
-## Constraints\n\
-\n\
-- TODO\n\
-\n\
-## Open Questions\n\
-\n\
-- TODO\n";

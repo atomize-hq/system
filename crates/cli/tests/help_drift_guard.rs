@@ -221,6 +221,7 @@ fn support_story_docs_match_help_snapshots() {
         "`setup refresh` preserves canonical files by default",
         "`setup refresh --rewrite` rewrites only setup-owned starter files",
         "`setup refresh --reset-state` resets only `.system/state/**`",
+        "The shipped starter templates are scaffolding only.",
         "Successful setup flows end with `system doctor`.",
     ];
     let root_readme_required_phrases = [
@@ -254,6 +255,12 @@ fn support_story_docs_match_help_snapshots() {
             "root README missing capture boundary phrase `{phrase}`"
         );
     }
+
+    let phrase = "Repo-specific note:";
+    assert!(
+        !root_readme_text.contains(phrase),
+        "root README must not keep stale checkout-specific setup note `{phrase}`"
+    );
 
     for phrase in stage_10_required_doc_phrases {
         assert!(
@@ -558,6 +565,7 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
         "`setup` is the durable setup term",
         "`setup init` is the concrete first-run subcommand",
         "`setup refresh` preserves canonical files by default",
+        "scaffolding only",
         "success path ends with `system doctor`",
         "`pipeline compile --explain`",
         "next safe action",
@@ -585,6 +593,7 @@ fn cli_command_hierarchy_doc_locks_front_door_rules() {
         "The stable operation name remains `setup`.",
         "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "`setup refresh` preserves canonical files by default.",
+        "The shipped starter templates are scaffolding only.",
         "Successful setup flows end with `system doctor`.",
         "`generate` is the default ready-path command.",
         "`pipeline compile --id <pipeline-id> --stage <stage-id>`",
@@ -649,6 +658,7 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         "`OBJECT: setup init` or `OBJECT: setup refresh`",
         "`NEXT SAFE ACTION: run \\`system doctor\\``",
         "bare `system setup` must reveal which routed subcommand it selected",
+        "the shipped starter templates are scaffolding only",
         "`setup refresh` preserves canonical files by default",
         "## Presentation Failure And Parse-Validation Output",
     ];
@@ -699,6 +709,7 @@ fn cli_operator_journey_doc_locks_revision_findings() {
         "This M4/M5 journey now sits downstream of the M6 setup family.",
         "`system setup` is the durable front door.",
         "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "The shipped starter templates are scaffolding only.",
         "Successful setup-family flows end with `system doctor`.",
         "Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc",
         "The command is functionally correct and productically wrong.",
@@ -725,6 +736,7 @@ fn setup_family_contract_docs_lock_m6_story() {
     for phrase in [
         "The supported setup story is the Rust CLI setup family: `system setup`, `system setup init`, and `system setup refresh`.",
         "Bare `system setup` is the durable front door and routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "The shipped setup starter templates are scaffolding only.",
         "Historical guided-setup or legacy-harness wording MAY remain only as explicit historical reference material. It MUST NOT read like active product authority.",
     ] {
         assert!(
@@ -741,6 +753,7 @@ fn setup_family_contract_docs_lock_m6_story() {
         "Help text and docs MUST make clear that the public setup family is `system setup`, `system setup init`, and `system setup refresh`.",
         "Bare `system setup` MUST route to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it MUST route to `setup refresh`.",
         "`setup refresh` MUST preserve canonical files by default.",
+        "The shipped setup starter templates MUST be treated as scaffolding only.",
         "Successful setup-family flows MUST end with `system doctor`.",
     ] {
         assert!(

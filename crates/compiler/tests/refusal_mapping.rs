@@ -1,6 +1,6 @@
 use system_compiler::{
-    render_next_safe_action_value, resolve, BudgetDisposition, BudgetPolicy, CanonicalArtifactKind,
-    RefusalCategory, ResolveRequest, SubjectRef,
+    render_next_safe_action_value, resolve, setup_starter_template_bytes, BudgetDisposition,
+    BudgetPolicy, CanonicalArtifactKind, RefusalCategory, ResolveRequest, SubjectRef,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -74,6 +74,36 @@ fn refusal_required_artifact_empty() {
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let refusal = result.refusal.expect("refusal");
     assert_eq!(refusal.category, RefusalCategory::RequiredArtifactEmpty);
+}
+
+#[test]
+fn refusal_required_artifact_starter_template() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::Charter),
+    );
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"spec");
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(
+        refusal.category,
+        RefusalCategory::RequiredArtifactStarterTemplate
+    );
+    assert_eq!(
+        refusal.broken_subject,
+        SubjectRef::CanonicalArtifact {
+            kind: CanonicalArtifactKind::Charter,
+            canonical_repo_relative_path: ".system/charter/CHARTER.md",
+        }
+    );
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "fill canonical artifact at .system/charter/CHARTER.md"
+    );
 }
 
 #[test]

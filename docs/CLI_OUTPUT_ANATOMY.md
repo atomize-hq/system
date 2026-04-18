@@ -283,6 +283,7 @@ Rules:
   - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
+- the shipped starter templates are scaffolding only; packet work stays blocked until the required starter files are replaced with completed canonical truth
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` reports only setup-owned starter-file rewrites
 - `setup refresh --reset-state` reports only `.system/state/**` resets

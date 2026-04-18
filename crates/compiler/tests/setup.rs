@@ -1,8 +1,8 @@
 use std::fs;
 
 use system_compiler::{
-    plan_setup, render_next_safe_action_value, resolve, run_setup, ResolveRequest,
-    SetupActionLabel, SetupMode, SetupRefusalKind, SetupRequest,
+    plan_setup, render_next_safe_action_value, resolve, run_setup, setup_starter_template_bytes,
+    ResolveRequest, SetupActionLabel, SetupMode, SetupRefusalKind, SetupRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -18,6 +18,21 @@ fn starter_paths() -> [&'static str; 3] {
         ".system/feature_spec/FEATURE_SPEC.md",
         ".system/project_context/PROJECT_CONTEXT.md",
     ]
+}
+
+fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
+    match path {
+        ".system/charter/CHARTER.md" => {
+            setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::Charter)
+        }
+        ".system/feature_spec/FEATURE_SPEC.md" => {
+            setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::FeatureSpec)
+        }
+        ".system/project_context/PROJECT_CONTEXT.md" => {
+            setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::ProjectContext)
+        }
+        _ => panic!("unexpected starter path: {path}"),
+    }
 }
 
 #[test]
@@ -59,8 +74,8 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
     for path in starter_paths() {
         let bytes = fs::read(repo_root.join(path)).expect("starter bytes");
         assert!(
-            !bytes.is_empty(),
-            "starter file should not be empty: {path}"
+            bytes == starter_template_bytes_for_path(path),
+            "starter file should match shipped template: {path}"
         );
     }
 }
@@ -323,7 +338,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         .all(|action| action.label == SetupActionLabel::Rewritten));
     for path in starter_paths() {
         let current = fs::read(repo_root.join(path)).expect("starter after");
-        assert_ne!(current, format!("custom {path}\n").into_bytes());
+        assert_eq!(current, starter_template_bytes_for_path(path));
     }
     assert_eq!(
         fs::read(repo_root.join(".system/custom/KEEP.md")).expect("extra after"),

@@ -15,16 +15,13 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - `setup` remains the durable product term. `init` is only the concrete first-run subcommand name.
 - `setup refresh` preserves canonical files by default. `setup refresh --rewrite` rewrites only setup-owned starter files, and `setup refresh --reset-state` resets only `.system/state/**`.
 - The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`. `PROJECT_CONTEXT.md` is optional semantically, but setup still creates it as a starter file.
+- The shipped starter templates are scaffolding only. Packet work remains blocked until the required starter files are replaced with completed canonical truth.
 - Successful setup flows end with `system doctor`.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.
 - Stage `10` stays truthful: `pipeline compile` emits payload-only model input, external model output produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
 - `pipeline handoff emit --id <pipeline-id> --consumer <consumer-id>` is the shipped downstream handoff-emission wedge for the named consumer flow.
-
-Repo-specific note:
-
-- This checkout already includes pipeline runtime state under `.system/state/`, but it does not include completed canonical truth under `.system/charter/CHARTER.md` and `.system/feature_spec/FEATURE_SPEC.md`. In this repo root, bare `system setup` should route to `setup init`, create the canonical starter files, and end with `system doctor`; `generate` and `inspect` still refuse until the required canonical artifacts are completed and valid.
 
 Historical reference only:
 

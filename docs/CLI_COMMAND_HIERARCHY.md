@@ -63,6 +63,7 @@ Reduced v1 now has one explicit setup-family story:
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `setup refresh --reset-state` resets only `.system/state/**`.
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
+- The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the required starter files are replaced with completed canonical truth.
 - Successful setup flows end with `system doctor`.
 
 ## Hierarchy Rules

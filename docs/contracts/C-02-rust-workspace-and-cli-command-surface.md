@@ -61,6 +61,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `setup refresh --reset-state` MUST reset only `.system/state/**`.
 - `PROJECT_CONTEXT.md` MUST remain optional semantically for planning packets while still being created as a starter file by setup.
+- The shipped setup starter templates MUST be treated as scaffolding only. Required starter files MUST NOT satisfy planning readiness until the operator replaces them with completed canonical truth.
 - Successful setup-family flows MUST end with `system doctor`.
 - Help text MUST make clear that `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, `generate` is the packet surface, `inspect` is the packet proof surface, and `doctor` is the recovery surface.
 - Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.

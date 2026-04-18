@@ -34,12 +34,64 @@ const CANONICAL_ARTIFACT_KINDS: [CanonicalArtifactKind; 3] = [
     CanonicalArtifactKind::FeatureSpec,
 ];
 
+const CHARTER_TEMPLATE: &str = "\
+# Charter
+\n\
+Describe the durable operating rules for this system.\n\
+\n\
+## Purpose\n\
+\n\
+- TODO\n\
+\n\
+## Constraints\n\
+\n\
+- TODO\n\
+\n\
+## Review Cadence\n\
+\n\
+- TODO\n";
+
+const FEATURE_SPEC_TEMPLATE: &str = "\
+# Feature Spec
+\n\
+Describe the product behavior that trusted project truth should produce.\n\
+\n\
+## Problem\n\
+\n\
+- TODO\n\
+\n\
+## Outcomes\n\
+\n\
+- TODO\n\
+\n\
+## Scope\n\
+\n\
+- TODO\n";
+
+const PROJECT_CONTEXT_TEMPLATE: &str = "\
+# Project Context
+\n\
+Optional: capture surrounding architecture, constraints, and local context that help planning.\n\
+\n\
+## Current State\n\
+\n\
+- TODO\n\
+\n\
+## Constraints\n\
+\n\
+- TODO\n\
+\n\
+## Open Questions\n\
+\n\
+- TODO\n";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanonicalArtifactDescriptor {
     pub kind: CanonicalArtifactKind,
     pub relative_path: &'static str,
     pub namespace_dir: &'static str,
     pub required: bool,
+    pub setup_starter_template: &'static str,
 }
 
 const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 3] = [
@@ -48,23 +100,38 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 3] = [
         relative_path: ".system/charter/CHARTER.md",
         namespace_dir: ".system/charter",
         required: true,
+        setup_starter_template: CHARTER_TEMPLATE,
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::ProjectContext,
         relative_path: ".system/project_context/PROJECT_CONTEXT.md",
         namespace_dir: ".system/project_context",
         required: false,
+        setup_starter_template: PROJECT_CONTEXT_TEMPLATE,
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::FeatureSpec,
         relative_path: ".system/feature_spec/FEATURE_SPEC.md",
         namespace_dir: ".system/feature_spec",
         required: true,
+        setup_starter_template: FEATURE_SPEC_TEMPLATE,
     },
 ];
 
 pub fn canonical_artifact_descriptors() -> &'static [CanonicalArtifactDescriptor; 3] {
     &CANONICAL_ARTIFACT_DESCRIPTORS
+}
+
+pub fn setup_starter_template(kind: CanonicalArtifactKind) -> &'static str {
+    descriptor_for(kind).setup_starter_template
+}
+
+pub fn setup_starter_template_bytes(kind: CanonicalArtifactKind) -> &'static [u8] {
+    setup_starter_template(kind).as_bytes()
+}
+
+pub fn matches_setup_starter_template(kind: CanonicalArtifactKind, bytes: &[u8]) -> bool {
+    bytes == setup_starter_template_bytes(kind)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,6 +157,7 @@ pub struct CanonicalArtifactIdentity {
     pub presence: ArtifactPresence,
     pub byte_len: Option<u64>,
     pub content_sha256: Option<String>,
+    pub matches_setup_starter_template: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -388,6 +456,7 @@ fn load_one(
     };
 
     let byte_len = bytes.len() as u64;
+    let matches_setup_starter_template = matches_setup_starter_template(kind, &bytes);
     let presence = if byte_len == 0 {
         ArtifactPresence::PresentEmpty
     } else {
@@ -404,6 +473,7 @@ fn load_one(
             presence,
             byte_len: Some(byte_len),
             content_sha256,
+            matches_setup_starter_template,
         },
         bytes: Some(bytes),
     }
@@ -440,6 +510,7 @@ fn missing_one(kind: CanonicalArtifactKind) -> CanonicalArtifact {
             presence: ArtifactPresence::Missing,
             byte_len: None,
             content_sha256: None,
+            matches_setup_starter_template: false,
         },
         bytes: None,
     }
@@ -457,4 +528,11 @@ fn bytes_to_lower_hex(bytes: &[u8]) -> String {
         let _ = write!(out, "{:02x}", b);
     }
     out
+}
+
+fn descriptor_for(kind: CanonicalArtifactKind) -> &'static CanonicalArtifactDescriptor {
+    CANONICAL_ARTIFACT_DESCRIPTORS
+        .iter()
+        .find(|descriptor| descriptor.kind == kind)
+        .expect("canonical artifact descriptor should exist")
 }

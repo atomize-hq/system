@@ -28,7 +28,8 @@ pub use budget::{
     NextSafeAction as BudgetNextSafeAction,
 };
 pub use canonical_artifacts::{
-    canonical_artifact_descriptors, ArtifactIngestError, ArtifactIngestIssue,
+    canonical_artifact_descriptors, matches_setup_starter_template, setup_starter_template,
+    setup_starter_template_bytes, ArtifactIngestError, ArtifactIngestIssue,
     ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact, CanonicalArtifactDescriptor,
     CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };

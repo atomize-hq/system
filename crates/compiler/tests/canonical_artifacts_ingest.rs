@@ -1,6 +1,6 @@
 use system_compiler::{
-    ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind, CanonicalArtifacts,
-    SystemRootStatus,
+    setup_starter_template_bytes, ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind,
+    CanonicalArtifacts, SystemRootStatus,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -184,6 +184,36 @@ fn whitespace_only_counts_as_non_empty() {
         ArtifactPresence::PresentNonEmpty
     );
     assert_eq!(artifacts.project_context.identity.byte_len, Some(3));
+    assert!(
+        !artifacts
+            .project_context
+            .identity
+            .matches_setup_starter_template
+    );
+}
+
+#[test]
+fn required_starter_template_is_detected_exactly() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::Charter),
+    );
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"completed feature spec",
+    );
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert!(artifacts.charter.identity.matches_setup_starter_template);
+    assert!(
+        !artifacts
+            .feature_spec
+            .identity
+            .matches_setup_starter_template
+    );
 }
 
 #[test]
