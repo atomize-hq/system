@@ -49,10 +49,22 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 ### CLI verbs and help posture
 
 - The reviewed reduced-v1 command surface consists of `setup`, `pipeline`, `generate`, `inspect`, and `doctor`.
-- The currently shipped binary MAY temporarily expose only `setup`, `generate`, `inspect`, and `doctor` until the `pipeline` family lands.
 - When the `pipeline` family lands, code, help text, docs, contracts, tests, and proof-corpus gates MUST land together before `pipeline` is treated as a supported surface.
 - Help text MUST present the surfaces in setup-first order: `setup`, then `pipeline`, then `generate`, then `inspect`, then `doctor`.
-- Help text MUST make clear that `setup` is still a placeholder entrypoint, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, `generate` is the packet surface, `inspect` is the packet proof surface, and `doctor` is the recovery surface.
+- Help text and docs MUST make clear that the public setup family is `system setup`, `system setup init`, and `system setup refresh`.
+- `setup` MUST remain the durable product term, and `init` MUST remain only the concrete first-run subcommand name.
+- Bare `system setup` MUST route to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it MUST route to `setup refresh`.
+- `setup refresh` MUST preserve canonical files by default.
+- `setup refresh --rewrite` MUST rewrite only the setup-owned starter files:
+  - `.system/charter/CHARTER.md`
+  - `.system/feature_spec/FEATURE_SPEC.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+- `setup refresh --reset-state` MUST reset only `.system/state/**`.
+- `PROJECT_CONTEXT.md` MUST remain optional semantically for planning packets while still being created as a starter file by setup.
+- The shipped setup starter templates MUST be treated as scaffolding only. Required starter files MUST NOT satisfy planning readiness until the operator replaces them with completed canonical truth.
+- Scaffolded setup-family flows MUST end with `fill canonical artifact at <required starter path>`.
+- Ready setup-family flows MUST end with `system doctor`.
+- Help text MUST make clear that `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, `generate` is the packet surface, `inspect` is the packet proof surface, and `doctor` is the recovery surface.
 - Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.
 - `pipeline` MUST own route resolution, explicit stage compilation, and narrow pipeline-run state mutation for the supported wedge.
 - The shipped M2 compile wedge MUST expose exactly `system pipeline compile --id <pipeline-id> --stage <stage-id>` and `system pipeline compile --id <pipeline-id> --stage <stage-id> --explain`.
@@ -82,7 +94,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery surface for blockers and next safe actions.
-- `setup` MUST remain explicitly placeholder-only until a real Rust setup flow lands.
+- Missing-root, invalid-root, and missing-artifact recovery guidance MUST point to the setup family rather than to raw file-creation instructions.
 - Fixture-backed execution demo support MUST remain scoped to the existing `generate` / `inspect` request surface and defer detailed boundary semantics to [`C-06`](C-06-fixture-execution-demo-boundary.md).
 - Packet body structure, proof ordering, and renderer-specific output guarantees are owned by [`C-05`](C-05-renderer-and-proof-surfaces.md), not this contract.
 
@@ -109,13 +121,15 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `Cargo.toml` defines a root workspace with `crates/cli` and `crates/compiler` as members.
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
 - [ ] `crates/compiler` owns shared types and compiler-core logic.
-- [ ] `--help` shows the currently shipped supported surface in setup-first order and adds `pipeline` in the reviewed order once that family lands.
-- [ ] Help text matches the supported reduced-v1 command story, keeps `setup` explicitly placeholder-only, documents `pipeline` as the orchestration surface once shipped, and exposes the M2 compile wedge plus the M3 capture wedge.
+- [ ] `--help` shows the supported surface in setup-first order and presents the setup family as `setup`, `setup init`, and `setup refresh`.
+- [ ] Help text matches the supported reduced-v1 command story, documents the routed setup family, documents `pipeline` as the orchestration surface, and exposes the M2 compile wedge plus the M3 capture wedge.
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 / M3.5 wedge.
 - [ ] The documented `pipeline.foundation_inputs` capture targets are `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
 - [ ] `pipeline compile` remains payload-only stdout, raw stage-10 compile payload is documented as refused by `pipeline capture` with `invalid_capture_input`, and stage `10` materialization is documented only as `compile -> external model output -> capture`.
 - [ ] `needs_project_context` remains documented as a manual `pipeline state set` plus `pipeline resolve` step rather than an automatic capture side effect.
+- [ ] Setup docs and help state that `setup refresh` preserves canonical files by default, that `--rewrite` touches only the three setup-owned starter files, and that `--reset-state` touches only `.system/state/**`.
+- [ ] Setup docs and help state that scaffolded setup flows end with `fill canonical artifact at <required starter path>` and ready setup flows end with `system doctor`.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.
 - [ ] `doctor` is documented as the recovery surface.

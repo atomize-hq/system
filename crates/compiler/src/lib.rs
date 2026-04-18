@@ -16,6 +16,7 @@ pub mod rendering;
 mod repo_file_access;
 pub mod resolver;
 pub mod route_state;
+pub mod setup;
 mod stage_10_feature_spec_provenance;
 
 pub use artifact_manifest::{
@@ -27,9 +28,10 @@ pub use budget::{
     NextSafeAction as BudgetNextSafeAction,
 };
 pub use canonical_artifacts::{
-    ArtifactIngestError, ArtifactIngestIssue, ArtifactIngestIssueKind, ArtifactPresence,
-    CanonicalArtifact, CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts,
-    SystemRootStatus,
+    canonical_artifact_descriptors, matches_setup_starter_template, setup_starter_template,
+    setup_starter_template_bytes, ArtifactIngestError, ArtifactIngestIssue,
+    ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact, CanonicalArtifactDescriptor,
+    CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
 pub use decision_log::DecisionLog;
 pub use error::CompilerError;
@@ -104,6 +106,10 @@ pub use route_state::{
     RouteStateRefs, RouteStateRun, RouteStateStoreError, RouteStateValue,
     ROUTE_BASIS_REPO_ROOT_SENTINEL, ROUTE_BASIS_SCHEMA_VERSION, ROUTE_STATE_AUDIT_LIMIT,
     ROUTE_STATE_SCHEMA_VERSION,
+};
+pub use setup::{
+    plan_setup, run_setup, SetupAction, SetupActionLabel, SetupDisposition, SetupMode,
+    SetupOutcome, SetupPlan, SetupRefusal, SetupRefusalKind, SetupRequest,
 };
 
 pub fn workspace_contract_version() -> &'static str {

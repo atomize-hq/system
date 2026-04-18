@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.2.0] - 2026-04-18
+
+### Added
+- Added the shipped M6 setup family with `system setup`, `system setup init`, and `system setup refresh`, including safe canonical `.system/` scaffold creation, preserve-by-default refresh behavior, explicit `--rewrite` and `--reset-state` flags, and routed success/refusal output for new and initialized repos.
+- Added compiler and CLI regression coverage for setup-family help, first-run bootstrap, refresh preservation and rewrite behavior, runtime-state reset behavior, nested-repo routing, and the new starter-template readiness boundary.
+
+### Changed
+- Realigned README, START_HERE, supported-command docs, CLI hierarchy/output/vocabulary docs, contracts, and the active M6 plan so the shipped product story now has one honest front door instead of the old placeholder-versus-guided-setup split.
+- Updated canonical-artifact and blocker handling so shipped starter templates are explicit setup-owned scaffolds, required-starter-template blockers have their own category, and recovery guidance consistently routes missing or invalid canonical truth back through the setup family.
+
+### Fixed
+- Fixed setup recovery for invalid `.system` roots and unsafe `.system/state` reset targets so file-backed roots, symlinked roots, and reset failures repair or refuse without partial mutation.
+- Fixed planning readiness so `doctor` and `generate` no longer treat shipped starter templates as completed canonical truth, and removed the repo-root setup scaffolds that previously masked that gap.
+
 ## [0.5.1.0] - 2026-04-17
 
 ### Changed

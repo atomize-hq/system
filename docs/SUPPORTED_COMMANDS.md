@@ -15,6 +15,10 @@ From repo root:
 ```bash
 cargo run -p system-cli -- --help
 cargo run -p system-cli -- setup
+cargo run -p system-cli -- setup init
+cargo run -p system-cli -- setup refresh
+cargo run -p system-cli -- setup refresh --rewrite
+cargo run -p system-cli -- setup refresh --reset-state
 cargo run -p system-cli -- pipeline --help
 cargo run -p system-cli -- pipeline handoff --help
 cargo run -p system-cli -- pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
@@ -59,7 +63,18 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 
 ## Current command meanings
 
-- `setup` is the reserved setup-first entrypoint for the reduced-v1 trust flow. It is still a placeholder and not yet a real Rust setup flow.
+- `setup` is the durable setup-family term for the reduced-v1 trust flow.
+- Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- `setup init` is the concrete first-run subcommand name. Use it when you need to name the first-run path explicitly.
+- `setup refresh` preserves canonical files by default while refreshing setup-owned posture.
+- `setup refresh --rewrite` rewrites only the setup-owned starter files:
+  - `.system/charter/CHARTER.md`
+  - `.system/feature_spec/FEATURE_SPEC.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+- `setup refresh --reset-state` resets only `.system/state/**`.
+- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
+- The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the required starter files are replaced with completed canonical truth.
+- Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.
@@ -95,13 +110,14 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - The downstream adoption extension to that path is explicit: after stage-10 capture, `pipeline handoff emit` writes the derived handoff bundle for `feature-slice-decomposer`.
 - For `stage.10_feature_spec`, raw `pipeline compile` payload is refused as `invalid_capture_input`; capture only accepts a completed `FEATURE_SPEC.md` body.
 - Stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` remains `external_manual_derived` inside the emitted handoff trust model.
-- `setup` is still a placeholder, but it is part of the supported command surface and help ordering.
+- The public setup family is `setup`, `setup init`, and `setup refresh`; `setup` remains the durable term, while `setup init` names only the concrete first-run subcommand.
+- Missing-root, invalid-root, and missing-artifact recovery should point to `system setup` or `system setup refresh`, not to raw file-creation instructions.
 - For `generate`, `inspect`, and `doctor` on planning/live packet flows, you may invoke from repo root or a nested directory inside the target git repo. Before `.system/` exists, routing anchors to the enclosing git root.
 - For `pipeline`, list/show/resolve/compile/capture/state-set stay inside the approved repo surface and use one shared resolved-route truth.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` consumes the persisted route basis written by `pipeline resolve`; `pipeline compile --explain` is the compile proof surface for that same result.
 - `pipeline capture` and `pipeline capture apply` consume the same persisted fresh `route_basis`; they do not silently re-run `pipeline resolve`.
 - `pipeline capture` applies transactionally only for `system`-coordinated single-writer flows; arbitrary concurrent external writers are outside the shipped claim.
-- If `.system/` is missing, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action.
+- If `.system/` is missing, invalid, or missing setup-owned starter files, `generate`, `inspect`, and `doctor` refuse or block with a deterministic next safe action that routes to the setup family.
 - Once `.system/` canonical artifacts exist, planning packet generation is supported.
 - Fixture guidance for manual QA and proof runs is exact:
   - `tests/fixtures/foundation_flow_demo/` is only for the `pipeline.foundation_inputs` journey-proof flow.

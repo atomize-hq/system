@@ -1,0 +1,10 @@
+Initialize or refresh canonical repo-local `.system/` inputs
+
+Usage: system setup [COMMAND]
+
+Commands:
+  init     Create canonical `.system/` scaffold and starter files for first-run setup
+  refresh  Preserve canonical files by default and optionally rewrite starter files or reset `.system/state/**`
+
+Options:
+  -h, --help  Print help

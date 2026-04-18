@@ -1,0 +1,602 @@
+use crate::canonical_artifacts::{
+    canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
+    CanonicalArtifacts, SystemRootStatus,
+};
+use crate::repo_file_access::{
+    resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
+    RepoRelativeWritePathError,
+};
+use crate::route_state::{
+    apply_runtime_state_reset, plan_runtime_state_reset, RuntimeStateResetPlan,
+};
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::Path;
+
+const SYSTEM_DOCTOR_COMMAND: &str = "system doctor";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetupMode {
+    Auto,
+    Init,
+    Refresh,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupRequest {
+    pub mode: SetupMode,
+    pub rewrite: bool,
+    pub reset_state: bool,
+}
+
+impl Default for SetupRequest {
+    fn default() -> Self {
+        Self {
+            mode: SetupMode::Auto,
+            rewrite: false,
+            reset_state: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetupActionLabel {
+    Created,
+    Preserved,
+    Rewritten,
+    Reset,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupAction {
+    pub label: SetupActionLabel,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupPlan {
+    pub requested_mode: SetupMode,
+    pub resolved_mode: SetupMode,
+    pub actions: Vec<SetupAction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupOutcome {
+    pub plan: SetupPlan,
+    pub disposition: SetupDisposition,
+    pub next_safe_action: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetupDisposition {
+    Ready,
+    Scaffolded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetupRefusalKind {
+    AlreadyInitialized,
+    MissingCanonicalRoot,
+    InvalidCanonicalRoot,
+    InvalidRequest,
+    MutationRefused,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupRefusal {
+    pub kind: SetupRefusalKind,
+    pub summary: String,
+    pub broken_subject: String,
+    pub next_safe_action: String,
+}
+
+impl std::fmt::Display for SetupRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.summary)
+    }
+}
+
+impl std::error::Error for SetupRefusal {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlannedMutation {
+    RepairInvalidSystemRoot,
+    Write {
+        path: &'static str,
+        bytes: &'static [u8],
+    },
+}
+
+#[derive(Debug, Clone)]
+struct SetupExecutionPlan {
+    plan: SetupPlan,
+    mutations: Vec<PlannedMutation>,
+    reset_plan: Option<RuntimeStateResetPlan>,
+}
+
+pub fn plan_setup(
+    repo_root: impl AsRef<Path>,
+    request: &SetupRequest,
+) -> Result<SetupPlan, SetupRefusal> {
+    build_setup_execution_plan(repo_root.as_ref(), request).map(|planned| planned.plan)
+}
+
+pub fn run_setup(
+    repo_root: impl AsRef<Path>,
+    request: &SetupRequest,
+) -> Result<SetupOutcome, SetupRefusal> {
+    let repo_root = repo_root.as_ref();
+    let planned = build_setup_execution_plan(repo_root, request)?;
+
+    for mutation in planned.mutations {
+        apply_mutation(repo_root, planned.plan.resolved_mode, mutation)?;
+    }
+
+    if let Some(reset_plan) = &planned.reset_plan {
+        apply_runtime_state_reset(reset_plan).map_err(|reason| {
+            setup_mutation_refusal(
+                request.mode,
+                reason,
+                "runtime-state target under `.system/state/**`",
+            )
+        })?;
+    }
+
+    let post_setup_artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
+    })?;
+    let disposition = setup_disposition(&post_setup_artifacts);
+
+    Ok(SetupOutcome {
+        plan: planned.plan,
+        disposition,
+        next_safe_action: setup_next_safe_action(&post_setup_artifacts, disposition),
+    })
+}
+
+fn build_setup_execution_plan(
+    repo_root: &Path,
+    request: &SetupRequest,
+) -> Result<SetupExecutionPlan, SetupRefusal> {
+    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
+    })?;
+    let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
+    validate_request(&artifacts, request, resolved_mode)?;
+
+    let repair_invalid_root = resolved_mode == SetupMode::Init
+        && matches!(
+            artifacts.system_root_status,
+            SystemRootStatus::NotDir | SystemRootStatus::SymlinkNotAllowed
+        );
+    let ingest_issue_paths = artifacts
+        .ingest_issues
+        .iter()
+        .map(|issue| issue.canonical_repo_relative_path)
+        .collect::<BTreeSet<_>>();
+    let planned_starter_actions = canonical_artifact_descriptors()
+        .iter()
+        .map(|descriptor| {
+            plan_starter_action(
+                repo_root,
+                &artifacts,
+                &ingest_issue_paths,
+                descriptor,
+                resolved_mode,
+                request.rewrite,
+                repair_invalid_root,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let reset_plan = if request.reset_state {
+        Some(plan_runtime_state_reset(repo_root).map_err(|reason| {
+            setup_mutation_refusal(
+                request.mode,
+                reason,
+                "runtime-state target under `.system/state/**`",
+            )
+        })?)
+    } else {
+        None
+    };
+
+    let mut actions = planned_starter_actions
+        .iter()
+        .map(|planned| planned.action.clone())
+        .collect::<Vec<_>>();
+    if let Some(reset_plan) = &reset_plan {
+        actions.extend(reset_plan.paths().iter().cloned().map(|path| SetupAction {
+            label: SetupActionLabel::Reset,
+            path,
+        }));
+    }
+    actions.sort_by(|a, b| {
+        a.path
+            .cmp(&b.path)
+            .then_with(|| action_rank(a).cmp(&action_rank(b)))
+    });
+
+    let mut mutations = Vec::new();
+    if repair_invalid_root {
+        mutations.push(PlannedMutation::RepairInvalidSystemRoot);
+    }
+    mutations.extend(
+        planned_starter_actions
+            .into_iter()
+            .filter_map(|planned| planned.mutation),
+    );
+
+    Ok(SetupExecutionPlan {
+        plan: SetupPlan {
+            requested_mode: request.mode,
+            resolved_mode,
+            actions,
+        },
+        mutations,
+        reset_plan,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PlannedStarterAction {
+    action: SetupAction,
+    mutation: Option<PlannedMutation>,
+}
+
+fn resolve_mode(requested: SetupMode, system_root_status: SystemRootStatus) -> SetupMode {
+    match requested {
+        SetupMode::Auto => match system_root_status {
+            SystemRootStatus::Ok => SetupMode::Refresh,
+            SystemRootStatus::Missing
+            | SystemRootStatus::NotDir
+            | SystemRootStatus::SymlinkNotAllowed => SetupMode::Init,
+        },
+        SetupMode::Init | SetupMode::Refresh => requested,
+    }
+}
+
+fn validate_request(
+    artifacts: &CanonicalArtifacts,
+    request: &SetupRequest,
+    resolved_mode: SetupMode,
+) -> Result<(), SetupRefusal> {
+    match resolved_mode {
+        SetupMode::Auto => {
+            return Err(setup_refusal(
+                SetupRefusalKind::InvalidRequest,
+                "setup mode must resolve to init or refresh",
+                "setup request",
+                "retry `system setup`",
+            ));
+        }
+        SetupMode::Init => {
+            if request.rewrite || request.reset_state {
+                return Err(setup_refusal(
+                    SetupRefusalKind::InvalidRequest,
+                    "setup init does not accept refresh-only flags; retry without --rewrite or --reset-state",
+                    "setup request",
+                    "retry `system setup init` without --rewrite or --reset-state",
+                ));
+            }
+            if artifacts.system_root_status == SystemRootStatus::Ok {
+                return Err(setup_refusal(
+                    SetupRefusalKind::AlreadyInitialized,
+                    "canonical .system root already exists; use `system setup refresh` instead",
+                    "canonical `.system` root",
+                    "run `system setup refresh`",
+                ));
+            }
+        }
+        SetupMode::Refresh => match artifacts.system_root_status {
+            SystemRootStatus::Ok => {}
+            SystemRootStatus::Missing => {
+                return Err(setup_refusal(
+                    SetupRefusalKind::MissingCanonicalRoot,
+                    "canonical .system root is missing; run `system setup init` first",
+                    "canonical `.system` root",
+                    "run `system setup`",
+                ));
+            }
+            SystemRootStatus::NotDir => {
+                return Err(setup_refusal(
+                    SetupRefusalKind::InvalidCanonicalRoot,
+                    "canonical .system root is invalid; run `system setup` to re-establish it",
+                    "canonical `.system` root",
+                    "run `system setup`",
+                ));
+            }
+            SystemRootStatus::SymlinkNotAllowed => {
+                return Err(setup_refusal(
+                    SetupRefusalKind::InvalidCanonicalRoot,
+                    "canonical .system root must not be a symlink; run `system setup` to re-establish it",
+                    "canonical `.system` root",
+                    "run `system setup`",
+                ));
+            }
+        },
+    }
+
+    Ok(())
+}
+
+fn plan_starter_action(
+    repo_root: &Path,
+    artifacts: &CanonicalArtifacts,
+    ingest_issue_paths: &BTreeSet<&'static str>,
+    descriptor: &CanonicalArtifactDescriptor,
+    resolved_mode: SetupMode,
+    rewrite: bool,
+    repair_invalid_root: bool,
+) -> Result<PlannedStarterAction, SetupRefusal> {
+    let artifact = match descriptor.kind {
+        crate::CanonicalArtifactKind::Charter => &artifacts.charter,
+        crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
+        crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
+    };
+
+    if resolved_mode == SetupMode::Refresh
+        && !rewrite
+        && !matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
+    {
+        return Ok(PlannedStarterAction {
+            action: SetupAction {
+                label: SetupActionLabel::Preserved,
+                path: descriptor.relative_path.to_string(),
+            },
+            mutation: None,
+        });
+    }
+
+    if (ingest_issue_paths.contains(descriptor.relative_path)
+        || matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
+        || rewrite
+        || resolved_mode == SetupMode::Init)
+        && !repair_invalid_root
+    {
+        validate_write_target(repo_root, descriptor.relative_path, resolved_mode)?;
+    }
+
+    let label = if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
+        SetupActionLabel::Created
+    } else if rewrite {
+        SetupActionLabel::Rewritten
+    } else {
+        SetupActionLabel::Created
+    };
+
+    Ok(PlannedStarterAction {
+        action: SetupAction {
+            label,
+            path: descriptor.relative_path.to_string(),
+        },
+        mutation: Some(PlannedMutation::Write {
+            path: descriptor.relative_path,
+            bytes: setup_starter_template_bytes(descriptor.kind),
+        }),
+    })
+}
+
+fn validate_write_target(
+    repo_root: &Path,
+    relative_path: &'static str,
+    mode: SetupMode,
+) -> Result<(), SetupRefusal> {
+    resolve_repo_relative_write_path(repo_root, relative_path)
+        .map(|_| ())
+        .map_err(|err| {
+            setup_mutation_refusal(
+                mode,
+                format_repo_write_path_error(relative_path, err),
+                "setup-owned starter-file write target",
+            )
+        })
+}
+
+fn apply_mutation(
+    repo_root: &Path,
+    mode: SetupMode,
+    mutation: PlannedMutation,
+) -> Result<(), SetupRefusal> {
+    match mutation {
+        PlannedMutation::RepairInvalidSystemRoot => repair_invalid_system_root(repo_root, mode),
+        PlannedMutation::Write { path, bytes } => write_repo_relative_bytes(repo_root, path, bytes)
+            .map_err(|err| {
+                setup_mutation_refusal(
+                    mode,
+                    format_repo_mutation_error(path, err),
+                    "setup-owned starter-file write target",
+                )
+            }),
+    }
+}
+
+fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), SetupRefusal> {
+    let system_root = repo_root.join(".system");
+    let metadata = match fs::symlink_metadata(&system_root) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(setup_mutation_refusal(
+                mode,
+                format!(
+                    "failed to inspect canonical `.system` root at {}: {source}",
+                    system_root.display()
+                ),
+                "canonical `.system` root",
+            ));
+        }
+    };
+
+    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+        return Ok(());
+    }
+
+    fs::remove_file(&system_root).map_err(|source| {
+        setup_mutation_refusal(
+            mode,
+            format!(
+                "failed to remove invalid canonical `.system` root at {}: {source}",
+                system_root.display()
+            ),
+            "canonical `.system` root",
+        )
+    })
+}
+
+fn setup_refusal(
+    kind: SetupRefusalKind,
+    summary: impl Into<String>,
+    broken_subject: impl Into<String>,
+    next_safe_action: impl Into<String>,
+) -> SetupRefusal {
+    SetupRefusal {
+        kind,
+        summary: summary.into(),
+        broken_subject: broken_subject.into(),
+        next_safe_action: next_safe_action.into(),
+    }
+}
+
+fn setup_mutation_refusal(
+    mode: SetupMode,
+    summary: impl Into<String>,
+    broken_subject: impl Into<String>,
+) -> SetupRefusal {
+    let rerun_command = match mode {
+        SetupMode::Auto | SetupMode::Init => "system setup",
+        SetupMode::Refresh => "system setup refresh",
+    };
+
+    setup_refusal(
+        SetupRefusalKind::MutationRefused,
+        summary,
+        broken_subject,
+        format!("repair the blocked target and rerun `{rerun_command}`"),
+    )
+}
+
+fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
+    if first_required_starter_template_path(artifacts).is_some() {
+        SetupDisposition::Scaffolded
+    } else {
+        SetupDisposition::Ready
+    }
+}
+
+fn setup_next_safe_action(artifacts: &CanonicalArtifacts, disposition: SetupDisposition) -> String {
+    match disposition {
+        SetupDisposition::Ready => format!("run `{SYSTEM_DOCTOR_COMMAND}`"),
+        SetupDisposition::Scaffolded => format!(
+            "fill canonical artifact at {}",
+            first_required_starter_template_path(artifacts)
+                .expect("scaffolded setup outcome should identify a required starter template")
+        ),
+    }
+}
+
+fn first_required_starter_template_path(artifacts: &CanonicalArtifacts) -> Option<&'static str> {
+    canonical_artifact_descriptors()
+        .iter()
+        .filter(|descriptor| descriptor.required)
+        .find_map(|descriptor| {
+            artifact_for_kind(artifacts, descriptor.kind)
+                .identity
+                .matches_setup_starter_template
+                .then_some(descriptor.relative_path)
+        })
+}
+
+fn artifact_for_kind(
+    artifacts: &CanonicalArtifacts,
+    kind: crate::CanonicalArtifactKind,
+) -> &crate::CanonicalArtifact {
+    match kind {
+        crate::CanonicalArtifactKind::Charter => &artifacts.charter,
+        crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
+        crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
+    }
+}
+
+fn action_rank(action: &SetupAction) -> usize {
+    match action.label {
+        SetupActionLabel::Created => 0,
+        SetupActionLabel::Preserved => 1,
+        SetupActionLabel::Rewritten => 2,
+        SetupActionLabel::Reset => 3,
+    }
+}
+
+fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
+    match err {
+        RepoRelativeMutationError::InvalidPath(reason) => {
+            format!("write target `{path}` is invalid: {reason}")
+        }
+        RepoRelativeMutationError::ParentNotDirectory(found) => {
+            format!(
+                "write target `{path}` cannot be written because {} is not a directory",
+                found.display()
+            )
+        }
+        RepoRelativeMutationError::NotRegularFile(found) => {
+            format!(
+                "write target `{path}` cannot be written because {} is not a regular file target",
+                found.display()
+            )
+        }
+        RepoRelativeMutationError::SymlinkNotAllowed(found) => {
+            format!(
+                "write target `{path}` cannot be written through symlink {}",
+                found.display()
+            )
+        }
+        RepoRelativeMutationError::ReadFailure {
+            path: found,
+            source,
+        }
+        | RepoRelativeMutationError::WriteFailure {
+            path: found,
+            source,
+        } => {
+            format!(
+                "failed to mutate write target `{path}` at {}: {source}",
+                found.display()
+            )
+        }
+    }
+}
+
+fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> String {
+    match err {
+        RepoRelativeWritePathError::InvalidPath(reason) => {
+            format!("write target `{path}` is invalid: {reason}")
+        }
+        RepoRelativeWritePathError::ParentNotDirectory(found) => {
+            format!(
+                "write target `{path}` cannot be written because {} is not a directory",
+                found.display()
+            )
+        }
+        RepoRelativeWritePathError::NotRegularFile(found) => {
+            format!(
+                "write target `{path}` cannot be written because {} is not a regular file target",
+                found.display()
+            )
+        }
+        RepoRelativeWritePathError::SymlinkNotAllowed(found) => {
+            format!(
+                "write target `{path}` cannot be written through symlink {}",
+                found.display()
+            )
+        }
+        RepoRelativeWritePathError::ReadFailure {
+            path: found,
+            source,
+        } => {
+            format!(
+                "failed to inspect write target `{path}` at {}: {source}",
+                found.display()
+            )
+        }
+    }
+}

@@ -2268,102 +2268,397 @@ Conflict flags:
 - Parallelization: 5 lanes total, 2 lanes parallelizable after compiler surface freeze, 3 sequential gates
 - Lake Score: complete option preserved across boundary, trust, proof, and refusal design
 
-This is where the wedge starts paying back the operator tax for real.
-
 ### M6. Rust Front Door Completion And Historical Cleanup
+
+Status:
+
+- next active milestone after shipped `M5` on `main`
+- this is the active implementation plan for replacing placeholder-only `setup` with one real Rust-owned front door and removing the split setup story from shipped docs, help, and contracts
 
 Goal:
 
-- replace the placeholder-only `setup` story with one real Rust-owned front door for establishing and re-establishing trusted project truth
-- keep the Rust product story coherent while historical reference material becomes explicitly non-authoritative
+- ship one honest `setup` family:
+  - `system setup`
+  - `system setup init`
+  - `system setup refresh`
+- make canonical `.system/` bootstrap and later truth re-establishment boring, explicit, and safe
+- make `generate`, `inspect`, `doctor`, help text, contracts, and docs all describe the same front-door story
+- demote historical and guided-setup wording from active product contract into explicit historical reference only
 
-Must prove:
+Why this exists now:
 
-- new and stale repos have one honest Rust front door instead of a docs-only setup story
-- first-run bootstrap and later truth re-establishment share one coherent setup family
-- docs, help, contracts, refusal copy, and recovery entrypoints describe one coherent Rust-first product story
-- the remaining historical reference surface is explicitly non-authoritative, not vaguely half-supported
+- `M5` proved the downstream handoff story, but the top-level CLI still lies about the first thing an operator should do
+- the current binary still hard-fails `setup` as a placeholder in [`crates/cli/src/main.rs`](crates/cli/src/main.rs)
+- `generate`, `inspect`, and `doctor` already depend on canonical `.system/*` truth and already surface missing-root or missing-artifact refusals through the compiler
+- the biggest remaining product gap is no longer pipeline depth, it is the fake front door
 
-## What Already Exists And Must Be Preserved
+### Step 0. Scope Challenge
 
-The Rust baseline already bought some useful product decisions. Do not throw these away while chasing the pipeline spine:
+Exact user outcome:
 
-- trust-heavy CLI posture
-- small stable verb surface
-- provenance-aware packet thinking
-- `inspect` as proof surface
-- `doctor` as recovery surface
-- progressive disclosure as a product principle
-
-This work should absorb and extend these, not bulldoze them.
-
-## CEO Review Addendum (2026-04-11)
-
-These decisions were locked during `/plan-ceo-review` and are now part of the active plan:
-
-- `pipeline` is a supported surface once the code, contracts, docs, help, tests, and proof-corpus gates pass. Do not ship it as an experimental or shadow surface.
-- `resolve` and `compile` stay separate jobs, but they must share one typed resolved-route truth.
-- `.system/` must be governed as canonical artifact zones plus explicit non-canonical runtime zones.
-- `pipeline state set` is schema-bound, audited, atomic, and conflict-aware.
-- Unknown ids, ambiguous shorthand, malformed state, stale route basis, and inactive stages are all distinct refusal classes.
-- Required compile inputs are all-or-nothing.
-- The implementation should stay in a small number of boring modules with compiler-owned semantics and one small shared typed identity layer.
-- In M1, that identity layer means only concrete pipeline-id and stage-id wrappers plus normalization rules, not a generic identity framework.
-- The proof corpus is mandatory and golden changes require an explicit reason and affected contract surface.
-- Latency and output-size discipline are part of the wedge, not post-ship cleanup.
-- Future work is justified by reduced operator work and more trustworthy downstream artifacts, not by generic YAML workflow-engine flexibility.
-
-## CEO Review Addendum (2026-04-17)
-
-These decisions were locked during the current `/plan-ceo-review` and now govern post-`M5` work:
-
-- the next active milestone is not generic “coverage expansion”; it is Rust front-door completion
-- the highest-leverage remaining product gap is that `setup` is still placeholder-only while the rest of the support story already treats it like the front door
-- `setup` remains the durable front-door family name; do not rename the whole surface away from `setup` unless a later review finds a clearly better product story
-- the planned command-family shape is:
-  - `system setup init` for first-time bootstrap
-  - `system setup refresh` for deliberate truth re-establishment
-  - bare `system setup` auto-routes based on repo state:
-    - missing or uninitialized canonical `.system/` artifact zones -> `setup init`
-    - canonical setup surface exists -> `setup refresh`
-    - runtime-state presence or staleness does not change that routing decision
-- `setup init` is scaffold-first in `M6`:
-  - create the canonical `.system/` tree and starter files
-  - create starter canonical files for:
+- on a new repo, the operator runs `system setup`
+  - the CLI auto-routes to `system setup init`
+  - `init` creates the canonical `.system/` scaffold plus starter files for:
     - `.system/charter/CHARTER.md`
     - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
-  - starter files use structured templates with required section headings, short inline guidance, and explicit replace-this-text posture
-  - `.system/project_context/PROJECT_CONTEXT.md` is still created in the scaffold, but its template must mark it explicitly optional
-  - success output should:
-    - list the created paths
-    - give a short next-step checklist for filling required files, optionally filling project context, and running the next command
-    - point to `system doctor` as the one explicit next command after the operator edits the starter files
-  - if the canonical setup surface already exists, `setup init` must refuse and route the operator to `setup refresh`
-  - do not import or infer starter canonical content from ambient repo evidence in this milestone
-- `setup refresh` is explicit-mode only in `M6`:
-  - default refresh preserves existing canonical files and reports stale or missing surfaces
-  - any overwrite or reset behavior requires explicit flags on `setup refresh`
-  - the destructive flags are:
-    - `--rewrite` for replacing existing setup-created files
-    - `--reset-state` for pruning or resetting runtime `.system/state/**`
-  - if the canonical setup surface is missing, `setup refresh` must refuse and route the operator to `setup init`
-  - success output should point to `system doctor` as the one explicit next command
-  - silent canonical-file rewrite is out of scope
-- runtime `.system/state/**` remains non-canonical in `M6`:
-  - `setup init` may create the minimum runtime-state scaffold needed for a clean initialized repo
-  - default refresh does not treat runtime state as project truth
-  - explicit destructive refresh modes may prune or reset stale runtime state
-- bare `setup` routing in `M6` is driven by canonical `.system/` readiness only:
-  - do not use runtime-state freshness, generated artifacts, docs presence, or other repo heuristics to choose between `init` and `refresh`
-  - bare `system setup` should print one short routing line before dispatching into the chosen action
-- this is not inventing a new refresh concept from scratch; the repo already uses `setup refresh` in docs and vocabulary, so `M6` must resolve that semantic debt by making the command surface and docs agree
-- bare `setup` must remain a setup action, not a disguised status or `doctor` surface
-- cleanup work counts only when it supports the honest front door, the canonical `.system/` contract, or the legacy-reference boundary
+  - the success output lists created paths, marks `PROJECT_CONTEXT.md` optional, tells the operator to fill the starter files, and ends with one explicit next command: `system doctor`
+- on a repo with an existing canonical `.system/` root, the operator runs `system setup`
+  - the CLI auto-routes to `system setup refresh`
+  - `refresh` preserves canonical files by default, repairs missing scaffold pieces, and only rewrites setup-owned files or resets runtime state when the operator explicitly asks for it
+  - the accepted explicit flags are:
+    - `--rewrite`
+    - `--reset-state`
+  - the success output ends with one explicit next command: `system doctor`
+- on any repo state, `generate`, `inspect`, and `doctor` point back to the same `setup` family rather than a placeholder or implied external flow
 
-## Deferred Work
+Premise lock:
 
-These items are explicitly deferred behind the first wedge:
+- `setup` stays the durable family name
+- the `pipeline`, `generate`, `inspect`, and `doctor` surfaces stay intact
+- `.system/*` remains split into canonical artifact zones plus explicit non-canonical runtime zones
+- `setup init` is scaffold-first in `M6`; it does not import, infer, or migrate project truth from ambient repo evidence
+- `setup refresh` is preserve-by-default; destructive behavior requires explicit flags
+- runtime `.system/state/**` remains non-canonical and must not decide canonical truth
+- cleanup work only counts if it supports the honest front door, the canonical `.system/` contract, or the historical-reference boundary
+
+What existing code already solves each sub-problem:
+
+- canonical artifact paths and required-input rules already exist in [`crates/compiler/src/canonical_artifacts.rs`](crates/compiler/src/canonical_artifacts.rs)
+- missing-root and missing-artifact refusal categories, blocker summaries, and next-safe-action rendering already exist in:
+  - [`crates/compiler/src/resolver.rs`](crates/compiler/src/resolver.rs)
+  - [`docs/contracts/C-04-resolver-result-and-doctor-blockers.md`](docs/contracts/C-04-resolver-result-and-doctor-blockers.md)
+- repo-safe path validation, symlink refusal, atomic file writes, and parent-directory creation already exist in [`crates/compiler/src/repo_file_access.rs`](crates/compiler/src/repo_file_access.rs)
+- bounded state-directory creation patterns already exist in [`crates/compiler/src/route_state.rs`](crates/compiler/src/route_state.rs)
+- help-order and command-surface drift guards already exist in:
+  - [`crates/cli/tests/cli_surface.rs`](crates/cli/tests/cli_surface.rs)
+  - [`crates/cli/tests/help_drift_guard.rs`](crates/cli/tests/help_drift_guard.rs)
+- docs and contract parity discipline already exists; `M6` needs to update it, not invent it
+
+Minimum change set:
+
+1. replace the placeholder `Setup` branch in the CLI with real `setup` subcommands plus bare-command auto-routing
+2. add one compiler-owned setup module that plans and executes init/refresh work using the existing repo-relative write helpers
+3. add starter-template constants or fixture-backed template sources for the three canonical setup-created files
+4. rewire refusal copy and `doctor` guidance so missing canonical truth routes to `setup`
+5. update docs, contracts, help snapshots, and proof corpus together
+
+Complexity check:
+
+- this milestone will touch more than 8 files because docs, contracts, help snapshots, and tests all need parity updates
+- that file count is acceptable only because the code path itself stays small:
+  - one new compiler-owned setup module
+  - thin CLI wiring
+  - no new service layer
+  - no new storage system
+- if implementation grows beyond one new compiler module plus optional shared test support, stop and reduce scope
+
+Search check:
+
+- [Layer 1] reuse Clap nested subcommands for `setup init` and `setup refresh`; do not build a custom command parser
+- [Layer 1] reuse `repo_file_access` for atomic repo-relative writes and symlink-safe directory traversal; do not add a second file-mutation framework
+- [Layer 1] reuse existing refusal and blocker rendering for `doctor`, `generate`, and `inspect`; do not introduce parallel recovery wording logic
+- [Layer 3] no new cache, daemon, migration engine, or setup manifest database is justified here
+
+TODOS cross-reference:
+
+- the existing TODO for canonical `.system/` bootstrap flow is absorbed by `M6`
+- richer post-setup onboarding stays deferred to [TODOS.md](TODOS.md)
+- public distribution, CLI release workflow, pipeline validation, and structured run provenance remain deferred and are not prerequisites for the front door
+
+Completeness check:
+
+- the complete version of `M6` includes init, refresh, bare-command auto-routing, starter templates, refusal cutover, `doctor` cutover, docs/help/contracts parity, and proof corpus coverage
+- the shortcut version would ship only `setup init` or docs-only cleanup and leave the rest of the story split
+- reject the shortcut; the complete version is still a boilable lake because the repo already has the refusal, write-safety, and parity infrastructure
+
+Distribution check:
+
+- `M6` does not introduce a new artifact type
+- no new build or publish pipeline is required for this milestone beyond the existing Rust workspace and test rails
+- distribution remains explicitly out of scope
+
+Implementation alternatives:
+
+| Approach | Effort | Risk | Why it is or is not the `M6` choice |
+| --- | --- | --- | --- |
+| Keep `setup` placeholder-only and clean up docs copy around it | S | Critical | Rejected. It preserves the main product lie. |
+| Ship `setup init` only and defer `refresh` plus auto-routing | S | High | Rejected. It would keep the repo-state story split and force a second front-door revision soon after. |
+| Ship one bounded `setup` family with `init`, `refresh`, and bare-command routing | M | Medium | Recommended. It solves the actual user-facing gap without widening into onboarding automation. |
+| Add guided onboarding, repo inference, or migration logic in the same milestone | L | High | Rejected. It spends innovation tokens on the wrong thing. |
+
+### What Already Exists
+
+- the CLI already exposes the right top-level noun surface in [`crates/cli/src/main.rs`](crates/cli/src/main.rs), but `setup` still hard-fails as a placeholder
+- canonical artifact truth already assumes the exact paths `M6` needs to bootstrap:
+  - `.system/charter/CHARTER.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/feature_spec/FEATURE_SPEC.md`
+- resolver and blocker logic already distinguishes:
+  - missing `.system` root
+  - non-directory `.system` root
+  - symlinked `.system` root
+  - missing required canonical artifact
+  - empty required canonical artifact
+- the repo already has proven patterns for safe repo mutation in:
+  - [`crates/compiler/src/repo_file_access.rs`](crates/compiler/src/repo_file_access.rs)
+  - [`crates/compiler/src/pipeline_capture.rs`](crates/compiler/src/pipeline_capture.rs)
+  - [`crates/compiler/src/pipeline_handoff.rs`](crates/compiler/src/pipeline_handoff.rs)
+- the docs already encode the exact semantic debt `M6` must erase:
+  - [`README.md`](README.md)
+  - [`docs/START_HERE.md`](docs/START_HERE.md)
+  - [`docs/SUPPORTED_COMMANDS.md`](docs/SUPPORTED_COMMANDS.md)
+  - [`docs/CLI_PRODUCT_VOCABULARY.md`](docs/CLI_PRODUCT_VOCABULARY.md)
+  - [`docs/CLI_COMMAND_HIERARCHY.md`](docs/CLI_COMMAND_HIERARCHY.md)
+  - [`DESIGN.md`](DESIGN.md)
+  - [`docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md)
+  - [`docs/contracts/C-01-approved-repo-surface.md`](docs/contracts/C-01-approved-repo-surface.md)
+
+### Architecture Review
+
+Architecture ASCII diagram:
+
+```text
+operator
+  │
+  └── system setup
+        │
+        ├── repo discovery
+        │     └── existing managed-root rules
+        │
+        ├── canonical setup-surface detector
+        │     ├── .system missing / invalid -> route to init
+        │     └── .system present as canonical root -> route to refresh
+        │
+        ├── setup init
+        │     ├── create .system/
+        │     ├── create canonical namespace dirs
+        │     ├── write starter templates
+        │     ├── create minimal runtime state scaffold if needed
+        │     └── print created paths + next steps + `system doctor`
+        │
+        └── setup refresh
+              ├── inspect existing scaffold
+              ├── preserve canonical files by default
+              ├── repair missing setup-owned scaffold pieces
+              ├── rewrite setup-owned files only with --rewrite
+              ├── prune/reset .system/state only with --reset-state
+              └── print actions taken + next step `system doctor`
+
+steady-state commands
+  generate / inspect / doctor
+        │
+        └── shared resolver truth
+              └── next-safe-action now routes to `setup`
+```
+
+Opinionated architecture decisions:
+
+- keep setup execution compiler-owned, not CLI-owned
+- keep the CLI layer thin:
+  - parse args
+  - choose subcommand
+  - render operator output
+- reuse the existing canonical-artifact contract instead of creating a second bootstrap contract source
+- reuse the existing repo-relative write helpers instead of inventing setup-specific file I/O
+- treat starter templates as static compiler-owned content, not runtime-generated prose blobs
+- keep auto-routing boring:
+  - if canonical `.system` root is missing or invalid, route to `init`
+  - once the canonical `.system` root exists as a valid directory, route to `refresh`
+  - detailed missing-file repair belongs to `refresh`, because that is the only path that can safely preserve partial existing truth
+- keep `setup refresh` exact:
+  - default path preserves existing canonical files
+  - `--rewrite` only rewrites setup-owned starter files
+  - `--reset-state` only targets runtime `.system/state/**`
+- do not add a hidden bootstrap database, lockfile, or marker file just to prove setup happened
+
+Concrete module boundaries:
+
+- compiler ownership:
+  - repo-state detection for setup routing
+  - init/refresh planning
+  - template bodies
+  - write execution and safety checks
+  - typed outcome model for created, preserved, rewritten, skipped, and refused paths
+- CLI ownership:
+  - `setup` command parsing
+  - short routing line for bare `system setup`
+  - success and refusal rendering
+- resolver ownership:
+  - continue to own missing-root and missing-artifact truth
+  - update next-safe-action wording to point at real `setup`
+
+Implementation file budget:
+
+- prefer one new compiler module such as `crates/compiler/src/setup.rs`
+- keep CLI changes bounded to [`crates/cli/src/main.rs`](crates/cli/src/main.rs) unless that file becomes unreadable enough to justify a later split
+- update existing contracts rather than creating several new setup contract documents
+- one setup-focused test fixture helper is acceptable if existing proof support becomes awkward
+
+ASCII comments that should land with implementation:
+
+- `crates/compiler/src/setup.rs`, include a short scaffold / refresh decision diagram
+- if `doctor` ready or refusal rendering gets more complex, add one short next-safe-action flow comment near the renderer or setup outcome mapper
+
+### Code Quality Review
+
+Minimum-diff posture:
+
+- add one compiler-owned setup seam, not a setup framework
+- keep starter templates explicit and reviewable in source control
+- avoid generic templating or content-composition abstractions for three files
+- keep destructive behavior flag-bound and local
+- keep setup-owned file lists explicit in code; do not infer them from directory scans
+
+Expected touch surfaces:
+
+| Area | Expected modules |
+| --- | --- |
+| Setup execution core | `crates/compiler/src/`, optionally one new `setup.rs` |
+| CLI wiring and render surface | `crates/cli/src/`, help snapshots |
+| Resolver and next-safe-action wording | `crates/compiler/src/resolver.rs`, `crates/compiler/src/rendering/*` |
+| Docs and contracts parity | `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/CLI_PRODUCT_VOCABULARY.md`, `docs/CLI_COMMAND_HIERARCHY.md`, `DESIGN.md`, `docs/contracts/C-01-*`, `docs/contracts/C-02-*`, `docs/contracts/C-04-*`, `PLAN.md` |
+| Proof corpus and regressions | `crates/cli/tests/`, `crates/compiler/tests/`, committed snapshots or setup fixture support |
+
+Overbuild traps to reject:
+
+- a generic onboarding engine
+- repo inference or import of starter content from ambient files
+- a second mutation helper stack separate from `repo_file_access`
+- auto-heal behavior inside `doctor` instead of explicit `setup` execution
+- a general refresh planner that scans arbitrary repo content looking for "staleness"
+
+### Test Review
+
+```text
+SETUP SURFACE COVERAGE
+======================
+[+] bare `system setup`
+    │
+    ├── [GAP] [->CLI] missing .system routes to `setup init`
+    ├── [GAP] [->CLI] valid .system root routes to `setup refresh`
+    └── [GAP] [->CLI] routing line is short, exact, and deterministic
+
+INIT COVERAGE
+=============
+[+] `system setup init`
+    │
+    ├── [GAP] [->CLI/COMPILER] creates .system scaffold and three starter files
+    ├── [GAP] [->TEST] `PROJECT_CONTEXT.md` template is marked optional
+    ├── [GAP] [->TEST] refuses when .system already exists as a valid canonical root
+    ├── [GAP] [->TEST] refuses symlinked or invalid target paths
+    └── [GAP] [->SNAPSHOT] success output lists created paths and ends with `system doctor`
+
+REFRESH COVERAGE
+================
+[+] `system setup refresh`
+    │
+    ├── [GAP] [->CLI/COMPILER] preserves existing canonical files by default
+    ├── [GAP] [->TEST] repairs missing scaffold pieces without rewriting preserved files
+    ├── [GAP] [->TEST] `--rewrite` rewrites only setup-owned starter files
+    ├── [GAP] [->TEST] `--reset-state` prunes runtime .system/state only
+    ├── [GAP] [->TEST] refuses when canonical .system root is missing or invalid
+    └── [GAP] [->SNAPSHOT] success output reports preserved / created / rewritten / reset paths exactly
+
+RECOVERY AND DOCS CUTOVER COVERAGE
+==================================
+[+] existing product surfaces
+    │
+    ├── [GAP] [->TEST] `generate` missing-root refusal points to `system setup`
+    ├── [GAP] [->TEST] `inspect` missing-root refusal points to `system setup`
+    ├── [GAP] [->TEST] `doctor` blocker guidance points to `system setup`
+    ├── [GAP] [->SNAPSHOT] top-level help no longer says `setup` is placeholder-only
+    └── [GAP] [->DOCS] README / START_HERE / vocabulary / hierarchy / contracts agree on the new setup story
+
+---------------------------------
+COVERAGE: 0/19 gaps closed in plan text alone
+  Setup surface: 0/3
+  Init: 0/5
+  Refresh: 0/6
+  Recovery/docs cutover: 0/5
+QUALITY TARGET: every gap above closes before `M6` is marked complete
+---------------------------------
+```
+
+Required test artifacts:
+
+1. one uninitialized-repo happy path for bare `system setup` routing to `init`
+2. one initialized-repo happy path for bare `system setup` routing to `refresh`
+3. one `setup init` success snapshot covering scaffold creation and next-step checklist
+4. one `setup init` refusal snapshot for already-initialized repo
+5. one `setup refresh` default-preserve success snapshot
+6. one `setup refresh --rewrite` success snapshot proving setup-owned rewrite only
+7. one `setup refresh --reset-state` success snapshot proving runtime-state-only reset
+8. one symlink / invalid-path refusal test for setup mutations
+9. one regression test proving `generate`, `inspect`, and `doctor` now point to `setup`
+10. one help drift update and doc parity pass proving placeholder-only wording is gone from shipped surfaces
+
+Required assertions:
+
+- starter templates are written only to approved repo-relative paths
+- no setup mutation crosses the repo root or follows symlinks
+- `PROJECT_CONTEXT.md` remains optional in wording, not in path existence
+- `refresh` default path preserves canonical file bodies byte-for-byte
+- `--rewrite` does not mutate non-setup-owned files
+- `--reset-state` does not mutate canonical artifact files
+- success output stays compact and deterministic
+- `doctor` continues to aggregate blockers from shared resolver truth rather than recomputing setup logic independently
+
+### Performance Review
+
+Performance and determinism rules:
+
+- setup detection should inspect only the bounded canonical `.system` surface, not scan the full repo
+- template writes must use the existing repo-relative atomic write helpers
+- success output ordering must be deterministic so committed snapshots stay reviewable
+- default refresh should compute a bounded action plan over setup-owned paths only
+- no new persisted cache, setup history log, or background refresh mechanism is justified
+
+Expected hot paths:
+
+- repo-root discovery
+- a handful of `symlink_metadata` checks under `.system`
+- three starter-template writes on `init`
+- one bounded preserve / create / rewrite / reset plan on `refresh`
+
+Performance smells that fail review:
+
+- full-repo scans to decide `init` versus `refresh`
+- rewriting canonical files on every `refresh` run even when no flag requests it
+- non-deterministic output or path ordering in success rendering
+- extra filesystem state invented only to remember that setup happened
+
+### Failure Modes Registry
+
+| Failure mode | Severity | Test required | Error handling required | User-visible outcome |
+| --- | --- | --- | --- | --- |
+| bare `setup` still dead-ends or looks like a placeholder | Critical | yes | hard regression failure | explicit supported setup surface |
+| `init` overwrites existing canonical files without an explicit operator choice | Critical | yes | hard refusal | explicit preserve-or-refresh guidance |
+| `refresh --reset-state` mutates canonical `.system/*` files | Critical | yes | hard refusal or failed test | explicit runtime-state-only reset guarantee |
+| setup writes through a symlinked parent or escaped path | Critical | yes | hard refusal | explicit path-safety refusal |
+| `generate`, `inspect`, or `doctor` keep pointing at a non-existent guided path | High | yes | regression failure | explicit `system setup` next-safe-action |
+| docs and help claim setup is real while the binary still behaves differently | High | yes | doc/help drift failure | exact docs/help parity |
+| refresh silently repairs too much and hides destructive behavior | High | yes | explicit action report | visible preserve / rewrite / reset summary |
+
+Critical gaps:
+
+- any path with no test, no refusal, and no explicit operator-visible outcome is a release blocker for `M6`
+- any silent canonical rewrite is a release blocker
+
+### Required Deliverables
+
+1. one real `setup` family in the Rust CLI with `init`, `refresh`, and bare-command auto-routing
+2. one compiler-owned setup module that reuses the existing repo-safe mutation helpers
+3. one locked starter-template set for `CHARTER.md`, `FEATURE_SPEC.md`, and optional `PROJECT_CONTEXT.md`
+4. one exact refresh contract covering preserve-by-default, `--rewrite`, and `--reset-state`
+5. one refusal and `doctor` cutover so missing canonical truth points at `setup`
+6. one docs/help/contracts cutover removing placeholder-only setup language from shipped product surfaces
+7. one proof corpus and snapshot set for new repo, initialized repo, partial repo repair, and destructive-flag paths
+8. one explicit historical-reference cleanup pass that leaves legacy material as evidence only
+
+### Deferred Work
+
+These items remain explicitly deferred behind the `M6` wedge:
 
 - thin MCP/UI companion from [TODOS.md](TODOS.md)
 - review/fix packet family from [TODOS.md](TODOS.md)
@@ -2375,55 +2670,75 @@ These items are explicitly deferred behind the first wedge:
 - `pipeline validate` preflight surface from [TODOS.md](TODOS.md)
 - structured run provenance for `resolve`, `compile`, and `state set` from [TODOS.md](TODOS.md)
 
-If a session proposes one of these before the first wedge proves replacement value, the answer should usually be "not yet."
+If a session proposes one of these before the front door is honest, the answer should usually be "not yet."
 
-## Success Criteria
-
-`M6` is only real when all of the following are true for the chosen flow:
-
-1. the operator can establish canonical `.system/` truth from the Rust CLI without a placeholder handoff story
-2. the operator can deliberately re-establish that truth later through the same setup family without semantic weirdness
-3. `generate`, `inspect`, `doctor`, and missing-system-root recovery all point at the same setup story
-4. docs, help, contracts, and drift guards stop describing `setup` as placeholder-only
-5. historical reference material remains explicit evidence, not active product authority
-6. the proof corpus is rich enough to prove both first-run bootstrap and later refresh behavior honestly
-
-## Immediate Next Work
-
-1. Replace placeholder-only `setup` with one real Rust-owned setup family:
-   - lock `setup` as the namespace
-   - ship `system setup init` for first-time bootstrap
-   - ship `system setup refresh` for deliberate truth re-establishment
-   - make bare `system setup` auto-route into the correct setup action based on repo state
-2. Define the exact canonical `.system/` bootstrap contract:
-   - which directories and files are created
-   - which files are seeded as starter templates versus left for later operator/model population
-   - starter templates in `M6` should be structured skeletons, not empty stubs and not long tutorial prose
-   - when existing files refuse, preserve, or refresh
-   - how runtime `.system/state/**` is treated during init and refresh
-   - keep `setup init` scaffold-first; defer import or migration of repo-local evidence to later work
-   - starter file creation in `M6` means explicit template headings/placeholders, not inferred project truth
-   - refresh safety in `M6` means preserve-by-default plus explicit overwrite/reset flags only
-   - runtime-state handling in `M6` means minimal initialization plus explicit prune/reset modes, never canonical promotion
-3. Align recovery and front-door routing:
-   - `doctor` and `SystemRootMissing` next-safe-action guidance must route to the setup family
-   - `generate` / `inspect` refusal copy must stop talking around the missing front door
-   - bare `setup` routing must key off canonical `.system/` readiness rather than runtime-state or artifact heuristics
-4. Add proof corpus, goldens, and help/docs parity for the shipped setup family:
-   - uninitialized repo
-   - partially initialized repo
-   - stale-but-valid repo needing refresh
-   - refusal paths for unsafe overwrite or malformed existing state
-   - explicit overwrite/reset-flag coverage so destructive refresh behavior never hides behind the default path
-5. Demote historical-reference wording that still implies a split setup story after Rust setup lands.
-
-## Explicit Non-Goals For M6
+### NOT In Scope
 
 - do not widen `setup` into an everyday incremental pipeline rebuild command
-- do not invent a generic onboarding chat/runtime orchestrator in this milestone
-- do not broaden the canonical `.system/*` input contract without an explicit contract revision
-- do not hide destructive refresh semantics behind silent overwrite behavior
+- do not invent a generic onboarding chat or runtime orchestrator
+- do not broaden the canonical `.system/*` input contract beyond the existing three canonical starter files
+- do not infer starter file content from ambient repo evidence
+- do not add a second recovery surface that competes with `doctor`
+- do not add release automation or public packaging work
 - do not use docs cleanup as a substitute for a real command surface
+
+### Worktree Parallelization Strategy
+
+Dependency table:
+
+| Step | Modules touched | Depends on |
+| --- | --- | --- |
+| A. Lock setup routing, scaffold contract, and destructive-flag semantics | `PLAN.md`, `docs/contracts/`, `DESIGN.md` | --- |
+| B. Add compiler-owned setup execution core and starter templates | `crates/compiler/` | A |
+| C. Add CLI `setup` wiring, bare-command routing, and help snapshots | `crates/cli/`, help snapshots | A, B |
+| D. Cut over resolver, `doctor`, and next-safe-action wording plus docs parity | `crates/compiler/src/resolver.rs`, `crates/compiler/src/rendering/*`, `README.md`, `docs/` | A, B |
+| E. Add end-to-end proof corpus, refusal snapshots, and regression coverage | `crates/cli/tests/`, `crates/compiler/tests/`, test fixture support | B, C, D |
+
+Parallel lanes:
+
+- Lane A: A
+- Lane B: B
+- Lane C: C
+- Lane D: D
+- Lane E: E
+
+Execution order:
+
+1. land Lane A first and freeze the setup contract
+2. launch Lane B immediately after A
+3. once Lane B freezes the typed setup outcome surface, launch Lane C and Lane D in parallel worktrees
+4. merge C and D
+5. finish Lane E last so the proof corpus and snapshots target the final command wording and refusal story
+
+Conflict flags:
+
+- Lanes C and D both touch operator wording, so keep CLI help text and docs wording aligned before snapshots are finalized
+- Lane E touches both CLI and compiler tests, so do not start it before the command surface and refusal copy stabilize
+
+### Exit Criteria
+
+- `system setup` is a real supported surface, not a placeholder
+- new repos can establish canonical `.system/` truth from the Rust CLI alone
+- existing repos can deliberately re-establish that truth through `setup refresh` without silent canonical rewrites
+- `generate`, `inspect`, and `doctor` all point at the same setup story
+- docs, help, contracts, and drift guards stop describing `setup` as placeholder-only
+- historical reference material remains explicit evidence and stops acting like active setup authority
+- the proof corpus honestly covers first-run bootstrap, partial-repo repair, refresh preserve behavior, and explicit destructive flags
+
+### Completion Summary
+
+- Step 0: Scope Challenge, scope accepted as-is and narrowed to one bounded setup family plus parity cleanup
+- Architecture Review: 7 architecture decisions locked, no new infrastructure admitted
+- Code Quality Review: 5 minimum-diff guardrails locked, no generic framework work admitted
+- Test Review: diagram produced, 19 required coverage gaps enumerated
+- Performance Review: 4 hot-path and determinism rules locked
+- NOT in scope: written
+- What already exists: written
+- TODOS.md updates: none required, current deferred items remain correct
+- Failure modes: 4 release-blocking critical gaps identified
+- Outside voice: CEO decisions from 2026-04-17 absorbed into the milestone contract
+- Parallelization: 5 lanes total, 2 lanes parallelizable after contract freeze, 3 sequential gates
+- Lake Score: complete option preserved across command surface, recovery story, parity work, and proof coverage
 
 Stay on the wedge until the front door is honest.
 

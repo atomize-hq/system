@@ -8,6 +8,7 @@ pub enum RefusalCategory {
     SystemRootSymlinkNotAllowed,
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
+    RequiredArtifactStarterTemplate,
     ArtifactReadError,
     FreshnessInvalid,
     BudgetRefused,
@@ -31,6 +32,9 @@ pub enum SubjectRef {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NextSafeAction {
+    RunSetup,
+    RunSetupInit,
+    RunSetupRefresh,
     CreateSystemRoot {
         canonical_repo_relative_path: &'static str,
     },

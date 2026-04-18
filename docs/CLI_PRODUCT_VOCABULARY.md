@@ -27,11 +27,18 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 ### Core verbs
 
 - `setup`
-  - The front-door posture-establishing flow.
-  - Use for first-time establishment of trusted project truth.
-  - In reduced v1, `setup` is still a placeholder entrypoint.
+  - The durable front-door operation name for canonical `.system/` truth establishment and repair.
+  - Use when naming the setup family or the routed front door.
+  - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- `setup init`
+  - The concrete first-run subcommand name.
+  - Use when naming the explicit first-run or recovery path for an absent or invalid canonical `.system/` root.
+  - Do not promote `init` into the durable product term for the setup family.
 - `setup refresh`
   - Use when existing canonical artifacts must be refreshed because posture is stale or has changed.
+  - Preserves canonical files by default.
+  - `setup refresh --rewrite` rewrites only the setup-owned starter files.
+  - `setup refresh --reset-state` resets only `.system/state/**`.
   - Do not rename this as bootstrap refresh, re-init, or health repair.
 - `generate`
   - The packet-generation surface.
@@ -64,6 +71,13 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `canonical artifacts`
   - The preferred term for the trusted repo-local `.system/` files the system reads as project truth.
   - In reduced v1, this is the primary noun for the files themselves.
+- `setup-owned starter files`
+  - The canonical files created by setup:
+    - `.system/charter/CHARTER.md`
+    - `.system/feature_spec/FEATURE_SPEC.md`
+    - `.system/project_context/PROJECT_CONTEXT.md`
+  - `PROJECT_CONTEXT.md` is optional semantically, but it remains one of the starter files created by setup.
+  - The shipped starter templates are scaffolding only until the required files are replaced with completed canonical truth.
 - `runtime zone`
   - The preferred term for non-canonical derived state kept under `.system/`.
   - Runtime zones are not canonical inputs and must never be described as project truth.
@@ -100,6 +114,14 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 
 These phrases should remain stable across top-level docs and help text unless the product boundary changes:
 
+- `system setup`, `system setup init`, `system setup refresh`
+- "`setup` is the durable setup term"
+- "`setup init` is the concrete first-run subcommand"
+- "`setup refresh` preserves canonical files by default"
+- "`setup refresh --rewrite` rewrites only setup-owned starter files"
+- "`setup refresh --reset-state` resets only `.system/state/**`"
+- "scaffolded setup path ends with `fill canonical artifact ...`"
+- "ready setup path ends with `system doctor`"
 - `planning packet generation`
 - `canonical repo-local `.system/` inputs`
 - `fixture-backed execution demo`
@@ -109,7 +131,6 @@ These phrases should remain stable across top-level docs and help text unless th
 - "`pipeline capture` is the explicit writer surface"
 - "`pipeline handoff emit` is the downstream handoff-emission surface"
 - "`doctor` is the recovery surface"
-- "`setup` is still a placeholder"
 - `payload-only stdout`
 - `proof-only stdout`
 - `bundle-only reads`
@@ -125,6 +146,7 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 ### Prefer
 
 - `setup`, not generic startup wording
+- `setup init` only when naming the concrete first-run subcommand
 - `pipeline`, not generic framework wording, when naming route/control-plane work
 - `pipeline capture`, not generic save/apply wording, when naming stage-output materialization
 - `pipeline handoff emit`, not generic export/package wording, when naming the M5 downstream bundle surface
@@ -144,8 +166,8 @@ Use the full phrase `next safe action` in output. Do not shorten it to `next ste
 Do not use these terms as the primary operator-facing language for the supported reduced-v1 path:
 
 - `bootstrap`
-- `init`
-- `initialize`
+- `init` as the generic product label for the setup family
+- `initialize` as the generic product label for the setup family
 - `hydrate`
 - `workflow engine` as the primary product label for the supported wedge
 - `health repair`
@@ -184,7 +206,8 @@ These words may still appear in:
 Use:
 
 - `REFUSED: missing required canonical artifact`
-- `NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md`
+- `NEXT SAFE ACTION: run \`system setup\``
+- `NEXT SAFE ACTION: run \`system setup refresh --rewrite\``
 - "`inspect` is the packet proof surface"
 - "`pipeline compile --explain` is the compile proof surface"
 - "`doctor` is the recovery surface"
@@ -195,6 +218,11 @@ Do not use:
 - `Issue detected, maybe run health repair`
 - `Something went wrong during generation`
 - `Initialize the repo metadata before debugging packet output`
+
+## Historical Reference Only
+
+- Superseded M4/M5 wording retained only so older drift checks and review notes stay searchable:
+  - "`setup` is still a placeholder"
 
 ## Downstream Dependencies
 

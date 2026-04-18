@@ -61,6 +61,7 @@ pub enum FreshnessStatus {
 pub enum FreshnessIssueKind {
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
+    RequiredArtifactStarterTemplate,
     ForbiddenOverride,
 }
 
@@ -150,7 +151,17 @@ pub fn compute_freshness(
                     ),
                 });
             }
-            ArtifactPresence::PresentNonEmpty => {}
+            ArtifactPresence::PresentNonEmpty => {
+                if artifact.matches_setup_starter_template {
+                    issues.push(FreshnessIssue {
+                        kind: FreshnessIssueKind::RequiredArtifactStarterTemplate,
+                        detail: format!(
+                            "required canonical artifact still contains the shipped starter template: {:?} at {}",
+                            artifact.kind, artifact.relative_path
+                        ),
+                    });
+                }
+            }
         }
     }
     issues.sort();
@@ -195,6 +206,7 @@ fn fingerprint_bytes(
         enc.bool(artifact.required);
         enc.u8(artifact_presence_sort_key(artifact.presence));
         enc.opt_str(artifact.content_sha256.as_deref());
+        enc.bool(artifact.matches_setup_starter_template);
     }
 
     enc.u32(inherited_dependencies.len() as u32);
@@ -253,7 +265,8 @@ fn freshness_issue_kind_sort_key(kind: FreshnessIssueKind) -> u8 {
     match kind {
         FreshnessIssueKind::RequiredArtifactMissing => 0,
         FreshnessIssueKind::RequiredArtifactEmpty => 1,
-        FreshnessIssueKind::ForbiddenOverride => 2,
+        FreshnessIssueKind::RequiredArtifactStarterTemplate => 2,
+        FreshnessIssueKind::ForbiddenOverride => 3,
     }
 }
 

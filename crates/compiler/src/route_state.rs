@@ -1746,6 +1746,211 @@ pub(crate) fn route_state_path(
         .join(format!("{pipeline_id}.yaml")))
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn preview_runtime_state_reset(repo_root: &Path) -> Result<Vec<String>, String> {
+    plan_runtime_state_reset(repo_root).map(|plan| plan.paths)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, String> {
+    let plan = plan_runtime_state_reset(repo_root)?;
+    let reset_paths = plan.paths.clone();
+    apply_runtime_state_reset(&plan)?;
+    Ok(reset_paths)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RuntimeStateResetPlan {
+    entries: Vec<RuntimeStateResetEntry>,
+    paths: Vec<String>,
+}
+
+impl RuntimeStateResetPlan {
+    pub(crate) fn paths(&self) -> &[String] {
+        &self.paths
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeStateResetEntry {
+    path: PathBuf,
+    display_path: String,
+    kind: RuntimeStateResetEntryKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeStateResetEntryKind {
+    File,
+    Dir,
+}
+
+pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
+    let state_root = repo_root.join(".system").join("state");
+    let root_metadata = match fs::symlink_metadata(&state_root) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(RuntimeStateResetPlan {
+                entries: Vec::new(),
+                paths: Vec::new(),
+            });
+        }
+        Err(source) => {
+            return Err(format!(
+                "failed to inspect runtime state root `.system/state` at {}: {source}",
+                state_root.display()
+            ));
+        }
+    };
+
+    if root_metadata.file_type().is_symlink() {
+        return Err(format!(
+            "runtime state root `.system/state` cannot be reset through symlink {}",
+            state_root.display()
+        ));
+    }
+    if !root_metadata.is_dir() {
+        return Err(format!(
+            "runtime state root `.system/state` is not a directory at {}",
+            state_root.display()
+        ));
+    }
+
+    let mut entries = fs::read_dir(&state_root)
+        .map_err(|source| {
+            format!(
+                "failed to read runtime state root `.system/state` at {}: {source}",
+                state_root.display()
+            )
+        })?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| {
+            format!(
+                "failed to enumerate runtime state root `.system/state` at {}: {source}",
+                state_root.display()
+            )
+        })?;
+    entries.sort();
+
+    let mut reset_entries = Vec::new();
+    for entry in entries {
+        collect_runtime_state_reset_entry(repo_root, &entry, &mut reset_entries)?;
+    }
+
+    let mut reset_paths = reset_entries
+        .iter()
+        .map(|entry| entry.display_path.clone())
+        .collect::<Vec<_>>();
+    reset_paths.sort();
+    Ok(RuntimeStateResetPlan {
+        entries: reset_entries,
+        paths: reset_paths,
+    })
+}
+
+pub(crate) fn apply_runtime_state_reset(plan: &RuntimeStateResetPlan) -> Result<(), String> {
+    for entry in &plan.entries {
+        match entry.kind {
+            RuntimeStateResetEntryKind::File => {
+                fs::remove_file(&entry.path).map_err(|source| {
+                    format!(
+                        "failed to remove runtime state file `{}` at {}: {source}",
+                        entry.display_path,
+                        entry.path.display()
+                    )
+                })?;
+            }
+            RuntimeStateResetEntryKind::Dir => {
+                fs::remove_dir(&entry.path).map_err(|source| {
+                    format!(
+                        "failed to remove runtime state directory `{}` at {}: {source}",
+                        entry.display_path,
+                        entry.path.display()
+                    )
+                })?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_runtime_state_reset_entry(
+    repo_root: &Path,
+    path: &Path,
+    reset_entries: &mut Vec<RuntimeStateResetEntry>,
+) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(path).map_err(|source| {
+        format!(
+            "failed to inspect runtime state path `{}` at {}: {source}",
+            repo_relative_display(repo_root, path),
+            path.display()
+        )
+    })?;
+
+    if metadata.file_type().is_symlink() {
+        return Err(format!(
+            "runtime state path `{}` cannot be reset through symlink {}",
+            repo_relative_display(repo_root, path),
+            path.display()
+        ));
+    }
+
+    if metadata.is_dir() {
+        let mut children = fs::read_dir(path)
+            .map_err(|source| {
+                format!(
+                    "failed to read runtime state directory `{}` at {}: {source}",
+                    repo_relative_display(repo_root, path),
+                    path.display()
+                )
+            })?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|source| {
+                format!(
+                    "failed to enumerate runtime state directory `{}` at {}: {source}",
+                    repo_relative_display(repo_root, path),
+                    path.display()
+                )
+            })?;
+        children.sort();
+
+        for child in children {
+            collect_runtime_state_reset_entry(repo_root, &child, reset_entries)?;
+        }
+
+        reset_entries.push(RuntimeStateResetEntry {
+            path: path.to_path_buf(),
+            display_path: repo_relative_display(repo_root, path),
+            kind: RuntimeStateResetEntryKind::Dir,
+        });
+        return Ok(());
+    }
+
+    if metadata.is_file() {
+        reset_entries.push(RuntimeStateResetEntry {
+            path: path.to_path_buf(),
+            display_path: repo_relative_display(repo_root, path),
+            kind: RuntimeStateResetEntryKind::File,
+        });
+        return Ok(());
+    }
+
+    Err(format!(
+        "runtime state path `{}` is not a regular file or directory",
+        repo_relative_display(repo_root, path)
+    ))
+}
+
+fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
+    path.strip_prefix(repo_root)
+        .ok()
+        .and_then(|relative| relative.to_str())
+        .map(|relative| relative.replace('\\', "/"))
+        .unwrap_or_else(|| path.display().to_string())
+}
+
 pub(crate) fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
     if let Some(parent) = state_path.parent() {
         fs::create_dir_all(parent)?;
@@ -2218,5 +2423,86 @@ impl fmt::Display for RouteBasisPersistRefusal {
                 "revision conflict while persisting route_basis: expected {expected_revision}, found {actual_revision}"
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{preview_runtime_state_reset, reset_runtime_state_tree};
+    use std::fs;
+    use std::path::Path;
+
+    fn write_file(path: &Path, contents: &[u8]) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent dirs");
+        }
+        fs::write(path, contents).expect("write file");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn route_state_reset_refuses_symlink_without_partial_deletion() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let repo_root = dir.path();
+
+        write_file(&repo_root.join(".system/state/a.yaml"), b"a: 1\n");
+        let external = tempfile::tempdir().expect("external tempdir");
+        symlink(external.path(), repo_root.join(".system/state/z_symlink")).expect("symlink");
+
+        let err = reset_runtime_state_tree(repo_root).expect_err("reset should refuse");
+        assert!(err.contains("symlink"), "{err}");
+        assert!(
+            repo_root.join(".system/state/a.yaml").is_file(),
+            "preflight refusal must not partially delete state"
+        );
+    }
+
+    #[test]
+    fn route_state_preview_matches_reset_paths_for_valid_tree() {
+        let preview_root = tempfile::tempdir().expect("preview tempdir");
+        write_file(
+            &preview_root
+                .path()
+                .join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+            b"pipeline state\n",
+        );
+        write_file(
+            &preview_root
+                .path()
+                .join(".system/state/pipeline/capture/cache.yaml"),
+            b"cache state\n",
+        );
+
+        let preview_paths =
+            preview_runtime_state_reset(preview_root.path()).expect("preview should succeed");
+
+        let apply_root = tempfile::tempdir().expect("apply tempdir");
+        write_file(
+            &apply_root
+                .path()
+                .join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+            b"pipeline state\n",
+        );
+        write_file(
+            &apply_root
+                .path()
+                .join(".system/state/pipeline/capture/cache.yaml"),
+            b"cache state\n",
+        );
+
+        let reset_paths =
+            reset_runtime_state_tree(apply_root.path()).expect("reset should succeed");
+
+        assert_eq!(preview_paths, reset_paths);
+        assert!(!apply_root
+            .path()
+            .join(".system/state/pipeline/pipeline.foundation_inputs.yaml")
+            .exists());
+        assert!(!apply_root
+            .path()
+            .join(".system/state/pipeline/capture/cache.yaml")
+            .exists());
     }
 }

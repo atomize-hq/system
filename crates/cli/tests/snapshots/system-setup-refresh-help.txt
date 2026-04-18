@@ -1,0 +1,8 @@
+Preserve canonical files by default and optionally rewrite starter files or reset `.system/state/**`
+
+Usage: system setup refresh [OPTIONS]
+
+Options:
+      --rewrite      Rewrite setup-owned starter files in place
+      --reset-state  Reset only `.system/state/**`
+  -h, --help         Print help

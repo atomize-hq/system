@@ -112,6 +112,7 @@ fn render_refusal_category(category: RefusalCategory) -> &'static str {
         RefusalCategory::SystemRootSymlinkNotAllowed => "SystemRootSymlinkNotAllowed",
         RefusalCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         RefusalCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
+        RefusalCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
         RefusalCategory::ArtifactReadError => "ArtifactReadError",
         RefusalCategory::FreshnessInvalid => "FreshnessInvalid",
         RefusalCategory::BudgetRefused => "BudgetRefused",
@@ -145,6 +146,7 @@ fn render_blocker_category(category: BlockerCategory) -> &'static str {
         BlockerCategory::SystemRootSymlinkNotAllowed => "SystemRootSymlinkNotAllowed",
         BlockerCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         BlockerCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
+        BlockerCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
         BlockerCategory::ArtifactReadError => "ArtifactReadError",
         BlockerCategory::FreshnessInvalid => "FreshnessInvalid",
         BlockerCategory::BudgetRefused => "BudgetRefused",
@@ -153,32 +155,7 @@ fn render_blocker_category(category: BlockerCategory) -> &'static str {
 }
 
 fn render_next_safe_action_value(action: &NextSafeAction) -> String {
-    match action {
-        NextSafeAction::CreateSystemRoot {
-            canonical_repo_relative_path,
-        } => format!("create canonical .system root at {canonical_repo_relative_path}"),
-        NextSafeAction::EnsureSystemRootIsDirectory {
-            canonical_repo_relative_path,
-        } => format!(
-            "ensure canonical .system root is a directory at {canonical_repo_relative_path}"
-        ),
-        NextSafeAction::RemoveSystemRootSymlink {
-            canonical_repo_relative_path,
-        } => format!("remove canonical .system symlink at {canonical_repo_relative_path}"),
-        NextSafeAction::CreateCanonicalArtifact {
-            canonical_repo_relative_path,
-        } => format!("create canonical artifact at {canonical_repo_relative_path}"),
-        NextSafeAction::FillCanonicalArtifact {
-            canonical_repo_relative_path,
-        } => format!("fill canonical artifact at {canonical_repo_relative_path}"),
-        NextSafeAction::ReduceCanonicalArtifactSize {
-            canonical_repo_relative_path,
-        } => format!("reduce canonical artifact size at {canonical_repo_relative_path}"),
-        NextSafeAction::RunGenerate { packet_id } => {
-            format!("run `system generate --packet {packet_id}`")
-        }
-        NextSafeAction::RunDoctor => "run `doctor`".to_string(),
-    }
+    super::shared::render_next_safe_action_value(action)
 }
 
 fn render_subject_ref(subject: &SubjectRef) -> String {

@@ -66,6 +66,33 @@ fn system_help_matches_snapshot() {
 }
 
 #[test]
+fn system_setup_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["setup", "--help"],
+        "system-setup-help.txt",
+        "system setup --help",
+    );
+}
+
+#[test]
+fn system_setup_init_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["setup", "init", "--help"],
+        "system-setup-init-help.txt",
+        "system setup init --help",
+    );
+}
+
+#[test]
+fn system_setup_refresh_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["setup", "refresh", "--help"],
+        "system-setup-refresh-help.txt",
+        "system setup refresh --help",
+    );
+}
+
+#[test]
 fn system_generate_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["generate", "--help"],
@@ -167,6 +194,9 @@ fn support_story_docs_match_help_snapshots() {
         .join("\n");
 
     let top_help_text = read_help_snapshot("system-help.txt");
+    let setup_help_text = read_help_snapshot("system-setup-help.txt");
+    let setup_init_help_text = read_help_snapshot("system-setup-init-help.txt");
+    let setup_refresh_help_text = read_help_snapshot("system-setup-refresh-help.txt");
     let generate_help_text = read_help_snapshot("system-generate-help.txt");
     let inspect_help_text = read_help_snapshot("system-inspect-help.txt");
     let pipeline_help_text = read_help_snapshot("system-pipeline-help.txt");
@@ -182,9 +212,17 @@ fn support_story_docs_match_help_snapshots() {
         "live execution is explicitly refused",
         "`inspect` is the packet proof surface",
         "`doctor` is the recovery surface",
-        "`setup` is still a placeholder",
         "explicit stage compilation",
         "explicit stage-output capture",
+    ];
+    let setup_story_required_doc_phrases = [
+        "The public setup family is `system setup`, `system setup init`, and `system setup refresh`.",
+        "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "`setup refresh` preserves canonical files by default",
+        "`setup refresh --rewrite` rewrites only setup-owned starter files",
+        "`setup refresh --reset-state` resets only `.system/state/**`",
+        "The shipped starter templates are scaffolding only.",
+        "Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.",
     ];
     let root_readme_required_phrases = [
         "pipeline capture --preview",
@@ -218,6 +256,12 @@ fn support_story_docs_match_help_snapshots() {
         );
     }
 
+    let phrase = "Repo-specific note:";
+    assert!(
+        !root_readme_text.contains(phrase),
+        "root README must not keep stale checkout-specific setup note `{phrase}`"
+    );
+
     for phrase in stage_10_required_doc_phrases {
         assert!(
             docs_text.contains(phrase),
@@ -240,6 +284,44 @@ fn support_story_docs_match_help_snapshots() {
         assert!(
             top_help_text.contains(phrase),
             "top-level help snapshot missing supported-story phrase `{phrase}`"
+        );
+    }
+
+    for phrase in setup_story_required_doc_phrases {
+        assert!(
+            docs_text.contains(phrase),
+            "docs missing setup-family phrase `{phrase}`"
+        );
+    }
+
+    for phrase in [
+        "Initialize or refresh canonical repo-local `.system/` inputs",
+        "init",
+        "refresh",
+    ] {
+        assert!(
+            setup_help_text.contains(phrase),
+            "setup help snapshot missing phrase `{phrase}`"
+        );
+    }
+
+    assert!(
+        top_help_text.contains("Initialize or refresh canonical repo-local `.system/` inputs"),
+        "top-level help snapshot missing setup-family description"
+    );
+    assert!(
+        setup_init_help_text
+            .contains("Create canonical `.system/` scaffold and starter files for first-run setup"),
+        "setup init help snapshot missing first-run description"
+    );
+    for phrase in [
+        "Preserve canonical files by default",
+        "--rewrite",
+        "--reset-state",
+    ] {
+        assert!(
+            setup_refresh_help_text.contains(phrase),
+            "setup refresh help snapshot missing phrase `{phrase}`"
         );
     }
 
@@ -480,7 +562,12 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
         "canonical repo-local `.system/` inputs",
         "`inspect` is the packet proof surface",
         "`doctor` is the recovery surface",
-        "`setup` is still a placeholder",
+        "`setup` is the durable setup term",
+        "`setup init` is the concrete first-run subcommand",
+        "`setup refresh` preserves canonical files by default",
+        "scaffolding only",
+        "scaffolded setup path ends with `fill canonical artifact ...`",
+        "ready setup path ends with `system doctor`",
         "`pipeline compile --explain`",
         "next safe action",
         "bootstrap",
@@ -503,8 +590,12 @@ fn cli_command_hierarchy_doc_locks_front_door_rules() {
         .unwrap_or_else(|err| panic!("read {}: {}", hierarchy_path.display(), err));
 
     let required_phrases = [
-        "The front door is a guided setup experience.",
+        "The front door is the `setup` family.",
         "The stable operation name remains `setup`.",
+        "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "`setup refresh` preserves canonical files by default.",
+        "The shipped starter templates are scaffolding only.",
+        "Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.",
         "`generate` is the default ready-path command.",
         "`pipeline compile --id <pipeline-id> --stage <stage-id>`",
         "Commands anchor to the enclosing git root when one exists.",
@@ -564,7 +655,13 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         "`pipeline compile --explain` success is proof-only stdout",
         "`doctor` is still transitional.",
         "docs must not claim that it already shares the full trust-header anatomy",
-        "`setup` is placeholder-only in current reduced v1.",
+        "`setup` is a special M6 case: the setup family (`setup`, `setup init`, `setup refresh`) uses setup-family anatomy rather than packet anatomy.",
+        "`OBJECT: setup init` or `OBJECT: setup refresh`",
+        "`NEXT SAFE ACTION: fill canonical artifact at <required starter path>` or `NEXT SAFE ACTION: run \\`system doctor\\``",
+        "bare `system setup` must reveal which routed subcommand it selected",
+        "the shipped starter templates are scaffolding only",
+        "scaffolded setup success must say the repo still needs canonical truth before `system doctor` or packet work",
+        "`setup refresh` preserves canonical files by default",
         "## Presentation Failure And Parse-Validation Output",
     ];
 
@@ -572,6 +669,27 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         assert!(
             anatomy_text.contains(phrase),
             "CLI output anatomy doc missing phrase `{phrase}`"
+        );
+    }
+}
+
+#[test]
+fn root_readme_locks_setup_story_individually() {
+    let root = workspace_root();
+    let readme_path = root.join("README.md");
+    let readme_text = fs::read_to_string(&readme_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", readme_path.display(), err));
+
+    let required_phrases = [
+        "The shipped starter templates are scaffolding only.",
+        "Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.",
+        "This repository does not ship completed canonical `.system/` truth at repo root.",
+    ];
+
+    for phrase in required_phrases {
+        assert!(
+            readme_text.contains(phrase),
+            "README.md missing phrase `{phrase}`"
         );
     }
 }
@@ -587,7 +705,12 @@ fn design_doc_locks_cli_interaction_contract() {
         "This file is the canonical interaction contract for the reduced-v1 CLI product.",
         "the packet is the product",
         "`doctor` is the only canonical recovery verb",
-        "`setup` remains placeholder-only in the Rust CLI",
+        "the public setup family is `system setup`, `system setup init`, and `system setup refresh`",
+        "bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`",
+        "`setup` should stay one durable family name even when it routes between `setup init` and `setup refresh`",
+        "scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`",
+        "this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`",
+        "end with one exact next safe action: `fill canonical artifact ...` for scaffolded setup or `system doctor` for ready setup",
         "`doctor` still uses a transitional output anatomy",
         "`inspect` currently emits a self-referential ready-path next action",
         "update the relevant D1-D4 source document",
@@ -609,13 +732,16 @@ fn cli_operator_journey_doc_locks_revision_findings() {
         .unwrap_or_else(|err| panic!("read {}: {}", journey_path.display(), err));
 
     let required_phrases = [
+        "This M4/M5 journey now sits downstream of the M6 setup family.",
+        "`system setup` is the durable front door.",
+        "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "The shipped starter templates are scaffolding only.",
+        "Scaffolded setup-family flows end with a `fill canonical artifact ...` next safe action; ready setup-family flows end with `system doctor`.",
         "Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc",
         "The command is functionally correct and productically wrong.",
-        "The front door is named correctly, but the shipped command still stops one step before usefulness.",
         "## Revision Backlog",
         "R1, Align `doctor` to the interaction contract",
         "R2, Fix `inspect` ready-path next-action semantics",
-        "R3, Make the setup placeholder hand off to a real guided entry path",
     ];
 
     for phrase in required_phrases {
@@ -624,6 +750,54 @@ fn cli_operator_journey_doc_locks_revision_findings() {
             "CLI operator journey doc missing phrase `{phrase}`"
         );
     }
+}
+
+#[test]
+fn setup_family_contract_docs_lock_m6_story() {
+    let root = workspace_root();
+
+    let approved_surface_path = root.join("docs/contracts/C-01-approved-repo-surface.md");
+    let approved_surface = fs::read_to_string(&approved_surface_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", approved_surface_path.display(), err));
+    for phrase in [
+        "The supported setup story is the Rust CLI setup family: `system setup`, `system setup init`, and `system setup refresh`.",
+        "Bare `system setup` is the durable front door and routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "The shipped setup starter templates are scaffolding only.",
+        "Historical guided-setup or legacy-harness wording MAY remain only as explicit historical reference material. It MUST NOT read like active product authority.",
+    ] {
+        assert!(
+            approved_surface.contains(phrase),
+            "approved repo surface contract missing phrase `{phrase}`"
+        );
+    }
+
+    let command_surface_path =
+        root.join("docs/contracts/C-02-rust-workspace-and-cli-command-surface.md");
+    let command_surface = fs::read_to_string(&command_surface_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", command_surface_path.display(), err));
+    for phrase in [
+        "Help text and docs MUST make clear that the public setup family is `system setup`, `system setup init`, and `system setup refresh`.",
+        "Bare `system setup` MUST route to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it MUST route to `setup refresh`.",
+        "`setup refresh` MUST preserve canonical files by default.",
+        "The shipped setup starter templates MUST be treated as scaffolding only.",
+        "Scaffolded setup-family flows MUST end with `fill canonical artifact at <required starter path>`.",
+        "Ready setup-family flows MUST end with `system doctor`.",
+    ] {
+        assert!(
+            command_surface.contains(phrase),
+            "CLI command surface contract missing phrase `{phrase}`"
+        );
+    }
+
+    let blocker_contract_path =
+        root.join("docs/contracts/C-04-resolver-result-and-doctor-blockers.md");
+    let blocker_contract = fs::read_to_string(&blocker_contract_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", blocker_contract_path.display(), err));
+    let blocker_phrase = "Renderer-facing wording for missing-root, invalid-root, and required-artifact blockers SHOULD route the operator toward the setup family (`system setup`, `system setup init`, `system setup refresh`)";
+    assert!(
+        blocker_contract.contains(blocker_phrase),
+        "resolver blocker contract missing setup-family next-safe-action guidance"
+    );
 }
 
 fn workspace_root() -> PathBuf {

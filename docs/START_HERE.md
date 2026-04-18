@@ -6,6 +6,20 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 
 ## What is supported in reduced v1
 
+- **`setup` owns canonical `.system/` truth establishment and repair**.
+  - The public setup family is `system setup`, `system setup init`, and `system setup refresh`.
+  - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+  - `setup` is the durable term. `setup init` is only the concrete first-run subcommand name.
+  - The canonical setup-created starter files are exactly:
+    - `.system/charter/CHARTER.md`
+    - `.system/feature_spec/FEATURE_SPEC.md`
+    - `.system/project_context/PROJECT_CONTEXT.md`
+  - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
+  - The shipped starter templates are scaffolding only. Planning packets stay blocked until the required starter files are replaced with completed canonical truth.
+  - `setup refresh` preserves canonical files by default.
+  - `setup refresh --rewrite` rewrites only setup-owned starter files.
+  - `setup refresh --reset-state` resets only `.system/state/**`.
+  - Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
 - **Canonical inputs live in repo-local `.system/`**.
   - Required:
     - `.system/charter/CHARTER.md`
@@ -37,7 +51,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
-- **`setup`** is still a placeholder entrypoint and is not yet a real Rust setup flow.
+- **Missing-root, invalid-root, and missing-artifact recovery** should route the operator back to the setup family rather than to ad hoc file-creation instructions.
 
 Fixture orientation for operators:
 
@@ -87,6 +101,7 @@ Important boundaries:
 - `pipeline handoff emit` writes a derived downstream bundle; it does not promote bundle contents into canonical truth.
 - The named downstream consumer is expected to read only the emitted bundle on the happy path.
 - Transactional apply remains scoped to `system`-coordinated single-writer flows.
+- If canonical `.system/` truth is absent, invalid, or missing setup-owned starter files, route back to `system setup` or `system setup refresh` before retrying packet work.
 
 ## How to navigate this repo
 

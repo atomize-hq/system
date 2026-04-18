@@ -7,6 +7,7 @@ pub enum BlockerCategory {
     SystemRootSymlinkNotAllowed,
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
+    RequiredArtifactStarterTemplate,
     ArtifactReadError,
     FreshnessInvalid,
     BudgetRefused,
@@ -28,9 +29,10 @@ pub fn blocker_category_priority(category: BlockerCategory) -> u8 {
         BlockerCategory::SystemRootNotDir => 2,
         BlockerCategory::RequiredArtifactMissing => 3,
         BlockerCategory::RequiredArtifactEmpty => 4,
-        BlockerCategory::ArtifactReadError => 5,
-        BlockerCategory::FreshnessInvalid => 6,
-        BlockerCategory::BudgetRefused => 7,
-        BlockerCategory::UnsupportedRequest => 8,
+        BlockerCategory::RequiredArtifactStarterTemplate => 5,
+        BlockerCategory::ArtifactReadError => 6,
+        BlockerCategory::FreshnessInvalid => 7,
+        BlockerCategory::BudgetRefused => 8,
+        BlockerCategory::UnsupportedRequest => 9,
     }
 }

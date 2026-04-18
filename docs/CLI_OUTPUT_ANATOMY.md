@@ -27,7 +27,7 @@ This document depends on:
 - `pipeline compile` is a special M2 case: plain success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
 - `pipeline capture` is a special M3 case: preview and apply use stable capture-specific section ordering instead of the packet trust-header shape.
 - `doctor` is a special case in current reduced v1: its shipped anatomy is still transitional and does not yet use the same trust-header shape as `generate` and `inspect`.
-- `setup` is also a special case in current reduced v1: it is placeholder-only and therefore has placeholder anatomy, not full reduced-v1 runtime anatomy.
+- `setup` is a special M6 case: the setup family (`setup`, `setup init`, `setup refresh`) uses setup-family anatomy rather than packet anatomy.
 
 ## `generate` Anatomy
 
@@ -259,19 +259,56 @@ Capture refusal uses the same compact refusal posture as compile:
 
 ## `setup` Anatomy
 
-### Current shipped reduced-v1 anatomy
+### Setup-family success anatomy
 
-`setup` is placeholder-only in current reduced v1.
+First three lines:
 
-Current shape:
+1. `OUTCOME: SCAFFOLDED` or `OUTCOME: READY`
+2. `OBJECT: setup init` or `OBJECT: setup refresh`
+3. `NEXT SAFE ACTION: fill canonical artifact at <required starter path>` or `NEXT SAFE ACTION: run \`system doctor\``
 
-1. one placeholder line naming the contract version
-2. the fact that `setup` is a placeholder-only entrypoint
-3. the fact that planning packet generation, `inspect`, and `doctor` are implemented in reduced v1
+Section order:
+
+1. `## CANONICAL ROOT`
+2. `## STARTER FILES`
+3. `## STATE UPDATES`
+4. `## MODE NOTES`
+
+Rules:
+
+- bare `system setup` must reveal which routed subcommand it selected
+- `setup` remains the durable family term; `init` is only the concrete first-run subcommand name
+- the canonical setup-owned starter files are exactly:
+  - `.system/charter/CHARTER.md`
+  - `.system/feature_spec/FEATURE_SPEC.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
+- the shipped starter templates are scaffolding only; packet work stays blocked until the required starter files are replaced with completed canonical truth
+- scaffolded setup success must say the repo still needs canonical truth before `system doctor` or packet work
+- `setup refresh` preserves canonical files by default
+- `setup refresh --rewrite` reports only setup-owned starter-file rewrites
+- `setup refresh --reset-state` reports only `.system/state/**` resets
+
+### Setup-family refusal anatomy
+
+First three lines:
+
+1. `OUTCOME: REFUSED` or `OUTCOME: BLOCKED`
+2. `OBJECT: setup`
+3. `NEXT SAFE ACTION: <exact recovery action>`
+
+Section order:
+
+1. `## REFUSAL`
+2. `CATEGORY`
+3. `SUMMARY`
+4. `BROKEN SUBJECT`
+5. `NEXT SAFE ACTION`
 
 Important honesty rule:
 
-- Do not document `setup` as if it already has the full guided runtime anatomy. Today it is a placeholder entrypoint plus an external guided setup story.
+- Do not describe historical guided-setup or placeholder wording as active product authority.
+- If local help/runtime output still lags this setup-family contract, call that out as conformance debt rather than rewriting the docs back to the old story.
 
 ## Presentation Failure And Parse-Validation Output
 
@@ -282,7 +319,7 @@ Rules:
 - Keep them terse.
 - Name the failure type directly.
 - Do not pretend they are packet or proof output.
-- Do not let them redefine the normal anatomy for `generate`, `inspect`, `doctor`, or `setup`.
+- Do not let them redefine the normal anatomy for `generate`, `inspect`, `doctor`, or the setup family.
 
 ## Stable First-Impression Rules
 
@@ -292,7 +329,7 @@ For any surface that has the full reduced-v1 anatomy:
 - what object that applies to
 - what to do next
 
-For surfaces that are still transitional (`doctor`, `setup`), docs must say so explicitly rather than silently implying parity.
+For surfaces that are still transitional (`doctor`), docs must say so explicitly rather than silently implying parity.
 
 ## Downstream Dependencies
 

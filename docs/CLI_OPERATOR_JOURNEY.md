@@ -23,6 +23,19 @@ M5 adds:
 - one bundle-only consumer proof that writes a deterministic `SLICE_PLAN.md`
 - one before / after scorecard proving the same planning job completes with zero repo rereads
 
+## Setup-Family Context
+
+This M4/M5 journey now sits downstream of the M6 setup family.
+
+- `system setup` is the durable front door.
+- Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- `setup refresh` preserves canonical files by default, `--rewrite` rewrites only setup-owned starter files, and `--reset-state` resets only `.system/state/**`.
+- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`.
+- The shipped starter templates are scaffolding only. This journey starts only after the required starter files are replaced with completed canonical truth.
+- Scaffolded setup-family flows end with a `fill canonical artifact ...` next safe action; ready setup-family flows end with `system doctor`.
+
+This journey starts only after that setup-family work has established or repaired canonical `.system/` truth. Missing-root, invalid-root, and missing-artifact recovery belongs to the setup family rather than to raw file-creation instructions.
+
 ## Evidence Basis
 
 The current M4 proof is grounded in these repo surfaces:
@@ -211,7 +224,6 @@ language until that guard is updated:
 
 - Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc
 - The command is functionally correct and productically wrong.
-- The front door is named correctly, but the shipped command still stops one step before usefulness.
 
 ## Revision Backlog
 
@@ -219,4 +231,3 @@ Historical backlog preserved for the same drift-guard reason:
 
 - R1, Align `doctor` to the interaction contract
 - R2, Fix `inspect` ready-path next-action semantics
-- R3, Make the setup placeholder hand off to a real guided entry path

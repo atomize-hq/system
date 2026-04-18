@@ -206,6 +206,9 @@ pub fn render_packet_body(output: &mut String, packet: &PacketResult) {
 
 pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
     match action {
+        NextSafeAction::RunSetup => "run `system setup`".to_string(),
+        NextSafeAction::RunSetupInit => "run `system setup init`".to_string(),
+        NextSafeAction::RunSetupRefresh => "run `system setup refresh`".to_string(),
         NextSafeAction::CreateSystemRoot {
             canonical_repo_relative_path,
         } => format!("create canonical .system root at {canonical_repo_relative_path}"),
@@ -241,6 +244,7 @@ pub fn render_refusal_category(category: RefusalCategory) -> &'static str {
         RefusalCategory::SystemRootSymlinkNotAllowed => "SystemRootSymlinkNotAllowed",
         RefusalCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         RefusalCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
+        RefusalCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
         RefusalCategory::ArtifactReadError => "ArtifactReadError",
         RefusalCategory::FreshnessInvalid => "FreshnessInvalid",
         RefusalCategory::BudgetRefused => "BudgetRefused",
@@ -255,6 +259,7 @@ pub fn render_blocker_category(category: BlockerCategory) -> &'static str {
         BlockerCategory::SystemRootSymlinkNotAllowed => "SystemRootSymlinkNotAllowed",
         BlockerCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         BlockerCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
+        BlockerCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
         BlockerCategory::ArtifactReadError => "ArtifactReadError",
         BlockerCategory::FreshnessInvalid => "FreshnessInvalid",
         BlockerCategory::BudgetRefused => "BudgetRefused",

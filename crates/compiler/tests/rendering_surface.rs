@@ -104,13 +104,13 @@ fn render_markdown_keeps_trust_header_first_for_refusal_result() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: create canonical .system root at .system",
+            "NEXT SAFE ACTION: run `system setup`",
         ]
     );
     assert!(rendered.contains("## REFUSAL"));
     assert!(rendered.contains("CATEGORY: SystemRootMissing"));
     assert!(rendered.contains("BROKEN SUBJECT: policy system_root"));
-    assert!(rendered.contains("NEXT SAFE ACTION: create canonical .system root at .system"));
+    assert!(rendered.contains("NEXT SAFE ACTION: run `system setup`"));
     assert!(
         !rendered.contains("## PACKET BODY"),
         "refusal output should stay compact: {rendered}"

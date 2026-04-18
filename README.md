@@ -10,16 +10,23 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - The command-surface truth is [C-02 Rust Workspace and CLI Command Surface](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 - The interaction contract lives in [DESIGN.md](DESIGN.md).
 - The current top-level CLI surface is `setup`, `pipeline`, `generate`, `inspect`, and `doctor`.
-- `setup` is still placeholder-only.
+- The public setup family is `system setup`, `system setup init`, and `system setup refresh`.
+- Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- `setup` remains the durable product term. `init` is only the concrete first-run subcommand name.
+- `setup refresh` preserves canonical files by default. `setup refresh --rewrite` rewrites only setup-owned starter files, and `setup refresh --reset-state` resets only `.system/state/**`.
+- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`. `PROJECT_CONTEXT.md` is optional semantically, but setup still creates it as a starter file.
+- The shipped starter templates are scaffolding only. Packet work remains blocked until the required starter files are replaced with completed canonical truth.
+- Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
+- This repository does not ship completed canonical `.system/` truth at repo root. On a fresh clone, start with `system setup`; only after replacing starter text with real canonical truth does `system doctor` become the ready-path next step.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.
 - Stage `10` stays truthful: `pipeline compile` emits payload-only model input, external model output produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
 - `pipeline handoff emit --id <pipeline-id> --consumer <consumer-id>` is the shipped downstream handoff-emission wedge for the named consumer flow.
 
-Repo-specific note:
+Historical reference only:
 
-- This checkout includes pipeline runtime state under `.system/state/`, but it does not include the canonical `.system/charter/CHARTER.md` and `.system/feature_spec/FEATURE_SPEC.md` inputs required for a ready planning packet. In this repo root, `generate` and `inspect` therefore refuse until those canonical artifacts exist.
+- Earlier M4/M5 docs used the phrase "`setup` is still a placeholder". Treat that as superseded wording, not active product authority.
 
 ## Start Here
 
@@ -56,10 +63,12 @@ cargo run -p system-cli -- pipeline list
 cargo run -p system-cli -- pipeline show --id pipeline.foundation_inputs
 ```
 
-See the current transitional front door and recovery surface:
+See the M6 setup family and recovery handoff:
 
 ```bash
 cargo run -p system-cli -- setup
+cargo run -p system-cli -- setup init
+cargo run -p system-cli -- setup refresh
 cargo run -p system-cli -- doctor
 ```
 

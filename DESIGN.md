@@ -89,7 +89,7 @@ Deliberate risks, these are where the product gets its own face:
 
 - `doctor` should become a finished recovery product, not a raw diagnostic dump
 - `inspect` should stay audit-dense, even if that is less immediately friendly than mainstream CLI proof views
-- `setup` should be honest about being a handoff surface until Rust setup exists, instead of pretending the front door is already complete
+- `setup` should stay one durable family name even when it routes between `setup init` and `setup refresh`
 
 These risks are worth taking because the product wins on trust, not on surface-level friendliness.
 
@@ -129,9 +129,9 @@ The durable command names stay:
 - `inspect`
 - `doctor`
 
-### 5. Be honest about transitional surfaces
+### 5. Be honest about transitional surfaces and conformance gaps
 
-If a surface is still placeholder-only or still ships transitional output, say so plainly.
+If a surface still ships transitional output or a local runtime surface lags the contract, say so plainly.
 
 Do not document target-state behavior as if it already exists.
 
@@ -145,19 +145,29 @@ Role:
 
 Current reduced-v1 reality:
 
-- still placeholder-only in the Rust CLI
-- may still be delivered through an external guided setup experience
+- the public setup family is `system setup`, `system setup init`, and `system setup refresh`
+- bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`
+- `setup refresh` preserves canonical files by default
+- `setup refresh --rewrite` rewrites only the setup-owned starter files
+- `setup refresh --reset-state` resets only `.system/state/**`
+- scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`
+- the canonical setup-owned starter files are exactly:
+  - `.system/charter/CHARTER.md`
+  - `.system/feature_spec/FEATURE_SPEC.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
+- this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`
 
 Design rule:
 
-- keep `setup` as the stable operation name even while the experience layer evolves
-- a placeholder front door is acceptable only if it hands off to one exact current guided path
+- keep `setup` as the stable operation name even while the routed subcommand changes
+- keep `init` scoped to the concrete first-run subcommand name
 
 Finished interaction target:
 
-- acknowledge that Rust `setup` is still placeholder-only
-- name the guided setup path that currently owns truth establishment
-- end with one exact next safe action instead of a dead end
+- expose the routed subcommand when bare `system setup` selects one
+- keep setup-owned file semantics explicit: preserve by default, rewrite only starter files, reset only `.system/state/**`
+- end with one exact next safe action: `fill canonical artifact ...` for scaffolded setup or `system doctor` for ready setup
 
 ### `generate`
 
@@ -259,8 +269,8 @@ These are not the same thing.
 
 Experience layer:
 
-- guided setup
-- guided setup refresh
+- setup-init experience
+- setup-refresh experience
 - future assisted setup
 - future automated setup
 
@@ -297,8 +307,10 @@ The canonical front-door and routing rules live in [`docs/CLI_COMMAND_HIERARCHY.
 
 The highest-value hierarchy rules are:
 
-- the front door is a guided setup experience
+- the front door is the `setup` family
 - the stable operation name remains `setup`
+- `setup init` is the concrete first-run subcommand
+- bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise to `setup refresh`
 - `generate` is the default ready-path command
 - `inspect` is for packet proof
 - `pipeline compile --explain` is for compile proof
@@ -306,8 +318,9 @@ The highest-value hierarchy rules are:
 
 Repo-state routing:
 
-- missing canonical artifacts -> guided setup / `setup`
-- stale canonical artifacts -> guided setup refresh / `setup refresh`
+- missing or invalid canonical `.system/` truth -> `setup` / `setup init`
+- stale canonical artifacts -> `setup` / `setup refresh`
+- regenerate starter files only -> `setup refresh --rewrite`
 - ready repo -> `generate`
 - proof request -> `inspect`
 - unclear, contradictory, or multi-blocker state -> `doctor`
@@ -345,7 +358,7 @@ Current reduced-v1 interaction shape:
   - plain success is payload-only stdout
   - `--explain` is proof-only stdout
 - `doctor` is still transitional
-- `setup` is still placeholder-only
+- `setup` uses the setup-family anatomy rather than packet anatomy
 
 Design rule:
 
@@ -365,7 +378,7 @@ Do not let future-state intent leak into present-tense support claims.
 
 Examples:
 
-- say `setup` is the front door, but also say the Rust CLI setup path is still placeholder-only
+- say `setup` is the durable front door, and say `setup init` is only the concrete first-run subcommand
 - say `doctor` is the canonical recovery surface, but also say its shipped anatomy is still transitional
 - say `inspect` is the packet proof surface, and say compile proof lives on `pipeline compile --explain`
 - say `pipeline compile` is shipped for one bounded M2 target, but do not describe it as generic multi-stage compile support
@@ -404,7 +417,6 @@ That loop breaks when a surface feels semantically wrong even if the code is tec
 
 Current examples of semantically wrong behavior:
 
-- `setup` is honest but not useful enough
 - `inspect` gives a self-referential handoff
 - `doctor` exposes implementation-shaped output instead of a finished recovery report
 
@@ -434,7 +446,6 @@ Do this in order:
 
 These are acknowledged interaction-design debts, not hidden contradictions:
 
-- `setup` remains placeholder-only in the Rust CLI
 - `doctor` still uses a transitional output anatomy
 - `inspect` currently emits a self-referential ready-path next action
 

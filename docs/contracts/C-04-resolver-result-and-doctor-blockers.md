@@ -191,6 +191,7 @@ Each blocker MUST include:
 - `subject`: subject reference
 - `summary`: short human-readable string
 - `next_safe_action`: exactly one explicit recovery action
+- Renderer-facing wording for missing-root, invalid-root, and required-artifact blockers SHOULD route the operator toward the setup family (`system setup`, `system setup init`, `system setup refresh`) while preserving this contract's single-truth blocker semantics.
 
 ## Categories and Ordering Rules
 
@@ -206,6 +207,7 @@ Allowed refusal categories include:
 - `SystemRootSymlinkNotAllowed`
 - `RequiredArtifactMissing`
 - `RequiredArtifactEmpty`
+- `RequiredArtifactStarterTemplate`
 - `ArtifactReadError`
 - `FreshnessInvalid`
 - `BudgetRefused`
@@ -220,6 +222,7 @@ Allowed blocker categories include:
 - `SystemRootSymlinkNotAllowed`
 - `RequiredArtifactMissing`
 - `RequiredArtifactEmpty`
+- `RequiredArtifactStarterTemplate`
 - `ArtifactReadError`
 - `FreshnessInvalid`
 - `BudgetRefused`
@@ -237,10 +240,11 @@ When multiple refusal candidates exist, refusal ordering MUST be deterministic a
 | 3 | `SystemRootNotDir` |
 | 4 | `RequiredArtifactMissing` |
 | 5 | `RequiredArtifactEmpty` |
-| 6 | `ArtifactReadError` |
-| 7 | `FreshnessInvalid` |
-| 8 | `BudgetRefused` |
-| 9 | `UnsupportedRequest` |
+| 6 | `RequiredArtifactStarterTemplate` |
+| 7 | `ArtifactReadError` |
+| 8 | `FreshnessInvalid` |
+| 9 | `BudgetRefused` |
+| 10 | `UnsupportedRequest` |
 
 When multiple blockers exist, blocker ordering MUST be deterministic and MUST use this priority order (lowest number = highest priority):
 
@@ -251,10 +255,11 @@ When multiple blockers exist, blocker ordering MUST be deterministic and MUST us
 | 2 | `SystemRootNotDir` |
 | 3 | `RequiredArtifactMissing` |
 | 4 | `RequiredArtifactEmpty` |
-| 5 | `ArtifactReadError` |
-| 6 | `FreshnessInvalid` |
-| 7 | `BudgetRefused` |
-| 8 | `UnsupportedRequest` |
+| 5 | `RequiredArtifactStarterTemplate` |
+| 6 | `ArtifactReadError` |
+| 7 | `FreshnessInvalid` |
+| 8 | `BudgetRefused` |
+| 9 | `UnsupportedRequest` |
 
 ### Tie-break rules (stable ordering within a category)
 

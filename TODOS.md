@@ -74,25 +74,13 @@
 **Priority:** P1
 **Depends on:** Stable install smoke, release artifact naming, version tag convention
 
-### Canonical `.system/` Bootstrap Flow
-
-**What:** Ship a real bootstrap flow that creates the canonical repo-local `.system/` tree instead of leaving `setup` as a placeholder.
-
-**Why:** The current product requires `.system/` for `generate`, `inspect`, and `doctor`, but the CLI still does not give the operator a first-class way to initialize that state. That leaves the front door named correctly and functionally incomplete.
-
-**Context:** Reduced v1 already treats repo-local `.system/` as the only canonical planning input surface, and refusal behavior correctly stops on `SystemRootMissing` when that root does not exist. At the same time, `system setup` is still placeholder-only, so new repos hit a real product gap: the trust model is shipped, but the bootstrap path is not. This follow-on should add one boring, explicit initialization path that creates the required canonical directories and files, tells the operator exactly what was created, and aligns docs/help/recovery output around that path.
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** Stable canonical `.system/` contract, locked setup ownership boundary, stable startup routing language
-
 ### Post-Setup Onboarding Upgrade
 
-**What:** Extend the `setup` success path beyond the immediate `doctor` handoff with a richer onboarding flow once the Rust front door is stable.
+**What:** Extend the `setup` success path beyond the current scaffolded-or-ready handoff with a richer onboarding flow once the Rust front door is stable.
 
 **Why:** `M6` can honestly end at `system doctor`, but that still leaves a lot of operator guidance value on the table. After the front door is real, the next improvement is a tighter onboarding path that helps the operator move from scaffolded `.system/` files to a ready planning flow with less guesswork.
 
-**Context:** The current CEO review for post-`M5` work locked `setup init` to a scaffold-first bootstrap, a short checklist, and one explicit next command: `system doctor`. That keeps `M6` bounded and honest. It also intentionally defers a richer onboarding experience so the team does not mix front-door truth establishment with a bigger guidance or workflow-orchestration redesign. Revisit this after the Rust `setup` family is shipped, docs/help drift is updated, and the team has real usage feedback on where operators still get stuck after `doctor`.
+**Context:** The current setup family now establishes or refreshes canonical `.system/` truth, reports `SCAFFOLDED` while required starter templates still need real content, and reports `READY` once the repo can hand off to `system doctor`. That keeps `M6` bounded and honest. It also intentionally defers a richer onboarding experience so the team does not mix front-door truth establishment with a bigger guidance or workflow-orchestration redesign. Revisit this after the Rust `setup` family is shipped, docs/help drift is updated, and the team has real usage feedback on where operators still get stuck after the current scaffolded-or-ready handoff.
 
 **Effort:** S
 **Priority:** P2
@@ -217,7 +205,7 @@ Recommended implementation order for the remaining interaction backlog:
 
 **Target artifact:** Source-of-truth command hierarchy and entry-routing document plus downstream parity updates for docs, help text, onboarding examples, and tests.
 
-**Open decisions:** Whether `setup` remains the visible front door while Rust setup is placeholder-only, how nested repos and uninitialized repos should route, what the first-run default path is, and how `doctor` versus `setup refresh` is chosen as the next safe action.
+**Resolved decisions:** `setup` is the visible front door, bare `system setup` routes to `setup init` for absent or invalid canonical `.system/` truth and to `setup refresh` otherwise, and setup-family next safe actions now distinguish scaffolded repos from ready repos.
 
 **Research needed:** Repo scan of current routing language in `PLAN.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, CLI help, install smoke scripts, and recovery-path tests. Compare current behavior against the intended hierarchy and note contradictions.
 
@@ -387,38 +375,6 @@ Recommended implementation order for the remaining interaction backlog:
 **Priority:** P1
 **Depends on:** D6 findings
 
-#### R3: Make `setup` Hand Off To The Guided Setup Path
-
-**What:** Keep `setup` as the stable operation name, but make the placeholder surface hand the operator to the exact current guided setup experience until Rust setup exists.
-
-**Why:** The front door is named correctly, but the shipped placeholder still dead-ends instead of routing the operator into the real setup path.
-
-**Product target:** the first operator who tries `system setup` should hit an honest but useful handoff, not a technically correct dead end.
-
-**Implementation scope:**
-- identify and lock one canonical guided setup entry path while Rust setup remains placeholder-only
-- change the placeholder runtime copy so it states the current ownership boundary and prints one exact handoff
-- align `generate` refusal copy and startup docs with the same guided setup path where appropriate
-- document what changes again once Rust setup becomes real so this bridge does not calcify
-
-**Primary files:** `crates/cli/src/main.rs`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/CLI_COMMAND_HIERARCHY.md`, `docs/CLI_OPERATOR_JOURNEY.md`, `crates/cli/tests/help_drift_guard.rs`
-
-**Acceptance criteria:**
-- `system setup` still tells the truth about placeholder status
-- `system setup` also names one exact current guided setup path
-- top-level docs and help no longer leave setup ownership ambiguous
-- the same handoff language appears consistently wherever the product routes a missing-truth repo toward setup
-
-**Open implementation decision:** the repo currently names the guided setup story, but does not yet expose one exact entry command or document path. This task should resolve that ambiguity instead of rephrasing it.
-
-**Test coverage:**
-- help/runtime drift coverage for the chosen guided setup handoff
-- docs parity check for the same entry path across README, START_HERE, supported commands, and runtime output
-
-**Effort:** S
-**Priority:** P1
-**Depends on:** Existing setup ownership and entry routing work, D6 findings
-
 ## Post-Implementation Audit Follow-Ups
 
 ### Support Boundary Reconciliation
@@ -464,3 +420,13 @@ Recommended implementation order for the remaining interaction backlog:
 **Effort:** M
 **Priority:** P2
 **Depends on:** Setup ownership decision, packet body contract direction
+
+## Completed
+
+### Canonical `.system/` Bootstrap Flow
+
+**What:** Shipped the Rust-owned setup family that creates or refreshes canonical repo-local `.system/` truth through `system setup`, `system setup init`, and `system setup refresh`.
+
+**Why:** `generate`, `inspect`, and `doctor` already depended on canonical `.system/` inputs, so the product needed a real front door instead of a placeholder setup surface.
+
+**Completed:** v0.5.2.0 (2026-04-18)
