@@ -4258,16 +4258,21 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup init",
-        "STATUS: established canonical `.system/` root",
-        &[
-            "created .system/charter/CHARTER.md",
-            "created .system/feature_spec/FEATURE_SPEC.md",
-            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
-        ],
-        &[],
-        true,
-        Some("system setup init"),
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup init",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: established canonical `.system/` root",
+            starter_actions: &[
+                "created .system/charter/CHARTER.md",
+                "created .system/feature_spec/FEATURE_SPEC.md",
+                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: Some("system setup init"),
+        },
     );
 
     for path in [
@@ -4294,16 +4299,21 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup init",
-        "STATUS: established canonical `.system/` root",
-        &[
-            "created .system/charter/CHARTER.md",
-            "created .system/feature_spec/FEATURE_SPEC.md",
-            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
-        ],
-        &[],
-        true,
-        Some("system setup init"),
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup init",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: established canonical `.system/` root",
+            starter_actions: &[
+                "created .system/charter/CHARTER.md",
+                "created .system/feature_spec/FEATURE_SPEC.md",
+                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: Some("system setup init"),
+        },
     );
     assert!(root.join(".system/charter/CHARTER.md").is_file());
 }
@@ -4327,16 +4337,21 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup init",
-        "STATUS: established canonical `.system/` root",
-        &[
-            "created .system/charter/CHARTER.md",
-            "created .system/feature_spec/FEATURE_SPEC.md",
-            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
-        ],
-        &[],
-        true,
-        Some("system setup init"),
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup init",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: established canonical `.system/` root",
+            starter_actions: &[
+                "created .system/charter/CHARTER.md",
+                "created .system/feature_spec/FEATURE_SPEC.md",
+                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: Some("system setup init"),
+        },
     );
     assert!(
         external
@@ -4374,16 +4389,20 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup refresh",
-        "STATUS: reused canonical `.system/` root",
-        &[
-            "preserved .system/charter/CHARTER.md",
-            "preserved .system/feature_spec/FEATURE_SPEC.md",
-            "preserved .system/project_context/PROJECT_CONTEXT.md",
-        ],
-        &[],
-        false,
-        Some("system setup refresh"),
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: READY",
+            object: "setup refresh",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
+            root_status: "STATUS: reused canonical `.system/` root",
+            starter_actions: &[
+                "preserved .system/charter/CHARTER.md",
+                "preserved .system/feature_spec/FEATURE_SPEC.md",
+                "preserved .system/project_context/PROJECT_CONTEXT.md",
+            ],
+            state_updates: &[],
+            scaffold_guidance: false,
+            routed_command: Some("system setup refresh"),
+        },
     );
 
     assert_eq!(
@@ -4410,16 +4429,21 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup init",
-        "STATUS: established canonical `.system/` root",
-        &[
-            "created .system/charter/CHARTER.md",
-            "created .system/feature_spec/FEATURE_SPEC.md",
-            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
-        ],
-        &[],
-        true,
-        None,
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup init",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: established canonical `.system/` root",
+            starter_actions: &[
+                "created .system/charter/CHARTER.md",
+                "created .system/feature_spec/FEATURE_SPEC.md",
+                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: None,
+        },
     );
 }
 
@@ -4480,16 +4504,20 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup refresh",
-        "STATUS: reused canonical `.system/` root",
-        &[
-            "preserved .system/charter/CHARTER.md",
-            "preserved .system/feature_spec/FEATURE_SPEC.md",
-            "preserved .system/project_context/PROJECT_CONTEXT.md",
-        ],
-        &[],
-        false,
-        None,
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: READY",
+            object: "setup refresh",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
+            root_status: "STATUS: reused canonical `.system/` root",
+            starter_actions: &[
+                "preserved .system/charter/CHARTER.md",
+                "preserved .system/feature_spec/FEATURE_SPEC.md",
+                "preserved .system/project_context/PROJECT_CONTEXT.md",
+            ],
+            state_updates: &[],
+            scaffold_guidance: false,
+            routed_command: None,
+        },
     );
 }
 
@@ -4530,16 +4558,21 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup refresh",
-        "STATUS: reused canonical `.system/` root",
-        &[
-            "rewritten .system/charter/CHARTER.md",
-            "rewritten .system/feature_spec/FEATURE_SPEC.md",
-            "rewritten .system/project_context/PROJECT_CONTEXT.md",
-        ],
-        &[],
-        true,
-        None,
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup refresh",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: reused canonical `.system/` root",
+            starter_actions: &[
+                "rewritten .system/charter/CHARTER.md",
+                "rewritten .system/feature_spec/FEATURE_SPEC.md",
+                "rewritten .system/project_context/PROJECT_CONTEXT.md",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: None,
+        },
     );
 
     assert_ne!(
@@ -4598,21 +4631,25 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup refresh",
-        "STATUS: reused canonical `.system/` root",
-        &[
-            "preserved .system/charter/CHARTER.md",
-            "preserved .system/feature_spec/FEATURE_SPEC.md",
-            "preserved .system/project_context/PROJECT_CONTEXT.md",
-        ],
-        &[
-            "reset .system/state/pipeline",
-            "reset .system/state/pipeline/capture",
-            "reset .system/state/pipeline/capture/cache.yaml",
-            "reset .system/state/pipeline/pipeline.foundation_inputs.yaml",
-        ],
-        false,
-        None,
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: READY",
+            object: "setup refresh",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
+            root_status: "STATUS: reused canonical `.system/` root",
+            starter_actions: &[
+                "preserved .system/charter/CHARTER.md",
+                "preserved .system/feature_spec/FEATURE_SPEC.md",
+                "preserved .system/project_context/PROJECT_CONTEXT.md",
+            ],
+            state_updates: &[
+                "reset .system/state/pipeline",
+                "reset .system/state/pipeline/capture",
+                "reset .system/state/pipeline/capture/cache.yaml",
+                "reset .system/state/pipeline/pipeline.foundation_inputs.yaml",
+            ],
+            scaffold_guidance: false,
+            routed_command: None,
+        },
     );
 
     assert_eq!(
@@ -4703,16 +4740,21 @@ fn bare_setup_respects_nested_git_root_boundary() {
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_setup_success(
         &stdout,
-        "setup init",
-        "STATUS: established canonical `.system/` root",
-        &[
-            "created .system/charter/CHARTER.md",
-            "created .system/feature_spec/FEATURE_SPEC.md",
-            "created .system/project_context/PROJECT_CONTEXT.md (optional)",
-        ],
-        &[],
-        true,
-        Some("system setup init"),
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup init",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: established canonical `.system/` root",
+            starter_actions: &[
+                "created .system/charter/CHARTER.md",
+                "created .system/feature_spec/FEATURE_SPEC.md",
+                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: Some("system setup init"),
+        },
     );
 
     assert!(child_root.join(".system/charter/CHARTER.md").is_file());
@@ -4834,6 +4876,25 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
 
     let setup = run_in(root, &["setup"]);
     assert!(setup.status.success(), "setup should succeed");
+    let setup_stdout = String::from_utf8(setup.stdout).expect("stdout is utf-8");
+    assert_setup_success(
+        &setup_stdout,
+        SetupSuccessExpectation {
+            outcome: "OUTCOME: SCAFFOLDED",
+            object: "setup init",
+            next_safe_action:
+                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            root_status: "STATUS: established canonical `.system/` root",
+            starter_actions: &[
+                "created .system/charter/CHARTER.md",
+                "created .system/feature_spec/FEATURE_SPEC.md",
+                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+            ],
+            state_updates: &[],
+            scaffold_guidance: true,
+            routed_command: Some("system setup init"),
+        },
+    );
 
     let doctor_after_setup = run_in(root, &["doctor"]);
     assert!(
@@ -6035,25 +6096,28 @@ fn read_snapshot(filename: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()))
 }
 
-fn assert_setup_success(
-    stdout: &str,
-    expected_object: &str,
-    expected_root_status: &str,
-    expected_starter_actions: &[&str],
-    expected_state_updates: &[&str],
-    expect_fill_guidance: bool,
-    routed_command: Option<&str>,
-) {
+struct SetupSuccessExpectation<'a> {
+    outcome: &'a str,
+    object: &'a str,
+    next_safe_action: &'a str,
+    root_status: &'a str,
+    starter_actions: &'a [&'a str],
+    state_updates: &'a [&'a str],
+    scaffold_guidance: bool,
+    routed_command: Option<&'a str>,
+}
+
+fn assert_setup_success(stdout: &str, expected: SetupSuccessExpectation<'_>) {
     let lines: Vec<&str> = stdout.lines().collect();
     let mut index = 0;
 
     assert_eq!(
         lines.get(index).copied(),
-        Some("OUTCOME: READY"),
+        Some(expected.outcome),
         "{stdout}"
     );
     index += 1;
-    let expected_object_line = format!("OBJECT: {expected_object}");
+    let expected_object_line = format!("OBJECT: {}", expected.object);
     assert_eq!(
         lines.get(index).copied(),
         Some(expected_object_line.as_str()),
@@ -6062,7 +6126,7 @@ fn assert_setup_success(
     index += 1;
     assert_eq!(
         lines.get(index).copied(),
-        Some("NEXT SAFE ACTION: run `system doctor`"),
+        Some(expected.next_safe_action),
         "{stdout}"
     );
     index += 1;
@@ -6074,7 +6138,7 @@ fn assert_setup_success(
     index += 1;
     assert_eq!(
         lines.get(index).copied(),
-        Some(expected_root_status),
+        Some(expected.root_status),
         "{stdout}"
     );
     index += 1;
@@ -6085,7 +6149,7 @@ fn assert_setup_success(
     );
     index += 1;
 
-    for expected_action in expected_starter_actions {
+    for expected_action in expected.starter_actions {
         assert_eq!(
             lines.get(index).copied(),
             Some(*expected_action),
@@ -6100,11 +6164,11 @@ fn assert_setup_success(
         "{stdout}"
     );
     index += 1;
-    if expected_state_updates.is_empty() {
+    if expected.state_updates.is_empty() {
         assert_eq!(lines.get(index).copied(), Some("<none>"), "{stdout}");
         index += 1;
     } else {
-        for expected_update in expected_state_updates {
+        for expected_update in expected.state_updates {
             assert_eq!(
                 lines.get(index).copied(),
                 Some(*expected_update),
@@ -6116,7 +6180,7 @@ fn assert_setup_success(
 
     assert_eq!(lines.get(index).copied(), Some("## MODE NOTES"), "{stdout}");
     index += 1;
-    if let Some(routed_command) = routed_command {
+    if let Some(routed_command) = expected.routed_command {
         let expected = format!("ROUTED FROM: system setup -> {routed_command}");
         assert_eq!(
             lines.get(index).copied(),
@@ -6125,10 +6189,12 @@ fn assert_setup_success(
         );
         index += 1;
     }
-    if expect_fill_guidance {
+    if expected.scaffold_guidance {
         assert_eq!(
             lines.get(index).copied(),
-            Some("Fill the starter files with canonical truth before retrying packet work."),
+            Some(
+                "Required starter files still contain shipped scaffold text; replace canonical truth before running `system doctor` or packet work."
+            ),
             "{stdout}"
         );
         index += 1;

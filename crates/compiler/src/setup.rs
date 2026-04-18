@@ -63,7 +63,14 @@ pub struct SetupPlan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupOutcome {
     pub plan: SetupPlan,
-    pub next_command: String,
+    pub disposition: SetupDisposition,
+    pub next_safe_action: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetupDisposition {
+    Ready,
+    Scaffolded,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,9 +142,15 @@ pub fn run_setup(
         })?;
     }
 
+    let post_setup_artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
+    })?;
+    let disposition = setup_disposition(&post_setup_artifacts);
+
     Ok(SetupOutcome {
         plan: planned.plan,
-        next_command: SYSTEM_DOCTOR_COMMAND.to_string(),
+        disposition,
+        next_safe_action: setup_next_safe_action(&post_setup_artifacts, disposition),
     })
 }
 
@@ -461,6 +474,48 @@ fn setup_mutation_refusal(
         broken_subject,
         format!("repair the blocked target and rerun `{rerun_command}`"),
     )
+}
+
+fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
+    if first_required_starter_template_path(artifacts).is_some() {
+        SetupDisposition::Scaffolded
+    } else {
+        SetupDisposition::Ready
+    }
+}
+
+fn setup_next_safe_action(artifacts: &CanonicalArtifacts, disposition: SetupDisposition) -> String {
+    match disposition {
+        SetupDisposition::Ready => format!("run `{SYSTEM_DOCTOR_COMMAND}`"),
+        SetupDisposition::Scaffolded => format!(
+            "fill canonical artifact at {}",
+            first_required_starter_template_path(artifacts)
+                .expect("scaffolded setup outcome should identify a required starter template")
+        ),
+    }
+}
+
+fn first_required_starter_template_path(artifacts: &CanonicalArtifacts) -> Option<&'static str> {
+    canonical_artifact_descriptors()
+        .iter()
+        .filter(|descriptor| descriptor.required)
+        .find_map(|descriptor| {
+            artifact_for_kind(artifacts, descriptor.kind)
+                .identity
+                .matches_setup_starter_template
+                .then_some(descriptor.relative_path)
+        })
+}
+
+fn artifact_for_kind(
+    artifacts: &CanonicalArtifacts,
+    kind: crate::CanonicalArtifactKind,
+) -> &crate::CanonicalArtifact {
+    match kind {
+        crate::CanonicalArtifactKind::Charter => &artifacts.charter,
+        crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
+        crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
+    }
 }
 
 fn action_rank(action: &SetupAction) -> usize {

@@ -511,23 +511,15 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
         .iter()
         .filter(|action| action.label == system_compiler::SetupActionLabel::Reset)
         .collect::<Vec<_>>();
-    let should_fill_starters = starter_actions.iter().any(|action| {
-        matches!(
-            action.label,
-            system_compiler::SetupActionLabel::Created
-                | system_compiler::SetupActionLabel::Rewritten
-        )
-    });
-
-    out.push_str("OUTCOME: READY\n");
+    out.push_str(&format!(
+        "OUTCOME: {}\n",
+        setup_success_outcome_name(outcome.disposition)
+    ));
     out.push_str(&format!(
         "OBJECT: {}\n",
         setup_object_name(outcome.plan.resolved_mode)
     ));
-    out.push_str(&format!(
-        "NEXT SAFE ACTION: run `{}`\n",
-        outcome.next_command
-    ));
+    out.push_str(&format!("NEXT SAFE ACTION: {}\n", outcome.next_safe_action));
     out.push_str("## CANONICAL ROOT\n");
     out.push_str(match outcome.plan.resolved_mode {
         system_compiler::SetupMode::Init => "STATUS: established canonical `.system/` root\n",
@@ -560,14 +552,23 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
         out.push_str(setup_command_name(outcome.plan.resolved_mode));
         out.push('\n');
     }
-    if should_fill_starters {
-        out.push_str("Fill the starter files with canonical truth before retrying packet work.\n");
+    if outcome.disposition == system_compiler::SetupDisposition::Scaffolded {
+        out.push_str(
+            "Required starter files still contain shipped scaffold text; replace canonical truth before running `system doctor` or packet work.\n",
+        );
     }
     out.push_str(
         "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned.\n",
     );
 
     out.trim_end().to_string()
+}
+
+fn setup_success_outcome_name(disposition: system_compiler::SetupDisposition) -> &'static str {
+    match disposition {
+        system_compiler::SetupDisposition::Ready => "READY",
+        system_compiler::SetupDisposition::Scaffolded => "SCAFFOLDED",
+    }
 }
 
 fn render_setup_refusal(refusal: &system_compiler::SetupRefusal) -> String {

@@ -74,7 +74,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `setup refresh --reset-state` resets only `.system/state/**`.
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
 - The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the required starter files are replaced with completed canonical truth.
-- Successful setup flows end with `system doctor`.
+- Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.

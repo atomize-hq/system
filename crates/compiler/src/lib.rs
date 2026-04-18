@@ -108,8 +108,8 @@ pub use route_state::{
     ROUTE_STATE_SCHEMA_VERSION,
 };
 pub use setup::{
-    plan_setup, run_setup, SetupAction, SetupActionLabel, SetupMode, SetupOutcome, SetupPlan,
-    SetupRefusal, SetupRefusalKind, SetupRequest,
+    plan_setup, run_setup, SetupAction, SetupActionLabel, SetupDisposition, SetupMode,
+    SetupOutcome, SetupPlan, SetupRefusal, SetupRefusalKind, SetupRequest,
 };
 
 pub fn workspace_contract_version() -> &'static str {

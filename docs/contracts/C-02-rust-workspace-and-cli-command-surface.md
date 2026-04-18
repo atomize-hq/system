@@ -62,7 +62,8 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - `setup refresh --reset-state` MUST reset only `.system/state/**`.
 - `PROJECT_CONTEXT.md` MUST remain optional semantically for planning packets while still being created as a starter file by setup.
 - The shipped setup starter templates MUST be treated as scaffolding only. Required starter files MUST NOT satisfy planning readiness until the operator replaces them with completed canonical truth.
-- Successful setup-family flows MUST end with `system doctor`.
+- Scaffolded setup-family flows MUST end with `fill canonical artifact at <required starter path>`.
+- Ready setup-family flows MUST end with `system doctor`.
 - Help text MUST make clear that `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, `generate` is the packet surface, `inspect` is the packet proof surface, and `doctor` is the recovery surface.
 - Help text and command-surface copy MUST match the actual shipped boundary without underclaiming or overclaiming support.
 - `pipeline` MUST own route resolution, explicit stage compilation, and narrow pipeline-run state mutation for the supported wedge.
@@ -128,7 +129,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `pipeline compile` remains payload-only stdout, raw stage-10 compile payload is documented as refused by `pipeline capture` with `invalid_capture_input`, and stage `10` materialization is documented only as `compile -> external model output -> capture`.
 - [ ] `needs_project_context` remains documented as a manual `pipeline state set` plus `pipeline resolve` step rather than an automatic capture side effect.
 - [ ] Setup docs and help state that `setup refresh` preserves canonical files by default, that `--rewrite` touches only the three setup-owned starter files, and that `--reset-state` touches only `.system/state/**`.
-- [ ] Setup docs and help state that successful setup flows end with `system doctor`.
+- [ ] Setup docs and help state that scaffolded setup flows end with `fill canonical artifact at <required starter path>` and ready setup flows end with `system doctor`.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.
 - [ ] `doctor` is documented as the recovery surface.

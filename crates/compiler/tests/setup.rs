@@ -2,7 +2,7 @@ use std::fs;
 
 use system_compiler::{
     plan_setup, render_next_safe_action_value, resolve, run_setup, setup_starter_template_bytes,
-    ResolveRequest, SetupActionLabel, SetupMode, SetupRefusalKind, SetupRequest,
+    ResolveRequest, SetupActionLabel, SetupDisposition, SetupMode, SetupRefusalKind, SetupRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -51,7 +51,11 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
     .expect("setup init");
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
-    assert_eq!(outcome.next_command, "system doctor");
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
+    assert_eq!(
+        outcome.next_safe_action,
+        "fill canonical artifact at .system/charter/CHARTER.md"
+    );
     assert_eq!(
         outcome
             .plan
@@ -158,6 +162,7 @@ fn setup_init_repairs_file_backed_invalid_system_root() {
     .expect("setup init should repair invalid root");
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
     assert!(repo_root.join(".system").is_dir());
     for path in starter_paths() {
         assert!(
@@ -187,6 +192,7 @@ fn setup_auto_repairs_symlinked_invalid_system_root() {
         .expect("auto setup should repair symlinked invalid root");
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
     assert!(repo_root.join(".system").is_dir());
     assert!(
         external
@@ -238,6 +244,50 @@ fn setup_refresh_preserves_existing_canonical_file_bytes_by_default() {
     )
     .expect("setup refresh");
 
+    assert_eq!(outcome.disposition, SetupDisposition::Ready);
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert!(outcome
+        .plan
+        .actions
+        .iter()
+        .all(|action| action.label == SetupActionLabel::Preserved));
+    for (path, expected) in before {
+        assert_eq!(
+            fs::read(repo_root.join(path)).expect("read after"),
+            expected
+        );
+    }
+}
+
+#[test]
+fn setup_refresh_preserves_required_starter_templates_but_stays_scaffolded() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    for path in starter_paths() {
+        write_file(&repo_root.join(path), starter_template_bytes_for_path(path));
+    }
+
+    let before = starter_paths()
+        .into_iter()
+        .map(|path| (path, fs::read(repo_root.join(path)).expect("read before")))
+        .collect::<Vec<_>>();
+
+    let outcome = run_setup(
+        repo_root,
+        &SetupRequest {
+            mode: SetupMode::Refresh,
+            rewrite: false,
+            reset_state: false,
+        },
+    )
+    .expect("setup refresh");
+
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
+    assert_eq!(
+        outcome.next_safe_action,
+        "fill canonical artifact at .system/charter/CHARTER.md"
+    );
     assert!(outcome
         .plan
         .actions
@@ -271,6 +321,11 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
     )
     .expect("setup refresh");
 
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
+    assert_eq!(
+        outcome.next_safe_action,
+        "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+    );
     assert_eq!(
         fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
         b"keep this charter\n"
@@ -331,6 +386,11 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     )
     .expect("setup refresh rewrite");
 
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
+    assert_eq!(
+        outcome.next_safe_action,
+        "fill canonical artifact at .system/charter/CHARTER.md"
+    );
     assert!(outcome
         .plan
         .actions
@@ -391,6 +451,8 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     )
     .expect("setup refresh reset-state");
 
+    assert_eq!(outcome.disposition, SetupDisposition::Ready);
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
     assert_eq!(
         fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
         charter_before
@@ -520,6 +582,45 @@ fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
     let outcome = run_setup(run_root, &request).expect("run setup");
 
     assert_eq!(planned.actions, outcome.plan.actions);
+    assert_eq!(outcome.disposition, SetupDisposition::Ready);
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+}
+
+#[test]
+fn setup_refresh_ready_ignores_optional_project_context_starter_template() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        b"custom charter\n",
+    );
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"custom feature\n",
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        starter_template_bytes_for_path(".system/project_context/PROJECT_CONTEXT.md"),
+    );
+
+    let outcome = run_setup(
+        repo_root,
+        &SetupRequest {
+            mode: SetupMode::Refresh,
+            rewrite: false,
+            reset_state: false,
+        },
+    )
+    .expect("setup refresh");
+
+    assert_eq!(outcome.disposition, SetupDisposition::Ready);
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert!(outcome
+        .plan
+        .actions
+        .iter()
+        .all(|action| action.label == SetupActionLabel::Preserved));
 }
 
 #[test]

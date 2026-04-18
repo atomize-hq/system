@@ -19,7 +19,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `setup refresh` preserves canonical files by default.
   - `setup refresh --rewrite` rewrites only setup-owned starter files.
   - `setup refresh --reset-state` resets only `.system/state/**`.
-  - Successful setup flows end with `system doctor`.
+  - Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
 - **Canonical inputs live in repo-local `.system/`**.
   - Required:
     - `.system/charter/CHARTER.md`

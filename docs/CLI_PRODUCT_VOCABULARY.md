@@ -120,7 +120,8 @@ These phrases should remain stable across top-level docs and help text unless th
 - "`setup refresh` preserves canonical files by default"
 - "`setup refresh --rewrite` rewrites only setup-owned starter files"
 - "`setup refresh --reset-state` resets only `.system/state/**`"
-- "success path ends with `system doctor`"
+- "scaffolded setup path ends with `fill canonical artifact ...`"
+- "ready setup path ends with `system doctor`"
 - `planning packet generation`
 - `canonical repo-local `.system/` inputs`
 - `fixture-backed execution demo`
