@@ -19,6 +19,20 @@ const DEMO_EXECUTION_PACKET_ID: &str = "execution.demo.packet";
 const LIVE_EXECUTION_PACKET_ID: &str = "execution.live.packet";
 const SYSTEM_ROOT_PATH: &str = ".system";
 
+fn author_or_fill_next_safe_action(
+    kind: CanonicalArtifactKind,
+    canonical_repo_relative_path: &'static str,
+) -> NextSafeAction {
+    match kind {
+        CanonicalArtifactKind::Charter => NextSafeAction::RunAuthorCharter,
+        CanonicalArtifactKind::ProjectContext | CanonicalArtifactKind::FeatureSpec => {
+            NextSafeAction::FillCanonicalArtifact {
+                canonical_repo_relative_path,
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveRequest {
     pub budget_policy: BudgetPolicy,
@@ -615,9 +629,10 @@ fn compute_refusal(
                         kind: artifact.kind,
                         canonical_repo_relative_path: artifact.relative_path,
                     },
-                    next_safe_action: NextSafeAction::FillCanonicalArtifact {
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
+                    next_safe_action: author_or_fill_next_safe_action(
+                        artifact.kind,
+                        artifact.relative_path,
+                    ),
                 });
             }
             crate::ArtifactPresence::PresentNonEmpty => {
@@ -631,9 +646,10 @@ fn compute_refusal(
                             kind: artifact.kind,
                             canonical_repo_relative_path: artifact.relative_path,
                         },
-                        next_safe_action: NextSafeAction::FillCanonicalArtifact {
-                            canonical_repo_relative_path: artifact.relative_path,
-                        },
+                        next_safe_action: author_or_fill_next_safe_action(
+                            artifact.kind,
+                            artifact.relative_path,
+                        ),
                     });
                 }
             }
@@ -838,9 +854,10 @@ fn compute_blockers(
                         canonical_repo_relative_path: artifact.relative_path,
                     },
                     summary: "required canonical artifact is empty".to_string(),
-                    next_safe_action: NextSafeAction::FillCanonicalArtifact {
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
+                    next_safe_action: author_or_fill_next_safe_action(
+                        artifact.kind,
+                        artifact.relative_path,
+                    ),
                 }),
                 crate::ArtifactPresence::PresentNonEmpty => {
                     if artifact.matches_setup_starter_template {
@@ -853,9 +870,10 @@ fn compute_blockers(
                             summary:
                                 "required canonical artifact still contains the shipped starter template"
                                     .to_string(),
-                            next_safe_action: NextSafeAction::FillCanonicalArtifact {
-                                canonical_repo_relative_path: artifact.relative_path,
-                            },
+                            next_safe_action: author_or_fill_next_safe_action(
+                                artifact.kind,
+                                artifact.relative_path,
+                            ),
                         });
                     }
                 }

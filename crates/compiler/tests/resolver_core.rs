@@ -129,10 +129,14 @@ fn required_starter_template_blocks_without_ready_packet() {
         refusal.category,
         system_compiler::RefusalCategory::RequiredArtifactStarterTemplate
     );
-    assert!(result
-        .blockers
-        .iter()
-        .any(|blocker| blocker.category == BlockerCategory::RequiredArtifactStarterTemplate));
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "run `system author charter`"
+    );
+    assert!(result.blockers.iter().any(|blocker| blocker.category
+        == BlockerCategory::RequiredArtifactStarterTemplate
+        && render_next_safe_action_value(&blocker.next_safe_action)
+            == "run `system author charter`"));
     assert!(result.packet_result.sections.is_empty());
 }
 

@@ -52,10 +52,7 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(
-        outcome.next_safe_action,
-        "fill canonical artifact at .system/charter/CHARTER.md"
-    );
+    assert_eq!(outcome.next_safe_action, "run `system author charter`");
     assert_eq!(
         outcome
             .plan
@@ -284,10 +281,7 @@ fn setup_refresh_preserves_required_starter_templates_but_stays_scaffolded() {
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(
-        outcome.next_safe_action,
-        "fill canonical artifact at .system/charter/CHARTER.md"
-    );
+    assert_eq!(outcome.next_safe_action, "run `system author charter`");
     assert!(outcome
         .plan
         .actions
@@ -387,10 +381,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     .expect("setup refresh rewrite");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(
-        outcome.next_safe_action,
-        "fill canonical artifact at .system/charter/CHARTER.md"
-    );
+    assert_eq!(outcome.next_safe_action, "run `system author charter`");
     assert!(outcome
         .plan
         .actions

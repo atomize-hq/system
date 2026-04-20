@@ -7,12 +7,12 @@ use system_compiler::{
     synthesize_charter_markdown_with, validate_charter_structured_input, AuthorCharterRefusalKind,
     CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
     CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExpectedLifetime,
-    CharterExceptionsInput, CharterObservabilityThreshold, CharterOperationalRealityInput,
+    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
+    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
     CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls,
-    CharterRuntimeEnvironment, CharterStructuredInput, CharterSurface, CharterSynthesizer,
-    CharterSynthesisError, CharterSynthesisRequest, SetupRequest,
+    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
+    CharterStructuredInput, CharterSurface, CharterSynthesisError, CharterSynthesisRequest,
+    CharterSynthesizer, SetupRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -205,7 +205,10 @@ fn validate_structured_input_refuses_on_incomplete_required_fields() {
 
     let err = validate_charter_structured_input(&input)
         .expect_err("incomplete structured input should refuse");
-    assert_eq!(err.kind, AuthorCharterRefusalKind::IncompleteStructuredInput);
+    assert_eq!(
+        err.kind,
+        AuthorCharterRefusalKind::IncompleteStructuredInput
+    );
     assert!(err.summary.contains("project.name"));
     assert!(err.summary.contains("dimensions[0].raise_the_bar_triggers"));
 }
@@ -219,7 +222,10 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let result = author_charter_with_synthesizer(dir.path(), &valid_input(), &synthesizer)
         .expect("author charter");
 
-    assert_eq!(result.canonical_repo_relative_path, ".system/charter/CHARTER.md");
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
     assert_eq!(
         std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
             .expect("canonical charter"),
@@ -288,8 +294,8 @@ fn shared_synthesis_request_is_used_by_future_interactive_and_deterministic_call
         synthesize_charter_markdown_with(dir.path(), &input, &synthesizer).expect("synthesize");
     assert_eq!(synthesized, "# Engineering Charter — System\n");
 
-    let _ = author_charter_with_synthesizer(dir.path(), &input, &synthesizer)
-        .expect("author charter");
+    let _ =
+        author_charter_with_synthesizer(dir.path(), &input, &synthesizer).expect("author charter");
 
     let requests = synthesizer.requests();
     assert_eq!(requests.len(), 2);

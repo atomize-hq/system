@@ -1,0 +1,7 @@
+Author canonical `.system/charter/CHARTER.md`
+
+Usage: system author charter [OPTIONS]
+
+Options:
+      --from-inputs <path|->  Read normalized structured inputs from a YAML file or `-` for stdin
+  -h, --help                  Print help

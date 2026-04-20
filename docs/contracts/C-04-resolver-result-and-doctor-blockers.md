@@ -191,7 +191,8 @@ Each blocker MUST include:
 - `subject`: subject reference
 - `summary`: short human-readable string
 - `next_safe_action`: exactly one explicit recovery action
-- Renderer-facing wording for missing-root, invalid-root, and required-artifact blockers SHOULD route the operator toward the setup family (`system setup`, `system setup init`, `system setup refresh`) while preserving this contract's single-truth blocker semantics.
+- Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family (`system setup`, `system setup init`, `system setup refresh`) while preserving this contract's single-truth blocker semantics.
+- Renderer-facing wording for charter-specific empty or starter-template required-artifact blockers SHOULD route the operator toward `system author charter` while preserving this contract's single-truth blocker semantics.
 
 ## Categories and Ordering Rules
 

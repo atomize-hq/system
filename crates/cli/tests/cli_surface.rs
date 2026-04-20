@@ -1753,30 +1753,30 @@ fn help_lists_setup_first() {
     let stdout = String::from_utf8(output.stdout).expect("help is utf-8");
     let command_lines = command_section_lines(&stdout);
 
-    assert_eq!(
-        command_lines.len(),
-        5,
-        "expected five command lines in help"
-    );
+    assert_eq!(command_lines.len(), 6, "expected six command lines in help");
     assert!(
         command_lines[0].starts_with("setup "),
         "setup should be first: {command_lines:?}"
     );
     assert!(
-        command_lines[1].starts_with("pipeline "),
-        "pipeline should be second: {command_lines:?}"
+        command_lines[1].starts_with("author "),
+        "author should be second: {command_lines:?}"
     );
     assert!(
-        command_lines[2].starts_with("generate "),
-        "generate should be third: {command_lines:?}"
+        command_lines[2].starts_with("pipeline "),
+        "pipeline should be third: {command_lines:?}"
     );
     assert!(
-        command_lines[3].starts_with("inspect "),
-        "inspect should be fourth: {command_lines:?}"
+        command_lines[3].starts_with("generate "),
+        "generate should be fourth: {command_lines:?}"
     );
     assert!(
-        command_lines[4].starts_with("doctor "),
-        "doctor should be fifth: {command_lines:?}"
+        command_lines[4].starts_with("inspect "),
+        "inspect should be fifth: {command_lines:?}"
+    );
+    assert!(
+        command_lines[5].starts_with("doctor "),
+        "doctor should be sixth: {command_lines:?}"
     );
 }
 
@@ -4305,8 +4305,7 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4346,8 +4345,7 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4384,8 +4382,7 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4476,8 +4473,7 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4605,8 +4601,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup refresh",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "rewritten .system/charter/CHARTER.md",
@@ -4787,8 +4782,7 @@ fn bare_setup_respects_nested_git_root_boundary() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4958,8 +4952,7 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action:
-                "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4993,7 +4986,7 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: fill canonical artifact at .system/charter/CHARTER.md",
+            "NEXT SAFE ACTION: run `system author charter`",
         ],
     );
     assert!(generate_stdout.contains("CATEGORY: RequiredArtifactStarterTemplate"));

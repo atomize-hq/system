@@ -265,7 +265,7 @@ First three lines:
 
 1. `OUTCOME: SCAFFOLDED` or `OUTCOME: READY`
 2. `OBJECT: setup init` or `OBJECT: setup refresh`
-3. `NEXT SAFE ACTION: fill canonical artifact at <required starter path>` or `NEXT SAFE ACTION: run \`system doctor\``
+3. `NEXT SAFE ACTION: run \`system author charter\`` or `NEXT SAFE ACTION: run \`system doctor\``
 
 Section order:
 
@@ -284,6 +284,7 @@ Rules:
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
 - the shipped starter templates are scaffolding only; packet work stays blocked until the required starter files are replaced with completed canonical truth
+- scaffolded setup success routes to the charter authoring surface, not to raw blank-file editing guidance
 - scaffolded setup success must say the repo still needs canonical truth before `system doctor` or packet work
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` reports only setup-owned starter-file rewrites

@@ -379,7 +379,11 @@ pub fn validate_charter_structured_input(
     if input.posture.rubric_scale.trim() != "1-5" {
         issues.push("posture.rubric_scale must be `1-5`".to_string());
     }
-    require_level("posture.baseline_level", input.posture.baseline_level, &mut issues);
+    require_level(
+        "posture.baseline_level",
+        input.posture.baseline_level,
+        &mut issues,
+    );
     require_non_empty_list(
         "posture.baseline_rationale",
         &input.posture.baseline_rationale,
@@ -423,7 +427,11 @@ pub fn validate_charter_structured_input(
             &dimension.allowed_shortcuts,
             &mut issues,
         );
-        require_non_empty_list(&format!("{prefix}.red_lines"), &dimension.red_lines, &mut issues);
+        require_non_empty_list(
+            &format!("{prefix}.red_lines"),
+            &dimension.red_lines,
+            &mut issues,
+        );
     }
     for required in CharterDimensionName::all() {
         if !seen.contains(required) {
@@ -434,7 +442,11 @@ pub fn validate_charter_structured_input(
         }
     }
 
-    require_non_empty_list("exceptions.approvers", &input.exceptions.approvers, &mut issues);
+    require_non_empty_list(
+        "exceptions.approvers",
+        &input.exceptions.approvers,
+        &mut issues,
+    );
     require_non_empty(
         "exceptions.record_location",
         &input.exceptions.record_location,
@@ -446,7 +458,11 @@ pub fn validate_charter_structured_input(
         &mut issues,
     );
 
-    require_non_empty("debt_tracking.system", &input.debt_tracking.system, &mut issues);
+    require_non_empty(
+        "debt_tracking.system",
+        &input.debt_tracking.system,
+        &mut issues,
+    );
     require_non_empty(
         "debt_tracking.review_cadence",
         &input.debt_tracking.review_cadence,
@@ -454,7 +470,11 @@ pub fn validate_charter_structured_input(
     );
 
     if input.decision_records.enabled {
-        require_non_empty("decision_records.path", &input.decision_records.path, &mut issues);
+        require_non_empty(
+            "decision_records.path",
+            &input.decision_records.path,
+            &mut issues,
+        );
         require_non_empty(
             "decision_records.format",
             &input.decision_records.format,
@@ -505,11 +525,7 @@ pub fn synthesize_charter_markdown(
     repo_root: impl AsRef<Path>,
     input: &CharterStructuredInput,
 ) -> Result<String, AuthorCharterRefusal> {
-    synthesize_charter_markdown_with(
-        repo_root,
-        input,
-        &UnifiedAgentCharterSynthesizer::default(),
-    )
+    synthesize_charter_markdown_with(repo_root, input, &UnifiedAgentCharterSynthesizer)
 }
 
 pub fn synthesize_charter_markdown_with(
@@ -544,7 +560,7 @@ pub fn author_charter(
     repo_root: impl AsRef<Path>,
     input: &CharterStructuredInput,
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
-    author_charter_with_synthesizer(repo_root, input, &UnifiedAgentCharterSynthesizer::default())
+    author_charter_with_synthesizer(repo_root, input, &UnifiedAgentCharterSynthesizer)
 }
 
 pub fn author_charter_with_synthesizer(
@@ -564,20 +580,19 @@ pub fn author_charter_with_synthesizer(
     validate_charter_write_target(repo_root)?;
 
     let markdown = synthesize_charter_markdown_with(repo_root, input, synthesizer)?;
-    write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes()).map_err(
-        |err| AuthorCharterRefusal {
+    write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
+        .map_err(|err| AuthorCharterRefusal {
             kind: AuthorCharterRefusalKind::MutationRefused,
             summary: format_repo_mutation_error(CANONICAL_CHARTER_REPO_PATH, err),
             broken_subject: "canonical charter write target".to_string(),
             next_safe_action:
                 "repair the blocked canonical charter path and retry `system author charter`"
                     .to_string(),
-        },
-    )?;
+        })?;
 
     Ok(AuthorCharterResult {
         canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,
-        bytes_written: markdown.as_bytes().len(),
+        bytes_written: markdown.len(),
     })
 }
 
@@ -622,8 +637,8 @@ fn validate_authoring_preconditions(
             kind: AuthorCharterRefusalKind::ExistingCanonicalTruth,
             summary: "unexpected canonical artifact identity for charter authoring".to_string(),
             broken_subject: "canonical charter truth".to_string(),
-            next_safe_action: "inspect canonical artifact metadata and retry `system author charter`"
-                .to_string(),
+            next_safe_action:
+                "inspect canonical artifact metadata and retry `system author charter`".to_string(),
         });
     }
 
@@ -780,7 +795,9 @@ impl CharterSynthesizer for UnifiedAgentCharterSynthesizer {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .map_err(|err| CharterSynthesisError::new(format!("tokio runtime init failed: {err}")))?;
+            .map_err(|err| {
+                CharterSynthesisError::new(format!("tokio runtime init failed: {err}"))
+            })?;
         runtime.block_on(run_codex_charter_synthesis(repo_root, request))
     }
 }
@@ -804,7 +821,9 @@ async fn run_codex_charter_synthesis(
         .await
         .map_err(|err| CharterSynthesisError::new(err.to_string()))?;
 
-    let AgentWrapperCompletion { status, final_text, .. } = collect_completion(handle).await?;
+    let AgentWrapperCompletion {
+        status, final_text, ..
+    } = collect_completion(handle).await?;
     if !status.success() {
         return Err(CharterSynthesisError::new(format!(
             "codex backend exited with status {status}"
@@ -813,7 +832,9 @@ async fn run_codex_charter_synthesis(
     let final_text = final_text
         .map(|text| text.trim().to_string())
         .filter(|text| !text.is_empty())
-        .ok_or_else(|| CharterSynthesisError::new("codex backend returned no final charter text"))?;
+        .ok_or_else(|| {
+            CharterSynthesisError::new("codex backend returned no final charter text")
+        })?;
     Ok(final_text)
 }
 

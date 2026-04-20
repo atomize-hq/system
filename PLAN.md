@@ -39,6 +39,8 @@ That means:
 
 This repo remains a compiler/generator product, not a chat runtime. The point of the wedge is to remove the blank-file moment after setup with one boring, exact, reproducible authoring path.
 
+The reduced-v1 pipeline-routing contract remains intentionally narrow: activation clauses use only `variables.<name> == true|false`.
+
 ## Exact Shipped Behavior
 
 The milestone is only done when all of the following are true:

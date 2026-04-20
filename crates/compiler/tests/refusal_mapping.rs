@@ -102,7 +102,7 @@ fn refusal_required_artifact_starter_template() {
     );
     assert_eq!(
         render_next_safe_action_value(&refusal.next_safe_action),
-        "fill canonical artifact at .system/charter/CHARTER.md"
+        "run `system author charter`"
     );
 }
 

@@ -74,7 +74,12 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `setup refresh --reset-state` resets only `.system/state/**`.
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
 - The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the required starter files are replaced with completed canonical truth.
-- Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
+- Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
+- `author` owns canonical content authoring for setup-created starter truth.
+- `author` is the charter authoring surface.
+- The first shipped authoring wedge is `system author charter`.
+- `system author charter` is the human-guided surface.
+- `system author charter --from-inputs <path|->` is the agent and automation surface.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.
@@ -104,7 +109,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 
 ## What to expect right now
 
-- The currently shipped binary exposes `pipeline` as the reviewed operator surface alongside `setup`, `generate`, `inspect`, and `doctor`.
+- The currently shipped binary exposes `author` between `setup` and `pipeline`, alongside `generate`, `inspect`, and `doctor`.
 - `pipeline` now includes one explicit stage compilation wedge in M2 and one explicit writer wedge in M3 without widening into generic multi-stage compile or run support.
 - The documented `pipeline.foundation_inputs` path is `04` capture -> `05` capture -> manual `state set` -> `resolve` -> conditional `06` capture -> `resolve` -> `07` capture -> `10` compile -> external model output -> capture.
 - The downstream adoption extension to that path is explicit: after stage-10 capture, `pipeline handoff emit` writes the derived handoff bundle for `feature-slice-decomposer`.

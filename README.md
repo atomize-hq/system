@@ -9,14 +9,14 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - The governing repo-surface truth is [C-01 Approved Repo Surface](docs/contracts/C-01-approved-repo-surface.md).
 - The command-surface truth is [C-02 Rust Workspace and CLI Command Surface](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
 - The interaction contract lives in [DESIGN.md](DESIGN.md).
-- The current top-level CLI surface is `setup`, `pipeline`, `generate`, `inspect`, and `doctor`.
+- The current top-level CLI surface is `setup`, `author`, `pipeline`, `generate`, `inspect`, and `doctor`.
 - The public setup family is `system setup`, `system setup init`, and `system setup refresh`.
 - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 - `setup` remains the durable product term. `init` is only the concrete first-run subcommand name.
 - `setup refresh` preserves canonical files by default. `setup refresh --rewrite` rewrites only setup-owned starter files, and `setup refresh --reset-state` resets only `.system/state/**`.
 - The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`. `PROJECT_CONTEXT.md` is optional semantically, but setup still creates it as a starter file.
 - The shipped starter templates are scaffolding only. Packet work remains blocked until the required starter files are replaced with completed canonical truth.
-- Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
+- Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
 - This repository does not ship completed canonical `.system/` truth at repo root. On a fresh clone, start with `system setup`; only after replacing starter text with real canonical truth does `system doctor` become the ready-path next step.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.

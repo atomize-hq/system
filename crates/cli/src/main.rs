@@ -1,5 +1,6 @@
 use clap::{CommandFactory, Parser, Subcommand};
-use std::io::Read;
+use std::fs;
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -27,8 +28,8 @@ fn main() -> ExitCode {
     name = "system",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `author` is the charter authoring surface, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `author` is the charter authoring surface. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -39,6 +40,8 @@ struct Cli {
 enum Command {
     /// Initialize or refresh canonical repo-local `.system/` inputs.
     Setup(SetupArgs),
+    /// Human-guided and deterministic charter authoring surfaces.
+    Author(AuthorArgs),
     /// Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations.
     Pipeline(PipelineArgs),
     /// Generate a reduced-v1 packet.
@@ -53,6 +56,7 @@ impl Command {
     fn run(self) -> ExitCode {
         match self {
             Command::Setup(args) => setup(args),
+            Command::Author(args) => author(args),
             Command::Pipeline(args) => pipeline(args),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
@@ -83,6 +87,25 @@ struct SetupRefreshArgs {
     /// Reset only `.system/state/**`.
     #[arg(long = "reset-state")]
     reset_state: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct AuthorArgs {
+    #[command(subcommand)]
+    command: Option<AuthorCommand>,
+}
+
+#[derive(Subcommand, Debug)]
+enum AuthorCommand {
+    /// Author canonical `.system/charter/CHARTER.md`.
+    Charter(AuthorCharterArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct AuthorCharterArgs {
+    /// Read normalized structured inputs from a YAML file or `-` for stdin.
+    #[arg(long = "from-inputs", value_name = "path|-")]
+    from_inputs: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -448,6 +471,792 @@ fn generate(args: RequestArgs) -> ExitCode {
     } else {
         ExitCode::from(1)
     }
+}
+
+fn author(args: AuthorArgs) -> ExitCode {
+    match args.command {
+        Some(AuthorCommand::Charter(args)) => author_charter_command(args),
+        None => print_subcommand_help(&["author"]),
+    }
+}
+
+#[derive(Clone)]
+struct EnvVarCharterSynthesizer {
+    response: Result<String, String>,
+}
+
+impl system_compiler::CharterSynthesizer for EnvVarCharterSynthesizer {
+    fn synthesize(
+        &self,
+        _repo_root: &Path,
+        _request: system_compiler::CharterSynthesisRequest,
+    ) -> Result<String, system_compiler::CharterSynthesisError> {
+        match &self.response {
+            Ok(markdown) => Ok(markdown.clone()),
+            Err(message) => Err(system_compiler::CharterSynthesisError {
+                message: message.clone(),
+            }),
+        }
+    }
+}
+
+fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!(
+                "{}",
+                render_author_custom_refusal(
+                    "REFUSED",
+                    "WorkingDirectoryUnavailable",
+                    &format!("failed to determine repo root: {err}"),
+                    "current working directory",
+                    "repair the current working directory and retry `system author charter`",
+                )
+            );
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    let (input, input_mode, input_source) = match args.from_inputs.as_deref() {
+        Some(path_or_dash) => {
+            let yaml = match read_author_inputs_source(path_or_dash) {
+                Ok(yaml) => yaml,
+                Err(rendered) => {
+                    println!("{rendered}");
+                    return ExitCode::from(1);
+                }
+            };
+            let input = match system_compiler::parse_charter_structured_input_yaml(&yaml) {
+                Ok(input) => input,
+                Err(refusal) => {
+                    println!("{}", render_author_charter_refusal(&refusal));
+                    return ExitCode::from(1);
+                }
+            };
+            let input_mode = if path_or_dash == "-" {
+                "structured_inputs_stdin"
+            } else {
+                "structured_inputs_file"
+            };
+            (input, input_mode, path_or_dash.to_string())
+        }
+        None => {
+            if !interactive_authoring_is_allowed() {
+                println!(
+                    "{}",
+                    render_author_custom_refusal(
+                        "REFUSED",
+                        "NonInteractiveRefusal",
+                        "`system author charter` is a TTY-only guided interview",
+                        "interactive terminal",
+                        "run `system author charter --from-inputs <path|->`",
+                    )
+                );
+                return ExitCode::from(1);
+            }
+            let input = match collect_guided_charter_input() {
+                Ok(input) => input,
+                Err(rendered) => {
+                    println!("{rendered}");
+                    return ExitCode::from(1);
+                }
+            };
+            (
+                input,
+                "guided_interview",
+                "interactive terminal".to_string(),
+            )
+        }
+    };
+
+    match run_author_charter_with_cli_synthesizer(&repo_root, &input) {
+        Ok(result) => {
+            println!(
+                "{}",
+                render_author_charter_success(&result, input_mode, &input_source)
+            );
+            ExitCode::SUCCESS
+        }
+        Err(refusal) => {
+            println!("{}", render_author_charter_refusal(&refusal));
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn interactive_authoring_is_allowed() -> bool {
+    if let Ok(value) = std::env::var("SYSTEM_AUTHOR_FORCE_TTY") {
+        if matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "YES") {
+            return true;
+        }
+    }
+
+    io::stdin().is_terminal() && io::stdout().is_terminal()
+}
+
+fn run_author_charter_with_cli_synthesizer(
+    repo_root: &Path,
+    input: &system_compiler::CharterStructuredInput,
+) -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal> {
+    if let Ok(message) = std::env::var("SYSTEM_AUTHOR_TEST_SYNTHESIS_ERROR") {
+        let synthesizer = EnvVarCharterSynthesizer {
+            response: Err(message),
+        };
+        return system_compiler::author_charter_with_synthesizer(repo_root, input, &synthesizer);
+    }
+
+    if let Ok(markdown) = std::env::var("SYSTEM_AUTHOR_TEST_SYNTHESIS_OUTPUT") {
+        let synthesizer = EnvVarCharterSynthesizer {
+            response: Ok(markdown),
+        };
+        return system_compiler::author_charter_with_synthesizer(repo_root, input, &synthesizer);
+    }
+
+    system_compiler::author_charter(repo_root, input)
+}
+
+fn render_author_charter_success(
+    result: &system_compiler::AuthorCharterResult,
+    input_mode: &str,
+    input_source: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: AUTHORED\n");
+    out.push_str("OBJECT: author charter\n");
+    out.push_str("NEXT SAFE ACTION: run `system doctor`\n");
+    out.push_str("## CANONICAL ARTIFACT\n");
+    out.push_str(&format!("PATH: {}\n", result.canonical_repo_relative_path));
+    out.push_str(&format!("BYTES WRITTEN: {}\n", result.bytes_written));
+    out.push_str("## INPUT MODE\n");
+    out.push_str(&format!("MODE: {input_mode}\n"));
+    out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.trim_end().to_string()
+}
+
+fn render_author_charter_refusal(refusal: &system_compiler::AuthorCharterRefusal) -> String {
+    render_author_custom_refusal(
+        author_refusal_outcome_name(refusal.kind),
+        author_refusal_kind_name(refusal.kind),
+        refusal.summary.trim(),
+        refusal.broken_subject.trim(),
+        refusal.next_safe_action.trim(),
+    )
+}
+
+fn render_author_custom_refusal(
+    outcome: &str,
+    category: &str,
+    summary: &str,
+    broken_subject: &str,
+    next_safe_action: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("OUTCOME: {outcome}\n"));
+    out.push_str("OBJECT: author charter\n");
+    out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
+    out.push_str("## REFUSAL\n");
+    out.push_str(&format!("CATEGORY: {category}\n"));
+    out.push_str(&format!("SUMMARY: {summary}\n"));
+    out.push_str(&format!("BROKEN SUBJECT: {broken_subject}\n"));
+    out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
+    out.trim_end().to_string()
+}
+
+fn author_refusal_outcome_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
+    match kind {
+        system_compiler::AuthorCharterRefusalKind::MissingSystemRoot
+        | system_compiler::AuthorCharterRefusalKind::InvalidSystemRoot
+        | system_compiler::AuthorCharterRefusalKind::MutationRefused
+        | system_compiler::AuthorCharterRefusalKind::SynthesisFailed => "BLOCKED",
+        system_compiler::AuthorCharterRefusalKind::MalformedStructuredInput
+        | system_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput
+        | system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => "REFUSED",
+    }
+}
+
+fn author_refusal_kind_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
+    match kind {
+        system_compiler::AuthorCharterRefusalKind::MissingSystemRoot => "MissingSystemRoot",
+        system_compiler::AuthorCharterRefusalKind::InvalidSystemRoot => "InvalidSystemRoot",
+        system_compiler::AuthorCharterRefusalKind::MalformedStructuredInput => {
+            "MalformedStructuredInput"
+        }
+        system_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput => {
+            "IncompleteStructuredInput"
+        }
+        system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => {
+            "ExistingCanonicalTruth"
+        }
+        system_compiler::AuthorCharterRefusalKind::MutationRefused => "MutationRefused",
+        system_compiler::AuthorCharterRefusalKind::SynthesisFailed => "SynthesisFailed",
+    }
+}
+
+fn read_author_inputs_source(path_or_dash: &str) -> Result<String, String> {
+    if path_or_dash == "-" {
+        return read_stdin().map_err(|err| {
+            render_author_custom_refusal(
+                "REFUSED",
+                "InputReadFailure",
+                &format!("failed to read structured inputs from stdin: {err}"),
+                "structured charter input source",
+                "repair stdin and retry `system author charter --from-inputs -`",
+            )
+        });
+    }
+
+    fs::read_to_string(path_or_dash).map_err(|err| {
+        render_author_custom_refusal(
+            "REFUSED",
+            "InputReadFailure",
+            &format!(
+                "failed to read structured inputs from `{path_or_dash}`: {err}"
+            ),
+            "structured charter input source",
+            "repair the structured input file and retry `system author charter --from-inputs <path|->`",
+        )
+    })
+}
+
+fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredInput, String> {
+    println!("Guided charter interview");
+    println!("Answer with the documented value form. Comma-separated prompts accept `a, b, c`.");
+
+    let project_name = prompt_required("Project name")?;
+    let classification = prompt_choice(
+        "Project classification [greenfield|brownfield|integration|modernization|hardening]",
+        parse_project_classification,
+    )?;
+    let team_size = prompt_u32("Team size (> 0)")?;
+    let users = prompt_choice("Audience [internal|external|mixed]", parse_audience)?;
+    let expected_lifetime = prompt_choice(
+        "Expected lifetime [days|weeks|months|years]",
+        parse_expected_lifetime,
+    )?;
+    let surfaces = prompt_csv_choice(
+        "Surfaces [web_app, api, cli, lib, infra, ml]",
+        parse_surface,
+    )?;
+    let runtime_environments = prompt_csv_choice(
+        "Runtime environments [browser, server, cloud, on_prem, edge]",
+        parse_runtime_environment,
+    )?;
+    let deadline = prompt_optional("Deadline or delivery window")?;
+    let budget = prompt_optional("Budget notes")?;
+    let experience_notes = prompt_required("Experience notes")?;
+    let must_use_tech = prompt_csv_optional("Must-use tech (comma-separated, optional)")?;
+    let in_production_today = prompt_bool("In production today? [yes|no]")?;
+    let prod_users_or_data = prompt_optional("Production users or data notes")?;
+    let external_contracts_to_preserve =
+        prompt_csv_optional("External contracts to preserve (comma-separated, optional)")?;
+    let uptime_expectations = prompt_optional("Uptime expectations")?;
+    let baseline_level = prompt_u8_in_range("Baseline rubric level [1-5]", 1, 5)?;
+    let baseline_rationale =
+        prompt_csv_non_empty("Baseline rationale (comma-separated, at least one)")?;
+    let backward_compatibility = prompt_choice(
+        "Backward compatibility [required|not_required|boundary_only]",
+        parse_backward_compatibility,
+    )?;
+    let migration_planning = prompt_choice(
+        "Migration planning [required|not_required]",
+        parse_requiredness,
+    )?;
+    let rollout_controls = prompt_choice(
+        "Rollout controls [none|lightweight|required]",
+        parse_rollout_controls,
+    )?;
+    let deprecation_policy = prompt_choice(
+        "Deprecation policy [required|not_required_yet]",
+        parse_deprecation_policy,
+    )?;
+    let observability_threshold = prompt_choice(
+        "Observability threshold [minimal|standard|high|regulated]",
+        parse_observability_threshold,
+    )?;
+    let primary_domain_name = prompt_optional("Primary domain name (optional)")?;
+    let domains = if primary_domain_name.trim().is_empty() {
+        Vec::new()
+    } else {
+        let blast_radius = prompt_required("Primary domain blast radius")?;
+        let touches = prompt_csv_optional("Primary domain touches (comma-separated, optional)")?;
+        let constraints =
+            prompt_csv_optional("Primary domain constraints (comma-separated, optional)")?;
+        vec![system_compiler::CharterDomainInput {
+            name: primary_domain_name,
+            blast_radius,
+            touches,
+            constraints,
+        }]
+    };
+    let approvers = prompt_csv_non_empty("Exception approvers (comma-separated, at least one)")?;
+    let record_location =
+        prompt_with_default("Exception record location", "CHARTER.md#exceptions")?;
+    let minimum_fields_input = prompt_optional(
+        "Exception minimum fields (comma-separated; press enter for standard fields)",
+    )?;
+    let minimum_fields = if minimum_fields_input.trim().is_empty() {
+        default_exception_minimum_fields()
+    } else {
+        split_csv_required(&minimum_fields_input)?
+    };
+    let debt_tracking_system = prompt_required("Debt tracking system")?;
+    let debt_tracking_labels =
+        prompt_csv_optional("Debt tracking labels (comma-separated, optional)")?;
+    let debt_tracking_review_cadence = prompt_required("Debt tracking review cadence")?;
+    let decision_records_enabled = prompt_bool("Decision records enabled? [yes|no]")?;
+    let (decision_records_path, decision_records_format) = if decision_records_enabled {
+        (
+            prompt_required("Decision records path")?,
+            prompt_required("Decision records format")?,
+        )
+    } else {
+        (String::new(), String::new())
+    };
+
+    Ok(system_compiler::CharterStructuredInput {
+        schema_version: "0.1.0".to_string(),
+        project: system_compiler::CharterProjectInput {
+            name: project_name.clone(),
+            classification,
+            team_size,
+            users,
+            expected_lifetime,
+            surfaces,
+            runtime_environments,
+            constraints: system_compiler::CharterProjectConstraintsInput {
+                deadline,
+                budget,
+                experience_notes: experience_notes.clone(),
+                must_use_tech,
+            },
+            operational_reality: system_compiler::CharterOperationalRealityInput {
+                in_production_today,
+                prod_users_or_data,
+                external_contracts_to_preserve,
+                uptime_expectations,
+            },
+            default_implications: system_compiler::CharterDefaultImplicationsInput {
+                backward_compatibility,
+                migration_planning,
+                rollout_controls,
+                deprecation_policy,
+                observability_threshold,
+            },
+        },
+        posture: system_compiler::CharterPostureInput {
+            rubric_scale: "1-5".to_string(),
+            baseline_level,
+            baseline_rationale,
+        },
+        domains,
+        dimensions: default_dimension_inputs(baseline_level, &project_name, in_production_today),
+        exceptions: system_compiler::CharterExceptionsInput {
+            approvers,
+            record_location,
+            minimum_fields,
+        },
+        debt_tracking: system_compiler::CharterDebtTrackingInput {
+            system: debt_tracking_system,
+            labels: debt_tracking_labels,
+            review_cadence: debt_tracking_review_cadence,
+        },
+        decision_records: system_compiler::CharterDecisionRecordsInput {
+            enabled: decision_records_enabled,
+            path: decision_records_path,
+            format: decision_records_format,
+        },
+    })
+}
+
+fn prompt_line(prompt: &str) -> Result<String, String> {
+    print!("{prompt}: ");
+    io::stdout().flush().map_err(|err| {
+        render_author_custom_refusal(
+            "REFUSED",
+            "PromptWriteFailure",
+            &format!("failed to render guided prompt: {err}"),
+            "interactive terminal",
+            "repair the interactive terminal and retry `system author charter`",
+        )
+    })?;
+
+    let mut value = String::new();
+    let bytes_read = io::stdin().read_line(&mut value).map_err(|err| {
+        render_author_custom_refusal(
+            "REFUSED",
+            "PromptReadFailure",
+            &format!("failed to read guided answer: {err}"),
+            "interactive terminal",
+            "repair the interactive terminal and retry `system author charter`",
+        )
+    })?;
+
+    if bytes_read == 0 {
+        return Err(render_author_custom_refusal(
+            "REFUSED",
+            "InterviewIncomplete",
+            "guided charter interview ended before all required answers were collected",
+            "structured charter input",
+            "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+        ));
+    }
+
+    Ok(value.trim().to_string())
+}
+
+fn prompt_required(prompt: &str) -> Result<String, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        if !value.trim().is_empty() {
+            return Ok(value);
+        }
+        println!("Answer required.");
+    }
+}
+
+fn prompt_optional(prompt: &str) -> Result<String, String> {
+    prompt_line(prompt)
+}
+
+fn prompt_with_default(prompt: &str, default_value: &str) -> Result<String, String> {
+    let value = prompt_line(&format!("{prompt} [{default_value}]"))?;
+    if value.trim().is_empty() {
+        Ok(default_value.to_string())
+    } else {
+        Ok(value)
+    }
+}
+
+fn prompt_bool(prompt: &str) -> Result<bool, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match value.trim().to_ascii_lowercase().as_str() {
+            "y" | "yes" | "true" => return Ok(true),
+            "n" | "no" | "false" => return Ok(false),
+            _ => println!("Expected yes/no."),
+        }
+    }
+}
+
+fn prompt_u32(prompt: &str) -> Result<u32, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match value.trim().parse::<u32>() {
+            Ok(parsed) if parsed > 0 => return Ok(parsed),
+            _ => println!("Expected an integer greater than 0."),
+        }
+    }
+}
+
+fn prompt_u8_in_range(prompt: &str, min: u8, max: u8) -> Result<u8, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match value.trim().parse::<u8>() {
+            Ok(parsed) if (min..=max).contains(&parsed) => return Ok(parsed),
+            _ => println!("Expected an integer in the allowed range."),
+        }
+    }
+}
+
+fn prompt_choice<T>(prompt: &str, parser: fn(&str) -> Result<T, String>) -> Result<T, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match parser(&value) {
+            Ok(parsed) => return Ok(parsed),
+            Err(err) => println!("{err}"),
+        }
+    }
+}
+
+fn prompt_csv_choice<T>(
+    prompt: &str,
+    parser: fn(&str) -> Result<T, String>,
+) -> Result<Vec<T>, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match split_csv_required(&value) {
+            Ok(items) => {
+                let mut parsed = Vec::new();
+                let mut error = None;
+                for item in items {
+                    match parser(&item) {
+                        Ok(value) => parsed.push(value),
+                        Err(err) => {
+                            error = Some(err);
+                            break;
+                        }
+                    }
+                }
+                if let Some(err) = error {
+                    println!("{err}");
+                    continue;
+                }
+                return Ok(parsed);
+            }
+            Err(err) => println!("{err}"),
+        }
+    }
+}
+
+fn prompt_csv_optional(prompt: &str) -> Result<Vec<String>, String> {
+    let value = prompt_line(prompt)?;
+    if value.trim().is_empty() {
+        Ok(Vec::new())
+    } else {
+        split_csv_required(&value)
+    }
+}
+
+fn prompt_csv_non_empty(prompt: &str) -> Result<Vec<String>, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match split_csv_required(&value) {
+            Ok(items) => return Ok(items),
+            Err(err) => println!("{err}"),
+        }
+    }
+}
+
+fn split_csv_required(value: &str) -> Result<Vec<String>, String> {
+    let items = value
+        .split(',')
+        .map(|item| item.trim())
+        .filter(|item| !item.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    if items.is_empty() {
+        Err("Provide at least one comma-separated value.".to_string())
+    } else {
+        Ok(items)
+    }
+}
+
+fn parse_project_classification(
+    value: &str,
+) -> Result<system_compiler::CharterProjectClassification, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "greenfield" => Ok(system_compiler::CharterProjectClassification::Greenfield),
+        "brownfield" => Ok(system_compiler::CharterProjectClassification::Brownfield),
+        "integration" => Ok(system_compiler::CharterProjectClassification::Integration),
+        "modernization" => Ok(system_compiler::CharterProjectClassification::Modernization),
+        "hardening" => Ok(system_compiler::CharterProjectClassification::Hardening),
+        _ => Err(
+            "Expected one of greenfield, brownfield, integration, modernization, or hardening."
+                .to_string(),
+        ),
+    }
+}
+
+fn parse_audience(value: &str) -> Result<system_compiler::CharterAudience, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "internal" => Ok(system_compiler::CharterAudience::Internal),
+        "external" => Ok(system_compiler::CharterAudience::External),
+        "mixed" => Ok(system_compiler::CharterAudience::Mixed),
+        _ => Err("Expected one of internal, external, or mixed.".to_string()),
+    }
+}
+
+fn parse_expected_lifetime(
+    value: &str,
+) -> Result<system_compiler::CharterExpectedLifetime, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "days" => Ok(system_compiler::CharterExpectedLifetime::Days),
+        "weeks" => Ok(system_compiler::CharterExpectedLifetime::Weeks),
+        "months" => Ok(system_compiler::CharterExpectedLifetime::Months),
+        "years" => Ok(system_compiler::CharterExpectedLifetime::Years),
+        _ => Err("Expected one of days, weeks, months, or years.".to_string()),
+    }
+}
+
+fn parse_surface(value: &str) -> Result<system_compiler::CharterSurface, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "web_app" => Ok(system_compiler::CharterSurface::WebApp),
+        "api" => Ok(system_compiler::CharterSurface::Api),
+        "cli" => Ok(system_compiler::CharterSurface::Cli),
+        "lib" => Ok(system_compiler::CharterSurface::Lib),
+        "infra" => Ok(system_compiler::CharterSurface::Infra),
+        "ml" => Ok(system_compiler::CharterSurface::Ml),
+        _ => Err("Expected one of web_app, api, cli, lib, infra, or ml.".to_string()),
+    }
+}
+
+fn parse_runtime_environment(
+    value: &str,
+) -> Result<system_compiler::CharterRuntimeEnvironment, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "browser" => Ok(system_compiler::CharterRuntimeEnvironment::Browser),
+        "server" => Ok(system_compiler::CharterRuntimeEnvironment::Server),
+        "cloud" => Ok(system_compiler::CharterRuntimeEnvironment::Cloud),
+        "on_prem" => Ok(system_compiler::CharterRuntimeEnvironment::OnPrem),
+        "edge" => Ok(system_compiler::CharterRuntimeEnvironment::Edge),
+        _ => Err("Expected one of browser, server, cloud, on_prem, or edge.".to_string()),
+    }
+}
+
+fn parse_backward_compatibility(
+    value: &str,
+) -> Result<system_compiler::CharterBackwardCompatibility, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "required" => Ok(system_compiler::CharterBackwardCompatibility::Required),
+        "not_required" => Ok(system_compiler::CharterBackwardCompatibility::NotRequired),
+        "boundary_only" => Ok(system_compiler::CharterBackwardCompatibility::BoundaryOnly),
+        _ => Err("Expected one of required, not_required, or boundary_only.".to_string()),
+    }
+}
+
+fn parse_requiredness(value: &str) -> Result<system_compiler::CharterRequiredness, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "required" => Ok(system_compiler::CharterRequiredness::Required),
+        "not_required" => Ok(system_compiler::CharterRequiredness::NotRequired),
+        _ => Err("Expected one of required or not_required.".to_string()),
+    }
+}
+
+fn parse_rollout_controls(value: &str) -> Result<system_compiler::CharterRolloutControls, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "none" => Ok(system_compiler::CharterRolloutControls::None),
+        "lightweight" => Ok(system_compiler::CharterRolloutControls::Lightweight),
+        "required" => Ok(system_compiler::CharterRolloutControls::Required),
+        _ => Err("Expected one of none, lightweight, or required.".to_string()),
+    }
+}
+
+fn parse_deprecation_policy(
+    value: &str,
+) -> Result<system_compiler::CharterDeprecationPolicy, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "required" => Ok(system_compiler::CharterDeprecationPolicy::Required),
+        "not_required_yet" => Ok(system_compiler::CharterDeprecationPolicy::NotRequiredYet),
+        _ => Err("Expected one of required or not_required_yet.".to_string()),
+    }
+}
+
+fn parse_observability_threshold(
+    value: &str,
+) -> Result<system_compiler::CharterObservabilityThreshold, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "minimal" => Ok(system_compiler::CharterObservabilityThreshold::Minimal),
+        "standard" => Ok(system_compiler::CharterObservabilityThreshold::Standard),
+        "high" => Ok(system_compiler::CharterObservabilityThreshold::High),
+        "regulated" => Ok(system_compiler::CharterObservabilityThreshold::Regulated),
+        _ => Err("Expected one of minimal, standard, high, or regulated.".to_string()),
+    }
+}
+
+fn default_exception_minimum_fields() -> Vec<String> {
+    [
+        "what",
+        "why",
+        "scope",
+        "risk",
+        "owner",
+        "expiry_or_revisit_date",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
+}
+
+fn default_dimension_inputs(
+    baseline_level: u8,
+    project_name: &str,
+    in_production_today: bool,
+) -> Vec<system_compiler::CharterDimensionInput> {
+    all_dimension_names()
+        .iter()
+        .copied()
+        .map(|name| {
+            default_dimension_input(name, baseline_level, project_name, in_production_today)
+        })
+        .collect()
+}
+
+fn all_dimension_names() -> [system_compiler::CharterDimensionName; 9] {
+    [
+        system_compiler::CharterDimensionName::SpeedVsQuality,
+        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
+        system_compiler::CharterDimensionName::TestingRigor,
+        system_compiler::CharterDimensionName::ScalabilityPerformance,
+        system_compiler::CharterDimensionName::ReliabilityOperability,
+        system_compiler::CharterDimensionName::SecurityPrivacy,
+        system_compiler::CharterDimensionName::Observability,
+        system_compiler::CharterDimensionName::DxToolingAutomation,
+        system_compiler::CharterDimensionName::UxPolishApiUsability,
+    ]
+}
+
+fn default_dimension_input(
+    name: system_compiler::CharterDimensionName,
+    baseline_level: u8,
+    project_name: &str,
+    in_production_today: bool,
+) -> system_compiler::CharterDimensionInput {
+    let dimension_label = dimension_label(name);
+    let production_trigger = if in_production_today {
+        "changes touching live users, data, or uptime"
+    } else {
+        "changes that create irreversible migration or trust-boundary cost"
+    };
+
+    system_compiler::CharterDimensionInput {
+        name,
+        level: Some(baseline_level),
+        default_stance: format!(
+            "{project_name} defaults to level {baseline_level} on {dimension_label}; raise the bar whenever blast radius, trust boundaries, or recovery cost increases."
+        ),
+        raise_the_bar_triggers: vec![
+            production_trigger.to_string(),
+            "new external interfaces or contracts".to_string(),
+        ],
+        allowed_shortcuts: vec![
+            "time-boxed exploration before merge".to_string(),
+            "fixture-backed or local-only iteration with explicit follow-up".to_string(),
+        ],
+        red_lines: vec![
+            format!("do not waive {dimension_label} expectations on shipped work"),
+            "do not hide known risk without recording an exception".to_string(),
+        ],
+        domain_overrides: Vec::new(),
+    }
+}
+
+fn dimension_label(name: system_compiler::CharterDimensionName) -> &'static str {
+    match name {
+        system_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
+        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
+            "type safety and static analysis"
+        }
+        system_compiler::CharterDimensionName::TestingRigor => "testing rigor",
+        system_compiler::CharterDimensionName::ScalabilityPerformance => {
+            "scalability and performance"
+        }
+        system_compiler::CharterDimensionName::ReliabilityOperability => {
+            "reliability and operability"
+        }
+        system_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
+        system_compiler::CharterDimensionName::Observability => "observability",
+        system_compiler::CharterDimensionName::DxToolingAutomation => {
+            "developer tooling and automation"
+        }
+        system_compiler::CharterDimensionName::UxPolishApiUsability => {
+            "ux polish and api usability"
+        }
+    }
+}
+
+fn print_subcommand_help(path: &[&str]) -> ExitCode {
+    let mut command = Cli::command();
+    let mut current = &mut command;
+    for segment in path {
+        current = current
+            .find_subcommand_mut(segment)
+            .expect("subcommand help path");
+    }
+    current.print_help().expect("help output");
+    println!();
+    ExitCode::SUCCESS
 }
 
 fn setup(args: SetupArgs) -> ExitCode {
