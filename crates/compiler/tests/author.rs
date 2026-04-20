@@ -1,5 +1,6 @@
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 
 use system_compiler::{
     author_charter_with_synthesizer, build_charter_synthesis_request,
@@ -62,6 +63,47 @@ impl CharterSynthesizer for RecordingSynthesizer {
                 message: message.clone(),
             }),
         }
+    }
+}
+
+struct BlockingSynthesizer {
+    entered_tx: Mutex<Option<mpsc::Sender<()>>>,
+    release_rx: Mutex<mpsc::Receiver<()>>,
+    requests: Arc<Mutex<Vec<CharterSynthesisRequest>>>,
+    markdown: String,
+}
+
+impl BlockingSynthesizer {
+    fn new(markdown: &str, entered_tx: mpsc::Sender<()>, release_rx: mpsc::Receiver<()>) -> Self {
+        Self {
+            entered_tx: Mutex::new(Some(entered_tx)),
+            release_rx: Mutex::new(release_rx),
+            requests: Arc::new(Mutex::new(Vec::new())),
+            markdown: markdown.to_string(),
+        }
+    }
+
+    fn requests(&self) -> Vec<CharterSynthesisRequest> {
+        self.requests.lock().expect("requests").clone()
+    }
+}
+
+impl CharterSynthesizer for BlockingSynthesizer {
+    fn synthesize(
+        &self,
+        _repo_root: &Path,
+        request: CharterSynthesisRequest,
+    ) -> Result<String, CharterSynthesisError> {
+        self.requests.lock().expect("requests").push(request);
+        if let Some(entered_tx) = self.entered_tx.lock().expect("entered tx").take() {
+            entered_tx.send(()).expect("notify synth entered");
+        }
+        self.release_rx
+            .lock()
+            .expect("release rx")
+            .recv()
+            .expect("release synth");
+        Ok(self.markdown.clone())
     }
 }
 
@@ -318,6 +360,19 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
             .expect("canonical charter"),
         valid_charter_markdown()
     );
+    let mut charter_entries = std::fs::read_dir(dir.path().join(".system/charter"))
+        .expect("read charter dir")
+        .map(|entry| {
+            entry
+                .expect("charter dir entry")
+                .file_name()
+                .into_string()
+                .expect("utf8 charter entry")
+        })
+        .collect::<Vec<_>>();
+    charter_entries.sort();
+    assert_eq!(charter_entries, vec!["CHARTER.md"]);
+    assert!(!dir.path().join(".system/charter/CHARTER.md.lock").exists());
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
     assert_eq!(synthesizer.requests().len(), 1);
@@ -345,6 +400,57 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
             .expect("existing charter"),
         "custom charter truth\n"
     );
+}
+
+#[test]
+fn author_charter_rechecks_existing_truth_under_lock_before_writing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+
+    let first_markdown = valid_charter_markdown().replace("Done.", "First authored truth.");
+    let second_markdown = valid_charter_markdown().replace("Done.", "Second authored truth.");
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let first_synthesizer = BlockingSynthesizer::new(&first_markdown, entered_tx, release_rx);
+    let second_synthesizer = RecordingSynthesizer::ok(&second_markdown);
+    let input = valid_input();
+
+    thread::scope(|scope| {
+        let first_run =
+            scope.spawn(|| author_charter_with_synthesizer(dir.path(), &input, &first_synthesizer));
+
+        entered_rx.recv().expect("first synthesis started");
+
+        let second_run = scope
+            .spawn(|| author_charter_with_synthesizer(dir.path(), &input, &second_synthesizer));
+
+        release_tx.send(()).expect("release first synthesis");
+
+        let first_result = first_run.join().expect("first author thread");
+        let second_result = second_run.join().expect("second author thread");
+
+        assert_eq!(
+            first_result
+                .expect("first author succeeds")
+                .canonical_repo_relative_path,
+            ".system/charter/CHARTER.md"
+        );
+
+        let second_err = second_result.expect_err("second author should refuse");
+        assert_eq!(
+            second_err.kind,
+            AuthorCharterRefusalKind::ExistingCanonicalTruth
+        );
+    });
+
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("final charter"),
+        first_markdown
+    );
+    assert!(!dir.path().join(".system/charter/CHARTER.md.lock").exists());
+    assert_eq!(first_synthesizer.requests().len(), 1);
+    assert_eq!(second_synthesizer.requests().len(), 0);
 }
 
 #[test]

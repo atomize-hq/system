@@ -10,9 +10,11 @@ use agent_api::{AgentWrapperBackend, AgentWrapperCompletion, AgentWrapperRunRequ
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::fs::{File, OpenOptions};
+use std::path::{Path, PathBuf};
 
 const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
+const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const SYNTHESIS_DIRECTIVE: &str =
     include_str!("../../../core/library/charter/charter_synthesize_directive.md");
@@ -636,6 +638,8 @@ pub fn author_charter_with_synthesizer(
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
     preflight_author_charter(repo_root)?;
+    let _lock = acquire_charter_authoring_lock(repo_root)?;
+    preflight_author_charter(repo_root)?;
 
     let markdown = synthesize_charter_markdown_with(repo_root, input, synthesizer)?;
     write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
@@ -780,6 +784,95 @@ fn validate_charter_write_target(repo_root: &Path) -> Result<(), AuthorCharterRe
         }
     })?;
     Ok(())
+}
+
+fn acquire_charter_authoring_lock(
+    repo_root: &Path,
+) -> Result<CharterAuthoringLockGuard, AuthorCharterRefusal> {
+    let lock_path = resolve_repo_relative_write_path(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH)
+        .map_err(|err| AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::MutationRefused,
+        summary: format_repo_write_path_error(CHARTER_AUTHORING_LOCK_REPO_PATH, err),
+        broken_subject: "charter authoring lock".to_string(),
+        next_safe_action:
+            "repair the blocked charter authoring lock path and retry `system author charter`"
+                .to_string(),
+    })?;
+
+    if let Some(parent) = lock_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|source| charter_authoring_lock_refusal(&lock_path, source))?;
+    }
+
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|source| charter_authoring_lock_refusal(&lock_path, source))?;
+
+    lock_charter_authoring_file(&file, libc::LOCK_EX)
+        .map_err(|source| charter_authoring_lock_refusal(&lock_path, source))?;
+
+    Ok(CharterAuthoringLockGuard { file, lock_path })
+}
+
+fn charter_authoring_lock_refusal(
+    lock_path: &Path,
+    source: std::io::Error,
+) -> AuthorCharterRefusal {
+    AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::MutationRefused,
+        summary: format!(
+            "failed to acquire exclusive charter authoring lock at {}: {source}",
+            lock_path.display()
+        ),
+        broken_subject: "charter authoring lock".to_string(),
+        next_safe_action:
+            "wait for any in-progress `system author charter` run to finish or repair the lock path, then retry `system author charter`"
+                .to_string(),
+    }
+}
+
+#[cfg(unix)]
+fn lock_charter_authoring_file(file: &File, operation: libc::c_int) -> Result<(), std::io::Error> {
+    use std::os::unix::io::AsRawFd;
+
+    loop {
+        let result = unsafe { libc::flock(file.as_raw_fd(), operation) };
+        if result == 0 {
+            return Ok(());
+        }
+
+        let error = std::io::Error::last_os_error();
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            continue;
+        }
+
+        return Err(error);
+    }
+}
+
+#[cfg(not(unix))]
+fn lock_charter_authoring_file(
+    _file: &File,
+    _operation: libc::c_int,
+) -> Result<(), std::io::Error> {
+    Ok(())
+}
+
+struct CharterAuthoringLockGuard {
+    file: File,
+    lock_path: PathBuf,
+}
+
+impl Drop for CharterAuthoringLockGuard {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        let _ = lock_charter_authoring_file(&self.file, libc::LOCK_UN);
+        let _ = &self.lock_path;
+    }
 }
 
 fn structured_input_refusal(
