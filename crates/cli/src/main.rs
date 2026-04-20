@@ -480,41 +480,59 @@ fn author(args: AuthorArgs) -> ExitCode {
     }
 }
 
-#[derive(Clone)]
-struct EnvVarCharterSynthesizer {
-    response: Result<String, String>,
-}
-
-impl system_compiler::CharterSynthesizer for EnvVarCharterSynthesizer {
-    fn synthesize(
-        &self,
-        _repo_root: &Path,
-        _request: system_compiler::CharterSynthesisRequest,
-    ) -> Result<String, system_compiler::CharterSynthesisError> {
-        match &self.response {
-            Ok(markdown) => Ok(markdown.clone()),
-            Err(message) => Err(system_compiler::CharterSynthesisError {
-                message: message.clone(),
-            }),
-        }
-    }
+struct RenderedCommand {
+    output: String,
+    exit_code: ExitCode,
 }
 
 fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
-    let cwd = match std::env::current_dir() {
+    let rendered = execute_author_charter_command(
+        args,
+        std::env::current_dir,
+        interactive_authoring_is_allowed,
+        collect_guided_charter_input,
+        |repo_root, input| system_compiler::author_charter(repo_root, input),
+    );
+    println!("{}", rendered.output);
+    rendered.exit_code
+}
+
+fn execute_author_charter_command<
+    GetCurrentDir,
+    InteractiveAllowed,
+    CollectGuidedInput,
+    RunAuthor,
+>(
+    args: AuthorCharterArgs,
+    get_current_dir: GetCurrentDir,
+    interactive_allowed: InteractiveAllowed,
+    collect_guided_input: CollectGuidedInput,
+    run_author: RunAuthor,
+) -> RenderedCommand
+where
+    GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
+    InteractiveAllowed: Fn() -> bool,
+    CollectGuidedInput: Fn() -> Result<system_compiler::CharterStructuredInput, String>,
+    RunAuthor:
+        Fn(
+            &Path,
+            &system_compiler::CharterStructuredInput,
+        )
+            -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal>,
+{
+    let cwd = match get_current_dir() {
         Ok(dir) => dir,
         Err(err) => {
-            println!(
-                "{}",
-                render_author_custom_refusal(
+            return RenderedCommand {
+                output: render_author_custom_refusal(
                     "REFUSED",
                     "WorkingDirectoryUnavailable",
                     &format!("failed to determine repo root: {err}"),
                     "current working directory",
                     "repair the current working directory and retry `system author charter`",
-                )
-            );
-            return ExitCode::from(1);
+                ),
+                exit_code: ExitCode::from(1),
+            };
         }
     };
     let repo_root = discover_managed_repo_root(&cwd);
@@ -524,15 +542,19 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
             let yaml = match read_author_inputs_source(path_or_dash) {
                 Ok(yaml) => yaml,
                 Err(rendered) => {
-                    println!("{rendered}");
-                    return ExitCode::from(1);
+                    return RenderedCommand {
+                        output: rendered,
+                        exit_code: ExitCode::from(1),
+                    };
                 }
             };
             let input = match system_compiler::parse_charter_structured_input_yaml(&yaml) {
                 Ok(input) => input,
                 Err(refusal) => {
-                    println!("{}", render_author_charter_refusal(&refusal));
-                    return ExitCode::from(1);
+                    return RenderedCommand {
+                        output: render_author_charter_refusal(&refusal),
+                        exit_code: ExitCode::from(1),
+                    };
                 }
             };
             let input_mode = if path_or_dash == "-" {
@@ -543,24 +565,25 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
             (input, input_mode, path_or_dash.to_string())
         }
         None => {
-            if !interactive_authoring_is_allowed() {
-                println!(
-                    "{}",
-                    render_author_custom_refusal(
+            if !interactive_allowed() {
+                return RenderedCommand {
+                    output: render_author_custom_refusal(
                         "REFUSED",
                         "NonInteractiveRefusal",
                         "`system author charter` is a TTY-only guided interview",
                         "interactive terminal",
                         "run `system author charter --from-inputs <path|->`",
-                    )
-                );
-                return ExitCode::from(1);
+                    ),
+                    exit_code: ExitCode::from(1),
+                };
             }
-            let input = match collect_guided_charter_input() {
+            let input = match collect_guided_input() {
                 Ok(input) => input,
                 Err(rendered) => {
-                    println!("{rendered}");
-                    return ExitCode::from(1);
+                    return RenderedCommand {
+                        output: rendered,
+                        exit_code: ExitCode::from(1),
+                    };
                 }
             };
             (
@@ -571,50 +594,20 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
         }
     };
 
-    match run_author_charter_with_cli_synthesizer(&repo_root, &input) {
-        Ok(result) => {
-            println!(
-                "{}",
-                render_author_charter_success(&result, input_mode, &input_source)
-            );
-            ExitCode::SUCCESS
-        }
-        Err(refusal) => {
-            println!("{}", render_author_charter_refusal(&refusal));
-            ExitCode::from(1)
-        }
+    match run_author(&repo_root, &input) {
+        Ok(result) => RenderedCommand {
+            output: render_author_charter_success(&result, input_mode, &input_source),
+            exit_code: ExitCode::SUCCESS,
+        },
+        Err(refusal) => RenderedCommand {
+            output: render_author_charter_refusal(&refusal),
+            exit_code: ExitCode::from(1),
+        },
     }
 }
 
 fn interactive_authoring_is_allowed() -> bool {
-    if let Ok(value) = std::env::var("SYSTEM_AUTHOR_FORCE_TTY") {
-        if matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "YES") {
-            return true;
-        }
-    }
-
     io::stdin().is_terminal() && io::stdout().is_terminal()
-}
-
-fn run_author_charter_with_cli_synthesizer(
-    repo_root: &Path,
-    input: &system_compiler::CharterStructuredInput,
-) -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal> {
-    if let Ok(message) = std::env::var("SYSTEM_AUTHOR_TEST_SYNTHESIS_ERROR") {
-        let synthesizer = EnvVarCharterSynthesizer {
-            response: Err(message),
-        };
-        return system_compiler::author_charter_with_synthesizer(repo_root, input, &synthesizer);
-    }
-
-    if let Ok(markdown) = std::env::var("SYSTEM_AUTHOR_TEST_SYNTHESIS_OUTPUT") {
-        let synthesizer = EnvVarCharterSynthesizer {
-            response: Ok(markdown),
-        };
-        return system_compiler::author_charter_with_synthesizer(repo_root, input, &synthesizer);
-    }
-
-    system_compiler::author_charter(repo_root, input)
 }
 
 fn render_author_charter_success(
@@ -2476,3 +2469,226 @@ const _: () = {
         std::mem::size_of::<system_compiler::Refusal>(),
     );
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    fn valid_structured_inputs_yaml() -> &'static str {
+        r#"schema_version: "0.1.0"
+project:
+  name: "System"
+  classification: greenfield
+  team_size: 2
+  users: internal
+  expected_lifetime: months
+  surfaces:
+    - cli
+    - api
+  runtime_environments:
+    - server
+  constraints:
+    deadline: ""
+    budget: ""
+    experience_notes: "small team"
+    must_use_tech:
+      - rust
+  operational_reality:
+    in_production_today: false
+    prod_users_or_data: ""
+    external_contracts_to_preserve: []
+    uptime_expectations: "best effort"
+  default_implications:
+    backward_compatibility: not_required
+    migration_planning: not_required
+    rollout_controls: lightweight
+    deprecation_policy: not_required_yet
+    observability_threshold: standard
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 3
+  baseline_rationale:
+    - "internal operators"
+    - "moderate blast radius"
+domains:
+  - name: "planning"
+    blast_radius: "medium"
+    touches:
+      - "internal operators"
+    constraints:
+      - "preserve trust boundaries"
+dimensions:
+  - name: speed_vs_quality
+    level: 3
+    default_stance: "optimize for durability over shortcuts"
+    raise_the_bar_triggers: ["production data"]
+    allowed_shortcuts: ["time-boxed exploration"]
+    red_lines: ["ship without review"]
+    domain_overrides: []
+  - name: type_safety_static_analysis
+    level: 3
+    default_stance: "type-safe by default"
+    raise_the_bar_triggers: ["cross-boundary interfaces"]
+    allowed_shortcuts: ["fixture-backed exploration"]
+    red_lines: ["unchecked public contracts"]
+    domain_overrides: []
+  - name: testing_rigor
+    level: 3
+    default_stance: "test the shipped path"
+    raise_the_bar_triggers: ["regression risk"]
+    allowed_shortcuts: ["manual validation for throwaway work"]
+    red_lines: ["merge without exercising the path"]
+    domain_overrides: []
+  - name: scalability_performance
+    level: 3
+    default_stance: "track obvious bottlenecks"
+    raise_the_bar_triggers: ["user-visible latency"]
+    allowed_shortcuts: ["defer micro-optimizations"]
+    red_lines: ["ignore known load cliffs"]
+    domain_overrides: []
+  - name: reliability_operability
+    level: 3
+    default_stance: "prefer recoverable changes"
+    raise_the_bar_triggers: ["long-lived state changes"]
+    allowed_shortcuts: ["local-only iteration"]
+    red_lines: ["unrecoverable migrations without a plan"]
+    domain_overrides: []
+  - name: security_privacy
+    level: 3
+    default_stance: "protect boundaries by default"
+    raise_the_bar_triggers: ["credentials or user data"]
+    allowed_shortcuts: ["synthetic data in local dev"]
+    red_lines: ["plaintext secrets"]
+    domain_overrides: []
+  - name: observability
+    level: 3
+    default_stance: "emit enough proof to debug production issues"
+    raise_the_bar_triggers: ["background jobs"]
+    allowed_shortcuts: ["manual logs for local-only work"]
+    red_lines: ["silent failures"]
+    domain_overrides: []
+  - name: dx_tooling_automation
+    level: 3
+    default_stance: "prefer automation that pays for itself"
+    raise_the_bar_triggers: ["frequent repeated workflows"]
+    allowed_shortcuts: ["temporary local scripts"]
+    red_lines: ["manual-only release steps"]
+    domain_overrides: []
+  - name: ux_polish_api_usability
+    level: 3
+    default_stance: "clear operator and API ergonomics"
+    raise_the_bar_triggers: ["external users"]
+    allowed_shortcuts: ["rough internal copy while iterating"]
+    red_lines: ["unclear operator failure modes"]
+    domain_overrides: []
+exceptions:
+  approvers:
+    - project_owner
+  record_location: "CHARTER.md#exceptions"
+  minimum_fields:
+    - what
+    - why
+    - scope
+    - risk
+    - owner
+    - expiry_or_revisit_date
+debt_tracking:
+  system: "issues"
+  labels:
+    - debt
+  review_cadence: "monthly"
+decision_records:
+  enabled: false
+  path: ""
+  format: ""
+"#
+    }
+
+    #[test]
+    fn execute_author_charter_command_renders_guided_success_with_injected_author() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let collect_called = Cell::new(false);
+        let author_called = Cell::new(false);
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs { from_inputs: None },
+            || Ok(dir.path().to_path_buf()),
+            || true,
+            || {
+                collect_called.set(true);
+                system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
+                    .map_err(|refusal| render_author_charter_refusal(&refusal))
+            },
+            |repo_root, input| {
+                author_called.set(true);
+                assert_eq!(repo_root, dir.path());
+                assert_eq!(input.project.name, "System");
+                Ok(system_compiler::AuthorCharterResult {
+                    canonical_repo_relative_path: ".system/charter/CHARTER.md",
+                    bytes_written: 42,
+                })
+            },
+        );
+
+        assert!(collect_called.get(), "guided input should be collected");
+        assert!(author_called.get(), "authoring closure should be called");
+        assert_eq!(rendered.exit_code, ExitCode::SUCCESS);
+        assert!(rendered.output.contains("OUTCOME: AUTHORED"));
+        assert!(rendered.output.contains("MODE: guided_interview"));
+        assert!(rendered.output.contains("SOURCE: interactive terminal"));
+    }
+
+    #[test]
+    fn execute_author_charter_command_renders_file_success_with_injected_author() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let inputs_path = dir.path().join("charter-inputs.yaml");
+        fs::write(&inputs_path, valid_structured_inputs_yaml()).expect("write inputs");
+        let author_called = Cell::new(false);
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs {
+                from_inputs: Some(inputs_path.to_string_lossy().into_owned()),
+            },
+            || Ok(dir.path().to_path_buf()),
+            || panic!("file inputs should not check interactive tty state"),
+            || panic!("file inputs should not run guided collection"),
+            |repo_root, input| {
+                author_called.set(true);
+                assert_eq!(repo_root, dir.path());
+                assert_eq!(input.project.name, "System");
+                Ok(system_compiler::AuthorCharterResult {
+                    canonical_repo_relative_path: ".system/charter/CHARTER.md",
+                    bytes_written: 24,
+                })
+            },
+        );
+
+        assert!(author_called.get(), "authoring closure should be called");
+        assert_eq!(rendered.exit_code, ExitCode::SUCCESS);
+        assert!(rendered.output.contains("MODE: structured_inputs_file"));
+        assert!(rendered
+            .output
+            .contains(&format!("SOURCE: {}", inputs_path.display())));
+    }
+
+    #[test]
+    fn execute_author_charter_command_refuses_without_tty_for_guided_mode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs { from_inputs: None },
+            || Ok(dir.path().to_path_buf()),
+            || false,
+            || panic!("guided collection should not run without tty"),
+            |_, _| panic!("authoring should not run without tty"),
+        );
+
+        assert_eq!(rendered.exit_code, ExitCode::from(1));
+        assert!(rendered.output.contains("OUTCOME: REFUSED"));
+        assert!(rendered.output.contains("CATEGORY: NonInteractiveRefusal"));
+        assert!(rendered
+            .output
+            .contains("run `system author charter --from-inputs <path|->`"));
+    }
+}

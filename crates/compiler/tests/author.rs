@@ -157,6 +157,47 @@ fn dimension(name: CharterDimensionName) -> CharterDimensionInput {
     }
 }
 
+fn valid_charter_markdown() -> &'static str {
+    r#"# Engineering Charter — System
+
+## What this is
+Done.
+
+## How to use this charter
+Done.
+
+## Rubric: 1–5 rigor levels
+Done.
+
+## Project baseline posture
+Done.
+
+## Domains / areas (optional overrides)
+Done.
+
+## Posture at a glance (quick scan)
+Done.
+
+## Dimensions (details + guardrails)
+Done.
+
+## Cross-cutting red lines (global non-negotiables)
+Done.
+
+## Exceptions / overrides process
+Done.
+
+## Debt tracking expectations
+Done.
+
+## Decision Records (ADRs): how to use this charter
+Done.
+
+## Review & updates
+Done.
+"#
+}
+
 fn scaffold_repo(root: &Path) {
     run_setup(root, &SetupRequest::default()).expect("setup scaffold");
 }
@@ -218,7 +259,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
 
-    let synthesizer = RecordingSynthesizer::ok("# Engineering Charter — System\n");
+    let synthesizer = RecordingSynthesizer::ok(valid_charter_markdown());
     let result = author_charter_with_synthesizer(dir.path(), &valid_input(), &synthesizer)
         .expect("author charter");
 
@@ -229,7 +270,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     assert_eq!(
         std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
             .expect("canonical charter"),
-        "# Engineering Charter — System\n"
+        valid_charter_markdown()
     );
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
@@ -283,16 +324,124 @@ fn author_charter_does_not_partially_write_when_synthesis_fails() {
 }
 
 #[test]
+fn author_charter_rejects_synthesis_output_with_commentary_preamble() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(
+            "Here is your charter:\n# Engineering Charter — System\n\n## What this is\n",
+        ),
+    )
+    .expect_err("commentary preamble should refuse");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("does not start with `# Engineering Charter`"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_rejects_synthesis_output_missing_required_headings() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(
+            "# Engineering Charter — System\n\n## What this is\nShort body.\n",
+        ),
+    )
+    .expect_err("partial charter output should refuse");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("does not satisfy the shipped charter template"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_rejects_synthesis_output_with_unresolved_placeholders() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(
+            "# Engineering Charter — {{PROJECT_NAME}}\n\n## What this is\nDone.\n## How to use this charter\nDone.\n## Rubric: 1–5 rigor levels\nDone.\n## Project baseline posture\nDone.\n## Domains / areas (optional overrides)\nDone.\n## Posture at a glance (quick scan)\nDone.\n## Dimensions (details + guardrails)\nDone.\n## Cross-cutting red lines (global non-negotiables)\nDone.\n## Exceptions / overrides process\nDone.\n## Debt tracking expectations\nDone.\n## Decision Records (ADRs): how to use this charter\nDone.\n## Review & updates\nDone.\n",
+        ),
+    )
+    .expect_err("unresolved placeholders should refuse");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("unresolved charter template placeholders"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_rejects_synthesis_output_with_template_comments() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(
+            "# Engineering Charter — System\n\n## What this is\nDone.\n<!-- template note -->\n## How to use this charter\nDone.\n## Rubric: 1–5 rigor levels\nDone.\n## Project baseline posture\nDone.\n## Domains / areas (optional overrides)\nDone.\n## Posture at a glance (quick scan)\nDone.\n## Dimensions (details + guardrails)\nDone.\n## Cross-cutting red lines (global non-negotiables)\nDone.\n## Exceptions / overrides process\nDone.\n## Debt tracking expectations\nDone.\n## Decision Records (ADRs): how to use this charter\nDone.\n## Review & updates\nDone.\n",
+        ),
+    )
+    .expect_err("template comments should refuse");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("charter template commentary instead of final markdown"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
 fn shared_synthesis_request_is_used_by_future_interactive_and_deterministic_callers() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let input = valid_input();
     let expected_request = build_charter_synthesis_request(&input).expect("request");
-    let synthesizer = RecordingSynthesizer::ok("# Engineering Charter — System\n");
+    let synthesizer = RecordingSynthesizer::ok(valid_charter_markdown());
 
     let synthesized =
         synthesize_charter_markdown_with(dir.path(), &input, &synthesizer).expect("synthesize");
-    assert_eq!(synthesized, "# Engineering Charter — System\n");
+    assert_eq!(synthesized, valid_charter_markdown());
 
     let _ =
         author_charter_with_synthesizer(dir.path(), &input, &synthesizer).expect("author charter");

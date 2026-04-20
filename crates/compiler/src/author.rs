@@ -19,6 +19,20 @@ const SYNTHESIS_DIRECTIVE: &str =
 const AUTHORING_METHOD: &str =
     include_str!("../../../core/library/authoring/charter_authoring_method.md");
 const CHARTER_TEMPLATE: &str = include_str!("../../../core/library/charter/charter.md.tmpl");
+const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
+    "## What this is",
+    "## How to use this charter",
+    "## Rubric: 1–5 rigor levels",
+    "## Project baseline posture",
+    "## Domains / areas (optional overrides)",
+    "## Posture at a glance (quick scan)",
+    "## Dimensions (details + guardrails)",
+    "## Cross-cutting red lines (global non-negotiables)",
+    "## Exceptions / overrides process",
+    "## Debt tracking expectations",
+    "## Decision Records (ADRs): how to use this charter",
+    "## Review & updates",
+];
 
 // Command path:
 // `system author charter` or `system author charter --from-inputs <path|->`
@@ -541,22 +555,15 @@ pub fn synthesize_charter_markdown_with(
     let request = build_charter_synthesis_request(input)?;
     let markdown = synthesizer
         .synthesize(repo_root.as_ref(), request)
-        .map_err(|err| AuthorCharterRefusal {
-            kind: AuthorCharterRefusalKind::SynthesisFailed,
-            summary: format!("charter synthesis failed: {}", err.message),
-            broken_subject: "charter synthesis runtime".to_string(),
-            next_safe_action: "repair the synthesis runtime and retry `system author charter`"
-                .to_string(),
+        .map_err(|err| {
+            synthesis_failed_refusal(format!("charter synthesis failed: {}", err.message))
         })?;
     if markdown.trim().is_empty() {
-        return Err(AuthorCharterRefusal {
-            kind: AuthorCharterRefusalKind::SynthesisFailed,
-            summary: "charter synthesis failed: runtime returned empty output".to_string(),
-            broken_subject: "charter synthesis runtime".to_string(),
-            next_safe_action: "repair the synthesis runtime and retry `system author charter`"
-                .to_string(),
-        });
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned empty output",
+        ));
     }
+    validate_synthesized_charter_markdown(&markdown)?;
     Ok(markdown)
 }
 
@@ -665,6 +672,53 @@ fn validate_authoring_preconditions(
     }
 
     Ok(())
+}
+
+fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCharterRefusal> {
+    let Some(first_line) = markdown.lines().next() else {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned empty output",
+        ));
+    };
+
+    if !first_line.starts_with("# Engineering Charter") {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned output that does not start with `# Engineering Charter`",
+        ));
+    }
+
+    if markdown.contains("{{") || markdown.contains("}}") {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned unresolved charter template placeholders",
+        ));
+    }
+
+    if markdown.contains("<!--") || markdown.contains("-->") {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned charter template commentary instead of final markdown",
+        ));
+    }
+
+    if REQUIRED_CHARTER_TOP_LEVEL_HEADINGS
+        .iter()
+        .any(|heading| !markdown.contains(heading))
+    {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned output that does not satisfy the shipped charter template",
+        ));
+    }
+
+    Ok(())
+}
+
+fn synthesis_failed_refusal(message: impl Into<String>) -> AuthorCharterRefusal {
+    AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::SynthesisFailed,
+        summary: message.into(),
+        broken_subject: "charter synthesis runtime".to_string(),
+        next_safe_action: "repair the synthesis runtime and retry `system author charter`"
+            .to_string(),
+    }
 }
 
 fn validate_charter_write_target(repo_root: &Path) -> Result<(), AuthorCharterRefusal> {
