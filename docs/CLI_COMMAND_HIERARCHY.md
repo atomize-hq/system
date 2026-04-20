@@ -10,17 +10,19 @@ This document depends on [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULA
 
 ## Core Model
 
-The reviewed reduced-v1 CLI product has five operator-facing surfaces, in this order:
+The reviewed reduced-v1 CLI product has six operator-facing surfaces, in this order:
 
 1. `setup` (`setup`, `setup init`, `setup refresh`)
-2. `pipeline`
-3. `generate`
-4. `inspect`
-5. `doctor`
+2. `author` (`author charter`, `author charter --from-inputs <path|->`)
+3. `pipeline`
+4. `generate`
+5. `inspect`
+6. `doctor`
 
 That ordering is not arbitrary.
 
 - The `setup` family establishes or refreshes trusted project truth.
+- `author` replaces setup-owned charter scaffolding with completed canonical truth.
 - `pipeline` owns orchestration truth, route resolution, explicit stage selection, explicit stage compilation, explicit stage-output capture, and narrow route-state mutation.
 - `generate` is the default ready-path command once trusted truth exists.
 - `inspect` is the packet proof surface when the operator needs to verify why a packet looks the way it does.
@@ -28,7 +30,7 @@ That ordering is not arbitrary.
 
 Current implementation note:
 
-- the currently shipped binary exposes `setup`, `pipeline`, `generate`, `inspect`, and `doctor`
+- the currently shipped binary exposes `setup`, `author`, `pipeline`, `generate`, `inspect`, and `doctor`
 - the reviewed product surface includes `pipeline` as the orchestration surface for `list`, `show`, `resolve`, `compile`, `capture`, and `state set`
 
 ## Front Door Rule
@@ -64,7 +66,7 @@ Reduced v1 now has one explicit setup-family story:
 - `setup refresh --reset-state` resets only `.system/state/**`.
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
 - The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the required starter files are replaced with completed canonical truth.
-- Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
+- Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
 
 ## Hierarchy Rules
 
@@ -95,6 +97,20 @@ Use `setup refresh` when:
   - default preserve behavior
   - `--rewrite` for setup-owned starter files only
   - `--reset-state` for `.system/state/**` only
+
+### `author`
+
+Use `author` when:
+
+- setup has already established canonical `.system/` truth
+- a setup-owned starter file must be replaced with completed canonical truth
+- the operator needs a supported human-guided or automation-safe authoring surface
+
+The first shipped authoring wedge is `system author charter`.
+
+`system author charter` is the human-guided surface.
+
+`system author charter --from-inputs <path|->` is the agent and automation surface.
 
 ### `generate`
 
@@ -195,7 +211,7 @@ The routing story also depends on which repo root the command is acting against.
 This product has two layers that should be named differently:
 
 - Experience layer: setup-init experience, setup-refresh experience, future assisted or automated setup
-- Command layer: `setup`, `pipeline`, `generate`, `inspect`, `doctor`
+- Command layer: `setup`, `author`, `pipeline`, `generate`, `inspect`, `doctor`
 
 Do not try to make the command names carry the full UX story.
 
