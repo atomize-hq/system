@@ -39,6 +39,34 @@ const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## Decision Records (ADRs): how to use this charter",
     "## Review & updates",
 ];
+const CHARTER_TEMPLATE_SCAFFOLD_MARKERS: [&str; 18] = [
+    "> **file:** `charter.md`",
+    "> **created (utc):**",
+    "> **owner:**",
+    "> **team:**",
+    "> **repo / project:**",
+    "- examples: auth, payments, pii, regulated data, critical uptime, model inference, supply chain risk",
+    "- options (choose one):",
+    "- e.g., prod today?, live users?, existing data?, slas/slos?, external contracts?",
+    "> use this section for **coarse areas** (domains/services) like auth/identity, pii/privacy, billing, ml inference, customer ux, admin tools, integrations, deployment pipeline.",
+    "> **not** per-class or per-function.",
+    "> if a field below is blank, it inherits the baseline level.",
+    "> **format per dimension:**",
+    "> - default stance (level)",
+    "> - raise-the-bar triggers",
+    "> - allowed shortcuts",
+    "> - non-negotiables (red lines)",
+    "> - domain/area overrides (only where needed)",
+    "- e.g., production launch, first external customers, incident, scope change, new domain added",
+];
+const CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS: [&str; 6] = [
+    "- e.g., ts `strict`,",
+    "- e.g., unit vs integration vs e2e;",
+    "- e.g., basic slos, rollback expectations, on-call/ownership",
+    "- e.g., structured logs, metrics, traces, alerts",
+    "- e.g., ci, formatting, linting, release automation, local dev scripts",
+    "- e.g., accessibility baseline, performance perception, error messaging clarity",
+];
 
 // Command path:
 // `system author charter` or `system author charter --from-inputs <path|->`
@@ -1706,6 +1734,12 @@ fn build_charter_synthesis_prompt(
         ))
     })?;
     let sanitized_template = sanitize_charter_template(CHARTER_TEMPLATE_MARKDOWN);
+    if let Some(leaked_line) = find_charter_template_scaffold_line(&sanitized_template) {
+        return Err(synthesis_refusal(format!(
+            "sanitized charter template still contains author-facing scaffold: `{}`",
+            leaked_line.trim()
+        )));
+    }
 
     let mut prompt = String::new();
     writeln!(prompt, "# Repo-Owned Charter Authoring Method").unwrap();
@@ -1805,6 +1839,33 @@ fn normalize_string_list(values: &mut Vec<String>) {
     }
 }
 
+fn normalize_charter_template_scaffold_line(line: &str) -> String {
+    line.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
+}
+
+fn is_charter_template_scaffold_line(line: &str) -> bool {
+    let normalized = normalize_charter_template_scaffold_line(line);
+    if normalized.is_empty() {
+        return false;
+    }
+
+    CHARTER_TEMPLATE_SCAFFOLD_MARKERS
+        .iter()
+        .any(|marker| normalized.starts_with(marker))
+        || CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS
+            .iter()
+            .any(|marker| normalized.starts_with(marker))
+}
+
+fn find_charter_template_scaffold_line(document: &str) -> Option<&str> {
+    document
+        .lines()
+        .find(|line| is_charter_template_scaffold_line(line))
+}
+
 fn sanitize_charter_template(template: &str) -> String {
     let mut sanitized = String::with_capacity(template.len());
     let mut remaining = template;
@@ -1835,6 +1896,9 @@ fn sanitize_charter_template(template: &str) -> String {
     let mut blank_run = 0usize;
     for line in sanitized.lines() {
         let trimmed_end = line.trim_end();
+        if is_charter_template_scaffold_line(trimmed_end) {
+            continue;
+        }
         if trimmed_end.is_empty() {
             blank_run += 1;
             if blank_run > 1 {
@@ -1875,6 +1939,12 @@ fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCha
         return Err(synthesis_refusal(
             "synthesized charter markdown contains unresolved template placeholders",
         ));
+    }
+    if let Some(leaked_line) = find_charter_template_scaffold_line(markdown) {
+        return Err(synthesis_refusal(format!(
+            "synthesized charter markdown contains leaked author-facing scaffold: `{}`",
+            leaked_line.trim()
+        )));
     }
     if let Err(summary) = validate_required_heading_order_result(markdown) {
         return Err(synthesis_refusal(format!(

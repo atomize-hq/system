@@ -390,6 +390,14 @@ fn author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
     assert!(!prompt.contains("<!--"));
     assert!(!prompt.contains("Example (replace with your own):"));
     assert!(!prompt.contains("Defaults (edit freely):"));
+    assert!(!prompt.contains("Options (choose one):"));
+    assert!(!prompt.contains(
+        "e.g., prod today?, live users?, existing data?, SLAs/SLOs?, external contracts?"
+    ));
+    assert!(!prompt
+        .contains("e.g., TS `strict`, lint rules, formatters, static analysis, schema validation"));
+    assert!(!prompt.contains("> Use this section for **coarse areas**"));
+    assert!(!prompt.contains("> **Format per dimension:**"));
 }
 
 #[test]
@@ -490,6 +498,34 @@ fn author_charter_refuses_invalid_synthesized_markdown() {
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
     assert!(err.summary.contains("unresolved template placeholders"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &invalid_output_stub_script(
+            "# Engineering Charter — System\n\n## What this is\n\nDocument body.\n\n- Options (choose one):\n",
+        ),
+    );
+
+    let err = with_author_runtime_override(&stub, || {
+        author_charter(dir.path(), &valid_input()).expect_err("leaked scaffold should refuse")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("contains leaked author-facing scaffold"));
     assert_eq!(
         std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
             .expect("charter after failure"),
