@@ -7,21 +7,13 @@ use crate::repo_file_access::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
 const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
-const SYNTHESIS_DIRECTIVE: &str =
-    include_str!("../../../core/library/charter/charter_synthesize_directive.md");
-const AUTHORING_METHOD: &str =
-    include_str!("../../../core/library/authoring/charter_authoring_method.md");
-const CHARTER_TEMPLATE: &str = include_str!("../../../core/library/charter/charter.md.tmpl");
-const CHARTER_SYNTHESIS_OVERRIDE_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_SYNTHESIS_OVERRIDE";
 const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## What this is",
     "## How to use this charter",
@@ -74,34 +66,6 @@ impl std::error::Error for AuthorCharterRefusal {}
 pub struct AuthorCharterResult {
     pub canonical_repo_relative_path: &'static str,
     pub bytes_written: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CharterSynthesisRequest {
-    pub canonical_repo_relative_path: &'static str,
-    pub inputs_yaml: String,
-    pub prompt: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CharterSynthesisError {
-    pub message: String,
-}
-
-impl CharterSynthesisError {
-    fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
-
-pub trait CharterSynthesizer: Send + Sync {
-    fn synthesize(
-        &self,
-        repo_root: &Path,
-        request: CharterSynthesisRequest,
-    ) -> Result<String, CharterSynthesisError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -357,6 +321,199 @@ impl CharterDimensionName {
     }
 }
 
+#[derive(Clone, Copy)]
+struct RubricLevel {
+    level: u8,
+    label: &'static str,
+    meaning: &'static str,
+}
+
+const RUBRIC_LEVELS: [RubricLevel; 5] = [
+    RubricLevel {
+        level: 1,
+        label: "Exploratory",
+        meaning: "throwaway ok; optimize learning; minimal gates",
+    },
+    RubricLevel {
+        level: 2,
+        label: "Prototype",
+        meaning: "demoable/internal use; some structure; still speed-first",
+    },
+    RubricLevel {
+        level: 3,
+        label: "Product",
+        meaning: "real users; balanced; maintainability matters",
+    },
+    RubricLevel {
+        level: 4,
+        label: "Production",
+        meaning: "GA/customer-facing; strong quality/reliability/security defaults",
+    },
+    RubricLevel {
+        level: 5,
+        label: "Hardened",
+        meaning: "critical/regulated/high blast radius; strict gates; defense-in-depth",
+    },
+];
+
+#[derive(Clone, Copy)]
+struct DimensionMetadata {
+    title: &'static str,
+    table_label: &'static str,
+}
+
+fn rubric_level(level: u8) -> RubricLevel {
+    RUBRIC_LEVELS[(level.saturating_sub(1)) as usize]
+}
+
+fn dimension_metadata(name: CharterDimensionName) -> DimensionMetadata {
+    match name {
+        CharterDimensionName::SpeedVsQuality => DimensionMetadata {
+            title: "1) Speed vs Quality",
+            table_label: "Speed vs Quality",
+        },
+        CharterDimensionName::TypeSafetyStaticAnalysis => DimensionMetadata {
+            title: "2) Type safety / static analysis",
+            table_label: "Type safety / static analysis",
+        },
+        CharterDimensionName::TestingRigor => DimensionMetadata {
+            title: "3) Testing rigor",
+            table_label: "Testing rigor",
+        },
+        CharterDimensionName::ScalabilityPerformance => DimensionMetadata {
+            title: "4) Scalability & performance",
+            table_label: "Scalability & performance",
+        },
+        CharterDimensionName::ReliabilityOperability => DimensionMetadata {
+            title: "5) Reliability & operability",
+            table_label: "Reliability & operability",
+        },
+        CharterDimensionName::SecurityPrivacy => DimensionMetadata {
+            title: "6) Security & privacy",
+            table_label: "Security & privacy",
+        },
+        CharterDimensionName::Observability => DimensionMetadata {
+            title: "7) Observability",
+            table_label: "Observability",
+        },
+        CharterDimensionName::DxToolingAutomation => DimensionMetadata {
+            title: "8) Developer experience (DX)",
+            table_label: "Developer experience (DX)",
+        },
+        CharterDimensionName::UxPolishApiUsability => DimensionMetadata {
+            title: "9) UX polish / API usability",
+            table_label: "UX polish / API usability",
+        },
+    }
+}
+
+impl CharterProjectClassification {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Greenfield => "greenfield",
+            Self::Brownfield => "brownfield",
+            Self::Integration => "integration",
+            Self::Modernization => "modernization",
+            Self::Hardening => "hardening",
+        }
+    }
+}
+
+impl CharterAudience {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Internal => "internal",
+            Self::External => "external",
+            Self::Mixed => "mixed",
+        }
+    }
+}
+
+impl CharterExpectedLifetime {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Days => "days",
+            Self::Weeks => "weeks",
+            Self::Months => "months",
+            Self::Years => "years",
+        }
+    }
+}
+
+impl CharterSurface {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::WebApp => "web app",
+            Self::Api => "api",
+            Self::Cli => "cli",
+            Self::Lib => "library",
+            Self::Infra => "infrastructure",
+            Self::Ml => "ml",
+        }
+    }
+}
+
+impl CharterRuntimeEnvironment {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Browser => "browser",
+            Self::Server => "server",
+            Self::Cloud => "cloud",
+            Self::OnPrem => "on-prem",
+            Self::Edge => "edge",
+        }
+    }
+}
+
+impl CharterBackwardCompatibility {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Required => "required",
+            Self::NotRequired => "not required",
+            Self::BoundaryOnly => "boundary only",
+        }
+    }
+}
+
+impl CharterRequiredness {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Required => "required",
+            Self::NotRequired => "not required",
+        }
+    }
+}
+
+impl CharterRolloutControls {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Lightweight => "lightweight",
+            Self::Required => "required",
+        }
+    }
+}
+
+impl CharterDeprecationPolicy {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Required => "required",
+            Self::NotRequiredYet => "not required yet",
+        }
+    }
+}
+
+impl CharterObservabilityThreshold {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Minimal => "minimal",
+            Self::Standard => "standard",
+            Self::High => "high",
+            Self::Regulated => "regulated",
+        }
+    }
+}
+
 pub fn parse_charter_structured_input_yaml(
     yaml: &str,
 ) -> Result<CharterStructuredInput, AuthorCharterRefusal> {
@@ -542,6 +699,8 @@ pub fn validate_charter_structured_input(
         );
     }
 
+    collect_render_safety_issues(input, &mut issues);
+
     if issues.is_empty() {
         Ok(())
     } else {
@@ -555,60 +714,410 @@ pub fn validate_charter_structured_input(
     }
 }
 
-pub fn build_charter_synthesis_request(
+pub fn render_charter_markdown(
     input: &CharterStructuredInput,
-) -> Result<CharterSynthesisRequest, AuthorCharterRefusal> {
+) -> Result<String, AuthorCharterRefusal> {
     validate_charter_structured_input(input)?;
-    let inputs_yaml = serde_yaml_bw::to_string(input).map_err(|err| AuthorCharterRefusal {
-        kind: AuthorCharterRefusalKind::MalformedStructuredInput,
-        summary: format!("failed to serialize structured charter input: {err}"),
-        broken_subject: "structured charter input".to_string(),
-        next_safe_action:
-            "repair the structured charter input and retry `system author charter --from-inputs <path|->`"
-                .to_string(),
-    })?;
-    let inputs_yaml_block = inputs_yaml.trim_end_matches('\n');
-    let render_template = charter_render_template_for_synthesis();
-    let prompt = format!(
-        "{directive}\n\n## Charter authoring method\n```markdown\n{method}\n```\n\n## Canonical output target\n- Write only `{path}`.\n- Return only the final markdown.\n\n## Template reference\n```markdown\n{template}\n```\n\n## Structured input source of truth\n```yaml\n{yaml}\n```\n",
-        directive = SYNTHESIS_DIRECTIVE.trim_end(),
-        method = AUTHORING_METHOD.trim_end(),
-        path = CANONICAL_CHARTER_REPO_PATH,
-        template = render_template,
-        yaml = inputs_yaml_block,
+
+    let project_name = normalize_charter_free_text(&input.project.name);
+    let baseline = rubric_level(input.posture.baseline_level);
+    let surfaces = join_display(
+        input
+            .project
+            .surfaces
+            .iter()
+            .map(|surface| surface.display_name()),
     );
-    Ok(CharterSynthesisRequest {
-        canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,
-        inputs_yaml,
-        prompt,
-    })
-}
+    let runtimes = join_display(
+        input
+            .project
+            .runtime_environments
+            .iter()
+            .map(|runtime| runtime.display_name()),
+    );
+    let must_use_tech =
+        render_inline_list_or_default(&input.project.constraints.must_use_tech, "none declared");
+    let production_state = if input.project.operational_reality.in_production_today {
+        "yes"
+    } else {
+        "no"
+    };
+    let external_contracts = render_inline_list_or_default(
+        &input
+            .project
+            .operational_reality
+            .external_contracts_to_preserve,
+        "none declared",
+    );
+    let debt_labels = render_inline_list_or_default(&input.debt_tracking.labels, "none");
 
-pub fn synthesize_charter_markdown(
-    repo_root: impl AsRef<Path>,
-    input: &CharterStructuredInput,
-) -> Result<String, AuthorCharterRefusal> {
-    synthesize_charter_markdown_with(repo_root, input, &UnifiedAgentCharterSynthesizer)
-}
-
-pub fn synthesize_charter_markdown_with(
-    repo_root: impl AsRef<Path>,
-    input: &CharterStructuredInput,
-    synthesizer: &dyn CharterSynthesizer,
-) -> Result<String, AuthorCharterRefusal> {
-    // Both future entrypoints converge here before the final LLM pass.
-    let request = build_charter_synthesis_request(input)?;
-    let markdown = synthesizer
-        .synthesize(repo_root.as_ref(), request)
-        .map_err(|err| {
-            synthesis_failed_refusal(format!("charter synthesis failed: {}", err.message))
-        })?;
-    if markdown.trim().is_empty() {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned empty output",
-        ));
+    let mut out = String::new();
+    writeln!(out, "# Engineering Charter — {project_name}").unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "## What this is").unwrap();
+    writeln!(
+        out,
+        "This engineering charter is the canonical decision surface for {project_name}. It turns the project's stated baseline posture, domain constraints, and dimension-specific guardrails into the default rules for day-to-day engineering work."
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "## How to use this charter").unwrap();
+    writeln!(
+        out,
+        "- Default to the project baseline of level {} ({}) unless a dimension or domain section explicitly raises or lowers the bar.",
+        baseline.level, baseline.label
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- Use the dimension sections below to decide when to raise rigor, what shortcuts remain acceptable, and which red lines are non-negotiable."
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- Record approved exceptions in {} before deviating from these defaults.",
+        normalize_charter_free_text(&input.exceptions.record_location)
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- Revisit this charter when the project classification, risk profile, or operating environment changes."
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "## Rubric: 1–5 rigor levels").unwrap();
+    writeln!(
+        out,
+        "| Level | Label | Meaning |\n|------:|-------|---------|"
+    )
+    .unwrap();
+    for level in RUBRIC_LEVELS {
+        writeln!(
+            out,
+            "| {} | {} | {} |",
+            level.level, level.label, level.meaning
+        )
+        .unwrap();
     }
-    validate_synthesized_charter_markdown(&markdown)?;
+    writeln!(out).unwrap();
+    writeln!(out, "## Project baseline posture").unwrap();
+    writeln!(
+        out,
+        "- **Baseline level:** {} ({})",
+        baseline.level, baseline.label
+    )
+    .unwrap();
+    writeln!(out, "- **Baseline rationale:**").unwrap();
+    for rationale in &input.posture.baseline_rationale {
+        writeln!(out, "  - {}", normalize_charter_free_text(rationale)).unwrap();
+    }
+    writeln!(
+        out,
+        "- **Project classification:** {}",
+        input.project.classification.display_name()
+    )
+    .unwrap();
+    writeln!(out, "- **Users:** {}", input.project.users.display_name()).unwrap();
+    writeln!(
+        out,
+        "- **Expected lifetime:** {}",
+        input.project.expected_lifetime.display_name()
+    )
+    .unwrap();
+    writeln!(out, "- **Team size:** {}", input.project.team_size).unwrap();
+    writeln!(out, "- **Surfaces:** {surfaces}").unwrap();
+    writeln!(out, "- **Runtime environments:** {runtimes}").unwrap();
+    writeln!(
+        out,
+        "- **Deadline:** {}",
+        render_inline_text_or_default(&input.project.constraints.deadline, "none declared")
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Budget notes:** {}",
+        render_inline_text_or_default(&input.project.constraints.budget, "none declared")
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Experience notes:** {}",
+        normalize_charter_free_text(&input.project.constraints.experience_notes)
+    )
+    .unwrap();
+    writeln!(out, "- **Required technologies:** {must_use_tech}").unwrap();
+    writeln!(out, "- **In production today:** {production_state}").unwrap();
+    writeln!(
+        out,
+        "- **Production users or data:** {}",
+        render_inline_text_or_default(
+            &input.project.operational_reality.prod_users_or_data,
+            "none declared"
+        )
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **External contracts to preserve:** {external_contracts}"
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Uptime expectations:** {}",
+        render_inline_text_or_default(
+            &input.project.operational_reality.uptime_expectations,
+            "none declared"
+        )
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Backward compatibility default:** {}",
+        input
+            .project
+            .default_implications
+            .backward_compatibility
+            .display_name()
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Migration planning default:** {}",
+        input
+            .project
+            .default_implications
+            .migration_planning
+            .display_name()
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Rollout controls default:** {}",
+        input
+            .project
+            .default_implications
+            .rollout_controls
+            .display_name()
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Deprecation policy default:** {}",
+        input
+            .project
+            .default_implications
+            .deprecation_policy
+            .display_name()
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Observability threshold default:** {}",
+        input
+            .project
+            .default_implications
+            .observability_threshold
+            .display_name()
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "## Domains / areas (optional overrides)").unwrap();
+    if input.domains.is_empty() {
+        writeln!(out, "None — baseline applies everywhere.").unwrap();
+    } else {
+        writeln!(
+            out,
+            "These domains add context for where the baseline posture needs extra care."
+        )
+        .unwrap();
+        writeln!(out).unwrap();
+        for domain in &input.domains {
+            writeln!(out, "### {}", normalize_charter_free_text(&domain.name)).unwrap();
+            writeln!(
+                out,
+                "- **Blast radius:** {}",
+                normalize_charter_free_text(&domain.blast_radius)
+            )
+            .unwrap();
+            writeln!(
+                out,
+                "- **Touches / trust boundary:** {}",
+                render_inline_list_or_default(&domain.touches, "none declared")
+            )
+            .unwrap();
+            writeln!(
+                out,
+                "- **Special constraints:** {}",
+                render_inline_list_or_default(&domain.constraints, "none declared")
+            )
+            .unwrap();
+            writeln!(
+                out,
+                "- **Default posture:** baseline applies unless a dimension override below says otherwise."
+            )
+            .unwrap();
+            writeln!(out).unwrap();
+        }
+    }
+    writeln!(out).unwrap();
+    writeln!(out, "## Posture at a glance (quick scan)").unwrap();
+    writeln!(
+        out,
+        "| Dimension | Default level (1–5) | Notes / intent |\n|---|---:|---|"
+    )
+    .unwrap();
+    for name in CharterDimensionName::all() {
+        let dimension = dimension_lookup(input, *name);
+        let level = effective_dimension_level(dimension, input.posture.baseline_level);
+        let metadata = dimension_metadata(*name);
+        writeln!(
+            out,
+            "| {} | {} | {} |",
+            metadata.table_label,
+            level,
+            escape_table_cell(&normalize_charter_free_text(&dimension.default_stance))
+        )
+        .unwrap();
+    }
+    writeln!(out).unwrap();
+    writeln!(out, "## Dimensions (details + guardrails)").unwrap();
+    writeln!(
+        out,
+        "Each dimension inherits the project baseline unless an explicit level is set below."
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    for name in CharterDimensionName::all() {
+        let dimension = dimension_lookup(input, *name);
+        let level = effective_dimension_level(dimension, input.posture.baseline_level);
+        let rubric = rubric_level(level);
+        let metadata = dimension_metadata(*name);
+        writeln!(out, "### {}", metadata.title).unwrap();
+        writeln!(
+            out,
+            "- **Default stance (level):** {} ({})",
+            rubric.level, rubric.label
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "- **Intent:** {}",
+            normalize_charter_free_text(&dimension.default_stance)
+        )
+        .unwrap();
+        writeln!(out, "**Raise the bar when:**").unwrap();
+        push_bullets(&mut out, &dimension.raise_the_bar_triggers);
+        writeln!(out).unwrap();
+        writeln!(out, "**Allowed shortcuts when:**").unwrap();
+        push_bullets(&mut out, &dimension.allowed_shortcuts);
+        writeln!(out).unwrap();
+        writeln!(out, "**Non-negotiables / red lines:**").unwrap();
+        push_bullets(&mut out, &dimension.red_lines);
+        writeln!(out).unwrap();
+        writeln!(out, "**Domain overrides (if any):**").unwrap();
+        if dimension.domain_overrides.is_empty() {
+            writeln!(out, "- None — baseline applies.").unwrap();
+        } else {
+            push_bullets(&mut out, &dimension.domain_overrides);
+        }
+        writeln!(out).unwrap();
+    }
+    writeln!(out, "## Cross-cutting red lines (global non-negotiables)").unwrap();
+    writeln!(
+        out,
+        "The following rules apply across the project unless an approved exception is recorded:"
+    )
+    .unwrap();
+    for red_line in collect_cross_cutting_red_lines(input) {
+        writeln!(out, "- {red_line}").unwrap();
+    }
+    writeln!(
+        out,
+        "- Preserve the project-wide defaults for {} and {} unless a feature-specific plan explicitly changes them.",
+        input
+            .project
+            .default_implications
+            .backward_compatibility
+            .display_name(),
+        input.project.default_implications.rollout_controls.display_name()
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "## Exceptions / overrides process").unwrap();
+    writeln!(
+        out,
+        "- **Approvers:** {}",
+        render_inline_list_or_default(&input.exceptions.approvers, "none declared")
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- **Record location:** {}",
+        normalize_charter_free_text(&input.exceptions.record_location)
+    )
+    .unwrap();
+    writeln!(out, "- **Minimum required fields:**").unwrap();
+    push_bullets(&mut out, &input.exceptions.minimum_fields);
+    writeln!(out).unwrap();
+    writeln!(out, "## Debt tracking expectations").unwrap();
+    writeln!(
+        out,
+        "- **Tracking system:** {}",
+        normalize_charter_free_text(&input.debt_tracking.system)
+    )
+    .unwrap();
+    writeln!(out, "- **Labels:** {debt_labels}").unwrap();
+    writeln!(
+        out,
+        "- **Review cadence:** {}",
+        normalize_charter_free_text(&input.debt_tracking.review_cadence)
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "## Decision Records (ADRs): how to use this charter").unwrap();
+    if input.decision_records.enabled {
+        writeln!(
+            out,
+            "- Record major design decisions in {} using {} files.",
+            normalize_charter_free_text(&input.decision_records.path),
+            normalize_charter_free_text(&input.decision_records.format)
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "- Use ADRs when a change alters the project baseline, crosses a listed red line, or introduces a lasting domain override."
+        )
+        .unwrap();
+    } else {
+        writeln!(out, "- ADRs are not mandatory by default for this project.").unwrap();
+        writeln!(
+            out,
+            "- Capture any material exception or posture change in {} instead.",
+            normalize_charter_free_text(&input.exceptions.record_location)
+        )
+        .unwrap();
+    }
+    writeln!(out).unwrap();
+    writeln!(out, "## Review & updates").unwrap();
+    writeln!(
+        out,
+        "- Review this charter on a {} cadence.",
+        normalize_charter_free_text(&input.debt_tracking.review_cadence)
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- Update it when the project classification, domains, runtime environments, or production reality change."
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "- Re-run impacted plans when any update changes a default level, a red line, or an exception process."
+    )
+    .unwrap();
+
+    let markdown = out.trim_end().to_string();
+    validate_required_heading_order(&markdown);
     Ok(markdown)
 }
 
@@ -616,34 +1125,12 @@ pub fn author_charter(
     repo_root: impl AsRef<Path>,
     input: &CharterStructuredInput,
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
-    author_charter_with_synthesizer(repo_root, input, &UnifiedAgentCharterSynthesizer)
-}
-
-pub fn preflight_author_charter(repo_root: impl AsRef<Path>) -> Result<(), AuthorCharterRefusal> {
-    let repo_root = repo_root.as_ref();
-    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| AuthorCharterRefusal {
-        kind: AuthorCharterRefusalKind::InvalidSystemRoot,
-        summary: format!("failed to inspect canonical `.system` root: {err}"),
-        broken_subject: "canonical `.system` root".to_string(),
-        next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
-            .to_string(),
-    })?;
-    validate_authoring_preconditions(&artifacts)?;
-    validate_charter_write_target(repo_root)?;
-    Ok(())
-}
-
-pub fn author_charter_with_synthesizer(
-    repo_root: impl AsRef<Path>,
-    input: &CharterStructuredInput,
-    synthesizer: &dyn CharterSynthesizer,
-) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
     preflight_author_charter(repo_root)?;
     let _lock = acquire_charter_authoring_lock(repo_root)?;
     preflight_author_charter(repo_root)?;
 
-    let markdown = synthesize_charter_markdown_with(repo_root, input, synthesizer)?;
+    let markdown = render_charter_markdown(input)?;
     write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
         .map_err(|err| AuthorCharterRefusal {
             kind: AuthorCharterRefusalKind::MutationRefused,
@@ -658,6 +1145,20 @@ pub fn author_charter_with_synthesizer(
         canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,
         bytes_written: markdown.len(),
     })
+}
+
+pub fn preflight_author_charter(repo_root: impl AsRef<Path>) -> Result<(), AuthorCharterRefusal> {
+    let repo_root = repo_root.as_ref();
+    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::InvalidSystemRoot,
+        summary: format!("failed to inspect canonical `.system` root: {err}"),
+        broken_subject: "canonical `.system` root".to_string(),
+        next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
+            .to_string(),
+    })?;
+    validate_authoring_preconditions(&artifacts)?;
+    validate_charter_write_target(repo_root)?;
+    Ok(())
 }
 
 fn validate_authoring_preconditions(
@@ -727,256 +1228,238 @@ fn validate_authoring_preconditions(
     Ok(())
 }
 
-fn charter_render_template_for_synthesis() -> String {
-    let mut rendered_lines = Vec::new();
-    let mut inside_comment = false;
-    let mut skip_nested_instruction_block = false;
+fn collect_render_safety_issues(input: &CharterStructuredInput, issues: &mut Vec<String>) {
+    require_render_safe_text("project.name", &input.project.name, issues);
+    require_render_safe_text(
+        "project.constraints.deadline",
+        &input.project.constraints.deadline,
+        issues,
+    );
+    require_render_safe_text(
+        "project.constraints.budget",
+        &input.project.constraints.budget,
+        issues,
+    );
+    require_render_safe_text(
+        "project.constraints.experience_notes",
+        &input.project.constraints.experience_notes,
+        issues,
+    );
+    require_render_safe_list(
+        "project.constraints.must_use_tech",
+        &input.project.constraints.must_use_tech,
+        issues,
+    );
+    require_render_safe_text(
+        "project.operational_reality.prod_users_or_data",
+        &input.project.operational_reality.prod_users_or_data,
+        issues,
+    );
+    require_render_safe_list(
+        "project.operational_reality.external_contracts_to_preserve",
+        &input
+            .project
+            .operational_reality
+            .external_contracts_to_preserve,
+        issues,
+    );
+    require_render_safe_text(
+        "project.operational_reality.uptime_expectations",
+        &input.project.operational_reality.uptime_expectations,
+        issues,
+    );
+    require_render_safe_list(
+        "posture.baseline_rationale",
+        &input.posture.baseline_rationale,
+        issues,
+    );
 
-    for line in CHARTER_TEMPLATE.lines() {
-        let trimmed = line.trim();
-
-        if inside_comment {
-            if trimmed.contains("-->") {
-                inside_comment = false;
-            }
-            continue;
-        }
-
-        if trimmed.starts_with("<!--") {
-            if !trimmed.contains("-->") {
-                inside_comment = true;
-            }
-            continue;
-        }
-
-        if skip_nested_instruction_block {
-            if line.starts_with("    - ") || line.starts_with("  - ") {
-                continue;
-            }
-            skip_nested_instruction_block = false;
-        }
-
-        if trimmed.starts_with('>') {
-            continue;
-        }
-
-        if trimmed == "- Options (choose one):" {
-            skip_nested_instruction_block = true;
-            continue;
-        }
-
-        if trimmed.starts_with("- e.g.,") || trimmed.starts_with("- Examples:") {
-            continue;
-        }
-
-        rendered_lines.push(line);
+    for (index, domain) in input.domains.iter().enumerate() {
+        let prefix = format!("domains[{index}]");
+        require_render_safe_text(&format!("{prefix}.name"), &domain.name, issues);
+        require_render_safe_text(
+            &format!("{prefix}.blast_radius"),
+            &domain.blast_radius,
+            issues,
+        );
+        require_render_safe_list(&format!("{prefix}.touches"), &domain.touches, issues);
+        require_render_safe_list(
+            &format!("{prefix}.constraints"),
+            &domain.constraints,
+            issues,
+        );
     }
 
-    rendered_lines.join("\n").trim().to_string()
+    for (index, dimension) in input.dimensions.iter().enumerate() {
+        let prefix = format!("dimensions[{index}]");
+        require_render_safe_text(
+            &format!("{prefix}.default_stance"),
+            &dimension.default_stance,
+            issues,
+        );
+        require_render_safe_list(
+            &format!("{prefix}.raise_the_bar_triggers"),
+            &dimension.raise_the_bar_triggers,
+            issues,
+        );
+        require_render_safe_list(
+            &format!("{prefix}.allowed_shortcuts"),
+            &dimension.allowed_shortcuts,
+            issues,
+        );
+        require_render_safe_list(&format!("{prefix}.red_lines"), &dimension.red_lines, issues);
+        require_render_safe_list(
+            &format!("{prefix}.domain_overrides"),
+            &dimension.domain_overrides,
+            issues,
+        );
+    }
+
+    require_render_safe_list("exceptions.approvers", &input.exceptions.approvers, issues);
+    require_render_safe_text(
+        "exceptions.record_location",
+        &input.exceptions.record_location,
+        issues,
+    );
+    require_render_safe_list(
+        "exceptions.minimum_fields",
+        &input.exceptions.minimum_fields,
+        issues,
+    );
+    require_render_safe_text("debt_tracking.system", &input.debt_tracking.system, issues);
+    require_render_safe_list("debt_tracking.labels", &input.debt_tracking.labels, issues);
+    require_render_safe_text(
+        "debt_tracking.review_cadence",
+        &input.debt_tracking.review_cadence,
+        issues,
+    );
+    require_render_safe_text(
+        "decision_records.path",
+        &input.decision_records.path,
+        issues,
+    );
+    require_render_safe_text(
+        "decision_records.format",
+        &input.decision_records.format,
+        issues,
+    );
 }
 
-fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCharterRefusal> {
-    if markdown.contains("{{") || markdown.contains("}}") {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned unresolved charter template placeholders",
-        ));
+fn require_render_safe_list(field: &str, values: &[String], issues: &mut Vec<String>) {
+    for (index, value) in values.iter().enumerate() {
+        require_render_safe_text(&format!("{field}[{index}]"), value, issues);
+    }
+}
+
+fn require_render_safe_text(field: &str, value: &str, issues: &mut Vec<String>) {
+    if value.trim().is_empty() {
+        return;
     }
 
-    if markdown.contains("<!--") || markdown.contains("-->") {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned charter template commentary instead of final markdown",
+    let normalized = normalize_charter_free_text(value);
+    let trimmed = normalized.trim_start();
+    let has_unsafe_prefix = trimmed.starts_with('#')
+        || trimmed.starts_with('>')
+        || trimmed.starts_with("```")
+        || trimmed.starts_with("~~~")
+        || trimmed.starts_with("<!--")
+        || trimmed.starts_with("- ")
+        || trimmed.starts_with("* ");
+    let has_unsafe_token = normalized.contains("```")
+        || normalized.contains("~~~")
+        || normalized.contains("<!--")
+        || normalized.contains("-->");
+
+    if has_unsafe_prefix || has_unsafe_token {
+        issues.push(format!(
+            "{field} must not include markdown control syntax such as headings, blockquotes, fences, comments, or list markers"
         ));
     }
+}
 
-    if has_non_empty_content_before_first_heading(markdown) {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned output that does not start with `# Engineering Charter`",
-        ));
+fn push_bullets(out: &mut String, values: &[String]) {
+    for value in values {
+        writeln!(out, "- {}", normalize_charter_free_text(value)).unwrap();
+    }
+}
+
+fn render_inline_text_or_default(value: &str, default: &str) -> String {
+    let normalized = normalize_charter_free_text(value);
+    if normalized.is_empty() {
+        default.to_string()
+    } else {
+        normalized
+    }
+}
+
+fn render_inline_list_or_default(values: &[String], default: &str) -> String {
+    if values.is_empty() {
+        return default.to_string();
     }
 
-    let headings = collect_structural_markdown_headings(markdown);
-    let Some(first_heading) = headings.first() else {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned no structural markdown headings",
-        ));
-    };
-
-    if first_heading.level != 1 || !first_heading.text.starts_with("Engineering Charter") {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned output whose first structural heading is not `# Engineering Charter`",
-        ));
-    }
-
-    let required_headings = REQUIRED_CHARTER_TOP_LEVEL_HEADINGS
+    let normalized = values
         .iter()
-        .map(|heading| heading.trim_start_matches("## ").trim())
+        .map(|value| normalize_charter_free_text(value))
+        .filter(|value| !value.is_empty())
         .collect::<Vec<_>>();
-    let mut next_required_index = 0usize;
-    let mut seen_required = vec![false; required_headings.len()];
-
-    for heading in headings.iter().filter(|heading| heading.level == 2) {
-        let Some(required_index) = required_headings
-            .iter()
-            .position(|required| heading.text == *required)
-        else {
-            continue;
-        };
-
-        if seen_required[required_index] || required_index != next_required_index {
-            return Err(synthesis_failed_refusal(
-                "charter synthesis failed: runtime returned output that does not satisfy the shipped charter template",
-            ));
-        }
-
-        seen_required[required_index] = true;
-        next_required_index += 1;
-    }
-
-    if next_required_index != required_headings.len() {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned output that does not satisfy the shipped charter template",
-        ));
-    }
-
-    Ok(())
-}
-
-fn synthesis_failed_refusal(message: impl Into<String>) -> AuthorCharterRefusal {
-    AuthorCharterRefusal {
-        kind: AuthorCharterRefusalKind::SynthesisFailed,
-        summary: message.into(),
-        broken_subject: "charter synthesis runtime".to_string(),
-        next_safe_action: "repair the synthesis runtime and retry `system author charter`"
-            .to_string(),
+    if normalized.is_empty() {
+        default.to_string()
+    } else {
+        normalized.join(", ")
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct MarkdownHeading {
-    level: usize,
-    text: String,
+fn join_display<'a>(values: impl Iterator<Item = &'a str>) -> String {
+    values.collect::<Vec<_>>().join(", ")
 }
 
-fn collect_structural_markdown_headings(markdown: &str) -> Vec<MarkdownHeading> {
-    let mut headings = Vec::new();
-    let mut active_fence: Option<(char, usize)> = None;
+fn escape_table_cell(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('|', "\\|")
+}
 
-    for line in markdown.lines() {
-        if let Some((fence_char, fence_len)) = parse_fence_delimiter(line) {
-            match active_fence {
-                Some((active_char, active_len))
-                    if active_char == fence_char && fence_len >= active_len =>
-                {
-                    active_fence = None;
-                    continue;
-                }
-                None => {
-                    active_fence = Some((fence_char, fence_len));
-                    continue;
-                }
-                _ => continue,
+fn dimension_lookup(
+    input: &CharterStructuredInput,
+    name: CharterDimensionName,
+) -> &CharterDimensionInput {
+    input
+        .dimensions
+        .iter()
+        .find(|dimension| dimension.name == name)
+        .expect("validated charter input includes all dimensions")
+}
+
+fn effective_dimension_level(dimension: &CharterDimensionInput, baseline_level: u8) -> u8 {
+    dimension.level.unwrap_or(baseline_level)
+}
+
+fn collect_cross_cutting_red_lines(input: &CharterStructuredInput) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    let mut lines = Vec::new();
+
+    for name in CharterDimensionName::all() {
+        for red_line in &dimension_lookup(input, *name).red_lines {
+            let normalized = normalize_charter_free_text(red_line);
+            if seen.insert(normalized.clone()) {
+                lines.push(normalized);
             }
         }
-
-        if active_fence.is_some() {
-            continue;
-        }
-
-        if let Some(heading) = parse_atx_heading(line) {
-            headings.push(heading);
-        }
     }
 
-    headings
+    lines
 }
 
-fn has_non_empty_content_before_first_heading(markdown: &str) -> bool {
-    let mut active_fence: Option<(char, usize)> = None;
-
-    for line in markdown.lines() {
-        if let Some((fence_char, fence_len)) = parse_fence_delimiter(line) {
-            match active_fence {
-                Some((active_char, active_len))
-                    if active_char == fence_char && fence_len >= active_len =>
-                {
-                    active_fence = None;
-                    continue;
-                }
-                None => {
-                    active_fence = Some((fence_char, fence_len));
-                }
-                _ => {}
-            }
-        }
-
-        if active_fence.is_some() {
-            return true;
-        }
-
-        if parse_atx_heading(line).is_some() {
-            return false;
-        }
-
-        if !line.trim().is_empty() {
-            return true;
-        }
+fn validate_required_heading_order(markdown: &str) {
+    let mut previous = 0usize;
+    for heading in REQUIRED_CHARTER_TOP_LEVEL_HEADINGS {
+        let position = markdown
+            .find(heading)
+            .unwrap_or_else(|| panic!("rendered charter missing required heading `{heading}`"));
+        assert!(
+            position >= previous,
+            "rendered charter heading order regressed for `{heading}`"
+        );
+        previous = position;
     }
-
-    false
-}
-
-fn parse_fence_delimiter(line: &str) -> Option<(char, usize)> {
-    let indent = line.chars().take_while(|ch| *ch == ' ').count();
-    if indent > 3 {
-        return None;
-    }
-
-    let trimmed = &line[indent..];
-    let mut chars = trimmed.chars();
-    let fence_char = chars.next()?;
-    if fence_char != '`' && fence_char != '~' {
-        return None;
-    }
-
-    let fence_len = trimmed.chars().take_while(|ch| *ch == fence_char).count();
-    if fence_len < 3 {
-        return None;
-    }
-
-    Some((fence_char, fence_len))
-}
-
-fn parse_atx_heading(line: &str) -> Option<MarkdownHeading> {
-    let indent = line.chars().take_while(|ch| *ch == ' ').count();
-    if indent > 3 {
-        return None;
-    }
-
-    let trimmed = &line[indent..];
-    if trimmed.starts_with('>') {
-        return None;
-    }
-
-    let level = trimmed.chars().take_while(|ch| *ch == '#').count();
-    if level == 0 || level > 6 {
-        return None;
-    }
-
-    let remainder = trimmed[level..].trim_start();
-    if remainder.is_empty() {
-        return None;
-    }
-
-    let text = remainder
-        .trim_end()
-        .trim_end_matches('#')
-        .trim_end()
-        .to_string();
-    if text.is_empty() {
-        return None;
-    }
-
-    Some(MarkdownHeading { level, text })
 }
 
 fn validate_charter_write_target(repo_root: &Path) -> Result<(), AuthorCharterRefusal> {
@@ -1224,105 +1707,4 @@ fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> 
             )
         }
     }
-}
-
-#[derive(Debug, Default)]
-struct UnifiedAgentCharterSynthesizer;
-
-impl CharterSynthesizer for UnifiedAgentCharterSynthesizer {
-    fn synthesize(
-        &self,
-        repo_root: &Path,
-        request: CharterSynthesisRequest,
-    ) -> Result<String, CharterSynthesisError> {
-        if let Ok(override_markdown) = std::env::var(CHARTER_SYNTHESIS_OVERRIDE_ENV_VAR) {
-            return Ok(override_markdown);
-        }
-
-        run_codex_charter_synthesis(repo_root, request)
-    }
-}
-
-fn run_codex_charter_synthesis(
-    repo_root: &Path,
-    request: CharterSynthesisRequest,
-) -> Result<String, CharterSynthesisError> {
-    let output_path = temp_output_last_message_path()?;
-    let mut command = Command::new("codex");
-    command
-        .arg("exec")
-        .arg("--color")
-        .arg("never")
-        .arg("--skip-git-repo-check")
-        .arg("--json")
-        .arg("--sandbox")
-        .arg("workspace-write")
-        .arg("--output-last-message")
-        .arg(&output_path)
-        .current_dir(repo_root)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped());
-
-    let mut child = command.spawn().map_err(|err| {
-        CharterSynthesisError::new(format!("failed to spawn `codex exec`: {err}"))
-    })?;
-
-    {
-        let mut stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| CharterSynthesisError::new("failed to open stdin for `codex exec`"))?;
-        stdin
-            .write_all(request.prompt.as_bytes())
-            .and_then(|_| stdin.write_all(b"\n"))
-            .map_err(|err| {
-                CharterSynthesisError::new(format!("failed to write prompt to `codex exec`: {err}"))
-            })?;
-    }
-
-    let output = child.wait_with_output().map_err(|err| {
-        CharterSynthesisError::new(format!("failed waiting for `codex exec`: {err}"))
-    })?;
-
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !output.status.success() {
-        let detail = if stderr.is_empty() {
-            format!("`codex exec` exited with status {}", output.status)
-        } else {
-            format!(
-                "`codex exec` exited with status {}: {}",
-                output.status, stderr
-            )
-        };
-        let _ = std::fs::remove_file(&output_path);
-        return Err(CharterSynthesisError::new(detail));
-    }
-
-    let final_text = std::fs::read_to_string(&output_path).map_err(|err| {
-        CharterSynthesisError::new(format!(
-            "failed to read `codex exec` final markdown from {}: {err}",
-            output_path.display()
-        ))
-    })?;
-    let _ = std::fs::remove_file(&output_path);
-    let final_text = final_text.trim().to_string();
-    if final_text.is_empty() {
-        return Err(CharterSynthesisError::new(
-            "`codex exec` returned no final charter text",
-        ));
-    }
-
-    Ok(final_text)
-}
-
-fn temp_output_last_message_path() -> Result<PathBuf, CharterSynthesisError> {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|err| CharterSynthesisError::new(format!("system clock error: {err}")))?
-        .as_nanos();
-    Ok(std::env::temp_dir().join(format!(
-        "system-charter-last-message-{}-{nanos}.md",
-        std::process::id()
-    )))
 }
