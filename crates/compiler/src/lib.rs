@@ -1,3 +1,4 @@
+pub mod author;
 pub mod artifact_manifest;
 pub mod blocker;
 pub mod budget;
@@ -19,6 +20,19 @@ pub mod route_state;
 pub mod setup;
 mod stage_10_feature_spec_provenance;
 
+pub use author::{
+    author_charter, author_charter_with_synthesizer, build_charter_synthesis_request,
+    parse_charter_structured_input_yaml, synthesize_charter_markdown,
+    synthesize_charter_markdown_with, validate_charter_structured_input, AuthorCharterRefusal,
+    AuthorCharterRefusalKind, AuthorCharterResult, CharterAudience,
+    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
+    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
+    CharterDimensionName, CharterDomainInput, CharterExpectedLifetime, CharterExceptionsInput,
+    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
+    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
+    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
+    CharterSurface, CharterSynthesizer, CharterSynthesisError, CharterSynthesisRequest,
+};
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
 };
