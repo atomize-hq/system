@@ -26,6 +26,7 @@ const CHARTER_TEMPLATE_MARKDOWN: &str =
     include_str!("../../../core/library/charter/charter.md.tmpl");
 // Tests can override the codex binary path without changing the shipped CLI surface.
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
+const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
 const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## What this is",
     "## How to use this charter",
@@ -1495,11 +1496,22 @@ fn validate_required_heading_order(markdown: &str) {
 }
 
 fn validate_required_heading_order_result(markdown: &str) -> Result<(), String> {
+    let heading_lines = markdown
+        .lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let trimmed = line.trim_end();
+            REQUIRED_CHARTER_TOP_LEVEL_HEADINGS
+                .contains(&trimmed)
+                .then_some((index, trimmed))
+        })
+        .collect::<Vec<_>>();
+
     let mut previous = 0usize;
     for heading in REQUIRED_CHARTER_TOP_LEVEL_HEADINGS {
-        let positions = markdown
-            .match_indices(heading)
-            .map(|(index, _)| index)
+        let positions = heading_lines
+            .iter()
+            .filter_map(|(index, line)| (*line == heading).then_some(*index))
             .collect::<Vec<_>>();
         if positions.is_empty() {
             return Err(format!("missing required heading `{heading}`"));
@@ -1658,6 +1670,10 @@ fn synthesize_charter_markdown(
         .ok()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".to_string());
+    let codex_model = std::env::var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
 
     let mut command = Command::new(&codex_bin);
     command
@@ -1667,7 +1683,11 @@ fn synthesize_charter_markdown(
         .arg("--sandbox")
         .arg("read-only")
         .arg("--color")
-        .arg("never")
+        .arg("never");
+    if let Some(model) = codex_model.as_deref() {
+        command.arg("--model").arg(model);
+    }
+    command
         .arg("--output-last-message")
         .arg(&output_path)
         .arg("-")

@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
+const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn binary() -> Command {
@@ -68,16 +69,29 @@ fn author_runtime_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn with_author_runtime_override<T>(binary_path: &Path, action: impl FnOnce() -> T) -> T {
+fn with_author_runtime_override<T>(
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
     let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    let previous_bin = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    let previous_model = std::env::var_os(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR);
     std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+    match model {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+    }
 
     let result = catch_unwind(AssertUnwindSafe(action));
 
-    match previous {
+    match previous_bin {
         Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
         None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+    }
+    match previous_model {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
     }
 
     match result {
@@ -111,7 +125,7 @@ fn prompt_capture_path(root: &Path) -> std::path::PathBuf {
 
 fn successful_stub_script(markdown: &str) -> String {
     format!(
-        "#!/bin/sh\nset -eu\noutput=\"\"\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    output=\"$2\"\n    shift 2\n    continue\n  fi\n  shift\n done\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
+        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
         prompt_capture = PROMPT_CAPTURE_REPO_PATH,
         markdown = markdown
     )
@@ -758,7 +772,7 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
     let expected_markdown = stubbed_authored_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let output = with_author_runtime_override(&stub, || {
+    let output = with_author_runtime_override(&stub, None, || {
         run_in(
             dir.path(),
             &[
@@ -789,12 +803,44 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
 }
 
 #[test]
+fn file_inputs_author_charter_succeeds_with_runtime_model_override() {
+    let dir = scaffold_repo();
+    let inputs_path = dir.path().join("charter-inputs-model.yaml");
+    write_file(&inputs_path, valid_structured_inputs_yaml());
+    let expected_markdown = stubbed_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let output = with_author_runtime_override(&stub, Some("gpt-5.4-mini"), || {
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "charter",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf-8 path"),
+            ],
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "file inputs with model override should succeed: {}",
+        stdout(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
 fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
     let dir = scaffold_repo();
     let expected_markdown = stubbed_authored_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let output = with_author_runtime_override(&stub, || {
+    let output = with_author_runtime_override(&stub, None, || {
         run_in_with_input(
             dir.path(),
             &["author", "charter", "--from-inputs", "-"],
@@ -827,7 +873,7 @@ fn guided_tty_author_charter_succeeds_via_real_binary_path() {
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
     let (output, status) =
-        with_author_runtime_override(&stub, || run_guided_author_under_pty(dir.path()));
+        with_author_runtime_override(&stub, None, || run_guided_author_under_pty(dir.path()));
 
     assert!(
         status.success(),
@@ -858,7 +904,7 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
     let (author_output, status) =
-        with_author_runtime_override(&stub, || run_guided_author_under_pty(dir.path()));
+        with_author_runtime_override(&stub, None, || run_guided_author_under_pty(dir.path()));
     assert!(
         status.success(),
         "guided PTY author should succeed: {author_output}"
@@ -917,7 +963,6 @@ fn charter_input_templates_and_fixtures_use_canonical_exception_record_location(
 }
 
 #[test]
-#[ignore = "opt-in live Codex smoke; run with SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1 cargo test -p system-cli --test author_cli -- --ignored"]
 fn structured_inputs_author_charter_succeeds_with_live_codex_transport() {
     if std::env::var("SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE")
         .ok()

@@ -30,7 +30,7 @@ These notes record what was actually required to land `M7` on 2026-04-20.
 - Fixing the transport mismatch alone was not enough. The raw charter template included author-facing commentary and scaffolding (`<!-- ... -->`, blockquote guidance, "Options (choose one)", `e.g.` bullets), and Codex sometimes copied that guidance into the final charter body.
 - The landed path therefore uses direct `codex exec` invocation from the compiler authoring seam and feeds it a sanitized render template instead of the raw authoring template.
 - The synthesis directive also had to become stricter: preserve the shipped top-level headings exactly, in order, and do not redesign the document structure.
-- A real fresh-temp-repo smoke was required to prove the slice, because override-backed tests did not exercise the live Codex transport or the actual final-message behavior.
+- A real fresh-temp-repo smoke was required to prove the slice, because override-backed tests did not exercise the live Codex transport or the actual final-message behavior. That smoke now remains a change-scoped CI gate whenever the shipped Codex authoring contract changes.
 
 ## Active Objective
 
@@ -433,7 +433,8 @@ Critical-gap rule:
 - tests must not require live network access or a real provider
 - deterministic-input mode must be stable across reruns for identical inputs
 - docs/help parity must stay machine-checked because this milestone changes the public command surface
-- the live transport path still requires at least one manual fresh-temp-repo smoke before landing when the Codex CLI contract changes
+- the live transport path requires a change-scoped automated fresh-temp-repo smoke in CI, plus a locally rerunnable smoke command, whenever the Codex CLI contract changes
+- runtime model selection remains optional and repo-owned: the shipped authoring path keeps the Codex default unless `SYSTEM_AUTHOR_CHARTER_CODEX_MODEL` is set, and the smoke wrapper can choose a local fast model or the CI-pinned `gpt-5.4-mini` via `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL`
 
 ### Performance smells that fail review
 

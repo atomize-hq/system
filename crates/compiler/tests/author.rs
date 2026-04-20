@@ -16,6 +16,7 @@ use system_compiler::{
 };
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
+const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn write_file(path: &Path, contents: &[u8]) {
@@ -30,16 +31,72 @@ fn author_runtime_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn with_author_runtime_override<T>(binary_path: &Path, action: impl FnOnce() -> T) -> T {
+fn with_author_runtime_override<T>(
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
     let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    let previous_bin = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    let previous_model = std::env::var_os(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR);
     std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+    match model {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+    }
 
     let result = catch_unwind(AssertUnwindSafe(action));
 
-    match previous {
+    match previous_bin {
         Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
         None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+    }
+    match previous_model {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+    }
+
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
+fn with_author_runtime_on_path<T>(
+    binary_dir: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
+    let _guard = author_runtime_lock().lock().expect("author runtime lock");
+    let previous_bin = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    let previous_model = std::env::var_os(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR);
+    let previous_path = std::env::var_os("PATH");
+
+    std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    match model {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+    }
+    let updated_path = std::env::join_paths(
+        std::iter::once(binary_dir.to_path_buf())
+            .chain(previous_path.iter().flat_map(std::env::split_paths)),
+    )
+    .expect("join PATH");
+    std::env::set_var("PATH", updated_path);
+
+    let result = catch_unwind(AssertUnwindSafe(action));
+
+    match previous_bin {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+    }
+    match previous_model {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+    }
+    match previous_path {
+        Some(value) => std::env::set_var("PATH", value),
+        None => std::env::remove_var("PATH"),
     }
 
     match result {
@@ -69,16 +126,45 @@ fn install_stub_codex(root: &Path, script: &str) -> PathBuf {
     path
 }
 
+#[cfg(unix)]
+fn install_path_codex(root: &Path, script: &str) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = root.join("codex");
+    write_file(&path, script.as_bytes());
+    let mut permissions = std::fs::metadata(&path)
+        .expect("codex metadata")
+        .permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&path, permissions).expect("chmod codex");
+    path
+}
+
+#[cfg(not(unix))]
+fn install_path_codex(root: &Path, script: &str) -> PathBuf {
+    let path = root.join("codex.bat");
+    write_file(&path, script.as_bytes());
+    path
+}
+
 fn prompt_capture_path(root: &Path) -> PathBuf {
     root.join(PROMPT_CAPTURE_REPO_PATH)
 }
 
-fn successful_stub_script(markdown: &str) -> String {
+fn strict_stub_script(markdown: &str, fail_after_validation: bool) -> String {
     format!(
-        "#!/bin/sh\nset -eu\noutput=\"\"\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    output=\"$2\"\n    shift 2\n    continue\n  fi\n  shift\n done\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
+        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\n{post_validation}",
         prompt_capture = PROMPT_CAPTURE_REPO_PATH,
-        markdown = markdown
+        post_validation = if fail_after_validation {
+            "echo 'synthetic codex failure' >&2\nexit 23\n".to_string()
+        } else {
+            format!("cat <<'EOF' > \"$output\"\n{markdown}\nEOF\n")
+        }
     )
+}
+
+fn successful_stub_script(markdown: &str) -> String {
+    strict_stub_script(markdown, false)
 }
 
 fn invalid_output_stub_script(markdown: &str) -> String {
@@ -86,10 +172,7 @@ fn invalid_output_stub_script(markdown: &str) -> String {
 }
 
 fn failing_stub_script() -> String {
-    format!(
-        "#!/bin/sh\nset -eu\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    shift 2\n    continue\n  fi\n  shift\n done\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\necho 'synthetic codex failure' >&2\nexit 23\n",
-        prompt_capture = PROMPT_CAPTURE_REPO_PATH
-    )
+    strict_stub_script("", true)
 }
 
 fn valid_input() -> CharterStructuredInput {
@@ -343,7 +426,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let expected_markdown = expected_charter_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let result = with_author_runtime_override(&stub, || {
+    let result = with_author_runtime_override(&stub, None, || {
         author_charter(dir.path(), &valid_input()).expect("author charter")
     });
 
@@ -379,7 +462,7 @@ fn author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
     let expected_markdown = expected_charter_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    with_author_runtime_override(&stub, || {
+    with_author_runtime_override(&stub, None, || {
         author_charter(dir.path(), &valid_input()).expect("author charter");
     });
 
@@ -400,6 +483,75 @@ fn author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
         .contains("e.g., TS `strict`, lint rules, formatters, static analysis, schema validation"));
     assert!(!prompt.contains("> Use this section for **coarse areas**"));
     assert!(!prompt.contains("> **Format per dimension:**"));
+}
+
+#[test]
+fn author_charter_uses_codex_from_path_when_override_unset() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let expected_markdown = expected_charter_markdown();
+    let _codex = install_path_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_author_runtime_on_path(dir.path(), None, || {
+        author_charter(dir.path(), &valid_input()).expect("author charter")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("canonical charter"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_charter_emits_model_flag_when_runtime_model_override_is_set() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let expected_markdown = expected_charter_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_author_runtime_override(&stub, Some("gpt-5.4-mini"), || {
+        author_charter(dir.path(), &valid_input()).expect("author charter")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("canonical charter"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_charter_ignores_blank_runtime_model_override() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let expected_markdown = expected_charter_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_author_runtime_override(&stub, Some("   "), || {
+        author_charter(dir.path(), &valid_input()).expect("author charter")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("canonical charter"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -452,7 +604,7 @@ fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
         &successful_stub_script(&expected_charter_markdown()),
     );
 
-    let err = with_author_runtime_override(&stub, || {
+    let err = with_author_runtime_override(&stub, None, || {
         author_charter(dir.path(), &valid_input()).expect_err("existing truth should refuse")
     });
 
@@ -468,7 +620,7 @@ fn author_charter_does_not_partially_write_when_synthesis_fails() {
         .expect("starter charter bytes");
     let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
-    let err = with_author_runtime_override(&stub, || {
+    let err = with_author_runtime_override(&stub, None, || {
         author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
     });
 
@@ -494,7 +646,7 @@ fn author_charter_refuses_invalid_synthesized_markdown() {
         ),
     );
 
-    let err = with_author_runtime_override(&stub, || {
+    let err = with_author_runtime_override(&stub, None, || {
         author_charter(dir.path(), &valid_input()).expect_err("invalid output should refuse")
     });
 
@@ -520,7 +672,7 @@ fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
         ),
     );
 
-    let err = with_author_runtime_override(&stub, || {
+    let err = with_author_runtime_override(&stub, None, || {
         author_charter(dir.path(), &valid_input()).expect_err("leaked scaffold should refuse")
     });
 
@@ -528,6 +680,33 @@ fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
     assert!(err
         .summary
         .contains("contains leaked author-facing scaffold"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_refuses_when_required_headings_only_appear_in_body_text() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &invalid_output_stub_script(
+            "# Engineering Charter — System\n\n## What this is\n\nThis body mentions `## How to use this charter`, `## Rubric: 1–5 rigor levels`, `## Project baseline posture`, `## Domains / areas (optional overrides)`, `## Posture at a glance (quick scan)`, `## Dimensions (details + guardrails)`, `## Cross-cutting red lines (global non-negotiables)`, `## Exceptions / overrides process`, `## Debt tracking expectations`, `## Decision Records (ADRs): how to use this charter`, and `## Review & updates`, but it does not render them as headings.\n",
+        ),
+    );
+
+    let err = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input())
+            .expect_err("body text headings should not satisfy validation")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err.summary.contains("missing required heading"));
     assert_eq!(
         std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
             .expect("charter after failure"),
