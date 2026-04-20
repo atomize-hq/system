@@ -14,7 +14,7 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 - `setup` remains the durable product term. `init` is only the concrete first-run subcommand name.
 - `setup refresh` preserves canonical files by default. `setup refresh --rewrite` rewrites only setup-owned starter files, and `setup refresh --reset-state` resets only `.system/state/**`.
-- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`. `PROJECT_CONTEXT.md` is optional semantically, but setup still creates it as a starter file.
+- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`. `FEATURE_SPEC.md` and `PROJECT_CONTEXT.md` are optional semantically for planning readiness, but setup still creates both as starter files.
 - The shipped starter templates are scaffolding only. In the M7 wedge, replacing the charter starter file is what clears `doctor` and planning `generate`; starter `FEATURE_SPEC.md` remains setup-owned future input and is omitted from planning output until real truth exists.
 - Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
 - The repo-owned charter authoring method lives at `core/library/authoring/charter_authoring_method.md`.

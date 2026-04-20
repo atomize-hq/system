@@ -14,7 +14,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/charter/CHARTER.md`
     - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
-  - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
+  - `FEATURE_SPEC.md` and `PROJECT_CONTEXT.md` are optional semantically for planning packets, but setup still creates both as starter files.
   - The shipped starter templates are scaffolding only. Planning packets stay blocked until the charter starter file is replaced with completed canonical truth; starter `FEATURE_SPEC.md` is omitted until it becomes real source truth.
   - `setup refresh` preserves canonical files by default.
   - `setup refresh --rewrite` rewrites only setup-owned starter files.

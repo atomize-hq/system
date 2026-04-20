@@ -21,6 +21,7 @@ const SYNTHESIS_DIRECTIVE: &str =
 const AUTHORING_METHOD: &str =
     include_str!("../../../core/library/authoring/charter_authoring_method.md");
 const CHARTER_TEMPLATE: &str = include_str!("../../../core/library/charter/charter.md.tmpl");
+const CHARTER_SYNTHESIS_OVERRIDE_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_SYNTHESIS_OVERRIDE";
 const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## What this is",
     "## How to use this charter",
@@ -726,18 +727,6 @@ fn validate_authoring_preconditions(
 }
 
 fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCharterRefusal> {
-    let Some(first_line) = markdown.lines().next() else {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned empty output",
-        ));
-    };
-
-    if !first_line.starts_with("# Engineering Charter") {
-        return Err(synthesis_failed_refusal(
-            "charter synthesis failed: runtime returned output that does not start with `# Engineering Charter`",
-        ));
-    }
-
     if markdown.contains("{{") || markdown.contains("}}") {
         return Err(synthesis_failed_refusal(
             "charter synthesis failed: runtime returned unresolved charter template placeholders",
@@ -750,10 +739,51 @@ fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCha
         ));
     }
 
-    if REQUIRED_CHARTER_TOP_LEVEL_HEADINGS
+    if has_non_empty_content_before_first_heading(markdown) {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned output that does not start with `# Engineering Charter`",
+        ));
+    }
+
+    let headings = collect_structural_markdown_headings(markdown);
+    let Some(first_heading) = headings.first() else {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned no structural markdown headings",
+        ));
+    };
+
+    if first_heading.level != 1 || !first_heading.text.starts_with("Engineering Charter") {
+        return Err(synthesis_failed_refusal(
+            "charter synthesis failed: runtime returned output whose first structural heading is not `# Engineering Charter`",
+        ));
+    }
+
+    let required_headings = REQUIRED_CHARTER_TOP_LEVEL_HEADINGS
         .iter()
-        .any(|heading| !markdown.contains(heading))
-    {
+        .map(|heading| heading.trim_start_matches("## ").trim())
+        .collect::<Vec<_>>();
+    let mut next_required_index = 0usize;
+    let mut seen_required = vec![false; required_headings.len()];
+
+    for heading in headings.iter().filter(|heading| heading.level == 2) {
+        let Some(required_index) = required_headings
+            .iter()
+            .position(|required| heading.text == *required)
+        else {
+            continue;
+        };
+
+        if seen_required[required_index] || required_index != next_required_index {
+            return Err(synthesis_failed_refusal(
+                "charter synthesis failed: runtime returned output that does not satisfy the shipped charter template",
+            ));
+        }
+
+        seen_required[required_index] = true;
+        next_required_index += 1;
+    }
+
+    if next_required_index != required_headings.len() {
         return Err(synthesis_failed_refusal(
             "charter synthesis failed: runtime returned output that does not satisfy the shipped charter template",
         ));
@@ -770,6 +800,134 @@ fn synthesis_failed_refusal(message: impl Into<String>) -> AuthorCharterRefusal 
         next_safe_action: "repair the synthesis runtime and retry `system author charter`"
             .to_string(),
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MarkdownHeading {
+    level: usize,
+    text: String,
+}
+
+fn collect_structural_markdown_headings(markdown: &str) -> Vec<MarkdownHeading> {
+    let mut headings = Vec::new();
+    let mut active_fence: Option<(char, usize)> = None;
+
+    for line in markdown.lines() {
+        if let Some((fence_char, fence_len)) = parse_fence_delimiter(line) {
+            match active_fence {
+                Some((active_char, active_len))
+                    if active_char == fence_char && fence_len >= active_len =>
+                {
+                    active_fence = None;
+                    continue;
+                }
+                None => {
+                    active_fence = Some((fence_char, fence_len));
+                    continue;
+                }
+                _ => continue,
+            }
+        }
+
+        if active_fence.is_some() {
+            continue;
+        }
+
+        if let Some(heading) = parse_atx_heading(line) {
+            headings.push(heading);
+        }
+    }
+
+    headings
+}
+
+fn has_non_empty_content_before_first_heading(markdown: &str) -> bool {
+    let mut active_fence: Option<(char, usize)> = None;
+
+    for line in markdown.lines() {
+        if let Some((fence_char, fence_len)) = parse_fence_delimiter(line) {
+            match active_fence {
+                Some((active_char, active_len))
+                    if active_char == fence_char && fence_len >= active_len =>
+                {
+                    active_fence = None;
+                    continue;
+                }
+                None => {
+                    active_fence = Some((fence_char, fence_len));
+                }
+                _ => {}
+            }
+        }
+
+        if active_fence.is_some() {
+            return true;
+        }
+
+        if parse_atx_heading(line).is_some() {
+            return false;
+        }
+
+        if !line.trim().is_empty() {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn parse_fence_delimiter(line: &str) -> Option<(char, usize)> {
+    let indent = line.chars().take_while(|ch| *ch == ' ').count();
+    if indent > 3 {
+        return None;
+    }
+
+    let trimmed = &line[indent..];
+    let mut chars = trimmed.chars();
+    let fence_char = chars.next()?;
+    if fence_char != '`' && fence_char != '~' {
+        return None;
+    }
+
+    let fence_len = trimmed.chars().take_while(|ch| *ch == fence_char).count();
+    if fence_len < 3 {
+        return None;
+    }
+
+    Some((fence_char, fence_len))
+}
+
+fn parse_atx_heading(line: &str) -> Option<MarkdownHeading> {
+    let indent = line.chars().take_while(|ch| *ch == ' ').count();
+    if indent > 3 {
+        return None;
+    }
+
+    let trimmed = &line[indent..];
+    if trimmed.starts_with('>') {
+        return None;
+    }
+
+    let level = trimmed.chars().take_while(|ch| *ch == '#').count();
+    if level == 0 || level > 6 {
+        return None;
+    }
+
+    let remainder = trimmed[level..].trim_start();
+    if remainder.is_empty() {
+        return None;
+    }
+
+    let text = remainder
+        .trim_end()
+        .trim_end_matches('#')
+        .trim_end()
+        .to_string();
+    if text.is_empty() {
+        return None;
+    }
+
+    Some(MarkdownHeading { level, text })
 }
 
 fn validate_charter_write_target(repo_root: &Path) -> Result<(), AuthorCharterRefusal> {
@@ -1028,6 +1186,10 @@ impl CharterSynthesizer for UnifiedAgentCharterSynthesizer {
         repo_root: &Path,
         request: CharterSynthesisRequest,
     ) -> Result<String, CharterSynthesisError> {
+        if let Ok(override_markdown) = std::env::var(CHARTER_SYNTHESIS_OVERRIDE_ENV_VAR) {
+            return Ok(override_markdown);
+        }
+
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()

@@ -241,6 +241,10 @@ Done.
 "#
 }
 
+fn valid_charter_markdown_with_appendix(appendix: &str) -> String {
+    format!("{}{}", valid_charter_markdown(), appendix)
+}
+
 fn scaffold_repo(root: &Path) {
     run_setup(root, &SetupRequest::default()).expect("setup scaffold");
 }
@@ -594,6 +598,87 @@ fn author_charter_rejects_synthesis_output_with_template_comments() {
     assert!(err
         .summary
         .contains("charter template commentary instead of final markdown"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_rejects_required_headings_inside_fenced_block_appendix() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(
+            "# Engineering Charter — System\n\n## What this is\nDone.\n\n```markdown\n## How to use this charter\nDone.\n## Rubric: 1–5 rigor levels\nDone.\n## Project baseline posture\nDone.\n## Domains / areas (optional overrides)\nDone.\n## Posture at a glance (quick scan)\nDone.\n## Dimensions (details + guardrails)\nDone.\n## Cross-cutting red lines (global non-negotiables)\nDone.\n## Exceptions / overrides process\nDone.\n## Debt tracking expectations\nDone.\n## Decision Records (ADRs): how to use this charter\nDone.\n## Review & updates\nDone.\n```\n",
+        ),
+    )
+    .expect_err("fenced headings should not satisfy the template");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("does not satisfy the shipped charter template"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_rejects_duplicated_required_heading_in_appendix() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(&valid_charter_markdown_with_appendix(
+            "\n## What this is\nRepeated appendix heading.\n",
+        )),
+    )
+    .expect_err("duplicate required heading should refuse");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("does not satisfy the shipped charter template"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_charter_rejects_out_of_order_required_heading() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+
+    let err = author_charter_with_synthesizer(
+        dir.path(),
+        &valid_input(),
+        &RecordingSynthesizer::ok(
+            "# Engineering Charter — System\n\n## What this is\nDone.\n\n## Rubric: 1–5 rigor levels\nDone.\n\n## How to use this charter\nDone.\n\n## Project baseline posture\nDone.\n\n## Domains / areas (optional overrides)\nDone.\n\n## Posture at a glance (quick scan)\nDone.\n\n## Dimensions (details + guardrails)\nDone.\n\n## Cross-cutting red lines (global non-negotiables)\nDone.\n\n## Exceptions / overrides process\nDone.\n\n## Debt tracking expectations\nDone.\n\n## Decision Records (ADRs): how to use this charter\nDone.\n\n## Review & updates\nDone.\n",
+        ),
+    )
+    .expect_err("out-of-order required headings should refuse");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("does not satisfy the shipped charter template"));
     assert_eq!(
         std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
             .expect("charter after failure"),

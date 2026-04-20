@@ -61,7 +61,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
   - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `setup refresh --reset-state` MUST reset only `.system/state/**`.
-- `PROJECT_CONTEXT.md` MUST remain optional semantically for planning packets while still being created as a starter file by setup.
+- `FEATURE_SPEC.md` and `PROJECT_CONTEXT.md` MUST remain optional semantically for planning packets while still being created as starter files by setup.
 - The shipped setup starter templates MUST be treated as scaffolding only. Required starter files MUST NOT satisfy planning readiness until the operator replaces them with completed canonical truth.
 - Scaffolded setup-family flows MUST end with `run \`system author charter\``.
 - Ready setup-family flows MUST end with `system doctor`.

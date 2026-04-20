@@ -1,7 +1,7 @@
 use crate::{ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind};
 use sha2::{Digest, Sha256};
 
-pub const C03_SCHEMA_VERSION: &str = "reduced-v1";
+pub const C03_SCHEMA_VERSION: &str = "reduced-v1.1";
 pub const MANIFEST_GENERATION_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
