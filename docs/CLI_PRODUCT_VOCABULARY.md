@@ -49,6 +49,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
   - The first shipped authoring wedge is `system author charter`.
   - `system author charter` is the human-guided surface.
   - `system author charter --from-inputs <path|->` is the agent and automation surface.
+  - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - `pipeline`
   - The orchestration surface.
   - Use when the operator needs route truth, explicit stage selection, explicit stage compilation, explicit stage-output capture, or narrow route-state mutation.
@@ -83,7 +84,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
     - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
   - `PROJECT_CONTEXT.md` is optional semantically, but it remains one of the starter files created by setup.
-  - The shipped starter templates are scaffolding only until the required files are replaced with completed canonical truth.
+  - The shipped starter templates are scaffolding only until the charter starter file is replaced with completed canonical truth.
 - `runtime zone`
   - The preferred term for non-canonical derived state kept under `.system/`.
   - Runtime zones are not canonical inputs and must never be described as project truth.

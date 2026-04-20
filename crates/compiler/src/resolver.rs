@@ -321,7 +321,7 @@ fn present_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummar
         .identities()
         .into_iter()
         .filter_map(|identity| {
-            if matches!(identity.presence, crate::ArtifactPresence::Missing) {
+            if !should_include_artifact_in_packet(identity) {
                 None
             } else {
                 Some(PacketSourceSummary {
@@ -344,16 +344,7 @@ fn packet_notes_for(
     packet_body_ready: bool,
 ) -> Vec<PacketBodyNote> {
     let mut notes = Vec::new();
-    let project_context_path = artifacts.project_context.identity.relative_path;
-
-    if artifacts.project_context.identity.presence == crate::ArtifactPresence::Missing
-        && ingest_issue_for_path(manifest, project_context_path).is_none()
-    {
-        notes.push(PacketBodyNote {
-            kind: PacketBodyNoteKind::Omission,
-            text: format!("optional source omitted: {project_context_path}"),
-        });
-    }
+    push_optional_source_omission_notes(&mut notes, manifest, artifacts);
 
     match budget_outcome.disposition {
         BudgetDisposition::Summarize => {
@@ -429,7 +420,7 @@ fn push_packet_section(
     title: &str,
     budget_outcome: &BudgetOutcome,
 ) {
-    if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
+    if !should_include_artifact_in_packet(&artifact.identity) {
         return;
     }
 
@@ -455,6 +446,59 @@ fn push_packet_section(
         title: title.to_string(),
         mode,
         contents,
+    });
+}
+
+fn should_include_artifact_in_packet(identity: &crate::CanonicalArtifactIdentity) -> bool {
+    match identity.presence {
+        crate::ArtifactPresence::Missing => false,
+        crate::ArtifactPresence::PresentEmpty => identity.required,
+        crate::ArtifactPresence::PresentNonEmpty => {
+            identity.required || !identity.matches_setup_starter_template
+        }
+    }
+}
+
+fn push_optional_source_omission_notes(
+    notes: &mut Vec<PacketBodyNote>,
+    manifest: &ArtifactManifest,
+    artifacts: &CanonicalArtifacts,
+) {
+    push_optional_source_omission_note(notes, manifest, &artifacts.project_context.identity);
+    push_optional_source_omission_note(notes, manifest, &artifacts.feature_spec.identity);
+}
+
+fn push_optional_source_omission_note(
+    notes: &mut Vec<PacketBodyNote>,
+    manifest: &ArtifactManifest,
+    identity: &crate::CanonicalArtifactIdentity,
+) {
+    if identity.required || ingest_issue_for_path(manifest, identity.relative_path).is_some() {
+        return;
+    }
+
+    let text = match identity.presence {
+        crate::ArtifactPresence::Missing => {
+            format!("optional source omitted: {}", identity.relative_path)
+        }
+        crate::ArtifactPresence::PresentEmpty => {
+            format!(
+                "optional source omitted: {} (empty)",
+                identity.relative_path
+            )
+        }
+        crate::ArtifactPresence::PresentNonEmpty if identity.matches_setup_starter_template => {
+            format!(
+                "optional source omitted: {} (shipped starter template)",
+                identity.relative_path
+            )
+        }
+        crate::ArtifactPresence::PresentNonEmpty => return,
+    };
+
+    notes.push(PacketBodyNote {
+        kind: PacketBodyNoteKind::Omission,
+        text,
     });
 }
 

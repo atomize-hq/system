@@ -283,7 +283,7 @@ Rules:
   - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
-- the shipped starter templates are scaffolding only; packet work stays blocked until the required starter files are replaced with completed canonical truth
+- the shipped starter templates are scaffolding only; packet work stays blocked until the charter starter file is replaced with completed canonical truth, and starter `FEATURE_SPEC.md` is omitted until it becomes real source truth
 - scaffolded setup success routes to the charter authoring surface, not to raw blank-file editing guidance
 - scaffolded setup success must say the repo still needs canonical truth before `system doctor` or packet work
 - `setup refresh` preserves canonical files by default

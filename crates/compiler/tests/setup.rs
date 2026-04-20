@@ -315,11 +315,8 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
     )
     .expect("setup refresh");
 
-    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(
-        outcome.next_safe_action,
-        "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
-    );
+    assert_eq!(outcome.disposition, SetupDisposition::Ready);
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
     assert_eq!(
         fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
         b"keep this charter\n"

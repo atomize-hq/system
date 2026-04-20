@@ -89,6 +89,32 @@ fn render_markdown_keeps_optional_project_context_in_order_when_present() {
 }
 
 #[test]
+fn render_markdown_omits_optional_feature_spec_starter_template_from_ready_packet() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        system_compiler::setup_starter_template_bytes(
+            system_compiler::CanonicalArtifactKind::FeatureSpec,
+        ),
+    );
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+    let model = build_output_model(&result).expect("model");
+    let rendered = render_markdown(&model);
+
+    assert!(rendered.contains("OUTCOME: READY"));
+    assert!(rendered.contains("Charter [.system/charter/CHARTER.md]"));
+    assert!(!rendered.contains("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]"));
+    assert!(!rendered.contains("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)"));
+    assert!(rendered.contains(
+        "optional source omitted: .system/feature_spec/FEATURE_SPEC.md (shipped starter template)"
+    ));
+}
+
+#[test]
 fn render_markdown_keeps_trust_header_first_for_refusal_result() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();

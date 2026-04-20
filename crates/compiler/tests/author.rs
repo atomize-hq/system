@@ -304,6 +304,19 @@ fn shared_synthesis_request_is_used_by_future_interactive_and_deterministic_call
 }
 
 #[test]
+fn synthesis_request_embeds_method_artifact_and_closes_yaml_fence_on_its_own_line() {
+    let request = build_charter_synthesis_request(&valid_input()).expect("request");
+
+    assert!(request.prompt.contains("## Charter authoring method"));
+    assert!(request.prompt.contains("# Charter Authoring Method"));
+    assert!(request
+        .prompt
+        .contains("## Structured input source of truth"));
+    assert!(request.prompt.contains("decision_records:"));
+    assert!(request.prompt.contains("format: md\n```\n"));
+}
+
+#[test]
 fn starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());

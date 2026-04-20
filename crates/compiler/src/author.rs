@@ -16,6 +16,8 @@ const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const SYNTHESIS_DIRECTIVE: &str =
     include_str!("../../../core/library/charter/charter_synthesize_directive.md");
+const AUTHORING_METHOD: &str =
+    include_str!("../../../core/library/authoring/charter_authoring_method.md");
 const CHARTER_TEMPLATE: &str = include_str!("../../../core/library/charter/charter.md.tmpl");
 
 // Command path:
@@ -507,12 +509,14 @@ pub fn build_charter_synthesis_request(
             "repair the structured charter input and retry `system author charter --from-inputs <path|->`"
                 .to_string(),
     })?;
+    let inputs_yaml_block = inputs_yaml.trim_end_matches('\n');
     let prompt = format!(
-        "{directive}\n\n## Canonical output target\n- Write only `{path}`.\n- Return only the final markdown.\n\n## Template reference\n```markdown\n{template}\n```\n\n## Structured input source of truth\n```yaml\n{yaml}```\n",
+        "{directive}\n\n## Charter authoring method\n```markdown\n{method}\n```\n\n## Canonical output target\n- Write only `{path}`.\n- Return only the final markdown.\n\n## Template reference\n```markdown\n{template}\n```\n\n## Structured input source of truth\n```yaml\n{yaml}\n```\n",
         directive = SYNTHESIS_DIRECTIVE.trim_end(),
+        method = AUTHORING_METHOD.trim_end(),
         path = CANONICAL_CHARTER_REPO_PATH,
         template = CHARTER_TEMPLATE.trim_end(),
-        yaml = inputs_yaml.trim_end(),
+        yaml = inputs_yaml_block,
     );
     Ok(CharterSynthesisRequest {
         canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,

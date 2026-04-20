@@ -5043,22 +5043,24 @@ fn generate_refuses_when_system_root_missing() {
 }
 
 #[test]
-fn generate_refuses_when_feature_spec_missing_in_partial_system_tree() {
+fn generate_succeeds_when_feature_spec_is_missing_in_partial_system_tree() {
     let dir = partial_system_repo();
 
     let output = run_in(dir.path(), &["generate"]);
-    assert!(!output.status.success(), "generate should return nonzero");
+    assert!(output.status.success(), "generate should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
         &stdout,
         [
-            "OUTCOME: REFUSED",
+            "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup refresh`",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
         ],
     );
-    assert!(stdout.contains("CATEGORY: RequiredArtifactMissing"));
+    assert!(stdout.contains("### CHARTER (.system/charter/CHARTER.md)"));
+    assert!(!stdout.contains("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)"));
+    assert!(stdout.contains("optional source omitted: .system/feature_spec/FEATURE_SPEC.md"));
 }
 
 #[test]
@@ -5087,22 +5089,23 @@ fn inspect_refuses_when_system_root_missing() {
 }
 
 #[test]
-fn inspect_refuses_when_feature_spec_missing_in_partial_system_tree() {
+fn inspect_succeeds_when_feature_spec_is_missing_in_partial_system_tree() {
     let dir = partial_system_repo();
 
     let output = run_in(dir.path(), &["inspect"]);
-    assert!(!output.status.success(), "inspect should return nonzero");
+    assert!(output.status.success(), "inspect should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
         &stdout,
         [
-            "OUTCOME: REFUSED",
+            "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup refresh`",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
         ],
     );
-    assert!(stdout.contains("CATEGORY: RequiredArtifactMissing"));
+    assert!(stdout.contains("## JSON FALLBACK"));
+    assert!(stdout.contains("optional source omitted: .system/feature_spec/FEATURE_SPEC.md"));
 }
 
 #[test]
@@ -5142,17 +5145,14 @@ fn doctor_blocks_when_system_root_missing() {
 }
 
 #[test]
-fn doctor_blocks_when_feature_spec_missing_in_partial_system_tree() {
+fn doctor_reports_ready_when_feature_spec_is_missing_in_partial_system_tree() {
     let dir = partial_system_repo();
 
     let output = run_in(dir.path(), &["doctor"]);
-    assert!(!output.status.success(), "doctor should return nonzero");
+    assert!(output.status.success(), "doctor should return success");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"));
-    assert!(stdout.contains("RequiredArtifactMissing"));
-    assert!(stdout.contains(".system/feature_spec/FEATURE_SPEC.md"));
-    assert!(stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"));
+    assert_eq!(stdout.trim(), "READY");
 }
 
 #[test]

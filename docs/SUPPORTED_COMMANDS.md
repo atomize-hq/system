@@ -73,13 +73,14 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
   - `.system/project_context/PROJECT_CONTEXT.md`
 - `setup refresh --reset-state` resets only `.system/state/**`.
 - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
-- The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the required starter files are replaced with completed canonical truth.
+- The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the charter starter file is replaced with completed canonical truth; starter `FEATURE_SPEC.md` stays setup-owned and is omitted from planning output until authored.
 - Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
 - `author` owns canonical content authoring for setup-created starter truth.
 - `author` is the charter authoring surface.
 - The first shipped authoring wedge is `system author charter`.
 - `system author charter` is the human-guided surface.
 - `system author charter --from-inputs <path|->` is the agent and automation surface.
+- The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.

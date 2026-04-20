@@ -724,7 +724,11 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
     println!("Guided charter interview");
     println!("Answer with the documented value form. Comma-separated prompts accept `a, b, c`.");
 
-    let project_name = prompt_required("Project name")?;
+    let project_name = prompt_required_concrete(
+        "Project name",
+        "Project name needs a concrete system name, not a placeholder",
+        "project name",
+    )?;
     let classification = prompt_choice(
         "Project classification [greenfield|brownfield|integration|modernization|hardening]",
         parse_project_classification,
@@ -745,7 +749,11 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
     )?;
     let deadline = prompt_optional("Deadline or delivery window")?;
     let budget = prompt_optional("Budget notes")?;
-    let experience_notes = prompt_required("Experience notes")?;
+    let experience_notes = prompt_required_concrete(
+        "Experience notes",
+        "Experience notes need a concrete summary of team experience or delivery constraints",
+        "experience notes",
+    )?;
     let must_use_tech = prompt_csv_optional("Must-use tech (comma-separated, optional)")?;
     let in_production_today = prompt_bool("In production today? [yes|no]")?;
     let prod_users_or_data = prompt_optional("Production users or data notes")?;
@@ -753,8 +761,11 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
         prompt_csv_optional("External contracts to preserve (comma-separated, optional)")?;
     let uptime_expectations = prompt_optional("Uptime expectations")?;
     let baseline_level = prompt_u8_in_range("Baseline rubric level [1-5]", 1, 5)?;
-    let baseline_rationale =
-        prompt_csv_non_empty("Baseline rationale (comma-separated, at least one)")?;
+    let baseline_rationale = prompt_csv_non_empty_concrete(
+        "Baseline rationale (comma-separated, at least one)",
+        "Baseline rationale needs concrete reasons, not placeholders",
+        "baseline rationale",
+    )?;
     let backward_compatibility = prompt_choice(
         "Backward compatibility [required|not_required|boundary_only]",
         parse_backward_compatibility,
@@ -779,7 +790,11 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
     let domains = if primary_domain_name.trim().is_empty() {
         Vec::new()
     } else {
-        let blast_radius = prompt_required("Primary domain blast radius")?;
+        let blast_radius = prompt_required_concrete(
+            "Primary domain blast radius",
+            "Primary domain blast radius needs a concrete impact or failure description",
+            "primary domain blast radius",
+        )?;
         let touches = prompt_csv_optional("Primary domain touches (comma-separated, optional)")?;
         let constraints =
             prompt_csv_optional("Primary domain constraints (comma-separated, optional)")?;
@@ -790,7 +805,11 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
             constraints,
         }]
     };
-    let approvers = prompt_csv_non_empty("Exception approvers (comma-separated, at least one)")?;
+    let approvers = prompt_csv_non_empty_concrete(
+        "Exception approvers (comma-separated, at least one)",
+        "Exception approvers need concrete owners or roles",
+        "exception approvers",
+    )?;
     let record_location =
         prompt_with_default("Exception record location", "CHARTER.md#exceptions")?;
     let minimum_fields_input = prompt_optional(
@@ -801,15 +820,31 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
     } else {
         split_csv_required(&minimum_fields_input)?
     };
-    let debt_tracking_system = prompt_required("Debt tracking system")?;
+    let debt_tracking_system = prompt_required_concrete(
+        "Debt tracking system",
+        "Debt tracking system needs a concrete tracker or repository location",
+        "debt tracking system",
+    )?;
     let debt_tracking_labels =
         prompt_csv_optional("Debt tracking labels (comma-separated, optional)")?;
-    let debt_tracking_review_cadence = prompt_required("Debt tracking review cadence")?;
+    let debt_tracking_review_cadence = prompt_required_concrete(
+        "Debt tracking review cadence",
+        "Debt tracking review cadence needs a concrete cadence such as weekly or monthly",
+        "debt tracking review cadence",
+    )?;
     let decision_records_enabled = prompt_bool("Decision records enabled? [yes|no]")?;
     let (decision_records_path, decision_records_format) = if decision_records_enabled {
         (
-            prompt_required("Decision records path")?,
-            prompt_required("Decision records format")?,
+            prompt_required_concrete(
+                "Decision records path",
+                "Decision records path needs a concrete folder path",
+                "decision records path",
+            )?,
+            prompt_required_concrete(
+                "Decision records format",
+                "Decision records format needs a concrete format such as md",
+                "decision records format",
+            )?,
         )
     } else {
         (String::new(), String::new())
@@ -906,18 +941,28 @@ fn prompt_line(prompt: &str) -> Result<String, String> {
     Ok(value.trim().to_string())
 }
 
-fn prompt_required(prompt: &str) -> Result<String, String> {
-    loop {
-        let value = prompt_line(prompt)?;
-        if !value.trim().is_empty() {
-            return Ok(value);
-        }
-        println!("Answer required.");
+fn prompt_required_concrete(
+    prompt: &str,
+    follow_up_prompt: &str,
+    field_name: &str,
+) -> Result<String, String> {
+    let value = prompt_line(prompt)?;
+    if let Some(normalized) = normalize_required_free_text(&value) {
+        return Ok(normalized);
     }
+
+    let follow_up = prompt_line(follow_up_prompt)?;
+    if let Some(normalized) = normalize_required_free_text(&follow_up) {
+        return Ok(normalized);
+    }
+
+    Err(render_interview_incomplete_refusal(&format!(
+        "guided charter interview could not normalize a concrete answer for {field_name}"
+    )))
 }
 
 fn prompt_optional(prompt: &str) -> Result<String, String> {
-    prompt_line(prompt)
+    prompt_line(prompt).map(|value| normalize_free_text_answer(&value))
 }
 
 fn prompt_with_default(prompt: &str, default_value: &str) -> Result<String, String> {
@@ -925,7 +970,7 @@ fn prompt_with_default(prompt: &str, default_value: &str) -> Result<String, Stri
     if value.trim().is_empty() {
         Ok(default_value.to_string())
     } else {
-        Ok(value)
+        Ok(normalize_free_text_answer(&value))
     }
 }
 
@@ -1009,28 +1054,101 @@ fn prompt_csv_optional(prompt: &str) -> Result<Vec<String>, String> {
     }
 }
 
-fn prompt_csv_non_empty(prompt: &str) -> Result<Vec<String>, String> {
-    loop {
-        let value = prompt_line(prompt)?;
-        match split_csv_required(&value) {
-            Ok(items) => return Ok(items),
-            Err(err) => println!("{err}"),
-        }
+fn prompt_csv_non_empty_concrete(
+    prompt: &str,
+    follow_up_prompt: &str,
+    field_name: &str,
+) -> Result<Vec<String>, String> {
+    let value = prompt_line(prompt)?;
+    if let Some(items) = normalize_required_csv(&value) {
+        return Ok(items);
     }
+
+    let follow_up = prompt_line(follow_up_prompt)?;
+    if let Some(items) = normalize_required_csv(&follow_up) {
+        return Ok(items);
+    }
+
+    Err(render_interview_incomplete_refusal(&format!(
+        "guided charter interview could not normalize a concrete answer for {field_name}"
+    )))
 }
 
 fn split_csv_required(value: &str) -> Result<Vec<String>, String> {
     let items = value
         .split(',')
-        .map(|item| item.trim())
+        .map(normalize_free_text_answer)
         .filter(|item| !item.is_empty())
-        .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     if items.is_empty() {
         Err("Provide at least one comma-separated value.".to_string())
     } else {
         Ok(items)
     }
+}
+
+fn normalize_required_free_text(value: &str) -> Option<String> {
+    let normalized = normalize_free_text_answer(value);
+    if normalized.is_empty() || is_unusably_vague_text(&normalized) {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn normalize_required_csv(value: &str) -> Option<Vec<String>> {
+    let items = split_csv_required(value).ok()?;
+    if items.iter().any(|item| is_unusably_vague_text(item)) {
+        None
+    } else {
+        Some(items)
+    }
+}
+
+fn normalize_free_text_answer(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn is_unusably_vague_text(value: &str) -> bool {
+    let normalized = normalize_free_text_answer(value);
+    if normalized.is_empty() {
+        return true;
+    }
+
+    let lower = normalized.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "idk"
+            | "i don't know"
+            | "dont know"
+            | "unknown"
+            | "n/a"
+            | "na"
+            | "tbd"
+            | "todo"
+            | "unsure"
+            | "not sure"
+            | "good quality"
+            | "good"
+            | "quality"
+            | "standard"
+            | "normal"
+            | "stuff"
+            | "things"
+            | "misc"
+            | "various"
+            | "whatever"
+    )
+}
+
+fn render_interview_incomplete_refusal(summary: &str) -> String {
+    render_author_custom_refusal(
+        "REFUSED",
+        "InterviewIncomplete",
+        summary,
+        "structured charter input",
+        "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+    )
 }
 
 fn parse_project_classification(

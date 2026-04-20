@@ -287,6 +287,52 @@ fn interactive_happy_path_writes_canonical_charter() {
 }
 
 #[test]
+fn authored_charter_clears_doctor_and_generate_without_feature_spec_truth() {
+    let dir = scaffold_repo();
+
+    let author = run_in_with_input_and_env(
+        dir.path(),
+        &["author", "charter"],
+        &guided_interview_answers(),
+        &[
+            ("SYSTEM_AUTHOR_FORCE_TTY", "1"),
+            (
+                "SYSTEM_AUTHOR_TEST_SYNTHESIS_OUTPUT",
+                "# Engineering Charter\n\nauthored\n",
+            ),
+        ],
+    );
+
+    assert!(
+        author.status.success(),
+        "author failed: {}",
+        stdout(&author)
+    );
+
+    let doctor = run_in(dir.path(), &["doctor"]);
+    assert!(
+        doctor.status.success(),
+        "doctor failed: {}",
+        stdout(&doctor)
+    );
+    assert_eq!(stdout(&doctor).trim(), "READY");
+
+    let generate = run_in(dir.path(), &["generate"]);
+    assert!(
+        generate.status.success(),
+        "generate failed without feature spec truth: {}",
+        stdout(&generate)
+    );
+    let generate_stdout = stdout(&generate);
+    assert!(generate_stdout.contains("OUTCOME: READY"));
+    assert!(generate_stdout.contains("OBJECT: planning.packet"));
+    assert!(!generate_stdout.contains("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)"));
+    assert!(generate_stdout.contains(
+        "optional source omitted: .system/feature_spec/FEATURE_SPEC.md (shipped starter template)"
+    ));
+}
+
+#[test]
 fn non_tty_author_refuses_and_points_to_deterministic_path() {
     let dir = scaffold_repo();
 
@@ -361,5 +407,123 @@ fn stdin_inputs_are_supported_with_dash() {
     assert_eq!(
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
         "# Engineering Charter\n\nstdin\n"
+    );
+}
+
+#[test]
+fn guided_interview_asks_one_follow_up_for_vague_required_text_and_accepts_concrete_retry() {
+    let dir = scaffold_repo();
+    let answers = [
+        "System",
+        "greenfield",
+        "2",
+        "internal",
+        "months",
+        "cli, api",
+        "server",
+        "",
+        "",
+        "idk",
+        "small team with Rust and release pressure",
+        "rust",
+        "no",
+        "",
+        "",
+        "best effort",
+        "3",
+        "internal operators, moderate blast radius",
+        "not_required",
+        "not_required",
+        "lightweight",
+        "not_required_yet",
+        "standard",
+        "",
+        "project_owner",
+        "",
+        "",
+        "issues",
+        "debt",
+        "monthly",
+        "no",
+    ]
+    .join("\n")
+        + "\n";
+
+    let output = run_in_with_input_and_env(
+        dir.path(),
+        &["author", "charter"],
+        &answers,
+        &[
+            ("SYSTEM_AUTHOR_FORCE_TTY", "1"),
+            (
+                "SYSTEM_AUTHOR_TEST_SYNTHESIS_OUTPUT",
+                "# Engineering Charter\n\ninteractive\n",
+            ),
+        ],
+    );
+
+    assert!(
+        output.status.success(),
+        "interactive author failed: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains(
+        "Experience notes need a concrete summary of team experience or delivery constraints"
+    ));
+    assert_eq!(
+        out.matches(
+            "Experience notes need a concrete summary of team experience or delivery constraints"
+        )
+        .count(),
+        1
+    );
+}
+
+#[test]
+fn guided_interview_refuses_after_second_vague_required_answer() {
+    let dir = scaffold_repo();
+    let answers = [
+        "System",
+        "greenfield",
+        "2",
+        "internal",
+        "months",
+        "cli, api",
+        "server",
+        "",
+        "",
+        "idk",
+        "good quality",
+    ]
+    .join("\n")
+        + "\n";
+
+    let output = run_in_with_input_and_env(
+        dir.path(),
+        &["author", "charter"],
+        &answers,
+        &[
+            ("SYSTEM_AUTHOR_FORCE_TTY", "1"),
+            (
+                "SYSTEM_AUTHOR_TEST_SYNTHESIS_OUTPUT",
+                "# Engineering Charter\n\ninteractive\n",
+            ),
+        ],
+    );
+
+    assert!(!output.status.success(), "interactive author should refuse");
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"));
+    assert!(out.contains("CATEGORY: InterviewIncomplete"));
+    assert!(out.contains(
+        "guided charter interview could not normalize a concrete answer for experience notes"
+    ));
+    assert_eq!(
+        out.matches(
+            "Experience notes need a concrete summary of team experience or delivery constraints"
+        )
+        .count(),
+        1
     );
 }
