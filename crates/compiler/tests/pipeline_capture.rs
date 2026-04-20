@@ -10,10 +10,10 @@ use system_compiler::{
     load_pipeline_capture_cache_entry, load_route_state_with_supported_variables,
     preview_pipeline_capture, render_pipeline_capture_apply_result,
     render_pipeline_capture_preview, render_pipeline_capture_refusal,
-    render_pipeline_compile_payload, set_route_state, PipelineCaptureCacheEntry,
-    PipelineCapturePlan, PipelineCaptureRefusalClassification, PipelineCaptureRequest,
-    PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCompileRuntimeContext,
-    RouteState, RouteStateMutation, RouteStateMutationOutcome,
+    render_pipeline_compile_explain, render_pipeline_compile_payload, set_route_state,
+    PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
+    PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
+    PipelineCompileRuntimeContext, RouteState, RouteStateMutation, RouteStateMutationOutcome,
 };
 
 #[cfg(unix)]
@@ -112,6 +112,13 @@ fn stage_10_compile_payload(repo_root: &Path) -> String {
         compile_pipeline_stage_with_runtime(repo_root, PIPELINE_ID, STAGE_10_ID, &fixed_runtime())
             .expect("compile result");
     render_pipeline_compile_payload(&result)
+}
+
+fn stage_10_compile_explain(repo_root: &Path) -> String {
+    let result =
+        compile_pipeline_stage_with_runtime(repo_root, PIPELINE_ID, STAGE_10_ID, &fixed_runtime())
+            .expect("compile result");
+    render_pipeline_compile_explain(&result)
 }
 
 fn stage_10_completed_feature_spec_input() -> String {
@@ -611,6 +618,39 @@ fn capture_preview_stage_10_refuses_raw_compile_payload_without_side_effects() {
 }
 
 #[test]
+fn capture_preview_stage_10_refuses_compile_explain_output_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    let explain_output = stage_10_compile_explain(&repo_root);
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "stage-10 capture-ready fixture should not pre-create the feature-spec artifact"
+    );
+
+    let refusal = preview_pipeline_capture(&repo_root, &stage_10_request(explain_output))
+        .expect_err("compile explain output should refuse");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body that satisfies the shipped feature-spec contract"
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "compile explain refusal must not create the feature-spec artifact"
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
 fn capture_preview_stage_04_refuses_empty_single_file_body_without_side_effects() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_04_capture_ready_repo();
     let initial_artifact =
@@ -798,6 +838,31 @@ fn capture_apply_stage_10_refuses_raw_compile_payload_without_side_effects() {
             .join("artifacts/feature_spec/FEATURE_SPEC.md")
             .exists(),
         "raw compile payload refusal must not create the feature-spec artifact"
+    );
+    assert_eq!(load_route_state(&repo_root), initial_state);
+    assert_no_capture_cache_entries(&repo_root);
+}
+
+#[test]
+fn capture_apply_stage_10_refuses_invalid_feature_spec_body_without_side_effects() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
+    let initial_state = load_route_state(&repo_root);
+    let refusal = capture_pipeline_output(&repo_root, &stage_10_request("hello\n".to_string()))
+        .expect_err("invalid feature spec body should refuse");
+
+    assert_eq!(
+        refusal.classification,
+        PipelineCaptureRefusalClassification::InvalidCaptureInput
+    );
+    assert_eq!(
+        refusal.summary,
+        "stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body that satisfies the shipped feature-spec contract"
+    );
+    assert!(
+        !repo_root
+            .join("artifacts/feature_spec/FEATURE_SPEC.md")
+            .exists(),
+        "invalid feature spec refusal must not create the feature-spec artifact"
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);

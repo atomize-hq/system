@@ -34,6 +34,31 @@ const SUPPORTED_STAGE_CHARTER_ID: &str = "stage.05_charter_synthesize";
 const SUPPORTED_STAGE_PROJECT_CONTEXT_ID: &str = "stage.06_project_context_interview";
 const SUPPORTED_STAGE_FOUNDATION_ID: &str = "stage.07_foundation_pack";
 const SUPPORTED_STAGE_FEATURE_SPEC_ID: &str = "stage.10_feature_spec";
+const REQUIRED_STAGE_10_FEATURE_SPEC_HEADINGS: [&str; 23] = [
+    "## 0) Charter Alignment",
+    "### Dimension alignment",
+    "### Charter red lines check",
+    "## 1) Summary",
+    "## 2) Problem & Context",
+    "## 3) Goals",
+    "## 4) Non-Goals",
+    "## 5) Users & Stakeholders",
+    "## 6) Scope",
+    "### In Scope",
+    "### Out of Scope",
+    "## 7) Requirements",
+    "### Functional Requirements",
+    "### Non-Functional Requirements (NFRs)",
+    "## 8) Acceptance Criteria (testable)",
+    "## 9) Technical Design",
+    "### Proposed Approach (recommended)",
+    "## 10) Alternatives Considered",
+    "## 11) Testing Strategy",
+    "## 12) Rollout Plan",
+    "## 13) Risks & Mitigations",
+    "## 15) Traceability Map",
+    "## Y) Debt Tracking (Charter-aligned)",
+];
 const CAPTURE_CACHE_SCHEMA_VERSION: &str = "m3-capture-cache-v1";
 const CAPTURE_UNKNOWN_MARKERS: [&str; 5] = ["TBD", "UNKNOWN", "Unknown", "TODO", "??"];
 pub const PIPELINE_CAPTURE_CACHE_SCHEMA_VERSION: &str = CAPTURE_CACHE_SCHEMA_VERSION;
@@ -151,6 +176,7 @@ enum CaptureInputParseError {
     InvalidSingleFileWrapper,
     EmptySingleFileBody,
     RawStage10CompilePayload,
+    InvalidStage10FeatureSpecBody,
     InvalidMultifilePrefix,
     EmptyDeclaredBlock(String),
     DuplicateBlock(String),
@@ -1391,8 +1417,13 @@ fn validate_single_file_capture_content(
     stage_id: &str,
     content: &str,
 ) -> Result<(), CaptureInputParseError> {
-    if stage_id == SUPPORTED_STAGE_FEATURE_SPEC_ID && is_raw_stage_10_compile_payload(content) {
-        return Err(CaptureInputParseError::RawStage10CompilePayload);
+    if stage_id == SUPPORTED_STAGE_FEATURE_SPEC_ID {
+        if is_raw_stage_10_compile_payload(content) {
+            return Err(CaptureInputParseError::RawStage10CompilePayload);
+        }
+        if !is_completed_stage_10_feature_spec_body(content) {
+            return Err(CaptureInputParseError::InvalidStage10FeatureSpecBody);
+        }
     }
     Ok(())
 }
@@ -1411,6 +1442,54 @@ fn is_raw_stage_10_compile_payload(content: &str) -> bool {
     ]
     .into_iter()
     .all(|marker| content.contains(marker))
+}
+
+fn is_completed_stage_10_feature_spec_body(content: &str) -> bool {
+    let Some(first_line) = content.lines().next() else {
+        return false;
+    };
+    if !first_line.starts_with("# ") || !first_line.contains("Feature Specification") {
+        return false;
+    }
+    if REQUIRED_STAGE_10_FEATURE_SPEC_HEADINGS
+        .iter()
+        .any(|heading| !content.contains(heading))
+    {
+        return false;
+    }
+    if content.contains("{{") || content.contains("}}") || content.contains('\u{2026}') {
+        return false;
+    }
+    if !content
+        .lines()
+        .any(|line| line.trim_start().starts_with("- G") && line.contains(':'))
+    {
+        return false;
+    }
+    if !content
+        .lines()
+        .any(|line| line.trim_start().starts_with("- AC-") && line.contains(':'))
+    {
+        return false;
+    }
+    if !content
+        .lines()
+        .any(|line| line.trim_start().starts_with("- Alt "))
+    {
+        return false;
+    }
+    for prefix in ["- Security", "- Performance", "- Reliability"] {
+        if !content.lines().any(|line| {
+            let trimmed = line.trim_start();
+            trimmed.starts_with(prefix) && trimmed.contains(':')
+        }) {
+            return false;
+        }
+    }
+    content.lines().any(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("- R") && trimmed.contains("-> AC-")
+    })
 }
 
 fn normalize_declared_block_content(
@@ -1764,6 +1843,13 @@ fn classify_capture_input_refusal(
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`".to_string(),
+        },
+        CaptureInputParseError::InvalidStage10FeatureSpecBody => PipelineCaptureRefusal {
+            classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
+            summary: "stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body that satisfies the shipped feature-spec contract".to_string(),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: "provide only the completed `FEATURE_SPEC.md` body, with the shipped headings and filled content, then retry `pipeline capture`".to_string(),
         },
         CaptureInputParseError::InvalidMultifilePrefix => PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,

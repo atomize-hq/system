@@ -1,0 +1,5 @@
+checks:
+  cargo fmt --all
+  cargo clippy --workspace --all-targets --all-features -- -D warnings
+  cargo test --workspace
+  cargo check --workspace
