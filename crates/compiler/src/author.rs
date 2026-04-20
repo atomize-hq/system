@@ -9,11 +9,22 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::fs::{File, OpenOptions};
+use std::io::Write as IoWrite;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
 const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
+const AUTHORING_METHOD_MARKDOWN: &str =
+    include_str!("../../../core/library/authoring/charter_authoring_method.md");
+const CHARTER_SYNTHESIZE_DIRECTIVE_MARKDOWN: &str =
+    include_str!("../../../core/library/charter/charter_synthesize_directive.md");
+const CHARTER_TEMPLATE_MARKDOWN: &str =
+    include_str!("../../../core/library/charter/charter.md.tmpl");
+// Tests can override the codex binary path without changing the shipped CLI surface.
+const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
 const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## What this is",
     "## How to use this charter",
@@ -1130,7 +1141,7 @@ pub fn author_charter(
     let _lock = acquire_charter_authoring_lock(repo_root)?;
     preflight_author_charter(repo_root)?;
 
-    let markdown = render_charter_markdown(input)?;
+    let markdown = synthesize_charter_markdown(repo_root, input)?;
     write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
         .map_err(|err| AuthorCharterRefusal {
             kind: AuthorCharterRefusalKind::MutationRefused,
@@ -1449,17 +1460,33 @@ fn collect_cross_cutting_red_lines(input: &CharterStructuredInput) -> Vec<String
 }
 
 fn validate_required_heading_order(markdown: &str) {
+    if let Err(summary) = validate_required_heading_order_result(markdown) {
+        panic!("rendered charter heading validation failed: {summary}");
+    }
+}
+
+fn validate_required_heading_order_result(markdown: &str) -> Result<(), String> {
     let mut previous = 0usize;
     for heading in REQUIRED_CHARTER_TOP_LEVEL_HEADINGS {
-        let position = markdown
-            .find(heading)
-            .unwrap_or_else(|| panic!("rendered charter missing required heading `{heading}`"));
-        assert!(
-            position >= previous,
-            "rendered charter heading order regressed for `{heading}`"
-        );
+        let positions = markdown
+            .match_indices(heading)
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if positions.is_empty() {
+            return Err(format!("missing required heading `{heading}`"));
+        }
+        if positions.len() != 1 {
+            return Err(format!(
+                "required heading `{heading}` must appear exactly once"
+            ));
+        }
+        let position = positions[0];
+        if position < previous {
+            return Err(format!("required heading `{heading}` is out of order"));
+        }
         previous = position;
     }
+    Ok(())
 }
 
 fn validate_charter_write_target(repo_root: &Path) -> Result<(), AuthorCharterRefusal> {
@@ -1576,6 +1603,315 @@ fn structured_input_refusal(
         next_safe_action:
             "repair the structured charter input and retry `system author charter --from-inputs <path|->`"
                 .to_string(),
+    }
+}
+
+fn synthesis_refusal(summary: impl Into<String>) -> AuthorCharterRefusal {
+    AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::SynthesisFailed,
+        summary: summary.into(),
+        broken_subject: "final charter synthesis".to_string(),
+        next_safe_action:
+            "repair the charter synthesis runtime or prompt inputs and retry `system author charter`"
+                .to_string(),
+    }
+}
+
+fn synthesize_charter_markdown(
+    repo_root: &Path,
+    input: &CharterStructuredInput,
+) -> Result<String, AuthorCharterRefusal> {
+    validate_charter_structured_input(input)?;
+
+    let prompt = build_charter_synthesis_prompt(input)?;
+    let output_path = synthesize_output_path();
+    let codex_bin = std::env::var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "codex".to_string());
+
+    let mut command = Command::new(&codex_bin);
+    command
+        .current_dir(repo_root)
+        .arg("exec")
+        .arg("--skip-git-repo-check")
+        .arg("--sandbox")
+        .arg("read-only")
+        .arg("--color")
+        .arg("never")
+        .arg("--output-last-message")
+        .arg(&output_path)
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = command.spawn().map_err(|err| {
+        synthesis_refusal(format!(
+            "failed to start `codex exec` for charter synthesis: {err}"
+        ))
+    })?;
+
+    let prompt_write_result = {
+        let stdin = child.stdin.as_mut().ok_or_else(|| {
+            synthesis_refusal("failed to open stdin for `codex exec` charter synthesis")
+        })?;
+        stdin.write_all(prompt.as_bytes())
+    };
+    if let Err(err) = prompt_write_result {
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = std::fs::remove_file(&output_path);
+        return Err(synthesis_refusal(format!(
+            "failed to stream charter synthesis prompt into `codex exec`: {err}"
+        )));
+    }
+
+    let output = child.wait_with_output().map_err(|err| {
+        synthesis_refusal(format!(
+            "failed while waiting for `codex exec` charter synthesis: {err}"
+        ))
+    })?;
+
+    if !output.status.success() {
+        let command_output = summarize_process_output(&output.stdout, &output.stderr);
+        let _ = std::fs::remove_file(&output_path);
+        return Err(synthesis_refusal(format!(
+            "`codex exec` charter synthesis exited with {}{}",
+            render_exit_status(output.status.code()),
+            command_output
+        )));
+    }
+
+    let markdown = std::fs::read_to_string(&output_path).map_err(|err| {
+        synthesis_refusal(format!(
+            "failed to read synthesized charter markdown from {}: {err}",
+            output_path.display()
+        ))
+    })?;
+    let _ = std::fs::remove_file(&output_path);
+
+    let normalized = markdown.trim().to_string();
+    validate_synthesized_charter_markdown(&normalized)?;
+    Ok(normalized)
+}
+
+fn build_charter_synthesis_prompt(
+    input: &CharterStructuredInput,
+) -> Result<String, AuthorCharterRefusal> {
+    let normalized_input = normalized_charter_structured_input(input);
+    let structured_yaml = serde_yaml_bw::to_string(&normalized_input).map_err(|err| {
+        synthesis_refusal(format!(
+            "failed to serialize normalized charter inputs for synthesis: {err}"
+        ))
+    })?;
+    let sanitized_template = sanitize_charter_template(CHARTER_TEMPLATE_MARKDOWN);
+
+    let mut prompt = String::new();
+    writeln!(prompt, "# Repo-Owned Charter Authoring Method").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "{AUTHORING_METHOD_MARKDOWN}").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "# Charter Synthesis Directive").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "{CHARTER_SYNTHESIZE_DIRECTIVE_MARKDOWN}").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "# Sanitized charter.md.tmpl").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "```md").unwrap();
+    writeln!(prompt, "{sanitized_template}").unwrap();
+    writeln!(prompt, "```").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "# CHARTER_INPUTS.yaml").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(prompt, "```yaml").unwrap();
+    write!(prompt, "{structured_yaml}").unwrap();
+    if !structured_yaml.ends_with('\n') {
+        writeln!(prompt).unwrap();
+    }
+    writeln!(prompt, "```").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(
+        prompt,
+        "Return only the final `CHARTER.md` markdown and preserve the template heading order exactly once."
+    )
+    .unwrap();
+
+    Ok(prompt)
+}
+
+fn normalized_charter_structured_input(input: &CharterStructuredInput) -> CharterStructuredInput {
+    let mut normalized = input.clone();
+
+    normalized.project.name = normalize_charter_free_text(&normalized.project.name);
+    normalized.project.constraints.deadline =
+        normalize_charter_free_text(&normalized.project.constraints.deadline);
+    normalized.project.constraints.budget =
+        normalize_charter_free_text(&normalized.project.constraints.budget);
+    normalized.project.constraints.experience_notes =
+        normalize_charter_free_text(&normalized.project.constraints.experience_notes);
+    normalize_string_list(&mut normalized.project.constraints.must_use_tech);
+
+    normalized.project.operational_reality.prod_users_or_data =
+        normalize_charter_free_text(&normalized.project.operational_reality.prod_users_or_data);
+    normalize_string_list(
+        &mut normalized
+            .project
+            .operational_reality
+            .external_contracts_to_preserve,
+    );
+    normalized.project.operational_reality.uptime_expectations =
+        normalize_charter_free_text(&normalized.project.operational_reality.uptime_expectations);
+
+    normalized.posture.rubric_scale = normalize_charter_free_text(&normalized.posture.rubric_scale);
+    normalize_string_list(&mut normalized.posture.baseline_rationale);
+
+    for domain in &mut normalized.domains {
+        domain.name = normalize_charter_free_text(&domain.name);
+        domain.blast_radius = normalize_charter_free_text(&domain.blast_radius);
+        normalize_string_list(&mut domain.touches);
+        normalize_string_list(&mut domain.constraints);
+    }
+
+    for dimension in &mut normalized.dimensions {
+        dimension.default_stance = normalize_charter_free_text(&dimension.default_stance);
+        normalize_string_list(&mut dimension.raise_the_bar_triggers);
+        normalize_string_list(&mut dimension.allowed_shortcuts);
+        normalize_string_list(&mut dimension.red_lines);
+        normalize_string_list(&mut dimension.domain_overrides);
+    }
+
+    normalize_string_list(&mut normalized.exceptions.approvers);
+    normalized.exceptions.record_location =
+        normalize_charter_free_text(&normalized.exceptions.record_location);
+    normalize_string_list(&mut normalized.exceptions.minimum_fields);
+
+    normalized.debt_tracking.system = normalize_charter_free_text(&normalized.debt_tracking.system);
+    normalize_string_list(&mut normalized.debt_tracking.labels);
+    normalized.debt_tracking.review_cadence =
+        normalize_charter_free_text(&normalized.debt_tracking.review_cadence);
+
+    normalized.decision_records.path =
+        normalize_charter_free_text(&normalized.decision_records.path);
+    normalized.decision_records.format =
+        normalize_charter_free_text(&normalized.decision_records.format);
+
+    normalized
+}
+
+fn normalize_string_list(values: &mut Vec<String>) {
+    for value in values {
+        *value = normalize_charter_free_text(value);
+    }
+}
+
+fn sanitize_charter_template(template: &str) -> String {
+    let mut sanitized = String::with_capacity(template.len());
+    let mut remaining = template;
+    let mut in_comment = false;
+
+    while !remaining.is_empty() {
+        if in_comment {
+            if let Some(index) = remaining.find("-->") {
+                remaining = &remaining[index + 3..];
+                in_comment = false;
+            } else {
+                break;
+            }
+            continue;
+        }
+
+        if let Some(index) = remaining.find("<!--") {
+            sanitized.push_str(&remaining[..index]);
+            remaining = &remaining[index + 4..];
+            in_comment = true;
+        } else {
+            sanitized.push_str(remaining);
+            break;
+        }
+    }
+
+    let mut collapsed = String::new();
+    let mut blank_run = 0usize;
+    for line in sanitized.lines() {
+        let trimmed_end = line.trim_end();
+        if trimmed_end.is_empty() {
+            blank_run += 1;
+            if blank_run > 1 {
+                continue;
+            }
+            collapsed.push('\n');
+            continue;
+        }
+        blank_run = 0;
+        collapsed.push_str(trimmed_end);
+        collapsed.push('\n');
+    }
+
+    collapsed.trim().to_string()
+}
+
+fn synthesize_output_path() -> PathBuf {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "system-author-charter-{}-{timestamp}.md",
+        std::process::id()
+    ))
+}
+
+fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCharterRefusal> {
+    if markdown.trim().is_empty() {
+        return Err(synthesis_refusal("synthesized charter markdown was empty"));
+    }
+    if !markdown.starts_with("# Engineering Charter — ") {
+        return Err(synthesis_refusal(
+            "synthesized charter markdown must start with `# Engineering Charter — `",
+        ));
+    }
+    if markdown.contains("{{") || markdown.contains("}}") {
+        return Err(synthesis_refusal(
+            "synthesized charter markdown contains unresolved template placeholders",
+        ));
+    }
+    if let Err(summary) = validate_required_heading_order_result(markdown) {
+        return Err(synthesis_refusal(format!(
+            "synthesized charter markdown failed heading validation: {summary}"
+        )));
+    }
+    Ok(())
+}
+
+fn summarize_process_output(stdout: &[u8], stderr: &[u8]) -> String {
+    let stdout = String::from_utf8_lossy(stdout);
+    let stderr = String::from_utf8_lossy(stderr);
+    let stdout = truncate_for_summary(stdout.trim());
+    let stderr = truncate_for_summary(stderr.trim());
+
+    match (stdout.is_empty(), stderr.is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => format!("; stdout: {stdout}"),
+        (true, false) => format!("; stderr: {stderr}"),
+        (false, false) => format!("; stdout: {stdout}; stderr: {stderr}"),
+    }
+}
+
+fn truncate_for_summary(value: &str) -> String {
+    const LIMIT: usize = 240;
+    if value.chars().count() <= LIMIT {
+        value.to_string()
+    } else {
+        let prefix = value.chars().take(LIMIT).collect::<String>();
+        format!("{prefix}...")
+    }
+}
+
+fn render_exit_status(code: Option<i32>) -> String {
+    match code {
+        Some(code) => format!("exit code {code}"),
+        None => "signal termination".to_string(),
     }
 }
 

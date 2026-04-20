@@ -1,12 +1,16 @@
 use std::fs;
 use std::io::{Read, Write};
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+
+const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
+const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_system"))
@@ -57,6 +61,60 @@ fn write_file(path: &Path, contents: &str) {
         fs::create_dir_all(parent).expect("mkdirs");
     }
     fs::write(path, contents).expect("write");
+}
+
+fn author_runtime_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn with_author_runtime_override<T>(binary_path: &Path, action: impl FnOnce() -> T) -> T {
+    let _guard = author_runtime_lock().lock().expect("author runtime lock");
+    let previous = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+
+    let result = catch_unwind(AssertUnwindSafe(action));
+
+    match previous {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+    }
+
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
+#[cfg(unix)]
+fn install_stub_codex(root: &Path, script: &str) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = root.join("stub-codex.sh");
+    write_file(&path, script);
+    let mut permissions = fs::metadata(&path).expect("stub metadata").permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&path, permissions).expect("chmod stub");
+    path
+}
+
+#[cfg(not(unix))]
+fn install_stub_codex(root: &Path, script: &str) -> std::path::PathBuf {
+    let path = root.join("stub-codex.bat");
+    write_file(&path, script);
+    path
+}
+
+fn prompt_capture_path(root: &Path) -> std::path::PathBuf {
+    root.join(PROMPT_CAPTURE_REPO_PATH)
+}
+
+fn successful_stub_script(markdown: &str) -> String {
+    format!(
+        "#!/bin/sh\nset -eu\noutput=\"\"\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    output=\"$2\"\n    shift 2\n    continue\n  fi\n  shift\n done\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
+        prompt_capture = PROMPT_CAPTURE_REPO_PATH,
+        markdown = markdown
+    )
 }
 
 fn scaffold_repo() -> tempfile::TempDir {
@@ -200,11 +258,9 @@ decision_records:
 "#
 }
 
-fn expected_file_inputs_markdown() -> String {
-    let input =
-        system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
-            .expect("parse valid structured input yaml");
-    system_compiler::render_charter_markdown(&input).expect("render valid structured input")
+fn stubbed_authored_markdown() -> String {
+    system_compiler::render_charter_markdown(&guided_expected_input())
+        .expect("render stubbed authored markdown")
 }
 
 fn guided_expected_input() -> system_compiler::CharterStructuredInput {
@@ -282,11 +338,6 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
             format: "md".to_string(),
         },
     }
-}
-
-fn guided_expected_markdown() -> String {
-    system_compiler::render_charter_markdown(&guided_expected_input())
-        .expect("render guided expected input")
 }
 
 fn all_dimension_names() -> [system_compiler::CharterDimensionName; 9] {
@@ -541,12 +592,6 @@ fn run_guided_author_under_pty(dir: &Path) -> (String, portable_pty::ExitStatus)
     (output, status)
 }
 
-fn make_repo_generation_ready(dir: &Path) {
-    fs::remove_file(dir.join(".system/feature_spec/FEATURE_SPEC.md")).expect("remove feature spec");
-    fs::remove_file(dir.join(".system/project_context/PROJECT_CONTEXT.md"))
-        .expect("remove optional project context");
-}
-
 #[test]
 fn non_tty_author_refuses_and_points_to_deterministic_path() {
     let dir = scaffold_repo();
@@ -644,16 +689,20 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
     let dir = scaffold_repo();
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
+    let expected_markdown = stubbed_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let output = run_in(
-        dir.path(),
-        &[
-            "author",
-            "charter",
-            "--from-inputs",
-            inputs_path.to_str().expect("utf-8 path"),
-        ],
-    );
+    let output = with_author_runtime_override(&stub, || {
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "charter",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf-8 path"),
+            ],
+        )
+    });
 
     assert!(
         output.status.success(),
@@ -666,8 +715,9 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
     assert!(out.contains(&format!("SOURCE: {}", inputs_path.display())));
     assert_eq!(
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
-        expected_file_inputs_markdown()
+        expected_markdown
     );
+    assert!(prompt_capture_path(dir.path()).exists());
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
 }
@@ -675,12 +725,16 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
 #[test]
 fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
     let dir = scaffold_repo();
+    let expected_markdown = stubbed_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let output = run_in_with_input(
-        dir.path(),
-        &["author", "charter", "--from-inputs", "-"],
-        valid_structured_inputs_yaml(),
-    );
+    let output = with_author_runtime_override(&stub, || {
+        run_in_with_input(
+            dir.path(),
+            &["author", "charter", "--from-inputs", "-"],
+            valid_structured_inputs_yaml(),
+        )
+    });
 
     assert!(
         output.status.success(),
@@ -693,8 +747,9 @@ fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
     assert!(out.contains("SOURCE: -"));
     assert_eq!(
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
-        expected_file_inputs_markdown()
+        expected_markdown
     );
+    assert!(prompt_capture_path(dir.path()).exists());
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
 }
@@ -702,8 +757,11 @@ fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
 #[test]
 fn guided_tty_author_charter_succeeds_via_real_binary_path() {
     let dir = scaffold_repo();
+    let expected_markdown = stubbed_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let (output, status) = run_guided_author_under_pty(dir.path());
+    let (output, status) =
+        with_author_runtime_override(&stub, || run_guided_author_under_pty(dir.path()));
 
     assert!(
         status.success(),
@@ -716,20 +774,23 @@ fn guided_tty_author_charter_succeeds_via_real_binary_path() {
     assert!(output.contains("MODE: guided_interview"), "{output}");
     assert_eq!(
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
-        guided_expected_markdown()
+        expected_markdown
     );
+    assert!(prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
-fn guided_tty_author_charter_unblocks_doctor_and_generate_once_optional_starters_are_removed() {
+fn guided_tty_author_charter_unblocks_doctor_and_generate() {
     let dir = scaffold_repo();
+    let expected_markdown = stubbed_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let (author_output, status) = run_guided_author_under_pty(dir.path());
+    let (author_output, status) =
+        with_author_runtime_override(&stub, || run_guided_author_under_pty(dir.path()));
     assert!(
         status.success(),
         "guided PTY author should succeed: {author_output}"
     );
-    make_repo_generation_ready(dir.path());
 
     let doctor = run_in(dir.path(), &["doctor"]);
     assert!(

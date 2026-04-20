@@ -1,4 +1,6 @@
-use std::path::Path;
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use system_compiler::{
     author_charter, parse_charter_structured_input_yaml, preflight_author_charter,
@@ -13,11 +15,81 @@ use system_compiler::{
     CharterStructuredInput, CharterSurface, SetupRequest,
 };
 
+const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
+const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
+
 fn write_file(path: &Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("mkdirs");
     }
     std::fs::write(path, contents).expect("write");
+}
+
+fn author_runtime_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn with_author_runtime_override<T>(binary_path: &Path, action: impl FnOnce() -> T) -> T {
+    let _guard = author_runtime_lock().lock().expect("author runtime lock");
+    let previous = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
+    std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+
+    let result = catch_unwind(AssertUnwindSafe(action));
+
+    match previous {
+        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+    }
+
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
+#[cfg(unix)]
+fn install_stub_codex(root: &Path, script: &str) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = root.join("stub-codex.sh");
+    write_file(&path, script.as_bytes());
+    let mut permissions = std::fs::metadata(&path)
+        .expect("stub metadata")
+        .permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&path, permissions).expect("chmod stub");
+    path
+}
+
+#[cfg(not(unix))]
+fn install_stub_codex(root: &Path, script: &str) -> PathBuf {
+    let path = root.join("stub-codex.bat");
+    write_file(&path, script.as_bytes());
+    path
+}
+
+fn prompt_capture_path(root: &Path) -> PathBuf {
+    root.join(PROMPT_CAPTURE_REPO_PATH)
+}
+
+fn successful_stub_script(markdown: &str) -> String {
+    format!(
+        "#!/bin/sh\nset -eu\noutput=\"\"\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    output=\"$2\"\n    shift 2\n    continue\n  fi\n  shift\n done\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
+        prompt_capture = PROMPT_CAPTURE_REPO_PATH,
+        markdown = markdown
+    )
+}
+
+fn invalid_output_stub_script(markdown: &str) -> String {
+    successful_stub_script(markdown)
+}
+
+fn failing_stub_script() -> String {
+    format!(
+        "#!/bin/sh\nset -eu\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    shift 2\n    continue\n  fi\n  shift\n done\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\necho 'synthetic codex failure' >&2\nexit 23\n",
+        prompt_capture = PROMPT_CAPTURE_REPO_PATH
+    )
 }
 
 fn valid_input() -> CharterStructuredInput {
@@ -266,8 +338,12 @@ fn render_charter_markdown_includes_required_headings_in_order() {
 fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
+    let expected_markdown = expected_charter_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
-    let result = author_charter(dir.path(), &valid_input()).expect("author charter");
+    let result = with_author_runtime_override(&stub, || {
+        author_charter(dir.path(), &valid_input()).expect("author charter")
+    });
 
     assert_eq!(
         result.canonical_repo_relative_path,
@@ -292,6 +368,28 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     assert_eq!(charter_entries, vec!["CHARTER.md"]);
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
+}
+
+#[test]
+fn author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let expected_markdown = expected_charter_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    with_author_runtime_override(&stub, || {
+        author_charter(dir.path(), &valid_input()).expect("author charter");
+    });
+
+    let prompt = std::fs::read_to_string(prompt_capture_path(dir.path())).expect("prompt capture");
+    assert!(prompt.contains("Author only the canonical charter at `.system/charter/CHARTER.md`."));
+    assert!(prompt.contains("Treat `CHARTER_INPUTS.yaml` as the source of truth."));
+    assert!(prompt.contains("## What this is"));
+    assert!(prompt.contains("name: System"));
+    assert!(prompt.contains("must_use_tech:"));
+    assert!(!prompt.contains("<!--"));
+    assert!(!prompt.contains("Example (replace with your own):"));
+    assert!(!prompt.contains("Defaults (edit freely):"));
 }
 
 #[test]
@@ -332,20 +430,66 @@ fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
 }
 
 #[test]
-fn author_charter_does_not_partially_write_when_render_validation_fails() {
+fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"custom charter truth\n",
+    );
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(&expected_charter_markdown()),
+    );
+
+    let err = with_author_runtime_override(&stub, || {
+        author_charter(dir.path(), &valid_input()).expect_err("existing truth should refuse")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::ExistingCanonicalTruth);
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_charter_does_not_partially_write_when_synthesis_fails() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
         .expect("starter charter bytes");
-    let mut input = valid_input();
-    input.dimensions[0].default_stance = "```".to_string();
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
-    let err = author_charter(dir.path(), &input).expect_err("unsafe input should refuse");
+    let err = with_author_runtime_override(&stub, || {
+        author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
+    });
 
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err.summary.contains("synthetic codex failure"));
     assert_eq!(
-        err.kind,
-        AuthorCharterRefusalKind::IncompleteStructuredInput
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
     );
+}
+
+#[test]
+fn author_charter_refuses_invalid_synthesized_markdown() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &invalid_output_stub_script(
+            "# Engineering Charter — System\n\n## What this is\n\n{{PROJECT_NAME}}\n",
+        ),
+    );
+
+    let err = with_author_runtime_override(&stub, || {
+        author_charter(dir.path(), &valid_input()).expect_err("invalid output should refuse")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err.summary.contains("unresolved template placeholders"));
     assert_eq!(
         std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
             .expect("charter after failure"),
