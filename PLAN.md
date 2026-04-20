@@ -47,12 +47,16 @@ The milestone is only done when all of the following are true:
 2. `system author charter` runs as a line-oriented, TTY-only interview in one invocation.
 3. If `system author charter` is invoked without an interactive TTY, it refuses and points to `system author charter --from-inputs <path|->`.
 4. Interview answers are normalized into structured charter-input state before synthesis. Raw answers are not copied directly into the final charter body.
-5. `system author charter --from-inputs <path|->` accepts a complete structured charter-input document from a file or stdin (`-`).
-6. Both paths converge on one shared final synthesis engine and one final LLM synthesis pass.
-7. The only persisted authored output in `M7` is `.system/charter/CHARTER.md`.
-8. If `.system/charter/CHARTER.md` already contains non-starter canonical truth, both authoring paths refuse. `M7` does not ship update/revise mode.
-9. Successful charter authoring clears the starter-template blocker for `doctor` and `generate`.
-10. Public product copy says `author`, not legacy stage ids or dev/test mechanism names.
+5. The interview loop asks follow-up questions only when a required field is still empty or unusably vague after normalization.
+6. `system author charter --from-inputs <path|->` accepts a complete structured charter-input document from a file or stdin (`-`).
+7. There are no per-answer LLM synthesis calls during the interview loop.
+8. Both paths converge on one shared final synthesis engine and one final LLM synthesis pass.
+9. The shared LLM integration layer for `M7` uses the published [`unified-agent-api`](https://crates.io/crates/unified-agent-api) crate, version `0.2.2` as of 2026-04-19.
+10. The human-guided surface is `system author charter`; the agent and automation surface is `system author charter --from-inputs <path|->`.
+11. The only persisted authored output in `M7` is `.system/charter/CHARTER.md`.
+12. If `.system/charter/CHARTER.md` already contains non-starter canonical truth, both authoring paths refuse. `M7` does not ship update/revise mode.
+13. Successful charter authoring clears the starter-template blocker for `doctor` and `generate`.
+14. Public product copy says `author`, not legacy stage ids or dev/test mechanism names.
 
 ## Scope
 
@@ -90,12 +94,16 @@ These decisions are already settled for `M7`:
 4. The interview path is TTY-only in `M7`.
 5. The deterministic path is `--from-inputs <path|->` and is the only non-interactive entrypoint.
 6. Both paths normalize to one structured input model and one shared synthesis engine.
-7. The final charter is produced by one final LLM synthesis pass after the structured input set is complete.
-8. `M7` reuses existing compiler-owned charter assets where possible, but does not expose stage ids as the public UX.
-9. The public authoring wedge writes only `.system/charter/CHARTER.md`.
-10. If real charter truth already exists, `M7` refuses instead of widening scope.
-11. Setup/doctor/generate cutover happens in the same milestone as the new authoring surface.
-12. One repo-owned authoring method artifact ships in the same milestone as the CLI surface.
+7. The interview loop may ask follow-up questions only when a required field remains empty or unusably vague after normalization.
+8. There are no per-answer LLM synthesis calls in the interview loop.
+9. The final charter is produced by one final LLM synthesis pass after the structured input set is complete.
+10. The LLM integration layer for `M7` is the published [`unified-agent-api`](https://crates.io/crates/unified-agent-api) crate, version `0.2.2` as of 2026-04-19, not a bespoke one-off provider binding.
+11. `system author charter` is the human-guided surface; `system author charter --from-inputs <path|->` is the agent and automation surface.
+12. `M7` reuses existing compiler-owned charter assets where possible, but does not expose stage ids as the public UX.
+13. The public authoring wedge writes only `.system/charter/CHARTER.md`.
+14. If real charter truth already exists, `M7` refuses instead of widening scope.
+15. Setup/doctor/generate cutover happens in the same milestone as the new authoring surface.
+16. One repo-owned authoring method artifact ships in the same milestone as the CLI surface.
 
 ## Step 0: Scope Challenge
 
@@ -227,6 +235,7 @@ Planned new or changed seams:
 - add `Command::Author(AuthorArgs)` beside the current top-level command enum in [crates/cli/src/main.rs](crates/cli/src/main.rs)
 - add a compiler-owned authoring entrypoint, expected as `crates/compiler/src/author.rs`
 - keep the structured input model charter-specific in `M7`; do not invent a generic document-authoring schema
+- wire the shared synthesis engine through the published [`unified-agent-api`](https://crates.io/crates/unified-agent-api) crate, version `0.2.2` as of 2026-04-19
 - use the existing canonical-artifact and repo-root safety helpers for validation and writes
 - add a new method artifact at `core/library/authoring/charter_authoring_method.md`
 
@@ -237,6 +246,7 @@ Planned new or changed seams:
 ```text
 TTY interview
   -> answer normalization
+  -> follow-up only if a required field remains empty or unusably vague
   -> structured charter inputs
   -> completeness validation
   -> shared synthesis request
@@ -253,6 +263,7 @@ file/stdin structured inputs
 ```
 
 The two paths must diverge only at input capture. They must converge before synthesis.
+The human path is the TTY interview. The agent and automation path is `--from-inputs`. Agents should not drive the TTY loop as the primary integration surface.
 
 ### Security and production-failure review
 
@@ -260,6 +271,7 @@ The two paths must diverge only at input capture. They must converge before synt
 | --- | --- | --- |
 | interactive interview | command invoked in CI or piped shell without a TTY | explicit refusal to `--from-inputs` |
 | deterministic input load | malformed or incomplete YAML from agent automation | parse/validation refusal with exact next step |
+| interview normalization | required field stays vague and the loop does not ask a clarifying follow-up | normalize, detect insufficiency, ask one more bounded question |
 | synthesis step | provider call fails or returns empty/invalid content | hard failure, no partial write |
 | canonical write | repo path invalid or blocked | mutation refusal, no fallback mirror |
 | cutover in setup/doctor/generate | help/docs/tests drift and product story splits | drift-guard and CLI regression coverage |
@@ -273,6 +285,7 @@ The two paths must diverge only at input capture. They must converge before synt
 - reuse current charter directives/templates instead of re-authoring the method in multiple places
 - keep one structured input model and one synthesis path
 - keep one canonical persisted output
+- keep the product-language split explicit: human-guided `author charter`, agent/automation `author charter --from-inputs`
 
 ### DRY guardrails
 
@@ -311,6 +324,7 @@ AUTHORING WEDGE COVERAGE
     ├── [GAP] refuses cleanly when `.system/` root is missing or invalid
     ├── [GAP] refuses cleanly when invoked without an interactive TTY
     ├── [GAP] interview answers normalize into structured inputs before synthesis
+    ├── [GAP] follow-up questions only happen when a required field remains empty or unusably vague
     ├── [GAP] existing non-starter charter truth is refused, not overwritten
     └── [GAP] public help surfaces show `author` consistently
 
@@ -350,6 +364,7 @@ COVERAGE: 0/16 paths implemented yet
 | non-interactive refusal points to `--from-inputs` | `crates/cli/tests/author_cli.rs` | CLI integration |
 | invalid root refusal for authoring path | `crates/cli/tests/author_cli.rs` or `crates/compiler/tests/author.rs` | integration/unit |
 | interview normalization happens before synthesis | `crates/compiler/tests/author.rs` | unit/integration |
+| follow-up is asked only for empty or unusably vague required fields | `crates/compiler/tests/author.rs` | unit/integration |
 | deterministic file input path | `crates/cli/tests/author_cli.rs` | CLI integration |
 | deterministic stdin path | `crates/cli/tests/author_cli.rs` | CLI integration |
 | malformed/incomplete input refusal | `crates/compiler/tests/author.rs` | unit |
@@ -373,6 +388,7 @@ COVERAGE: 0/16 paths implemented yet
 - interactive mode refuses without a TTY
 - `--from-inputs -` reads stdin, validates, and writes the same canonical output shape
 - interview mode uses structured inputs as an intermediate representation
+- interview mode asks clarifying follow-ups only when required fields remain empty or unusably vague
 - both modes call the same final synthesis path
 - existing non-scaffolded charter truth is refused
 - setup/doctor/generate no longer teach manual blank-file editing as the normal charter path
@@ -384,7 +400,9 @@ COVERAGE: 0/16 paths implemented yet
 | authoring writes anywhere other than `.system/charter/CHARTER.md` | Critical | required | hard failure | prevents split authority |
 | setup/doctor/generate still point at manual editing after `author` ships | Critical | required | hard failure | prevents split product story |
 | interactive mode runs in non-interactive contexts | High | required | explicit refusal | clear direction to `--from-inputs` |
+| agent integrations try to drive the TTY interview as the primary machine path | High | required | explicit product/docs boundary to `--from-inputs` | prevents brittle automation |
 | interview answers are copied straight into the final charter | Critical | required | hard failure | blocks invalid synthesis path |
+| interview loop keeps asking or skips clarification without a required-field trigger | High | required | bounded follow-up rule | keeps interview deterministic enough |
 | interview and deterministic paths drift into separate synthesis engines | High | required | shared-engine regression test | prevents duplicate systems |
 | malformed structured inputs are accepted | High | required | explicit refusal | clear recovery path |
 | authoring silently overwrites real charter truth | Critical | required | explicit refusal | prevents data loss |
@@ -445,11 +463,13 @@ Deliverables:
 - TTY detection
 - line-oriented question loop
 - answer normalization and completeness checks
+- follow-up questions only for empty or unusably vague required fields
 - handoff into shared synthesis
 
 Acceptance:
 
 - interactive path works in one invocation and refuses cleanly without a TTY
+- interactive path stays a thin human-guided wrapper around the shared deterministic/synthesis engine, not a separate authoring engine
 
 ### Slice 4: Ship the deterministic input path
 
@@ -462,6 +482,7 @@ Deliverables:
 Acceptance:
 
 - file and stdin variants land on the same canonical output and same synthesis path
+- docs and help text make it explicit that this is the agent and automation surface
 
 ### Slice 5: Add method artifact and cut over the product story
 
@@ -532,7 +553,9 @@ The milestone is complete only when:
 - both visible charter paths exist and converge on one synthesis engine
 - `system author charter` has one exact interaction contract: TTY interview or explicit `--from-inputs`
 - interview mode normalizes answers before synthesis
+- interview mode asks follow-ups only when required fields remain empty or unusably vague
 - deterministic mode accepts file and stdin inputs
+- the product language explicitly distinguishes the human-guided surface from the agent/automation surface
 - non-scaffolded existing charter truth is refused
 - canonical `.system/charter/CHARTER.md` is the readiness-driving output
 - no persisted derived mirror is written by the public authoring surface
