@@ -81,7 +81,7 @@ Do not expand the command set just to paper over weak transitions.
 
 Safe choices, these are category-baseline expectations:
 
-- keep the top-level trust roles stable: `setup`, `pipeline`, `generate`, `inspect`, `doctor`
+- keep the top-level trust roles stable: `setup`, `author`, `pipeline`, `generate`, `inspect`, `doctor`
 - keep the trust-header model as the primary orientation pattern
 - keep narrow-terminal readability and explicit labels ahead of decorative output
 
@@ -124,6 +124,7 @@ The guided experience may be LLM-assisted, partially automated, or fully CLI-own
 The durable command names stay:
 
 - `setup`
+- `author`
 - `pipeline`
 - `generate`
 - `inspect`
@@ -167,7 +168,34 @@ Finished interaction target:
 
 - expose the routed subcommand when bare `system setup` selects one
 - keep setup-owned file semantics explicit: preserve by default, rewrite only starter files, reset only `.system/state/**`
-- end with one exact next safe action: `fill canonical artifact ...` for scaffolded setup or `system doctor` for ready setup
+- on scaffolded repos, end with one exact next safe action: `run \`system author charter\``
+- on ready repos, end with one exact next safe action: `run \`system doctor\``
+
+### `author`
+
+Role:
+
+- canonical content-authoring surface for setup-created starter truth
+
+Planned M7 reality:
+
+- the first shipped slice is `system author charter`
+- `system author charter` is a TTY-only guided interview
+- `system author charter --from-inputs <path|->` is the deterministic non-interactive path
+- both paths converge on one compiler-owned synthesis flow
+- the public authoring surface writes canonical truth to `.system/charter/CHARTER.md`
+- if real charter truth already exists, `author` refuses rather than silently broadening scope
+
+Design rule:
+
+- `author` owns converting scaffolded canonical truth into usable canonical truth
+- `author` must not become a generic chat surface or hide legacy stage ids in the public UX
+
+Finished interaction target:
+
+- `author` is the only normal path from scaffolded setup to a usable charter
+- `author` reuses compiler-owned charter assets internally while keeping the public story simple
+- `author` keeps one authority boundary: canonical `.system/*` truth, no public derived mirrors
 
 ### `generate`
 
@@ -277,6 +305,7 @@ Experience layer:
 Command layer:
 
 - `setup`
+- `author`
 - `pipeline`
 - `generate`
 - `inspect`
