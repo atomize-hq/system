@@ -490,6 +490,7 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
         args,
         std::env::current_dir,
         interactive_authoring_is_allowed,
+        |repo_root| system_compiler::preflight_author_charter(repo_root),
         collect_guided_charter_input,
         |repo_root, input| system_compiler::author_charter(repo_root, input),
     );
@@ -500,18 +501,21 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
 fn execute_author_charter_command<
     GetCurrentDir,
     InteractiveAllowed,
+    PreflightAuthoring,
     CollectGuidedInput,
     RunAuthor,
 >(
     args: AuthorCharterArgs,
     get_current_dir: GetCurrentDir,
     interactive_allowed: InteractiveAllowed,
+    preflight_authoring: PreflightAuthoring,
     collect_guided_input: CollectGuidedInput,
     run_author: RunAuthor,
 ) -> RenderedCommand
 where
     GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
     InteractiveAllowed: Fn() -> bool,
+    PreflightAuthoring: Fn(&Path) -> Result<(), system_compiler::AuthorCharterRefusal>,
     CollectGuidedInput: Fn() -> Result<system_compiler::CharterStructuredInput, String>,
     RunAuthor:
         Fn(
@@ -536,6 +540,26 @@ where
         }
     };
     let repo_root = discover_managed_repo_root(&cwd);
+
+    if args.from_inputs.is_none() && !interactive_allowed() {
+        return RenderedCommand {
+            output: render_author_custom_refusal(
+                "REFUSED",
+                "NonInteractiveRefusal",
+                "`system author charter` is a TTY-only guided interview",
+                "interactive terminal",
+                "run `system author charter --from-inputs <path|->`",
+            ),
+            exit_code: ExitCode::from(1),
+        };
+    }
+
+    if let Err(refusal) = preflight_authoring(&repo_root) {
+        return RenderedCommand {
+            output: render_author_charter_refusal(&refusal),
+            exit_code: ExitCode::from(1),
+        };
+    }
 
     let (input, input_mode, input_source) = match args.from_inputs.as_deref() {
         Some(path_or_dash) => {
@@ -565,18 +589,6 @@ where
             (input, input_mode, path_or_dash.to_string())
         }
         None => {
-            if !interactive_allowed() {
-                return RenderedCommand {
-                    output: render_author_custom_refusal(
-                        "REFUSED",
-                        "NonInteractiveRefusal",
-                        "`system author charter` is a TTY-only guided interview",
-                        "interactive terminal",
-                        "run `system author charter --from-inputs <path|->`",
-                    ),
-                    exit_code: ExitCode::from(1),
-                };
-            }
             let input = match collect_guided_input() {
                 Ok(input) => input,
                 Err(rendered) => {
@@ -1099,39 +1111,11 @@ fn normalize_required_csv(value: &str) -> Option<Vec<String>> {
 }
 
 fn normalize_free_text_answer(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ")
+    system_compiler::normalize_charter_free_text(value)
 }
 
 fn is_unusably_vague_text(value: &str) -> bool {
-    let normalized = normalize_free_text_answer(value);
-    if normalized.is_empty() {
-        return true;
-    }
-
-    let lower = normalized.to_ascii_lowercase();
-    matches!(
-        lower.as_str(),
-        "idk"
-            | "i don't know"
-            | "dont know"
-            | "unknown"
-            | "n/a"
-            | "na"
-            | "tbd"
-            | "todo"
-            | "unsure"
-            | "not sure"
-            | "good quality"
-            | "good"
-            | "quality"
-            | "standard"
-            | "normal"
-            | "stuff"
-            | "things"
-            | "misc"
-            | "various"
-            | "whatever"
-    )
+    system_compiler::is_unusably_vague_charter_text(value)
 }
 
 fn render_interview_incomplete_refusal(summary: &str) -> String {
@@ -2615,6 +2599,7 @@ decision_records:
             AuthorCharterArgs { from_inputs: None },
             || Ok(dir.path().to_path_buf()),
             || true,
+            |_| Ok(()),
             || {
                 collect_called.set(true);
                 system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
@@ -2652,6 +2637,7 @@ decision_records:
             },
             || Ok(dir.path().to_path_buf()),
             || panic!("file inputs should not check interactive tty state"),
+            |_| Ok(()),
             || panic!("file inputs should not run guided collection"),
             |repo_root, input| {
                 author_called.set(true);
@@ -2680,6 +2666,7 @@ decision_records:
             AuthorCharterArgs { from_inputs: None },
             || Ok(dir.path().to_path_buf()),
             || false,
+            |_| panic!("guided non-tty refusal should happen before preflight"),
             || panic!("guided collection should not run without tty"),
             |_, _| panic!("authoring should not run without tty"),
         );
@@ -2690,5 +2677,40 @@ decision_records:
         assert!(rendered
             .output
             .contains("run `system author charter --from-inputs <path|->`"));
+    }
+
+    #[test]
+    fn execute_author_charter_command_refuses_during_preflight_before_guided_collection() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let collect_called = Cell::new(false);
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs { from_inputs: None },
+            || Ok(dir.path().to_path_buf()),
+            || true,
+            |_| {
+                Err(system_compiler::AuthorCharterRefusal {
+                    kind: system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth,
+                    summary: "canonical charter truth already exists".to_string(),
+                    broken_subject: ".system/charter/CHARTER.md".to_string(),
+                    next_safe_action:
+                        "inspect `.system/charter/CHARTER.md` instead of rerunning `system author charter`"
+                            .to_string(),
+                })
+            },
+            || {
+                collect_called.set(true);
+                panic!("guided collection should not run after preflight refusal")
+            },
+            |_, _| panic!("authoring should not run after preflight refusal"),
+        );
+
+        assert!(
+            !collect_called.get(),
+            "guided input should not be collected"
+        );
+        assert_eq!(rendered.exit_code, ExitCode::from(1));
+        assert!(rendered.output.contains("OUTCOME: REFUSED"));
+        assert!(rendered.output.contains("CATEGORY: ExistingCanonicalTruth"));
     }
 }

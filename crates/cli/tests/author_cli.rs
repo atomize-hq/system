@@ -126,3 +126,34 @@ fn stdin_inputs_refuse_when_yaml_is_malformed() {
     assert!(out.contains("CATEGORY: MalformedStructuredInput"));
     assert!(out.contains("OBJECT: author charter"));
 }
+
+#[test]
+fn file_inputs_refuse_existing_truth_before_parsing_malformed_yaml() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        "custom charter truth\n",
+    );
+    let inputs_path = dir.path().join("charter-inputs.yaml");
+    write_file(&inputs_path, "project: [not valid");
+
+    let output = run_in(
+        dir.path(),
+        &[
+            "author",
+            "charter",
+            "--from-inputs",
+            inputs_path.to_str().expect("utf-8 path"),
+        ],
+    );
+
+    assert!(
+        !output.status.success(),
+        "existing charter truth should refuse before yaml parse: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"));
+    assert!(out.contains("CATEGORY: ExistingCanonicalTruth"));
+    assert!(!out.contains("CATEGORY: MalformedStructuredInput"));
+}

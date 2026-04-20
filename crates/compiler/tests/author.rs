@@ -3,16 +3,17 @@ use std::sync::{Arc, Mutex};
 
 use system_compiler::{
     author_charter_with_synthesizer, build_charter_synthesis_request,
-    parse_charter_structured_input_yaml, run_setup, setup_starter_template_bytes,
-    synthesize_charter_markdown_with, validate_charter_structured_input, AuthorCharterRefusalKind,
-    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, CharterSynthesisError, CharterSynthesisRequest,
-    CharterSynthesizer, SetupRequest,
+    parse_charter_structured_input_yaml, preflight_author_charter, run_setup,
+    setup_starter_template_bytes, synthesize_charter_markdown_with,
+    validate_charter_structured_input, AuthorCharterRefusalKind, CharterAudience,
+    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
+    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
+    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
+    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
+    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
+    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
+    CharterSurface, CharterSynthesisError, CharterSynthesisRequest, CharterSynthesizer,
+    SetupRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -255,6 +256,51 @@ fn validate_structured_input_refuses_on_incomplete_required_fields() {
 }
 
 #[test]
+fn validate_structured_input_refuses_placeholder_required_scalar_field() {
+    let mut input = valid_input();
+    input.project.constraints.experience_notes = "tbd".to_string();
+
+    let err =
+        validate_charter_structured_input(&input).expect_err("placeholder scalar should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorCharterRefusalKind::IncompleteStructuredInput
+    );
+    assert!(err.summary.contains("project.constraints.experience_notes"));
+}
+
+#[test]
+fn validate_structured_input_refuses_placeholder_required_list_field() {
+    let mut input = valid_input();
+    input.posture.baseline_rationale = vec!["various".to_string()];
+
+    let err =
+        validate_charter_structured_input(&input).expect_err("placeholder list item should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorCharterRefusalKind::IncompleteStructuredInput
+    );
+    assert!(err.summary.contains("posture.baseline_rationale[0]"));
+}
+
+#[test]
+fn validate_structured_input_refuses_placeholder_required_dimension_field() {
+    let mut input = valid_input();
+    input.dimensions[0].default_stance = "normal".to_string();
+
+    let err = validate_charter_structured_input(&input)
+        .expect_err("placeholder dimension field should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorCharterRefusalKind::IncompleteStructuredInput
+    );
+    assert!(err.summary.contains("dimensions[0].default_stance"));
+}
+
+#[test]
 fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
@@ -299,6 +345,24 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
             .expect("existing charter"),
         "custom charter truth\n"
     );
+}
+
+#[test]
+fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"custom charter truth\n",
+    );
+
+    let err = preflight_author_charter(dir.path())
+        .expect_err("existing charter truth should refuse during preflight");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::ExistingCanonicalTruth);
+    assert!(err
+        .summary
+        .contains("canonical charter truth already exists"));
 }
 
 #[test]

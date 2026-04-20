@@ -25,7 +25,8 @@ pub use artifact_manifest::{
 };
 pub use author::{
     author_charter, author_charter_with_synthesizer, build_charter_synthesis_request,
-    parse_charter_structured_input_yaml, synthesize_charter_markdown,
+    is_unusably_vague_charter_text, normalize_charter_free_text,
+    parse_charter_structured_input_yaml, preflight_author_charter, synthesize_charter_markdown,
     synthesize_charter_markdown_with, validate_charter_structured_input, AuthorCharterRefusal,
     AuthorCharterRefusalKind, AuthorCharterResult, CharterAudience, CharterBackwardCompatibility,
     CharterDebtTrackingInput, CharterDecisionRecordsInput, CharterDefaultImplicationsInput,

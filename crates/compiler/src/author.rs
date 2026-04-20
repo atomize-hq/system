@@ -367,6 +367,42 @@ pub fn parse_charter_structured_input_yaml(
     Ok(parsed)
 }
 
+pub fn normalize_charter_free_text(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+pub fn is_unusably_vague_charter_text(value: &str) -> bool {
+    let normalized = normalize_charter_free_text(value);
+    if normalized.is_empty() {
+        return true;
+    }
+
+    let lower = normalized.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "idk"
+            | "i don't know"
+            | "dont know"
+            | "unknown"
+            | "n/a"
+            | "na"
+            | "tbd"
+            | "todo"
+            | "unsure"
+            | "not sure"
+            | "good quality"
+            | "good"
+            | "quality"
+            | "standard"
+            | "normal"
+            | "stuff"
+            | "things"
+            | "misc"
+            | "various"
+            | "whatever"
+    )
+}
+
 pub fn validate_charter_structured_input(
     input: &CharterStructuredInput,
 ) -> Result<(), AuthorCharterRefusal> {
@@ -378,7 +414,7 @@ pub fn validate_charter_structured_input(
         ));
     }
 
-    require_non_empty("project.name", &input.project.name, &mut issues);
+    require_concrete_text("project.name", &input.project.name, &mut issues);
     if input.project.team_size == 0 {
         issues.push("project.team_size must be greater than 0".to_string());
     }
@@ -391,6 +427,11 @@ pub fn validate_charter_structured_input(
                 .to_string(),
         );
     }
+    require_concrete_text(
+        "project.constraints.experience_notes",
+        &input.project.constraints.experience_notes,
+        &mut issues,
+    );
 
     if input.posture.rubric_scale.trim() != "1-5" {
         issues.push("posture.rubric_scale must be `1-5`".to_string());
@@ -400,7 +441,7 @@ pub fn validate_charter_structured_input(
         input.posture.baseline_level,
         &mut issues,
     );
-    require_non_empty_list(
+    require_concrete_list(
         "posture.baseline_rationale",
         &input.posture.baseline_rationale,
         &mut issues,
@@ -409,7 +450,7 @@ pub fn validate_charter_structured_input(
     for (index, domain) in input.domains.iter().enumerate() {
         let prefix = format!("domains[{index}]");
         require_non_empty(&format!("{prefix}.name"), &domain.name, &mut issues);
-        require_non_empty(
+        require_concrete_text(
             &format!("{prefix}.blast_radius"),
             &domain.blast_radius,
             &mut issues,
@@ -428,22 +469,22 @@ pub fn validate_charter_structured_input(
                 dimension.name.field_slug()
             ));
         }
-        require_non_empty(
+        require_concrete_text(
             &format!("{prefix}.default_stance"),
             &dimension.default_stance,
             &mut issues,
         );
-        require_non_empty_list(
+        require_concrete_list(
             &format!("{prefix}.raise_the_bar_triggers"),
             &dimension.raise_the_bar_triggers,
             &mut issues,
         );
-        require_non_empty_list(
+        require_concrete_list(
             &format!("{prefix}.allowed_shortcuts"),
             &dimension.allowed_shortcuts,
             &mut issues,
         );
-        require_non_empty_list(
+        require_concrete_list(
             &format!("{prefix}.red_lines"),
             &dimension.red_lines,
             &mut issues,
@@ -458,7 +499,7 @@ pub fn validate_charter_structured_input(
         }
     }
 
-    require_non_empty_list(
+    require_concrete_list(
         "exceptions.approvers",
         &input.exceptions.approvers,
         &mut issues,
@@ -474,24 +515,24 @@ pub fn validate_charter_structured_input(
         &mut issues,
     );
 
-    require_non_empty(
+    require_concrete_text(
         "debt_tracking.system",
         &input.debt_tracking.system,
         &mut issues,
     );
-    require_non_empty(
+    require_concrete_text(
         "debt_tracking.review_cadence",
         &input.debt_tracking.review_cadence,
         &mut issues,
     );
 
     if input.decision_records.enabled {
-        require_non_empty(
+        require_concrete_text(
             "decision_records.path",
             &input.decision_records.path,
             &mut issues,
         );
-        require_non_empty(
+        require_concrete_text(
             "decision_records.format",
             &input.decision_records.format,
             &mut issues,
@@ -574,11 +615,7 @@ pub fn author_charter(
     author_charter_with_synthesizer(repo_root, input, &UnifiedAgentCharterSynthesizer)
 }
 
-pub fn author_charter_with_synthesizer(
-    repo_root: impl AsRef<Path>,
-    input: &CharterStructuredInput,
-    synthesizer: &dyn CharterSynthesizer,
-) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
+pub fn preflight_author_charter(repo_root: impl AsRef<Path>) -> Result<(), AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| AuthorCharterRefusal {
         kind: AuthorCharterRefusalKind::InvalidSystemRoot,
@@ -589,6 +626,16 @@ pub fn author_charter_with_synthesizer(
     })?;
     validate_authoring_preconditions(&artifacts)?;
     validate_charter_write_target(repo_root)?;
+    Ok(())
+}
+
+pub fn author_charter_with_synthesizer(
+    repo_root: impl AsRef<Path>,
+    input: &CharterStructuredInput,
+    synthesizer: &dyn CharterSynthesizer,
+) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
+    let repo_root = repo_root.as_ref();
+    preflight_author_charter(repo_root)?;
 
     let markdown = synthesize_charter_markdown_with(repo_root, input, synthesizer)?;
     write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
@@ -755,8 +802,46 @@ fn require_non_empty(field: &str, value: &str, issues: &mut Vec<String>) {
     }
 }
 
+fn require_concrete_text(field: &str, value: &str, issues: &mut Vec<String>) {
+    let normalized = normalize_charter_free_text(value);
+    if normalized.is_empty() {
+        issues.push(format!("{field} must not be empty"));
+        return;
+    }
+    if is_unusably_vague_charter_text(&normalized) {
+        issues.push(format!("{field} must be concrete, not a placeholder"));
+    }
+}
+
 fn require_non_empty_list(field: &str, values: &[String], issues: &mut Vec<String>) {
     if values.iter().all(|value| value.trim().is_empty()) {
+        issues.push(format!("{field} must include at least one non-empty value"));
+    }
+}
+
+fn require_concrete_list(field: &str, values: &[String], issues: &mut Vec<String>) {
+    if values.is_empty() {
+        issues.push(format!("{field} must include at least one non-empty value"));
+        return;
+    }
+
+    let mut saw_concrete = false;
+    for (index, value) in values.iter().enumerate() {
+        let normalized = normalize_charter_free_text(value);
+        if normalized.is_empty() {
+            issues.push(format!("{field}[{index}] must not be empty"));
+            continue;
+        }
+        if is_unusably_vague_charter_text(&normalized) {
+            issues.push(format!(
+                "{field}[{index}] must be concrete, not a placeholder"
+            ));
+            continue;
+        }
+        saw_concrete = true;
+    }
+
+    if !saw_concrete {
         issues.push(format!("{field} must include at least one non-empty value"));
     }
 }
