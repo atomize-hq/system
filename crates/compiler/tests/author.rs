@@ -1,9 +1,12 @@
-use std::path::Path;
+use std::ffi::OsString;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
 use system_compiler::{
-    author_charter_with_synthesizer, build_charter_synthesis_request,
+    author_charter, author_charter_with_synthesizer, build_charter_synthesis_request,
     parse_charter_structured_input_yaml, preflight_author_charter, run_setup,
     setup_starter_template_bytes, synthesize_charter_markdown_with,
     validate_charter_structured_input, AuthorCharterRefusalKind, CharterAudience,
@@ -16,6 +19,8 @@ use system_compiler::{
     CharterSurface, CharterSynthesisError, CharterSynthesisRequest, CharterSynthesizer,
     SetupRequest,
 };
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -249,6 +254,101 @@ fn scaffold_repo(root: &Path) {
     run_setup(root, &SetupRequest::default()).expect("setup scaffold");
 }
 
+struct PathGuard {
+    original: Option<OsString>,
+}
+
+impl PathGuard {
+    fn prepend(dir: &Path) -> Self {
+        let original = std::env::var_os("PATH");
+        let mut entries = vec![dir.to_path_buf()];
+        if let Some(existing) = original.as_ref() {
+            entries.extend(std::env::split_paths(existing));
+        }
+        let joined = std::env::join_paths(entries).expect("join PATH");
+        std::env::set_var("PATH", joined);
+        Self { original }
+    }
+}
+
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match &self.original {
+            Some(value) => std::env::set_var("PATH", value),
+            None => std::env::remove_var("PATH"),
+        }
+    }
+}
+
+fn install_fake_codex(bin_dir: &Path, charter_markdown: &str) -> PathBuf {
+    let script_path = bin_dir.join("codex");
+    let script = format!(
+        r#"#!/bin/sh
+if [ "$1" != "exec" ]; then
+  echo "expected exec subcommand" >&2
+  exit 2
+fi
+
+output_file=""
+have_json=0
+have_sandbox=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --ask-for-approval)
+      echo "unexpected --ask-for-approval" >&2
+      exit 2
+      ;;
+    --json)
+      have_json=1
+      ;;
+    --sandbox)
+      shift
+      if [ "$1" = "workspace-write" ]; then
+        have_sandbox=1
+      fi
+      ;;
+    --output-last-message)
+      shift
+      output_file="$1"
+      ;;
+  esac
+  shift
+done
+
+if [ "$have_json" -ne 1 ]; then
+  echo "missing --json" >&2
+  exit 2
+fi
+
+if [ "$have_sandbox" -ne 1 ]; then
+  echo "missing --sandbox workspace-write" >&2
+  exit 2
+fi
+
+if [ -z "$output_file" ]; then
+  echo "missing --output-last-message" >&2
+  exit 2
+fi
+
+cat >/dev/null
+cat >"$output_file" <<'EOF'
+{charter_markdown}
+EOF
+"#
+    );
+    write_file(&script_path, script.as_bytes());
+    #[cfg(unix)]
+    {
+        let mut perms = std::fs::metadata(&script_path)
+            .expect("metadata")
+            .permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&script_path, perms).expect("chmod");
+    }
+    script_path
+}
+
 #[test]
 fn author_charter_refuses_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -380,6 +480,29 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
     assert_eq!(synthesizer.requests().len(), 1);
+}
+
+#[test]
+fn author_charter_live_synthesizer_avoids_stale_approval_flag() {
+    let _env_lock = ENV_LOCK.lock().expect("env lock");
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let bin_dir = dir.path().join("fake-bin");
+    std::fs::create_dir_all(&bin_dir).expect("mkdir fake bin");
+    install_fake_codex(&bin_dir, valid_charter_markdown());
+    let _path_guard = PathGuard::prepend(&bin_dir);
+
+    let result = author_charter(dir.path(), &valid_input()).expect("author charter via codex");
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("canonical charter"),
+        valid_charter_markdown().trim().to_string()
+    );
 }
 
 #[test]
@@ -713,11 +836,21 @@ fn synthesis_request_embeds_method_artifact_and_closes_yaml_fence_on_its_own_lin
 
     assert!(request.prompt.contains("## Charter authoring method"));
     assert!(request.prompt.contains("# Charter Authoring Method"));
+    assert!(request.prompt.contains(
+        "Preserve the template's section order and use the template's headings literally."
+    ));
+    assert!(request
+        .prompt
+        .contains("## Cross-cutting red lines (global non-negotiables)"));
     assert!(request
         .prompt
         .contains("## Structured input source of truth"));
     assert!(request.prompt.contains("decision_records:"));
     assert!(request.prompt.contains("format: md\n```\n"));
+    assert!(!request.prompt.contains("<!--"));
+    assert!(!request.prompt.contains("> Use this section for"));
+    assert!(!request.prompt.contains("Options (choose one):"));
+    assert!(!request.prompt.contains("- e.g.,"));
 }
 
 #[test]

@@ -5,13 +5,13 @@ use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
     RepoRelativeWritePathError,
 };
-use agent_api::backends::codex::{CodexBackend, CodexBackendConfig};
-use agent_api::{AgentWrapperBackend, AgentWrapperCompletion, AgentWrapperRunRequest};
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
 const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
@@ -568,12 +568,13 @@ pub fn build_charter_synthesis_request(
                 .to_string(),
     })?;
     let inputs_yaml_block = inputs_yaml.trim_end_matches('\n');
+    let render_template = charter_render_template_for_synthesis();
     let prompt = format!(
         "{directive}\n\n## Charter authoring method\n```markdown\n{method}\n```\n\n## Canonical output target\n- Write only `{path}`.\n- Return only the final markdown.\n\n## Template reference\n```markdown\n{template}\n```\n\n## Structured input source of truth\n```yaml\n{yaml}\n```\n",
         directive = SYNTHESIS_DIRECTIVE.trim_end(),
         method = AUTHORING_METHOD.trim_end(),
         path = CANONICAL_CHARTER_REPO_PATH,
-        template = CHARTER_TEMPLATE.trim_end(),
+        template = render_template,
         yaml = inputs_yaml_block,
     );
     Ok(CharterSynthesisRequest {
@@ -724,6 +725,54 @@ fn validate_authoring_preconditions(
     }
 
     Ok(())
+}
+
+fn charter_render_template_for_synthesis() -> String {
+    let mut rendered_lines = Vec::new();
+    let mut inside_comment = false;
+    let mut skip_nested_instruction_block = false;
+
+    for line in CHARTER_TEMPLATE.lines() {
+        let trimmed = line.trim();
+
+        if inside_comment {
+            if trimmed.contains("-->") {
+                inside_comment = false;
+            }
+            continue;
+        }
+
+        if trimmed.starts_with("<!--") {
+            if !trimmed.contains("-->") {
+                inside_comment = true;
+            }
+            continue;
+        }
+
+        if skip_nested_instruction_block {
+            if line.starts_with("    - ") || line.starts_with("  - ") {
+                continue;
+            }
+            skip_nested_instruction_block = false;
+        }
+
+        if trimmed.starts_with('>') {
+            continue;
+        }
+
+        if trimmed == "- Options (choose one):" {
+            skip_nested_instruction_block = true;
+            continue;
+        }
+
+        if trimmed.starts_with("- e.g.,") || trimmed.starts_with("- Examples:") {
+            continue;
+        }
+
+        rendered_lines.push(line);
+    }
+
+    rendered_lines.join("\n").trim().to_string()
 }
 
 fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCharterRefusal> {
@@ -1190,90 +1239,90 @@ impl CharterSynthesizer for UnifiedAgentCharterSynthesizer {
             return Ok(override_markdown);
         }
 
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|err| {
-                CharterSynthesisError::new(format!("tokio runtime init failed: {err}"))
-            })?;
-        runtime.block_on(run_codex_charter_synthesis(repo_root, request))
+        run_codex_charter_synthesis(repo_root, request)
     }
 }
 
-async fn run_codex_charter_synthesis(
+fn run_codex_charter_synthesis(
     repo_root: &Path,
     request: CharterSynthesisRequest,
 ) -> Result<String, CharterSynthesisError> {
-    let backend = CodexBackend::new(CodexBackendConfig {
-        default_working_dir: Some(repo_root.to_path_buf()),
-        ..CodexBackendConfig::default()
-    });
-    let handle = backend
-        .run(AgentWrapperRunRequest {
-            prompt: request.prompt,
-            working_dir: Some(repo_root.to_path_buf()),
-            timeout: None,
-            env: BTreeMap::new(),
-            extensions: BTreeMap::new(),
-        })
-        .await
-        .map_err(|err| CharterSynthesisError::new(err.to_string()))?;
+    let output_path = temp_output_last_message_path()?;
+    let mut command = Command::new("codex");
+    command
+        .arg("exec")
+        .arg("--color")
+        .arg("never")
+        .arg("--skip-git-repo-check")
+        .arg("--json")
+        .arg("--sandbox")
+        .arg("workspace-write")
+        .arg("--output-last-message")
+        .arg(&output_path)
+        .current_dir(repo_root)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
 
-    let AgentWrapperCompletion {
-        status, final_text, ..
-    } = collect_completion(handle).await?;
-    if !status.success() {
-        return Err(CharterSynthesisError::new(format!(
-            "codex backend exited with status {status}"
-        )));
+    let mut child = command.spawn().map_err(|err| {
+        CharterSynthesisError::new(format!("failed to spawn `codex exec`: {err}"))
+    })?;
+
+    {
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| CharterSynthesisError::new("failed to open stdin for `codex exec`"))?;
+        stdin
+            .write_all(request.prompt.as_bytes())
+            .and_then(|_| stdin.write_all(b"\n"))
+            .map_err(|err| {
+                CharterSynthesisError::new(format!("failed to write prompt to `codex exec`: {err}"))
+            })?;
     }
-    let final_text = final_text
-        .map(|text| text.trim().to_string())
-        .filter(|text| !text.is_empty())
-        .ok_or_else(|| {
-            CharterSynthesisError::new("codex backend returned no final charter text")
-        })?;
+
+    let output = child.wait_with_output().map_err(|err| {
+        CharterSynthesisError::new(format!("failed waiting for `codex exec`: {err}"))
+    })?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if !output.status.success() {
+        let detail = if stderr.is_empty() {
+            format!("`codex exec` exited with status {}", output.status)
+        } else {
+            format!(
+                "`codex exec` exited with status {}: {}",
+                output.status, stderr
+            )
+        };
+        let _ = std::fs::remove_file(&output_path);
+        return Err(CharterSynthesisError::new(detail));
+    }
+
+    let final_text = std::fs::read_to_string(&output_path).map_err(|err| {
+        CharterSynthesisError::new(format!(
+            "failed to read `codex exec` final markdown from {}: {err}",
+            output_path.display()
+        ))
+    })?;
+    let _ = std::fs::remove_file(&output_path);
+    let final_text = final_text.trim().to_string();
+    if final_text.is_empty() {
+        return Err(CharterSynthesisError::new(
+            "`codex exec` returned no final charter text",
+        ));
+    }
+
     Ok(final_text)
 }
 
-async fn collect_completion(
-    handle: agent_api::AgentWrapperRunHandle,
-) -> Result<AgentWrapperCompletion, CharterSynthesisError> {
-    let mut events = handle.events;
-    let completion = handle.completion;
-    let mut text_fallback = String::new();
-    let mut status_messages = Vec::new();
-
-    while let Some(event) = events.next().await {
-        if let Some(text) = event.text.as_deref() {
-            if !text.trim().is_empty() {
-                if !text_fallback.is_empty() {
-                    text_fallback.push('\n');
-                }
-                text_fallback.push_str(text.trim());
-            }
-        }
-        if let Some(message) = event.message.as_deref() {
-            if !message.trim().is_empty() {
-                status_messages.push(message.trim().to_string());
-            }
-        }
-    }
-
-    let mut completion = completion
-        .await
-        .map_err(|err| CharterSynthesisError::new(err.to_string()))?;
-    if completion
-        .final_text
-        .as_deref()
-        .map(|text| text.trim().is_empty())
-        .unwrap_or(true)
-        && !text_fallback.trim().is_empty()
-    {
-        completion.final_text = Some(text_fallback);
-    }
-    if !status_messages.is_empty() && completion.final_text.is_none() {
-        return Err(CharterSynthesisError::new(status_messages.join(" | ")));
-    }
-    Ok(completion)
+fn temp_output_last_message_path() -> Result<PathBuf, CharterSynthesisError> {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|err| CharterSynthesisError::new(format!("system clock error: {err}")))?
+        .as_nanos();
+    Ok(std::env::temp_dir().join(format!(
+        "system-charter-last-message-{}-{nanos}.md",
+        std::process::id()
+    )))
 }
