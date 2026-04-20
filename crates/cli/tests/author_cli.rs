@@ -238,7 +238,7 @@ dimensions:
 exceptions:
   approvers:
     - project_owner
-  record_location: "CHARTER.md#exceptions"
+  record_location: ".system/charter/CHARTER.md#exceptions"
   minimum_fields:
     - what
     - why
@@ -267,6 +267,33 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
     let baseline_level = 3;
     let project_name = "System".to_string();
     let in_production_today = false;
+    let mut dimensions: Vec<_> = all_dimension_names()
+        .iter()
+        .copied()
+        .map(|name| {
+            default_dimension_input(name, baseline_level, &project_name, in_production_today)
+        })
+        .collect();
+    dimensions[0] = system_compiler::CharterDimensionInput {
+        name: system_compiler::CharterDimensionName::SpeedVsQuality,
+        level: Some(4),
+        default_stance: "favor durable launches over rush delivery".to_string(),
+        raise_the_bar_triggers: vec![
+            "changes that affect onboarding conversion".to_string(),
+            "irreversible rollout steps".to_string(),
+        ],
+        allowed_shortcuts: vec![
+            "time-boxed prototypes behind a feature flag".to_string(),
+            "paired operator review for urgent copy changes".to_string(),
+        ],
+        red_lines: vec![
+            "do not skip launch rollback planning".to_string(),
+            "do not trade away review on shipped flows".to_string(),
+        ],
+        domain_overrides: vec![
+            "billing changes stay at level 5 until two successful dry runs".to_string(),
+        ],
+    };
 
     system_compiler::CharterStructuredInput {
         schema_version: "0.1.0".to_string(),
@@ -315,16 +342,10 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
             touches: vec!["internal operators".to_string()],
             constraints: vec!["preserve trust boundaries".to_string()],
         }],
-        dimensions: all_dimension_names()
-            .iter()
-            .copied()
-            .map(|name| {
-                default_dimension_input(name, baseline_level, &project_name, in_production_today)
-            })
-            .collect(),
+        dimensions,
         exceptions: system_compiler::CharterExceptionsInput {
             approvers: vec!["project_owner".to_string()],
-            record_location: "CHARTER.md#exceptions".to_string(),
+            record_location: system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION.to_string(),
             minimum_fields: default_exception_minimum_fields(),
         },
         debt_tracking: system_compiler::CharterDebtTrackingInput {
@@ -427,8 +448,8 @@ fn dimension_label(name: system_compiler::CharterDimensionName) -> &'static str 
     }
 }
 
-fn guided_prompt_answers() -> [(&'static str, &'static str); 35] {
-    [
+fn guided_prompt_answers() -> Vec<(&'static str, &'static str)> {
+    vec![
         ("Project name:", "System"),
         (
             "Project classification [greenfield|brownfield|integration|modernization|hardening]:",
@@ -488,11 +509,56 @@ fn guided_prompt_answers() -> [(&'static str, &'static str); 35] {
             "Primary domain constraints (comma-separated, optional):",
             "preserve trust boundaries",
         ),
+        ("Keep baseline for speed vs quality? [yes|no] [yes]:", "no"),
+        ("speed vs quality level [1-5] [3]:", "4"),
+        ("speed vs quality default stance [", "favor durable launches over rush delivery"),
+        (
+            "speed vs quality raise-the-bar triggers (comma-separated) [",
+            "changes that affect onboarding conversion, irreversible rollout steps",
+        ),
+        (
+            "speed vs quality allowed shortcuts (comma-separated) [",
+            "time-boxed prototypes behind a feature flag, paired operator review for urgent copy changes",
+        ),
+        (
+            "speed vs quality red lines (comma-separated) [",
+            "do not skip launch rollback planning, do not trade away review on shipped flows",
+        ),
+        (
+            "speed vs quality domain overrides (comma-separated, optional) [none]:",
+            "billing changes stay at level 5 until two successful dry runs",
+        ),
+        (
+            "Keep baseline for type safety and static analysis? [yes|no] [yes]:",
+            "",
+        ),
+        ("Keep baseline for testing rigor? [yes|no] [yes]:", ""),
+        (
+            "Keep baseline for scalability and performance? [yes|no] [yes]:",
+            "",
+        ),
+        (
+            "Keep baseline for reliability and operability? [yes|no] [yes]:",
+            "",
+        ),
+        ("Keep baseline for security and privacy? [yes|no] [yes]:", ""),
+        ("Keep baseline for observability? [yes|no] [yes]:", ""),
+        (
+            "Keep baseline for developer tooling and automation? [yes|no] [yes]:",
+            "",
+        ),
+        (
+            "Keep baseline for ux polish and api usability? [yes|no] [yes]:",
+            "",
+        ),
         (
             "Exception approvers (comma-separated, at least one):",
             "project_owner",
         ),
-        ("Exception record location [CHARTER.md#exceptions]:", ""),
+        (
+            "Exception record location [.system/charter/CHARTER.md#exceptions]:",
+            "",
+        ),
         (
             "Exception minimum fields (comma-separated; press enter for standard fields):",
             "",
@@ -769,13 +835,19 @@ fn guided_tty_author_charter_succeeds_via_real_binary_path() {
     );
     assert!(output.contains("Guided charter interview"), "{output}");
     assert!(output.contains("Project name:"), "{output}");
+    assert!(
+        output.contains("Keep baseline for speed vs quality?"),
+        "{output}"
+    );
     assert!(output.contains("Decision records format:"), "{output}");
     assert!(output.contains("OUTCOME: AUTHORED"), "{output}");
     assert!(output.contains("MODE: guided_interview"), "{output}");
-    assert_eq!(
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
-        expected_markdown
-    );
+    let charter =
+        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter");
+    assert_eq!(charter, expected_markdown);
+    assert!(charter.contains("favor durable launches over rush delivery"));
+    assert!(charter.contains(system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(!charter.contains("`CHARTER.md#exceptions`"));
     assert!(prompt_capture_path(dir.path()).exists());
 }
 
@@ -819,4 +891,79 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
         generate_stdout.contains("# Engineering Charter — System"),
         "{generate_stdout}"
     );
+}
+
+#[test]
+fn charter_input_templates_and_fixtures_use_canonical_exception_record_location() {
+    let shipped_template = include_str!("../../../core/library/charter/CHARTER_INPUTS.yaml.tmpl");
+    let fixture_template = include_str!(
+        "../../../tests/fixtures/foundation_flow_demo/repo/core/library/charter/CHARTER_INPUTS.yaml.tmpl"
+    );
+    let brownfield_fixture =
+        include_str!("../../../tools/fixtures/charter_inputs/brownfield_external_web.yaml");
+    let greenfield_fixture =
+        include_str!("../../../tools/fixtures/charter_inputs/greenfield_internal_api.yaml");
+
+    for contents in [
+        valid_structured_inputs_yaml(),
+        shipped_template,
+        fixture_template,
+        brownfield_fixture,
+        greenfield_fixture,
+    ] {
+        assert!(contents.contains(system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+        assert!(!contents.contains("record_location: \"CHARTER.md#exceptions\""));
+    }
+}
+
+#[test]
+#[ignore = "opt-in live Codex smoke; run with SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1 cargo test -p system-cli --test author_cli -- --ignored"]
+fn structured_inputs_author_charter_succeeds_with_live_codex_transport() {
+    if std::env::var("SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE")
+        .ok()
+        .as_deref()
+        != Some("1")
+    {
+        eprintln!("skipping live Codex smoke; set SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1");
+        return;
+    }
+
+    let dir = scaffold_repo();
+    let inputs_path = dir.path().join("charter-inputs-live.yaml");
+    write_file(&inputs_path, valid_structured_inputs_yaml());
+
+    let output = run_in(
+        dir.path(),
+        &[
+            "author",
+            "charter",
+            "--from-inputs",
+            inputs_path.to_str().expect("utf-8 path"),
+        ],
+    );
+
+    assert!(
+        output.status.success(),
+        "live Codex authoring should succeed: {}",
+        stdout(&output)
+    );
+
+    let charter =
+        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter");
+    assert!(charter.starts_with("# Engineering Charter — System"));
+    for heading in [
+        "## What this is",
+        "## Dimensions (details + guardrails)",
+        "## Exceptions / overrides process",
+        "## Review & updates",
+    ] {
+        assert!(
+            charter.contains(heading),
+            "missing heading `{heading}` in:\n{charter}"
+        );
+    }
+    assert!(charter.contains(system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(!charter.contains("`CHARTER.md#exceptions`"));
+    assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
+    assert!(!dir.path().join("CHARTER.md").exists());
 }

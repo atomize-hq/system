@@ -810,13 +810,16 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
             constraints,
         }]
     };
+    let dimensions = collect_dimension_inputs(baseline_level, &project_name, in_production_today)?;
     let approvers = prompt_csv_non_empty_concrete(
         "Exception approvers (comma-separated, at least one)",
         "Exception approvers need concrete owners or roles",
         "exception approvers",
     )?;
-    let record_location =
-        prompt_with_default("Exception record location", "CHARTER.md#exceptions")?;
+    let record_location = prompt_with_default(
+        "Exception record location",
+        system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION,
+    )?;
     let minimum_fields_input = prompt_optional(
         "Exception minimum fields (comma-separated; press enter for standard fields)",
     )?;
@@ -891,7 +894,7 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
             baseline_rationale,
         },
         domains,
-        dimensions: default_dimension_inputs(baseline_level, &project_name, in_production_today),
+        dimensions,
         exceptions: system_compiler::CharterExceptionsInput {
             approvers,
             record_location,
@@ -990,6 +993,21 @@ fn prompt_bool(prompt: &str) -> Result<bool, String> {
     }
 }
 
+fn prompt_bool_with_default(prompt: &str, default_value: bool) -> Result<bool, String> {
+    let default_label = if default_value { "yes" } else { "no" };
+    loop {
+        let value = prompt_line(&format!("{prompt} [yes|no] [{default_label}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value);
+        }
+        match value.trim().to_ascii_lowercase().as_str() {
+            "y" | "yes" | "true" => return Ok(true),
+            "n" | "no" | "false" => return Ok(false),
+            _ => println!("Expected yes/no."),
+        }
+    }
+}
+
 fn prompt_u32(prompt: &str) -> Result<u32, String> {
     loop {
         let value = prompt_line(prompt)?;
@@ -1003,6 +1021,24 @@ fn prompt_u32(prompt: &str) -> Result<u32, String> {
 fn prompt_u8_in_range(prompt: &str, min: u8, max: u8) -> Result<u8, String> {
     loop {
         let value = prompt_line(prompt)?;
+        match value.trim().parse::<u8>() {
+            Ok(parsed) if (min..=max).contains(&parsed) => return Ok(parsed),
+            _ => println!("Expected an integer in the allowed range."),
+        }
+    }
+}
+
+fn prompt_u8_in_range_with_default(
+    prompt: &str,
+    min: u8,
+    max: u8,
+    default_value: u8,
+) -> Result<u8, String> {
+    loop {
+        let value = prompt_line(&format!("{prompt} [{default_value}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value);
+        }
         match value.trim().parse::<u8>() {
             Ok(parsed) if (min..=max).contains(&parsed) => return Ok(parsed),
             _ => println!("Expected an integer in the allowed range."),
@@ -1079,6 +1115,60 @@ fn prompt_csv_non_empty_concrete(
     )))
 }
 
+fn prompt_required_concrete_with_default(
+    prompt: &str,
+    default_value: &str,
+    field_name: &str,
+) -> Result<String, String> {
+    loop {
+        let value = prompt_line(&format!("{prompt} [{default_value}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value.to_string());
+        }
+        if let Some(normalized) = normalize_required_free_text(&value) {
+            return Ok(normalized);
+        }
+        println!("Provide a concrete answer or press enter to keep the baseline.");
+        println!(
+            "guided charter interview needs a concrete answer for {field_name} when customizing"
+        );
+    }
+}
+
+fn prompt_csv_non_empty_concrete_with_default(
+    prompt: &str,
+    default_value: &[String],
+    field_name: &str,
+) -> Result<Vec<String>, String> {
+    let default_display = join_csv_default(default_value);
+    loop {
+        let value = prompt_line(&format!("{prompt} [{default_display}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value.to_vec());
+        }
+        if let Some(items) = normalize_required_csv(&value) {
+            return Ok(items);
+        }
+        println!("Provide concrete comma-separated values or press enter to keep the baseline.");
+        println!(
+            "guided charter interview needs a concrete answer for {field_name} when customizing"
+        );
+    }
+}
+
+fn prompt_csv_optional_with_default(
+    prompt: &str,
+    default_value: &[String],
+) -> Result<Vec<String>, String> {
+    let default_display = join_csv_default(default_value);
+    let value = prompt_line(&format!("{prompt} [{default_display}]"))?;
+    if value.trim().is_empty() {
+        Ok(default_value.to_vec())
+    } else {
+        split_csv_required(&value)
+    }
+}
+
 fn split_csv_required(value: &str) -> Result<Vec<String>, String> {
     let items = value
         .split(',')
@@ -1112,6 +1202,14 @@ fn normalize_required_csv(value: &str) -> Option<Vec<String>> {
 
 fn normalize_free_text_answer(value: &str) -> String {
     system_compiler::normalize_charter_free_text(value)
+}
+
+fn join_csv_default(items: &[String]) -> String {
+    if items.is_empty() {
+        "none".to_string()
+    } else {
+        items.join(", ")
+    }
 }
 
 fn is_unusably_vague_text(value: &str) -> bool {
@@ -1254,18 +1352,65 @@ fn default_exception_minimum_fields() -> Vec<String> {
     .collect()
 }
 
-fn default_dimension_inputs(
+fn collect_dimension_inputs(
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> Vec<system_compiler::CharterDimensionInput> {
-    all_dimension_names()
-        .iter()
-        .copied()
-        .map(|name| {
-            default_dimension_input(name, baseline_level, project_name, in_production_today)
-        })
-        .collect()
+) -> Result<Vec<system_compiler::CharterDimensionInput>, String> {
+    let mut dimensions = Vec::with_capacity(all_dimension_names().len());
+    for name in all_dimension_names() {
+        let baseline =
+            default_dimension_input(name, baseline_level, project_name, in_production_today);
+        let dimension_label = dimension_label(name);
+        let keep_baseline =
+            prompt_bool_with_default(&format!("Keep baseline for {dimension_label}?"), true)?;
+        if keep_baseline {
+            dimensions.push(baseline);
+            continue;
+        }
+
+        let level = Some(prompt_u8_in_range_with_default(
+            &format!("{dimension_label} level [1-5]"),
+            1,
+            5,
+            baseline.level.unwrap_or(baseline_level),
+        )?);
+        let default_stance = prompt_required_concrete_with_default(
+            &format!("{dimension_label} default stance"),
+            &baseline.default_stance,
+            &format!("{dimension_label} default stance"),
+        )?;
+        let raise_the_bar_triggers = prompt_csv_non_empty_concrete_with_default(
+            &format!("{dimension_label} raise-the-bar triggers (comma-separated)"),
+            &baseline.raise_the_bar_triggers,
+            &format!("{dimension_label} raise-the-bar triggers"),
+        )?;
+        let allowed_shortcuts = prompt_csv_non_empty_concrete_with_default(
+            &format!("{dimension_label} allowed shortcuts (comma-separated)"),
+            &baseline.allowed_shortcuts,
+            &format!("{dimension_label} allowed shortcuts"),
+        )?;
+        let red_lines = prompt_csv_non_empty_concrete_with_default(
+            &format!("{dimension_label} red lines (comma-separated)"),
+            &baseline.red_lines,
+            &format!("{dimension_label} red lines"),
+        )?;
+        let domain_overrides = prompt_csv_optional_with_default(
+            &format!("{dimension_label} domain overrides (comma-separated, optional)"),
+            &baseline.domain_overrides,
+        )?;
+
+        dimensions.push(system_compiler::CharterDimensionInput {
+            name,
+            level,
+            default_stance,
+            raise_the_bar_triggers,
+            allowed_shortcuts,
+            red_lines,
+            domain_overrides,
+        });
+    }
+    Ok(dimensions)
 }
 
 fn all_dimension_names() -> [system_compiler::CharterDimensionName; 9] {
@@ -2569,7 +2714,7 @@ dimensions:
 exceptions:
   approvers:
     - project_owner
-  record_location: "CHARTER.md#exceptions"
+  record_location: ".system/charter/CHARTER.md#exceptions"
   minimum_fields:
     - what
     - why

@@ -12,7 +12,7 @@ use system_compiler::{
     CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
     CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
     CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, SetupRequest,
+    CharterStructuredInput, CharterSurface, SetupRequest, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
@@ -150,7 +150,7 @@ fn valid_input() -> CharterStructuredInput {
         ],
         exceptions: CharterExceptionsInput {
             approvers: vec!["project_owner".to_string()],
-            record_location: "CHARTER.md#exceptions".to_string(),
+            record_location: DEFAULT_EXCEPTION_RECORD_LOCATION.to_string(),
             minimum_fields: vec![
                 "what".to_string(),
                 "why".to_string(),
@@ -332,6 +332,8 @@ fn render_charter_markdown_includes_required_headings_in_order() {
     assert!(markdown.contains("### 1) Speed vs Quality"));
     assert!(markdown.contains("### planning"));
     assert!(markdown.contains("| Level | Label | Meaning |"));
+    assert!(markdown.contains(DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(!markdown.contains("`CHARTER.md#exceptions`"));
 }
 
 #[test]

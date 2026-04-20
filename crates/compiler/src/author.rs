@@ -14,7 +14,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
+pub const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
+pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".system/charter/CHARTER.md#exceptions";
 const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const AUTHORING_METHOD_MARKDOWN: &str =

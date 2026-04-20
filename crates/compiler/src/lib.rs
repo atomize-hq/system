@@ -33,7 +33,8 @@ pub use author::{
     CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
     CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
     CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface,
+    CharterStructuredInput, CharterSurface, CANONICAL_CHARTER_REPO_PATH,
+    DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use blocker::{blocker_category_priority, Blocker, BlockerCategory};
 pub use budget::{
