@@ -34,7 +34,7 @@ const PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS: [&str; 5] = [
     "missing bearer",
     "failed",
 ];
-const REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS: [&str; 10] = [
+const REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS: [&str; 11] = [
     "## What this is",
     "## How to use",
     "## 1) Environment Variables (Inventory)",
@@ -45,6 +45,7 @@ const REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS: [&str; 10] = [
     "## 6) Production / Deployment Requirements (even if not live yet)",
     "## 7) Dependency & Tooling Inventory (project-specific)",
     "## 8) Update Contract (non-negotiable)",
+    "## 9) Known Unknowns",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -124,7 +125,8 @@ pub fn author_environment_inventory(
 pub fn validate_environment_inventory_markdown(
     markdown: &str,
 ) -> Result<(), AuthorEnvironmentInventoryRefusal> {
-    if markdown.trim().is_empty() {
+    let normalized = markdown.trim();
+    if normalized.is_empty() {
         return Err(synthesis_refusal(
             "synthesized environment inventory markdown was empty",
         ));
@@ -134,31 +136,65 @@ pub fn validate_environment_inventory_markdown(
             "synthesized environment inventory markdown must start with `# Environment Inventory`",
         ));
     }
-    if markdown.contains("{{") || markdown.contains("}}") {
+    if normalized.contains("{{") || normalized.contains("}}") {
         return Err(synthesis_refusal(
             "synthesized environment inventory markdown contains unresolved template placeholders",
         ));
     }
-    if markdown.contains("${repo_root}/ENVIRONMENT_INVENTORY.md")
-        || markdown.contains("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
-        || markdown.contains("repo/project root")
+    if normalized.contains("${repo_root}/ENVIRONMENT_INVENTORY.md")
+        || normalized.contains("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
+        || normalized.contains("repo/project root")
     {
         return Err(synthesis_refusal(
             "synthesized environment inventory markdown still contains legacy non-canonical path claims",
         ));
     }
-    if !markdown.contains("`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`") {
+    if !normalized.contains("`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`") {
         return Err(synthesis_refusal(
             "synthesized environment inventory markdown must reference `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` as the canonical file",
         ));
     }
-    for heading in REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS {
-        if !markdown.contains(heading) {
-            return Err(synthesis_refusal(format!(
-                "synthesized environment inventory markdown is missing required heading `{heading}`"
-            )));
+    validate_required_heading_order_result(normalized, &REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS)
+        .map_err(synthesis_refusal)?;
+    Ok(())
+}
+
+fn validate_required_heading_order_result(
+    markdown: &str,
+    required_headings: &[&str],
+) -> Result<(), String> {
+    let heading_lines = markdown
+        .lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let trimmed = line.trim_end();
+            required_headings
+                .contains(&trimmed)
+                .then_some((index, trimmed))
+        })
+        .collect::<Vec<_>>();
+
+    let mut previous = 0usize;
+    for heading in required_headings {
+        let positions = heading_lines
+            .iter()
+            .filter_map(|(index, line)| (*line == *heading).then_some(*index))
+            .collect::<Vec<_>>();
+        if positions.is_empty() {
+            return Err(format!("missing required heading `{heading}`"));
         }
+        if positions.len() != 1 {
+            return Err(format!(
+                "required heading `{heading}` must appear exactly once"
+            ));
+        }
+        let position = positions[0];
+        if position < previous {
+            return Err(format!("required heading `{heading}` is out of order"));
+        }
+        previous = position;
     }
+
     Ok(())
 }
 
@@ -875,6 +911,9 @@ The canonical store of record for this project's environment and runtime require
 
 ## 8) Update Contract (non-negotiable)
 - Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+
+## 9) Known Unknowns
+- None yet.
 "#;
 
         std::env::set_var("SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN", &fake_codex);

@@ -483,6 +483,9 @@ Canonical environment and runtime inventory.
 
 ## 8) Update Contract (non-negotiable)
 - Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+
+## 9) Known Unknowns
+- None yet.
 "
 }
 

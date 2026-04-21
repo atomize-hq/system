@@ -3,29 +3,34 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use system_compiler::{
-    author_charter, author_project_context_from_input, parse_charter_structured_input_yaml,
-    parse_project_context_structured_input_yaml, preflight_author_charter,
+    author_charter, author_environment_inventory, author_project_context_from_input,
+    parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
+    preflight_author_charter, preflight_author_environment_inventory,
     preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
     run_setup, setup_starter_template_bytes, validate_charter_structured_input,
     validate_project_context_markdown, validate_project_context_structured_input,
-    AuthorCharterRefusalKind, AuthorProjectContextRefusalKind, CanonicalArtifactKind,
-    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, ProjectContextClassificationImplicationsInput,
-    ProjectContextConstraintsInput, ProjectContextDataRealityInput,
-    ProjectContextEnvironmentsAndDeliveryInput, ProjectContextIntegrationInput,
-    ProjectContextKnownUnknownInput, ProjectContextOperationalRealityInput,
-    ProjectContextRepoCodebaseRealityInput, ProjectContextStructuredInput,
-    ProjectContextSummaryInput, ProjectContextSystemBoundariesInput, SetupRequest,
-    DEFAULT_EXCEPTION_RECORD_LOCATION,
+    AuthorCharterRefusalKind, AuthorEnvironmentInventoryRefusalKind,
+    AuthorProjectContextRefusalKind, CanonicalArtifactKind, CharterAudience,
+    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
+    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
+    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
+    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
+    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
+    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
+    CharterSurface, ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
+    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
+    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
+    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
+    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
+    SetupRequest, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
+    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
+const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
+    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
 const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
@@ -46,24 +51,54 @@ fn with_author_runtime_override<T>(
     model: Option<&str>,
     action: impl FnOnce() -> T,
 ) -> T {
+    with_runtime_override(
+        AUTHOR_CHARTER_CODEX_BIN_ENV_VAR,
+        AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR,
+        binary_path,
+        model,
+        action,
+    )
+}
+
+fn with_environment_inventory_runtime_override<T>(
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
+    with_runtime_override(
+        AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR,
+        AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR,
+        binary_path,
+        model,
+        action,
+    )
+}
+
+fn with_runtime_override<T>(
+    binary_env_var: &str,
+    model_env_var: &str,
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
     let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous_bin = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
-    let previous_model = std::env::var_os(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR);
-    std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+    let previous_bin = std::env::var_os(binary_env_var);
+    let previous_model = std::env::var_os(model_env_var);
+    std::env::set_var(binary_env_var, binary_path);
     match model {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+        Some(value) => std::env::set_var(model_env_var, value),
+        None => std::env::remove_var(model_env_var),
     }
 
     let result = catch_unwind(AssertUnwindSafe(action));
 
     match previous_bin {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+        Some(value) => std::env::set_var(binary_env_var, value),
+        None => std::env::remove_var(binary_env_var),
     }
     match previous_model {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+        Some(value) => std::env::set_var(model_env_var, value),
+        None => std::env::remove_var(model_env_var),
     }
 
     match result {
@@ -433,6 +468,14 @@ fn expected_project_context_markdown() -> String {
         render_project_context_markdown(&valid_project_context_input())
             .expect("render valid project-context input")
     })
+}
+
+fn expected_environment_inventory_markdown(project_context_ref: &str) -> String {
+    format!(
+        "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
+    )
+    .trim_end()
+    .to_string()
 }
 
 fn required_headings() -> [&'static str; 12] {
@@ -1128,5 +1171,209 @@ fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaf
         )
         .expect("starter project-context bytes"),
         setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext)
+    );
+}
+
+#[test]
+fn author_environment_inventory_replaces_starter_template_and_writes_only_canonical_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let expected_markdown = expected_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path()).expect("author environment inventory")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("canonical environment inventory"),
+        expected_markdown
+    );
+    let mut entries = std::fs::read_dir(dir.path().join(".system/environment_inventory"))
+        .expect("read environment-inventory dir")
+        .map(|entry| {
+            entry
+                .expect("environment-inventory dir entry")
+                .file_name()
+                .into_string()
+                .expect("utf8 environment-inventory entry")
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    assert_eq!(entries, vec!["ENVIRONMENT_INVENTORY.md"]);
+    assert!(!dir.path().join("ENVIRONMENT_INVENTORY.md").exists());
+    assert!(!dir
+        .path()
+        .join("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
+        .exists());
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    write_file(
+        &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
+        b"custom environment inventory truth\n",
+    );
+
+    let err = author_environment_inventory(dir.path())
+        .expect_err("existing environment inventory truth should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("existing environment inventory"),
+        "custom environment inventory truth\n"
+    );
+}
+
+#[test]
+fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    write_file(
+        &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
+        b"custom environment inventory truth\n",
+    );
+
+    let err = preflight_author_environment_inventory(dir.path())
+        .expect_err("existing environment inventory truth should refuse during preflight");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth
+    );
+    assert!(err
+        .summary
+        .contains("canonical environment inventory truth already exists"));
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_required_headings_only_appear_in_body_text() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(
+            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nThis body mentions `## How to use`, `## 1) Environment Variables (Inventory)`, `## 2) External Services / Infrastructure Dependencies`, `## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)`, `## 4) Local Development Requirements`, `## 5) CI Requirements`, `## 6) Production / Deployment Requirements (even if not live yet)`, `## 7) Dependency & Tooling Inventory (project-specific)`, `## 8) Update Contract (non-negotiable)`, and `## 9) Known Unknowns`, but it does not render them as headings.\n",
+        ),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("body prose headings should fail validation")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(err
+        .summary
+        .contains("missing required heading `## How to use`"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_required_heading_is_duplicated() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(
+            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- Still none.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
+        ),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("duplicate headings should fail validation")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(err.summary.contains(
+        "required heading `## 2) External Services / Infrastructure Dependencies` must appear exactly once"
+    ));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_required_headings_are_out_of_order() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(
+            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
+        ),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("out-of-order headings should fail validation")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(err
+        .summary
+        .contains("required heading `## 1) Environment Variables (Inventory)` is out of order"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after failure"),
+        before
     );
 }

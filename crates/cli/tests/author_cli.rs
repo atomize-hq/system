@@ -11,6 +11,10 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
+    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
+const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
+    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn binary() -> Command {
@@ -74,24 +78,54 @@ fn with_author_runtime_override<T>(
     model: Option<&str>,
     action: impl FnOnce() -> T,
 ) -> T {
+    with_runtime_override(
+        AUTHOR_CHARTER_CODEX_BIN_ENV_VAR,
+        AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR,
+        binary_path,
+        model,
+        action,
+    )
+}
+
+fn with_environment_inventory_runtime_override<T>(
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
+    with_runtime_override(
+        AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR,
+        AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR,
+        binary_path,
+        model,
+        action,
+    )
+}
+
+fn with_runtime_override<T>(
+    binary_env_var: &str,
+    model_env_var: &str,
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
     let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous_bin = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
-    let previous_model = std::env::var_os(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR);
-    std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+    let previous_bin = std::env::var_os(binary_env_var);
+    let previous_model = std::env::var_os(model_env_var);
+    std::env::set_var(binary_env_var, binary_path);
     match model {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+        Some(value) => std::env::set_var(model_env_var, value),
+        None => std::env::remove_var(model_env_var),
     }
 
     let result = catch_unwind(AssertUnwindSafe(action));
 
     match previous_bin {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+        Some(value) => std::env::set_var(binary_env_var, value),
+        None => std::env::remove_var(binary_env_var),
     }
     match previous_model {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+        Some(value) => std::env::set_var(model_env_var, value),
+        None => std::env::remove_var(model_env_var),
     }
 
     match result {
@@ -140,6 +174,14 @@ fn scaffold_repo() -> tempfile::TempDir {
         String::from_utf8_lossy(&output.stdout)
     );
     dir
+}
+
+fn valid_environment_inventory_markdown(project_context_ref: &str) -> String {
+    format!(
+        "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
+    )
+    .trim_end()
+    .to_string()
 }
 
 fn valid_structured_inputs_yaml() -> &'static str {
@@ -964,6 +1006,91 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
         generate_stdout.contains("# Engineering Charter — System"),
         "{generate_stdout}"
     );
+}
+
+#[test]
+fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let expected_markdown = valid_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let output = with_environment_inventory_runtime_override(&stub, None, || {
+        run_in(dir.path(), &["author", "environment-inventory"])
+    });
+
+    assert!(
+        output.status.success(),
+        "environment inventory authoring should succeed: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: AUTHORED"), "{out}");
+    assert!(
+        out.contains("OBJECT: author environment-inventory"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Wrote canonical environment inventory to .system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        "{out}"
+    );
+    assert_eq!(
+        fs::read_to_string(
+            dir.path()
+                .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        )
+        .expect("environment inventory"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+    assert!(!dir.path().join("ENVIRONMENT_INVENTORY.md").exists());
+    assert!(!dir
+        .path()
+        .join("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
+        .exists());
+}
+
+#[test]
+fn author_environment_inventory_command_refuses_existing_truth_before_synthesis() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    write_file(
+        &dir.path()
+            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        "custom environment inventory truth\n",
+    );
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(&valid_environment_inventory_markdown("None")),
+    );
+
+    let output = with_environment_inventory_runtime_override(&stub, None, || {
+        run_in(dir.path(), &["author", "environment-inventory"])
+    });
+
+    assert!(
+        !output.status.success(),
+        "existing environment inventory truth should refuse: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"), "{out}");
+    assert!(out.contains("CATEGORY: ExistingCanonicalTruth"), "{out}");
+    assert_eq!(
+        fs::read_to_string(
+            dir.path()
+                .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        )
+        .expect("environment inventory"),
+        "custom environment inventory truth\n"
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
