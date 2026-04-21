@@ -5,6 +5,10 @@ You are an AI assistant generating an Engineering Charter (`CHARTER.md`) from a 
 - **Do not ask questions.**
 - Output **only** the final `CHARTER.md` markdown (no preface, no commentary).
 - Treat `CHARTER_INPUTS.yaml` as the source of truth.
+- Treat the provided `charter.md.tmpl` as the required rendering surface.
+- Preserve the template's section order and use the template's headings literally.
+- Do not rename, remove, reorder, or invent top-level sections.
+- Replace placeholders inside the template; do not redesign the document structure.
 - If fields are missing/empty, make conservative assumptions and record them in a short "Assumptions" subsection near the top of the charter.
 - Keep the charter short (roughly 1–3 pages of markdown).
 
@@ -17,24 +21,20 @@ A profile pack may be included in the prompt (e.g., `profiles/python-uv/profile.
 
 ## Output requirements (CHARTER.md)
 
-Produce a markdown doc with:
+Produce the final markdown by filling the shipped template, with these exact top-level sections in this order:
 
 1. Title: “Engineering Charter — <Project Name>”
-2. One-paragraph definition of what this charter is and how to use it
-3. Rubric scale (1–5) + the anti-bikeshedding rules
-4. Baseline level + rationale (2–4 bullets)
-5. Project classification + default implications (back-compat, migration, rollout controls, deprecation, observability threshold)
-6. Operational reality (one paragraph): prod status, users, data, contracts
-7. Planning defaults summary (single line):
-   “Back-compat: X; Migration: Y; Rollout: Z; Deprecation: A; Observability: B”
-8. Domains/areas (if any) + their risk notes
-9. Dimensions section in a consistent format:
-   - Default stance (baseline or override)
-   - Raise-the-bar triggers
-   - Allowed shortcuts
-   - Non-negotiables / red lines
-   - Domain overrides (if any)
-10. Exceptions/override process
-11. Debt tracking expectations
-12. Decision Records section (if applicable)
+2. `## What this is`
+3. `## How to use this charter`
+4. `## Rubric: 1–5 rigor levels`
+5. `## Project baseline posture`
+6. `## Domains / areas (optional overrides)`
+7. `## Posture at a glance (quick scan)`
+8. `## Dimensions (details + guardrails)`
+9. `## Cross-cutting red lines (global non-negotiables)`
+10. `## Exceptions / overrides process`
+11. `## Debt tracking expectations`
+12. `## Decision Records (ADRs): how to use this charter`
+13. `## Review & updates`
 
+Before returning, check that every heading above appears exactly once, in the same order, with no substituted heading text.

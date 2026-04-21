@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.0.0] - 2026-04-20
+
+### Added
+- Added the shipped M7 top-level `author` family with `system author charter` and `system author charter --from-inputs <path|->` as the public charter-authoring surfaces for scaffolded repos.
+- Added a change-scoped live Codex authoring smoke in CI so transport or prompt-contract drift on the shipped charter-authoring path gets caught before merge.
+
+### Changed
+- Cut the setup/readiness story over to authored charter truth so scaffolded setup routes operators to `system author charter`, and successful charter authoring is what clears `doctor` and planning `generate`.
+- Wired both M7 charter-authoring paths through one shared final synthesis engine in the compiler seam using direct `codex exec`, with the repo-owned authoring method, synthesis directive, and charter template now driving runtime behavior.
+- Realigned CLI help, docs, contracts, fixtures, and local smoke commands around the new authoring surface and the runtime model-selection contract used by shipped charter synthesis.
+
+### Fixed
+- Fixed the shipped M7 authoring runtime so it no longer bypasses the final synthesis pass with deterministic direct rendering, and now refuses invalid synthesis output before mutating canonical charter truth.
+- Fixed the local and CI authoring smoke rails so they watch all repo-owned prompt inputs that affect charter synthesis and pass the selected model through the runtime variable the compiler actually reads.
+
 ## [0.5.2.0] - 2026-04-18
 
 ### Added

@@ -43,6 +43,13 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `generate`
   - The packet-generation surface.
   - Use when the operator wants the minimum correct planning packet from trusted inputs.
+- `author`
+  - The human-guided and automation-safe canonical authoring surface.
+  - Use when the operator needs to replace a setup-owned starter file with completed canonical truth.
+  - The first shipped authoring wedge is `system author charter`.
+  - `system author charter` is the human-guided surface.
+  - `system author charter --from-inputs <path|->` is the agent and automation surface.
+  - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - `pipeline`
   - The orchestration surface.
   - Use when the operator needs route truth, explicit stage selection, explicit stage compilation, explicit stage-output capture, or narrow route-state mutation.
@@ -77,7 +84,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
     - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
   - `PROJECT_CONTEXT.md` is optional semantically, but it remains one of the starter files created by setup.
-  - The shipped starter templates are scaffolding only until the required files are replaced with completed canonical truth.
+  - The shipped starter templates are scaffolding only until the charter starter file is replaced with completed canonical truth.
 - `runtime zone`
   - The preferred term for non-canonical derived state kept under `.system/`.
   - Runtime zones are not canonical inputs and must never be described as project truth.
@@ -120,8 +127,11 @@ These phrases should remain stable across top-level docs and help text unless th
 - "`setup refresh` preserves canonical files by default"
 - "`setup refresh --rewrite` rewrites only setup-owned starter files"
 - "`setup refresh --reset-state` resets only `.system/state/**`"
-- "scaffolded setup path ends with `fill canonical artifact ...`"
+- "scaffolded setup path ends with `system author charter`"
 - "ready setup path ends with `system doctor`"
+- "`author` is the canonical authoring surface"
+- "`system author charter` is the human-guided charter authoring surface"
+- "`system author charter --from-inputs <path|->` is the agent and automation charter authoring surface"
 - `planning packet generation`
 - `canonical repo-local `.system/` inputs`
 - `fixture-backed execution demo`
@@ -185,7 +195,7 @@ These words may still appear in:
 
 ### Docs and help text
 
-- Use the same surface ordering everywhere: `setup`, `pipeline`, `generate`, `inspect`, `doctor` once `pipeline` lands.
+- Use the same surface ordering everywhere: `setup`, `author`, `pipeline`, `generate`, `inspect`, `doctor`.
 - Present reduced v1 as a trust product, not a generic scaffold.
 - Keep the supported path and the legacy reference path clearly separated.
 

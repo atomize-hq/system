@@ -1,4 +1,5 @@
 pub mod artifact_manifest;
+pub mod author;
 pub mod blocker;
 pub mod budget;
 pub mod canonical_artifacts;
@@ -21,6 +22,19 @@ mod stage_10_feature_spec_provenance;
 
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
+};
+pub use author::{
+    author_charter, is_unusably_vague_charter_text, normalize_charter_free_text,
+    parse_charter_structured_input_yaml, preflight_author_charter, render_charter_markdown,
+    validate_charter_structured_input, AuthorCharterRefusal, AuthorCharterRefusalKind,
+    AuthorCharterResult, CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
+    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
+    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
+    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
+    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
+    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
+    CharterStructuredInput, CharterSurface, CANONICAL_CHARTER_REPO_PATH,
+    DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use blocker::{blocker_category_priority, Blocker, BlockerCategory};
 pub use budget::{

@@ -2,7 +2,7 @@
 contract_id: C-03
 seam_id: SEAM-3
 owner_seam: SEAM-3
-version: reduced-v1
+version: reduced-v1.1
 currentness: current
 status: published
 revalidation_triggers:
@@ -40,9 +40,9 @@ The canonical input set MUST be exactly:
 
 - Required:
   - `.system/charter/CHARTER.md`
-  - `.system/feature_spec/FEATURE_SPEC.md`
 - Optional:
   - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/feature_spec/FEATURE_SPEC.md`
 
 No other file path is a direct canonical input under this contract.
 
@@ -197,6 +197,8 @@ Allowed issue categories include (non-exhaustive):
 
 - [ ] This contract is the only source of truth for canonical `.system/` inputs in reduced-v1.
 - [ ] The canonical input set and repo-relative paths are explicit and exhaustive.
+- [ ] `.system/charter/CHARTER.md` is the only required canonical input for planning readiness in reduced-v1.1.
+- [ ] `.system/project_context/PROJECT_CONTEXT.md` and `.system/feature_spec/FEATURE_SPEC.md` are optional canonical inputs for planning readiness in reduced-v1.1.
 - [ ] `present_empty` is defined as exactly zero bytes (no whitespace trimming).
 - [ ] Missing vs empty semantics are unambiguous for both required and optional inputs.
 - [ ] Artifact identity includes `sha256` of raw bytes and is absent only when missing.

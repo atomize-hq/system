@@ -35,6 +35,7 @@ pub enum NextSafeAction {
     RunSetup,
     RunSetupInit,
     RunSetupRefresh,
+    RunAuthorCharter,
     CreateSystemRoot {
         canonical_repo_relative_path: &'static str,
     },

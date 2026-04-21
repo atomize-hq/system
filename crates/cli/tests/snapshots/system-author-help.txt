@@ -1,0 +1,9 @@
+Human-guided and deterministic charter authoring surfaces
+
+Usage: system author [COMMAND]
+
+Commands:
+  charter  Author canonical `.system/charter/CHARTER.md`
+
+Options:
+  -h, --help  Print help

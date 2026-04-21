@@ -1,5 +1,6 @@
 use clap::{CommandFactory, Parser, Subcommand};
-use std::io::Read;
+use std::fs;
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -27,8 +28,8 @@ fn main() -> ExitCode {
     name = "system",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `author` is the charter authoring surface, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `author` is the charter authoring surface. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -39,6 +40,8 @@ struct Cli {
 enum Command {
     /// Initialize or refresh canonical repo-local `.system/` inputs.
     Setup(SetupArgs),
+    /// Human-guided and deterministic charter authoring surfaces.
+    Author(AuthorArgs),
     /// Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations.
     Pipeline(PipelineArgs),
     /// Generate a reduced-v1 packet.
@@ -53,6 +56,7 @@ impl Command {
     fn run(self) -> ExitCode {
         match self {
             Command::Setup(args) => setup(args),
+            Command::Author(args) => author(args),
             Command::Pipeline(args) => pipeline(args),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
@@ -83,6 +87,25 @@ struct SetupRefreshArgs {
     /// Reset only `.system/state/**`.
     #[arg(long = "reset-state")]
     reset_state: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct AuthorArgs {
+    #[command(subcommand)]
+    command: Option<AuthorCommand>,
+}
+
+#[derive(Subcommand, Debug)]
+enum AuthorCommand {
+    /// Author canonical `.system/charter/CHARTER.md`.
+    Charter(AuthorCharterArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct AuthorCharterArgs {
+    /// Read normalized structured inputs from a YAML file or `-` for stdin.
+    #[arg(long = "from-inputs", value_name = "path|-")]
+    from_inputs: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -448,6 +471,1032 @@ fn generate(args: RequestArgs) -> ExitCode {
     } else {
         ExitCode::from(1)
     }
+}
+
+fn author(args: AuthorArgs) -> ExitCode {
+    match args.command {
+        Some(AuthorCommand::Charter(args)) => author_charter_command(args),
+        None => print_subcommand_help(&["author"]),
+    }
+}
+
+struct RenderedCommand {
+    output: String,
+    exit_code: ExitCode,
+}
+
+fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
+    let rendered = execute_author_charter_command(
+        args,
+        std::env::current_dir,
+        interactive_authoring_is_allowed,
+        |repo_root| system_compiler::preflight_author_charter(repo_root),
+        collect_guided_charter_input,
+        |repo_root, input| system_compiler::author_charter(repo_root, input),
+    );
+    println!("{}", rendered.output);
+    rendered.exit_code
+}
+
+fn execute_author_charter_command<
+    GetCurrentDir,
+    InteractiveAllowed,
+    PreflightAuthoring,
+    CollectGuidedInput,
+    RunAuthor,
+>(
+    args: AuthorCharterArgs,
+    get_current_dir: GetCurrentDir,
+    interactive_allowed: InteractiveAllowed,
+    preflight_authoring: PreflightAuthoring,
+    collect_guided_input: CollectGuidedInput,
+    run_author: RunAuthor,
+) -> RenderedCommand
+where
+    GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
+    InteractiveAllowed: Fn() -> bool,
+    PreflightAuthoring: Fn(&Path) -> Result<(), system_compiler::AuthorCharterRefusal>,
+    CollectGuidedInput: Fn() -> Result<system_compiler::CharterStructuredInput, String>,
+    RunAuthor:
+        Fn(
+            &Path,
+            &system_compiler::CharterStructuredInput,
+        )
+            -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal>,
+{
+    let cwd = match get_current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            return RenderedCommand {
+                output: render_author_custom_refusal(
+                    "REFUSED",
+                    "WorkingDirectoryUnavailable",
+                    &format!("failed to determine repo root: {err}"),
+                    "current working directory",
+                    "repair the current working directory and retry `system author charter`",
+                ),
+                exit_code: ExitCode::from(1),
+            };
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+
+    if args.from_inputs.is_none() && !interactive_allowed() {
+        return RenderedCommand {
+            output: render_author_custom_refusal(
+                "REFUSED",
+                "NonInteractiveRefusal",
+                "`system author charter` is a TTY-only guided interview",
+                "interactive terminal",
+                "run `system author charter --from-inputs <path|->`",
+            ),
+            exit_code: ExitCode::from(1),
+        };
+    }
+
+    if let Err(refusal) = preflight_authoring(&repo_root) {
+        return RenderedCommand {
+            output: render_author_charter_refusal(&refusal),
+            exit_code: ExitCode::from(1),
+        };
+    }
+
+    let (input, input_mode, input_source) = match args.from_inputs.as_deref() {
+        Some(path_or_dash) => {
+            let yaml = match read_author_inputs_source(path_or_dash) {
+                Ok(yaml) => yaml,
+                Err(rendered) => {
+                    return RenderedCommand {
+                        output: rendered,
+                        exit_code: ExitCode::from(1),
+                    };
+                }
+            };
+            let input = match system_compiler::parse_charter_structured_input_yaml(&yaml) {
+                Ok(input) => input,
+                Err(refusal) => {
+                    return RenderedCommand {
+                        output: render_author_charter_refusal(&refusal),
+                        exit_code: ExitCode::from(1),
+                    };
+                }
+            };
+            let input_mode = if path_or_dash == "-" {
+                "structured_inputs_stdin"
+            } else {
+                "structured_inputs_file"
+            };
+            (input, input_mode, path_or_dash.to_string())
+        }
+        None => {
+            let input = match collect_guided_input() {
+                Ok(input) => input,
+                Err(rendered) => {
+                    return RenderedCommand {
+                        output: rendered,
+                        exit_code: ExitCode::from(1),
+                    };
+                }
+            };
+            (
+                input,
+                "guided_interview",
+                "interactive terminal".to_string(),
+            )
+        }
+    };
+
+    match run_author(&repo_root, &input) {
+        Ok(result) => RenderedCommand {
+            output: render_author_charter_success(&result, input_mode, &input_source),
+            exit_code: ExitCode::SUCCESS,
+        },
+        Err(refusal) => RenderedCommand {
+            output: render_author_charter_refusal(&refusal),
+            exit_code: ExitCode::from(1),
+        },
+    }
+}
+
+fn interactive_authoring_is_allowed() -> bool {
+    io::stdin().is_terminal() && io::stdout().is_terminal()
+}
+
+fn render_author_charter_success(
+    result: &system_compiler::AuthorCharterResult,
+    input_mode: &str,
+    input_source: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: AUTHORED\n");
+    out.push_str("OBJECT: author charter\n");
+    out.push_str("NEXT SAFE ACTION: run `system doctor`\n");
+    out.push_str("## CANONICAL ARTIFACT\n");
+    out.push_str(&format!("PATH: {}\n", result.canonical_repo_relative_path));
+    out.push_str(&format!("BYTES WRITTEN: {}\n", result.bytes_written));
+    out.push_str("## INPUT MODE\n");
+    out.push_str(&format!("MODE: {input_mode}\n"));
+    out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.trim_end().to_string()
+}
+
+fn render_author_charter_refusal(refusal: &system_compiler::AuthorCharterRefusal) -> String {
+    render_author_custom_refusal(
+        author_refusal_outcome_name(refusal.kind),
+        author_refusal_kind_name(refusal.kind),
+        refusal.summary.trim(),
+        refusal.broken_subject.trim(),
+        refusal.next_safe_action.trim(),
+    )
+}
+
+fn render_author_custom_refusal(
+    outcome: &str,
+    category: &str,
+    summary: &str,
+    broken_subject: &str,
+    next_safe_action: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("OUTCOME: {outcome}\n"));
+    out.push_str("OBJECT: author charter\n");
+    out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
+    out.push_str("## REFUSAL\n");
+    out.push_str(&format!("CATEGORY: {category}\n"));
+    out.push_str(&format!("SUMMARY: {summary}\n"));
+    out.push_str(&format!("BROKEN SUBJECT: {broken_subject}\n"));
+    out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
+    out.trim_end().to_string()
+}
+
+fn author_refusal_outcome_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
+    match kind {
+        system_compiler::AuthorCharterRefusalKind::MissingSystemRoot
+        | system_compiler::AuthorCharterRefusalKind::InvalidSystemRoot
+        | system_compiler::AuthorCharterRefusalKind::MutationRefused
+        | system_compiler::AuthorCharterRefusalKind::SynthesisFailed => "BLOCKED",
+        system_compiler::AuthorCharterRefusalKind::MalformedStructuredInput
+        | system_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput
+        | system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => "REFUSED",
+    }
+}
+
+fn author_refusal_kind_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
+    match kind {
+        system_compiler::AuthorCharterRefusalKind::MissingSystemRoot => "MissingSystemRoot",
+        system_compiler::AuthorCharterRefusalKind::InvalidSystemRoot => "InvalidSystemRoot",
+        system_compiler::AuthorCharterRefusalKind::MalformedStructuredInput => {
+            "MalformedStructuredInput"
+        }
+        system_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput => {
+            "IncompleteStructuredInput"
+        }
+        system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => {
+            "ExistingCanonicalTruth"
+        }
+        system_compiler::AuthorCharterRefusalKind::MutationRefused => "MutationRefused",
+        system_compiler::AuthorCharterRefusalKind::SynthesisFailed => "SynthesisFailed",
+    }
+}
+
+fn read_author_inputs_source(path_or_dash: &str) -> Result<String, String> {
+    if path_or_dash == "-" {
+        return read_stdin().map_err(|err| {
+            render_author_custom_refusal(
+                "REFUSED",
+                "InputReadFailure",
+                &format!("failed to read structured inputs from stdin: {err}"),
+                "structured charter input source",
+                "repair stdin and retry `system author charter --from-inputs -`",
+            )
+        });
+    }
+
+    fs::read_to_string(path_or_dash).map_err(|err| {
+        render_author_custom_refusal(
+            "REFUSED",
+            "InputReadFailure",
+            &format!(
+                "failed to read structured inputs from `{path_or_dash}`: {err}"
+            ),
+            "structured charter input source",
+            "repair the structured input file and retry `system author charter --from-inputs <path|->`",
+        )
+    })
+}
+
+fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredInput, String> {
+    println!("Guided charter interview");
+    println!("Answer with the documented value form. Comma-separated prompts accept `a, b, c`.");
+
+    let project_name = prompt_required_concrete(
+        "Project name",
+        "Project name needs a concrete system name, not a placeholder",
+        "project name",
+    )?;
+    let classification = prompt_choice(
+        "Project classification [greenfield|brownfield|integration|modernization|hardening]",
+        parse_project_classification,
+    )?;
+    let team_size = prompt_u32("Team size (> 0)")?;
+    let users = prompt_choice("Audience [internal|external|mixed]", parse_audience)?;
+    let expected_lifetime = prompt_choice(
+        "Expected lifetime [days|weeks|months|years]",
+        parse_expected_lifetime,
+    )?;
+    let surfaces = prompt_csv_choice(
+        "Surfaces [web_app, api, cli, lib, infra, ml]",
+        parse_surface,
+    )?;
+    let runtime_environments = prompt_csv_choice(
+        "Runtime environments [browser, server, cloud, on_prem, edge]",
+        parse_runtime_environment,
+    )?;
+    let deadline = prompt_optional("Deadline or delivery window")?;
+    let budget = prompt_optional("Budget notes")?;
+    let experience_notes = prompt_required_concrete(
+        "Experience notes",
+        "Experience notes need a concrete summary of team experience or delivery constraints",
+        "experience notes",
+    )?;
+    let must_use_tech = prompt_csv_optional("Must-use tech (comma-separated, optional)")?;
+    let in_production_today = prompt_bool("In production today? [yes|no]")?;
+    let prod_users_or_data = prompt_optional("Production users or data notes")?;
+    let external_contracts_to_preserve =
+        prompt_csv_optional("External contracts to preserve (comma-separated, optional)")?;
+    let uptime_expectations = prompt_optional("Uptime expectations")?;
+    let baseline_level = prompt_u8_in_range("Baseline rubric level [1-5]", 1, 5)?;
+    let baseline_rationale = prompt_csv_non_empty_concrete(
+        "Baseline rationale (comma-separated, at least one)",
+        "Baseline rationale needs concrete reasons, not placeholders",
+        "baseline rationale",
+    )?;
+    let backward_compatibility = prompt_choice(
+        "Backward compatibility [required|not_required|boundary_only]",
+        parse_backward_compatibility,
+    )?;
+    let migration_planning = prompt_choice(
+        "Migration planning [required|not_required]",
+        parse_requiredness,
+    )?;
+    let rollout_controls = prompt_choice(
+        "Rollout controls [none|lightweight|required]",
+        parse_rollout_controls,
+    )?;
+    let deprecation_policy = prompt_choice(
+        "Deprecation policy [required|not_required_yet]",
+        parse_deprecation_policy,
+    )?;
+    let observability_threshold = prompt_choice(
+        "Observability threshold [minimal|standard|high|regulated]",
+        parse_observability_threshold,
+    )?;
+    let primary_domain_name = prompt_optional("Primary domain name (optional)")?;
+    let domains = if primary_domain_name.trim().is_empty() {
+        Vec::new()
+    } else {
+        let blast_radius = prompt_required_concrete(
+            "Primary domain blast radius",
+            "Primary domain blast radius needs a concrete impact or failure description",
+            "primary domain blast radius",
+        )?;
+        let touches = prompt_csv_optional("Primary domain touches (comma-separated, optional)")?;
+        let constraints =
+            prompt_csv_optional("Primary domain constraints (comma-separated, optional)")?;
+        vec![system_compiler::CharterDomainInput {
+            name: primary_domain_name,
+            blast_radius,
+            touches,
+            constraints,
+        }]
+    };
+    let dimensions = collect_dimension_inputs(baseline_level, &project_name, in_production_today)?;
+    let approvers = prompt_csv_non_empty_concrete(
+        "Exception approvers (comma-separated, at least one)",
+        "Exception approvers need concrete owners or roles",
+        "exception approvers",
+    )?;
+    let record_location = prompt_with_default(
+        "Exception record location",
+        system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION,
+    )?;
+    let minimum_fields_input = prompt_optional(
+        "Exception minimum fields (comma-separated; press enter for standard fields)",
+    )?;
+    let minimum_fields = if minimum_fields_input.trim().is_empty() {
+        default_exception_minimum_fields()
+    } else {
+        split_csv_required(&minimum_fields_input)?
+    };
+    let debt_tracking_system = prompt_required_concrete(
+        "Debt tracking system",
+        "Debt tracking system needs a concrete tracker or repository location",
+        "debt tracking system",
+    )?;
+    let debt_tracking_labels =
+        prompt_csv_optional("Debt tracking labels (comma-separated, optional)")?;
+    let debt_tracking_review_cadence = prompt_required_concrete(
+        "Debt tracking review cadence",
+        "Debt tracking review cadence needs a concrete cadence such as weekly or monthly",
+        "debt tracking review cadence",
+    )?;
+    let decision_records_enabled = prompt_bool("Decision records enabled? [yes|no]")?;
+    let (decision_records_path, decision_records_format) = if decision_records_enabled {
+        (
+            prompt_required_concrete(
+                "Decision records path",
+                "Decision records path needs a concrete folder path",
+                "decision records path",
+            )?,
+            prompt_required_concrete(
+                "Decision records format",
+                "Decision records format needs a concrete format such as md",
+                "decision records format",
+            )?,
+        )
+    } else {
+        (String::new(), String::new())
+    };
+
+    Ok(system_compiler::CharterStructuredInput {
+        schema_version: "0.1.0".to_string(),
+        project: system_compiler::CharterProjectInput {
+            name: project_name.clone(),
+            classification,
+            team_size,
+            users,
+            expected_lifetime,
+            surfaces,
+            runtime_environments,
+            constraints: system_compiler::CharterProjectConstraintsInput {
+                deadline,
+                budget,
+                experience_notes: experience_notes.clone(),
+                must_use_tech,
+            },
+            operational_reality: system_compiler::CharterOperationalRealityInput {
+                in_production_today,
+                prod_users_or_data,
+                external_contracts_to_preserve,
+                uptime_expectations,
+            },
+            default_implications: system_compiler::CharterDefaultImplicationsInput {
+                backward_compatibility,
+                migration_planning,
+                rollout_controls,
+                deprecation_policy,
+                observability_threshold,
+            },
+        },
+        posture: system_compiler::CharterPostureInput {
+            rubric_scale: "1-5".to_string(),
+            baseline_level,
+            baseline_rationale,
+        },
+        domains,
+        dimensions,
+        exceptions: system_compiler::CharterExceptionsInput {
+            approvers,
+            record_location,
+            minimum_fields,
+        },
+        debt_tracking: system_compiler::CharterDebtTrackingInput {
+            system: debt_tracking_system,
+            labels: debt_tracking_labels,
+            review_cadence: debt_tracking_review_cadence,
+        },
+        decision_records: system_compiler::CharterDecisionRecordsInput {
+            enabled: decision_records_enabled,
+            path: decision_records_path,
+            format: decision_records_format,
+        },
+    })
+}
+
+fn prompt_line(prompt: &str) -> Result<String, String> {
+    print!("{prompt}: ");
+    io::stdout().flush().map_err(|err| {
+        render_author_custom_refusal(
+            "REFUSED",
+            "PromptWriteFailure",
+            &format!("failed to render guided prompt: {err}"),
+            "interactive terminal",
+            "repair the interactive terminal and retry `system author charter`",
+        )
+    })?;
+
+    let mut value = String::new();
+    let bytes_read = io::stdin().read_line(&mut value).map_err(|err| {
+        render_author_custom_refusal(
+            "REFUSED",
+            "PromptReadFailure",
+            &format!("failed to read guided answer: {err}"),
+            "interactive terminal",
+            "repair the interactive terminal and retry `system author charter`",
+        )
+    })?;
+
+    if bytes_read == 0 {
+        return Err(render_author_custom_refusal(
+            "REFUSED",
+            "InterviewIncomplete",
+            "guided charter interview ended before all required answers were collected",
+            "structured charter input",
+            "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+        ));
+    }
+
+    Ok(value.trim().to_string())
+}
+
+fn prompt_required_concrete(
+    prompt: &str,
+    follow_up_prompt: &str,
+    field_name: &str,
+) -> Result<String, String> {
+    let value = prompt_line(prompt)?;
+    if let Some(normalized) = normalize_required_free_text(&value) {
+        return Ok(normalized);
+    }
+
+    let follow_up = prompt_line(follow_up_prompt)?;
+    if let Some(normalized) = normalize_required_free_text(&follow_up) {
+        return Ok(normalized);
+    }
+
+    Err(render_interview_incomplete_refusal(&format!(
+        "guided charter interview could not normalize a concrete answer for {field_name}"
+    )))
+}
+
+fn prompt_optional(prompt: &str) -> Result<String, String> {
+    prompt_line(prompt).map(|value| normalize_free_text_answer(&value))
+}
+
+fn prompt_with_default(prompt: &str, default_value: &str) -> Result<String, String> {
+    let value = prompt_line(&format!("{prompt} [{default_value}]"))?;
+    if value.trim().is_empty() {
+        Ok(default_value.to_string())
+    } else {
+        Ok(normalize_free_text_answer(&value))
+    }
+}
+
+fn prompt_bool(prompt: &str) -> Result<bool, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match value.trim().to_ascii_lowercase().as_str() {
+            "y" | "yes" | "true" => return Ok(true),
+            "n" | "no" | "false" => return Ok(false),
+            _ => println!("Expected yes/no."),
+        }
+    }
+}
+
+fn prompt_bool_with_default(prompt: &str, default_value: bool) -> Result<bool, String> {
+    let default_label = if default_value { "yes" } else { "no" };
+    loop {
+        let value = prompt_line(&format!("{prompt} [yes|no] [{default_label}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value);
+        }
+        match value.trim().to_ascii_lowercase().as_str() {
+            "y" | "yes" | "true" => return Ok(true),
+            "n" | "no" | "false" => return Ok(false),
+            _ => println!("Expected yes/no."),
+        }
+    }
+}
+
+fn prompt_u32(prompt: &str) -> Result<u32, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match value.trim().parse::<u32>() {
+            Ok(parsed) if parsed > 0 => return Ok(parsed),
+            _ => println!("Expected an integer greater than 0."),
+        }
+    }
+}
+
+fn prompt_u8_in_range(prompt: &str, min: u8, max: u8) -> Result<u8, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match value.trim().parse::<u8>() {
+            Ok(parsed) if (min..=max).contains(&parsed) => return Ok(parsed),
+            _ => println!("Expected an integer in the allowed range."),
+        }
+    }
+}
+
+fn prompt_u8_in_range_with_default(
+    prompt: &str,
+    min: u8,
+    max: u8,
+    default_value: u8,
+) -> Result<u8, String> {
+    loop {
+        let value = prompt_line(&format!("{prompt} [{default_value}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value);
+        }
+        match value.trim().parse::<u8>() {
+            Ok(parsed) if (min..=max).contains(&parsed) => return Ok(parsed),
+            _ => println!("Expected an integer in the allowed range."),
+        }
+    }
+}
+
+fn prompt_choice<T>(prompt: &str, parser: fn(&str) -> Result<T, String>) -> Result<T, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match parser(&value) {
+            Ok(parsed) => return Ok(parsed),
+            Err(err) => println!("{err}"),
+        }
+    }
+}
+
+fn prompt_csv_choice<T>(
+    prompt: &str,
+    parser: fn(&str) -> Result<T, String>,
+) -> Result<Vec<T>, String> {
+    loop {
+        let value = prompt_line(prompt)?;
+        match split_csv_required(&value) {
+            Ok(items) => {
+                let mut parsed = Vec::new();
+                let mut error = None;
+                for item in items {
+                    match parser(&item) {
+                        Ok(value) => parsed.push(value),
+                        Err(err) => {
+                            error = Some(err);
+                            break;
+                        }
+                    }
+                }
+                if let Some(err) = error {
+                    println!("{err}");
+                    continue;
+                }
+                return Ok(parsed);
+            }
+            Err(err) => println!("{err}"),
+        }
+    }
+}
+
+fn prompt_csv_optional(prompt: &str) -> Result<Vec<String>, String> {
+    let value = prompt_line(prompt)?;
+    if value.trim().is_empty() {
+        Ok(Vec::new())
+    } else {
+        split_csv_required(&value)
+    }
+}
+
+fn prompt_csv_non_empty_concrete(
+    prompt: &str,
+    follow_up_prompt: &str,
+    field_name: &str,
+) -> Result<Vec<String>, String> {
+    let value = prompt_line(prompt)?;
+    if let Some(items) = normalize_required_csv(&value) {
+        return Ok(items);
+    }
+
+    let follow_up = prompt_line(follow_up_prompt)?;
+    if let Some(items) = normalize_required_csv(&follow_up) {
+        return Ok(items);
+    }
+
+    Err(render_interview_incomplete_refusal(&format!(
+        "guided charter interview could not normalize a concrete answer for {field_name}"
+    )))
+}
+
+fn prompt_required_concrete_with_default(
+    prompt: &str,
+    default_value: &str,
+    field_name: &str,
+) -> Result<String, String> {
+    loop {
+        let value = prompt_line(&format!("{prompt} [{default_value}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value.to_string());
+        }
+        if let Some(normalized) = normalize_required_free_text(&value) {
+            return Ok(normalized);
+        }
+        println!("Provide a concrete answer or press enter to keep the baseline.");
+        println!(
+            "guided charter interview needs a concrete answer for {field_name} when customizing"
+        );
+    }
+}
+
+fn prompt_csv_non_empty_concrete_with_default(
+    prompt: &str,
+    default_value: &[String],
+    field_name: &str,
+) -> Result<Vec<String>, String> {
+    let default_display = join_csv_default(default_value);
+    loop {
+        let value = prompt_line(&format!("{prompt} [{default_display}]"))?;
+        if value.trim().is_empty() {
+            return Ok(default_value.to_vec());
+        }
+        if let Some(items) = normalize_required_csv(&value) {
+            return Ok(items);
+        }
+        println!("Provide concrete comma-separated values or press enter to keep the baseline.");
+        println!(
+            "guided charter interview needs a concrete answer for {field_name} when customizing"
+        );
+    }
+}
+
+fn prompt_csv_optional_with_default(
+    prompt: &str,
+    default_value: &[String],
+) -> Result<Vec<String>, String> {
+    let default_display = join_csv_default(default_value);
+    let value = prompt_line(&format!("{prompt} [{default_display}]"))?;
+    if value.trim().is_empty() {
+        Ok(default_value.to_vec())
+    } else {
+        split_csv_required(&value)
+    }
+}
+
+fn split_csv_required(value: &str) -> Result<Vec<String>, String> {
+    let items = value
+        .split(',')
+        .map(normalize_free_text_answer)
+        .filter(|item| !item.is_empty())
+        .collect::<Vec<_>>();
+    if items.is_empty() {
+        Err("Provide at least one comma-separated value.".to_string())
+    } else {
+        Ok(items)
+    }
+}
+
+fn normalize_required_free_text(value: &str) -> Option<String> {
+    let normalized = normalize_free_text_answer(value);
+    if normalized.is_empty() || is_unusably_vague_text(&normalized) {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn normalize_required_csv(value: &str) -> Option<Vec<String>> {
+    let items = split_csv_required(value).ok()?;
+    if items.iter().any(|item| is_unusably_vague_text(item)) {
+        None
+    } else {
+        Some(items)
+    }
+}
+
+fn normalize_free_text_answer(value: &str) -> String {
+    system_compiler::normalize_charter_free_text(value)
+}
+
+fn join_csv_default(items: &[String]) -> String {
+    if items.is_empty() {
+        "none".to_string()
+    } else {
+        items.join(", ")
+    }
+}
+
+fn is_unusably_vague_text(value: &str) -> bool {
+    system_compiler::is_unusably_vague_charter_text(value)
+}
+
+fn render_interview_incomplete_refusal(summary: &str) -> String {
+    render_author_custom_refusal(
+        "REFUSED",
+        "InterviewIncomplete",
+        summary,
+        "structured charter input",
+        "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+    )
+}
+
+fn parse_project_classification(
+    value: &str,
+) -> Result<system_compiler::CharterProjectClassification, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "greenfield" => Ok(system_compiler::CharterProjectClassification::Greenfield),
+        "brownfield" => Ok(system_compiler::CharterProjectClassification::Brownfield),
+        "integration" => Ok(system_compiler::CharterProjectClassification::Integration),
+        "modernization" => Ok(system_compiler::CharterProjectClassification::Modernization),
+        "hardening" => Ok(system_compiler::CharterProjectClassification::Hardening),
+        _ => Err(
+            "Expected one of greenfield, brownfield, integration, modernization, or hardening."
+                .to_string(),
+        ),
+    }
+}
+
+fn parse_audience(value: &str) -> Result<system_compiler::CharterAudience, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "internal" => Ok(system_compiler::CharterAudience::Internal),
+        "external" => Ok(system_compiler::CharterAudience::External),
+        "mixed" => Ok(system_compiler::CharterAudience::Mixed),
+        _ => Err("Expected one of internal, external, or mixed.".to_string()),
+    }
+}
+
+fn parse_expected_lifetime(
+    value: &str,
+) -> Result<system_compiler::CharterExpectedLifetime, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "days" => Ok(system_compiler::CharterExpectedLifetime::Days),
+        "weeks" => Ok(system_compiler::CharterExpectedLifetime::Weeks),
+        "months" => Ok(system_compiler::CharterExpectedLifetime::Months),
+        "years" => Ok(system_compiler::CharterExpectedLifetime::Years),
+        _ => Err("Expected one of days, weeks, months, or years.".to_string()),
+    }
+}
+
+fn parse_surface(value: &str) -> Result<system_compiler::CharterSurface, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "web_app" => Ok(system_compiler::CharterSurface::WebApp),
+        "api" => Ok(system_compiler::CharterSurface::Api),
+        "cli" => Ok(system_compiler::CharterSurface::Cli),
+        "lib" => Ok(system_compiler::CharterSurface::Lib),
+        "infra" => Ok(system_compiler::CharterSurface::Infra),
+        "ml" => Ok(system_compiler::CharterSurface::Ml),
+        _ => Err("Expected one of web_app, api, cli, lib, infra, or ml.".to_string()),
+    }
+}
+
+fn parse_runtime_environment(
+    value: &str,
+) -> Result<system_compiler::CharterRuntimeEnvironment, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "browser" => Ok(system_compiler::CharterRuntimeEnvironment::Browser),
+        "server" => Ok(system_compiler::CharterRuntimeEnvironment::Server),
+        "cloud" => Ok(system_compiler::CharterRuntimeEnvironment::Cloud),
+        "on_prem" => Ok(system_compiler::CharterRuntimeEnvironment::OnPrem),
+        "edge" => Ok(system_compiler::CharterRuntimeEnvironment::Edge),
+        _ => Err("Expected one of browser, server, cloud, on_prem, or edge.".to_string()),
+    }
+}
+
+fn parse_backward_compatibility(
+    value: &str,
+) -> Result<system_compiler::CharterBackwardCompatibility, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "required" => Ok(system_compiler::CharterBackwardCompatibility::Required),
+        "not_required" => Ok(system_compiler::CharterBackwardCompatibility::NotRequired),
+        "boundary_only" => Ok(system_compiler::CharterBackwardCompatibility::BoundaryOnly),
+        _ => Err("Expected one of required, not_required, or boundary_only.".to_string()),
+    }
+}
+
+fn parse_requiredness(value: &str) -> Result<system_compiler::CharterRequiredness, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "required" => Ok(system_compiler::CharterRequiredness::Required),
+        "not_required" => Ok(system_compiler::CharterRequiredness::NotRequired),
+        _ => Err("Expected one of required or not_required.".to_string()),
+    }
+}
+
+fn parse_rollout_controls(value: &str) -> Result<system_compiler::CharterRolloutControls, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "none" => Ok(system_compiler::CharterRolloutControls::None),
+        "lightweight" => Ok(system_compiler::CharterRolloutControls::Lightweight),
+        "required" => Ok(system_compiler::CharterRolloutControls::Required),
+        _ => Err("Expected one of none, lightweight, or required.".to_string()),
+    }
+}
+
+fn parse_deprecation_policy(
+    value: &str,
+) -> Result<system_compiler::CharterDeprecationPolicy, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "required" => Ok(system_compiler::CharterDeprecationPolicy::Required),
+        "not_required_yet" => Ok(system_compiler::CharterDeprecationPolicy::NotRequiredYet),
+        _ => Err("Expected one of required or not_required_yet.".to_string()),
+    }
+}
+
+fn parse_observability_threshold(
+    value: &str,
+) -> Result<system_compiler::CharterObservabilityThreshold, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "minimal" => Ok(system_compiler::CharterObservabilityThreshold::Minimal),
+        "standard" => Ok(system_compiler::CharterObservabilityThreshold::Standard),
+        "high" => Ok(system_compiler::CharterObservabilityThreshold::High),
+        "regulated" => Ok(system_compiler::CharterObservabilityThreshold::Regulated),
+        _ => Err("Expected one of minimal, standard, high, or regulated.".to_string()),
+    }
+}
+
+fn default_exception_minimum_fields() -> Vec<String> {
+    [
+        "what",
+        "why",
+        "scope",
+        "risk",
+        "owner",
+        "expiry_or_revisit_date",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
+}
+
+fn collect_dimension_inputs(
+    baseline_level: u8,
+    project_name: &str,
+    in_production_today: bool,
+) -> Result<Vec<system_compiler::CharterDimensionInput>, String> {
+    let mut dimensions = Vec::with_capacity(all_dimension_names().len());
+    for name in all_dimension_names() {
+        let baseline =
+            default_dimension_input(name, baseline_level, project_name, in_production_today);
+        let dimension_label = dimension_label(name);
+        let keep_baseline =
+            prompt_bool_with_default(&format!("Keep baseline for {dimension_label}?"), true)?;
+        if keep_baseline {
+            dimensions.push(baseline);
+            continue;
+        }
+
+        let level = Some(prompt_u8_in_range_with_default(
+            &format!("{dimension_label} level [1-5]"),
+            1,
+            5,
+            baseline.level.unwrap_or(baseline_level),
+        )?);
+        let default_stance = prompt_required_concrete_with_default(
+            &format!("{dimension_label} default stance"),
+            &baseline.default_stance,
+            &format!("{dimension_label} default stance"),
+        )?;
+        let raise_the_bar_triggers = prompt_csv_non_empty_concrete_with_default(
+            &format!("{dimension_label} raise-the-bar triggers (comma-separated)"),
+            &baseline.raise_the_bar_triggers,
+            &format!("{dimension_label} raise-the-bar triggers"),
+        )?;
+        let allowed_shortcuts = prompt_csv_non_empty_concrete_with_default(
+            &format!("{dimension_label} allowed shortcuts (comma-separated)"),
+            &baseline.allowed_shortcuts,
+            &format!("{dimension_label} allowed shortcuts"),
+        )?;
+        let red_lines = prompt_csv_non_empty_concrete_with_default(
+            &format!("{dimension_label} red lines (comma-separated)"),
+            &baseline.red_lines,
+            &format!("{dimension_label} red lines"),
+        )?;
+        let domain_overrides = prompt_csv_optional_with_default(
+            &format!("{dimension_label} domain overrides (comma-separated, optional)"),
+            &baseline.domain_overrides,
+        )?;
+
+        dimensions.push(system_compiler::CharterDimensionInput {
+            name,
+            level,
+            default_stance,
+            raise_the_bar_triggers,
+            allowed_shortcuts,
+            red_lines,
+            domain_overrides,
+        });
+    }
+    Ok(dimensions)
+}
+
+fn all_dimension_names() -> [system_compiler::CharterDimensionName; 9] {
+    [
+        system_compiler::CharterDimensionName::SpeedVsQuality,
+        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
+        system_compiler::CharterDimensionName::TestingRigor,
+        system_compiler::CharterDimensionName::ScalabilityPerformance,
+        system_compiler::CharterDimensionName::ReliabilityOperability,
+        system_compiler::CharterDimensionName::SecurityPrivacy,
+        system_compiler::CharterDimensionName::Observability,
+        system_compiler::CharterDimensionName::DxToolingAutomation,
+        system_compiler::CharterDimensionName::UxPolishApiUsability,
+    ]
+}
+
+fn default_dimension_input(
+    name: system_compiler::CharterDimensionName,
+    baseline_level: u8,
+    project_name: &str,
+    in_production_today: bool,
+) -> system_compiler::CharterDimensionInput {
+    let dimension_label = dimension_label(name);
+    let production_trigger = if in_production_today {
+        "changes touching live users, data, or uptime"
+    } else {
+        "changes that create irreversible migration or trust-boundary cost"
+    };
+
+    system_compiler::CharterDimensionInput {
+        name,
+        level: Some(baseline_level),
+        default_stance: format!(
+            "{project_name} defaults to level {baseline_level} on {dimension_label}; raise the bar whenever blast radius, trust boundaries, or recovery cost increases."
+        ),
+        raise_the_bar_triggers: vec![
+            production_trigger.to_string(),
+            "new external interfaces or contracts".to_string(),
+        ],
+        allowed_shortcuts: vec![
+            "time-boxed exploration before merge".to_string(),
+            "fixture-backed or local-only iteration with explicit follow-up".to_string(),
+        ],
+        red_lines: vec![
+            format!("do not waive {dimension_label} expectations on shipped work"),
+            "do not hide known risk without recording an exception".to_string(),
+        ],
+        domain_overrides: Vec::new(),
+    }
+}
+
+fn dimension_label(name: system_compiler::CharterDimensionName) -> &'static str {
+    match name {
+        system_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
+        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
+            "type safety and static analysis"
+        }
+        system_compiler::CharterDimensionName::TestingRigor => "testing rigor",
+        system_compiler::CharterDimensionName::ScalabilityPerformance => {
+            "scalability and performance"
+        }
+        system_compiler::CharterDimensionName::ReliabilityOperability => {
+            "reliability and operability"
+        }
+        system_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
+        system_compiler::CharterDimensionName::Observability => "observability",
+        system_compiler::CharterDimensionName::DxToolingAutomation => {
+            "developer tooling and automation"
+        }
+        system_compiler::CharterDimensionName::UxPolishApiUsability => {
+            "ux polish and api usability"
+        }
+    }
+}
+
+fn print_subcommand_help(path: &[&str]) -> ExitCode {
+    let mut command = Cli::command();
+    let mut current = &mut command;
+    for segment in path {
+        current = current
+            .find_subcommand_mut(segment)
+            .expect("subcommand help path");
+    }
+    current.print_help().expect("help output");
+    println!();
+    ExitCode::SUCCESS
 }
 
 fn setup(args: SetupArgs) -> ExitCode {
@@ -1549,3 +2598,264 @@ const _: () = {
         std::mem::size_of::<system_compiler::Refusal>(),
     );
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    fn valid_structured_inputs_yaml() -> &'static str {
+        r#"schema_version: "0.1.0"
+project:
+  name: "System"
+  classification: greenfield
+  team_size: 2
+  users: internal
+  expected_lifetime: months
+  surfaces:
+    - cli
+    - api
+  runtime_environments:
+    - server
+  constraints:
+    deadline: ""
+    budget: ""
+    experience_notes: "small team"
+    must_use_tech:
+      - rust
+  operational_reality:
+    in_production_today: false
+    prod_users_or_data: ""
+    external_contracts_to_preserve: []
+    uptime_expectations: "best effort"
+  default_implications:
+    backward_compatibility: not_required
+    migration_planning: not_required
+    rollout_controls: lightweight
+    deprecation_policy: not_required_yet
+    observability_threshold: standard
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 3
+  baseline_rationale:
+    - "internal operators"
+    - "moderate blast radius"
+domains:
+  - name: "planning"
+    blast_radius: "medium"
+    touches:
+      - "internal operators"
+    constraints:
+      - "preserve trust boundaries"
+dimensions:
+  - name: speed_vs_quality
+    level: 3
+    default_stance: "optimize for durability over shortcuts"
+    raise_the_bar_triggers: ["production data"]
+    allowed_shortcuts: ["time-boxed exploration"]
+    red_lines: ["ship without review"]
+    domain_overrides: []
+  - name: type_safety_static_analysis
+    level: 3
+    default_stance: "type-safe by default"
+    raise_the_bar_triggers: ["cross-boundary interfaces"]
+    allowed_shortcuts: ["fixture-backed exploration"]
+    red_lines: ["unchecked public contracts"]
+    domain_overrides: []
+  - name: testing_rigor
+    level: 3
+    default_stance: "test the shipped path"
+    raise_the_bar_triggers: ["regression risk"]
+    allowed_shortcuts: ["manual validation for throwaway work"]
+    red_lines: ["merge without exercising the path"]
+    domain_overrides: []
+  - name: scalability_performance
+    level: 3
+    default_stance: "track obvious bottlenecks"
+    raise_the_bar_triggers: ["user-visible latency"]
+    allowed_shortcuts: ["defer micro-optimizations"]
+    red_lines: ["ignore known load cliffs"]
+    domain_overrides: []
+  - name: reliability_operability
+    level: 3
+    default_stance: "prefer recoverable changes"
+    raise_the_bar_triggers: ["long-lived state changes"]
+    allowed_shortcuts: ["local-only iteration"]
+    red_lines: ["unrecoverable migrations without a plan"]
+    domain_overrides: []
+  - name: security_privacy
+    level: 3
+    default_stance: "protect boundaries by default"
+    raise_the_bar_triggers: ["credentials or user data"]
+    allowed_shortcuts: ["synthetic data in local dev"]
+    red_lines: ["plaintext secrets"]
+    domain_overrides: []
+  - name: observability
+    level: 3
+    default_stance: "emit enough proof to debug production issues"
+    raise_the_bar_triggers: ["background jobs"]
+    allowed_shortcuts: ["manual logs for local-only work"]
+    red_lines: ["silent failures"]
+    domain_overrides: []
+  - name: dx_tooling_automation
+    level: 3
+    default_stance: "prefer automation that pays for itself"
+    raise_the_bar_triggers: ["frequent repeated workflows"]
+    allowed_shortcuts: ["temporary local scripts"]
+    red_lines: ["manual-only release steps"]
+    domain_overrides: []
+  - name: ux_polish_api_usability
+    level: 3
+    default_stance: "clear operator and API ergonomics"
+    raise_the_bar_triggers: ["external users"]
+    allowed_shortcuts: ["rough internal copy while iterating"]
+    red_lines: ["unclear operator failure modes"]
+    domain_overrides: []
+exceptions:
+  approvers:
+    - project_owner
+  record_location: ".system/charter/CHARTER.md#exceptions"
+  minimum_fields:
+    - what
+    - why
+    - scope
+    - risk
+    - owner
+    - expiry_or_revisit_date
+debt_tracking:
+  system: "issues"
+  labels:
+    - debt
+  review_cadence: "monthly"
+decision_records:
+  enabled: false
+  path: ""
+  format: ""
+"#
+    }
+
+    #[test]
+    fn execute_author_charter_command_renders_guided_success_with_injected_author() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let collect_called = Cell::new(false);
+        let author_called = Cell::new(false);
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs { from_inputs: None },
+            || Ok(dir.path().to_path_buf()),
+            || true,
+            |_| Ok(()),
+            || {
+                collect_called.set(true);
+                system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
+                    .map_err(|refusal| render_author_charter_refusal(&refusal))
+            },
+            |repo_root, input| {
+                author_called.set(true);
+                assert_eq!(repo_root, dir.path());
+                assert_eq!(input.project.name, "System");
+                Ok(system_compiler::AuthorCharterResult {
+                    canonical_repo_relative_path: ".system/charter/CHARTER.md",
+                    bytes_written: 42,
+                })
+            },
+        );
+
+        assert!(collect_called.get(), "guided input should be collected");
+        assert!(author_called.get(), "authoring closure should be called");
+        assert_eq!(rendered.exit_code, ExitCode::SUCCESS);
+        assert!(rendered.output.contains("OUTCOME: AUTHORED"));
+        assert!(rendered.output.contains("MODE: guided_interview"));
+        assert!(rendered.output.contains("SOURCE: interactive terminal"));
+    }
+
+    #[test]
+    fn execute_author_charter_command_renders_file_success_with_injected_author() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let inputs_path = dir.path().join("charter-inputs.yaml");
+        fs::write(&inputs_path, valid_structured_inputs_yaml()).expect("write inputs");
+        let author_called = Cell::new(false);
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs {
+                from_inputs: Some(inputs_path.to_string_lossy().into_owned()),
+            },
+            || Ok(dir.path().to_path_buf()),
+            || panic!("file inputs should not check interactive tty state"),
+            |_| Ok(()),
+            || panic!("file inputs should not run guided collection"),
+            |repo_root, input| {
+                author_called.set(true);
+                assert_eq!(repo_root, dir.path());
+                assert_eq!(input.project.name, "System");
+                Ok(system_compiler::AuthorCharterResult {
+                    canonical_repo_relative_path: ".system/charter/CHARTER.md",
+                    bytes_written: 24,
+                })
+            },
+        );
+
+        assert!(author_called.get(), "authoring closure should be called");
+        assert_eq!(rendered.exit_code, ExitCode::SUCCESS);
+        assert!(rendered.output.contains("MODE: structured_inputs_file"));
+        assert!(rendered
+            .output
+            .contains(&format!("SOURCE: {}", inputs_path.display())));
+    }
+
+    #[test]
+    fn execute_author_charter_command_refuses_without_tty_for_guided_mode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs { from_inputs: None },
+            || Ok(dir.path().to_path_buf()),
+            || false,
+            |_| panic!("guided non-tty refusal should happen before preflight"),
+            || panic!("guided collection should not run without tty"),
+            |_, _| panic!("authoring should not run without tty"),
+        );
+
+        assert_eq!(rendered.exit_code, ExitCode::from(1));
+        assert!(rendered.output.contains("OUTCOME: REFUSED"));
+        assert!(rendered.output.contains("CATEGORY: NonInteractiveRefusal"));
+        assert!(rendered
+            .output
+            .contains("run `system author charter --from-inputs <path|->`"));
+    }
+
+    #[test]
+    fn execute_author_charter_command_refuses_during_preflight_before_guided_collection() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let collect_called = Cell::new(false);
+
+        let rendered = execute_author_charter_command(
+            AuthorCharterArgs { from_inputs: None },
+            || Ok(dir.path().to_path_buf()),
+            || true,
+            |_| {
+                Err(system_compiler::AuthorCharterRefusal {
+                    kind: system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth,
+                    summary: "canonical charter truth already exists".to_string(),
+                    broken_subject: ".system/charter/CHARTER.md".to_string(),
+                    next_safe_action:
+                        "inspect `.system/charter/CHARTER.md` instead of rerunning `system author charter`"
+                            .to_string(),
+                })
+            },
+            || {
+                collect_called.set(true);
+                panic!("guided collection should not run after preflight refusal")
+            },
+            |_, _| panic!("authoring should not run after preflight refusal"),
+        );
+
+        assert!(
+            !collect_called.get(),
+            "guided input should not be collected"
+        );
+        assert_eq!(rendered.exit_code, ExitCode::from(1));
+        assert!(rendered.output.contains("OUTCOME: REFUSED"));
+        assert!(rendered.output.contains("CATEGORY: ExistingCanonicalTruth"));
+    }
+}

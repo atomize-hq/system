@@ -12,4 +12,5 @@ clap = { version = "4", features = ["derive"] }
 system-compiler = { path = "../compiler" }
 
 [dev-dependencies]
+portable-pty = "0.8"
 tempfile = "3"

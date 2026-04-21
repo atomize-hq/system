@@ -92,7 +92,7 @@ dimensions:
 
 exceptions:
   approvers: ["project_owner"]
-  record_location: "CHARTER.md#exceptions"
+  record_location: ".system/charter/CHARTER.md#exceptions"
   minimum_fields: ["what", "why", "scope", "risk", "owner", "expiry_or_revisit_date"]
 
 debt_tracking:
@@ -104,4 +104,3 @@ decision_records:
   enabled: true
   path: "docs/decisions"
   format: "md"
-

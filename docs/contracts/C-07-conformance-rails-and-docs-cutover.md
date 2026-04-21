@@ -24,6 +24,7 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 - planning packets resolve deterministically from canonical repo-local `.system/` artifacts
 - proof surfaces and refusal semantics remain stable and test-pinned
 - the fixture-backed execution demo cannot be mistaken for live slice execution
+- direct Codex transport drift on the shipped charter-authoring path cannot land without automated detection
 
 `C-07` is owned by `SEAM-7` and is intentionally **downstream-facing**: it binds tests, CI rails, install smoke, and docs/help parity to the contracts it consumes (`C-01..C-06`).
 
@@ -67,6 +68,12 @@ Reduced v1 MUST provide deterministic commands that:
 - validate compiler tests (at minimum: `cargo test -p system-compiler`)
 
 CI MUST run the same logical checks (or stricter) on supported targets.
+
+For the shipped `system author charter --from-inputs <path|->` surface, CI MUST also run a change-scoped live Codex smoke whenever the compiler-owned `codex exec` contract or charter authoring assets change. That smoke MUST use a fresh temp repo, invoke the real Codex CLI, and prove the `--output-last-message` write path before treating the changed authoring transport as landed.
+
+The live author smoke MUST be model-configurable via repo-owned environment variables. `SYSTEM_AUTHOR_CHARTER_CODEX_MODEL` selects the runtime model for compiler-owned charter synthesis, and the smoke wrapper MAY drive that through `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL`. CI MUST pin an explicit smoke model rather than inheriting whatever the Codex CLI default happens to be.
+
+For direct `codex exec` use in CI/CD, the live smoke runtime MUST provide `CODEX_API_KEY` to the Codex CLI. The repository MAY continue storing the secret as `OPENAI_API_KEY` in GitHub Actions so long as the workflow maps it into `CODEX_API_KEY` for the smoke step.
 
 ### Supported install-smoke targets
 
@@ -122,6 +129,10 @@ The following checklist is normative for conformance execution and closeout:
 - [ ] `cargo test --workspace`
 - [ ] `cargo test -p system-cli`
 - [ ] `cargo test -p system-compiler`
+- [ ] change-scoped live author smoke
+  - [ ] `SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1 cargo test -p system-cli --test author_cli structured_inputs_author_charter_succeeds_with_live_codex_transport -- --exact`
+  - [ ] `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL=<model>` can override the smoke model locally
+  - [ ] CI pins `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL=gpt-5.4-mini`
 - [ ] `cargo install --path crates/cli` (smoke)
 - [ ] `system --help` (smoke)
 - [ ] `system generate --help` and `system inspect --help` (help parity)

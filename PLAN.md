@@ -22,6 +22,16 @@ This milestone starts from the current shipped state on `main`:
 - canonical project truth lives under `.system/*`
 - setup-owned starter templates do not count as ready truth
 
+## Landing Notes
+
+These notes record what was actually required to land `M7` on 2026-04-20.
+
+- The originally planned `unified-agent-api` Codex integration did not survive contact with the installed `codex-cli`. The wrapper emitted `--ask-for-approval never`, but `codex-cli 0.121.0` rejected that flag outright, so the live authoring path failed before synthesis.
+- Fixing the transport mismatch alone was not enough. The raw charter template included author-facing commentary and scaffolding (`<!-- ... -->`, blockquote guidance, "Options (choose one)", `e.g.` bullets), and Codex sometimes copied that guidance into the final charter body.
+- The landed path therefore uses direct `codex exec` invocation from the compiler authoring seam and feeds it a sanitized render template instead of the raw authoring template.
+- The synthesis directive also had to become stricter: preserve the shipped top-level headings exactly, in order, and do not redesign the document structure.
+- A real fresh-temp-repo smoke was required to prove the slice, because override-backed tests did not exercise the live Codex transport or the actual final-message behavior. That smoke now remains a change-scoped CI gate whenever the shipped Codex authoring contract changes.
+
 ## Active Objective
 
 Ship the first real canonical authoring wedge after `M6`.
@@ -39,6 +49,8 @@ That means:
 
 This repo remains a compiler/generator product, not a chat runtime. The point of the wedge is to remove the blank-file moment after setup with one boring, exact, reproducible authoring path.
 
+The reduced-v1 pipeline-routing contract remains intentionally narrow: activation clauses use only `variables.<name> == true|false`.
+
 ## Exact Shipped Behavior
 
 The milestone is only done when all of the following are true:
@@ -51,7 +63,7 @@ The milestone is only done when all of the following are true:
 6. `system author charter --from-inputs <path|->` accepts a complete structured charter-input document from a file or stdin (`-`).
 7. There are no per-answer LLM synthesis calls during the interview loop.
 8. Both paths converge on one shared final synthesis engine and one final LLM synthesis pass.
-9. The shared LLM integration layer for `M7` uses the published [`unified-agent-api`](https://crates.io/crates/unified-agent-api) crate, version `0.2.2` as of 2026-04-19.
+9. The shared LLM integration layer for `M7` uses direct `codex exec` from the compiler authoring seam, capturing `--output-last-message` and validating the returned markdown before any canonical write.
 10. The human-guided surface is `system author charter`; the agent and automation surface is `system author charter --from-inputs <path|->`.
 11. The only persisted authored output in `M7` is `.system/charter/CHARTER.md`.
 12. If `.system/charter/CHARTER.md` already contains non-starter canonical truth, both authoring paths refuse. `M7` does not ship update/revise mode.
@@ -97,7 +109,7 @@ These decisions are already settled for `M7`:
 7. The interview loop may ask follow-up questions only when a required field remains empty or unusably vague after normalization.
 8. There are no per-answer LLM synthesis calls in the interview loop.
 9. The final charter is produced by one final LLM synthesis pass after the structured input set is complete.
-10. The LLM integration layer for `M7` is the published [`unified-agent-api`](https://crates.io/crates/unified-agent-api) crate, version `0.2.2` as of 2026-04-19, not a bespoke one-off provider binding.
+10. The LLM integration layer for `M7` is a compiler-owned direct `codex exec` invocation, not the previously planned `unified-agent-api` wrapper.
 11. `system author charter` is the human-guided surface; `system author charter --from-inputs <path|->` is the agent and automation surface.
 12. `M7` reuses existing compiler-owned charter assets where possible, but does not expose stage ids as the public UX.
 13. The public authoring wedge writes only `.system/charter/CHARTER.md`.
@@ -117,7 +129,7 @@ The repo already solves large parts of the problem. The plan must reuse those pi
 | canonical truth model and starter-template handling | [crates/compiler/src/setup.rs](crates/compiler/src/setup.rs), [crates/compiler/src/resolver.rs](crates/compiler/src/resolver.rs) | Reuse |
 | charter interview content | [core/stages/05_charter_interview.md](core/stages/05_charter_interview.md) | Reuse as implementation evidence, not public UX |
 | deterministic charter inputs flow | [core/stages/04_charter_inputs.md](core/stages/04_charter_inputs.md), [core/library/charter/charter_inputs_directive.md](core/library/charter/charter_inputs_directive.md), [core/library/charter/CHARTER_INPUTS.yaml.tmpl](core/library/charter/CHARTER_INPUTS.yaml.tmpl) | Reuse schema and prompt ingredients |
-| final charter synthesis ingredients | [core/stages/05_charter_synthesize.md](core/stages/05_charter_synthesize.md), [core/library/charter/charter_gen_directive.md](core/library/charter/charter_gen_directive.md), [core/library/charter/charter.md.tmpl](core/library/charter/charter.md.tmpl) | Reuse |
+| final charter synthesis ingredients | [core/stages/05_charter_synthesize.md](core/stages/05_charter_synthesize.md), [core/library/charter/charter_gen_directive.md](core/library/charter/charter_gen_directive.md), [core/library/charter/charter.md.tmpl](core/library/charter/charter.md.tmpl) | Reuse, but sanitize template commentary before synthesis |
 | safe file-write and mutation patterns | [crates/compiler/src/pipeline_capture.rs](crates/compiler/src/pipeline_capture.rs), repo-file access helpers | Reuse patterns, not artifact authority |
 | help/doc drift guards | [crates/cli/tests/help_drift_guard.rs](crates/cli/tests/help_drift_guard.rs), [crates/cli/tests/cli_surface.rs](crates/cli/tests/cli_surface.rs) | Reuse and extend |
 
@@ -235,7 +247,7 @@ Planned new or changed seams:
 - add `Command::Author(AuthorArgs)` beside the current top-level command enum in [crates/cli/src/main.rs](crates/cli/src/main.rs)
 - add a compiler-owned authoring entrypoint, expected as `crates/compiler/src/author.rs`
 - keep the structured input model charter-specific in `M7`; do not invent a generic document-authoring schema
-- wire the shared synthesis engine through the published [`unified-agent-api`](https://crates.io/crates/unified-agent-api) crate, version `0.2.2` as of 2026-04-19
+- wire the shared synthesis engine through a compiler-owned direct `codex exec` invocation that captures `--output-last-message`
 - use the existing canonical-artifact and repo-root safety helpers for validation and writes
 - add a new method artifact at `core/library/authoring/charter_authoring_method.md`
 
@@ -421,6 +433,8 @@ Critical-gap rule:
 - tests must not require live network access or a real provider
 - deterministic-input mode must be stable across reruns for identical inputs
 - docs/help parity must stay machine-checked because this milestone changes the public command surface
+- the live transport path requires a change-scoped automated fresh-temp-repo smoke in CI, plus a locally rerunnable smoke command, whenever the Codex CLI contract changes
+- runtime model selection remains optional and repo-owned: the shipped authoring path keeps the Codex default unless `SYSTEM_AUTHOR_CHARTER_CODEX_MODEL` is set, and the smoke wrapper can choose a local fast model or the CI-pinned `gpt-5.4-mini` via `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL`
 
 ### Performance smells that fail review
 

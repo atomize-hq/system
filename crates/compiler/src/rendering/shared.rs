@@ -209,6 +209,7 @@ pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
         NextSafeAction::RunSetup => "run `system setup`".to_string(),
         NextSafeAction::RunSetupInit => "run `system setup init`".to_string(),
         NextSafeAction::RunSetupRefresh => "run `system setup refresh`".to_string(),
+        NextSafeAction::RunAuthorCharter => "run `system author charter`".to_string(),
         NextSafeAction::CreateSystemRoot {
             canonical_repo_relative_path,
         } => format!("create canonical .system root at {canonical_repo_relative_path}"),
@@ -232,7 +233,7 @@ pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
         NextSafeAction::RunGenerate { packet_id } => {
             format!("run `system generate --packet {packet_id}`")
         }
-        NextSafeAction::RunDoctor => "run `doctor`".to_string(),
+        NextSafeAction::RunDoctor => "run `system doctor`".to_string(),
     }
 }
 

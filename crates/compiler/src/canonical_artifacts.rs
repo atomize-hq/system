@@ -15,7 +15,7 @@ impl CanonicalArtifactKind {
         match self {
             CanonicalArtifactKind::Charter => true,
             CanonicalArtifactKind::ProjectContext => false,
-            CanonicalArtifactKind::FeatureSpec => true,
+            CanonicalArtifactKind::FeatureSpec => false,
         }
     }
 
@@ -113,7 +113,7 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 3] = [
         kind: CanonicalArtifactKind::FeatureSpec,
         relative_path: ".system/feature_spec/FEATURE_SPEC.md",
         namespace_dir: ".system/feature_spec",
-        required: true,
+        required: false,
         setup_starter_template: FEATURE_SPEC_TEMPLATE,
     },
 ];

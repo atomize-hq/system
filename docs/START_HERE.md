@@ -14,19 +14,21 @@ The legacy Python harness still exists in this repo as **frozen reference materi
     - `.system/charter/CHARTER.md`
     - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
-  - `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
-  - The shipped starter templates are scaffolding only. Planning packets stay blocked until the required starter files are replaced with completed canonical truth.
+  - `FEATURE_SPEC.md` and `PROJECT_CONTEXT.md` are optional semantically for planning packets, but setup still creates both as starter files.
+  - The shipped starter templates are scaffolding only. Planning packets stay blocked until the charter starter file is replaced with completed canonical truth; starter `FEATURE_SPEC.md` is omitted until it becomes real source truth.
   - `setup refresh` preserves canonical files by default.
   - `setup refresh --rewrite` rewrites only setup-owned starter files.
   - `setup refresh --reset-state` resets only `.system/state/**`.
-  - Scaffolded setup flows end with a `fill canonical artifact ...` next safe action; ready setup flows end with `system doctor`.
+  - Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
 - **Canonical inputs live in repo-local `.system/`**.
   - Required:
     - `.system/charter/CHARTER.md`
-    - `.system/feature_spec/FEATURE_SPEC.md`
   - Optional:
+    - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
   - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
+- **Authoring method**
+  - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
 - **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, one explicit downstream handoff-emission wedge, and narrow route-state mutation.
   - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).

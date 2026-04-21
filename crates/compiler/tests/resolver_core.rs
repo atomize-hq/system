@@ -25,7 +25,7 @@ fn resolver_returns_typed_result_when_system_root_missing() {
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
     assert_eq!(result.c04_result_version, "reduced-v1");
-    assert_eq!(result.c03_schema_version, "reduced-v1");
+    assert_eq!(result.c03_schema_version, "reduced-v1.1");
     assert_eq!(result.c03_manifest_generation_version, 1);
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
     assert!(result.packet_result.sections.is_empty());
@@ -129,10 +129,14 @@ fn required_starter_template_blocks_without_ready_packet() {
         refusal.category,
         system_compiler::RefusalCategory::RequiredArtifactStarterTemplate
     );
-    assert!(result
-        .blockers
-        .iter()
-        .any(|blocker| blocker.category == BlockerCategory::RequiredArtifactStarterTemplate));
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "run `system author charter`"
+    );
+    assert!(result.blockers.iter().any(|blocker| blocker.category
+        == BlockerCategory::RequiredArtifactStarterTemplate
+        && render_next_safe_action_value(&blocker.next_safe_action)
+            == "run `system author charter`"));
     assert!(result.packet_result.sections.is_empty());
 }
 

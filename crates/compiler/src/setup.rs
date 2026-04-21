@@ -487,11 +487,15 @@ fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
 fn setup_next_safe_action(artifacts: &CanonicalArtifacts, disposition: SetupDisposition) -> String {
     match disposition {
         SetupDisposition::Ready => format!("run `{SYSTEM_DOCTOR_COMMAND}`"),
-        SetupDisposition::Scaffolded => format!(
-            "fill canonical artifact at {}",
-            first_required_starter_template_path(artifacts)
-                .expect("scaffolded setup outcome should identify a required starter template")
-        ),
+        SetupDisposition::Scaffolded => {
+            let next_path = first_required_starter_template_path(artifacts)
+                .expect("scaffolded setup outcome should identify a required starter template");
+            if next_path == ".system/charter/CHARTER.md" {
+                "run `system author charter`".to_string()
+            } else {
+                format!("fill canonical artifact at {next_path}")
+            }
+        }
     }
 }
 

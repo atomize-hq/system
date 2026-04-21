@@ -18,7 +18,7 @@ fn identity(
     let required = match kind {
         CanonicalArtifactKind::Charter => true,
         CanonicalArtifactKind::ProjectContext => false,
-        CanonicalArtifactKind::FeatureSpec => true,
+        CanonicalArtifactKind::FeatureSpec => false,
     };
 
     CanonicalArtifactIdentity {
@@ -261,4 +261,28 @@ fn required_starter_template_is_invalid_and_changes_fingerprint() {
         starter_truth.fingerprint_sha256,
         completed_truth.fingerprint_sha256
     );
+}
+
+#[test]
+fn optional_feature_spec_starter_template_is_freshness_valid() {
+    let charter = identity(
+        CanonicalArtifactKind::Charter,
+        ArtifactPresence::PresentNonEmpty,
+        Some("aaa"),
+        Some(123),
+    );
+    let feature_spec = CanonicalArtifactIdentity {
+        matches_setup_starter_template: true,
+        ..identity(
+            CanonicalArtifactKind::FeatureSpec,
+            ArtifactPresence::PresentNonEmpty,
+            Some("ccc"),
+            Some(456),
+        )
+    };
+
+    let truth = compute_freshness(&[charter, feature_spec], &[], &[]);
+
+    assert_eq!(truth.status, FreshnessStatus::Ok);
+    assert!(truth.issues.is_empty());
 }
