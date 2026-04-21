@@ -12,23 +12,26 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `setup` is the durable term. `setup init` is only the concrete first-run subcommand name.
   - The canonical setup-created starter files are exactly:
     - `.system/charter/CHARTER.md`
-    - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
-  - `FEATURE_SPEC.md` and `PROJECT_CONTEXT.md` are optional semantically for planning packets, but setup still creates both as starter files.
-  - The shipped starter templates are scaffolding only. Planning packets stay blocked until the charter starter file is replaced with completed canonical truth; starter `FEATURE_SPEC.md` is omitted until it becomes real source truth.
+    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - The shipped starter templates are scaffolding only. Setup creates the baseline file set, then `doctor` reports whether the repo is `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
   - `setup refresh` preserves canonical files by default.
   - `setup refresh --rewrite` rewrites only setup-owned starter files.
   - `setup refresh --reset-state` resets only `.system/state/**`.
-  - Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
+  - Setup hands off to `system doctor`, which renders an ordered checklist with artifact label, canonical path, per-artifact status, and the exact `system author ...` command for each remaining baseline action.
 - **Canonical inputs live in repo-local `.system/`**.
-  - Required:
+  - Baseline set:
     - `.system/charter/CHARTER.md`
-  - Optional:
-    - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
+    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - `FEATURE_SPEC.md` is not part of setup bootstrap or baseline `doctor`. It remains on the packet path.
   - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
 - **Authoring method**
   - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
+- **Baseline authoring**
+  - `system author charter` writes canonical charter truth.
+  - `system author project-context` writes canonical project-context truth.
+  - `system author environment-inventory` writes canonical environment-inventory truth.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
 - **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, one explicit downstream handoff-emission wedge, and narrow route-state mutation.
   - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
@@ -53,6 +56,10 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 - **Execution packet generation** is fixture-backed demo only via `execution.demo.packet`; live execution is explicitly refused.
 - **`inspect`** is the packet proof surface.
 - **`doctor`** is the recovery surface, it explains blockers and safe next actions.
+- **`doctor`** is also the baseline-readiness surface.
+  - It reports exactly `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
+  - When more than one baseline artifact still needs work, the checklist is ordered and item `1` is the next safe action.
+  - Each checklist line includes the artifact label, canonical path, status, and exact author command.
 - **Missing-root, invalid-root, and missing-artifact recovery** should route the operator back to the setup family rather than to ad hoc file-creation instructions.
 
 Fixture orientation for operators:
@@ -119,7 +126,7 @@ Important boundaries:
 - Pipeline operator surface and ID resolution: [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md)
 - Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
 - Downstream handoff bundle + trust model: [`C-13`](contracts/C-13-pipeline-handoff-and-downstream-trust.md)
-- Refusal + doctor blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
+- Doctor baseline readiness + blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)
 - Docs/help parity and conformance rails for the reviewed `pipeline` subset: [`C-11`](contracts/pipeline-proof-corpus-and-docs-cutover.md)

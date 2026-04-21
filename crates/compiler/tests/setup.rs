@@ -15,8 +15,8 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 fn starter_paths() -> [&'static str; 3] {
     [
         ".system/charter/CHARTER.md",
-        ".system/feature_spec/FEATURE_SPEC.md",
         ".system/project_context/PROJECT_CONTEXT.md",
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ]
 }
 
@@ -25,12 +25,12 @@ fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
         ".system/charter/CHARTER.md" => {
             setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::Charter)
         }
-        ".system/feature_spec/FEATURE_SPEC.md" => {
-            setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::FeatureSpec)
-        }
         ".system/project_context/PROJECT_CONTEXT.md" => {
             setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::ProjectContext)
         }
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md" => setup_starter_template_bytes(
+            system_compiler::CanonicalArtifactKind::EnvironmentInventory,
+        ),
         _ => panic!("unexpected starter path: {path}"),
     }
 }
@@ -70,8 +70,11 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
 
     assert!(repo_root.join(".system").is_dir());
     assert!(repo_root.join(".system/charter").is_dir());
-    assert!(repo_root.join(".system/feature_spec").is_dir());
     assert!(repo_root.join(".system/project_context").is_dir());
+    assert!(repo_root.join(".system/environment_inventory").is_dir());
+    assert!(!repo_root
+        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .exists());
     for path in starter_paths() {
         let bytes = fs::read(repo_root.join(path)).expect("starter bytes");
         assert!(
@@ -218,8 +221,8 @@ fn setup_refresh_preserves_existing_canonical_file_bytes_by_default() {
         b"custom charter\n",
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"custom spec\n",
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"custom inventory\n",
     );
     write_file(
         &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
@@ -315,17 +318,20 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
     )
     .expect("setup refresh");
 
-    assert_eq!(outcome.disposition, SetupDisposition::Ready);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
+    assert_eq!(
+        outcome.next_safe_action,
+        "run `system author project-context`"
+    );
     assert_eq!(
         fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
         b"keep this charter\n"
     );
     assert!(repo_root
-        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .join(".system/project_context/PROJECT_CONTEXT.md")
         .is_file());
     assert!(repo_root
-        .join(".system/project_context/PROJECT_CONTEXT.md")
+        .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
         .is_file());
 
     let labels_by_path = outcome
@@ -339,11 +345,11 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
         Some(&SetupActionLabel::Preserved)
     );
     assert_eq!(
-        labels_by_path.get(".system/feature_spec/FEATURE_SPEC.md"),
+        labels_by_path.get(".system/project_context/PROJECT_CONTEXT.md"),
         Some(&SetupActionLabel::Created)
     );
     assert_eq!(
-        labels_by_path.get(".system/project_context/PROJECT_CONTEXT.md"),
+        labels_by_path.get(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         Some(&SetupActionLabel::Created)
     );
 }
@@ -379,6 +385,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
     assert_eq!(outcome.next_safe_action, "run `system author charter`");
+    assert_eq!(outcome.plan.actions.len(), starter_paths().len());
     assert!(outcome
         .plan
         .actions
@@ -406,12 +413,12 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
 
     write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature\n",
-    );
-    write_file(
         &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
     );
     write_file(
         &repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
@@ -424,10 +431,11 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     write_file(&repo_root.join(".system/custom/KEEP.md"), b"keep me\n");
 
     let charter_before = fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter");
-    let feature_before =
-        fs::read(repo_root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature");
     let context_before =
         fs::read(repo_root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context");
+    let inventory_before =
+        fs::read(repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory");
 
     let outcome = run_setup(
         repo_root,
@@ -446,13 +454,14 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
         charter_before
     );
     assert_eq!(
-        fs::read(repo_root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature after"),
-        feature_before
-    );
-    assert_eq!(
         fs::read(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
             .expect("context after"),
         context_before
+    );
+    assert_eq!(
+        fs::read(repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory after"),
+        inventory_before
     );
     assert_eq!(
         fs::read(repo_root.join(".system/custom/KEEP.md")).expect("keep after"),
@@ -489,12 +498,12 @@ fn setup_refresh_reset_state_refuses_without_partial_deletion() {
 
     write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature\n",
-    );
-    write_file(
         &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
     );
     write_file(&repo_root.join(".system/state/a.yaml"), b"a: 1\n");
     let external = tempfile::tempdir().expect("external tempdir");
@@ -524,12 +533,12 @@ fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
     let plan_root = plan_dir.path();
     write_file(&plan_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &plan_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature\n",
-    );
-    write_file(
         &plan_root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
+    );
+    write_file(
+        &plan_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
     );
     write_file(
         &plan_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
@@ -551,12 +560,12 @@ fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
     let run_root = run_dir.path();
     write_file(&run_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &run_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"feature\n",
-    );
-    write_file(
         &run_root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
+    );
+    write_file(
+        &run_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
     );
     write_file(
         &run_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
@@ -575,7 +584,7 @@ fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
 }
 
 #[test]
-fn setup_refresh_ready_ignores_optional_project_context_starter_template() {
+fn setup_refresh_ready_ignores_non_setup_feature_spec_starter_template() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
@@ -584,12 +593,16 @@ fn setup_refresh_ready_ignores_optional_project_context_starter_template() {
         b"custom charter\n",
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        b"custom feature\n",
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"custom context\n",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
-        starter_template_bytes_for_path(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"custom inventory\n",
+    );
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::FeatureSpec),
     );
 
     let outcome = run_setup(

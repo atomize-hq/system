@@ -1,14 +1,14 @@
-use crate::canonical_artifacts::{
-    ArtifactPresence, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
+use super::{
+    acquire_authoring_lock, canonical_artifact_identity, format_repo_mutation_error,
+    format_repo_write_path_error, has_existing_non_starter_truth, render_exit_status,
+    summarize_process_output, validate_canonical_write_target, validate_system_root_for_authoring,
+    AuthoringLockError, SystemRootAuthoringError,
 };
-use crate::repo_file_access::{
-    resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
-    RepoRelativeWritePathError,
-};
+use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
+use crate::repo_file_access::write_repo_relative_bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
-use std::fs::{File, OpenOptions};
 use std::io::Write as IoWrite;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -19,11 +19,11 @@ pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".system/charter/CHARTER.md#
 const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const AUTHORING_METHOD_MARKDOWN: &str =
-    include_str!("../../../core/library/authoring/charter_authoring_method.md");
+    include_str!("../../../../core/library/authoring/charter_authoring_method.md");
 const CHARTER_SYNTHESIZE_DIRECTIVE_MARKDOWN: &str =
-    include_str!("../../../core/library/charter/charter_synthesize_directive.md");
+    include_str!("../../../../core/library/charter/charter_synthesize_directive.md");
 const CHARTER_TEMPLATE_MARKDOWN: &str =
-    include_str!("../../../core/library/charter/charter.md.tmpl");
+    include_str!("../../../../core/library/charter/charter.md.tmpl");
 // Tests can override the codex binary path without changing the shipped CLI surface.
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
@@ -69,16 +69,6 @@ const CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS: [&str; 6] = [
     "- e.g., ci, formatting, linting, release automation, local dev scripts",
     "- e.g., accessibility baseline, performance perception, error messaging clarity",
 ];
-const PROCESS_SUMMARY_LINE_LIMIT: usize = 3;
-const PROCESS_SUMMARY_CHAR_LIMIT: usize = 600;
-const PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS: [&str; 5] = [
-    "error:",
-    "unauthorized",
-    "incorrect api key",
-    "missing bearer",
-    "failed",
-];
-
 // Command path:
 // `system author charter` or `system author charter --from-inputs <path|->`
 // -> normalized `CharterStructuredInput`
@@ -1171,13 +1161,60 @@ pub fn render_charter_markdown(
     Ok(markdown)
 }
 
+pub fn validate_charter_markdown(markdown: &str) -> Result<(), String> {
+    if markdown.trim().is_empty() {
+        return Err("charter markdown was empty".to_string());
+    }
+    if !markdown.starts_with("# Engineering Charter — ") {
+        return Err("charter markdown must start with `# Engineering Charter — `".to_string());
+    }
+    if markdown.contains("{{") || markdown.contains("}}") {
+        return Err("charter markdown contains unresolved template placeholders".to_string());
+    }
+    if let Some(leaked_line) = find_charter_template_scaffold_line(markdown) {
+        return Err(format!(
+            "charter markdown contains leaked author-facing scaffold: `{}`",
+            leaked_line.trim()
+        ));
+    }
+    validate_required_heading_order_result(markdown)
+        .map_err(|summary| format!("charter markdown failed heading validation: {summary}"))?;
+    Ok(())
+}
+
 pub fn author_charter(
     repo_root: impl AsRef<Path>,
     input: &CharterStructuredInput,
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
     preflight_author_charter(repo_root)?;
-    let _lock = acquire_charter_authoring_lock(repo_root)?;
+    let _lock =
+        acquire_authoring_lock(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH).map_err(
+            |err| match err {
+                AuthoringLockError::WritePath(path_err) => AuthorCharterRefusal {
+                    kind: AuthorCharterRefusalKind::MutationRefused,
+                    summary: format_repo_write_path_error(
+                        CHARTER_AUTHORING_LOCK_REPO_PATH,
+                        path_err,
+                    ),
+                    broken_subject: "charter authoring lock".to_string(),
+                    next_safe_action:
+                        "repair the blocked charter authoring lock path and retry `system author charter`"
+                            .to_string(),
+                },
+                AuthoringLockError::Io { lock_path, source } => AuthorCharterRefusal {
+                    kind: AuthorCharterRefusalKind::MutationRefused,
+                    summary: format!(
+                        "failed to acquire exclusive charter authoring lock at {}: {source}",
+                        lock_path.display()
+                    ),
+                    broken_subject: "charter authoring lock".to_string(),
+                    next_safe_action:
+                        "wait for any in-progress `system author charter` run to finish or repair the lock path, then retry `system author charter`"
+                            .to_string(),
+                },
+            },
+        )?;
     preflight_author_charter(repo_root)?;
 
     let markdown = synthesize_charter_markdown(repo_root, input)?;
@@ -1206,17 +1243,17 @@ pub fn preflight_author_charter(repo_root: impl AsRef<Path>) -> Result<(), Autho
         next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
             .to_string(),
     })?;
-    validate_authoring_preconditions(&artifacts)?;
-    validate_charter_write_target(repo_root)?;
+    validate_authoring_preconditions(repo_root, &artifacts)?;
     Ok(())
 }
 
 fn validate_authoring_preconditions(
+    repo_root: &Path,
     artifacts: &CanonicalArtifacts,
 ) -> Result<(), AuthorCharterRefusal> {
-    match artifacts.system_root_status {
-        SystemRootStatus::Ok => {}
-        SystemRootStatus::Missing => {
+    match validate_system_root_for_authoring(artifacts) {
+        Ok(()) => {}
+        Err(SystemRootAuthoringError::Missing) => {
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::MissingSystemRoot,
                 summary:
@@ -1226,7 +1263,7 @@ fn validate_authoring_preconditions(
                 next_safe_action: "run `system setup`".to_string(),
             })
         }
-        SystemRootStatus::NotDir => {
+        Err(SystemRootAuthoringError::NotDir) => {
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::InvalidSystemRoot,
                 summary: "canonical `.system` root exists but is not a directory".to_string(),
@@ -1235,7 +1272,7 @@ fn validate_authoring_preconditions(
                     .to_string(),
             })
         }
-        SystemRootStatus::SymlinkNotAllowed => {
+        Err(SystemRootAuthoringError::SymlinkNotAllowed) => {
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::InvalidSystemRoot,
                 summary: "canonical `.system` root cannot be a symlink".to_string(),
@@ -1246,7 +1283,7 @@ fn validate_authoring_preconditions(
         }
     }
 
-    let charter = &artifacts.charter.identity;
+    let charter = canonical_artifact_identity(artifacts, CanonicalArtifactKind::Charter);
     if charter.kind != CanonicalArtifactKind::Charter {
         return Err(AuthorCharterRefusal {
             kind: AuthorCharterRefusalKind::ExistingCanonicalTruth,
@@ -1257,11 +1294,7 @@ fn validate_authoring_preconditions(
         });
     }
 
-    let existing_non_starter_truth = match charter.presence {
-        ArtifactPresence::PresentNonEmpty => !charter.matches_setup_starter_template,
-        ArtifactPresence::Missing | ArtifactPresence::PresentEmpty => false,
-    };
-    if existing_non_starter_truth {
+    if has_existing_non_starter_truth(charter) {
         return Err(AuthorCharterRefusal {
             kind: AuthorCharterRefusalKind::ExistingCanonicalTruth,
             summary:
@@ -1274,6 +1307,17 @@ fn validate_authoring_preconditions(
             ),
         });
     }
+
+    validate_canonical_write_target(repo_root, CANONICAL_CHARTER_REPO_PATH).map_err(|err| {
+        AuthorCharterRefusal {
+            kind: AuthorCharterRefusalKind::MutationRefused,
+            summary: format_repo_write_path_error(CANONICAL_CHARTER_REPO_PATH, err),
+            broken_subject: "canonical charter write target".to_string(),
+            next_safe_action:
+                "repair the blocked canonical charter path and retry `system author charter`"
+                    .to_string(),
+        }
+    })?;
 
     Ok(())
 }
@@ -1537,109 +1581,6 @@ fn validate_required_heading_order_result(markdown: &str) -> Result<(), String> 
         previous = position;
     }
     Ok(())
-}
-
-fn validate_charter_write_target(repo_root: &Path) -> Result<(), AuthorCharterRefusal> {
-    resolve_repo_relative_write_path(repo_root, CANONICAL_CHARTER_REPO_PATH).map_err(|err| {
-        AuthorCharterRefusal {
-            kind: AuthorCharterRefusalKind::MutationRefused,
-            summary: format_repo_write_path_error(CANONICAL_CHARTER_REPO_PATH, err),
-            broken_subject: "canonical charter write target".to_string(),
-            next_safe_action:
-                "repair the blocked canonical charter path and retry `system author charter`"
-                    .to_string(),
-        }
-    })?;
-    Ok(())
-}
-
-fn acquire_charter_authoring_lock(
-    repo_root: &Path,
-) -> Result<CharterAuthoringLockGuard, AuthorCharterRefusal> {
-    let lock_path = resolve_repo_relative_write_path(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH)
-        .map_err(|err| AuthorCharterRefusal {
-        kind: AuthorCharterRefusalKind::MutationRefused,
-        summary: format_repo_write_path_error(CHARTER_AUTHORING_LOCK_REPO_PATH, err),
-        broken_subject: "charter authoring lock".to_string(),
-        next_safe_action:
-            "repair the blocked charter authoring lock path and retry `system author charter`"
-                .to_string(),
-    })?;
-
-    if let Some(parent) = lock_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|source| charter_authoring_lock_refusal(&lock_path, source))?;
-    }
-
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&lock_path)
-        .map_err(|source| charter_authoring_lock_refusal(&lock_path, source))?;
-
-    lock_charter_authoring_file(&file, libc::LOCK_EX)
-        .map_err(|source| charter_authoring_lock_refusal(&lock_path, source))?;
-
-    Ok(CharterAuthoringLockGuard { file, lock_path })
-}
-
-fn charter_authoring_lock_refusal(
-    lock_path: &Path,
-    source: std::io::Error,
-) -> AuthorCharterRefusal {
-    AuthorCharterRefusal {
-        kind: AuthorCharterRefusalKind::MutationRefused,
-        summary: format!(
-            "failed to acquire exclusive charter authoring lock at {}: {source}",
-            lock_path.display()
-        ),
-        broken_subject: "charter authoring lock".to_string(),
-        next_safe_action:
-            "wait for any in-progress `system author charter` run to finish or repair the lock path, then retry `system author charter`"
-                .to_string(),
-    }
-}
-
-#[cfg(unix)]
-fn lock_charter_authoring_file(file: &File, operation: libc::c_int) -> Result<(), std::io::Error> {
-    use std::os::unix::io::AsRawFd;
-
-    loop {
-        let result = unsafe { libc::flock(file.as_raw_fd(), operation) };
-        if result == 0 {
-            return Ok(());
-        }
-
-        let error = std::io::Error::last_os_error();
-        if error.kind() == std::io::ErrorKind::Interrupted {
-            continue;
-        }
-
-        return Err(error);
-    }
-}
-
-#[cfg(not(unix))]
-fn lock_charter_authoring_file(
-    _file: &File,
-    _operation: libc::c_int,
-) -> Result<(), std::io::Error> {
-    Ok(())
-}
-
-struct CharterAuthoringLockGuard {
-    file: File,
-    lock_path: PathBuf,
-}
-
-impl Drop for CharterAuthoringLockGuard {
-    fn drop(&mut self) {
-        #[cfg(unix)]
-        let _ = lock_charter_authoring_file(&self.file, libc::LOCK_UN);
-        let _ = &self.lock_path;
-    }
 }
 
 fn structured_input_refusal(
@@ -2007,106 +1948,6 @@ fn validate_synthesized_charter_markdown(
     Ok(())
 }
 
-fn summarize_process_output(stdout: &[u8], stderr: &[u8]) -> String {
-    let stdout = String::from_utf8_lossy(stdout);
-    let stderr = String::from_utf8_lossy(stderr);
-
-    let stderr = summarize_stderr_for_refusal(stderr.trim());
-    if !stderr.is_empty() {
-        return format!("; stderr: {stderr}");
-    }
-
-    let stdout = summarize_stream_tail(stdout.trim());
-    if stdout.is_empty() {
-        String::new()
-    } else {
-        format!("; stdout: {stdout}")
-    }
-}
-
-fn truncate_for_summary(value: &str) -> String {
-    if value.chars().count() <= PROCESS_SUMMARY_CHAR_LIMIT {
-        value.to_string()
-    } else {
-        let tail = value
-            .chars()
-            .rev()
-            .take(PROCESS_SUMMARY_CHAR_LIMIT)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect::<String>();
-        format!("...{tail}")
-    }
-}
-
-fn summarize_stderr_for_refusal(stderr: &str) -> String {
-    let high_signal = collect_stream_summary_lines(stderr, true);
-    if !high_signal.is_empty() {
-        return truncate_for_summary(&high_signal.join(" | "));
-    }
-
-    summarize_stream_tail(stderr)
-}
-
-fn summarize_stream_tail(stream: &str) -> String {
-    let lines = collect_stream_summary_lines(stream, false);
-    if lines.is_empty() {
-        String::new()
-    } else {
-        truncate_for_summary(&lines.join(" | "))
-    }
-}
-
-fn collect_stream_summary_lines(stream: &str, prefer_high_signal: bool) -> Vec<String> {
-    let mut selected = Vec::new();
-    let mut seen = Vec::new();
-
-    for raw_line in stream.lines().rev() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        let normalized = normalize_process_summary_line(line);
-        if normalized.is_empty() || seen.iter().any(|existing| existing == &normalized) {
-            continue;
-        }
-        if prefer_high_signal && !is_high_signal_process_summary_line(&normalized) {
-            continue;
-        }
-
-        seen.push(normalized);
-        selected.push(line.to_string());
-        if selected.len() == PROCESS_SUMMARY_LINE_LIMIT {
-            break;
-        }
-    }
-
-    selected.reverse();
-    selected
-}
-
-fn normalize_process_summary_line(line: &str) -> String {
-    line.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_ascii_lowercase()
-}
-
-fn is_high_signal_process_summary_line(normalized_line: &str) -> bool {
-    PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS
-        .iter()
-        .any(|marker| normalized_line.contains(marker))
-}
-
-fn render_exit_status(code: Option<i32>) -> String {
-    match code {
-        Some(code) => format!("exit code {code}"),
-        None => "signal termination".to_string(),
-    }
-}
-
 fn require_non_empty(field: &str, value: &str, issues: &mut Vec<String>) {
     if value.trim().is_empty() {
         issues.push(format!("{field} must not be empty"));
@@ -2160,79 +2001,5 @@ fn require_concrete_list(field: &str, values: &[String], issues: &mut Vec<String
 fn require_level(field: &str, value: u8, issues: &mut Vec<String>) {
     if !(1..=5).contains(&value) {
         issues.push(format!("{field} must be between 1 and 5"));
-    }
-}
-
-fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
-    match err {
-        RepoRelativeMutationError::InvalidPath(reason) => {
-            format!("write target `{path}` is invalid: {reason}")
-        }
-        RepoRelativeMutationError::ParentNotDirectory(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a directory",
-                found.display()
-            )
-        }
-        RepoRelativeMutationError::NotRegularFile(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a regular file target",
-                found.display()
-            )
-        }
-        RepoRelativeMutationError::SymlinkNotAllowed(found) => {
-            format!(
-                "write target `{path}` cannot be written through symlink {}",
-                found.display()
-            )
-        }
-        RepoRelativeMutationError::ReadFailure {
-            path: found,
-            source,
-        }
-        | RepoRelativeMutationError::WriteFailure {
-            path: found,
-            source,
-        } => {
-            format!(
-                "failed to mutate write target `{path}` at {}: {source}",
-                found.display()
-            )
-        }
-    }
-}
-
-fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> String {
-    match err {
-        RepoRelativeWritePathError::InvalidPath(reason) => {
-            format!("write target `{path}` is invalid: {reason}")
-        }
-        RepoRelativeWritePathError::ParentNotDirectory(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a directory",
-                found.display()
-            )
-        }
-        RepoRelativeWritePathError::NotRegularFile(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a regular file target",
-                found.display()
-            )
-        }
-        RepoRelativeWritePathError::SymlinkNotAllowed(found) => {
-            format!(
-                "write target `{path}` cannot be written through symlink {}",
-                found.display()
-            )
-        }
-        RepoRelativeWritePathError::ReadFailure {
-            path: found,
-            source,
-        } => {
-            format!(
-                "failed to inspect write target `{path}` at {}: {source}",
-                found.display()
-            )
-        }
     }
 }

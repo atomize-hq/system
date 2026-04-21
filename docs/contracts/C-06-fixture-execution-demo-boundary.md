@@ -46,7 +46,7 @@ Downstream conformance (`SEAM-7`) consumes this contract to write tests and docs
 
 ### Request and packet identity
 
-- Reduced v1 MUST continue to expose only the verbs defined by `C-02` (`setup`, `generate`, `inspect`, `doctor`).
+- Reduced v1 MUST continue to expose only the verbs defined by `C-02` (`setup`, `author`, `pipeline`, `generate`, `inspect`, `doctor`).
 - The execution demo MUST be requested through the existing `generate` surface by selecting an execution-demo packet identity.
 - The canonical packet identities for this boundary are:
   - **Planning packet** (live): `planning.packet` (default)

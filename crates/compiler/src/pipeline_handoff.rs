@@ -309,7 +309,9 @@ pub fn emit_pipeline_handoff_bundle(
             .artifacts
             .into_iter()
             .filter_map(|artifact| {
-                if artifact.required || artifact.presence == ArtifactPresence::PresentNonEmpty {
+                if artifact.packet_required
+                    || artifact.presence == ArtifactPresence::PresentNonEmpty
+                {
                     artifact.content_sha256.map(|sha256| {
                         PipelineHandoffCanonicalArtifactFingerprint {
                             path: artifact.relative_path.to_string(),

@@ -135,12 +135,15 @@ Rules:
 - Do not wrap file contents in code fences.
 - The harness ignores extra blocks not declared in stage outputs.
 
-#### Repo file outputs (canonical docs)
+#### Repo file outputs (legacy repo docs)
 For `outputs.repo_files`, the harness will:
 - write a repo file block if the model emitted it, OR
 - copy from an artifact output with the same filename (basename match)
 
 Example: if a stage declares `${repo_root}/ENVIRONMENT_INVENTORY.md`, the harness will copy from `artifacts/foundation/ENVIRONMENT_INVENTORY.md` if needed.
+
+Current reduced-v1 product note:
+- repo-root `ENVIRONMENT_INVENTORY.md` is legacy harness behavior, not the shipped baseline canonical path
 
 ## Profile validation
 

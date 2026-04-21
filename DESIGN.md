@@ -151,12 +151,12 @@ Current reduced-v1 reality:
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` rewrites only the setup-owned starter files
 - `setup refresh --reset-state` resets only `.system/state/**`
-- scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`
+- setup hands off to `system doctor`, which renders baseline readiness and the next exact authoring action
 - the canonical setup-owned starter files are exactly:
   - `.system/charter/CHARTER.md`
-  - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
-- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `FEATURE_SPEC.md` stays off setup bootstrap and baseline doctor readiness; it remains on the packet path
 - this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`
 
 Design rule:
@@ -168,13 +168,14 @@ Finished interaction target:
 
 - expose the routed subcommand when bare `system setup` selects one
 - keep setup-owned file semantics explicit: preserve by default, rewrite only starter files, reset only `.system/state/**`
-- end with one exact next safe action: `run \`system author charter\`` for scaffolded setup or `system doctor` for ready setup
+- end with `system doctor`, which orders the baseline checklist and names the exact next authoring command when action is still required
 
 ### `author`
 
 Role:
 
 - canonical content-authoring surface for setup-created starter truth
+- the baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`
 
 Planned M7 reality:
 
@@ -276,8 +277,9 @@ Role:
 
 Current reduced-v1 reality:
 
-- still ships a transitional anatomy
-- not yet aligned with the full trust-header model used by `generate` and `inspect`
+- `doctor` is the recovery and baseline-readiness surface
+- it reports `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`
+- checklist rows include the artifact label, canonical path, per-artifact status, and exact author command when action is needed
 
 Design rule:
 
@@ -285,10 +287,10 @@ Design rule:
 
 Finished interaction target:
 
-- `doctor` should use the same trust-header posture as the finished product surfaces
 - `doctor` should translate blocker taxonomy into human-facing recovery language
 - `doctor` must not print Rust debug shapes in operator output
-- `doctor` ready state should confirm readiness in a way that makes retrying `generate` feel safe and obvious
+- `doctor` should keep packet readiness separate from baseline readiness
+- baseline checklist order should be stable and actionable
 
 ## Experience Layer Versus Command Layer
 
@@ -385,7 +387,7 @@ Current reduced-v1 interaction shape:
 - `pipeline compile` is now a shipped special case:
   - plain success is payload-only stdout
   - `--explain` is proof-only stdout
-- `doctor` is still transitional
+- `doctor` is a distinct recovery and baseline-readiness surface rather than a packet renderer
 - `setup` uses the setup-family anatomy rather than packet anatomy
 
 Design rule:
@@ -407,7 +409,7 @@ Do not let future-state intent leak into present-tense support claims.
 Examples:
 
 - say `setup` is the durable front door, and say `setup init` is only the concrete first-run subcommand
-- say `doctor` is the canonical recovery surface, but also say its shipped anatomy is still transitional
+- say `doctor` is the canonical recovery surface and the baseline-readiness surface
 - say `inspect` is the packet proof surface, and say compile proof lives on `pipeline compile --explain`
 - say `pipeline compile` is shipped for one bounded M2 target, but do not describe it as generic multi-stage compile support
 - do not pretend the current self-referential `inspect` next action is ideal
@@ -446,7 +448,6 @@ That loop breaks when a surface feels semantically wrong even if the code is tec
 Current examples of semantically wrong behavior:
 
 - `inspect` gives a self-referential handoff
-- `doctor` exposes implementation-shaped output instead of a finished recovery report
 
 When a future change touches one of these surfaces, prefer fixing the handoff quality over adding more explanatory prose.
 
@@ -474,10 +475,9 @@ Do this in order:
 
 These are acknowledged interaction-design debts, not hidden contradictions:
 
-- `doctor` still uses a transitional output anatomy
 - `inspect` currently emits a self-referential ready-path next action
 
-These gaps should be treated as the highest-value remaining CLI interaction work because they are the three moments where the product still feels unfinished at the exact point the operator most needs confidence.
+These gaps should be treated as the highest-value remaining CLI interaction work because they are the moments where the product still feels unfinished at the exact point the operator most needs confidence.
 
 These should be treated as future implementation and conformance work, not silently normalized.
 

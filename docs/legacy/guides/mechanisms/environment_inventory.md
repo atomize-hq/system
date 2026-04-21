@@ -1,8 +1,12 @@
-# Mechanism: Environment Inventory (`ENVIRONMENT_INVENTORY.md`)
+# Legacy Mechanism: Environment Inventory (`ENVIRONMENT_INVENTORY.md`)
 
 ## What it is
 
-`ENVIRONMENT_INVENTORY.md` is the **canonical store of record** for:
+This document describes the legacy Python-harness mechanism that used a repo-root environment inventory as its store-of-record.
+
+In the current reduced-v1 `M8` product story, the shipped baseline canonical path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+
+The legacy mechanism used `ENVIRONMENT_INVENTORY.md` as the historical store of record for:
 
 - environment variables
 - external services and endpoints
@@ -21,20 +25,20 @@ In practice, env vars and runtime assumptions are the #1 source of:
 
 Making env changes update the inventory is a simple, high-leverage discipline.
 
-## Canonical location (recommended)
+## Legacy repo-root location
 
-Use a stable, repo-root location as canonical:
+The legacy harness used a stable repo-root location:
 
 - `${repo_root}/ENVIRONMENT_INVENTORY.md`
 
-Your pipeline may also keep a copy under artifacts for stage linkage:
+The legacy harness could also keep an artifact copy for stage linkage:
 
 - `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
 
 ## How it works today
 
 - Rules + runner guidance should require:
-  - update the canonical repo-root inventory in the same change
+  - update the legacy repo-root inventory in the same change
   - keep the artifacts copy in sync when applicable
 
 ## Creating/Updating the inventory

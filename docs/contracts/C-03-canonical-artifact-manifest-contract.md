@@ -2,11 +2,11 @@
 contract_id: C-03
 seam_id: SEAM-3
 owner_seam: SEAM-3
-version: reduced-v1.1
+version: reduced-v1-m8
 currentness: current
 status: published
 revalidation_triggers:
-  - Any change to the canonical `.system/` artifact set, paths, or required/optional semantics.
+  - Any change to the canonical `.system/` artifact set, paths, baseline/setup/later-phase semantics, or canonical-path ownership.
   - Any change to the definition of `missing` vs `present_empty` vs `present_non_empty`.
   - Any change to artifact identity rules (including the content hashing algorithm or inputs).
   - Any change to freshness fields, field meanings, or deterministic ordering rules.
@@ -34,17 +34,25 @@ It exists so downstream seams (notably `SEAM-4` and `SEAM-7`) can treat canonica
 
 ### Canonical inputs (repo-local)
 
-The canonical project-truth inputs for reduced-v1 are repo-local files under `.system/` only.
+The canonical project-truth inputs for reduced-v1 `M8` are repo-local files under `.system/` only.
 
-The canonical input set MUST be exactly:
+The canonical artifact registry MUST model exactly four canonical artifacts:
 
-- Required:
+- baseline artifacts:
   - `.system/charter/CHARTER.md`
-- Optional:
   - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- later-phase artifact:
   - `.system/feature_spec/FEATURE_SPEC.md`
 
 No other file path is a direct canonical input under this contract.
+
+The registry MUST distinguish:
+
+- baseline-readiness participation
+- setup scaffolding participation
+- later feature-phase participation
+- canonical path ownership
 
 ### Runtime zones under `.system/`
 
@@ -91,9 +99,10 @@ This contract intentionally does not define refusal copy or recovery UX; it defi
 
 For each canonical input, the manifest MUST expose an artifact identity record with:
 
-- `kind`: one of `{ charter, project_context, feature_spec }`
+- `kind`: one of `{ charter, project_context, environment_inventory, feature_spec }`
 - `canonical_repo_relative_path`: the exact path listed in this contract
-- `requirement`: `{ required, optional }`
+- `baseline_participation`: `{ baseline, later_phase_only }`
+- `setup_participation`: `{ scaffolded_by_setup, not_scaffolded_by_setup }`
 - `presence`: `{ missing, present_empty, present_non_empty }`
 - `content_sha256`:
   - MUST be present when `presence` is `present_empty` or `present_non_empty`
@@ -106,7 +115,8 @@ Ordering:
 - The required ordering for reduced-v1 MUST be:
   1. `charter` (`.system/charter/CHARTER.md`)
   2. `project_context` (`.system/project_context/PROJECT_CONTEXT.md`)
-  3. `feature_spec` (`.system/feature_spec/FEATURE_SPEC.md`)
+  3. `environment_inventory` (`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`)
+  4. `feature_spec` (`.system/feature_spec/FEATURE_SPEC.md`)
 
 ### Freshness truth (contract-level shape)
 
@@ -197,8 +207,10 @@ Allowed issue categories include (non-exhaustive):
 
 - [ ] This contract is the only source of truth for canonical `.system/` inputs in reduced-v1.
 - [ ] The canonical input set and repo-relative paths are explicit and exhaustive.
-- [ ] `.system/charter/CHARTER.md` is the only required canonical input for planning readiness in reduced-v1.1.
-- [ ] `.system/project_context/PROJECT_CONTEXT.md` and `.system/feature_spec/FEATURE_SPEC.md` are optional canonical inputs for planning readiness in reduced-v1.1.
+- [ ] The canonical artifact registry models `CHARTER`, `PROJECT_CONTEXT`, `ENVIRONMENT_INVENTORY`, and `FEATURE_SPEC`.
+- [ ] Baseline readiness is defined only by `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.
+- [ ] Setup scaffolds only `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.
+- [ ] `FEATURE_SPEC` remains canonical later-phase truth and does not participate in baseline readiness.
 - [ ] `present_empty` is defined as exactly zero bytes (no whitespace trimming).
 - [ ] Missing vs empty semantics are unambiguous for both required and optional inputs.
 - [ ] Artifact identity includes `sha256` of raw bytes and is absent only when missing.

@@ -58,7 +58,7 @@ It is not the product backlog system, but it enables backlog-driven automation b
 
 This prevents the system from having to rediscover how strict to be for every feature.
 
-### 2) Project Context (reality snapshot, optional)
+### 2) Project Context (reality snapshot)
 
 **PROJECT_CONTEXT.md** exists to prevent agents from inventing constraints like:
 
@@ -67,9 +67,20 @@ This prevents the system from having to rediscover how strict to be for every fe
 * external contracts/integrations
 * infra assumptions
 
-It is optional and triggered when Charter leaves planning-critical unknowns.
+In the reduced-v1 `M8` baseline tier it is part of the baseline canonical truth set, even when the resulting document is intentionally minimal.
 
-### 3) Foundation Pack (project-specific defaults derived from Charter + Context)
+### 3) Environment Inventory (runtime/env truth)
+
+**ENVIRONMENT_INVENTORY.md** is the canonical baseline store of record for:
+
+* environment variables
+* runtime dependencies and external services
+* local dev / CI / prod assumptions
+* the update contract for env/runtime changes
+
+In the reduced-v1 `M8` baseline tier its canonical home is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+
+### 4) Foundation Pack (project-specific defaults derived from Charter + Context)
 
 Foundation Pack outputs concretize posture into reusable defaults:
 
@@ -78,11 +89,11 @@ Foundation Pack outputs concretize posture into reusable defaults:
 * `TEST_STRATEGY_BRIEF.md` (testing approach aligned to posture)
 * `QUALITY_GATES_SPEC.md` (exhaustive, explicit gate policy)
 * `quality_gates.yaml` (machine-readable gates definition)
-* `ENVIRONMENT_INVENTORY.md` (canonical store of env vars/services/ports/runtime assumptions)
+* environment-inventory content may still inform foundation outputs, but the baseline canonical environment inventory now lives in `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
 
 Foundation Pack is what makes downstream planning deterministic and reduces repeated questioning.
 
-### 4) Feature Spec (per-feature contract)
+### 5) Feature Spec (per-feature contract)
 
 **FEATURE_SPEC.md** is the per-feature plan that must align with:
 
@@ -91,6 +102,8 @@ Foundation Pack is what makes downstream planning deterministic and reduces repe
 * Project Context (facts)
 
 It must not re-decide posture; it inherits posture and only declares deltas.
+
+In the reduced-v1 `M8` product story, `FEATURE_SPEC.md` is not a baseline setup artifact. It remains on the packet/stage path.
 
 ## Modularity mechanisms (why the system stays flexible)
 

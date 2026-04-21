@@ -3,20 +3,30 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use system_compiler::{
-    author_charter, parse_charter_structured_input_yaml, preflight_author_charter,
-    render_charter_markdown, run_setup, setup_starter_template_bytes,
-    validate_charter_structured_input, AuthorCharterRefusalKind, CanonicalArtifactKind,
+    author_charter, author_project_context_from_input, parse_charter_structured_input_yaml,
+    parse_project_context_structured_input_yaml, preflight_author_charter,
+    preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
+    run_setup, setup_starter_template_bytes, validate_charter_structured_input,
+    validate_project_context_markdown, validate_project_context_structured_input,
+    AuthorCharterRefusalKind, AuthorProjectContextRefusalKind, CanonicalArtifactKind,
     CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
     CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
     CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
     CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
     CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
     CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, SetupRequest, DEFAULT_EXCEPTION_RECORD_LOCATION,
+    CharterStructuredInput, CharterSurface, ProjectContextClassificationImplicationsInput,
+    ProjectContextConstraintsInput, ProjectContextDataRealityInput,
+    ProjectContextEnvironmentsAndDeliveryInput, ProjectContextIntegrationInput,
+    ProjectContextKnownUnknownInput, ProjectContextOperationalRealityInput,
+    ProjectContextRepoCodebaseRealityInput, ProjectContextStructuredInput,
+    ProjectContextSummaryInput, ProjectContextSystemBoundariesInput, SetupRequest,
+    DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn write_file(path: &Path, contents: &[u8]) {
@@ -97,6 +107,24 @@ fn with_author_runtime_on_path<T>(
     match previous_path {
         Some(value) => std::env::set_var("PATH", value),
         None => std::env::remove_var("PATH"),
+    }
+
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
+fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
+    let _guard = author_runtime_lock().lock().expect("author runtime lock");
+    let previous = std::env::var_os(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR);
+    std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, value);
+
+    let result = catch_unwind(AssertUnwindSafe(action));
+
+    match previous {
+        Some(previous) => std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, previous),
+        None => std::env::remove_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR),
     }
 
     match result {
@@ -274,6 +302,137 @@ fn dimension(name: CharterDimensionName) -> CharterDimensionInput {
 
 fn expected_charter_markdown() -> String {
     render_charter_markdown(&valid_input()).expect("render valid input")
+}
+
+fn valid_project_context_input() -> ProjectContextStructuredInput {
+    ProjectContextStructuredInput {
+        schema_version: "0.1.0".to_string(),
+        project_name: "System".to_string(),
+        owner: "compiler-team".to_string(),
+        team: "System".to_string(),
+        repo_or_project_ref: "system".to_string(),
+        charter_ref: ".system/charter/CHARTER.md".to_string(),
+        project_summary: ProjectContextSummaryInput {
+            what_this_project_is:
+                "CLI and compiler for canonical planning artifacts and workflow proofs".to_string(),
+            primary_surface: "CLI plus compiler library".to_string(),
+            primary_users: "internal operators and automation".to_string(),
+            key_workflows: vec![
+                "scaffold canonical .system state".to_string(),
+                "author baseline artifacts".to_string(),
+                "compile and inspect planning outputs".to_string(),
+            ],
+            non_goals: "End-user product delivery".to_string(),
+        },
+        operational_reality: ProjectContextOperationalRealityInput {
+            is_live_in_production_today: "no".to_string(),
+            users: "internal operators only".to_string(),
+            data_in_production: "none".to_string(),
+            uptime_expectations: "best effort during active development".to_string(),
+            incident_on_call_reality: "no formal on-call rotation today".to_string(),
+            primary_risk_flags_present:
+                "incorrect planning guidance and canonical write regressions".to_string(),
+        },
+        classification_implications: ProjectContextClassificationImplicationsInput {
+            project_type: "greenfield with an active brownfield codebase".to_string(),
+            backward_compatibility_required: "no".to_string(),
+            backward_compatibility_notes:
+                "no external customers depend on the current compiler API".to_string(),
+            migration_planning_required: "not applicable".to_string(),
+            migration_planning_notes: "no legacy production data to migrate".to_string(),
+            deprecation_policy_exists: "not yet".to_string(),
+            deprecation_policy_notes:
+                "internal interfaces can change with coordinated release notes".to_string(),
+            rollout_controls_required: "lightweight only".to_string(),
+            rollout_controls_notes: "feature branches and tests gate changes before merge"
+                .to_string(),
+        },
+        system_boundaries: ProjectContextSystemBoundariesInput {
+            owned_areas: vec![
+                "compiler and CLI crates in this repository".to_string(),
+                "canonical .system artifact formats and setup flow".to_string(),
+            ],
+            external_dependencies: vec![
+                "OpenAI Codex runtime used for charter synthesis".to_string(),
+                "local filesystem layout and git worktree state".to_string(),
+            ],
+        },
+        integrations: vec![
+            ProjectContextIntegrationInput {
+                name: "Codex exec".to_string(),
+                integration_type: "CLI runtime".to_string(),
+                contract_surface: "codex exec --output-last-message -".to_string(),
+                authentication_authorization:
+                    "inherits local operator credentials and API configuration".to_string(),
+                failure_mode_expectations:
+                    "auth or process failures must refuse without partial writes".to_string(),
+            },
+            ProjectContextIntegrationInput {
+                name: "Repo-local .system tree".to_string(),
+                integration_type: "filesystem".to_string(),
+                contract_surface: "canonical artifact paths under .system/**".to_string(),
+                authentication_authorization:
+                    "write guards reject symlinks and non-regular targets".to_string(),
+                failure_mode_expectations: "invalid paths block authoring until repaired"
+                    .to_string(),
+            },
+        ],
+        environments_and_delivery: ProjectContextEnvironmentsAndDeliveryInput {
+            environments_that_exist: "local development and CI".to_string(),
+            deployment_model: "cargo-driven local execution".to_string(),
+            ci_cd_reality: "basic CI with compiler and CLI test coverage".to_string(),
+            release_cadence: "repo-driven iterative releases".to_string(),
+            config_and_secrets: "standard local environment variables and git config".to_string(),
+            observability_stack: "test output and local command stderr".to_string(),
+        },
+        data_reality: ProjectContextDataRealityInput {
+            primary_data_stores: "repo-local markdown, yaml, and route-state files".to_string(),
+            data_classification: "source code and internal planning metadata".to_string(),
+            retention_requirements: "none beyond repository history".to_string(),
+            backups_disaster_recovery: "git history plus local worktree backups".to_string(),
+            existing_migrations_history: "none for production data".to_string(),
+        },
+        repo_codebase_reality: ProjectContextRepoCodebaseRealityInput {
+            codebase_exists_today: true,
+            current_maturity: "medium-sized active Rust workspace".to_string(),
+            key_modules_or_areas: vec![
+                "crates/compiler".to_string(),
+                "crates/cli".to_string(),
+                "core/library".to_string(),
+            ],
+            known_constraints_from_existing_code:
+                "lane ownership and canonical artifact ordering must be preserved".to_string(),
+        },
+        constraints: ProjectContextConstraintsInput {
+            deadline_time_constraints: "must fit the current milestone split".to_string(),
+            budget_constraints: "limited to local engineering time".to_string(),
+            must_use_or_prohibited_tech: "must stay in Rust and preserve existing canonical paths"
+                .to_string(),
+            compliance_legal_constraints: "none beyond repository policy".to_string(),
+            performance_constraints: "compiler authoring should stay fast and deterministic"
+                .to_string(),
+            security_constraints: "no writes outside canonical repo-owned targets".to_string(),
+        },
+        known_unknowns: vec![
+            ProjectContextKnownUnknownInput {
+                item: "final CLI interview wording for project-context authoring".to_string(),
+                owner: "Lane D".to_string(),
+                revisit_trigger: "when the CLI subcommand lands".to_string(),
+            },
+            ProjectContextKnownUnknownInput {
+                item: "doctor-side invalid baseline messaging for project context".to_string(),
+                owner: "Lane D".to_string(),
+                revisit_trigger: "when doctor baseline classification is wired".to_string(),
+            },
+        ],
+    }
+}
+
+fn expected_project_context_markdown() -> String {
+    with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        render_project_context_markdown(&valid_project_context_input())
+            .expect("render valid project-context input")
+    })
 }
 
 fn required_headings() -> [&'static str; 12] {
@@ -796,5 +955,178 @@ fn starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring
     assert_eq!(
         std::fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("starter bytes"),
         setup_starter_template_bytes(CanonicalArtifactKind::Charter)
+    );
+}
+
+#[test]
+fn parse_project_context_structured_input_refuses_on_malformed_yaml() {
+    let err = parse_project_context_structured_input_yaml("not: [valid")
+        .expect_err("malformed yaml should refuse");
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::MalformedStructuredInput
+    );
+}
+
+#[test]
+fn validate_project_context_structured_input_refuses_incomplete_fields() {
+    let mut input = valid_project_context_input();
+    input.project_summary.key_workflows.clear();
+    input.known_unknowns[0].item = "tbd".to_string();
+
+    let err = validate_project_context_structured_input(&input)
+        .expect_err("incomplete project-context input should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::IncompleteStructuredInput
+    );
+    assert!(err.summary.contains("project_summary.key_workflows"));
+    assert!(err.summary.contains("known_unknowns[0].item"));
+}
+
+#[test]
+fn render_project_context_markdown_includes_required_structure() {
+    let markdown = expected_project_context_markdown();
+
+    assert!(markdown.starts_with("# Project Context — System"));
+    assert!(markdown.contains("> **Created (UTC):** 2026-04-21T12:34:56Z"));
+    assert!(markdown.contains("## 3) System Boundaries (what we own vs integrate with)"));
+    assert!(markdown.contains("### What we own"));
+    assert!(markdown.contains("### What we do NOT own (but may depend on)"));
+    assert!(markdown.contains("## 10) Update Triggers"));
+}
+
+#[test]
+fn validate_project_context_markdown_accepts_rendered_output() {
+    validate_project_context_markdown(&expected_project_context_markdown())
+        .expect("rendered project-context markdown should validate");
+}
+
+#[test]
+fn validate_project_context_markdown_refuses_missing_required_heading() {
+    let err = validate_project_context_markdown(
+        "# Project Context — System\n\n> **File:** `PROJECT_CONTEXT.md`\n> **Created (UTC):** 2026-04-21T12:34:56Z\n> **Owner:** compiler-team\n> **Team:** System\n> **Repo / Project:** system\n> **Charter Ref:** .system/charter/CHARTER.md\n",
+    )
+    .expect_err("missing sections should refuse");
+
+    assert!(err.summary.contains("missing required heading"));
+}
+
+#[test]
+fn author_project_context_refuses_when_system_root_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let err = author_project_context_from_input(dir.path(), &valid_project_context_input())
+        .expect_err("missing system root");
+
+    assert_eq!(err.kind, AuthorProjectContextRefusalKind::MissingSystemRoot);
+    assert_eq!(err.next_safe_action, "run `system setup`");
+}
+
+#[test]
+fn author_project_context_replaces_starter_template_and_writes_only_canonical_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let expected_markdown = expected_project_context_markdown();
+
+    let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        author_project_context_from_input(dir.path(), &valid_project_context_input())
+            .expect("author project context")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("canonical project context"),
+        expected_markdown
+    );
+    let mut entries = std::fs::read_dir(dir.path().join(".system/project_context"))
+        .expect("read project-context dir")
+        .map(|entry| {
+            entry
+                .expect("project-context dir entry")
+                .file_name()
+                .into_string()
+                .expect("utf8 project-context entry")
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    assert_eq!(entries, vec!["PROJECT_CONTEXT.md"]);
+    assert!(!dir
+        .path()
+        .join("artifacts/project_context/PROJECT_CONTEXT.md")
+        .exists());
+    assert!(!dir.path().join("PROJECT_CONTEXT.md").exists());
+}
+
+#[test]
+fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"custom project context truth\n",
+    );
+
+    let err = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        author_project_context_from_input(dir.path(), &valid_project_context_input())
+            .expect_err("existing project context truth should refuse")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::ExistingCanonicalTruth
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("existing project context"),
+        "custom project context truth\n"
+    );
+}
+
+#[test]
+fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"custom project context truth\n",
+    );
+
+    let err = preflight_author_project_context(dir.path())
+        .expect_err("existing project context truth should refuse during preflight");
+
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::ExistingCanonicalTruth
+    );
+    assert!(err
+        .summary
+        .contains("canonical project context truth already exists"));
+}
+
+#[test]
+fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+
+    assert_eq!(
+        std::fs::read(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("starter project-context bytes"),
+        setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext)
     );
 }

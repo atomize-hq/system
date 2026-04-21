@@ -1,0 +1,6 @@
+Author canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+
+Usage: system author environment-inventory
+
+Options:
+  -h, --help  Print help

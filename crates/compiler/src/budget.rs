@@ -66,7 +66,7 @@ pub fn evaluate_budget(
                 continue;
             }
 
-            if artifact.required {
+            if artifact.packet_required {
                 return BudgetOutcome {
                     disposition: BudgetDisposition::Refuse,
                     reason: BudgetReason::RequiredArtifactTooLarge,
@@ -97,7 +97,7 @@ pub fn evaluate_budget(
         if total > max_total {
             // Prefer excluding optional artifacts first, in canonical order.
             for (artifact, len) in &present {
-                if artifact.required {
+                if artifact.packet_required {
                     continue;
                 }
                 return BudgetOutcome {
@@ -114,7 +114,7 @@ pub fn evaluate_budget(
             // No optional artifacts to exclude; refuse and point at the largest required artifact.
             let mut largest_required: Option<(&CanonicalArtifactIdentity, u64)> = None;
             for (artifact, len) in &present {
-                if !artifact.required {
+                if !artifact.packet_required {
                     continue;
                 }
                 match largest_required {

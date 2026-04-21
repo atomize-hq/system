@@ -1,4 +1,4 @@
-# stage.07_foundation_pack — Foundation Pack Synthesis
+# Legacy stage.07_foundation_pack — Foundation Pack Synthesis
 
 ## Purpose
 
@@ -37,11 +37,11 @@ The Foundation Pack turns posture + facts into concrete, reusable planning defau
 - `artifacts/foundation/quality_gates.yaml`
 - `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
 
-### Repo files (canonical)
+### Repo files (legacy harness repo-root outputs)
 - `${repo_root}/ENVIRONMENT_INVENTORY.md` (required)
 
-> Note: `ENVIRONMENT_INVENTORY.md` is treated as the project’s canonical store-of-record.
-> The artifact copy exists for pipeline traceability.
+> Legacy note: this stage treated `${repo_root}/ENVIRONMENT_INVENTORY.md` as the repo-root store-of-record.
+> Current reduced-v1 product docs do not treat the repo root as the shipped canonical home; the baseline canonical path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 
 ## Required model output format (multi-file FILE blocks)
 
@@ -89,7 +89,7 @@ No preamble, no epilogue, and no code fences.
 - This stage produces a **machine-readable** `quality_gates.yaml` artifact.
 - The harness **does not execute gates**; it only compiles prompts and writes artifacts.
 
-## Harness behavior for repo-root ENVIRONMENT_INVENTORY
+## Harness behavior for legacy repo-root ENVIRONMENT_INVENTORY
 
 If the model does not emit a separate repo-file block for `${repo_root}/ENVIRONMENT_INVENTORY.md`, the harness can copy
 the artifact output with the same filename into the repo-root location.

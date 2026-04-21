@@ -111,6 +111,24 @@ fn system_author_charter_help_matches_snapshot() {
 }
 
 #[test]
+fn system_author_project_context_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["author", "project-context", "--help"],
+        "system-author-project-context-help.txt",
+        "system author project-context --help",
+    );
+}
+
+#[test]
+fn system_author_environment_inventory_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["author", "environment-inventory", "--help"],
+        "system-author-environment-inventory-help.txt",
+        "system author environment-inventory --help",
+    );
+}
+
+#[test]
 fn system_generate_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["generate", "--help"],
@@ -217,6 +235,10 @@ fn support_story_docs_match_help_snapshots() {
     let setup_refresh_help_text = read_help_snapshot("system-setup-refresh-help.txt");
     let author_help_text = read_help_snapshot("system-author-help.txt");
     let author_charter_help_text = read_help_snapshot("system-author-charter-help.txt");
+    let author_project_context_help_text =
+        read_help_snapshot("system-author-project-context-help.txt");
+    let author_environment_inventory_help_text =
+        read_help_snapshot("system-author-environment-inventory-help.txt");
     let generate_help_text = read_help_snapshot("system-generate-help.txt");
     let inspect_help_text = read_help_snapshot("system-inspect-help.txt");
     let pipeline_help_text = read_help_snapshot("system-pipeline-help.txt");
@@ -232,7 +254,6 @@ fn support_story_docs_match_help_snapshots() {
         "live execution is explicitly refused",
         "`inspect` is the packet proof surface",
         "`doctor` is the recovery surface",
-        "`author` is the charter authoring surface",
         "explicit stage compilation",
         "explicit stage-output capture",
     ];
@@ -243,7 +264,7 @@ fn support_story_docs_match_help_snapshots() {
         "`setup refresh --rewrite` rewrites only setup-owned starter files",
         "`setup refresh --reset-state` resets only `.system/state/**`",
         "The shipped starter templates are scaffolding only.",
-        "Scaffolded setup flows end with `run \\`system author charter\\`` as the next safe action; ready setup flows end with `system doctor`.",
+        "Setup hands off to `system doctor`, which renders an ordered checklist",
     ];
     let root_readme_required_phrases = [
         "pipeline capture --preview",
@@ -259,9 +280,12 @@ fn support_story_docs_match_help_snapshots() {
         "`system`-coordinated single-writer flows",
     ];
     let author_required_doc_phrases = [
-        "The first shipped authoring wedge is `system author charter`.",
+        "The public baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`.",
+        "`author` is the baseline authoring surface.",
         "`system author charter` is the human-guided surface.",
         "`system author charter --from-inputs <path|->` is the agent and automation surface.",
+        "`system author project-context`",
+        "`system author environment-inventory`",
     ];
     let stage_10_required_doc_phrases = [
         "external model output",
@@ -343,12 +367,27 @@ fn support_story_docs_match_help_snapshots() {
         "top-level help snapshot missing setup-family description"
     );
     assert!(
-        author_help_text.contains("Human-guided and deterministic charter authoring surfaces"),
+        author_help_text.contains("Human-guided and deterministic baseline authoring surfaces"),
         "author help snapshot missing author-family description"
     );
+    for phrase in ["project-context", "environment-inventory"] {
+        assert!(
+            author_help_text.contains(phrase),
+            "author help snapshot missing phrase `{phrase}`"
+        );
+    }
     assert!(
         author_charter_help_text.contains("--from-inputs <path|->"),
         "author charter help snapshot missing deterministic input flag"
+    );
+    assert!(
+        author_project_context_help_text.contains(".system/project_context/PROJECT_CONTEXT.md"),
+        "author project-context help snapshot missing canonical path"
+    );
+    assert!(
+        author_environment_inventory_help_text
+            .contains(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        "author environment-inventory help snapshot missing canonical path"
     );
     assert!(
         setup_init_help_text
@@ -602,14 +641,14 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
         "planning packet generation",
         "canonical repo-local `.system/` inputs",
         "`inspect` is the packet proof surface",
-        "`doctor` is the recovery surface",
+        "`doctor` is the recovery and baseline-readiness surface",
         "`setup` is the durable setup term",
         "`setup init` is the concrete first-run subcommand",
         "`setup refresh` preserves canonical files by default",
         "scaffolding only",
-        "scaffolded setup path ends with `system author charter`",
-        "ready setup path ends with `system doctor`",
         "`author` is the canonical authoring surface",
+        "`system author project-context`",
+        "`system author environment-inventory`",
         "`pipeline compile --explain`",
         "next safe action",
         "bootstrap",
@@ -637,13 +676,13 @@ fn cli_command_hierarchy_doc_locks_front_door_rules() {
         "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "`setup refresh` preserves canonical files by default.",
         "The shipped starter templates are scaffolding only.",
-        "Scaffolded setup flows end with `run \\`system author charter\\`` as the next safe action; ready setup flows end with `system doctor`.",
-        "The first shipped authoring wedge is `system author charter`.",
+        "`doctor` is the recovery and baseline-readiness surface",
+        "The shipped baseline authoring surface includes `system author charter`, `system author project-context`, and `system author environment-inventory`.",
         "`generate` is the default ready-path command.",
         "`pipeline compile --id <pipeline-id> --stage <stage-id>`",
         "Commands anchor to the enclosing git root when one exists.",
         "A nested git repo boundary wins over a parent managed repo.",
-        "`doctor` is the recovery and readiness command",
+        "`doctor` is the recovery and baseline-readiness command",
     ];
 
     for phrase in required_phrases {
@@ -696,15 +735,13 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         "## `pipeline compile` Anatomy",
         "plain `pipeline compile` success is payload-only stdout",
         "`pipeline compile --explain` success is proof-only stdout",
-        "`doctor` is still transitional.",
-        "docs must not claim that it already shares the full trust-header anatomy",
+        "## `doctor` Anatomy",
         "`setup` is a special M6 case: the setup family (`setup`, `setup init`, `setup refresh`) uses setup-family anatomy rather than packet anatomy.",
         "`OBJECT: setup init` or `OBJECT: setup refresh`",
-        "`NEXT SAFE ACTION: run \\`system author charter\\`` or `NEXT SAFE ACTION: run \\`system doctor\\``",
+        "exact author command",
         "bare `system setup` must reveal which routed subcommand it selected",
         "the shipped starter templates are scaffolding only",
-        "scaffolded setup success routes to the charter authoring surface",
-        "scaffolded setup success must say the repo still needs canonical truth before `system doctor` or packet work",
+        "setup success must point to `system doctor` for baseline classification rather than guessing which authoring command comes next",
         "`setup refresh` preserves canonical files by default",
         "## Presentation Failure And Parse-Validation Output",
     ];
@@ -726,7 +763,7 @@ fn root_readme_locks_setup_story_individually() {
 
     let required_phrases = [
         "The shipped starter templates are scaffolding only.",
-        "Scaffolded setup flows end with `run \\`system author charter\\`` as the next safe action; ready setup flows end with `system doctor`.",
+        "Setup hands off to `system doctor`, which renders the ordered baseline checklist and the next exact authoring command.",
         "This repository does not ship completed canonical `.system/` truth at repo root.",
     ];
 
@@ -752,10 +789,9 @@ fn design_doc_locks_cli_interaction_contract() {
         "the public setup family is `system setup`, `system setup init`, and `system setup refresh`",
         "bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`",
         "`setup` should stay one durable family name even when it routes between `setup init` and `setup refresh`",
-        "scaffolded setup flows end with `run \\`system author charter\\`` as the next safe action; ready setup flows end with `system doctor`",
+        "setup hands off to `system doctor`, which renders baseline readiness and the next exact authoring action",
         "this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`",
-        "end with one exact next safe action: `run \\`system author charter\\`` for scaffolded setup or `system doctor` for ready setup",
-        "`doctor` still uses a transitional output anatomy",
+        "the baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`",
         "`inspect` currently emits a self-referential ready-path next action",
         "update the relevant D1-D4 source document",
     ];
@@ -780,7 +816,7 @@ fn cli_operator_journey_doc_locks_revision_findings() {
         "`system setup` is the durable front door.",
         "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "The shipped starter templates are scaffolding only.",
-        "Scaffolded setup-family flows end with `run \\`system author charter\\`` as the next safe action; ready setup-family flows end with `system doctor`.",
+        "`doctor` is the baseline-readiness surface and reports `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE` before packet work continues.",
         "Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc",
         "The command is functionally correct and productically wrong.",
         "## Revision Backlog",
@@ -824,8 +860,8 @@ fn setup_family_contract_docs_lock_m6_story() {
         "Bare `system setup` MUST route to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it MUST route to `setup refresh`.",
         "`setup refresh` MUST preserve canonical files by default.",
         "The shipped setup starter templates MUST be treated as scaffolding only.",
-        "Scaffolded setup-family flows MUST end with `run \\`system author charter\\``.",
-        "Ready setup-family flows MUST end with `system doctor`.",
+        "`doctor` MUST classify baseline readiness using exactly:",
+        "The shipped baseline authoring surface MUST expose exactly:",
     ] {
         assert!(
             command_surface.contains(phrase),
@@ -837,12 +873,14 @@ fn setup_family_contract_docs_lock_m6_story() {
         root.join("docs/contracts/C-04-resolver-result-and-doctor-blockers.md");
     let blocker_contract = fs::read_to_string(&blocker_contract_path)
         .unwrap_or_else(|err| panic!("read {}: {}", blocker_contract_path.display(), err));
-    let blocker_phrase = "Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family (`system setup`, `system setup init`, `system setup refresh`)";
+    let blocker_phrase =
+        "Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family.";
     assert!(
         blocker_contract.contains(blocker_phrase),
         "resolver blocker contract missing setup-family next-safe-action guidance"
     );
-    let charter_blocker_phrase = "Renderer-facing wording for charter-specific empty or starter-template required-artifact blockers SHOULD route the operator toward `system author charter`";
+    let charter_blocker_phrase =
+        "Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `system author ...` command for that artifact.";
     assert!(
         blocker_contract.contains(charter_blocker_phrase),
         "resolver blocker contract missing author-surface next-safe-action guidance"

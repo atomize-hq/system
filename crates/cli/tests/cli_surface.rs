@@ -287,7 +287,18 @@ fn committed_execution_demo_fixture_dir() -> std::path::PathBuf {
 }
 
 fn repair_to_ready(root: &std::path::Path) {
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -299,12 +310,14 @@ fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
         ".system/charter/CHARTER.md" => system_compiler::setup_starter_template_bytes(
             system_compiler::CanonicalArtifactKind::Charter,
         ),
-        ".system/feature_spec/FEATURE_SPEC.md" => system_compiler::setup_starter_template_bytes(
-            system_compiler::CanonicalArtifactKind::FeatureSpec,
-        ),
         ".system/project_context/PROJECT_CONTEXT.md" => {
             system_compiler::setup_starter_template_bytes(
                 system_compiler::CanonicalArtifactKind::ProjectContext,
+            )
+        }
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
+            system_compiler::setup_starter_template_bytes(
+                system_compiler::CanonicalArtifactKind::EnvironmentInventory,
             )
         }
         _ => panic!("unexpected starter path: {path}"),
@@ -315,9 +328,162 @@ fn partial_system_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     write_file(
         dir.path().join(".system/charter/CHARTER.md").as_path(),
-        b"charter",
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md")
+            .as_path(),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        dir.path()
+            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+            .as_path(),
+        valid_environment_inventory_markdown().as_bytes(),
     );
     dir
+}
+
+fn valid_charter_markdown() -> &'static str {
+    "# Engineering Charter — System
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+"
+}
+
+fn valid_project_context_markdown() -> &'static str {
+    "# Project Context — System
+
+> **File:** `PROJECT_CONTEXT.md`
+> **Created (UTC):** 2026-04-21T00:00:00Z
+> **Owner:** project-owner
+> **Team:** system-team
+> **Repo / Project:** /tmp/system
+> **Charter Ref:** .system/charter/CHARTER.md
+
+## What this is
+Project reality.
+
+## How to use this
+Use this document to ground planning in reality.
+
+## 0) Project Summary (factual, 3–6 bullets)
+- Summary.
+
+## 1) Operational Reality (the most important section)
+- Operations.
+
+## 2) Project Classification Implications (planning guardrails)
+- Guardrails.
+
+## 3) System Boundaries (what we own vs integrate with)
+### What we own
+- Canonical `.system/` truth.
+### What we do NOT own (but may depend on)
+- External delivery systems.
+
+## 4) Integrations & Contracts (top 1–5)
+- Integrations.
+
+## 5) Environments & Delivery
+- Delivery.
+
+## 6) Data Reality
+- Data.
+
+## 7) Repo / Codebase Reality (brownfield-friendly, but safe for greenfield)
+- Codebase.
+
+## 8) Constraints
+- Constraints.
+
+## 9) Known Unknowns (explicitly tracked)
+- Unknowns.
+
+## 10) Update Triggers
+- Update when reality changes.
+"
+}
+
+fn valid_environment_inventory_markdown() -> &'static str {
+    "# Environment Inventory
+
+> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+
+## What this is
+Canonical environment and runtime inventory.
+
+## How to use
+- Update this file when runtime assumptions change.
+
+## 1) Environment Variables (Inventory)
+- None yet.
+
+## 2) External Services / Infrastructure Dependencies
+- None yet.
+
+## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)
+- None yet.
+
+## 4) Local Development Requirements
+- None yet.
+
+## 5) CI Requirements
+- None yet.
+
+## 6) Production / Deployment Requirements (even if not live yet)
+- None yet.
+
+## 7) Dependency & Tooling Inventory (project-specific)
+- None yet.
+
+## 8) Update Contract (non-negotiable)
+- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+"
 }
 
 fn malformed_optional_project_context_repo() -> tempfile::TempDir {
@@ -325,6 +491,8 @@ fn malformed_optional_project_context_repo() -> tempfile::TempDir {
     let root = dir.path();
 
     repair_to_ready(root);
+    std::fs::remove_file(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        .expect("remove project_context file");
     std::fs::create_dir_all(root.join(".system/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context directory");
 
@@ -4309,8 +4477,8 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4320,14 +4488,15 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
 
     for path in [
         ".system/charter/CHARTER.md",
-        ".system/feature_spec/FEATURE_SPEC.md",
         ".system/project_context/PROJECT_CONTEXT.md",
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ] {
         assert_eq!(
             std::fs::read(root.join(path)).expect("starter bytes"),
             starter_template_bytes_for_path(path),
         );
     }
+    assert!(!root.join(".system/feature_spec/FEATURE_SPEC.md").exists());
 }
 
 #[test]
@@ -4349,8 +4518,8 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4386,8 +4555,8 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4423,6 +4592,10 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
     );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"custom inventory\n",
+    );
 
     let output = run_in(root, &["setup"]);
     assert!(output.status.success(), "setup should succeed");
@@ -4437,8 +4610,8 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "preserved .system/charter/CHARTER.md",
-                "preserved .system/feature_spec/FEATURE_SPEC.md",
                 "preserved .system/project_context/PROJECT_CONTEXT.md",
+                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: false,
@@ -4457,6 +4630,11 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
     assert_eq!(
         fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
         b"custom context\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory"),
+        b"custom inventory\n"
     );
 }
 
@@ -4477,8 +4655,8 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4537,6 +4715,10 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"keep context\n",
     );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"keep inventory\n",
+    );
 
     let output = run_in(root, &["setup", "refresh"]);
     assert!(output.status.success(), "setup refresh should succeed");
@@ -4551,8 +4733,8 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "preserved .system/charter/CHARTER.md",
-                "preserved .system/feature_spec/FEATURE_SPEC.md",
                 "preserved .system/project_context/PROJECT_CONTEXT.md",
+                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: false,
@@ -4577,6 +4759,10 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     write_file(
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"custom inventory\n",
     );
     write_file(
         &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
@@ -4605,8 +4791,8 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "rewritten .system/charter/CHARTER.md",
-                "rewritten .system/feature_spec/FEATURE_SPEC.md",
                 "rewritten .system/project_context/PROJECT_CONTEXT.md",
+                "rewritten .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4618,13 +4804,18 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         fs::read(root.join(".system/charter/CHARTER.md")).expect("charter after"),
         b"custom charter\n"
     );
-    assert_ne!(
+    assert_eq!(
         fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature after"),
         b"custom feature\n"
     );
     assert_ne!(
         fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context after"),
         b"custom context\n"
+    );
+    assert_ne!(
+        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory after"),
+        b"custom inventory\n"
     );
     assert_eq!(
         fs::read(root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
@@ -4652,6 +4843,10 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
         b"context\n",
     );
     write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
+    );
+    write_file(
         &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline state\n",
     );
@@ -4677,8 +4872,8 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "preserved .system/charter/CHARTER.md",
-                "preserved .system/feature_spec/FEATURE_SPEC.md",
                 "preserved .system/project_context/PROJECT_CONTEXT.md",
+                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[
                 "reset .system/state/pipeline",
@@ -4702,6 +4897,11 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     assert_eq!(
         fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
         b"context\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory"),
+        b"inventory\n"
     );
     assert_eq!(
         fs::read(root.join(".system/custom/KEEP.md")).expect("custom"),
@@ -4731,6 +4931,10 @@ fn setup_refresh_reset_state_refusal_is_fail_safe() {
     write_file(
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
     );
     write_file(&root.join(".system/state/a.yaml"), b"a: 1\n");
     let external = tempfile::tempdir().expect("external tempdir");
@@ -4786,8 +4990,8 @@ fn bare_setup_respects_nested_git_root_boundary() {
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4797,11 +5001,14 @@ fn bare_setup_respects_nested_git_root_boundary() {
 
     assert!(child_root.join(".system/charter/CHARTER.md").is_file());
     assert!(child_root
-        .join(".system/feature_spec/FEATURE_SPEC.md")
-        .is_file());
-    assert!(child_root
         .join(".system/project_context/PROJECT_CONTEXT.md")
         .is_file());
+    assert!(child_root
+        .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        .is_file());
+    assert!(!child_root
+        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .exists());
 }
 
 #[test]
@@ -4893,8 +5100,9 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     let first = run_in(root, &["doctor"]);
     assert!(!first.status.success(), "initial doctor should fail");
     let first_stdout = String::from_utf8(first.stdout).expect("stdout is utf-8");
-    assert!(first_stdout.contains("BLOCKED"));
-    assert!(first_stdout.contains("SystemRootMissing"));
+    assert!(first_stdout.contains("SCAFFOLDED"));
+    assert!(first_stdout.contains("ROOT STATUS: MISSING"));
+    assert!(first_stdout.contains("NEXT SAFE ACTION: run `system setup`"));
 
     repair_to_ready(root);
 
@@ -4904,7 +5112,33 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
         "doctor should succeed after repair"
     );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
-    assert_eq!(second_stdout.trim(), "READY");
+    assert!(
+        second_stdout.contains("BASELINE_COMPLETE"),
+        "{second_stdout}"
+    );
+    assert!(second_stdout.contains("ROOT STATUS: OK"), "{second_stdout}");
+    assert!(
+        second_stdout.contains("NEXT SAFE ACTION: <none>"),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+        ),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+        ),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+        ),
+        "{second_stdout}"
+    );
 }
 
 #[test]
@@ -4913,8 +5147,8 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
 
     for path in [
         ".system/charter/CHARTER.md",
-        ".system/feature_spec/FEATURE_SPEC.md",
         ".system/project_context/PROJECT_CONTEXT.md",
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ] {
         assert!(
             !root.join(path).exists(),
@@ -4928,13 +5162,10 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
         "doctor should stay blocked in the checked-in workspace root"
     );
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"), "{stdout}");
+    assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
         stdout.contains("NEXT SAFE ACTION: run `system setup`"),
-        "{stdout}"
-    );
-    assert!(
-        !stdout.contains("RequiredArtifactStarterTemplate"),
         "{stdout}"
     );
 }
@@ -4956,8 +5187,8 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4971,9 +5202,26 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         "doctor should stay blocked on shipped starter templates"
     );
     let doctor_stdout = String::from_utf8(doctor_after_setup.stdout).expect("stdout is utf-8");
-    assert!(doctor_stdout.contains("BLOCKED"));
-    assert!(doctor_stdout.contains("RequiredArtifactStarterTemplate"));
-    assert!(doctor_stdout.contains(".system/charter/CHARTER.md"));
+    assert!(doctor_stdout.contains("SCAFFOLDED"), "{doctor_stdout}");
+    assert!(doctor_stdout.contains("ROOT STATUS: OK"), "{doctor_stdout}");
+    assert!(
+        doctor_stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: STARTER_OWNED ACTION: run `system author charter`"
+        ),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `system author project-context`"
+        ),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `system author environment-inventory`"
+        ),
+        "{doctor_stdout}"
+    );
 
     let generate_after_setup = run_in(root, &["generate"]);
     assert!(
@@ -5000,7 +5248,7 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
     );
     let doctor_after_repair_stdout =
         String::from_utf8(doctor_after_repair.stdout).expect("stdout is utf-8");
-    assert_eq!(doctor_after_repair_stdout.trim(), "READY");
+    assert!(doctor_after_repair_stdout.contains("BASELINE_COMPLETE"));
 
     let generate_after_repair = run_in(root, &["generate"]);
     assert!(
@@ -5123,17 +5371,10 @@ fn doctor_blocks_when_system_root_missing() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
+        stdout.contains("SCAFFOLDED"),
+        "expected scaffolded header: {stdout}"
     );
-    assert!(
-        stdout.contains("SystemRootMissing"),
-        "expected SystemRootMissing category: {stdout}"
-    );
-    assert!(
-        stdout.contains("SUBJECT: policy system_root"),
-        "expected human-facing subject: {stdout}"
-    );
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
         stdout.contains("NEXT SAFE ACTION: run `system setup`"),
         "expected human-facing next action: {stdout}"
@@ -5152,7 +5393,7 @@ fn doctor_reports_ready_when_feature_spec_is_missing_in_partial_system_tree() {
     assert!(output.status.success(), "doctor should return success");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_eq!(stdout.trim(), "READY");
+    assert!(stdout.contains("BASELINE_COMPLETE"), "{stdout}");
 }
 
 #[test]
@@ -5225,14 +5466,8 @@ fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root(
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
-    );
-    assert!(
-        stdout.contains("SystemRootNotDir"),
-        "expected SystemRootNotDir category: {stdout}"
-    );
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: NOT_DIR"), "{stdout}");
 }
 
 #[test]
@@ -5250,14 +5485,8 @@ fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
-    );
-    assert!(
-        stdout.contains("SystemRootMissing"),
-        "expected SystemRootMissing category: {stdout}"
-    );
+    assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
 }
 
 #[test]
@@ -5366,9 +5595,10 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
 
 #[test]
 fn doctor_reports_ready_when_required_artifacts_present() {
-    let (_dir, root) = planning_ready_repo();
+    let dir = partial_system_repo();
+    let root = dir.path();
 
-    let output = binary_in(&root)
+    let output = binary_in(root)
         .arg("doctor")
         .output()
         .expect("doctor should run");
@@ -5376,12 +5606,20 @@ fn doctor_reports_ready_when_required_artifacts_present() {
     assert!(output.status.success(), "doctor should succeed when ready");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("READY"), "expected ready header: {stdout}");
+    assert!(
+        stdout.contains("BASELINE_COMPLETE"),
+        "expected baseline header: {stdout}"
+    );
 }
 
 #[test]
 fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
-    let (_dir, nested) = planning_ready_repo_with_nested_cwd();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".git")).expect("git root");
+    let nested = root.join("nested/work");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+    repair_to_ready(root);
 
     let output = binary_in(&nested)
         .arg("doctor")
@@ -5391,7 +5629,10 @@ fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
     assert!(output.status.success(), "doctor should succeed when ready");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("READY"), "expected ready header: {stdout}");
+    assert!(
+        stdout.contains("BASELINE_COMPLETE"),
+        "expected baseline header: {stdout}"
+    );
 }
 
 #[test]
@@ -5911,14 +6152,8 @@ fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
-    );
-    assert!(
-        stdout.contains("SystemRootMissing"),
-        "expected system root blocker: {stdout}"
-    );
+    assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
         stdout.contains("NEXT SAFE ACTION: run `system setup`"),
         "expected setup-family guidance: {stdout}"
@@ -6117,10 +6352,14 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     assert!(!output.status.success(), "doctor should return nonzero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"));
-    assert!(stdout.contains("ArtifactReadError"));
-    assert!(stdout.contains(".system/project_context/PROJECT_CONTEXT.md"));
-    assert!(stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"));
+    assert!(stdout.contains("PARTIAL_BASELINE"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: OK"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: MISSING ACTION: run `system author project-context`"
+        ),
+        "{stdout}"
+    );
 }
 
 fn command_section_lines(help: &str) -> Vec<&str> {
@@ -6269,14 +6508,7 @@ fn assert_setup_success(stdout: &str, expected: SetupSuccessExpectation<'_>) {
         index += 1;
     }
     assert_eq!(
-        lines.get(index).copied(),
-        Some(
-            "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned."
-        ),
-        "{stdout}"
-    );
-    assert_eq!(
-        index + 1,
+        index,
         lines.len(),
         "unexpected trailing setup output: {stdout}"
     );

@@ -25,11 +25,13 @@ fn author_or_fill_next_safe_action(
 ) -> NextSafeAction {
     match kind {
         CanonicalArtifactKind::Charter => NextSafeAction::RunAuthorCharter,
-        CanonicalArtifactKind::ProjectContext | CanonicalArtifactKind::FeatureSpec => {
-            NextSafeAction::FillCanonicalArtifact {
-                canonical_repo_relative_path,
-            }
+        CanonicalArtifactKind::ProjectContext => NextSafeAction::RunAuthorProjectContext,
+        CanonicalArtifactKind::EnvironmentInventory => {
+            NextSafeAction::RunAuthorEnvironmentInventory
         }
+        CanonicalArtifactKind::FeatureSpec => NextSafeAction::FillCanonicalArtifact {
+            canonical_repo_relative_path,
+        },
     }
 }
 
@@ -104,7 +106,7 @@ pub fn resolve(
         decision_log.entries.push(format!(
             "c03.artifact kind={:?} required={} presence={:?} byte_len={:?} sha256={:?} path={}",
             artifact.kind,
-            artifact.required,
+            artifact.packet_required,
             artifact.presence,
             artifact.byte_len,
             artifact.content_sha256.as_deref(),
@@ -115,7 +117,7 @@ pub fn resolve(
     for issue in &manifest.ingest_issues {
         decision_log.entries.push(format!(
             "c03.ingest.issue kind={:?} required={} path={}",
-            issue.kind, issue.required, issue.canonical_repo_relative_path
+            issue.kind, issue.packet_required, issue.canonical_repo_relative_path
         ));
     }
 
@@ -327,7 +329,7 @@ fn present_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummar
                 Some(PacketSourceSummary {
                     kind: identity.kind,
                     canonical_repo_relative_path: identity.relative_path,
-                    required: identity.required,
+                    required: identity.packet_required,
                     presence: identity.presence,
                     byte_len: identity.byte_len,
                     content_sha256: identity.content_sha256.clone(),
@@ -452,9 +454,9 @@ fn push_packet_section(
 fn should_include_artifact_in_packet(identity: &crate::CanonicalArtifactIdentity) -> bool {
     match identity.presence {
         crate::ArtifactPresence::Missing => false,
-        crate::ArtifactPresence::PresentEmpty => identity.required,
+        crate::ArtifactPresence::PresentEmpty => identity.packet_required,
         crate::ArtifactPresence::PresentNonEmpty => {
-            identity.required || !identity.matches_setup_starter_template
+            identity.packet_required || !identity.matches_setup_starter_template
         }
     }
 }
@@ -473,7 +475,8 @@ fn push_optional_source_omission_note(
     manifest: &ArtifactManifest,
     identity: &crate::CanonicalArtifactIdentity,
 ) {
-    if identity.required || ingest_issue_for_path(manifest, identity.relative_path).is_some() {
+    if identity.packet_required || ingest_issue_for_path(manifest, identity.relative_path).is_some()
+    {
         return;
     }
 
@@ -645,7 +648,7 @@ fn compute_refusal(
     }
 
     for artifact in &manifest.artifacts {
-        if !artifact.required {
+        if !artifact.packet_required {
             continue;
         }
 
@@ -768,7 +771,7 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<Refusal> {
                 first_symlink_issue.get_or_insert(issue);
             }
             ArtifactIngestIssueKind::CanonicalArtifactReadError => {
-                if issue.required {
+                if issue.packet_required {
                     first_required_read_issue.get_or_insert(issue);
                 }
             }
@@ -873,7 +876,7 @@ fn compute_blockers(
 
     if blockers.is_empty() {
         for artifact in &manifest.artifacts {
-            if !artifact.required {
+            if !artifact.packet_required {
                 continue;
             }
 
@@ -1041,6 +1044,7 @@ fn canonical_artifact_kind_priority(kind: CanonicalArtifactKind) -> u8 {
     match kind {
         CanonicalArtifactKind::Charter => 0,
         CanonicalArtifactKind::ProjectContext => 1,
-        CanonicalArtifactKind::FeatureSpec => 2,
+        CanonicalArtifactKind::EnvironmentInventory => 2,
+        CanonicalArtifactKind::FeatureSpec => 3,
     }
 }

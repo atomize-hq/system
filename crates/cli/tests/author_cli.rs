@@ -912,11 +912,38 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
 
     let doctor = run_in(dir.path(), &["doctor"]);
     assert!(
-        doctor.status.success(),
-        "doctor should succeed after authoring: {}",
+        !doctor.status.success(),
+        "doctor should remain incomplete after charter-only authoring: {}",
         stdout(&doctor)
     );
-    assert_eq!(stdout(&doctor).trim(), "READY");
+    let doctor_stdout = stdout(&doctor);
+    assert!(
+        doctor_stdout.contains("PARTIAL_BASELINE"),
+        "{doctor_stdout}"
+    );
+    assert!(doctor_stdout.contains("ROOT STATUS: OK"), "{doctor_stdout}");
+    assert!(
+        doctor_stdout.contains("NEXT SAFE ACTION: run `system author project-context`"),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+        ),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `system author project-context`"
+        ),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `system author environment-inventory`"
+        ),
+        "{doctor_stdout}"
+    );
 
     let generate = run_in(dir.path(), &["generate"]);
     assert!(

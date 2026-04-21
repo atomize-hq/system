@@ -264,7 +264,7 @@ Today, the intended usage is:
 
 ---
 
-# Canonical generated documents (working today)
+# Legacy generated documents (historical harness behavior)
 
 ## BASE_CONTEXT.md
 Produced by `stage.00_base`.
@@ -290,12 +290,15 @@ A bundle of artifacts derived from Charter (+ optional Project Context):
 
 ## ENVIRONMENT_INVENTORY.md
 Produced by `stage.07_foundation_pack`.
-Canonical store of record for env vars/services/ports/runtime assumptions.
+Legacy repo-root/store-of-record artifact for env vars/services/ports/runtime assumptions.
 
-Canonical location:
+Legacy repo-root location used by the harness:
 - `${repo_root}/ENVIRONMENT_INVENTORY.md`
-Pipeline copy:
+Artifact copy:
 - `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+
+Current reduced-v1 product note:
+- the shipped baseline canonical path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
 
 ## FEATURE_SPEC.md
 Produced by `stage.10_feature_spec`.

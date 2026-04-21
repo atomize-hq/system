@@ -1,0 +1,6 @@
+Author canonical `.system/project_context/PROJECT_CONTEXT.md`
+
+Usage: system author project-context
+
+Options:
+  -h, --help  Print help

@@ -7,30 +7,27 @@ use std::path::{Path, PathBuf};
 pub enum CanonicalArtifactKind {
     Charter,
     ProjectContext,
+    EnvironmentInventory,
     FeatureSpec,
 }
 
 impl CanonicalArtifactKind {
-    pub(crate) fn required(self) -> bool {
-        match self {
-            CanonicalArtifactKind::Charter => true,
-            CanonicalArtifactKind::ProjectContext => false,
-            CanonicalArtifactKind::FeatureSpec => false,
-        }
-    }
-
     pub(crate) fn relative_path(self) -> &'static str {
         match self {
             CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
             CanonicalArtifactKind::ProjectContext => ".system/project_context/PROJECT_CONTEXT.md",
+            CanonicalArtifactKind::EnvironmentInventory => {
+                ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            }
             CanonicalArtifactKind::FeatureSpec => ".system/feature_spec/FEATURE_SPEC.md",
         }
     }
 }
 
-const CANONICAL_ARTIFACT_KINDS: [CanonicalArtifactKind; 3] = [
+pub const CANONICAL_ARTIFACT_ORDER: [CanonicalArtifactKind; 4] = [
     CanonicalArtifactKind::Charter,
     CanonicalArtifactKind::ProjectContext,
+    CanonicalArtifactKind::EnvironmentInventory,
     CanonicalArtifactKind::FeatureSpec,
 ];
 
@@ -85,40 +82,74 @@ Optional: capture surrounding architecture, constraints, and local context that 
 \n\
 - TODO\n";
 
+const ENVIRONMENT_INVENTORY_TEMPLATE: &str = "\
+# Environment Inventory
+\n\
+Capture the canonical runtime assumptions, env vars, and service dependencies for this repo.\n\
+\n\
+## Environment Variables\n\
+\n\
+- TODO\n\
+\n\
+## External Services\n\
+\n\
+- TODO\n\
+\n\
+## Runtime Assumptions\n\
+\n\
+- TODO\n";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanonicalArtifactDescriptor {
     pub kind: CanonicalArtifactKind,
     pub relative_path: &'static str,
     pub namespace_dir: &'static str,
-    pub required: bool,
+    pub packet_required: bool,
+    pub baseline_required: bool,
+    pub setup_scaffolded: bool,
     pub setup_starter_template: &'static str,
 }
 
-const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 3] = [
+const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::Charter,
         relative_path: ".system/charter/CHARTER.md",
         namespace_dir: ".system/charter",
-        required: true,
+        packet_required: true,
+        baseline_required: true,
+        setup_scaffolded: true,
         setup_starter_template: CHARTER_TEMPLATE,
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::ProjectContext,
         relative_path: ".system/project_context/PROJECT_CONTEXT.md",
         namespace_dir: ".system/project_context",
-        required: false,
+        packet_required: false,
+        baseline_required: true,
+        setup_scaffolded: true,
         setup_starter_template: PROJECT_CONTEXT_TEMPLATE,
+    },
+    CanonicalArtifactDescriptor {
+        kind: CanonicalArtifactKind::EnvironmentInventory,
+        relative_path: ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        namespace_dir: ".system/environment_inventory",
+        packet_required: false,
+        baseline_required: true,
+        setup_scaffolded: true,
+        setup_starter_template: ENVIRONMENT_INVENTORY_TEMPLATE,
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::FeatureSpec,
         relative_path: ".system/feature_spec/FEATURE_SPEC.md",
         namespace_dir: ".system/feature_spec",
-        required: false,
+        packet_required: false,
+        baseline_required: false,
+        setup_scaffolded: false,
         setup_starter_template: FEATURE_SPEC_TEMPLATE,
     },
 ];
 
-pub fn canonical_artifact_descriptors() -> &'static [CanonicalArtifactDescriptor; 3] {
+pub fn canonical_artifact_descriptors() -> &'static [CanonicalArtifactDescriptor; 4] {
     &CANONICAL_ARTIFACT_DESCRIPTORS
 }
 
@@ -153,7 +184,9 @@ pub enum ArtifactPresence {
 pub struct CanonicalArtifactIdentity {
     pub kind: CanonicalArtifactKind,
     pub relative_path: &'static str,
-    pub required: bool,
+    pub packet_required: bool,
+    pub baseline_required: bool,
+    pub setup_scaffolded: bool,
     pub presence: ArtifactPresence,
     pub byte_len: Option<u64>,
     pub content_sha256: Option<String>,
@@ -171,6 +204,7 @@ pub struct CanonicalArtifacts {
     pub system_root_status: SystemRootStatus,
     pub charter: CanonicalArtifact,
     pub project_context: CanonicalArtifact,
+    pub environment_inventory: CanonicalArtifact,
     pub feature_spec: CanonicalArtifact,
     pub ingest_issues: Vec<ArtifactIngestIssue>,
 }
@@ -203,53 +237,62 @@ impl CanonicalArtifacts {
 
         let mut ingest_issues = Vec::new();
 
-        let (charter, project_context, feature_spec) = match system_root_status {
-            SystemRootStatus::Ok => (
-                load_one(
-                    repo_root,
-                    CanonicalArtifactKind::Charter,
-                    &mut ingest_issues,
+        let (charter, project_context, environment_inventory, feature_spec) =
+            match system_root_status {
+                SystemRootStatus::Ok => (
+                    load_one(
+                        repo_root,
+                        CanonicalArtifactKind::Charter,
+                        &mut ingest_issues,
+                    ),
+                    load_one(
+                        repo_root,
+                        CanonicalArtifactKind::ProjectContext,
+                        &mut ingest_issues,
+                    ),
+                    load_one(
+                        repo_root,
+                        CanonicalArtifactKind::EnvironmentInventory,
+                        &mut ingest_issues,
+                    ),
+                    load_one(
+                        repo_root,
+                        CanonicalArtifactKind::FeatureSpec,
+                        &mut ingest_issues,
+                    ),
                 ),
-                load_one(
-                    repo_root,
-                    CanonicalArtifactKind::ProjectContext,
-                    &mut ingest_issues,
+                SystemRootStatus::Missing
+                | SystemRootStatus::NotDir
+                | SystemRootStatus::SymlinkNotAllowed => (
+                    missing_one(CanonicalArtifactKind::Charter),
+                    missing_one(CanonicalArtifactKind::ProjectContext),
+                    missing_one(CanonicalArtifactKind::EnvironmentInventory),
+                    missing_one(CanonicalArtifactKind::FeatureSpec),
                 ),
-                load_one(
-                    repo_root,
-                    CanonicalArtifactKind::FeatureSpec,
-                    &mut ingest_issues,
-                ),
-            ),
-            SystemRootStatus::Missing
-            | SystemRootStatus::NotDir
-            | SystemRootStatus::SymlinkNotAllowed => (
-                missing_one(CanonicalArtifactKind::Charter),
-                missing_one(CanonicalArtifactKind::ProjectContext),
-                missing_one(CanonicalArtifactKind::FeatureSpec),
-            ),
-        };
+            };
 
         Ok(Self {
             system_root_status,
             charter,
             project_context,
+            environment_inventory,
             feature_spec,
             ingest_issues,
         })
     }
 
-    pub fn identities(&self) -> [&CanonicalArtifactIdentity; 3] {
+    pub fn identities(&self) -> [&CanonicalArtifactIdentity; 4] {
         [
             &self.charter.identity,
             &self.project_context.identity,
+            &self.environment_inventory.identity,
             &self.feature_spec.identity,
         ]
     }
 }
 
 fn canonical_root_scaffold_exists(repo_root: &Path) -> Result<bool, ArtifactIngestError> {
-    for kind in CANONICAL_ARTIFACT_KINDS {
+    for kind in CANONICAL_ARTIFACT_ORDER {
         let artifact_path = repo_root.join(kind.relative_path());
         match std::fs::symlink_metadata(&artifact_path) {
             Ok(_) => return Ok(true),
@@ -363,7 +406,7 @@ pub struct ArtifactIngestIssue {
     pub kind: ArtifactIngestIssueKind,
     pub artifact_kind: CanonicalArtifactKind,
     pub canonical_repo_relative_path: &'static str,
-    pub required: bool,
+    pub packet_required: bool,
 }
 
 fn record_ingest_issue(
@@ -376,7 +419,7 @@ fn record_ingest_issue(
         kind,
         artifact_kind,
         canonical_repo_relative_path,
-        required: artifact_kind.required(),
+        packet_required: descriptor_for(artifact_kind).packet_required,
     });
 }
 
@@ -388,7 +431,7 @@ fn load_one(
     let relative_path = kind.relative_path();
     let path = repo_root.join(relative_path);
 
-    let required = kind.required();
+    let descriptor = descriptor_for(kind);
 
     let meta = match std::fs::symlink_metadata(&path) {
         Ok(meta) => Some(meta),
@@ -469,7 +512,9 @@ fn load_one(
         identity: CanonicalArtifactIdentity {
             kind,
             relative_path,
-            required,
+            packet_required: descriptor.packet_required,
+            baseline_required: descriptor.baseline_required,
+            setup_scaffolded: descriptor.setup_scaffolded,
             presence,
             byte_len: Some(byte_len),
             content_sha256,
@@ -501,12 +546,14 @@ fn read_bytes_no_follow(path: &Path) -> std::io::Result<Vec<u8>> {
 }
 
 fn missing_one(kind: CanonicalArtifactKind) -> CanonicalArtifact {
-    let required = kind.required();
+    let descriptor = descriptor_for(kind);
     CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
             kind,
             relative_path: kind.relative_path(),
-            required,
+            packet_required: descriptor.packet_required,
+            baseline_required: descriptor.baseline_required,
+            setup_scaffolded: descriptor.setup_scaffolded,
             presence: ArtifactPresence::Missing,
             byte_len: None,
             content_sha256: None,

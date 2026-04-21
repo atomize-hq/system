@@ -28,8 +28,8 @@ fn main() -> ExitCode {
     name = "system",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `author` is the charter authoring surface, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `author` is the charter authoring surface. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `author` is the baseline authoring surface for charter, project context, and environment inventory, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `author` is the baseline authoring surface for charter, project context, and environment inventory. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -40,7 +40,7 @@ struct Cli {
 enum Command {
     /// Initialize or refresh canonical repo-local `.system/` inputs.
     Setup(SetupArgs),
-    /// Human-guided and deterministic charter authoring surfaces.
+    /// Human-guided and deterministic baseline authoring surfaces.
     Author(AuthorArgs),
     /// Pipeline operator surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations.
     Pipeline(PipelineArgs),
@@ -99,6 +99,10 @@ struct AuthorArgs {
 enum AuthorCommand {
     /// Author canonical `.system/charter/CHARTER.md`.
     Charter(AuthorCharterArgs),
+    /// Author canonical `.system/project_context/PROJECT_CONTEXT.md`.
+    ProjectContext,
+    /// Author canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+    EnvironmentInventory,
 }
 
 #[derive(clap::Args, Debug)]
@@ -476,6 +480,8 @@ fn generate(args: RequestArgs) -> ExitCode {
 fn author(args: AuthorArgs) -> ExitCode {
     match args.command {
         Some(AuthorCommand::Charter(args)) => author_charter_command(args),
+        Some(AuthorCommand::ProjectContext) => author_project_context_command(),
+        Some(AuthorCommand::EnvironmentInventory) => author_environment_inventory_command(),
         None => print_subcommand_help(&["author"]),
     }
 }
@@ -496,6 +502,92 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
     );
     println!("{}", rendered.output);
     rendered.exit_code
+}
+
+fn author_project_context_command() -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!(
+                "{}",
+                render_author_simple_refusal(
+                    "author project-context",
+                    "REFUSED",
+                    "WorkingDirectoryUnavailable",
+                    &format!("failed to determine repo root: {err}"),
+                    "current working directory",
+                    "repair the current working directory and retry `system author project-context`",
+                )
+            );
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+    if let Err(refusal) = system_compiler::preflight_author_project_context(&repo_root) {
+        println!("{}", render_project_context_refusal(&refusal));
+        return ExitCode::from(1);
+    }
+    match system_compiler::author_project_context(&repo_root) {
+        Ok(result) => {
+            println!(
+                "{}",
+                render_author_simple_success(
+                    "author project-context",
+                    result.canonical_repo_relative_path,
+                    result.bytes_written,
+                    "Wrote canonical project context to .system/project_context/PROJECT_CONTEXT.md",
+                )
+            );
+            ExitCode::SUCCESS
+        }
+        Err(refusal) => {
+            println!("{}", render_project_context_refusal(&refusal));
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn author_environment_inventory_command() -> ExitCode {
+    let cwd = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(err) => {
+            println!(
+                "{}",
+                render_author_simple_refusal(
+                    "author environment-inventory",
+                    "REFUSED",
+                    "WorkingDirectoryUnavailable",
+                    &format!("failed to determine repo root: {err}"),
+                    "current working directory",
+                    "repair the current working directory and retry `system author environment-inventory`",
+                )
+            );
+            return ExitCode::from(1);
+        }
+    };
+    let repo_root = discover_managed_repo_root(&cwd);
+    if let Err(refusal) = system_compiler::preflight_author_environment_inventory(&repo_root) {
+        println!("{}", render_environment_inventory_refusal(&refusal));
+        return ExitCode::from(1);
+    }
+    match system_compiler::author_environment_inventory(&repo_root) {
+        Ok(result) => {
+            println!(
+                "{}",
+                render_author_simple_success(
+                    "author environment-inventory",
+                    result.canonical_repo_relative_path,
+                    result.bytes_written,
+                    "Wrote canonical environment inventory to .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                )
+            );
+            ExitCode::SUCCESS
+        }
+        Err(refusal) => {
+            println!("{}", render_environment_inventory_refusal(&refusal));
+            ExitCode::from(1)
+        }
+    }
 }
 
 fn execute_author_charter_command<
@@ -529,6 +621,7 @@ where
         Err(err) => {
             return RenderedCommand {
                 output: render_author_custom_refusal(
+                    "author charter",
                     "REFUSED",
                     "WorkingDirectoryUnavailable",
                     &format!("failed to determine repo root: {err}"),
@@ -544,6 +637,7 @@ where
     if args.from_inputs.is_none() && !interactive_allowed() {
         return RenderedCommand {
             output: render_author_custom_refusal(
+                "author charter",
                 "REFUSED",
                 "NonInteractiveRefusal",
                 "`system author charter` is a TTY-only guided interview",
@@ -642,6 +736,7 @@ fn render_author_charter_success(
 
 fn render_author_charter_refusal(refusal: &system_compiler::AuthorCharterRefusal) -> String {
     render_author_custom_refusal(
+        "author charter",
         author_refusal_outcome_name(refusal.kind),
         author_refusal_kind_name(refusal.kind),
         refusal.summary.trim(),
@@ -651,6 +746,7 @@ fn render_author_charter_refusal(refusal: &system_compiler::AuthorCharterRefusal
 }
 
 fn render_author_custom_refusal(
+    object: &str,
     outcome: &str,
     category: &str,
     summary: &str,
@@ -659,7 +755,7 @@ fn render_author_custom_refusal(
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("OUTCOME: {outcome}\n"));
-    out.push_str("OBJECT: author charter\n");
+    out.push_str(&format!("OBJECT: {object}\n"));
     out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
     out.push_str("## REFUSAL\n");
     out.push_str(&format!("CATEGORY: {category}\n"));
@@ -667,6 +763,68 @@ fn render_author_custom_refusal(
     out.push_str(&format!("BROKEN SUBJECT: {broken_subject}\n"));
     out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
     out.trim_end().to_string()
+}
+
+fn render_author_simple_success(
+    object: &str,
+    canonical_repo_relative_path: &str,
+    bytes_written: usize,
+    summary: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: AUTHORED\n");
+    out.push_str(&format!("OBJECT: {object}\n"));
+    out.push_str("NEXT SAFE ACTION: run `system doctor`\n");
+    out.push_str("## CANONICAL ARTIFACT\n");
+    out.push_str(&format!("PATH: {canonical_repo_relative_path}\n"));
+    out.push_str(&format!("BYTES WRITTEN: {bytes_written}\n"));
+    out.push_str("## SUMMARY\n");
+    out.push_str(summary);
+    out.trim_end().to_string()
+}
+
+fn render_author_simple_refusal(
+    object: &str,
+    outcome: &str,
+    category: &str,
+    summary: &str,
+    broken_subject: &str,
+    next_safe_action: &str,
+) -> String {
+    render_author_custom_refusal(
+        object,
+        outcome,
+        category,
+        summary,
+        broken_subject,
+        next_safe_action,
+    )
+}
+
+fn render_project_context_refusal(
+    refusal: &system_compiler::AuthorProjectContextRefusal,
+) -> String {
+    render_author_simple_refusal(
+        "author project-context",
+        author_project_context_refusal_outcome_name(refusal.kind),
+        author_project_context_refusal_kind_name(refusal.kind),
+        refusal.summary.trim(),
+        refusal.broken_subject.trim(),
+        refusal.next_safe_action.trim(),
+    )
+}
+
+fn render_environment_inventory_refusal(
+    refusal: &system_compiler::AuthorEnvironmentInventoryRefusal,
+) -> String {
+    render_author_simple_refusal(
+        "author environment-inventory",
+        author_environment_inventory_refusal_outcome_name(refusal.kind),
+        author_environment_inventory_refusal_kind_name(refusal.kind),
+        refusal.summary.trim(),
+        refusal.broken_subject.trim(),
+        refusal.next_safe_action.trim(),
+    )
 }
 
 fn author_refusal_outcome_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
@@ -703,6 +861,7 @@ fn read_author_inputs_source(path_or_dash: &str) -> Result<String, String> {
     if path_or_dash == "-" {
         return read_stdin().map_err(|err| {
             render_author_custom_refusal(
+                "author charter",
                 "REFUSED",
                 "InputReadFailure",
                 &format!("failed to read structured inputs from stdin: {err}"),
@@ -714,6 +873,7 @@ fn read_author_inputs_source(path_or_dash: &str) -> Result<String, String> {
 
     fs::read_to_string(path_or_dash).map_err(|err| {
         render_author_custom_refusal(
+            "author charter",
             "REFUSED",
             "InputReadFailure",
             &format!(
@@ -917,6 +1077,7 @@ fn prompt_line(prompt: &str) -> Result<String, String> {
     print!("{prompt}: ");
     io::stdout().flush().map_err(|err| {
         render_author_custom_refusal(
+            "author charter",
             "REFUSED",
             "PromptWriteFailure",
             &format!("failed to render guided prompt: {err}"),
@@ -928,6 +1089,7 @@ fn prompt_line(prompt: &str) -> Result<String, String> {
     let mut value = String::new();
     let bytes_read = io::stdin().read_line(&mut value).map_err(|err| {
         render_author_custom_refusal(
+            "author charter",
             "REFUSED",
             "PromptReadFailure",
             &format!("failed to read guided answer: {err}"),
@@ -938,6 +1100,7 @@ fn prompt_line(prompt: &str) -> Result<String, String> {
 
     if bytes_read == 0 {
         return Err(render_author_custom_refusal(
+            "author charter",
             "REFUSED",
             "InterviewIncomplete",
             "guided charter interview ended before all required answers were collected",
@@ -1218,6 +1381,7 @@ fn is_unusably_vague_text(value: &str) -> bool {
 
 fn render_interview_incomplete_refusal(summary: &str) -> String {
     render_author_custom_refusal(
+        "author charter",
         "REFUSED",
         "InterviewIncomplete",
         summary,
@@ -1606,9 +1770,6 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
             "Required starter files still contain shipped scaffold text; replace canonical truth before running `system doctor` or packet work.\n",
         );
     }
-    out.push_str(
-        "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned.\n",
-    );
 
     out.trim_end().to_string()
 }
@@ -1669,13 +1830,7 @@ fn setup_action_label_name(label: system_compiler::SetupActionLabel) -> &'static
 }
 
 fn setup_action_path(action: &system_compiler::SetupAction) -> String {
-    if action.label == system_compiler::SetupActionLabel::Created
-        && action.path == ".system/project_context/PROJECT_CONTEXT.md"
-    {
-        format!("{} (optional)", action.path)
-    } else {
-        action.path.clone()
-    }
+    action.path.clone()
 }
 
 fn setup_refusal_outcome_name(kind: system_compiler::SetupRefusalKind) -> &'static str {
@@ -1708,39 +1863,158 @@ fn doctor() -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let result =
-        match system_compiler::resolve(&repo_root, system_compiler::ResolveRequest::default()) {
-            Ok(result) => result,
-            Err(err) => {
-                println!("BLOCKED: resolver error: {err:?}");
-                return ExitCode::from(1);
-            }
-        };
+    let report = match system_compiler::doctor(&repo_root) {
+        Ok(report) => report,
+        Err(err) => {
+            println!("INVALID_BASELINE");
+            println!("SUMMARY: failed to inspect baseline truth: {err}");
+            return ExitCode::from(1);
+        }
+    };
 
-    if result.blockers.is_empty() {
-        println!("READY");
-        return ExitCode::SUCCESS;
-    }
-
-    println!("BLOCKED");
-    for blocker in result.blockers {
-        println!(
-            "CATEGORY: {}",
-            system_compiler::render_blocker_category(blocker.category)
-        );
-        println!("SUMMARY: {}", blocker.summary);
-        println!(
-            "SUBJECT: {}",
-            system_compiler::render_subject_ref(&blocker.subject)
-        );
+    println!("{}", doctor_status_name(report.status));
+    println!(
+        "ROOT STATUS: {}",
+        doctor_root_status_name(report.system_root_status)
+    );
+    if let Some(next_safe_action) = &report.next_safe_action {
         println!(
             "NEXT SAFE ACTION: {}",
-            system_compiler::render_next_safe_action_value(&blocker.next_safe_action)
+            system_compiler::render_next_safe_action_value(next_safe_action)
         );
-        println!();
+    } else {
+        println!("NEXT SAFE ACTION: <none>");
+    }
+    println!("## BASELINE CHECKLIST");
+    for item in report.checklist {
+        let next_action = item
+            .next_safe_action
+            .as_ref()
+            .map(system_compiler::render_next_safe_action_value)
+            .unwrap_or_else(|| "<none>".to_string());
+        println!(
+            "{} [{}] STATUS: {} ACTION: {}",
+            doctor_artifact_label(item.kind),
+            item.canonical_repo_relative_path,
+            doctor_artifact_status_name(item.status),
+            next_action
+        );
     }
 
-    ExitCode::from(1)
+    if report.status == system_compiler::DoctorBaselineStatus::BaselineComplete {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    }
+}
+
+fn author_project_context_refusal_outcome_name(
+    kind: system_compiler::AuthorProjectContextRefusalKind,
+) -> &'static str {
+    match kind {
+        system_compiler::AuthorProjectContextRefusalKind::MissingSystemRoot
+        | system_compiler::AuthorProjectContextRefusalKind::InvalidSystemRoot
+        | system_compiler::AuthorProjectContextRefusalKind::MutationRefused => "BLOCKED",
+        system_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput
+        | system_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput
+        | system_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => "REFUSED",
+    }
+}
+
+fn author_project_context_refusal_kind_name(
+    kind: system_compiler::AuthorProjectContextRefusalKind,
+) -> &'static str {
+    match kind {
+        system_compiler::AuthorProjectContextRefusalKind::MissingSystemRoot => "MissingSystemRoot",
+        system_compiler::AuthorProjectContextRefusalKind::InvalidSystemRoot => "InvalidSystemRoot",
+        system_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput => {
+            "MalformedStructuredInput"
+        }
+        system_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput => {
+            "IncompleteStructuredInput"
+        }
+        system_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => {
+            "ExistingCanonicalTruth"
+        }
+        system_compiler::AuthorProjectContextRefusalKind::MutationRefused => "MutationRefused",
+    }
+}
+
+fn author_environment_inventory_refusal_outcome_name(
+    kind: system_compiler::AuthorEnvironmentInventoryRefusalKind,
+) -> &'static str {
+    match kind {
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot
+        | system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot
+        | system_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused
+        | system_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => "BLOCKED",
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter
+        | system_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
+            "REFUSED"
+        }
+    }
+}
+
+fn author_environment_inventory_refusal_kind_name(
+    kind: system_compiler::AuthorEnvironmentInventoryRefusalKind,
+) -> &'static str {
+    match kind {
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot => {
+            "MissingSystemRoot"
+        }
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot => {
+            "InvalidSystemRoot"
+        }
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter => {
+            "MissingRequiredCharter"
+        }
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
+            "ExistingCanonicalTruth"
+        }
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused => {
+            "MutationRefused"
+        }
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => {
+            "SynthesisFailed"
+        }
+    }
+}
+
+fn doctor_status_name(status: system_compiler::DoctorBaselineStatus) -> &'static str {
+    match status {
+        system_compiler::DoctorBaselineStatus::Scaffolded => "SCAFFOLDED",
+        system_compiler::DoctorBaselineStatus::PartialBaseline => "PARTIAL_BASELINE",
+        system_compiler::DoctorBaselineStatus::InvalidBaseline => "INVALID_BASELINE",
+        system_compiler::DoctorBaselineStatus::BaselineComplete => "BASELINE_COMPLETE",
+    }
+}
+
+fn doctor_root_status_name(status: system_compiler::SystemRootStatus) -> &'static str {
+    match status {
+        system_compiler::SystemRootStatus::Ok => "OK",
+        system_compiler::SystemRootStatus::Missing => "MISSING",
+        system_compiler::SystemRootStatus::NotDir => "NOT_DIR",
+        system_compiler::SystemRootStatus::SymlinkNotAllowed => "SYMLINK_NOT_ALLOWED",
+    }
+}
+
+fn doctor_artifact_label(kind: system_compiler::CanonicalArtifactKind) -> &'static str {
+    match kind {
+        system_compiler::CanonicalArtifactKind::Charter => "CHARTER",
+        system_compiler::CanonicalArtifactKind::ProjectContext => "PROJECT_CONTEXT",
+        system_compiler::CanonicalArtifactKind::EnvironmentInventory => "ENVIRONMENT_INVENTORY",
+        system_compiler::CanonicalArtifactKind::FeatureSpec => "FEATURE_SPEC",
+    }
+}
+
+fn doctor_artifact_status_name(status: system_compiler::DoctorArtifactStatus) -> &'static str {
+    match status {
+        system_compiler::DoctorArtifactStatus::Missing => "MISSING",
+        system_compiler::DoctorArtifactStatus::Empty => "EMPTY",
+        system_compiler::DoctorArtifactStatus::StarterOwned => "STARTER_OWNED",
+        system_compiler::DoctorArtifactStatus::Invalid => "INVALID",
+        system_compiler::DoctorArtifactStatus::ValidCanonicalTruth => "VALID_CANONICAL_TRUTH",
+    }
 }
 
 fn pipeline(args: PipelineArgs) -> ExitCode {

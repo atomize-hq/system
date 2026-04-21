@@ -63,7 +63,7 @@ Docs should:
 - sound calm, exact, and slightly explanatory
 - distinguish the supported path from the legacy reference path without drama
 - explain why the command exists before explaining edge cases
-- preserve the product hierarchy: `setup`, `generate`, `inspect`, `doctor`
+- preserve the product hierarchy: `setup`, `author`, `pipeline`, `generate`, `inspect`, `doctor`
 
 Docs should not:
 
@@ -170,9 +170,10 @@ Use:
 
 - `OUTCOME: REFUSED`
 - `OBJECT: planning.packet`
-- `NEXT SAFE ACTION: create canonical artifact at .system/feature_spec/FEATURE_SPEC.md`
-- `SUMMARY: required canonical artifact is missing`
-- `BROKEN SUBJECT: canonical artifact FeatureSpec at .system/feature_spec/FEATURE_SPEC.md`
+- `NEXT SAFE ACTION: run \`system author environment-inventory\``
+- `SUMMARY: baseline environment inventory is still setup-owned scaffolding`
+- `BROKEN SUBJECT: canonical baseline artifact ENVIRONMENT_INVENTORY at .system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `1. ENVIRONMENT_INVENTORY | .system/environment_inventory/ENVIRONMENT_INVENTORY.md | starter-owned | run \`system author environment-inventory\``
 
 Do not use:
 
