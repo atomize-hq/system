@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m8-autoplan-restore-20260421-112647.md -->
 # PLAN
 
 ## Status
@@ -21,6 +22,8 @@ Current shipped baseline on `main`:
 - `system doctor` is the readiness/recovery surface
 - canonical truth is moving under `.system/*`
 - readiness/product copy still reflects the charter-only `M7` story
+
+The shipped reduced-v1 pipeline-routing contract remains intentionally narrow: activation clauses use only `variables.<name> == true|false`, and string or numeric activation literals are not part of shipped `M1`.
 
 ## Landing Notes
 
@@ -416,128 +419,282 @@ Critical-gap rule:
 - duplicated validation logic across CLI and compiler layers
 - legacy root/artifact-path reads kept in the hot path after cleanup
 
+## Deterministic Implementation Contract
+
+The plan is not implementation-ready unless two independent workers would choose the same structural diff.
+
+For `M8`, that means these decisions are no longer discretionary:
+
+1. `crates/compiler/src/canonical_artifacts.rs` becomes the single registry for all canonical artifact semantics used by setup, doctor, and downstream rendering.
+   It must explicitly model four artifacts:
+   - `CHARTER`
+   - `PROJECT_CONTEXT`
+   - `ENVIRONMENT_INVENTORY`
+   - `FEATURE_SPEC`
+2. The registry must separate these concerns instead of collapsing them into one `required` boolean:
+   - baseline-readiness participation
+   - setup scaffolding participation
+   - later feature-phase participation
+   - canonical path ownership
+3. `system doctor` must stop using raw planning-packet `READY` versus `BLOCKED` as its repo-baseline model.
+   `doctor` needs a compiler-owned baseline-readiness result with named states:
+   - `SCAFFOLDED`
+   - `PARTIAL_BASELINE`
+   - `INVALID_BASELINE`
+   - `BASELINE_COMPLETE`
+4. `system author` grows exactly two new public commands in `M8`:
+   - `system author project-context`
+   - `system author environment-inventory`
+5. Compiler-side authoring stops growing as one file.
+   `M8` must leave authoring split under `crates/compiler/src/author/` with these module targets:
+   - `mod.rs`
+   - `charter.rs`
+   - `project_context.rs`
+   - `environment_inventory.rs`
+6. Repo-root `ENVIRONMENT_INVENTORY.md` is not a supported canonical output after `M8`.
+   The live product contract is the `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` path only.
+   Any legacy capture/mirror cleanup is internal repo maintenance, not shipped compatibility behavior.
+7. `setup` may keep its own mutation result vocabulary, but it must stop implying that repo readiness is equivalent to packet readiness or charter-only completion.
+   `setup` hands off to `doctor` for baseline truth.
+8. `doctor` next actions must name the command when a command exists.
+   Do not leave `project-context` or `environment-inventory` recovery as a generic “fill canonical artifact” file-path hint.
+
 ## Implementation Plan
 
-### Slice 1: Rewrite the product truth for M8
+### Slice 1: Shared baseline model and setup cutover
 
-Deliverables:
+**Owned files**
 
-- rewrite `PLAN.md`
-- update README/docs/contracts vocabulary from charter-only `M7` story to baseline-tier `M8`
-- lock the canonical baseline set and authority boundary in one place
+- `crates/compiler/src/canonical_artifacts.rs`
+- `crates/compiler/src/setup.rs`
+- `crates/compiler/src/refusal.rs`
+- `crates/compiler/src/rendering/shared.rs`
+- `crates/cli/src/main.rs`
+- `crates/compiler/tests/setup.rs`
+- `crates/cli/tests/cli_surface.rs`
+- `crates/cli/tests/snapshots/system-setup-help.txt`
+- `crates/cli/tests/snapshots/system-setup-init-help.txt`
+- `crates/cli/tests/snapshots/system-setup-refresh-help.txt`
 
-Acceptance:
+**Required code changes**
 
-- no core product doc still describes repo-root `ENVIRONMENT_INVENTORY.md` as canonical
-- no core product doc still implies charter-only readiness
+1. Extend the canonical artifact registry with `EnvironmentInventory`.
+2. Replace the current single-axis required/optional model with explicit baseline semantics so:
+   - `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY` are baseline artifacts
+   - `FEATURE_SPEC` remains canonical but is later-phase only
+3. Make setup scaffold exactly the baseline starter set for `M8`.
+   That means:
+   - create `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+   - keep `.system/charter/CHARTER.md`
+   - keep `.system/project_context/PROJECT_CONTEXT.md`
+   - stop creating `.system/feature_spec/FEATURE_SPEC.md`
+4. Remove the current setup note that says project context is optional for the setup-owned story.
+5. Expand next-safe-action vocabulary so later doctor/checklist rendering can point to the concrete author commands, not only file paths.
 
-### Slice 2: Extend canonical artifact/setup support
+**Acceptance**
 
-Deliverables:
+- setup creates only the baseline starter set
+- setup refresh preserves valid baseline truth
+- no shared compiler or CLI file still assumes `FEATURE_SPEC` is part of setup bootstrap
+- setup snapshots and CLI surface tests are updated to the new baseline language
 
-- add canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-- update setup scaffolding and refresh behavior
-- stop setup from creating `.system/feature_spec/FEATURE_SPEC.md`
-- keep baseline and later feature-phase artifacts separate in readiness logic
-- move the `M8` baseline set and required/optional semantics into `crates/compiler/src/canonical_artifacts.rs` as the single consumed source of truth
+### Slice 2: Restructure compiler authoring into explicit modules
 
-Acceptance:
+**Owned files**
 
-- setup creates the baseline set needed for `M8`
-- setup no longer creates feature-spec starter scaffolding
-- resolver/rendering do not carry a divergent copy of baseline artifact semantics
-- setup behavior is regression-tested
+- `crates/compiler/src/author.rs` replaced by `crates/compiler/src/author/mod.rs`
+- `crates/compiler/src/author/charter.rs`
+- `crates/compiler/src/author/project_context.rs`
+- `crates/compiler/src/author/environment_inventory.rs`
+- `crates/compiler/src/lib.rs`
+
+**Required code changes**
+
+1. Move the existing charter implementation into `author/charter.rs` without changing its shipped refusal boundary.
+2. Make `author/mod.rs` the shared entrypoint for all authoring surfaces.
+3. Keep only shared utilities in the module root:
+   - canonical-write guardrails
+   - starter-template detection
+   - shared validation/refusal helpers
+   - codex-process plumbing only where truly shared
+4. Do not leave `project-context` or `environment-inventory` as giant copy-paste branches inside one file.
+
+**Acceptance**
+
+- `charter` behavior remains unchanged except for mechanical module movement
+- the new authoring surfaces plug into the same compiler-owned write boundary
+- the post-`M8` authoring tree has obvious ownership by artifact
 
 ### Slice 3: Add `system author project-context`
 
-Deliverables:
+**Owned files**
 
-- public CLI subcommand
-- compiler-owned authoring execution
-- artifact-specific logic lives in a dedicated authoring module, not inline in one giant file
-- starter-vs-valid truth refusal behavior aligned with `M7`
+- `crates/cli/src/main.rs`
+- `crates/compiler/src/author/project_context.rs`
+- `core/library/project_context/PROJECT_CONTEXT.md.tmpl`
+- `core/library/project_context/project_context_gen_directive.md`
+- `crates/compiler/tests/author.rs`
+- `crates/cli/tests/author_cli.rs`
+- `crates/cli/tests/snapshots/system-author-help.txt`
+- new help snapshot for `system author project-context`
 
-Acceptance:
+**Required code changes**
 
-- project context can be authored end-to-end through the product
-- no legacy stage ids leak into public UX
+1. Add the public CLI subcommand and help text.
+2. Add compiler-owned project-context authoring that writes only `.system/project_context/PROJECT_CONTEXT.md`.
+3. Match `M7` write-safety posture:
+   - missing or starter-owned file can be authored
+   - existing valid non-starter truth refuses overwrite by default
+4. Add project-context structural validation strong enough for doctor to classify invalid versus starter versus valid.
+5. Keep public UX free of stage ids and artifact-copy jargon.
 
-### Slice 4: Add `system author environment-inventory`
+**Acceptance**
 
-Deliverables:
+- `system author project-context` works end to end from scaffolded repo to canonical write
+- overwrite refusal matches the charter precedent
+- invalid project-context content can be surfaced later by doctor as `INVALID_BASELINE`
 
-- public CLI subcommand
-- compiler-owned authoring execution
-- artifact-specific logic lives in a dedicated authoring module, not inline in one giant file
-- canonical `.system` write path only
+### Slice 4: Add `system author environment-inventory` and cut authority
 
-Acceptance:
+**Owned files**
 
-- environment inventory can be authored end-to-end through the product
-- repo-root is not treated as canonical
+- `crates/cli/src/main.rs`
+- `crates/compiler/src/author/environment_inventory.rs`
+- `core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl`
+- `core/library/environment_inventory/environment_inventory_directive.md`
+- `core/rules/p0_absolute.md`
+- `crates/compiler/tests/author.rs`
+- `crates/cli/tests/author_cli.rs`
+- new help snapshot for `system author environment-inventory`
 
-### Slice 5: Land doctor baseline-state model
+**Required code changes**
 
-Deliverables:
+1. Add the public CLI subcommand and help text.
+2. Add compiler-owned environment-inventory authoring that writes only `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+3. Rewrite environment-inventory prompt/template/rules text so the `.system` path is the sole canonical home.
+4. Remove product-surface language that still claims:
+   - repo-root `ENVIRONMENT_INVENTORY.md` is canonical
+   - `artifacts/foundation/ENVIRONMENT_INVENTORY.md` is the canonical store of record
+5. Keep pipeline-capture legacy artifact behavior out of the `M8` product contract.
+   If older fixture or capture tests still reference repo-root or artifact copies, they remain legacy implementation surfaces and must not be described as live canonical truth in docs/help/rules.
 
-- readiness classification for `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, `BASELINE_COMPLETE`
-- compact ordered checklist rendering for missing or invalid baseline artifacts
-- item 1 in the checklist is the next safe action
+**Acceptance**
 
-Acceptance:
+- `system author environment-inventory` writes only the `.system` canonical path
+- no live authoring/rules/help copy still names the repo-root file as canonical
+- the plan leaves no ambiguity about which file downstream operators should edit
 
-- doctor can truthfully report baseline progress without feature-spec
-- invalid baseline files do not masquerade as ready
-- doctor output stays explicit without forcing one-artifact-at-a-time blind iteration
+### Slice 5: Introduce a compiler-owned doctor model for baseline readiness
 
-### Slice 6: Cut legacy authority claims and proof
+**Owned files**
 
-Deliverables:
+- new `crates/compiler/src/doctor.rs`
+- `crates/compiler/src/lib.rs`
+- `crates/cli/src/main.rs`
+- `crates/compiler/tests/resolver_core.rs`
+- `crates/compiler/tests/rendering_surface.rs`
+- `crates/cli/tests/cli_surface.rs`
 
-- clean up rules/directives/docs/tests that still say repo-root env inventory is canonical
-- add regression coverage for baseline readiness and authority boundary
+**Required code changes**
 
-Acceptance:
+1. Stop making `system doctor` a thin wrapper around packet `resolve()`.
+2. Add a compiler-owned baseline-readiness result that classifies exactly:
+   - `SCAFFOLDED`
+   - `PARTIAL_BASELINE`
+   - `INVALID_BASELINE`
+   - `BASELINE_COMPLETE`
+3. Make the classifier inspect only the three baseline artifacts.
+   `FEATURE_SPEC` must not participate in this state machine.
+4. Render a compact ordered checklist when more than one baseline artifact still needs work.
+   Item 1 is the next safe action.
+5. Use concrete command guidance:
+   - `run \`system author charter\``
+   - `run \`system author project-context\``
+   - `run \`system author environment-inventory\``
+6. Preserve packet resolver behavior as a separate concern.
+   `doctor` reports repo-baseline truth, not planning-packet selection.
 
-- docs/help/contracts/tests all agree on one canonical env-inventory path
-- root-canonical language is gone from the live product story
-- CLI integration coverage is the primary proof layer for setup, author, and doctor baseline flows
+**Acceptance**
+
+- doctor no longer prints a misleading bare `READY` when only packet prerequisites happen to pass
+- invalid authored files are separated from missing/starter-owned files
+- feature-spec absence does not affect baseline completion
+
+### Slice 6: Product-story cutover and proof
+
+**Owned files**
+
+- `README.md`
+- `docs/contracts/C-03-canonical-artifact-manifest-contract.md`
+- `docs/CLI_OUTPUT_ANATOMY.md`
+- `docs/VISION.md`
+- `docs/GLOSSARY.md`
+- `docs/legacy/SYSTEM_MODEL.md`
+- `docs/legacy/stages/stage.07_foundation_pack.md`
+- `docs/legacy/guides/mechanisms/environment_inventory.md`
+- `core/library/foundation_pack/foundation_pack_directive.md`
+- `crates/cli/tests/help_drift_guard.rs`
+
+**Required code and doc changes**
+
+1. Cut every live product description from charter-only or root-canonical wording to the `M8` baseline tier.
+2. Update the artifact contract docs so `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the canonical environment-inventory path.
+3. Where legacy docs are kept for historical mechanism coverage, mark them as legacy and remove statements that would contradict the shipped product contract.
+4. Make help-drift coverage fail if author/setup/doctor help slips back to the old story.
+
+**Acceptance**
+
+- docs, help, contracts, and rules all tell the same baseline story
+- no user-facing source instructs the operator to treat repo-root `ENVIRONMENT_INVENTORY.md` as canonical
+- proof is test-backed, not trust-me prose
 
 ## Worktree Parallelization Strategy
 
-### Dependency table
+### Required lane ownership
 
-| Step | Modules touched | Depends on |
-| --- | --- | --- |
-| A. Lock docs/contracts/plan/product wording | `docs/`, `docs/contracts/`, root docs | — |
-| B. Canonical artifact + setup support | `crates/compiler/` | A |
-| C. `author project-context` | `crates/cli/`, `crates/compiler/`, `core/library/project_context/` | A, B |
-| D. `author environment-inventory` | `crates/cli/`, `crates/compiler/`, `core/library/environment_inventory/`, `core/rules/` | A, B |
-| E. Doctor readiness-state proof | `crates/compiler/`, `crates/compiler/tests/`, `crates/cli/tests/` | B, C, D |
+Parallel work is safe only if ownership is explicit.
 
-### Parallel lanes
+| Lane | Ownership | Write set | Must not edit |
+| --- | --- | --- | --- |
+| Lane A: shared baseline foundation | baseline registry, setup, shared next-safe-action vocabulary | `crates/compiler/src/canonical_artifacts.rs`, `crates/compiler/src/setup.rs`, `crates/compiler/src/refusal.rs`, `crates/compiler/src/rendering/shared.rs`, setup-related CLI/help snapshots | author modules, doctor module, docs cutover |
+| Lane B: author module restructure + project-context | author module split and project-context authoring | `crates/compiler/src/author/*`, project-context assets, project-context author tests | authority docs, doctor module |
+| Lane C: environment-inventory authority cutover | environment-inventory authoring plus authority docs/rules | `crates/compiler/src/author/environment_inventory.rs`, environment-inventory assets, `core/rules/p0_absolute.md`, authority docs listed in Slice 6 | setup registry internals, doctor module |
+| Lane D: doctor closeout | baseline readiness classification and doctor rendering | `crates/compiler/src/doctor.rs`, `crates/cli/src/main.rs`, doctor-facing tests and snapshots | author asset files, authority docs except wording needed for doctor snapshots |
 
-- Lane A: A
-- Lane B: B
-- Lane C: C
-- Lane D: D
-- Lane E: E
+### Handoff rules
 
-### Execution order
+1. Lane A lands first.
+   It establishes the shared artifact model and removes the current “feature spec is part of setup bootstrap” assumption.
+2. Lane B and Lane C branch only after Lane A lands.
+   They depend on the same canonical registry and next-safe-action vocabulary.
+3. Lane D starts only after both Lane B and Lane C land.
+   Doctor cannot finalize checklist text or state classification until both new authoring surfaces and the environment-inventory authority boundary are real.
 
-1. Launch A first.
-2. Launch B after A.
-3. Once B stabilizes the canonical path/model, launch C and D in parallel with clear ownership.
-4. Launch E after C and D settle, because readiness proof depends on final artifact and wording semantics.
+### Why this is the only safe parallel split
 
-### Conflict flags
-
-- C and D both touch shared CLI and compiler authoring boundaries, so ownership must be explicit.
-- D also touches `core/rules/` and authority contracts, so merging it before E is important.
+- `crates/cli/src/main.rs` is a conflict magnet.
+  Do not have multiple lanes racing there.
+  Lane D owns the final CLI closeout after the compiler-side authoring work is real.
+- `crates/compiler/src/author/*` is shared infrastructure.
+  Project-context and environment-inventory authoring may share helpers, but only Lane B owns the structural module split.
+- authority-doc cleanup is not a side quest.
+  Lane C owns it because environment-inventory canonical-path truth is part of the shipped feature, not post-merge polish.
 
 ### Parallelization verdict
 
-Two safe middle parallel lanes exist after the boundary lock. The opening and closeout remain sequential.
+The safe plan is one sequential foundation lane, two middle implementation lanes, then one sequential doctor closeout lane.
+That is the highest parallelism available without inviting merge-conflict roulette or divergent product wording.
+
+## Verification Commands
+
+Run these as the minimum acceptance proof for `M8`:
+
+```bash
+cargo test -p system-compiler --test setup --test author --test resolver_core --test rendering_surface
+cargo test -p system-cli --test author_cli --test cli_surface --test help_drift_guard
+```
+
+If help snapshots or new command snapshots are split into additional test files, they join this minimum bar. `M8` is not done on unit coverage alone.
 
 ## Exit Criteria
 
@@ -554,6 +711,8 @@ The milestone is complete only when:
 - repo-root `ENVIRONMENT_INVENTORY.md` is not described as canonical anywhere in live docs/contracts/help and is not emitted as a live mirror
 - `BASE_CONTEXT` remains outside the baseline tier
 - doctor shows a compact ordered checklist when more than one baseline action remains
+- doctor next actions name the concrete `author` command for each missing or invalid baseline artifact
+- compiler authoring is split under `crates/compiler/src/author/` rather than left as a monolith
 - regression coverage proves the authority boundary and readiness model
 
 ## GSTACK REVIEW REPORT
