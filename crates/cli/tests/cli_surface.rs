@@ -448,6 +448,16 @@ Use this document to ground planning in reality.
 "
 }
 
+fn legacy_placeholder_project_context_markdown() -> String {
+    valid_project_context_markdown()
+        .replace("> **Owner:** project-owner", "> **Owner:** unknown-owner")
+        .replace("> **Team:** system-team", "> **Team:** project-team")
+        .replace(
+            "- Operations.",
+            "- Unknown from local repo inspection; confirm before planning live changes.",
+        )
+}
+
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
@@ -5145,6 +5155,40 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
 }
 
 #[test]
+fn doctor_rejects_legacy_placeholder_project_context_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+
+    let output = run_in(root, &["doctor"]);
+    assert!(
+        !output.status.success(),
+        "doctor should reject legacy placeholder project context"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() {
     let (_dir, root) = tracked_workspace_checkout();
 
@@ -5495,6 +5539,10 @@ fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
 #[test]
 fn generate_emits_real_packet_body_when_ready() {
     let (_dir, root) = planning_ready_repo();
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
 
     let output = binary_in(&root)
         .arg("generate")
@@ -5551,6 +5599,10 @@ fn generate_emits_real_packet_body_when_ready() {
     assert!(
         stdout.contains("# Canonical planning-ready charter fixture"),
         "expected committed charter fixture contents: {stdout}"
+    );
+    assert!(
+        stdout.contains("### ENVIRONMENT_INVENTORY"),
+        "expected environment inventory body section: {stdout}"
     );
     assert!(
         stdout.contains("### FEATURE_SPEC"),

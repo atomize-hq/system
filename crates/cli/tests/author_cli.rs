@@ -15,6 +15,7 @@ const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
     "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
     "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
+const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn binary() -> Command {
@@ -101,6 +102,23 @@ fn with_environment_inventory_runtime_override<T>(
     )
 }
 
+fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
+    let previous = std::env::var_os(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR);
+    std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, value);
+
+    let result = catch_unwind(AssertUnwindSafe(action));
+
+    match previous {
+        Some(value) => std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, value),
+        None => std::env::remove_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR),
+    }
+
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
 fn with_runtime_override<T>(
     binary_env_var: &str,
     model_env_var: &str,
@@ -182,6 +200,99 @@ fn valid_environment_inventory_markdown(project_context_ref: &str) -> String {
     )
     .trim_end()
     .to_string()
+}
+
+fn valid_project_context_inputs_yaml() -> &'static str {
+    r#"schema_version: "0.1.0"
+project_name: "System"
+owner: "compiler-team"
+team: "System"
+repo_or_project_ref: "system"
+charter_ref: ".system/charter/CHARTER.md"
+project_summary:
+  what_this_project_is: "CLI and compiler for canonical planning artifacts and workflow proofs"
+  primary_surface: "CLI plus compiler library"
+  primary_users: "internal operators and automation"
+  key_workflows:
+    - "scaffold canonical .system state"
+    - "author baseline artifacts"
+    - "compile and inspect planning outputs"
+  non_goals: "End-user product delivery"
+operational_reality:
+  is_live_in_production_today: "no"
+  users: "internal operators only"
+  data_in_production: "none"
+  uptime_expectations: "best effort during active development"
+  incident_on_call_reality: "no formal on-call rotation today"
+  primary_risk_flags_present: "incorrect planning guidance and canonical write regressions"
+classification_implications:
+  project_type: "greenfield with an active brownfield codebase"
+  backward_compatibility_required: "no"
+  backward_compatibility_notes: "no external customers depend on the current compiler API"
+  migration_planning_required: "not applicable"
+  migration_planning_notes: "no legacy production data to migrate"
+  deprecation_policy_exists: "not yet"
+  deprecation_policy_notes: "internal interfaces can change with coordinated release notes"
+  rollout_controls_required: "lightweight only"
+  rollout_controls_notes: "feature branches and tests gate changes before merge"
+system_boundaries:
+  owned_areas:
+    - "compiler and CLI crates in this repository"
+    - "canonical .system artifact formats and setup flow"
+  external_dependencies:
+    - "OpenAI Codex runtime used for charter synthesis"
+    - "local filesystem layout and git worktree state"
+integrations:
+  - name: "Codex exec"
+    integration_type: "CLI runtime"
+    contract_surface: "codex exec --output-last-message -"
+    authentication_authorization: "inherits local operator credentials and API configuration"
+    failure_mode_expectations: "auth or process failures must refuse without partial writes"
+environments_and_delivery:
+  environments_that_exist: "local development and CI"
+  deployment_model: "cargo-driven local execution"
+  ci_cd_reality: "basic CI with compiler and CLI test coverage"
+  release_cadence: "repo-driven iterative releases"
+  config_and_secrets: "standard local environment variables and git config"
+  observability_stack: "test output and local command stderr"
+data_reality:
+  primary_data_stores: "repo-local markdown, yaml, and route-state files"
+  data_classification: "source code and internal planning metadata"
+  retention_requirements: "none beyond repository history"
+  backups_disaster_recovery: "git history plus local worktree backups"
+  existing_migrations_history: "none for production data"
+repo_codebase_reality:
+  codebase_exists_today: true
+  current_maturity: "medium-sized active Rust workspace"
+  key_modules_or_areas:
+    - "crates/compiler"
+    - "crates/cli"
+    - "core/library"
+  known_constraints_from_existing_code: "lane ownership and canonical artifact ordering must be preserved"
+constraints:
+  deadline_time_constraints: "must fit the current milestone split"
+  budget_constraints: "limited to local engineering time"
+  must_use_or_prohibited_tech: "must stay in Rust and preserve existing canonical paths"
+  compliance_legal_constraints: "none beyond repository policy"
+  performance_constraints: "compiler authoring should stay fast and deterministic"
+  security_constraints: "no writes outside canonical repo-owned targets"
+known_unknowns:
+  - item: "final CLI interview wording for project-context authoring"
+    owner: "Lane D"
+    revisit_trigger: "when the CLI subcommand lands"
+"#
+}
+
+fn expected_project_context_markdown_from_yaml() -> String {
+    let input = system_compiler::parse_project_context_structured_input_yaml(
+        valid_project_context_inputs_yaml(),
+    )
+    .expect("parse project-context yaml");
+
+    with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        system_compiler::render_project_context_markdown(&input)
+            .expect("render project-context markdown")
+    })
 }
 
 fn valid_structured_inputs_yaml() -> &'static str {
@@ -714,6 +825,193 @@ fn run_guided_author_under_pty(dir: &Path) -> (String, portable_pty::ExitStatus)
     (output, status)
 }
 
+fn guided_project_context_prompt_answers() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("Project name [", ""),
+        ("Owner:", "compiler-team"),
+        ("Team:", "System"),
+        ("Repo / project reference [", ""),
+        ("Charter ref [", ""),
+        (
+            "What this project is:",
+            "CLI and compiler for canonical planning artifacts and workflow proofs",
+        ),
+        ("Primary surface:", "CLI plus compiler library"),
+        ("Primary users:", "internal operators and automation"),
+        (
+            "Key workflows (comma-separated, 1-3):",
+            "scaffold canonical .system state, author baseline artifacts, compile and inspect planning outputs",
+        ),
+        ("Non-goals (optional):", "End-user product delivery"),
+        ("Is anything live in production today?:", "no"),
+        ("Users:", "internal operators only"),
+        ("Data in production:", "none"),
+        (
+            "Uptime expectations / SLA:",
+            "best effort during active development",
+        ),
+        ("Incident / on-call reality:", "no formal on-call rotation today"),
+        (
+            "Primary risk flags present:",
+            "incorrect planning guidance and canonical write regressions",
+        ),
+        (
+            "Project type:",
+            "greenfield with an active brownfield codebase",
+        ),
+        ("Backward compatibility required?:", "no"),
+        (
+            "Backward compatibility notes:",
+            "no external customers depend on the current compiler API",
+        ),
+        ("Migration planning required?:", "not applicable"),
+        (
+            "Migration planning notes:",
+            "no legacy production data to migrate",
+        ),
+        ("Deprecation policy exists?:", "not yet"),
+        (
+            "Deprecation policy notes:",
+            "internal interfaces can change with coordinated release notes",
+        ),
+        ("Rollout controls required?:", "lightweight only"),
+        (
+            "Rollout controls notes:",
+            "feature branches and tests gate changes before merge",
+        ),
+        (
+            "Owned areas (comma-separated):",
+            "compiler and CLI crates in this repository, canonical .system artifact formats and setup flow",
+        ),
+        (
+            "External dependencies (comma-separated):",
+            "OpenAI Codex runtime used for charter synthesis, local filesystem layout and git worktree state",
+        ),
+        ("Integration count [0-5] [0]:", ""),
+        ("Environments that exist:", "local development and CI"),
+        ("Deployment model:", "cargo-driven local execution"),
+        ("CI/CD reality:", "basic CI with compiler and CLI test coverage"),
+        ("Release cadence:", "repo-driven iterative releases"),
+        (
+            "Config & secrets:",
+            "standard local environment variables and git config",
+        ),
+        ("Observability stack:", "test output and local command stderr"),
+        (
+            "Primary data stores:",
+            "repo-local markdown, yaml, and route-state files",
+        ),
+        ("Data classification:", "source code and internal planning metadata"),
+        ("Retention requirements:", "none beyond repository history"),
+        (
+            "Backups / DR reality:",
+            "git history plus local worktree backups",
+        ),
+        ("Existing migrations / history:", "none for production data"),
+        ("Codebase exists today? [yes|no] [yes]:", ""),
+        ("Current maturity:", "medium-sized active Rust workspace"),
+        (
+            "Key modules / areas to be aware of (comma-separated, optional):",
+            "crates/compiler, crates/cli, core/library",
+        ),
+        (
+            "Known constraints from existing code:",
+            "lane ownership and canonical artifact ordering must be preserved",
+        ),
+        ("Deadline / time constraints:", "must fit the current milestone split"),
+        ("Budget constraints:", "limited to local engineering time"),
+        (
+            "Must-use / prohibited tech:",
+            "must stay in Rust and preserve existing canonical paths",
+        ),
+        ("Compliance / legal constraints:", "none beyond repository policy"),
+        (
+            "Performance constraints:",
+            "compiler authoring should stay fast and deterministic",
+        ),
+        ("Security constraints:", "no writes outside canonical repo-owned targets"),
+        ("Known unknown count [1-5] [1]:", ""),
+        (
+            "Known unknown 1 item:",
+            "final CLI interview wording for project-context authoring",
+        ),
+        ("Known unknown 1 owner:", "Lane D"),
+        ("Known unknown 1 revisit trigger:", "when the CLI subcommand lands"),
+    ]
+}
+
+fn run_guided_project_context_under_pty(dir: &Path) -> (String, portable_pty::ExitStatus) {
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize {
+            rows: 48,
+            cols: 120,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .expect("open pty");
+
+    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_system"));
+    command.cwd(dir);
+    command.arg("author");
+    command.arg("project-context");
+
+    let mut child = pair
+        .slave
+        .spawn_command(command)
+        .expect("spawn author in pty");
+    drop(pair.slave);
+
+    let mut reader = pair.master.try_clone_reader().expect("clone pty reader");
+    let mut writer = pair.master.take_writer().expect("take pty writer");
+
+    let transcript = Arc::new(Mutex::new(String::new()));
+    let transcript_reader = Arc::clone(&transcript);
+    let reader_thread = thread::spawn(move || {
+        let mut buffer = [0u8; 4096];
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(read) => {
+                    let text = String::from_utf8_lossy(&buffer[..read]);
+                    transcript_reader
+                        .lock()
+                        .expect("transcript")
+                        .push_str(&text);
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(err) => panic!("read pty output: {err}"),
+            }
+        }
+    });
+
+    wait_for_transcript(
+        &transcript,
+        "Guided project-context interview",
+        Duration::from_secs(5),
+    );
+    for (prompt, answer) in guided_project_context_prompt_answers() {
+        wait_for_transcript(&transcript, prompt, Duration::from_secs(5));
+        writer
+            .write_all(answer.as_bytes())
+            .unwrap_or_else(|err| panic!("write answer for `{prompt}`: {err}"));
+        writer
+            .write_all(b"\n")
+            .unwrap_or_else(|err| panic!("write newline for `{prompt}`: {err}"));
+        writer
+            .flush()
+            .unwrap_or_else(|err| panic!("flush answer for `{prompt}`: {err}"));
+    }
+    wait_for_transcript(&transcript, "OUTCOME: AUTHORED", Duration::from_secs(10));
+    drop(writer);
+
+    let status = child.wait().expect("wait for author");
+    drop(pair.master);
+    reader_thread.join().expect("reader thread");
+    let output = transcript.lock().expect("transcript").clone();
+    (output, status)
+}
+
 #[test]
 fn non_tty_author_refuses_and_points_to_deterministic_path() {
     let dir = scaffold_repo();
@@ -1006,6 +1304,173 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
         generate_stdout.contains("# Engineering Charter — System"),
         "{generate_stdout}"
     );
+}
+
+#[test]
+fn non_tty_project_context_author_refuses_and_points_to_deterministic_path() {
+    let dir = scaffold_repo();
+
+    let output = run_in(dir.path(), &["author", "project-context"]);
+
+    assert!(
+        !output.status.success(),
+        "non-tty project-context author should refuse"
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"));
+    assert!(out.contains("CATEGORY: NonInteractiveRefusal"));
+    assert!(out.contains("TTY-only guided interview"));
+    assert!(out.contains("system author project-context --from-inputs <path|->"));
+}
+
+#[test]
+fn project_context_file_inputs_refuse_when_yaml_is_malformed() {
+    let dir = scaffold_repo();
+    let inputs_path = dir.path().join("project-context-inputs.yaml");
+    write_file(&inputs_path, "project_summary: [not valid");
+
+    let output = run_in(
+        dir.path(),
+        &[
+            "author",
+            "project-context",
+            "--from-inputs",
+            inputs_path.to_str().expect("utf-8 path"),
+        ],
+    );
+
+    assert!(
+        !output.status.success(),
+        "malformed project-context yaml should refuse: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"));
+    assert!(out.contains("CATEGORY: MalformedStructuredInput"));
+}
+
+#[test]
+fn project_context_stdin_inputs_refuse_when_yaml_is_malformed() {
+    let dir = scaffold_repo();
+
+    let output = run_in_with_input(
+        dir.path(),
+        &["author", "project-context", "--from-inputs", "-"],
+        "schema_version: [broken\n",
+    );
+
+    assert!(
+        !output.status.success(),
+        "malformed stdin project-context yaml should refuse: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"));
+    assert!(out.contains("CATEGORY: MalformedStructuredInput"));
+    assert!(out.contains("OBJECT: author project-context"));
+}
+
+#[test]
+fn project_context_file_inputs_succeed() {
+    let dir = scaffold_repo();
+    let inputs_path = dir.path().join("project-context-inputs.yaml");
+    write_file(&inputs_path, valid_project_context_inputs_yaml());
+
+    let output = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "project-context",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf-8 path"),
+            ],
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "project-context file inputs should succeed: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: AUTHORED"), "{out}");
+    assert!(out.contains("MODE: structured_inputs_file"), "{out}");
+    assert!(out.contains("SOURCE: "), "{out}");
+    assert_eq!(
+        fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("project context"),
+        expected_project_context_markdown_from_yaml()
+    );
+}
+
+#[test]
+fn project_context_stdin_inputs_succeed() {
+    let dir = scaffold_repo();
+
+    let output = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        run_in_with_input(
+            dir.path(),
+            &["author", "project-context", "--from-inputs", "-"],
+            valid_project_context_inputs_yaml(),
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "project-context stdin inputs should succeed: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: AUTHORED"), "{out}");
+    assert!(out.contains("MODE: structured_inputs_stdin"), "{out}");
+    assert!(out.contains("SOURCE: -"), "{out}");
+    assert_eq!(
+        fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("project context"),
+        expected_project_context_markdown_from_yaml()
+    );
+}
+
+#[test]
+fn guided_tty_author_project_context_succeeds() {
+    let dir = scaffold_repo();
+
+    let (output, status) = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        run_guided_project_context_under_pty(dir.path())
+    });
+
+    assert!(
+        status.success(),
+        "guided PTY project-context author should succeed: {output}"
+    );
+    assert!(
+        output.contains("Guided project-context interview"),
+        "{output}"
+    );
+    assert!(output.contains("What this project is:"), "{output}");
+    assert!(
+        output.contains("Known unknown 1 revisit trigger:"),
+        "{output}"
+    );
+    assert!(output.contains("OUTCOME: AUTHORED"), "{output}");
+    assert!(output.contains("MODE: guided_interview"), "{output}");
+
+    let project_context = fs::read_to_string(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+    )
+    .expect("project context");
+    assert!(project_context.contains("> **Owner:** compiler-team"));
+    assert!(project_context.contains("> **Team:** System"));
+    assert!(project_context.contains("CLI and compiler for canonical planning artifacts"));
+    assert!(project_context.contains("final CLI interview wording for project-context authoring"));
 }
 
 #[test]

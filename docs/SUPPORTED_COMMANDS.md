@@ -18,6 +18,7 @@ cargo run -p system-cli -- setup
 cargo run -p system-cli -- setup init
 cargo run -p system-cli -- setup refresh
 cargo run -p system-cli -- author charter
+cargo run -p system-cli -- author project-context --from-inputs /tmp/PROJECT_CONTEXT_INPUTS.yaml
 cargo run -p system-cli -- author project-context
 cargo run -p system-cli -- author environment-inventory
 cargo run -p system-cli -- setup refresh --rewrite
@@ -82,7 +83,8 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `author` is the baseline authoring surface.
 - `system author charter` is the human-guided surface.
 - `system author charter --from-inputs <path|->` is the agent and automation surface.
-- `system author project-context` authors `.system/project_context/PROJECT_CONTEXT.md`.
+- `system author project-context` is the guided project-context authoring surface.
+- `system author project-context --from-inputs <path|->` is the agent and automation surface for project-context authoring.
 - `system author environment-inventory` authors `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.

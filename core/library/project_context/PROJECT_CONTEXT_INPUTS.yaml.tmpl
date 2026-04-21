@@ -1,0 +1,93 @@
+# PROJECT_CONTEXT_INPUTS.yaml (template)
+#
+# Purpose: Stable, testable inputs for generating PROJECT_CONTEXT.md without a guided interview.
+# - Keep values factual and explicit.
+# - Use `None` or `Not applicable` when that is the truth.
+# - Prefer short concrete statements over generic planning boilerplate.
+#
+# Notes:
+# - Only mechanically derivable fields should be defaulted automatically by tooling.
+# - `key_modules_or_areas` may be empty when no concise module list is needed.
+# - `integrations` may be empty when the project has no meaningful external contracts to track.
+#
+schema_version: "0.1.0"
+project_name: "{{PROJECT_NAME}}"
+owner: "project_owner"
+team: "project_team"
+repo_or_project_ref: "{{REPO_OR_PROJECT_REF}}"
+charter_ref: ".system/charter/CHARTER.md"
+
+project_summary:
+  what_this_project_is: ""
+  primary_surface: ""
+  primary_users: ""
+  key_workflows:
+    - ""
+  non_goals: ""
+
+operational_reality:
+  is_live_in_production_today: "no"
+  users: ""
+  data_in_production: "None"
+  uptime_expectations: "Not applicable"
+  incident_on_call_reality: "Not applicable"
+  primary_risk_flags_present: ""
+
+classification_implications:
+  project_type: ""
+  backward_compatibility_required: "no"
+  backward_compatibility_notes: "Not applicable"
+  migration_planning_required: "no"
+  migration_planning_notes: "Not applicable"
+  deprecation_policy_exists: "no"
+  deprecation_policy_notes: "Not applicable"
+  rollout_controls_required: "no"
+  rollout_controls_notes: "Not applicable"
+
+system_boundaries:
+  owned_areas:
+    - ""
+  external_dependencies:
+    - "None"
+
+integrations: []
+# integrations:
+#   - name: "Billing API"
+#     integration_type: "external API"
+#     contract_surface: "POST /charges"
+#     authentication_authorization: "service token"
+#     failure_mode_expectations: "degrade gracefully and surface retry guidance"
+
+environments_and_delivery:
+  environments_that_exist: ""
+  deployment_model: ""
+  ci_cd_reality: ""
+  release_cadence: ""
+  config_and_secrets: ""
+  observability_stack: "None"
+
+data_reality:
+  primary_data_stores: "None"
+  data_classification: "None"
+  retention_requirements: "Not applicable"
+  backups_disaster_recovery: "Not applicable"
+  existing_migrations_history: "Not applicable"
+
+repo_codebase_reality:
+  codebase_exists_today: true
+  current_maturity: ""
+  key_modules_or_areas: []
+  known_constraints_from_existing_code: "None"
+
+constraints:
+  deadline_time_constraints: "None"
+  budget_constraints: "None"
+  must_use_or_prohibited_tech: "None"
+  compliance_legal_constraints: "None"
+  performance_constraints: "None"
+  security_constraints: "None"
+
+known_unknowns:
+  - item: ""
+    owner: "project_owner"
+    revisit_trigger: ""

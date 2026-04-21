@@ -385,6 +385,10 @@ fn support_story_docs_match_help_snapshots() {
         "author project-context help snapshot missing canonical path"
     );
     assert!(
+        author_project_context_help_text.contains("--from-inputs <path|->"),
+        "author project-context help snapshot missing structured input flag"
+    );
+    assert!(
         author_environment_inventory_help_text
             .contains(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "author environment-inventory help snapshot missing canonical path"

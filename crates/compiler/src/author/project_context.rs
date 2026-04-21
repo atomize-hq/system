@@ -46,6 +46,18 @@ const REQUIRED_PROJECT_CONTEXT_METADATA_PREFIXES: [&str; 6] = [
     "> **Repo / Project:**",
     "> **Charter Ref:**",
 ];
+const KNOWN_FAKE_PROJECT_CONTEXT_MARKERS: [&str; 10] = [
+    "unknown-owner",
+    "project-team",
+    "unknown from local repo inspection; confirm before planning live changes.",
+    "assume canonical project truth may influence live systems; verify before rollout.",
+    "no uptime contract inferred locally; confirm service expectations explicitly.",
+    "on-call and incident ownership are not established in repo-local evidence.",
+    "canonical truth drift, undocumented integrations, and hidden runtime assumptions.",
+    "delivery model is repository-specific and should be documented before production-impacting work.",
+    "observability details are unknown from local inspection and should be recorded explicitly.",
+    "migration history is unknown and should be recorded before migration-heavy work.",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthorProjectContextRefusalKind {
@@ -1036,6 +1048,7 @@ pub fn validate_project_context_markdown(
     .map_err(validation_error)?;
     validate_required_heading_order_result(normalized, &REQUIRED_PROJECT_CONTEXT_SUBHEADINGS)
         .map_err(validation_error)?;
+    validate_known_fake_project_context_markers(normalized).map_err(validation_error)?;
 
     Ok(())
 }
@@ -1060,6 +1073,19 @@ pub fn author_project_context(
 ) -> Result<AuthorProjectContextResult, AuthorProjectContextRefusal> {
     let repo_root = repo_root.as_ref();
     preflight_author_project_context(repo_root)?;
+    Err(structured_input_refusal(
+        AuthorProjectContextRefusalKind::IncompleteStructuredInput,
+        "project-context authoring requires guided answers or explicit structured inputs; use `system author project-context --from-inputs <path|->` or provide guided answers through the CLI".to_string(),
+    ))
+}
+
+pub fn author_project_context_from_input(
+    repo_root: impl AsRef<Path>,
+    input: &ProjectContextStructuredInput,
+) -> Result<AuthorProjectContextResult, AuthorProjectContextRefusal> {
+    let repo_root = repo_root.as_ref();
+    validate_project_context_structured_input(input)?;
+    preflight_author_project_context(repo_root)?;
     let _lock =
         acquire_authoring_lock(repo_root, PROJECT_CONTEXT_AUTHORING_LOCK_REPO_PATH).map_err(
             |err| match err {
@@ -1083,18 +1109,6 @@ pub fn author_project_context(
         )?;
     preflight_author_project_context(repo_root)?;
 
-    let synthesized_input = default_project_context_structured_input(repo_root);
-    author_project_context_from_input(repo_root, &synthesized_input)
-}
-
-pub fn author_project_context_from_input(
-    repo_root: impl AsRef<Path>,
-    input: &ProjectContextStructuredInput,
-) -> Result<AuthorProjectContextResult, AuthorProjectContextRefusal> {
-    let repo_root = repo_root.as_ref();
-    validate_project_context_structured_input(input)?;
-    preflight_author_project_context(repo_root)?;
-
     let markdown = render_project_context_markdown(input)?;
     write_repo_relative_bytes(
         repo_root,
@@ -1113,185 +1127,6 @@ pub fn author_project_context_from_input(
         canonical_repo_relative_path: CANONICAL_PROJECT_CONTEXT_REPO_PATH,
         bytes_written: markdown.len(),
     })
-}
-
-fn default_project_context_structured_input(repo_root: &Path) -> ProjectContextStructuredInput {
-    let project_name = repo_root
-        .file_name()
-        .and_then(|name| name.to_str())
-        .filter(|name| !name.trim().is_empty())
-        .unwrap_or("Project")
-        .to_string();
-
-    ProjectContextStructuredInput {
-        schema_version: PROJECT_CONTEXT_INPUTS_SCHEMA_VERSION.to_string(),
-        project_name: project_name.clone(),
-        owner: "unknown-owner".to_string(),
-        team: "project-team".to_string(),
-        repo_or_project_ref: repo_root.display().to_string(),
-        charter_ref: ".system/charter/CHARTER.md".to_string(),
-        project_summary: ProjectContextSummaryInput {
-            what_this_project_is:
-                "Repository-local system workspace with canonical baseline artifacts".to_string(),
-            primary_surface: "CLI-driven authoring and packet generation".to_string(),
-            primary_users: "Maintainers and operators of this repository".to_string(),
-            key_workflows: vec![
-                "Author canonical baseline truth under `.system/`".to_string(),
-                "Generate and inspect planning packets from canonical truth".to_string(),
-                "Compile and capture pipeline outputs when stage flows are required".to_string(),
-            ],
-            non_goals: "This document is not a feature-by-feature implementation plan."
-                .to_string(),
-        },
-        operational_reality: ProjectContextOperationalRealityInput {
-            is_live_in_production_today:
-                "Unknown from local repo inspection; confirm before planning live changes."
-                    .to_string(),
-            users: "Primary users are repository maintainers and automation operators."
-                .to_string(),
-            data_in_production:
-                "Assume canonical project truth may influence live systems; verify before rollout."
-                    .to_string(),
-            uptime_expectations:
-                "No uptime contract inferred locally; confirm service expectations explicitly."
-                    .to_string(),
-            incident_on_call_reality:
-                "On-call and incident ownership are not established in repo-local evidence."
-                    .to_string(),
-            primary_risk_flags_present:
-                "Canonical truth drift, undocumented integrations, and hidden runtime assumptions."
-                    .to_string(),
-        },
-        classification_implications: ProjectContextClassificationImplicationsInput {
-            project_type: "Brownfield repository with existing packet and pipeline behavior."
-                .to_string(),
-            backward_compatibility_required:
-                "Yes for shipped CLI contracts and packet semantics unless a milestone says otherwise."
-                    .to_string(),
-            backward_compatibility_notes:
-                "Preserve current command contracts, snapshots, and packet behavior while updating baseline readiness."
-                    .to_string(),
-            migration_planning_required:
-                "Maybe when canonical artifact paths or setup surfaces change.".to_string(),
-            migration_planning_notes:
-                "Audit docs, help, tests, and downstream consumers before changing product-story authority."
-                    .to_string(),
-            deprecation_policy_exists: "Unknown; rely on explicit milestone contracts.".to_string(),
-            deprecation_policy_notes:
-                "Document any deprecated path claims instead of silently rewriting authority models."
-                    .to_string(),
-            rollout_controls_required:
-                "Yes when changing doctor, setup, or canonical authoring surfaces.".to_string(),
-            rollout_controls_notes:
-                "Use tests and snapshot parity to verify no packet regressions.".to_string(),
-        },
-        system_boundaries: ProjectContextSystemBoundariesInput {
-            owned_areas: vec![
-                "Canonical `.system/` baseline artifacts and compiler/CLI contracts.".to_string(),
-                "Packet generation, inspection, setup, and doctor behavior.".to_string(),
-            ],
-            external_dependencies: vec![
-                "External model/operator steps used for selected pipeline capture flows."
-                    .to_string(),
-                "Repository-specific infrastructure and services described elsewhere.".to_string(),
-            ],
-        },
-        integrations: vec![ProjectContextIntegrationInput {
-            name: "Codex authoring/runtime".to_string(),
-            integration_type: "LLM-assisted synthesis and CLI execution".to_string(),
-            contract_surface:
-                "CLI authoring commands, generated markdown, and persisted `.system/state/**`."
-                    .to_string(),
-            authentication_authorization:
-                "Environment-specific runtime credentials may be required for live synthesis."
-                    .to_string(),
-            failure_mode_expectations:
-                "Treat synthesis failures and blocked write paths as recoverable operator actions."
-                    .to_string(),
-        }],
-        environments_and_delivery: ProjectContextEnvironmentsAndDeliveryInput {
-            environments_that_exist:
-                "Local development is confirmed; other environments must be verified from project truth."
-                    .to_string(),
-            deployment_model:
-                "Delivery model is repository-specific and should be documented before production-impacting work."
-                    .to_string(),
-            ci_cd_reality:
-                "Cargo-based test and snapshot validation are part of the current repo workflow."
-                    .to_string(),
-            release_cadence:
-                "Release cadence is not encoded here; use docs and contracts as authority."
-                    .to_string(),
-            config_and_secrets:
-                "Assume config and secrets exist outside git-tracked canonical truth."
-                    .to_string(),
-            observability_stack:
-                "Observability details are unknown from local inspection and should be recorded explicitly."
-                    .to_string(),
-        },
-        data_reality: ProjectContextDataRealityInput {
-            primary_data_stores:
-                "Primary durable stores are not inferred here; document them when known."
-                    .to_string(),
-            data_classification:
-                "Potentially sensitive operational data may exist; validate handling requirements."
-                    .to_string(),
-            retention_requirements:
-                "Retention and compliance expectations are not established in repo-local evidence."
-                    .to_string(),
-            backups_disaster_recovery:
-                "Backup and DR posture must be verified in project-specific operational docs."
-                    .to_string(),
-            existing_migrations_history:
-                "Migration history is unknown and should be recorded before migration-heavy work."
-                    .to_string(),
-        },
-        repo_codebase_reality: ProjectContextRepoCodebaseRealityInput {
-            codebase_exists_today: true,
-            current_maturity: "Existing repository with shipped CLI/compiler behavior.".to_string(),
-            key_modules_or_areas: vec![
-                "crates/compiler".to_string(),
-                "crates/cli".to_string(),
-                "core/library".to_string(),
-                "docs/contracts".to_string(),
-            ],
-            known_constraints_from_existing_code:
-                "Canonical artifact ordering, help snapshots, and packet semantics must remain coherent."
-                    .to_string(),
-        },
-        constraints: ProjectContextConstraintsInput {
-            deadline_time_constraints:
-                "Changes should land with testable end-to-end parity rather than partial contracts."
-                    .to_string(),
-            budget_constraints:
-                "Engineering effort should stay focused on bounded artifact, CLI, and doc surfaces."
-                    .to_string(),
-            must_use_or_prohibited_tech:
-                "Use the existing Rust workspace, canonical artifact model, and shipped CLI surface."
-                    .to_string(),
-            compliance_legal_constraints:
-                "None inferred locally; verify if the project operates under additional obligations."
-                    .to_string(),
-            performance_constraints:
-                "Do not widen packet generation or inspection work beyond current behavior."
-                    .to_string(),
-            security_constraints:
-                "Do not encode secrets in canonical truth; document secret-bearing surfaces instead."
-                    .to_string(),
-        },
-        known_unknowns: vec![
-            ProjectContextKnownUnknownInput {
-                item: "Production environment and deployment topology details".to_string(),
-                owner: "project-team".to_string(),
-                revisit_trigger: "before rollout planning or environment-specific changes".to_string(),
-            },
-            ProjectContextKnownUnknownInput {
-                item: "On-call ownership and incident response posture".to_string(),
-                owner: "project-team".to_string(),
-                revisit_trigger: "before operationally risky or production-facing work".to_string(),
-            },
-        ],
-    }
 }
 
 fn validate_authoring_preconditions(
@@ -2055,5 +1890,17 @@ fn validate_required_heading_order_result(
         previous = position;
     }
 
+    Ok(())
+}
+
+fn validate_known_fake_project_context_markers(markdown: &str) -> Result<(), String> {
+    let lower = markdown.to_ascii_lowercase();
+    for marker in KNOWN_FAKE_PROJECT_CONTEXT_MARKERS {
+        if lower.contains(marker) {
+            return Err(format!(
+                "project context markdown contains known fabricated placeholder text: `{marker}`"
+            ));
+        }
+    }
     Ok(())
 }

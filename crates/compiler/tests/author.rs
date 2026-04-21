@@ -470,6 +470,16 @@ fn expected_project_context_markdown() -> String {
     })
 }
 
+fn legacy_placeholder_project_context_markdown() -> String {
+    expected_project_context_markdown()
+        .replace("> **Owner:** compiler-team", "> **Owner:** unknown-owner")
+        .replace("> **Team:** System", "> **Team:** project-team")
+        .replace(
+            "- **Is anything live in production today?** no",
+            "- **Is anything live in production today?** Unknown from local repo inspection; confirm before planning live changes.",
+        )
+}
+
 fn expected_environment_inventory_markdown(project_context_ref: &str) -> String {
     format!(
         "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
@@ -1044,6 +1054,14 @@ fn render_project_context_markdown_includes_required_structure() {
 fn validate_project_context_markdown_accepts_rendered_output() {
     validate_project_context_markdown(&expected_project_context_markdown())
         .expect("rendered project-context markdown should validate");
+}
+
+#[test]
+fn validate_project_context_markdown_refuses_known_placeholder_boilerplate() {
+    let err = validate_project_context_markdown(&legacy_placeholder_project_context_markdown())
+        .expect_err("legacy placeholder markdown should refuse");
+
+    assert!(err.summary.contains("known fabricated placeholder text"));
 }
 
 #[test]

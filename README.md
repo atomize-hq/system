@@ -21,6 +21,7 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - The repo-owned charter authoring method lives at `core/library/authoring/charter_authoring_method.md`.
 - This repository does not ship completed canonical `.system/` truth at repo root. On a fresh clone, start with `system setup`; only after replacing starter text with real canonical truth does `system doctor` become the ready-path next step.
 - The public baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`.
+- The automation-safe structured-input authoring paths are `system author charter --from-inputs <path|->` and `system author project-context --from-inputs <path|->`.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.

@@ -228,13 +228,19 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
     } = input;
 
     let variant = packet_variant_for(request.packet_id);
-    let included_sources = included_sources_for(artifacts, budget_outcome);
+    let packet_artifact_plans = packet_artifact_plans_for(manifest, artifacts, budget_outcome);
+    let included_sources = included_sources_for(&packet_artifact_plans);
     let packet_body_ready = selection_status == PacketSelectionStatus::Selected
         && refusal.is_none()
         && blockers.is_empty();
-    let notes = packet_notes_for(manifest, budget_outcome, artifacts, packet_body_ready);
+    let notes = packet_notes_for(
+        manifest,
+        budget_outcome,
+        &packet_artifact_plans,
+        packet_body_ready,
+    );
     let sections = if packet_body_ready {
-        packet_sections_for(artifacts, budget_outcome)
+        packet_sections_for(&packet_artifact_plans)
     } else {
         Vec::new()
     };
@@ -306,73 +312,137 @@ fn packet_variant_for(packet_id: &str) -> PacketVariant {
     }
 }
 
-fn included_sources_for(
-    artifacts: &CanonicalArtifacts,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PacketArtifactDisposition {
+    BlockedIngest,
+    OmittedMissing,
+    OmittedEmpty,
+    OmittedStarterTemplate,
+    IncludedVerbatim,
+    IncludedSummary,
+    ExcludedDueToBudget,
+}
+
+#[derive(Debug, Clone)]
+struct PacketArtifactPlan<'a> {
+    artifact: &'a CanonicalArtifact,
+    title: &'static str,
+    disposition: PacketArtifactDisposition,
+}
+
+fn packet_artifact_plans_for<'a>(
+    manifest: &ArtifactManifest,
+    artifacts: &'a CanonicalArtifacts,
     budget_outcome: &BudgetOutcome,
-) -> Vec<PacketSourceSummary> {
-    present_sources_for(artifacts)
-        .into_iter()
-        .filter(|source| {
-            !should_exclude_artifact(source.canonical_repo_relative_path, budget_outcome)
+) -> Vec<PacketArtifactPlan<'a>> {
+    [
+        (&artifacts.charter, "CHARTER"),
+        (&artifacts.project_context, "PROJECT_CONTEXT"),
+        (&artifacts.environment_inventory, "ENVIRONMENT_INVENTORY"),
+        (&artifacts.feature_spec, "FEATURE_SPEC"),
+    ]
+    .into_iter()
+    .map(|(artifact, title)| PacketArtifactPlan {
+        artifact,
+        title,
+        disposition: packet_artifact_disposition_for(manifest, artifact, budget_outcome),
+    })
+    .collect()
+}
+
+fn packet_artifact_disposition_for(
+    manifest: &ArtifactManifest,
+    artifact: &CanonicalArtifact,
+    budget_outcome: &BudgetOutcome,
+) -> PacketArtifactDisposition {
+    if ingest_issue_for_path(manifest, artifact.identity.relative_path).is_some() {
+        return PacketArtifactDisposition::BlockedIngest;
+    }
+
+    match artifact.identity.presence {
+        crate::ArtifactPresence::Missing => PacketArtifactDisposition::OmittedMissing,
+        crate::ArtifactPresence::PresentEmpty => PacketArtifactDisposition::OmittedEmpty,
+        crate::ArtifactPresence::PresentNonEmpty
+            if artifact.identity.matches_setup_starter_template =>
+        {
+            PacketArtifactDisposition::OmittedStarterTemplate
+        }
+        crate::ArtifactPresence::PresentNonEmpty => {
+            if should_exclude_artifact(artifact.identity.relative_path, budget_outcome) {
+                PacketArtifactDisposition::ExcludedDueToBudget
+            } else if should_summarize_artifact(artifact.identity.relative_path, budget_outcome) {
+                PacketArtifactDisposition::IncludedSummary
+            } else {
+                PacketArtifactDisposition::IncludedVerbatim
+            }
+        }
+    }
+}
+
+fn included_sources_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSourceSummary> {
+    plans
+        .iter()
+        .filter_map(|plan| {
+            if !matches!(
+                plan.disposition,
+                PacketArtifactDisposition::IncludedVerbatim
+                    | PacketArtifactDisposition::IncludedSummary
+            ) {
+                return None;
+            }
+
+            Some(PacketSourceSummary {
+                kind: plan.artifact.identity.kind,
+                canonical_repo_relative_path: plan.artifact.identity.relative_path,
+                required: plan.artifact.identity.packet_required,
+                presence: plan.artifact.identity.presence,
+                byte_len: plan.artifact.identity.byte_len,
+                content_sha256: plan.artifact.identity.content_sha256.clone(),
+            })
         })
         .collect()
 }
 
-fn present_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummary> {
-    artifacts
-        .identities()
-        .into_iter()
-        .filter_map(|identity| {
-            if !should_include_artifact_in_packet(identity) {
-                None
-            } else {
-                Some(PacketSourceSummary {
-                    kind: identity.kind,
-                    canonical_repo_relative_path: identity.relative_path,
-                    required: identity.packet_required,
-                    presence: identity.presence,
-                    byte_len: identity.byte_len,
-                    content_sha256: identity.content_sha256.clone(),
-                })
+fn present_fixture_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummary> {
+    [
+        &artifacts.charter.identity,
+        &artifacts.project_context.identity,
+        &artifacts.environment_inventory.identity,
+        &artifacts.feature_spec.identity,
+    ]
+    .into_iter()
+    .filter_map(|identity| {
+        match identity.presence {
+            crate::ArtifactPresence::Missing => return None,
+            crate::ArtifactPresence::PresentEmpty if !identity.packet_required => return None,
+            crate::ArtifactPresence::PresentNonEmpty
+                if !identity.packet_required && identity.matches_setup_starter_template =>
+            {
+                return None;
             }
+            crate::ArtifactPresence::PresentEmpty | crate::ArtifactPresence::PresentNonEmpty => {}
+        }
+
+        Some(PacketSourceSummary {
+            kind: identity.kind,
+            canonical_repo_relative_path: identity.relative_path,
+            required: identity.packet_required,
+            presence: identity.presence,
+            byte_len: identity.byte_len,
+            content_sha256: identity.content_sha256.clone(),
         })
-        .collect()
+    })
+    .collect()
 }
 
 fn packet_notes_for(
     manifest: &ArtifactManifest,
     budget_outcome: &BudgetOutcome,
-    artifacts: &CanonicalArtifacts,
+    plans: &[PacketArtifactPlan<'_>],
     packet_body_ready: bool,
 ) -> Vec<PacketBodyNote> {
     let mut notes = Vec::new();
-    push_optional_source_omission_notes(&mut notes, manifest, artifacts);
-
-    match budget_outcome.disposition {
-        BudgetDisposition::Summarize => {
-            for target in &budget_outcome.targets {
-                notes.push(PacketBodyNote {
-                    kind: PacketBodyNoteKind::Budget,
-                    text: format!(
-                        "optional source summarized due to budget: {}",
-                        target.canonical_repo_relative_path
-                    ),
-                });
-            }
-        }
-        BudgetDisposition::Exclude => {
-            for target in &budget_outcome.targets {
-                notes.push(PacketBodyNote {
-                    kind: PacketBodyNoteKind::Omission,
-                    text: format!(
-                        "optional source excluded due to budget: {}",
-                        target.canonical_repo_relative_path
-                    ),
-                });
-            }
-        }
-        BudgetDisposition::Keep | BudgetDisposition::Refuse => {}
-    }
+    push_packet_artifact_notes(&mut notes, plans);
 
     if !packet_body_ready {
         notes.push(PacketBodyNote {
@@ -395,114 +465,83 @@ fn packet_notes_for(
     notes
 }
 
-fn packet_sections_for(
-    artifacts: &CanonicalArtifacts,
-    budget_outcome: &BudgetOutcome,
-) -> Vec<PacketSection> {
-    let mut sections = Vec::new();
-    push_packet_section(&mut sections, &artifacts.charter, "CHARTER", budget_outcome);
-    push_packet_section(
-        &mut sections,
-        &artifacts.project_context,
-        "PROJECT_CONTEXT",
-        budget_outcome,
-    );
-    push_packet_section(
-        &mut sections,
-        &artifacts.feature_spec,
-        "FEATURE_SPEC",
-        budget_outcome,
-    );
-    sections
-}
+fn push_packet_artifact_notes(notes: &mut Vec<PacketBodyNote>, plans: &[PacketArtifactPlan<'_>]) {
+    for plan in plans {
+        if plan.artifact.identity.packet_required {
+            continue;
+        }
 
-fn push_packet_section(
-    sections: &mut Vec<PacketSection>,
-    artifact: &CanonicalArtifact,
-    title: &str,
-    budget_outcome: &BudgetOutcome,
-) {
-    if !should_include_artifact_in_packet(&artifact.identity) {
-        return;
-    }
-
-    if should_exclude_artifact(artifact.identity.relative_path, budget_outcome) {
-        return;
-    }
-
-    let (mode, contents) =
-        if should_summarize_artifact(artifact.identity.relative_path, budget_outcome) {
-            (PacketSectionMode::Summary, summarize_artifact(artifact))
-        } else {
-            let contents = artifact
-                .bytes
-                .as_ref()
-                .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
-                .unwrap_or_default();
-            (PacketSectionMode::Verbatim, contents)
+        let text = match plan.disposition {
+            PacketArtifactDisposition::OmittedMissing => Some(format!(
+                "optional source omitted: {}",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::OmittedEmpty => Some(format!(
+                "optional source omitted: {} (empty)",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::OmittedStarterTemplate => Some(format!(
+                "optional source omitted: {} (shipped starter template)",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::IncludedSummary => Some(format!(
+                "optional source summarized due to budget: {}",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::ExcludedDueToBudget => Some(format!(
+                "optional source excluded due to budget: {}",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::BlockedIngest
+            | PacketArtifactDisposition::IncludedVerbatim => None,
         };
 
-    sections.push(PacketSection {
-        kind: artifact.identity.kind,
-        canonical_repo_relative_path: artifact.identity.relative_path,
-        title: title.to_string(),
-        mode,
-        contents,
-    });
-}
-
-fn should_include_artifact_in_packet(identity: &crate::CanonicalArtifactIdentity) -> bool {
-    match identity.presence {
-        crate::ArtifactPresence::Missing => false,
-        crate::ArtifactPresence::PresentEmpty => identity.packet_required,
-        crate::ArtifactPresence::PresentNonEmpty => {
-            identity.packet_required || !identity.matches_setup_starter_template
+        if let Some(text) = text {
+            notes.push(PacketBodyNote {
+                kind: match plan.disposition {
+                    PacketArtifactDisposition::IncludedSummary => PacketBodyNoteKind::Budget,
+                    _ => PacketBodyNoteKind::Omission,
+                },
+                text,
+            });
         }
     }
 }
 
-fn push_optional_source_omission_notes(
-    notes: &mut Vec<PacketBodyNote>,
-    manifest: &ArtifactManifest,
-    artifacts: &CanonicalArtifacts,
-) {
-    push_optional_source_omission_note(notes, manifest, &artifacts.project_context.identity);
-    push_optional_source_omission_note(notes, manifest, &artifacts.feature_spec.identity);
-}
+fn packet_sections_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSection> {
+    plans
+        .iter()
+        .filter_map(|plan| {
+            let (mode, contents) = match plan.disposition {
+                PacketArtifactDisposition::IncludedVerbatim => {
+                    let contents = plan
+                        .artifact
+                        .bytes
+                        .as_ref()
+                        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+                        .unwrap_or_default();
+                    (PacketSectionMode::Verbatim, contents)
+                }
+                PacketArtifactDisposition::IncludedSummary => (
+                    PacketSectionMode::Summary,
+                    summarize_artifact(plan.artifact),
+                ),
+                PacketArtifactDisposition::BlockedIngest
+                | PacketArtifactDisposition::OmittedMissing
+                | PacketArtifactDisposition::OmittedEmpty
+                | PacketArtifactDisposition::OmittedStarterTemplate
+                | PacketArtifactDisposition::ExcludedDueToBudget => return None,
+            };
 
-fn push_optional_source_omission_note(
-    notes: &mut Vec<PacketBodyNote>,
-    manifest: &ArtifactManifest,
-    identity: &crate::CanonicalArtifactIdentity,
-) {
-    if identity.packet_required || ingest_issue_for_path(manifest, identity.relative_path).is_some()
-    {
-        return;
-    }
-
-    let text = match identity.presence {
-        crate::ArtifactPresence::Missing => {
-            format!("optional source omitted: {}", identity.relative_path)
-        }
-        crate::ArtifactPresence::PresentEmpty => {
-            format!(
-                "optional source omitted: {} (empty)",
-                identity.relative_path
-            )
-        }
-        crate::ArtifactPresence::PresentNonEmpty if identity.matches_setup_starter_template => {
-            format!(
-                "optional source omitted: {} (shipped starter template)",
-                identity.relative_path
-            )
-        }
-        crate::ArtifactPresence::PresentNonEmpty => return,
-    };
-
-    notes.push(PacketBodyNote {
-        kind: PacketBodyNoteKind::Omission,
-        text,
-    });
+            Some(PacketSection {
+                kind: plan.artifact.identity.kind,
+                canonical_repo_relative_path: plan.artifact.identity.relative_path,
+                title: plan.title.to_string(),
+                mode,
+                contents,
+            })
+        })
+        .collect()
 }
 
 fn should_summarize_artifact(
@@ -577,7 +616,7 @@ fn fixture_context_for(
     Some(PacketFixtureContext {
         fixture_set_id,
         fixture_basis_root,
-        fixture_lineage: present_sources_for(artifacts),
+        fixture_lineage: present_fixture_sources_for(artifacts),
     })
 }
 

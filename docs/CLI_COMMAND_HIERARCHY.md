@@ -112,7 +112,9 @@ The shipped baseline authoring surface includes `system author charter`, `system
 
 `system author charter --from-inputs <path|->` is the agent and automation surface.
 
-`system author project-context` authors canonical project context.
+`system author project-context` is the guided project-context authoring surface.
+
+`system author project-context --from-inputs <path|->` is the automation-safe project-context authoring surface.
 
 `system author environment-inventory` authors canonical environment inventory.
 

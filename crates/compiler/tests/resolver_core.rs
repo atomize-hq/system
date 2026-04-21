@@ -104,6 +104,26 @@ fn missing_optional_project_context_emits_omission_note() {
 }
 
 #[test]
+fn missing_optional_environment_inventory_emits_omission_note() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+
+    let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
+
+    assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
+    assert!(result.packet_result.notes.iter().any(|note| {
+        note.text
+            == "optional source omitted: .system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+    }));
+}
+
+#[test]
 fn required_starter_template_blocks_without_ready_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -269,6 +289,54 @@ fn budget_summarize_replaces_optional_body_with_summary() {
 }
 
 #[test]
+fn budget_summarize_replaces_environment_inventory_body_with_summary() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"environment-inventory-oversized",
+    );
+
+    let summarize_req = ResolveRequest {
+        budget_policy: BudgetPolicy {
+            max_total_bytes: None,
+            max_per_artifact_bytes: Some(10),
+        },
+        ..ResolveRequest::default()
+    };
+    let result = resolve(repo_root, summarize_req).expect("resolve summarize");
+
+    assert_eq!(
+        result.budget_outcome.disposition,
+        BudgetDisposition::Summarize
+    );
+    let summarized_section = result
+        .packet_result
+        .sections
+        .iter()
+        .find(|section| section.title == "ENVIRONMENT_INVENTORY")
+        .expect("environment inventory section");
+    assert_eq!(summarized_section.mode, PacketSectionMode::Summary);
+    assert!(
+        summarized_section
+            .contents
+            .contains("budget summary: full contents omitted"),
+        "expected budget summary stub: {:?}",
+        summarized_section.contents
+    );
+    assert!(result.packet_result.notes.iter().any(|note| {
+        note.text
+            == "optional source summarized due to budget: .system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+    }));
+}
+
+#[test]
 fn budget_exclude_removes_optional_body_from_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -320,6 +388,59 @@ fn budget_exclude_removes_optional_body_from_packet() {
 }
 
 #[test]
+fn budget_exclude_removes_environment_inventory_from_packet() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"environment-inventory-oversized",
+    );
+
+    let exclude_req = ResolveRequest {
+        budget_policy: BudgetPolicy {
+            max_total_bytes: Some(12),
+            max_per_artifact_bytes: None,
+        },
+        ..ResolveRequest::default()
+    };
+    let result = resolve(repo_root, exclude_req).expect("resolve exclude");
+
+    assert_eq!(
+        result.budget_outcome.disposition,
+        BudgetDisposition::Exclude
+    );
+    assert!(
+        result
+            .packet_result
+            .included_sources
+            .iter()
+            .all(|source| source.canonical_repo_relative_path
+                != ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        "excluded sources should not be listed as included: {:?}",
+        result.packet_result.included_sources
+    );
+    assert!(
+        result
+            .packet_result
+            .sections
+            .iter()
+            .all(|section| section.title != "ENVIRONMENT_INVENTORY"),
+        "excluded optional section should be absent from packet body: {:?}",
+        result.packet_result.sections
+    );
+    assert!(result.packet_result.notes.iter().any(|note| {
+        note.text
+            == "optional source excluded due to budget: .system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+    }));
+}
+
+#[test]
 fn resolver_builds_typed_packet_body_for_planning_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -364,6 +485,40 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
             .contains("READY planning.packet"),
         "expected ready summary line: {:?}",
         result.packet_result.decision_summary.summary_line
+    );
+}
+
+#[test]
+fn resolver_includes_environment_inventory_in_ready_planning_packets() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter body");
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        b"project context body",
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"environment inventory body",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature spec body",
+    );
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+
+    assert!(result.packet_result.is_ready());
+    assert_eq!(result.packet_result.included_sources.len(), 4);
+    assert_eq!(result.packet_result.sections.len(), 4);
+    assert_eq!(
+        result.packet_result.sections[2].title,
+        "ENVIRONMENT_INVENTORY"
+    );
+    assert_eq!(
+        result.packet_result.sections[2].contents,
+        "environment inventory body"
     );
 }
 

@@ -75,10 +75,13 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
   - `system author charter`
   - `system author charter --from-inputs <path|->`
   - `system author project-context`
+  - `system author project-context --from-inputs <path|->`
   - `system author environment-inventory`
 - `system author charter` MUST be the human-guided charter-authoring surface.
 - `system author charter --from-inputs <path|->` MUST be the agent and automation charter-authoring surface.
 - The public authoring wedge MUST write canonical charter truth only to `.system/charter/CHARTER.md`.
+- `system author project-context` MUST be the guided project-context authoring surface.
+- `system author project-context --from-inputs <path|->` MUST be the agent and automation project-context authoring surface.
 - `system author project-context` MUST write canonical project-context truth only to `.system/project_context/PROJECT_CONTEXT.md`.
 - `system author environment-inventory` MUST write canonical environment-inventory truth only to `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 - The public authoring wedge MUST refuse instead of overwriting existing non-starter charter truth.
@@ -140,7 +143,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
 - [ ] `crates/compiler` owns shared types and compiler-core logic.
 - [ ] `--help` shows the supported surface in setup-first order and presents the setup family as `setup`, `setup init`, and `setup refresh`.
-- [ ] `--help` shows `author` between `setup` and `pipeline`, and documents `system author charter`, `system author charter --from-inputs <path|->`, `system author project-context`, and `system author environment-inventory`.
+- [ ] `--help` shows `author` between `setup` and `pipeline`, and documents `system author charter`, `system author charter --from-inputs <path|->`, `system author project-context`, `system author project-context --from-inputs <path|->`, and `system author environment-inventory`.
 - [ ] Help text matches the supported reduced-v1 command story, documents the routed setup family, documents `author` as the canonical authoring surface, documents `pipeline` as the orchestration surface, and exposes the M2 compile wedge plus the M3 capture wedge.
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 / M3.5 wedge.
