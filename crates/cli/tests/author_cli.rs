@@ -940,7 +940,10 @@ fn guided_project_context_prompt_answers() -> Vec<(&'static str, &'static str)> 
     ]
 }
 
-fn run_guided_project_context_under_pty(dir: &Path) -> (String, portable_pty::ExitStatus) {
+fn run_guided_project_context_under_pty_with_interaction(
+    dir: &Path,
+    interaction: impl FnOnce(&Arc<Mutex<String>>, &mut dyn Write),
+) -> (String, portable_pty::ExitStatus) {
     let pty_system = native_pty_system();
     let pair = pty_system
         .openpty(PtySize {
@@ -990,19 +993,7 @@ fn run_guided_project_context_under_pty(dir: &Path) -> (String, portable_pty::Ex
         "Guided project-context interview",
         Duration::from_secs(5),
     );
-    for (prompt, answer) in guided_project_context_prompt_answers() {
-        wait_for_transcript(&transcript, prompt, Duration::from_secs(5));
-        writer
-            .write_all(answer.as_bytes())
-            .unwrap_or_else(|err| panic!("write answer for `{prompt}`: {err}"));
-        writer
-            .write_all(b"\n")
-            .unwrap_or_else(|err| panic!("write newline for `{prompt}`: {err}"));
-        writer
-            .flush()
-            .unwrap_or_else(|err| panic!("flush answer for `{prompt}`: {err}"));
-    }
-    wait_for_transcript(&transcript, "OUTCOME: AUTHORED", Duration::from_secs(10));
+    interaction(&transcript, &mut writer);
     drop(writer);
 
     let status = child.wait().expect("wait for author");
@@ -1010,6 +1001,24 @@ fn run_guided_project_context_under_pty(dir: &Path) -> (String, portable_pty::Ex
     reader_thread.join().expect("reader thread");
     let output = transcript.lock().expect("transcript").clone();
     (output, status)
+}
+
+fn run_guided_project_context_under_pty(dir: &Path) -> (String, portable_pty::ExitStatus) {
+    run_guided_project_context_under_pty_with_interaction(dir, |transcript, writer| {
+        for (prompt, answer) in guided_project_context_prompt_answers() {
+            wait_for_transcript(transcript, prompt, Duration::from_secs(5));
+            writer
+                .write_all(answer.as_bytes())
+                .unwrap_or_else(|err| panic!("write answer for `{prompt}`: {err}"));
+            writer
+                .write_all(b"\n")
+                .unwrap_or_else(|err| panic!("write newline for `{prompt}`: {err}"));
+            writer
+                .flush()
+                .unwrap_or_else(|err| panic!("flush answer for `{prompt}`: {err}"));
+        }
+        wait_for_transcript(transcript, "OUTCOME: AUTHORED", Duration::from_secs(10));
+    })
 }
 
 #[test]
@@ -1471,6 +1480,38 @@ fn guided_tty_author_project_context_succeeds() {
     assert!(project_context.contains("> **Team:** System"));
     assert!(project_context.contains("CLI and compiler for canonical planning artifacts"));
     assert!(project_context.contains("final CLI interview wording for project-context authoring"));
+}
+
+#[test]
+fn guided_tty_author_project_context_eof_refusal_names_project_context_command() {
+    let dir = scaffold_repo();
+
+    let (output, status) = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        run_guided_project_context_under_pty_with_interaction(dir.path(), |transcript, _writer| {
+            wait_for_transcript(transcript, "Project name [", Duration::from_secs(5));
+        })
+    });
+
+    assert!(
+        !status.success(),
+        "guided PTY project-context EOF should refuse: {output}"
+    );
+    assert!(output.contains("OUTCOME: REFUSED"), "{output}");
+    assert!(
+        output.contains("OBJECT: author project-context"),
+        "{output}"
+    );
+    assert!(output.contains("CATEGORY: InterviewIncomplete"), "{output}");
+    assert!(
+        output.contains("restart `system author project-context` or use `system author project-context --from-inputs <path|->`"),
+        "{output}"
+    );
+    assert!(
+        output.contains(
+            "guided project-context interview ended before all required answers were collected"
+        ),
+        "{output}"
+    );
 }
 
 #[test]

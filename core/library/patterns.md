@@ -15,4 +15,4 @@ These are reusable patterns stages may reference.
 - Record evidence in execution/quality gate reports.
 
 ## Pattern: Inventory updates
-- Any change to env vars/services/ports must update ENVIRONMENT_INVENTORY.md.
+- Any change to env vars/services/ports must update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.

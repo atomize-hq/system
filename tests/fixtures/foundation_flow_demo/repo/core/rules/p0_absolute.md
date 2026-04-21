@@ -44,9 +44,8 @@ Only include scoped blocks when the current stage `work_level` matches.
 ## P0-ABSOLUTE: Change Discipline
 - Keep changes minimal and reversible when touching contracts or production systems.
 - If a change introduces/changes env vars, services, ports, or runtime assumptions:
-  - update `ENVIRONMENT_INVENTORY.md` **at the project root** (repo root), in the same change.
-    - canonical: `${repo_root}/ENVIRONMENT_INVENTORY.md`
-    - pipeline/system artifact copy: `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+  - update the canonical inventory at `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+  - keep `artifacts/foundation/ENVIRONMENT_INVENTORY.md` aligned only when the current stage/output contract requires that artifact.
 
 <!-- SCOPE: L2 -->
 - **L2 Execution:** One slice implementation in flight per worktree/agent context.

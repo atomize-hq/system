@@ -71,7 +71,7 @@ In the reduced-v1 `M8` baseline tier it is part of the baseline canonical truth 
 
 ### 3) Environment Inventory (runtime/env truth)
 
-**ENVIRONMENT_INVENTORY.md** is the canonical baseline store of record for:
+**`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`** is the canonical baseline store of record for:
 
 * environment variables
 * runtime dependencies and external services

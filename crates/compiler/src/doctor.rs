@@ -3,7 +3,8 @@ use crate::author::{
     validate_project_context_markdown,
 };
 use crate::canonical_artifacts::{
-    canonical_artifact_descriptors, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
+    canonical_artifact_descriptors, ArtifactIngestIssueKind, CanonicalArtifactDescriptor,
+    CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
 use crate::refusal::NextSafeAction;
 use std::path::Path;
@@ -41,6 +42,11 @@ pub struct DoctorReport {
     pub next_safe_action: Option<NextSafeAction>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ArtifactInvalidReason {
+    IngestIssue,
+}
+
 pub fn doctor(repo_root: impl AsRef<Path>) -> Result<DoctorReport, crate::ArtifactIngestError> {
     let artifacts = CanonicalArtifacts::load(repo_root)?;
     Ok(doctor_from_artifacts(&artifacts))
@@ -51,7 +57,15 @@ pub fn doctor_from_artifacts(artifacts: &CanonicalArtifacts) -> DoctorReport {
     let status = classify_doctor_status(artifacts.system_root_status, &checklist);
     let next_safe_action = checklist
         .iter()
-        .find_map(|item| item.next_safe_action.clone());
+        .find_map(|item| match item.next_safe_action {
+            Some(NextSafeAction::RunSetupRefresh) => Some(NextSafeAction::RunSetupRefresh),
+            _ => None,
+        })
+        .or_else(|| {
+            checklist
+                .iter()
+                .find_map(|item| item.next_safe_action.clone())
+        });
 
     DoctorReport {
         status,
@@ -66,9 +80,14 @@ fn baseline_checklist(artifacts: &CanonicalArtifacts) -> Vec<DoctorChecklistItem
         .iter()
         .filter(|descriptor| descriptor.baseline_required)
         .map(|descriptor| {
-            let status = classify_artifact_status(artifacts, descriptor.kind);
-            let next_safe_action =
-                artifact_next_safe_action(artifacts.system_root_status, descriptor.kind, status);
+            let invalid_reason = artifact_invalid_reason(artifacts, descriptor);
+            let status = classify_artifact_status(artifacts, descriptor, invalid_reason);
+            let next_safe_action = artifact_next_safe_action(
+                artifacts.system_root_status,
+                descriptor.kind,
+                status,
+                invalid_reason,
+            );
             DoctorChecklistItem {
                 kind: descriptor.kind,
                 canonical_repo_relative_path: descriptor.relative_path,
@@ -81,7 +100,8 @@ fn baseline_checklist(artifacts: &CanonicalArtifacts) -> Vec<DoctorChecklistItem
 
 fn classify_artifact_status(
     artifacts: &CanonicalArtifacts,
-    kind: CanonicalArtifactKind,
+    descriptor: &CanonicalArtifactDescriptor,
+    invalid_reason: Option<ArtifactInvalidReason>,
 ) -> DoctorArtifactStatus {
     if matches!(
         artifacts.system_root_status,
@@ -90,7 +110,11 @@ fn classify_artifact_status(
         return DoctorArtifactStatus::Missing;
     }
 
-    let artifact = match kind {
+    if invalid_reason == Some(ArtifactInvalidReason::IngestIssue) {
+        return DoctorArtifactStatus::Invalid;
+    }
+
+    let artifact = match descriptor.kind {
         CanonicalArtifactKind::Charter => &artifacts.charter,
         CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
         CanonicalArtifactKind::EnvironmentInventory => &artifacts.environment_inventory,
@@ -111,13 +135,49 @@ fn classify_artifact_status(
                 .as_ref()
                 .and_then(|bytes| String::from_utf8(bytes.clone()).ok());
             match markdown {
-                Some(markdown) if validate_artifact_markdown(kind, &markdown).is_ok() => {
+                Some(markdown)
+                    if validate_artifact_markdown(descriptor.kind, &markdown).is_ok() =>
+                {
                     DoctorArtifactStatus::ValidCanonicalTruth
                 }
                 _ => DoctorArtifactStatus::Invalid,
             }
         }
     }
+}
+
+fn artifact_invalid_reason(
+    artifacts: &CanonicalArtifacts,
+    descriptor: &CanonicalArtifactDescriptor,
+) -> Option<ArtifactInvalidReason> {
+    if has_ingest_issue_for_artifact(
+        artifacts,
+        descriptor.kind,
+        descriptor.relative_path,
+        ArtifactIngestIssueKind::CanonicalArtifactReadError,
+    ) || has_ingest_issue_for_artifact(
+        artifacts,
+        descriptor.kind,
+        descriptor.relative_path,
+        ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
+    ) {
+        Some(ArtifactInvalidReason::IngestIssue)
+    } else {
+        None
+    }
+}
+
+fn has_ingest_issue_for_artifact(
+    artifacts: &CanonicalArtifacts,
+    kind: CanonicalArtifactKind,
+    canonical_repo_relative_path: &'static str,
+    issue_kind: ArtifactIngestIssueKind,
+) -> bool {
+    artifacts.ingest_issues.iter().any(|issue| {
+        issue.kind == issue_kind
+            && issue.artifact_kind == kind
+            && issue.canonical_repo_relative_path == canonical_repo_relative_path
+    })
 }
 
 fn validate_artifact_markdown(kind: CanonicalArtifactKind, markdown: &str) -> Result<(), String> {
@@ -137,6 +197,7 @@ fn artifact_next_safe_action(
     system_root_status: SystemRootStatus,
     kind: CanonicalArtifactKind,
     status: DoctorArtifactStatus,
+    invalid_reason: Option<ArtifactInvalidReason>,
 ) -> Option<NextSafeAction> {
     if matches!(
         system_root_status,
@@ -146,6 +207,11 @@ fn artifact_next_safe_action(
     }
     match status {
         DoctorArtifactStatus::ValidCanonicalTruth => None,
+        DoctorArtifactStatus::Invalid
+            if invalid_reason == Some(ArtifactInvalidReason::IngestIssue) =>
+        {
+            Some(NextSafeAction::RunSetupRefresh)
+        }
         DoctorArtifactStatus::Missing
         | DoctorArtifactStatus::Empty
         | DoctorArtifactStatus::StarterOwned

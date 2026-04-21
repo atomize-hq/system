@@ -416,6 +416,10 @@ fn capture_apply_stage_06_matches_shared_golden_and_updates_project_context_ref(
 #[test]
 fn capture_apply_foundation_pack_matches_shared_golden_and_uses_cached_preview() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_07_capture_ready_repo();
+    assert!(
+        !repo_root.join("ENVIRONMENT_INVENTORY.md").exists(),
+        "stage-07 capture-ready fixture should not pre-create the repo-root inventory"
+    );
     let preview = preview_pipeline_capture(&repo_root, &stage_07_request(stage_07_capture_input()))
         .expect("preview");
     let cache_path = pipeline_proof_corpus_support::pipeline_capture_cache_path(
@@ -437,10 +441,15 @@ fn capture_apply_foundation_pack_matches_shared_golden_and_uses_cached_preview()
         "successful apply should clear cached preview"
     );
     assert_eq!(
-        fs::read_to_string(repo_root.join("ENVIRONMENT_INVENTORY.md")).expect("repo mirror"),
+        fs::read_to_string(repo_root.join("artifacts/foundation/ENVIRONMENT_INVENTORY.md"))
+            .expect("artifact"),
         pipeline_proof_corpus_support::read_committed_fixture(
             "artifacts/foundation/ENVIRONMENT_INVENTORY.md"
         )
+    );
+    assert!(
+        !repo_root.join("ENVIRONMENT_INVENTORY.md").exists(),
+        "stage-07 apply must not materialize a repo-root inventory mirror"
     );
 }
 
@@ -902,9 +911,11 @@ fn capture_preview_refuses_empty_declared_block_without_side_effects() {
     let initial_artifact =
         fs::read_to_string(repo_root.join("artifacts/foundation/ENVIRONMENT_INVENTORY.md"))
             .expect("artifact");
-    let initial_repo_mirror =
-        fs::read_to_string(repo_root.join("ENVIRONMENT_INVENTORY.md")).expect("mirror");
     let initial_state = load_route_state(&repo_root);
+    assert!(
+        !repo_root.join("ENVIRONMENT_INVENTORY.md").exists(),
+        "empty-body refusal fixture should not pre-create the repo-root inventory"
+    );
     let mut input = stage_07_capture_input();
     let target_block = format!(
         "--- FILE: artifacts/foundation/ENVIRONMENT_INVENTORY.md ---\n{}",
@@ -934,9 +945,9 @@ fn capture_preview_refuses_empty_declared_block_without_side_effects() {
             .expect("artifact"),
         initial_artifact
     );
-    assert_eq!(
-        fs::read_to_string(repo_root.join("ENVIRONMENT_INVENTORY.md")).expect("mirror"),
-        initial_repo_mirror
+    assert!(
+        !repo_root.join("ENVIRONMENT_INVENTORY.md").exists(),
+        "empty-body refusal must not create the repo-root inventory"
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);
@@ -948,9 +959,11 @@ fn capture_apply_refuses_empty_declared_block_without_side_effects() {
     let initial_artifact =
         fs::read_to_string(repo_root.join("artifacts/foundation/ENVIRONMENT_INVENTORY.md"))
             .expect("artifact");
-    let initial_repo_mirror =
-        fs::read_to_string(repo_root.join("ENVIRONMENT_INVENTORY.md")).expect("mirror");
     let initial_state = load_route_state(&repo_root);
+    assert!(
+        !repo_root.join("ENVIRONMENT_INVENTORY.md").exists(),
+        "empty-body refusal fixture should not pre-create the repo-root inventory"
+    );
     let mut input = stage_07_capture_input();
     let target_block = format!(
         "--- FILE: artifacts/foundation/ENVIRONMENT_INVENTORY.md ---\n{}",
@@ -979,9 +992,9 @@ fn capture_apply_refuses_empty_declared_block_without_side_effects() {
             .expect("artifact"),
         initial_artifact
     );
-    assert_eq!(
-        fs::read_to_string(repo_root.join("ENVIRONMENT_INVENTORY.md")).expect("mirror"),
-        initial_repo_mirror
+    assert!(
+        !repo_root.join("ENVIRONMENT_INVENTORY.md").exists(),
+        "empty-body refusal must not create the repo-root inventory"
     );
     assert_eq!(load_route_state(&repo_root), initial_state);
     assert_no_capture_cache_entries(&repo_root);

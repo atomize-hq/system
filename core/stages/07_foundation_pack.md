@@ -58,9 +58,6 @@ outputs:
   - path: artifacts/foundation/QUALITY_GATES_SPEC.md
   - path: artifacts/foundation/quality_gates.yaml
   - path: artifacts/foundation/ENVIRONMENT_INVENTORY.md
-  repo_files:
-  - path: ${repo_root}/ENVIRONMENT_INVENTORY.md
-    required: true
 gating:
   mode: strict
   fail_on:

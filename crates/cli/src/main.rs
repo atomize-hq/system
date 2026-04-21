@@ -1,4 +1,5 @@
 use clap::{CommandFactory, Parser, Subcommand};
+use std::cell::RefCell;
 use std::fs;
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
@@ -8,6 +9,64 @@ const PACKET_PLANNING_ID: &str = "planning.packet";
 const PACKET_EXECUTION_DEMO_ID: &str = "execution.demo.packet";
 const PACKET_EXECUTION_LIVE_ID: &str = "execution.live.packet";
 const RELEASE_VERSION: &str = env!("SYSTEM_RELEASE_VERSION");
+
+struct GuidedPromptContext {
+    object: &'static str,
+    interview_name: &'static str,
+    broken_subject: &'static str,
+    retry_command: &'static str,
+    restart_or_from_inputs: &'static str,
+}
+
+const CHARTER_PROMPT_CONTEXT: GuidedPromptContext = GuidedPromptContext {
+    object: "author charter",
+    interview_name: "guided charter interview",
+    broken_subject: "structured charter input",
+    retry_command: "repair the interactive terminal and retry `system author charter`",
+    restart_or_from_inputs:
+        "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+};
+
+const PROJECT_CONTEXT_PROMPT_CONTEXT: GuidedPromptContext = GuidedPromptContext {
+    object: "author project-context",
+    interview_name: "guided project-context interview",
+    broken_subject: "structured project-context input",
+    retry_command: "repair the interactive terminal and retry `system author project-context`",
+    restart_or_from_inputs:
+        "restart `system author project-context` or use `system author project-context --from-inputs <path|->`",
+};
+
+thread_local! {
+    static GUIDED_PROMPT_CONTEXT: RefCell<&'static GuidedPromptContext> =
+        const { RefCell::new(&CHARTER_PROMPT_CONTEXT) };
+}
+
+struct GuidedPromptContextGuard {
+    previous: &'static GuidedPromptContext,
+}
+
+impl GuidedPromptContextGuard {
+    fn push(next: &'static GuidedPromptContext) -> Self {
+        let previous = GUIDED_PROMPT_CONTEXT.with(|slot| {
+            let previous = *slot.borrow();
+            *slot.borrow_mut() = next;
+            previous
+        });
+        Self { previous }
+    }
+}
+
+impl Drop for GuidedPromptContextGuard {
+    fn drop(&mut self) {
+        GUIDED_PROMPT_CONTEXT.with(|slot| {
+            *slot.borrow_mut() = self.previous;
+        });
+    }
+}
+
+fn current_guided_prompt_context() -> &'static GuidedPromptContext {
+    GUIDED_PROMPT_CONTEXT.with(|slot| *slot.borrow())
+}
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -1210,6 +1269,7 @@ struct ProjectContextGuidedDefaults {
 fn collect_guided_project_context_input(
     repo_root: &Path,
 ) -> Result<system_compiler::ProjectContextStructuredInput, String> {
+    let _prompt_context = GuidedPromptContextGuard::push(&PROJECT_CONTEXT_PROMPT_CONTEXT);
     let defaults = project_context_guided_defaults(repo_root);
 
     println!("Guided project-context interview");
@@ -1672,38 +1732,42 @@ fn prompt_project_context_csv_non_empty_concrete(
 }
 
 fn prompt_line(prompt: &str) -> Result<String, String> {
+    let context = current_guided_prompt_context();
     print!("{prompt}: ");
     io::stdout().flush().map_err(|err| {
         render_author_custom_refusal(
-            "author charter",
+            context.object,
             "REFUSED",
             "PromptWriteFailure",
             &format!("failed to render guided prompt: {err}"),
             "interactive terminal",
-            "repair the interactive terminal and retry `system author charter`",
+            context.retry_command,
         )
     })?;
 
     let mut value = String::new();
     let bytes_read = io::stdin().read_line(&mut value).map_err(|err| {
         render_author_custom_refusal(
-            "author charter",
+            context.object,
             "REFUSED",
             "PromptReadFailure",
             &format!("failed to read guided answer: {err}"),
             "interactive terminal",
-            "repair the interactive terminal and retry `system author charter`",
+            context.retry_command,
         )
     })?;
 
     if bytes_read == 0 {
         return Err(render_author_custom_refusal(
-            "author charter",
+            context.object,
             "REFUSED",
             "InterviewIncomplete",
-            "guided charter interview ended before all required answers were collected",
-            "structured charter input",
-            "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+            &format!(
+                "{} ended before all required answers were collected",
+                context.interview_name
+            ),
+            context.broken_subject,
+            context.restart_or_from_inputs,
         ));
     }
 

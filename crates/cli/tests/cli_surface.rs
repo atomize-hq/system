@@ -6407,11 +6407,27 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     assert!(!output.status.success(), "doctor should return nonzero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("PARTIAL_BASELINE"), "{stdout}");
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
     assert!(stdout.contains("ROOT STATUS: OK"), "{stdout}");
     assert!(
+        stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"),
+        "{stdout}"
+    );
+    assert!(
         stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: MISSING ACTION: run `system author project-context`"
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system setup refresh`"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
         ),
         "{stdout}"
     );

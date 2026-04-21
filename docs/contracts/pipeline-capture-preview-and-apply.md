@@ -122,7 +122,7 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - `stage.04_charter_inputs` writes `artifacts/charter/CHARTER_INPUTS.yaml`
   - `stage.05_charter_synthesize` writes `artifacts/charter/CHARTER.md`
   - `stage.06_project_context_interview` writes `artifacts/project_context/PROJECT_CONTEXT.md` plus any declared repo-file mirror
-  - `stage.07_foundation_pack` writes its declared artifact set plus any derived repo-file mirrors
+  - `stage.07_foundation_pack` writes its declared artifact set only
   - `stage.10_feature_spec` writes `artifacts/feature_spec/FEATURE_SPEC.md`
 - `stage.10_feature_spec` capture MUST NOT imply promotion into canonical `.system/feature_spec/FEATURE_SPEC.md`.
 
