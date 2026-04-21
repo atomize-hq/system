@@ -59,13 +59,13 @@ if ! should_run_live_smoke; then
   exit 0
 fi
 
-if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+if [[ -z "${CODEX_API_KEY:-}" ]]; then
   if [[ "${IS_FORK_PR:-false}" == "true" ]]; then
-    echo "OPENAI_API_KEY is unavailable on fork PRs; skipping live Codex smoke"
+    echo "CODEX_API_KEY is unavailable on fork PRs; skipping live Codex smoke"
     exit 0
   fi
 
-  echo "OPENAI_API_KEY is required for the author live smoke job" >&2
+  echo "CODEX_API_KEY is required for the author live smoke job" >&2
   exit 1
 fi
 

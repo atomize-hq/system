@@ -60,7 +60,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: bash tools/ci/author-live-smoke.sh
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}

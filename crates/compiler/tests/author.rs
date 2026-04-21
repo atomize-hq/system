@@ -151,12 +151,12 @@ fn prompt_capture_path(root: &Path) -> PathBuf {
     root.join(PROMPT_CAPTURE_REPO_PATH)
 }
 
-fn strict_stub_script(markdown: &str, fail_after_validation: bool) -> String {
+fn strict_stub_script(markdown: &str, failure_stderr: Option<&str>) -> String {
     format!(
         "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\n{post_validation}",
         prompt_capture = PROMPT_CAPTURE_REPO_PATH,
-        post_validation = if fail_after_validation {
-            "echo 'synthetic codex failure' >&2\nexit 23\n".to_string()
+        post_validation = if let Some(stderr) = failure_stderr {
+            format!("cat <<'EOF' >&2\n{stderr}\nEOF\nexit 23\n")
         } else {
             format!("cat <<'EOF' > \"$output\"\n{markdown}\nEOF\n")
         }
@@ -164,7 +164,7 @@ fn strict_stub_script(markdown: &str, fail_after_validation: bool) -> String {
 }
 
 fn successful_stub_script(markdown: &str) -> String {
-    strict_stub_script(markdown, false)
+    strict_stub_script(markdown, None)
 }
 
 fn invalid_output_stub_script(markdown: &str) -> String {
@@ -172,7 +172,11 @@ fn invalid_output_stub_script(markdown: &str) -> String {
 }
 
 fn failing_stub_script() -> String {
-    strict_stub_script("", true)
+    failing_stub_script_with_stderr("synthetic codex failure")
+}
+
+fn failing_stub_script_with_stderr(stderr: &str) -> String {
+    strict_stub_script("", Some(stderr))
 }
 
 fn valid_input() -> CharterStructuredInput {
@@ -631,6 +635,49 @@ fn author_charter_does_not_partially_write_when_synthesis_fails() {
             .expect("charter after failure"),
         before
     );
+}
+
+#[test]
+fn author_charter_surfaces_tail_error_line_from_long_codex_stderr() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let stub = install_stub_codex(
+        dir.path(),
+        &failing_stub_script_with_stderr(
+            "OpenAI Codex v0.121.0 (research preview)\n--------\nworkdir: /tmp/repo\nmodel: gpt-5.4-mini\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: high\nreasoning summaries: none\nsession id: abc123\n--------\nuser\nSay hi\n2026-04-21T01:34:02Z WARN codex_core::plugins::manifest: ignoring interface.defaultPrompt\n2026-04-21T01:34:03Z WARN codex_core::codex: stream disconnected - retrying sampling request (5/5 in 3.24s)...\nERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, request id: req_123\n",
+        ),
+    );
+
+    let err = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err
+        .summary
+        .contains("Missing bearer or basic authentication in header"));
+    assert!(!err
+        .summary
+        .contains("OpenAI Codex v0.121.0 (research preview)"));
+}
+
+#[test]
+fn author_charter_surfaces_auth_failure_from_codex_stderr() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let stub = install_stub_codex(
+        dir.path(),
+        &failing_stub_script_with_stderr(
+            "2026-04-21T01:34:02Z WARN codex_core::session_startup_prewarm: startup websocket prewarm setup failed\nERROR: unexpected status 401 Unauthorized: Incorrect API key provided: dummy. You can find your API key at https://platform.openai.com/account/api-keys.\n",
+        ),
+    );
+
+    let err = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err.summary.contains("Incorrect API key provided: dummy"));
 }
 
 #[test]

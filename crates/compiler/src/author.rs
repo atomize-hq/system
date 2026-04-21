@@ -69,6 +69,15 @@ const CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS: [&str; 6] = [
     "- e.g., ci, formatting, linting, release automation, local dev scripts",
     "- e.g., accessibility baseline, performance perception, error messaging clarity",
 ];
+const PROCESS_SUMMARY_LINE_LIMIT: usize = 3;
+const PROCESS_SUMMARY_CHAR_LIMIT: usize = 600;
+const PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS: [&str; 5] = [
+    "error:",
+    "unauthorized",
+    "incorrect api key",
+    "missing bearer",
+    "failed",
+];
 
 // Command path:
 // `system author charter` or `system author charter --from-inputs <path|->`
@@ -1978,25 +1987,94 @@ fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCha
 fn summarize_process_output(stdout: &[u8], stderr: &[u8]) -> String {
     let stdout = String::from_utf8_lossy(stdout);
     let stderr = String::from_utf8_lossy(stderr);
-    let stdout = truncate_for_summary(stdout.trim());
-    let stderr = truncate_for_summary(stderr.trim());
 
-    match (stdout.is_empty(), stderr.is_empty()) {
-        (true, true) => String::new(),
-        (false, true) => format!("; stdout: {stdout}"),
-        (true, false) => format!("; stderr: {stderr}"),
-        (false, false) => format!("; stdout: {stdout}; stderr: {stderr}"),
+    let stderr = summarize_stderr_for_refusal(stderr.trim());
+    if !stderr.is_empty() {
+        return format!("; stderr: {stderr}");
+    }
+
+    let stdout = summarize_stream_tail(stdout.trim());
+    if stdout.is_empty() {
+        String::new()
+    } else {
+        format!("; stdout: {stdout}")
     }
 }
 
 fn truncate_for_summary(value: &str) -> String {
-    const LIMIT: usize = 240;
-    if value.chars().count() <= LIMIT {
+    if value.chars().count() <= PROCESS_SUMMARY_CHAR_LIMIT {
         value.to_string()
     } else {
-        let prefix = value.chars().take(LIMIT).collect::<String>();
-        format!("{prefix}...")
+        let tail = value
+            .chars()
+            .rev()
+            .take(PROCESS_SUMMARY_CHAR_LIMIT)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<String>();
+        format!("...{tail}")
     }
+}
+
+fn summarize_stderr_for_refusal(stderr: &str) -> String {
+    let high_signal = collect_stream_summary_lines(stderr, true);
+    if !high_signal.is_empty() {
+        return truncate_for_summary(&high_signal.join(" | "));
+    }
+
+    summarize_stream_tail(stderr)
+}
+
+fn summarize_stream_tail(stream: &str) -> String {
+    let lines = collect_stream_summary_lines(stream, false);
+    if lines.is_empty() {
+        String::new()
+    } else {
+        truncate_for_summary(&lines.join(" | "))
+    }
+}
+
+fn collect_stream_summary_lines(stream: &str, prefer_high_signal: bool) -> Vec<String> {
+    let mut selected = Vec::new();
+    let mut seen = Vec::new();
+
+    for raw_line in stream.lines().rev() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        let normalized = normalize_process_summary_line(line);
+        if normalized.is_empty() || seen.iter().any(|existing| existing == &normalized) {
+            continue;
+        }
+        if prefer_high_signal && !is_high_signal_process_summary_line(&normalized) {
+            continue;
+        }
+
+        seen.push(normalized);
+        selected.push(line.to_string());
+        if selected.len() == PROCESS_SUMMARY_LINE_LIMIT {
+            break;
+        }
+    }
+
+    selected.reverse();
+    selected
+}
+
+fn normalize_process_summary_line(line: &str) -> String {
+    line.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
+}
+
+fn is_high_signal_process_summary_line(normalized_line: &str) -> bool {
+    PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS
+        .iter()
+        .any(|marker| normalized_line.contains(marker))
 }
 
 fn render_exit_status(code: Option<i32>) -> String {

@@ -73,6 +73,8 @@ For the shipped `system author charter --from-inputs <path|->` surface, CI MUST 
 
 The live author smoke MUST be model-configurable via repo-owned environment variables. `SYSTEM_AUTHOR_CHARTER_CODEX_MODEL` selects the runtime model for compiler-owned charter synthesis, and the smoke wrapper MAY drive that through `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL`. CI MUST pin an explicit smoke model rather than inheriting whatever the Codex CLI default happens to be.
 
+For direct `codex exec` use in CI/CD, the live smoke runtime MUST provide `CODEX_API_KEY` to the Codex CLI. The repository MAY continue storing the secret as `OPENAI_API_KEY` in GitHub Actions so long as the workflow maps it into `CODEX_API_KEY` for the smoke step.
+
 ### Supported install-smoke targets
 
 Reduced v1 MUST treat these as supported install-smoke targets:
