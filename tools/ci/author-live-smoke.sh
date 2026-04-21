@@ -18,6 +18,9 @@ is_relevant_change() {
     tools/ci/author-live-smoke.sh)
       return 0
       ;;
+    core/library/authoring/*)
+      return 0
+      ;;
     core/library/charter/*)
       return 0
       ;;
