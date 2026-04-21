@@ -2,526 +2,506 @@
 
 ## Status
 
-This is the active execution source of truth for the next `system` wedge.
+This is the active execution source of truth for `M8`.
 
-It supersedes the earlier scaffold-to-ready planning pass and folds the approved design work plus the current eng-review conclusions into one implementation-ready plan.
+It supersedes the charter-only `M7` authoring plan and replaces it with the approved baseline-canonical-truth milestone.
 
 Archived predecessor:
 
-- `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-plan-archive-20260419-120831.md`
+- `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-plan-archive-20260421-100326.md`
 
 Primary design basis:
 
-- `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-design-20260419-103432.md`
+- `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-design-20260421-082110.md`
 
-This milestone starts from the current shipped state on `main`:
+Current shipped baseline on `main`:
 
 - `system setup` is the front door
-- `system doctor` is the recovery/readiness surface
-- `system generate` is the ready-path packet surface
-- canonical project truth lives under `.system/*`
-- setup-owned starter templates do not count as ready truth
+- `system author charter` is shipped
+- `system doctor` is the readiness/recovery surface
+- canonical truth is moving under `.system/*`
+- readiness/product copy still reflects the charter-only `M7` story
 
 ## Landing Notes
 
-These notes record what was actually required to land `M7` on 2026-04-20.
+`M7` landed the first real authoring wedge on 2026-04-20.
 
-- The originally planned `unified-agent-api` Codex integration did not survive contact with the installed `codex-cli`. The wrapper emitted `--ask-for-approval never`, but `codex-cli 0.121.0` rejected that flag outright, so the live authoring path failed before synthesis.
-- Fixing the transport mismatch alone was not enough. The raw charter template included author-facing commentary and scaffolding (`<!-- ... -->`, blockquote guidance, "Options (choose one)", `e.g.` bullets), and Codex sometimes copied that guidance into the final charter body.
-- The landed path therefore uses direct `codex exec` invocation from the compiler authoring seam and feeds it a sanitized render template instead of the raw authoring template.
-- The synthesis directive also had to become stricter: preserve the shipped top-level headings exactly, in order, and do not redesign the document structure.
-- A real fresh-temp-repo smoke was required to prove the slice, because override-backed tests did not exercise the live Codex transport or the actual final-message behavior. That smoke now remains a change-scoped CI gate whenever the shipped Codex authoring contract changes.
+That was the right first move, but it left the repo baseline incomplete:
+
+- `CHARTER` is first-class
+- `PROJECT_CONTEXT` is still setup/legacy-shaped, not baseline-authored
+- `ENVIRONMENT_INVENTORY` still has split authority in docs, rules, and stage material
+- `doctor` does not yet expose a truthful `baseline complete` tier
+
+This milestone fixes that without widening into generic authoring orchestration.
 
 ## Active Objective
 
-Ship the first real canonical authoring wedge after `M6`.
+Ship the `M8` baseline canonical truth tier.
 
 That means:
 
-- add a top-level `author` family to the public CLI
-- ship one real surface under it, `system author charter`
-- ship both visible charter paths in the first slice:
-  - interactive interview path
-  - deterministic input path via `--from-inputs <path|->`
-- write canonical truth only to `.system/charter/CHARTER.md`
-- cut `setup`, `doctor`, and `generate` over to the new authoring surface
-- publish one repo-owned charter authoring method artifact for humans and agents
+- keep `system author charter` as the completed first slice
+- add `system author project-context`
+- add `system author environment-inventory`
+- define the baseline canonical set explicitly as:
+  - `.system/charter/CHARTER.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- make `doctor` compute readiness from that baseline set
+- separate `baseline complete` from later feature-specific readiness
+- remove split-authority claims for `ENVIRONMENT_INVENTORY`
 
-This repo remains a compiler/generator product, not a chat runtime. The point of the wedge is to remove the blank-file moment after setup with one boring, exact, reproducible authoring path.
-
-The reduced-v1 pipeline-routing contract remains intentionally narrow: activation clauses use only `variables.<name> == true|false`.
+This repo remains a compiler/generator product, not a chat runtime and not a generic document-authoring framework.
 
 ## Exact Shipped Behavior
 
 The milestone is only done when all of the following are true:
 
-1. On a scaffolded repo, `system setup` succeeds and ends with `NEXT SAFE ACTION: run \`system author charter\`` instead of `fill canonical artifact ...`.
-2. `system author charter` runs as a line-oriented, TTY-only interview in one invocation.
-3. If `system author charter` is invoked without an interactive TTY, it refuses and points to `system author charter --from-inputs <path|->`.
-4. Interview answers are normalized into structured charter-input state before synthesis. Raw answers are not copied directly into the final charter body.
-5. The interview loop asks follow-up questions only when a required field is still empty or unusably vague after normalization.
-6. `system author charter --from-inputs <path|->` accepts a complete structured charter-input document from a file or stdin (`-`).
-7. There are no per-answer LLM synthesis calls during the interview loop.
-8. Both paths converge on one shared final synthesis engine and one final LLM synthesis pass.
-9. The shared LLM integration layer for `M7` uses direct `codex exec` from the compiler authoring seam, capturing `--output-last-message` and validating the returned markdown before any canonical write.
-10. The human-guided surface is `system author charter`; the agent and automation surface is `system author charter --from-inputs <path|->`.
-11. The only persisted authored output in `M7` is `.system/charter/CHARTER.md`.
-12. If `.system/charter/CHARTER.md` already contains non-starter canonical truth, both authoring paths refuse. `M7` does not ship update/revise mode.
-13. Successful charter authoring clears the starter-template blocker for `doctor` and `generate`.
-14. Public product copy says `author`, not legacy stage ids or dev/test mechanism names.
+1. `system setup` scaffolds the baseline canonical paths needed for `M8`, including `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+2. `system author charter` remains the shipped charter surface with the existing `M7` refusal boundary.
+3. `system author project-context` exists as a first-class public command.
+4. `system author environment-inventory` exists as a first-class public command.
+5. The baseline canonical set is exactly `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.
+6. `BASE_CONTEXT` is not treated as baseline canonical truth anywhere in `M8`.
+7. `doctor` exposes distinct baseline states:
+   - `SCAFFOLDED`
+   - `PARTIAL_BASELINE`
+   - `INVALID_BASELINE`
+   - `BASELINE_COMPLETE`
+8. `doctor` computes `BASELINE_COMPLETE` from canonical `.system` truth only.
+9. `FEATURE_SPEC` does not block `BASELINE_COMPLETE`.
+10. `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the only canonical environment inventory path in product contracts/docs/runtime behavior.
+11. Repo-root `ENVIRONMENT_INVENTORY.md` is never described as canonical after `M8`.
+12. This milestone ships no end-user migration workflow, no dual-write system, and no compatibility product surface.
+13. Any internal cleanup of old repo-root or artifact-path files is handled as repo maintenance, not product behavior.
+14. Setup/help/docs/contracts/tests all describe the same baseline-vs-feature readiness boundary.
 
 ## Scope
 
 ### In scope
 
-- one top-level `author` family in the CLI
-- one shipped command family member: `system author charter`
-- one shipped deterministic variant: `system author charter --from-inputs <path|->`
-- compiler-owned charter authoring execution
-- canonical `.system/charter/CHARTER.md` write path
-- reuse of the existing charter interview, input, synthesize, directive, and template assets where they still fit
-- one discoverable repo-owned charter authoring method artifact
-- setup/doctor/generate cutover to `author`
-- docs, contracts, help text, snapshots, and tests for the new surface
+- extend the top-level `author` family with:
+  - `system author project-context`
+  - `system author environment-inventory`
+- scaffold the new canonical environment inventory path under `.system/`
+- baseline readiness-state model in `doctor`
+- canonical-artifact contract updates for baseline truth
+- authority cleanup for `ENVIRONMENT_INVENTORY`
+- docs/help/contracts/snapshots/tests cutover for the new baseline story
+- repo-owned authoring-method artifacts for the new baseline surfaces if needed
 
 ### NOT in scope
 
-- `system author project-context`
+- bundled `system author baseline`
 - `system author feature-spec`
-- generic multi-artifact authoring orchestration
-- chat-style onboarding automation
-- MCP or web/UI companion work
+- generic multi-artifact authoring engine
+- productized migration/import flow for old repos
+- dual-write or long-lived compatibility shims
+- redesigning `BASE_CONTEXT`
+- changing live execution/demo boundaries
 - public distribution changes
-- moving canonical truth out of `.system/*`
-- persisted `artifacts/*` or repo-root charter mirrors for the authoring surface
-- update/revise semantics for non-scaffolded existing charter truth
+- MCP/UI companion work
 
 ## Frozen Decisions
 
-These decisions are already settled for `M7`:
+These are already settled for `M8`:
 
-1. `author` is a top-level family, not a hidden `setup` or `doctor` extension.
-2. `system author charter` is the first shipped slice.
-3. The first slice includes both visible charter paths together.
-4. The interview path is TTY-only in `M7`.
-5. The deterministic path is `--from-inputs <path|->` and is the only non-interactive entrypoint.
-6. Both paths normalize to one structured input model and one shared synthesis engine.
-7. The interview loop may ask follow-up questions only when a required field remains empty or unusably vague after normalization.
-8. There are no per-answer LLM synthesis calls in the interview loop.
-9. The final charter is produced by one final LLM synthesis pass after the structured input set is complete.
-10. The LLM integration layer for `M7` is a compiler-owned direct `codex exec` invocation, not the previously planned `unified-agent-api` wrapper.
-11. `system author charter` is the human-guided surface; `system author charter --from-inputs <path|->` is the agent and automation surface.
-12. `M7` reuses existing compiler-owned charter assets where possible, but does not expose stage ids as the public UX.
-13. The public authoring wedge writes only `.system/charter/CHARTER.md`.
-14. If real charter truth already exists, `M7` refuses instead of widening scope.
-15. Setup/doctor/generate cutover happens in the same milestone as the new authoring surface.
-16. One repo-owned authoring method artifact ships in the same milestone as the CLI surface.
+1. The next milestone is the formal baseline canonical truth tier, not “charter done, now generate.”
+2. `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY` make up the baseline set.
+3. `BASE_CONTEXT` is out because it is still run metadata, not durable repo truth.
+4. `doctor` needs a first-class `baseline complete` state.
+5. `ENVIRONMENT_INVENTORY` must have one authoritative home.
+6. The milestone is greenfield from a user-adoption perspective, so no shipped migration support is required.
+7. No bundled `system author baseline` surface ships in this milestone.
+8. No generic authoring abstraction is allowed.
+9. `M8` authoring extends a shared compiler core, but artifact-specific logic must be split into small modules under `crates/compiler/src/author/`, not piled into one giant file.
+10. `crates/compiler/src/canonical_artifacts.rs` is the single source of truth for the `M8` baseline artifact set and its required/optional semantics.
+11. CLI integration tests are the primary proof for `M8` authoring and doctor flows, with unit tests underneath for shared validation and artifact-specific internals.
+
+## Review-Locked Decisions
+
+These decisions were locked during `/plan-eng-review`:
+
+1. `setup` stops scaffolding `.system/feature_spec/FEATURE_SPEC.md` in `M8`. Bootstrap creates only the true baseline set.
+2. Repo-root `ENVIRONMENT_INVENTORY.md` is fully unsupported after `M8`. There is no mirror in the live product contract.
+3. `doctor` shows a compact ordered checklist when multiple baseline artifacts are incomplete, with item 1 marked as the next safe action.
 
 ## Step 0: Scope Challenge
 
 ### What already exists
 
-The repo already solves large parts of the problem. The plan must reuse those pieces instead of building parallel systems.
-
 | Sub-problem | Existing code or asset | Reuse decision |
 | --- | --- | --- |
-| CLI dispatch and top-level command wiring | [crates/cli/src/main.rs](crates/cli/src/main.rs) | Extend, do not replace |
-| canonical truth model and starter-template handling | [crates/compiler/src/setup.rs](crates/compiler/src/setup.rs), [crates/compiler/src/resolver.rs](crates/compiler/src/resolver.rs) | Reuse |
-| charter interview content | [core/stages/05_charter_interview.md](core/stages/05_charter_interview.md) | Reuse as implementation evidence, not public UX |
-| deterministic charter inputs flow | [core/stages/04_charter_inputs.md](core/stages/04_charter_inputs.md), [core/library/charter/charter_inputs_directive.md](core/library/charter/charter_inputs_directive.md), [core/library/charter/CHARTER_INPUTS.yaml.tmpl](core/library/charter/CHARTER_INPUTS.yaml.tmpl) | Reuse schema and prompt ingredients |
-| final charter synthesis ingredients | [core/stages/05_charter_synthesize.md](core/stages/05_charter_synthesize.md), [core/library/charter/charter_gen_directive.md](core/library/charter/charter_gen_directive.md), [core/library/charter/charter.md.tmpl](core/library/charter/charter.md.tmpl) | Reuse, but sanitize template commentary before synthesis |
-| safe file-write and mutation patterns | [crates/compiler/src/pipeline_capture.rs](crates/compiler/src/pipeline_capture.rs), repo-file access helpers | Reuse patterns, not artifact authority |
-| help/doc drift guards | [crates/cli/tests/help_drift_guard.rs](crates/cli/tests/help_drift_guard.rs), [crates/cli/tests/cli_surface.rs](crates/cli/tests/cli_surface.rs) | Reuse and extend |
+| top-level `author` family and charter wiring | `crates/cli/src/main.rs`, `crates/compiler/src/author.rs` | extend, do not replace |
+| canonical artifact starter templates and setup refresh behavior | `crates/compiler/src/setup.rs`, `crates/compiler/src/canonical_artifacts.rs` | reuse |
+| readiness rendering and next-safe-action infrastructure | `crates/compiler/src/resolver.rs`, `crates/compiler/src/rendering/shared.rs`, `system doctor` surfaces | reuse and extend with checklist rendering |
+| project-context content/template assets | `core/library/project_context/*`, `core/stages/06_project_context_interview.md` | reuse content, do not expose stage ids |
+| environment inventory content/template assets | `core/library/environment_inventory/*`, `core/stages/07_foundation_pack.md` | reuse content, replace root-canonical claims |
+| docs/help drift rails | `crates/cli/tests/help_drift_guard.rs`, `crates/cli/tests/cli_surface.rs` | reuse and extend |
+| existing canonical path for project context | `.system/project_context/PROJECT_CONTEXT.md` in `crates/compiler/src/canonical_artifacts.rs` | keep |
 
-### Existing pain points the milestone must resolve
+### Scope reduction verdict
 
-- `setup` still ends the scaffolded path with `fill canonical artifact ...` in [crates/compiler/src/setup.rs](crates/compiler/src/setup.rs).
-- the public CLI still describes a five-surface product in [crates/cli/src/main.rs](crates/cli/src/main.rs).
-- legacy charter stages still target `artifacts/charter/CHARTER.md` and `${repo_root}/CHARTER.md`, which is the wrong authority boundary for the public authoring surface.
-- tests and docs still encode the current manual handoff and five-surface vocabulary.
+This milestone is large in file count, but structurally still small enough to be the right lake:
 
-### Minimum change set
-
-The minimum complete version of `M7` is:
-
-1. add `author` to the public CLI surface
-2. add one compiler-owned authoring module for charter execution
-3. add one shared structured-input model plus one shared synthesis entrypoint
-4. add one canonical charter write path to `.system/charter/CHARTER.md`
-5. add one repo-owned charter authoring method artifact
-6. cut setup/doctor/generate/docs/help/tests over to the new surface
-
-Anything smaller is a shortcut. Examples of rejected shortcuts:
-
-- add only an interview wrapper command
-- add only `--from-inputs` and defer interview
-- keep the command under `setup`
-- keep manual `fill canonical artifact ...` as the normal post-setup instruction
-- keep writing derived mirrors in the public authoring flow
-
-### Complexity check
-
-This milestone will touch more than eight files because the surface change spans CLI wiring, compiler behavior, docs, contracts, and tests. That is acceptable only if the implementation stays structurally small:
-
-- one new authoring module in the compiler
-- thin CLI wiring
-- one shared synthesis engine
-- no new persistent state machine
+- no new top-level product noun
+- no new persistence model
+- no new external transport
 - no generic authoring framework
+- no user-migration subsystem
 
-If implementation starts growing into multiple new services, generic workflow abstractions, or a second writer engine, stop and reduce scope back to the charter wedge.
+Anything bigger than that is overbuilt. Anything smaller leaves the repo baseline half-finished again.
+
+### Search check
+
+- **[Layer 1]** Reuse the existing CLI subcommand and compiler-boundary pattern already proven by `system author charter`.
+- **[Layer 1]** Reuse existing template/directive assets for `PROJECT_CONTEXT` and `ENVIRONMENT_INVENTORY` instead of inventing new authoring formats.
+- **[Layer 3]** The eureka here is that baseline truth in this repo is not passive documentation. It is machine-usable canonical truth for downstream planning. That is why `PROJECT_CONTEXT` and `ENVIRONMENT_INVENTORY` belong in baseline readiness, while `BASE_CONTEXT` does not.
 
 ### TODO cross-reference
 
-No new TODO is required to make this milestone coherent. Existing TODOs for wider onboarding, UI, public distribution, and later authoring surfaces stay deferred. `M7` absorbs the already-identified post-setup authoring gap at the charter wedge only.
+Existing TODOs for UI companion, release automation, live execution packets, and richer onboarding remain deferred.
+
+No existing TODO blocks `M8`. The main risk is plan drift, not missing backlog capture.
 
 ### Completeness and distribution check
 
-- This is a boilable lake. The complete version is the right one.
-- The milestone does not introduce a new artifact type, so no new build/publish pipeline is required.
+- This is a boilable lake.
+- The complete version is baseline authoring + readiness + authority cleanup, not a shortcut.
+- No new distributable artifact is introduced, so no new release pipeline is required.
 
 ## Architecture Review
 
 ### Primary architecture decision
 
-Ship a first-class public authoring family while keeping authoring execution compiler-owned.
+Extend the compiler-owned authoring pattern from `M7` into a bounded baseline tier.
 
 That means:
 
-- CLI owns argument parsing, help text, and refusal rendering
-- compiler owns authoring semantics, validation, synthesis request construction, and canonical writes
-- legacy prompt/template assets are inputs to the compiler-owned authoring flow, not the public interface
+- CLI owns command parsing, help text, and refusal rendering
+- compiler owns authoring semantics, validation, canonical writes, and readiness classification
+- baseline readiness is computed from canonical `.system` artifacts only
+- no stage-id UX leaks into the public surface
 
-### Architecture diagram
+### Baseline truth model
+
+```text
+baseline canonical truth
+  ├── .system/charter/CHARTER.md
+  ├── .system/project_context/PROJECT_CONTEXT.md
+  └── .system/environment_inventory/ENVIRONMENT_INVENTORY.md
+
+later feature-phase truth
+  └── .system/feature_spec/FEATURE_SPEC.md (later phase, not scaffolded by setup in M8)
+
+run metadata / legacy stage artifacts
+  ├── artifacts/base/BASE_CONTEXT.md
+  ├── artifacts/project_context/PROJECT_CONTEXT.md
+  └── artifacts/foundation/ENVIRONMENT_INVENTORY.md
+```
+
+The milestone succeeds only if operators and downstream code no longer have to guess which layer they are looking at.
+
+### Command/data-flow diagram
 
 ```text
 operator
   │
   ├── system setup
-  │     └── scaffolded repo
-  │            └── NEXT SAFE ACTION: run `system author charter`
+  │     └── writes starter baseline files under `.system/`
   │
-  └── system author charter
-         │
-         ├── interactive path (TTY only)
-         │     ├── ask one question at a time
-         │     ├── normalize answers into structured charter inputs
-         │     └── loop until required fields are complete
-         │
-         ├── deterministic path
-         │     └── load full structured charter inputs from file or stdin
-         │
-         ├── shared charter authoring method + directives + template
-         │
-         ├── shared synthesis engine
-         │     └── one final LLM call
-         │
-         ├── scaffold/authority check
-         │     ├── starter template => continue
-         │     └── real charter truth => refuse
-         │
-         └── canonical write
-               └── .system/charter/CHARTER.md
+  ├── system author charter
+  │     └── canonical `.system/charter/CHARTER.md`
+  │
+  ├── system author project-context
+  │     └── canonical `.system/project_context/PROJECT_CONTEXT.md`
+  │
+  ├── system author environment-inventory
+  │     └── canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  │
+  └── system doctor
+        ├── checks baseline canonical paths
+        ├── classifies readiness state
+        └── renders a compact ordered checklist with item 1 as next safe action
+```
 
-steady-state consumers
-  doctor / generate
-         │
-         └── read canonical `.system/*` truth only
+### Readiness-state diagram
+
+```text
+                 missing / starter-owned baseline file
+       ┌────────────────────────────────────────────────────┐
+       │                                                    ▼
+  [SCAFFOLDED] ── author one artifact ──> [PARTIAL_BASELINE]
+       ▲                                      │
+       │                                      │ another missing/starter file
+       │                                      │
+       │ invalid file repaired                ▼
+       └────────────── [INVALID_BASELINE] <───┘
+                               │
+                               │ all baseline files valid
+                               ▼
+                      [BASELINE_COMPLETE]
+                               │
+                               │ later milestone work
+                               ▼
+                         [FEATURE_READY]
 ```
 
 ### Module boundaries
 
 | Area | Ownership | Planned work |
 | --- | --- | --- |
-| `crates/cli/src/` | CLI | add `author` family, route `author charter`, render help/refusals |
-| `crates/compiler/src/` | compiler | add charter authoring module and shared synthesis path |
-| `core/library/charter/` | authoring inputs | reuse directives/templates and input schema ingredients |
-| `core/library/authoring/` | method artifact | add one discoverable charter authoring method file |
-| `docs/` + `docs/contracts/` | product surface | cut vocabulary and operator journey over to `author` |
-| `crates/cli/tests/` + `crates/compiler/tests/` | proof | add happy-path, refusal, cutover, and authority-boundary regression tests |
-
-### Concrete implementation shape
-
-Planned new or changed seams:
-
-- add `Command::Author(AuthorArgs)` beside the current top-level command enum in [crates/cli/src/main.rs](crates/cli/src/main.rs)
-- add a compiler-owned authoring entrypoint, expected as `crates/compiler/src/author.rs`
-- keep the structured input model charter-specific in `M7`; do not invent a generic document-authoring schema
-- wire the shared synthesis engine through a compiler-owned direct `codex exec` invocation that captures `--output-last-message`
-- use the existing canonical-artifact and repo-root safety helpers for validation and writes
-- add a new method artifact at `core/library/authoring/charter_authoring_method.md`
-
-### Data-flow contract
-
-#### Interactive path
-
-```text
-TTY interview
-  -> answer normalization
-  -> follow-up only if a required field remains empty or unusably vague
-  -> structured charter inputs
-  -> completeness validation
-  -> shared synthesis request
-  -> canonical `.system/charter/CHARTER.md` write
-```
-
-#### Deterministic path
-
-```text
-file/stdin structured inputs
-  -> parse + validate
-  -> shared synthesis request
-  -> canonical `.system/charter/CHARTER.md` write
-```
-
-The two paths must diverge only at input capture. They must converge before synthesis.
-The human path is the TTY interview. The agent and automation path is `--from-inputs`. Agents should not drive the TTY loop as the primary integration surface.
+| `crates/cli/src/` | CLI | add project-context and environment-inventory subcommands, help text, refusal mapping |
+| `crates/compiler/src/author.rs` or adjacent compiler authoring modules | compiler | shared baseline-authoring execution and validation |
+| `crates/compiler/src/canonical_artifacts.rs` | compiler | canonical path/starter-template updates, including environment inventory |
+| `crates/compiler/src/resolver.rs` + renderers | compiler | baseline readiness-state computation and messaging |
+| `core/library/project_context/` | authoring assets | reuse/update content for public authoring |
+| `core/library/environment_inventory/` | authoring assets | reuse/update content, remove root-canonical claims |
+| `core/rules/` + `docs/contracts/` + `docs/` | product truth | cut authority/readiness wording over to the M8 model |
 
 ### Security and production-failure review
 
-| New codepath | Realistic production failure | Plan response |
+| New codepath | Realistic failure | Planned response |
 | --- | --- | --- |
-| interactive interview | command invoked in CI or piped shell without a TTY | explicit refusal to `--from-inputs` |
-| deterministic input load | malformed or incomplete YAML from agent automation | parse/validation refusal with exact next step |
-| interview normalization | required field stays vague and the loop does not ask a clarifying follow-up | normalize, detect insufficiency, ask one more bounded question |
-| synthesis step | provider call fails or returns empty/invalid content | hard failure, no partial write |
-| canonical write | repo path invalid or blocked | mutation refusal, no fallback mirror |
-| cutover in setup/doctor/generate | help/docs/tests drift and product story splits | drift-guard and CLI regression coverage |
+| `system author project-context` | writes invalid or incomplete structure | structural validation refusal, no canonical write |
+| `system author environment-inventory` | old root-canonical assumptions leak into generated content | explicit canonical-path contract, root claims removed from directives and docs |
+| setup scaffold update | environment inventory starter missing or wrong path | setup regression tests |
+| readiness computation | feature-spec or legacy artifact accidentally blocks baseline complete | baseline-state tests against canonical `.system` set only |
+| docs/contracts cutover | README/help/contracts disagree on authority boundary | help-drift and docs parity regression coverage |
 
 ## Code Quality Review
 
 ### Minimal-diff rules
 
-- keep the CLI thin
-- keep authoring semantics in the compiler, not scattered across CLI renderers
-- reuse current charter directives/templates instead of re-authoring the method in multiple places
-- keep one structured input model and one synthesis path
-- keep one canonical persisted output
-- keep the product-language split explicit: human-guided `author charter`, agent/automation `author charter --from-inputs`
+- extend the existing `author` family, do not add a new top-level command
+- reuse compiler-side authoring boundary, do not scatter artifact-specific logic through CLI renderers
+- keep baseline classification explicit, not clever
+- update existing contracts/docs instead of introducing shadow design docs in code comments everywhere
+- avoid creating a separate migration subsystem for a greenfield milestone
+- keep one shared compiler authoring core, but split artifact-specific logic into small modules rather than growing `crates/compiler/src/author.rs` into a blob
+- make `canonical_artifacts` the baseline source of truth; setup/doctor/rendering should consume it instead of redefining baseline rules
 
 ### DRY guardrails
 
-Aggressive no-duplication rules for `M7`:
-
-1. do not build separate interview-synthesis and deterministic-synthesis implementations
-2. do not duplicate the charter quality bar across docs, prompts, and method artifacts
-3. do not create a second write pipeline for authoring when the compiler already has path-safety primitives
-4. do not copy legacy stage copy into public help text
+1. Do not build three independent authoring engines. Reuse the `M7` authoring pattern.
+2. Do not let readiness logic live in multiple places with different artifact sets.
+3. Do not maintain two canonical stories for `ENVIRONMENT_INVENTORY`.
+4. Do not let legacy `artifacts/*` outputs silently continue to drive baseline truth.
+5. Do not duplicate baseline required/optional semantics across setup, resolver, and rendering.
 
 ### Overbuild traps that fail review
 
-- a generic authoring engine for future documents
-- a second persistence model or saved authoring session state
-- a public UX that mentions `stage.04_*` or `stage.05_*`
-- per-answer LLM calls during the interview loop
-- silent overwrite of non-scaffolded charter truth
-- public authoring writes to `artifacts/charter/CHARTER.md` or repo-root `CHARTER.md`
+- bundled `system author baseline`
+- auto-import/migration machinery for nonexistent users
+- generic “canonical document” framework
+- reclassifying `BASE_CONTEXT` without redesigning it
+- long-lived root-file compatibility shims
 
-### Files that need diagram or boundary comments during implementation
+### Files that deserve inline ASCII comments
 
-- the new compiler authoring module should include a short command-path diagram comment
-- the shared synthesis entrypoint should explicitly document that both modes converge here
-- the scaffold/refusal boundary should carry a short comment explaining why `M7` refuses existing real charters
+- compiler-side readiness classification code
+- any shared baseline-authoring entrypoint that multiple commands converge on
+- the module boundary comment in `crates/compiler/src/author/` explaining shared core vs artifact-specific modules
+- canonical-artifact ownership code if both baseline and later feature-phase artifacts are handled nearby
 
 ## Test Review
 
 ### Coverage diagram
 
 ```text
-AUTHORING WEDGE COVERAGE
-===========================
-[+] system author charter
+M8 BASELINE TIER COVERAGE
+=========================
+[+] setup baseline scaffolding
     │
-    ├── [GAP] interactive happy path from scaffolded repo writes `.system/charter/CHARTER.md`
-    ├── [GAP] refuses cleanly when `.system/` root is missing or invalid
-    ├── [GAP] refuses cleanly when invoked without an interactive TTY
-    ├── [GAP] interview answers normalize into structured inputs before synthesis
-    ├── [GAP] follow-up questions only happen when a required field remains empty or unusably vague
-    ├── [GAP] existing non-starter charter truth is refused, not overwritten
-    └── [GAP] public help surfaces show `author` consistently
+    ├── [GAP] creates `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+    ├── [GAP] preserves existing baseline canonical truth on refresh
+    └── [GAP] no longer scaffolds `.system/feature_spec/FEATURE_SPEC.md`
 
-[+] system author charter --from-inputs <path|->
+[+] system author project-context
     │
-    ├── [GAP] valid structured inputs from file write the same canonical output
-    ├── [GAP] valid structured inputs from stdin write the same canonical output
-    ├── [GAP] malformed or incomplete inputs refuse with exact next action
-    └── [GAP] deterministic path shares the same synthesis engine as interview mode
+    ├── [GAP] scaffolded happy path writes canonical `.system/project_context/PROJECT_CONTEXT.md`
+    ├── [GAP] refuses overwrite of existing valid truth
+    ├── [GAP] validates structure before write
+    └── [GAP] public help/docs describe it as baseline authoring, not legacy stage capture
 
-[+] setup / doctor / generate cutover
+[+] system author environment-inventory
     │
-    ├── [GAP] scaffolded setup points to `system author charter`
-    ├── [GAP] blocked doctor points to `system author charter`
-    ├── [GAP] blocked generate points to `system author charter`
-    └── [GAP] successful authoring clears the charter starter-template blocker
+    ├── [GAP] scaffolded happy path writes canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+    ├── [GAP] refuses overwrite of existing valid truth
+    ├── [GAP] strips root-canonical language from generated/runtime contract
+    └── [GAP] does not write repo-root canonical truth
+
+[+] doctor readiness states and checklist
+    │
+    ├── [GAP] SCAFFOLDED when all three baseline files are starter-owned/missing
+    ├── [GAP] PARTIAL_BASELINE when some but not all baseline files are valid
+    ├── [GAP] INVALID_BASELINE when a non-starter file fails structural validation
+    ├── [GAP] BASELINE_COMPLETE when all baseline files are valid
+    ├── [GAP] FEATURE_SPEC absence does not block BASELINE_COMPLETE
+    └── [GAP] multiple missing artifacts render a compact ordered checklist with item 1 as next safe action
 
 [+] authority boundary
     │
-    ├── [GAP] `.system/charter/CHARTER.md` is the only readiness-driving authored output
-    └── [GAP] no persisted derived mirror is written by the authoring surface
+    ├── [GAP] `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the only canonical env-inventory path
+    ├── [GAP] repo-root ENVIRONMENT_INVENTORY is not described as canonical or emitted as a mirror in docs/help/contracts/runtime
+    └── [GAP] BASE_CONTEXT remains outside baseline readiness
 
 ─────────────────────────────────
-COVERAGE: 0/16 paths implemented yet
-  Author surface: 0/6
-  Deterministic path: 0/4
-  Cutover: 0/4
-  Authority boundary: 0/2
+COVERAGE: 0/17 M8 paths implemented yet
+  Setup: 0/3
+  Project Context: 0/4
+  Environment Inventory: 0/4
+  Doctor readiness: 0/6
+  Authority boundary: 0/3
 ─────────────────────────────────
 ```
 
 ### Required tests and expected homes
 
-| Test requirement | Expected file home | Type |
+Primary testing posture for `M8`:
+
+- command-surface behavior is proved first through CLI integration tests
+- shared validation and artifact-specific normalization rules get unit coverage underneath
+- no new baseline authoring surface lands with unit-only proof
+
+| Test requirement | Expected home | Type |
 | --- | --- | --- |
-| interactive happy path writes canonical charter | `crates/cli/tests/author_cli.rs` | CLI integration |
-| non-interactive refusal points to `--from-inputs` | `crates/cli/tests/author_cli.rs` | CLI integration |
-| invalid root refusal for authoring path | `crates/cli/tests/author_cli.rs` or `crates/compiler/tests/author.rs` | integration/unit |
-| interview normalization happens before synthesis | `crates/compiler/tests/author.rs` | unit/integration |
-| follow-up is asked only for empty or unusably vague required fields | `crates/compiler/tests/author.rs` | unit/integration |
-| deterministic file input path | `crates/cli/tests/author_cli.rs` | CLI integration |
-| deterministic stdin path | `crates/cli/tests/author_cli.rs` | CLI integration |
-| malformed/incomplete input refusal | `crates/compiler/tests/author.rs` | unit |
-| shared synthesis engine across both paths | `crates/compiler/tests/author.rs` | unit |
-| refusal on non-starter existing charter | `crates/compiler/tests/author.rs` | unit/integration |
-| setup next-safe-action cutover | `crates/compiler/tests/setup.rs` | regression |
-| doctor/generate blocker cutover | `crates/compiler/tests/refusal_mapping.rs`, `crates/compiler/tests/resolver_core.rs`, or matching CLI regression tests | regression |
-| help text and docs parity for sixth surface | `crates/cli/tests/help_drift_guard.rs`, CLI help snapshots, docs parity | regression |
-| no persisted derived mirror written by public authoring | `crates/compiler/tests/author.rs` | regression |
+| setup scaffolds env inventory starter path and stops scaffolding feature spec | `crates/compiler/tests/setup.rs` | regression |
+| setup refresh preserves valid baseline truth | `crates/compiler/tests/setup.rs` | regression |
+| project-context author happy path | `crates/cli/tests/author_cli.rs`, `crates/compiler/tests/author.rs` | integration/unit |
+| environment-inventory author happy path | `crates/cli/tests/author_cli.rs`, `crates/compiler/tests/author.rs` | integration/unit |
+| refusal on existing valid truth for both new commands | `crates/compiler/tests/author.rs` | regression |
+| structural validation failure maps to INVALID_BASELINE | `crates/compiler/tests/author.rs`, `crates/compiler/tests/resolver_core.rs` | regression |
+| doctor readiness-state classification for all four baseline states | `crates/compiler/tests/resolver_core.rs` or matching doctor/rendering tests | regression |
+| doctor checklist rendering marks item 1 as next safe action | `crates/compiler/tests/rendering_surface.rs`, CLI regression tests | regression |
+| feature-spec absence and non-scaffolding do not block baseline complete | `crates/compiler/tests/resolver_core.rs`, CLI regression tests | regression |
+| docs/help/contracts no longer call root env inventory canonical | `crates/cli/tests/help_drift_guard.rs`, snapshots, docs parity | regression |
+| BASE_CONTEXT remains excluded from baseline readiness | `crates/compiler/tests/resolver_core.rs` | regression |
 
 ### Mandatory regression rules
 
-- changing the post-setup handoff is a regression-sensitive behavior, so setup cutover must ship with regression coverage
-- changing the authority boundary from legacy artifact/mirror outputs to canonical `.system` truth must ship with regression coverage
-- any path that risks silent overwrite of existing real charter truth is a release-blocking regression
-
-### Test assertions that are non-negotiable
-
-- `.system/charter/CHARTER.md` exists and contains the authored charter on success
-- no public authoring command persists `artifacts/charter/CHARTER.md` or repo-root `CHARTER.md`
-- interactive mode refuses without a TTY
-- `--from-inputs -` reads stdin, validates, and writes the same canonical output shape
-- interview mode uses structured inputs as an intermediate representation
-- interview mode asks clarifying follow-ups only when required fields remain empty or unusably vague
-- both modes call the same final synthesis path
-- existing non-scaffolded charter truth is refused
-- setup/doctor/generate no longer teach manual blank-file editing as the normal charter path
+- any readiness regression that still makes feature-spec block baseline completion is critical
+- any authority regression that still treats repo-root env inventory as canonical or emits it as a live mirror is critical
+- any authoring regression that silently overwrites valid baseline truth is critical
 
 ## Failure Modes Registry
 
 | Failure mode | Severity | Test cover | Error handling | User-visible outcome |
 | --- | --- | --- | --- | --- |
-| authoring writes anywhere other than `.system/charter/CHARTER.md` | Critical | required | hard failure | prevents split authority |
-| setup/doctor/generate still point at manual editing after `author` ships | Critical | required | hard failure | prevents split product story |
-| interactive mode runs in non-interactive contexts | High | required | explicit refusal | clear direction to `--from-inputs` |
-| agent integrations try to drive the TTY interview as the primary machine path | High | required | explicit product/docs boundary to `--from-inputs` | prevents brittle automation |
-| interview answers are copied straight into the final charter | Critical | required | hard failure | blocks invalid synthesis path |
-| interview loop keeps asking or skips clarification without a required-field trigger | High | required | bounded follow-up rule | keeps interview deterministic enough |
-| interview and deterministic paths drift into separate synthesis engines | High | required | shared-engine regression test | prevents duplicate systems |
-| malformed structured inputs are accepted | High | required | explicit refusal | clear recovery path |
-| authoring silently overwrites real charter truth | Critical | required | explicit refusal | prevents data loss |
-| docs/help leak stage ids or dev/test terminology | High | required | drift-guard failure | keeps product copy exact |
+| environment inventory still has two canonical homes | Critical | required | hard failure in docs/contracts/tests | prevents split authority |
+| project context authoring writes invalid structure | High | required | explicit refusal | clear repair path |
+| invalid baseline file is reported as complete | Critical | required | explicit invalid state | prevents false readiness |
+| setup still scaffolds feature spec in M8 | High | required | regression failure | prevents baseline boundary drift |
+| doctor shows only one opaque next action when multiple baseline files are incomplete | High | required | checklist rendering | prevents hidden recovery work |
+| BASE_CONTEXT accidentally enters baseline checks | High | required | explicit exclusion tests | prevents boundary drift |
+| docs/help keep old root-canonical env language | High | required | drift-guard/docs parity | avoids product-story split |
 
 Critical-gap rule:
 
-- any path with no test, no refusal, and a silent failure mode is a release blocker
+- any failure mode with no test, no refusal, and silent wrong readiness is a release blocker
 
 ## Performance Review
 
-### Performance and determinism requirements
+### Determinism and bounded-work rules
 
-- the authoring path must stay bounded to declared authoring assets and canonical repo state, not full-repo scans
-- there is exactly one synthesis request per completed authoring run
-- tests must not require live network access or a real provider
-- deterministic-input mode must be stable across reruns for identical inputs
-- docs/help parity must stay machine-checked because this milestone changes the public command surface
-- the live transport path requires a change-scoped automated fresh-temp-repo smoke in CI, plus a locally rerunnable smoke command, whenever the Codex CLI contract changes
-- runtime model selection remains optional and repo-owned: the shipped authoring path keeps the Codex default unless `SYSTEM_AUTHOR_CHARTER_CODEX_MODEL` is set, and the smoke wrapper can choose a local fast model or the CI-pinned `gpt-5.4-mini` via `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL`
+- baseline readiness must read only the bounded canonical baseline set, not scan arbitrary repo files
+- authoring paths must perform one write to one canonical path per successful run
+- no productized migration/import workflow means no background reconciliation logic
+- help/docs parity remains machine-checked because wording drift is part of the risk surface here
 
 ### Performance smells that fail review
 
-- duplicate normalization or synthesis work across the two paths
-- separate canonical and derived write pipelines with different validation rules
-- hidden provider wiring outside the chosen shared LLM facade
-- public docs/help updates that rely on manual review instead of drift guards
+- readiness computed from broad filesystem heuristics instead of explicit artifact list
+- duplicated validation logic across CLI and compiler layers
+- legacy root/artifact-path reads kept in the hot path after cleanup
 
 ## Implementation Plan
 
-### Slice 1: Lock the public surface and contract
+### Slice 1: Rewrite the product truth for M8
 
 Deliverables:
 
-- add `author` to CLI vocabulary/hierarchy/docs/contracts
-- define `system author charter` and `--from-inputs <path|->`
-- define the new canonical handoff language for setup/doctor/generate
+- rewrite `PLAN.md`
+- update README/docs/contracts vocabulary from charter-only `M7` story to baseline-tier `M8`
+- lock the canonical baseline set and authority boundary in one place
 
 Acceptance:
 
-- all product-facing docs agree on the six-surface story
-- no docs still present manual charter editing as the normal next step after setup
+- no core product doc still describes repo-root `ENVIRONMENT_INVENTORY.md` as canonical
+- no core product doc still implies charter-only readiness
 
-### Slice 2: Add compiler-owned charter authoring core
+### Slice 2: Extend canonical artifact/setup support
 
 Deliverables:
 
-- add the new compiler authoring module
-- implement the structured charter-input model
-- add scaffold/refusal gating for starter-template replacement only
+- add canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- update setup scaffolding and refresh behavior
+- stop setup from creating `.system/feature_spec/FEATURE_SPEC.md`
+- keep baseline and later feature-phase artifacts separate in readiness logic
+- move the `M8` baseline set and required/optional semantics into `crates/compiler/src/canonical_artifacts.rs` as the single consumed source of truth
 
 Acceptance:
 
-- compiler can validate inputs, refuse existing real truth, and produce one write plan for the canonical charter path
+- setup creates the baseline set needed for `M8`
+- setup no longer creates feature-spec starter scaffolding
+- resolver/rendering do not carry a divergent copy of baseline artifact semantics
+- setup behavior is regression-tested
 
-### Slice 3: Ship the interactive interview path
+### Slice 3: Add `system author project-context`
 
 Deliverables:
 
-- TTY detection
-- line-oriented question loop
-- answer normalization and completeness checks
-- follow-up questions only for empty or unusably vague required fields
-- handoff into shared synthesis
+- public CLI subcommand
+- compiler-owned authoring execution
+- artifact-specific logic lives in a dedicated authoring module, not inline in one giant file
+- starter-vs-valid truth refusal behavior aligned with `M7`
 
 Acceptance:
 
-- interactive path works in one invocation and refuses cleanly without a TTY
-- interactive path stays a thin human-guided wrapper around the shared deterministic/synthesis engine, not a separate authoring engine
+- project context can be authored end-to-end through the product
+- no legacy stage ids leak into public UX
 
-### Slice 4: Ship the deterministic input path
+### Slice 4: Add `system author environment-inventory`
 
 Deliverables:
 
-- file/stdin loader for structured inputs
-- parse + validation layer
-- handoff into shared synthesis
+- public CLI subcommand
+- compiler-owned authoring execution
+- artifact-specific logic lives in a dedicated authoring module, not inline in one giant file
+- canonical `.system` write path only
 
 Acceptance:
 
-- file and stdin variants land on the same canonical output and same synthesis path
-- docs and help text make it explicit that this is the agent and automation surface
+- environment inventory can be authored end-to-end through the product
+- repo-root is not treated as canonical
 
-### Slice 5: Add method artifact and cut over the product story
+### Slice 5: Land doctor baseline-state model
 
 Deliverables:
 
-- add `core/library/authoring/charter_authoring_method.md`
-- update setup/doctor/generate handoffs
-- update docs/help/snapshots
+- readiness classification for `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, `BASELINE_COMPLETE`
+- compact ordered checklist rendering for missing or invalid baseline artifacts
+- item 1 in the checklist is the next safe action
 
 Acceptance:
 
-- humans and agents have one discoverable repo-owned method artifact
-- public product copy is consistent everywhere
+- doctor can truthfully report baseline progress without feature-spec
+- invalid baseline files do not masquerade as ready
+- doctor output stays explicit without forcing one-artifact-at-a-time blind iteration
 
-### Slice 6: Land proof and regressions
+### Slice 6: Cut legacy authority claims and proof
 
 Deliverables:
 
-- CLI and compiler tests from the test plan
-- drift-guard updates
-- authority-boundary regressions
+- clean up rules/directives/docs/tests that still say repo-root env inventory is canonical
+- add regression coverage for baseline readiness and authority boundary
 
 Acceptance:
 
-- all required authoring, cutover, and authority-boundary tests pass
+- docs/help/contracts/tests all agree on one canonical env-inventory path
+- root-canonical language is gone from the live product story
+- CLI integration coverage is the primary proof layer for setup, author, and doctor baseline flows
 
 ## Worktree Parallelization Strategy
 
@@ -529,11 +509,11 @@ Acceptance:
 
 | Step | Modules touched | Depends on |
 | --- | --- | --- |
-| A. Lock product vocabulary, command hierarchy, and contracts for `author` | `docs/`, `docs/contracts/`, `PLAN.md` | — |
-| B. Add compiler-owned charter authoring core and canonical write path | `crates/compiler/` | A |
-| C. Add CLI `author` family, renderers, and help snapshots | `crates/cli/`, CLI snapshots | A, B |
-| D. Add method artifact plus prompt/template integration cleanup | `core/library/`, `crates/compiler/` | A, B |
-| E. Add setup/doctor/generate cutover regressions and authority-boundary tests | `crates/compiler/tests/`, `crates/cli/tests/` | B, C, D |
+| A. Lock docs/contracts/plan/product wording | `docs/`, `docs/contracts/`, root docs | — |
+| B. Canonical artifact + setup support | `crates/compiler/` | A |
+| C. `author project-context` | `crates/cli/`, `crates/compiler/`, `core/library/project_context/` | A, B |
+| D. `author environment-inventory` | `crates/cli/`, `crates/compiler/`, `core/library/environment_inventory/`, `core/rules/` | A, B |
+| E. Doctor readiness-state proof | `crates/compiler/`, `crates/compiler/tests/`, `crates/cli/tests/` | B, C, D |
 
 ### Parallel lanes
 
@@ -545,48 +525,45 @@ Acceptance:
 
 ### Execution order
 
-1. Launch Lane A first and merge it before code starts.
-2. Launch Lane B once the public surface and vocabulary are locked.
-3. After Lane B stabilizes the compiler-owned boundary, launch Lane C and Lane D in parallel if ownership is explicit.
-4. Launch Lane E after C and D settle, because cutover tests depend on final wording and final write semantics.
+1. Launch A first.
+2. Launch B after A.
+3. Once B stabilizes the canonical path/model, launch C and D in parallel with clear ownership.
+4. Launch E after C and D settle, because readiness proof depends on final artifact and wording semantics.
 
 ### Conflict flags
 
-- Lanes B and D both touch compiler-side authoring assets. They can run in parallel only if one owns execution code and the other owns prompt/method assets.
-- Lane E depends on the final command wording and write semantics. Starting it early guarantees churn.
+- C and D both touch shared CLI and compiler authoring boundaries, so ownership must be explicit.
+- D also touches `core/rules/` and authority contracts, so merging it before E is important.
 
 ### Parallelization verdict
 
-Parallel implementation is worth it after the boundary lock. The first gate is sequential. The middle phase supports two safe parallel lanes. The final proof phase is sequential.
+Two safe middle parallel lanes exist after the boundary lock. The opening and closeout remain sequential.
 
 ## Exit Criteria
 
 The milestone is complete only when:
 
-- scaffolded repos route from `setup` to `system author charter`
-- both visible charter paths exist and converge on one synthesis engine
-- `system author charter` has one exact interaction contract: TTY interview or explicit `--from-inputs`
-- interview mode normalizes answers before synthesis
-- interview mode asks follow-ups only when required fields remain empty or unusably vague
-- deterministic mode accepts file and stdin inputs
-- the product language explicitly distinguishes the human-guided surface from the agent/automation surface
-- non-scaffolded existing charter truth is refused
-- canonical `.system/charter/CHARTER.md` is the readiness-driving output
-- no persisted derived mirror is written by the public authoring surface
-- setup/doctor/generate no longer teach manual blank-file editing as the normal charter path
-- one repo-owned charter authoring method artifact is discoverable and referenced consistently
-- docs, contracts, help text, snapshots, and tests all agree on the same six-surface product story
+- the active plan and approved design agree on the `M8` baseline tier
+- setup scaffolds the baseline set required for `M8`
+- setup does not scaffold `FEATURE_SPEC`
+- `system author project-context` and `system author environment-inventory` are first-class surfaces
+- baseline readiness is computed from `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`
+- `doctor` exposes `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`
+- `FEATURE_SPEC` does not block `BASELINE_COMPLETE`
+- `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the only canonical environment inventory path in the live product story
+- repo-root `ENVIRONMENT_INVENTORY.md` is not described as canonical anywhere in live docs/contracts/help and is not emitted as a live mirror
+- `BASE_CONTEXT` remains outside the baseline tier
+- doctor shows a compact ordered checklist when more than one baseline action remains
+- regression coverage proves the authority boundary and readiness model
 
-## Completion Summary
+## GSTACK REVIEW REPORT
 
-- Step 0: Scope Challenge, scope accepted as-is and locked to the charter authoring wedge
-- Architecture Review: 0 unresolved architecture questions, public boundary locked
-- Code Quality Review: 4 DRY/overbuild guardrails locked
-- Test Review: coverage diagram produced, 16 required paths enumerated
-- Performance Review: determinism and bounded-work rules locked
-- NOT in scope: written
-- What already exists: written
-- TODOS.md updates: none required for this rewrite
-- Failure modes: critical authority-boundary and cutover gaps explicitly tracked
-- Parallelization: 5 steps, 2 safe middle parallel lanes after the initial boundary lock
-- Lake Score: complete option preserved across command surface, authority boundary, and cutover scope
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR | 16 proposals, 16 accepted, 0 deferred |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 7 | CLEAR | 6 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+
+- **UNRESOLVED:** 0
+- **VERDICT:** CEO + ENG CLEARED — ready to implement
