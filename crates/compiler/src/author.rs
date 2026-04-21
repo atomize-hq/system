@@ -1750,7 +1750,7 @@ fn synthesize_charter_markdown(
     let _ = std::fs::remove_file(&output_path);
 
     let normalized = markdown.trim().to_string();
-    validate_synthesized_charter_markdown(&normalized)?;
+    validate_synthesized_charter_markdown(&normalized, input)?;
     Ok(normalized)
 }
 
@@ -1794,6 +1794,19 @@ fn build_charter_synthesis_prompt(
         writeln!(prompt).unwrap();
     }
     writeln!(prompt, "```").unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(
+        prompt,
+        "## Exact structured values that must appear verbatim"
+    )
+    .unwrap();
+    writeln!(prompt).unwrap();
+    writeln!(
+        prompt,
+        "- In `## Exceptions / overrides process`, render the exact `exceptions.record_location` string from `CHARTER_INPUTS.yaml`: `{}`",
+        normalized_input.exceptions.record_location
+    )
+    .unwrap();
     writeln!(prompt).unwrap();
     writeln!(
         prompt,
@@ -1956,7 +1969,10 @@ fn synthesize_output_path() -> PathBuf {
     ))
 }
 
-fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCharterRefusal> {
+fn validate_synthesized_charter_markdown(
+    markdown: &str,
+    input: &CharterStructuredInput,
+) -> Result<(), AuthorCharterRefusal> {
     if markdown.trim().is_empty() {
         return Err(synthesis_refusal("synthesized charter markdown was empty"));
     }
@@ -1979,6 +1995,13 @@ fn validate_synthesized_charter_markdown(markdown: &str) -> Result<(), AuthorCha
     if let Err(summary) = validate_required_heading_order_result(markdown) {
         return Err(synthesis_refusal(format!(
             "synthesized charter markdown failed heading validation: {summary}"
+        )));
+    }
+    let expected_exception_record_location =
+        normalize_charter_free_text(&input.exceptions.record_location);
+    if !markdown.contains(&expected_exception_record_location) {
+        return Err(synthesis_refusal(format!(
+            "synthesized charter markdown must include the exact exception record location `{expected_exception_record_location}`"
         )));
     }
     Ok(())

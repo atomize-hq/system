@@ -735,6 +735,33 @@ fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
 }
 
 #[test]
+fn author_charter_refuses_synthesized_markdown_missing_exception_record_location() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &invalid_output_stub_script(
+            "# Engineering Charter — System\n\n## What this is\n\nDocument body.\n\n## How to use this charter\n\nUse this charter.\n\n## Rubric: 1–5 rigor levels\n\nLevel guidance.\n\n## Project baseline posture\n\nBaseline.\n\n## Domains / areas (optional overrides)\n\nNone.\n\n## Posture at a glance (quick scan)\n\nSnapshot.\n\n## Dimensions (details + guardrails)\n\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n\n- Keep trust boundaries intact.\n\n## Exceptions / overrides process\n\n- **Approvers:** project_owner\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\n\nTracked in issues.\n\n## Decision Records (ADRs): how to use this charter\n\nUse ADRs when needed.\n\n## Review & updates\n\nReview monthly.\n",
+        ),
+    );
+
+    let err = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input())
+            .expect_err("missing exception record location should refuse")
+    });
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
+    assert!(err.summary.contains("exact exception record location"));
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after failure"),
+        before
+    );
+}
+
+#[test]
 fn author_charter_refuses_when_required_headings_only_appear_in_body_text() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
