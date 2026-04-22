@@ -2640,6 +2640,7 @@ fn author_environment_inventory_refusal_outcome_name(
         | system_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused
         | system_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => "BLOCKED",
         system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter
+        | system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
         | system_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
             "REFUSED"
         }
@@ -2658,6 +2659,9 @@ fn author_environment_inventory_refusal_kind_name(
         }
         system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter => {
             "MissingRequiredCharter"
+        }
+        system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth => {
+            "InvalidUpstreamCanonicalTruth"
         }
         system_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
             "ExistingCanonicalTruth"

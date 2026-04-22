@@ -1519,7 +1519,7 @@ fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
     let dir = scaffold_repo();
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
     );
     let expected_markdown = valid_environment_inventory_markdown("None");
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));

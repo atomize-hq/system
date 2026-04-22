@@ -74,6 +74,18 @@
 **Priority:** P1
 **Depends on:** Stable install smoke, release artifact naming, version tag convention
 
+### Live Authoring Smoke Coverage
+
+**What:** Add real `codex exec` smoke coverage for the live authoring paths instead of relying mostly on stubbed runtime tests.
+
+**Why:** The current stubbed tests catch a lot of CLI and validation regressions, but they do not prove that the real subprocess, prompt handoff, model invocation, and canonical write path still work together end-to-end.
+
+**Context:** The live authoring surfaces now include real `codex exec` integration for authored canonical truth, but most review-time and CI proof still comes from fake binaries and stubbed outputs in the compiler and CLI test suites. That is good for deterministic coverage, but it leaves a gap where real-model invocation failures, prompt-contract drift, or subprocess integration breakage can land without being exercised by a true live smoke. This follow-on should add a bounded real-runtime smoke path for the shipped live authoring flows and keep it explicit about required env/model configuration.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable live authoring command surface, available `codex exec` credentials/model configuration, bounded smoke-test budget in CI or release checks
+
 ### Post-Setup Onboarding Upgrade
 
 **What:** Extend the `setup` success path beyond the current scaffolded-or-ready handoff with a richer onboarding flow once the Rust front door is stable.

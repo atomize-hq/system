@@ -5189,6 +5189,108 @@ fn doctor_rejects_legacy_placeholder_project_context_truth() {
 }
 
 #[test]
+fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = run_in(root, &["generate"]);
+    assert!(output.status.success(), "generate should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+        ],
+    );
+    assert!(stdout.contains(
+        "optional source omitted: .system/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
+    ));
+    assert!(!stdout.contains("### PROJECT_CONTEXT"));
+    assert!(!stdout.contains("ProjectContext [.system/project_context/PROJECT_CONTEXT.md]"));
+}
+
+#[test]
+fn inspect_omits_semantically_invalid_optional_environment_inventory_but_stays_ready() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"# Environment Inventory\n\nlegacy repo/project root claim\n",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = run_in(root, &["inspect"]);
+    assert!(output.status.success(), "inspect should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+        ],
+    );
+    assert!(stdout.contains(
+        "optional source omitted: .system/environment_inventory/ENVIRONMENT_INVENTORY.md (invalid canonical truth)"
+    ));
+    assert!(!stdout.contains("### ENVIRONMENT_INVENTORY"));
+    assert!(!stdout
+        .contains("EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]"));
+}
+
+#[test]
+fn generate_blocks_invalid_required_charter_with_required_artifact_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = run_in(root, &["generate"]);
+    assert!(!output.status.success(), "generate should fail");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system author charter`",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: RequiredArtifactInvalid"));
+    assert!(stdout.contains("required canonical artifact is invalid"));
+}
+
+#[test]
 fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() {
     let (_dir, root) = tracked_workspace_checkout();
 
@@ -5597,7 +5699,7 @@ fn generate_emits_real_packet_body_when_ready() {
         "expected charter body section: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -5639,7 +5741,7 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
         "expected packet body: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -5735,7 +5837,7 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         "expected charter body section: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -5777,7 +5879,7 @@ fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
         "expected packet body: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -6292,7 +6394,10 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -6329,7 +6434,10 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
@@ -6354,7 +6462,7 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
     assert!(stdout.contains("## JSON FALLBACK"));
     assert!(stdout.contains("\"packet_result\""));
     assert!(stdout.contains("\"packet body omitted because request is not ready\""));
-    assert!(!stdout.contains("charter-body"));
+    assert!(!stdout.contains(valid_charter_markdown()));
     assert!(!stdout.contains("feature-body"));
 }
 

@@ -9,6 +9,7 @@ pub enum RefusalCategory {
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
     RequiredArtifactStarterTemplate,
+    RequiredArtifactInvalid,
     ArtifactReadError,
     FreshnessInvalid,
     BudgetRefused,

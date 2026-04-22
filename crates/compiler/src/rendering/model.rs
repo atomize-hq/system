@@ -42,9 +42,9 @@ pub struct RenderOutputModel {
 }
 
 pub fn build_output_model(result: &ResolverResult) -> Result<RenderOutputModel, RenderError> {
-    if result.c04_result_version != "reduced-v1" {
+    if result.c04_result_version != "reduced-v1.1" {
         return Err(RenderError::UnsupportedResultVersion {
-            expected: "reduced-v1",
+            expected: "reduced-v1.1",
             actual: result.c04_result_version.clone(),
         });
     }

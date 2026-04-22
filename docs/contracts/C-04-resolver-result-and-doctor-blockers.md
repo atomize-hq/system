@@ -2,7 +2,7 @@
 contract_id: C-04
 seam_id: SEAM-4
 owner_seam: SEAM-4
-version: reduced-v1-m8
+version: reduced-v1-m8.1
 currentness: current
 status: published
 revalidation_triggers:
@@ -75,7 +75,7 @@ For identical canonical baseline inputs:
 
 ### Versioning and compatibility
 
-The doctor result MUST carry an explicit `c04_result_version` field.
+The doctor/result surface MUST carry an explicit `c04_result_version` field.
 
 - The version MUST be a stable identifier for the meaning of the result fields and ordering rules.
 - Any change to:
@@ -154,10 +154,10 @@ Allowed blocker categories include:
 - `SystemRootMissing`
 - `SystemRootNotDir`
 - `SystemRootSymlinkNotAllowed`
-- `BaselineArtifactMissing`
-- `BaselineArtifactEmpty`
-- `BaselineArtifactStarterTemplate`
-- `BaselineArtifactInvalid`
+- `RequiredArtifactMissing`
+- `RequiredArtifactEmpty`
+- `RequiredArtifactStarterTemplate`
+- `RequiredArtifactInvalid`
 - `ArtifactReadError`
 
 ### Category priority tables
@@ -169,10 +169,10 @@ When multiple blockers exist, blocker ordering MUST be deterministic and MUST us
 | 0 | `SystemRootMissing` |
 | 1 | `SystemRootSymlinkNotAllowed` |
 | 2 | `SystemRootNotDir` |
-| 3 | `BaselineArtifactMissing` |
-| 4 | `BaselineArtifactEmpty` |
-| 5 | `BaselineArtifactStarterTemplate` |
-| 6 | `BaselineArtifactInvalid` |
+| 3 | `RequiredArtifactMissing` |
+| 4 | `RequiredArtifactEmpty` |
+| 5 | `RequiredArtifactStarterTemplate` |
+| 6 | `RequiredArtifactInvalid` |
 | 7 | `ArtifactReadError` |
 
 ### Tie-break rules (stable ordering within a category)
@@ -191,6 +191,7 @@ Tie-break MUST be applied in this order:
 - Downstream seams MUST treat baseline states, checklist-item fields, and blocker categories as authoritative contract surface.
 - Downstream seams MUST NOT parse semantics out of freeform strings to recover meaning that should be represented by categories or structured fields.
 - Adding a new blocker category, checklist field, or baseline state MUST trigger downstream revalidation.
+- Adding or renaming a `RefusalCategory` or `BlockerCategory` enum variant in the typed resolver surface MUST trigger downstream revalidation of markdown, inspect, and JSON renderers plus any category-string assertions or snapshots.
 - Changing any priority table or tie-break rule MUST trigger downstream revalidation.
 
 ## Verification Checklist

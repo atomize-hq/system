@@ -488,6 +488,55 @@ fn expected_environment_inventory_markdown(project_context_ref: &str) -> String 
     .to_string()
 }
 
+fn valid_charter_markdown() -> &'static str {
+    "# Engineering Charter — System
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+"
+}
+
 fn required_headings() -> [&'static str; 12] {
     [
         "## What this is",
@@ -1198,7 +1247,7 @@ fn author_environment_inventory_replaces_starter_template_and_writes_only_canoni
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        valid_charter_markdown().as_bytes(),
     );
     let expected_markdown = expected_environment_inventory_markdown("None");
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
@@ -1242,7 +1291,7 @@ fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists(
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        valid_charter_markdown().as_bytes(),
     );
     write_file(
         &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
@@ -1269,7 +1318,7 @@ fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_tru
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        valid_charter_markdown().as_bytes(),
     );
     write_file(
         &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
@@ -1294,7 +1343,7 @@ fn author_environment_inventory_refuses_when_required_headings_only_appear_in_bo
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        valid_charter_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
         .expect("starter environment inventory bytes");
@@ -1330,7 +1379,7 @@ fn author_environment_inventory_refuses_when_required_heading_is_duplicated() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        valid_charter_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
         .expect("starter environment inventory bytes");
@@ -1366,7 +1415,7 @@ fn author_environment_inventory_refuses_when_required_headings_are_out_of_order(
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+        valid_charter_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
         .expect("starter environment inventory bytes");
@@ -1394,4 +1443,79 @@ fn author_environment_inventory_refuses_when_required_headings_are_out_of_order(
             .expect("environment inventory after failure"),
         before
     );
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(&expected_environment_inventory_markdown("None")),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("invalid upstream charter should refuse before synthesis")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
+    );
+    assert!(err.summary.contains("canonical charter truth is invalid"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after refusal"),
+        before
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_optional_project_context_is_semantically_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(&expected_environment_inventory_markdown(
+            "`.system/project_context/PROJECT_CONTEXT.md`",
+        )),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("invalid optional project context should refuse before synthesis")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
+    );
+    assert!(err
+        .summary
+        .contains("canonical project context truth is invalid"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after refusal"),
+        before
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
 }

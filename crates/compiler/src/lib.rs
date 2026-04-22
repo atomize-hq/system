@@ -1,5 +1,6 @@
 pub mod artifact_manifest;
 pub mod author;
+mod baseline_validation;
 pub mod blocker;
 pub mod budget;
 pub mod canonical_artifacts;

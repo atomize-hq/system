@@ -1,3 +1,4 @@
+use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
 use crate::canonical_artifacts::{
     ArtifactPresence, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
@@ -53,6 +54,7 @@ pub enum AuthorEnvironmentInventoryRefusalKind {
     MissingSystemRoot,
     InvalidSystemRoot,
     MissingRequiredCharter,
+    InvalidUpstreamCanonicalTruth,
     ExistingCanonicalTruth,
     MutationRefused,
     SynthesisFailed,
@@ -213,7 +215,7 @@ fn prepare_environment_inventory_authoring_inputs(
     validate_environment_inventory_authoring_preconditions(repo_root, &artifacts)?;
 
     let charter_markdown = required_charter_markdown(&artifacts)?;
-    let project_context_markdown = optional_project_context_markdown(&artifacts);
+    let project_context_markdown = optional_project_context_markdown(&artifacts)?;
 
     Ok(EnvironmentInventorySynthesisInputs {
         charter_markdown,
@@ -304,68 +306,81 @@ fn validate_environment_inventory_authoring_preconditions(
 fn required_charter_markdown(
     artifacts: &CanonicalArtifacts,
 ) -> Result<String, AuthorEnvironmentInventoryRefusal> {
-    let charter = &artifacts.charter.identity;
-    let missing_reason = match charter.presence {
-        ArtifactPresence::Missing => Some("canonical charter truth is missing"),
-        ArtifactPresence::PresentEmpty => Some("canonical charter truth is empty"),
-        ArtifactPresence::PresentNonEmpty if charter.matches_setup_starter_template => {
-            Some("canonical charter truth still contains the shipped starter template")
-        }
-        ArtifactPresence::PresentNonEmpty => None,
-    };
+    let validation = baseline_artifact_validation(artifacts, CanonicalArtifactKind::Charter)
+        .expect("charter must be part of baseline validation");
 
-    if let Some(reason) = missing_reason {
-        return Err(AuthorEnvironmentInventoryRefusal {
-            kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
-            summary: format!(
-                "{reason}; environment inventory authoring requires a completed charter first"
-            ),
-            broken_subject: ".system/charter/CHARTER.md".to_string(),
-            next_safe_action: "run `system author charter`".to_string(),
-        });
-    }
-
-    let bytes =
-        artifacts
-            .charter
-            .bytes
-            .as_deref()
-            .ok_or_else(|| {
-                AuthorEnvironmentInventoryRefusal {
+    match validation.verdict {
+        BaselineArtifactVerdict::Missing => Err(AuthorEnvironmentInventoryRefusal {
             kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
             summary:
-                "canonical charter truth could not be loaded for environment inventory authoring"
+                "canonical charter truth is missing; environment inventory authoring requires a completed charter first"
                     .to_string(),
             broken_subject: ".system/charter/CHARTER.md".to_string(),
-            next_safe_action: "repair `.system/charter/CHARTER.md` and rerun `system doctor`"
-                .to_string(),
-        }
-            })?;
-
-    String::from_utf8(bytes.to_vec()).map_err(|_| AuthorEnvironmentInventoryRefusal {
-        kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
-        summary: "canonical charter truth must be valid UTF-8 markdown".to_string(),
-        broken_subject: ".system/charter/CHARTER.md".to_string(),
-        next_safe_action: "repair `.system/charter/CHARTER.md` and rerun `system doctor`"
-            .to_string(),
-    })
+            next_safe_action: "run `system author charter`".to_string(),
+        }),
+        BaselineArtifactVerdict::Empty => Err(AuthorEnvironmentInventoryRefusal {
+            kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
+            summary:
+                "canonical charter truth is empty; environment inventory authoring requires a completed charter first"
+                    .to_string(),
+            broken_subject: ".system/charter/CHARTER.md".to_string(),
+            next_safe_action: "run `system author charter`".to_string(),
+        }),
+        BaselineArtifactVerdict::StarterOwned => Err(AuthorEnvironmentInventoryRefusal {
+            kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
+            summary:
+                "canonical charter truth still contains the shipped starter template; environment inventory authoring requires a completed charter first"
+                    .to_string(),
+            broken_subject: ".system/charter/CHARTER.md".to_string(),
+            next_safe_action: "run `system author charter`".to_string(),
+        }),
+        BaselineArtifactVerdict::IngestInvalid => Err(invalid_upstream_canonical_truth_refusal(
+            ".system/charter/CHARTER.md",
+            "canonical charter truth is unreadable or non-canonical; environment inventory authoring requires valid charter truth".to_string(),
+            "run `system setup refresh`".to_string(),
+        )),
+        BaselineArtifactVerdict::SemanticallyInvalid { summary } => Err(
+            invalid_upstream_canonical_truth_refusal(
+                ".system/charter/CHARTER.md",
+                format!("canonical charter truth is invalid: {summary}"),
+                "run `system author charter`".to_string(),
+            ),
+        ),
+        BaselineArtifactVerdict::ValidCanonicalTruth { markdown } => Ok(markdown),
+    }
 }
 
-fn optional_project_context_markdown(artifacts: &CanonicalArtifacts) -> Option<String> {
-    let project_context = &artifacts.project_context.identity;
-    let usable = matches!(project_context.presence, ArtifactPresence::PresentNonEmpty)
-        && !project_context.matches_setup_starter_template;
-    if !usable {
-        return None;
-    }
+fn optional_project_context_markdown(
+    artifacts: &CanonicalArtifacts,
+) -> Result<Option<String>, AuthorEnvironmentInventoryRefusal> {
+    let validation = baseline_artifact_validation(artifacts, CanonicalArtifactKind::ProjectContext)
+        .expect("project context must be part of baseline validation");
 
-    let bytes = artifacts.project_context.bytes.as_deref()?;
-    let markdown = String::from_utf8(bytes.to_vec()).ok()?;
-    let trimmed = markdown.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
+    match validation.verdict {
+        BaselineArtifactVerdict::Missing
+        | BaselineArtifactVerdict::Empty
+        | BaselineArtifactVerdict::StarterOwned => Ok(None),
+        BaselineArtifactVerdict::IngestInvalid => Err(invalid_upstream_canonical_truth_refusal(
+            ".system/project_context/PROJECT_CONTEXT.md",
+            "canonical project context truth is unreadable or non-canonical; repair it or remove it before environment inventory authoring"
+                .to_string(),
+            "run `system setup refresh`".to_string(),
+        )),
+        BaselineArtifactVerdict::SemanticallyInvalid { summary } => Err(
+            invalid_upstream_canonical_truth_refusal(
+                ".system/project_context/PROJECT_CONTEXT.md",
+                format!("canonical project context truth is invalid: {summary}"),
+                "run `system author project-context`".to_string(),
+            ),
+        ),
+        BaselineArtifactVerdict::ValidCanonicalTruth { markdown } => {
+            let trimmed = markdown.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(trimmed.to_string()))
+            }
+        }
     }
 }
 
@@ -651,6 +666,19 @@ fn synthesize_output_path() -> PathBuf {
     ))
 }
 
+fn invalid_upstream_canonical_truth_refusal(
+    broken_subject: &str,
+    summary: String,
+    next_safe_action: String,
+) -> AuthorEnvironmentInventoryRefusal {
+    AuthorEnvironmentInventoryRefusal {
+        kind: AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth,
+        summary,
+        broken_subject: broken_subject.to_string(),
+        next_safe_action,
+    }
+}
+
 fn synthesis_refusal(summary: impl Into<String>) -> AuthorEnvironmentInventoryRefusal {
     AuthorEnvironmentInventoryRefusal {
         kind: AuthorEnvironmentInventoryRefusalKind::SynthesisFailed,
@@ -849,6 +877,109 @@ mod tests {
     use std::path::Path;
     use tempfile::tempdir;
 
+    fn valid_charter_markdown() -> &'static str {
+        "# Engineering Charter — System
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+"
+    }
+
+    fn valid_project_context_markdown() -> &'static str {
+        "# Project Context — System
+
+> **File:** `PROJECT_CONTEXT.md`
+> **Created (UTC):** 2026-04-21T00:00:00Z
+> **Owner:** project-owner
+> **Team:** system-team
+> **Repo / Project:** /tmp/system
+> **Charter Ref:** .system/charter/CHARTER.md
+
+## What this is
+Project reality.
+
+## How to use this
+Use this document to ground planning in reality.
+
+## 0) Project Summary (factual, 3–6 bullets)
+- Summary.
+
+## 1) Operational Reality (the most important section)
+- Runs on macOS and Linux.
+
+## 2) Project Classification Implications (planning guardrails)
+- Guardrails.
+
+## 3) System Boundaries (what we own vs integrate with)
+### What we own
+- Canonical `.system/` truth.
+### What we do NOT own (but may depend on)
+- External delivery systems.
+
+## 4) Integrations & Contracts (top 1–5)
+- Integrations.
+
+## 5) Environments & Delivery
+- Delivery.
+
+## 6) Data Reality
+- Data.
+
+## 7) Repo / Codebase Reality (brownfield-friendly, but safe for greenfield)
+- Codebase.
+
+## 8) Constraints
+- Constraints.
+
+## 9) Known Unknowns (explicitly tracked)
+- Unknowns.
+
+## 10) Update Triggers
+- Update when reality changes.
+"
+    }
+
     #[test]
     fn preflight_requires_completed_charter() {
         let repo = tempdir().expect("tempdir");
@@ -866,14 +997,8 @@ mod tests {
     fn author_writes_canonical_environment_inventory_and_reads_optional_project_context() {
         let repo = tempdir().expect("tempdir");
         scaffold_environment_inventory_target(repo.path());
-        write_charter(
-            repo.path(),
-            "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
-        );
-        write_project_context(
-            repo.path(),
-            "# Project Context\n\n## Current State\n\n- Runs on macOS and Linux.\n",
-        );
+        write_charter(repo.path(), valid_charter_markdown());
+        write_project_context(repo.path(), valid_project_context_markdown());
 
         let prompt_log = repo.path().join("prompt.log");
         let fake_codex = write_fake_codex(repo.path());
@@ -951,10 +1076,7 @@ The canonical store of record for this project's environment and runtime require
     fn author_refuses_to_overwrite_existing_non_starter_truth() {
         let repo = tempdir().expect("tempdir");
         scaffold_environment_inventory_target(repo.path());
-        write_charter(
-            repo.path(),
-            "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
-        );
+        write_charter(repo.path(), valid_charter_markdown());
         fs::write(
             repo.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
             "# Existing environment inventory\n",

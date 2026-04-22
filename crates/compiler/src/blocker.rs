@@ -8,6 +8,7 @@ pub enum BlockerCategory {
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
     RequiredArtifactStarterTemplate,
+    RequiredArtifactInvalid,
     ArtifactReadError,
     FreshnessInvalid,
     BudgetRefused,
@@ -30,9 +31,10 @@ pub fn blocker_category_priority(category: BlockerCategory) -> u8 {
         BlockerCategory::RequiredArtifactMissing => 3,
         BlockerCategory::RequiredArtifactEmpty => 4,
         BlockerCategory::RequiredArtifactStarterTemplate => 5,
-        BlockerCategory::ArtifactReadError => 6,
-        BlockerCategory::FreshnessInvalid => 7,
-        BlockerCategory::BudgetRefused => 8,
-        BlockerCategory::UnsupportedRequest => 9,
+        BlockerCategory::RequiredArtifactInvalid => 6,
+        BlockerCategory::ArtifactReadError => 7,
+        BlockerCategory::FreshnessInvalid => 8,
+        BlockerCategory::BudgetRefused => 9,
+        BlockerCategory::UnsupportedRequest => 10,
     }
 }
