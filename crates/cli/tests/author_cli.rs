@@ -1312,7 +1312,7 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
     );
     assert!(
         doctor_stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
         ),
         "{doctor_stdout}"
     );

@@ -2578,17 +2578,19 @@ fn doctor() -> ExitCode {
     }
     println!("## BASELINE CHECKLIST");
     for item in report.checklist {
-        let next_action = item
-            .next_safe_action
-            .as_ref()
-            .map(system_compiler::render_next_safe_action_value)
-            .unwrap_or_else(|| "<none>".to_string());
+        let subject_path = match &item.subject {
+            system_compiler::SubjectRef::CanonicalArtifact {
+                canonical_repo_relative_path,
+                ..
+            } => *canonical_repo_relative_path,
+            _ => item.canonical_repo_relative_path,
+        };
         println!(
             "{} [{}] STATUS: {} ACTION: {}",
-            doctor_artifact_label(item.kind),
-            item.canonical_repo_relative_path,
+            item.artifact_label,
+            subject_path,
             doctor_artifact_status_name(item.status),
-            next_action
+            item.author_command
         );
     }
 
@@ -2690,15 +2692,6 @@ fn doctor_root_status_name(status: system_compiler::SystemRootStatus) -> &'stati
         system_compiler::SystemRootStatus::Missing => "MISSING",
         system_compiler::SystemRootStatus::NotDir => "NOT_DIR",
         system_compiler::SystemRootStatus::SymlinkNotAllowed => "SYMLINK_NOT_ALLOWED",
-    }
-}
-
-fn doctor_artifact_label(kind: system_compiler::CanonicalArtifactKind) -> &'static str {
-    match kind {
-        system_compiler::CanonicalArtifactKind::Charter => "CHARTER",
-        system_compiler::CanonicalArtifactKind::ProjectContext => "PROJECT_CONTEXT",
-        system_compiler::CanonicalArtifactKind::EnvironmentInventory => "ENVIRONMENT_INVENTORY",
-        system_compiler::CanonicalArtifactKind::FeatureSpec => "FEATURE_SPEC",
     }
 }
 

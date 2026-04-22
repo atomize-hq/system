@@ -52,7 +52,7 @@ pub use author::{
     CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, CANONICAL_PROJECT_CONTEXT_REPO_PATH,
     DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
-pub use blocker::{blocker_category_priority, Blocker, BlockerCategory};
+pub use blocker::{blocker_category_priority, Blocker, BlockerCategory, C04_RESULT_VERSION};
 pub use budget::{
     BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason,
     NextSafeAction as BudgetNextSafeAction,

@@ -94,7 +94,7 @@ Determinism rules:
 - Fixture set selection MUST be explicit (no default "pick one", no glob-based selection).
 - When enumerating fixture lineage evidence, ordering MUST be deterministic and MUST NOT depend on filesystem traversal order.
 - The lineage order MUST be:
-  1. canonical artifacts in `C-03` kind order: `CHARTER`, then `PROJECT_CONTEXT` (if present), then `FEATURE_SPEC`
+  1. canonical artifacts in `C-03` kind order: `CHARTER`, then `PROJECT_CONTEXT` (if present), then `ENVIRONMENT_INVENTORY` (if present), then `FEATURE_SPEC`
   2. inherited dependency artifacts (if used), ordered lexically by dependency id
   3. any additional fixture-only evidence items, ordered lexically by their repo-relative path
 - If tie-breaks are required, they MUST use lexical order of repo-relative paths.

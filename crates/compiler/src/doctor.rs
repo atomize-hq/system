@@ -1,8 +1,10 @@
 use crate::baseline_validation::{
     baseline_artifact_validations, BaselineArtifactValidation, BaselineArtifactVerdict,
 };
+use crate::blocker::{build_doctor_blockers, C04_RESULT_VERSION};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
-use crate::refusal::NextSafeAction;
+use crate::refusal::{NextSafeAction, SubjectRef};
+use crate::{ArtifactManifest, Blocker, ManifestInputs};
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +26,9 @@ pub enum DoctorArtifactStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DoctorChecklistItem {
+    pub artifact_label: &'static str,
+    pub subject: SubjectRef,
+    pub author_command: &'static str,
     pub kind: CanonicalArtifactKind,
     pub canonical_repo_relative_path: &'static str,
     pub status: DoctorArtifactStatus,
@@ -32,6 +37,11 @@ pub struct DoctorChecklistItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DoctorReport {
+    pub c04_result_version: String,
+    pub c03_schema_version: String,
+    pub c03_manifest_generation_version: u32,
+    pub baseline_state: DoctorBaselineStatus,
+    pub blockers: Vec<Blocker>,
     pub status: DoctorBaselineStatus,
     pub system_root_status: SystemRootStatus,
     pub checklist: Vec<DoctorChecklistItem>,
@@ -44,14 +54,13 @@ pub fn doctor(repo_root: impl AsRef<Path>) -> Result<DoctorReport, crate::Artifa
 }
 
 pub fn doctor_from_artifacts(artifacts: &CanonicalArtifacts) -> DoctorReport {
+    let manifest = ArtifactManifest::from_canonical_artifacts(artifacts, ManifestInputs::default());
     let checklist = baseline_checklist(artifacts);
-    let status = classify_doctor_status(artifacts.system_root_status, &checklist);
-    let next_safe_action = checklist
-        .iter()
-        .find_map(|item| match item.next_safe_action {
-            Some(NextSafeAction::RunSetupRefresh) => Some(NextSafeAction::RunSetupRefresh),
-            _ => None,
-        })
+    let baseline_state = classify_doctor_status(artifacts.system_root_status, &checklist);
+    let blockers = build_doctor_blockers(&manifest, &baseline_artifact_validations(artifacts));
+    let next_safe_action = blockers
+        .first()
+        .map(|blocker| blocker.next_safe_action.clone())
         .or_else(|| {
             checklist
                 .iter()
@@ -59,7 +68,12 @@ pub fn doctor_from_artifacts(artifacts: &CanonicalArtifacts) -> DoctorReport {
         });
 
     DoctorReport {
-        status,
+        c04_result_version: C04_RESULT_VERSION.to_string(),
+        c03_schema_version: manifest.version.schema.version.to_string(),
+        c03_manifest_generation_version: manifest.version.generation,
+        baseline_state,
+        blockers,
+        status: baseline_state,
         system_root_status: artifacts.system_root_status,
         checklist,
         next_safe_action,
@@ -74,6 +88,12 @@ fn baseline_checklist(artifacts: &CanonicalArtifacts) -> Vec<DoctorChecklistItem
             let next_safe_action =
                 artifact_next_safe_action(artifacts.system_root_status, &validation, status);
             DoctorChecklistItem {
+                artifact_label: doctor_artifact_label(validation.kind),
+                subject: SubjectRef::CanonicalArtifact {
+                    kind: validation.kind,
+                    canonical_repo_relative_path: validation.canonical_repo_relative_path,
+                },
+                author_command: doctor_author_command(validation.kind),
                 kind: validation.kind,
                 canonical_repo_relative_path: validation.canonical_repo_relative_path,
                 status,
@@ -175,4 +195,24 @@ fn classify_doctor_status(
     }
 
     DoctorBaselineStatus::Scaffolded
+}
+
+fn doctor_artifact_label(kind: CanonicalArtifactKind) -> &'static str {
+    match kind {
+        CanonicalArtifactKind::Charter => "CHARTER",
+        CanonicalArtifactKind::ProjectContext => "PROJECT_CONTEXT",
+        CanonicalArtifactKind::EnvironmentInventory => "ENVIRONMENT_INVENTORY",
+        CanonicalArtifactKind::FeatureSpec => "FEATURE_SPEC",
+    }
+}
+
+fn doctor_author_command(kind: CanonicalArtifactKind) -> &'static str {
+    match kind {
+        CanonicalArtifactKind::Charter => "run `system author charter`",
+        CanonicalArtifactKind::ProjectContext => "run `system author project-context`",
+        CanonicalArtifactKind::EnvironmentInventory => "run `system author environment-inventory`",
+        CanonicalArtifactKind::FeatureSpec => {
+            "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+        }
+    }
 }

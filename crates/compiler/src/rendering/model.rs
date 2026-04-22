@@ -1,5 +1,8 @@
 use super::error::RenderError;
-use crate::{Blocker, BudgetOutcome, PacketResult, PacketSelectionStatus, Refusal, ResolverResult};
+use crate::{
+    Blocker, BudgetOutcome, PacketResult, PacketSelectionStatus, Refusal, ResolverResult,
+    C04_RESULT_VERSION,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderSurface {
@@ -42,9 +45,9 @@ pub struct RenderOutputModel {
 }
 
 pub fn build_output_model(result: &ResolverResult) -> Result<RenderOutputModel, RenderError> {
-    if result.c04_result_version != "reduced-v1.1" {
+    if result.c04_result_version != C04_RESULT_VERSION {
         return Err(RenderError::UnsupportedResultVersion {
-            expected: "reduced-v1.1",
+            expected: C04_RESULT_VERSION,
             actual: result.c04_result_version.clone(),
         });
     }

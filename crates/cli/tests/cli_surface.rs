@@ -5170,19 +5170,19 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     );
     assert!(
         second_stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
         ),
         "{second_stdout}"
     );
     assert!(
         second_stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author project-context`"
         ),
         "{second_stdout}"
     );
     assert!(
         second_stdout.contains(
-            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author environment-inventory`"
         ),
         "{second_stdout}"
     );
@@ -6236,6 +6236,68 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
 }
 
 #[test]
+fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    let fixture_root = root.join("tests/fixtures/execution_demo/full-lineage/.system");
+
+    write_file(
+        &fixture_root.join("charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("feature_spec/FEATURE_SPEC.md"),
+        b"demo feature",
+    );
+
+    let output = binary_in(root)
+        .args([
+            "inspect",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "full-lineage",
+        ])
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should succeed when ready");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    let fixture_section_start = stdout.find("## FIXTURE DEMO").expect("fixture section");
+    let json_section_start = stdout.find("## JSON FALLBACK").expect("json fallback");
+    let fixture_section = &stdout[fixture_section_start..json_section_start];
+    assert_in_order(
+        fixture_section,
+        &[
+            "1. Charter [.system/charter/CHARTER.md]",
+            "2. ProjectContext [.system/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+            "4. FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]",
+        ],
+    );
+
+    let json_section = &stdout[json_section_start..];
+    assert_in_order(
+        json_section,
+        &[
+            "\"canonical_repo_relative_path\": \".system/charter/CHARTER.md\"",
+            "\"canonical_repo_relative_path\": \".system/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".system/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
+            "\"canonical_repo_relative_path\": \".system/feature_spec/FEATURE_SPEC.md\"",
+        ],
+    );
+}
+
+#[test]
 fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
     let (_dir, nested) = execution_demo_repo_with_nested_cwd();
 
@@ -6584,19 +6646,19 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     );
     assert!(
         stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system setup refresh`"
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: <none>"
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author environment-inventory`"
         ),
         "{stdout}"
     );
@@ -6629,6 +6691,16 @@ fn command_section_lines(help: &str) -> Vec<&str> {
 fn assert_first_three_lines(stdout: &str, expected: [&str; 3]) {
     let lines: Vec<&str> = stdout.lines().take(3).collect();
     assert_eq!(lines, expected, "unexpected trust header: {stdout}");
+}
+
+fn assert_in_order(haystack: &str, needles: &[&str]) {
+    let mut last = 0;
+    for needle in needles {
+        let offset = haystack[last..]
+            .find(needle)
+            .unwrap_or_else(|| panic!("missing `{needle}` in output:\n{haystack}"));
+        last += offset + needle.len();
+    }
 }
 
 fn assert_help_snapshot(args: &[&str], snapshot_filename: &str) {

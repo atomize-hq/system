@@ -840,6 +840,14 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"demo feature body",
     );
@@ -866,13 +874,21 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
         fixture_context.fixture_basis_root,
         "tests/fixtures/execution_demo/basic/.system/"
     );
-    assert_eq!(fixture_context.fixture_lineage.len(), 2);
+    assert_eq!(fixture_context.fixture_lineage.len(), 4);
     assert_eq!(
         fixture_context.fixture_lineage[0].canonical_repo_relative_path,
         ".system/charter/CHARTER.md"
     );
     assert_eq!(
         fixture_context.fixture_lineage[1].canonical_repo_relative_path,
+        ".system/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        fixture_context.fixture_lineage[2].canonical_repo_relative_path,
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+    );
+    assert_eq!(
+        fixture_context.fixture_lineage[3].canonical_repo_relative_path,
         ".system/feature_spec/FEATURE_SPEC.md"
     );
     assert_eq!(

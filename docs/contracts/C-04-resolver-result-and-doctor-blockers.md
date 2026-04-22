@@ -89,15 +89,25 @@ The doctor/result surface MUST carry an explicit `c04_result_version` field.
 
 This contract specifies field **semantics**. Concrete Rust type names are implementation detail, but the result MUST faithfully represent the following records and fields.
 
-### Subject references (shared)
+### Subject references
 
-Any checklist item or blocker MUST reference a baseline artifact subject using contract-defined identifiers, not freeform text.
+Checklist items and blockers MUST use contract-defined subject identifiers, not freeform text.
 
-A subject reference MUST be:
+Checklist item subjects MUST always be:
 
 - `CanonicalArtifact`:
   - `kind`: `{ charter, project_context, environment_inventory }`
   - `canonical_repo_relative_path`: the exact path from `C-03`
+
+Doctor blocker subjects MUST be one of:
+
+- `CanonicalArtifact`:
+  - used for artifact-specific blockers
+  - `kind`: `{ charter, project_context, environment_inventory }`
+  - `canonical_repo_relative_path`: the exact path from `C-03`
+- `Policy`:
+  - used for system-root blockers only
+  - `policy_id`: `system_root`
 
 ### Doctor result (top-level)
 
@@ -123,6 +133,8 @@ Each checklist item MUST include:
 - `status`
 - `author_command`
 
+Checklist item `subject` MUST be a `CanonicalArtifact` subject.
+
 Checklist item statuses MUST distinguish at least:
 
 - `missing`
@@ -140,6 +152,8 @@ Each blocker MUST include:
 - `subject`: subject reference
 - `summary`: short human-readable string
 - `next_safe_action`: exactly one explicit recovery action
+- System-root blockers (`SystemRootMissing`, `SystemRootNotDir`, `SystemRootSymlinkNotAllowed`) MUST use `Policy { policy_id: "system_root" }` as the subject.
+- Artifact-specific blockers MUST use `CanonicalArtifact` as the subject.
 - Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family.
 - Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `system author ...` command for that artifact.
 

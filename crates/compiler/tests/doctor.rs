@@ -1,6 +1,7 @@
 use system_compiler::{
-    doctor, setup_starter_template_bytes, CanonicalArtifactKind, DoctorArtifactStatus,
-    DoctorBaselineStatus, NextSafeAction,
+    doctor, setup_starter_template_bytes, BlockerCategory, CanonicalArtifactKind,
+    DoctorArtifactStatus, DoctorBaselineStatus, NextSafeAction, SubjectRef, C03_SCHEMA_VERSION,
+    C04_RESULT_VERSION, MANIFEST_GENERATION_VERSION,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -154,6 +155,45 @@ Canonical environment and runtime inventory.
 "
 }
 
+fn expected_artifact_label(kind: CanonicalArtifactKind) -> &'static str {
+    match kind {
+        CanonicalArtifactKind::Charter => "CHARTER",
+        CanonicalArtifactKind::ProjectContext => "PROJECT_CONTEXT",
+        CanonicalArtifactKind::EnvironmentInventory => "ENVIRONMENT_INVENTORY",
+        CanonicalArtifactKind::FeatureSpec => "FEATURE_SPEC",
+    }
+}
+
+fn expected_author_command(kind: CanonicalArtifactKind) -> &'static str {
+    match kind {
+        CanonicalArtifactKind::Charter => "run `system author charter`",
+        CanonicalArtifactKind::ProjectContext => "run `system author project-context`",
+        CanonicalArtifactKind::EnvironmentInventory => "run `system author environment-inventory`",
+        CanonicalArtifactKind::FeatureSpec => {
+            "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+        }
+    }
+}
+
+fn assert_checklist_contract_fields(
+    item: &system_compiler::DoctorChecklistItem,
+    kind: CanonicalArtifactKind,
+    canonical_repo_relative_path: &str,
+) {
+    assert_eq!(item.artifact_label, expected_artifact_label(kind));
+    assert_eq!(item.author_command, expected_author_command(kind));
+    match &item.subject {
+        SubjectRef::CanonicalArtifact {
+            kind: actual_kind,
+            canonical_repo_relative_path: actual_path,
+        } => {
+            assert_eq!(*actual_kind, kind);
+            assert_eq!(*actual_path, canonical_repo_relative_path);
+        }
+        other => panic!("expected canonical artifact subject, got {other:?}"),
+    }
+}
+
 fn assert_empty_baseline_invalid(
     empty_path: &str,
     empty_kind: CanonicalArtifactKind,
@@ -177,6 +217,13 @@ fn assert_empty_baseline_invalid(
     write_file(&repo_root.join(empty_path), b"");
 
     let report = doctor(repo_root).expect("doctor");
+    assert_eq!(report.c04_result_version, C04_RESULT_VERSION);
+    assert_eq!(report.c03_schema_version, C03_SCHEMA_VERSION);
+    assert_eq!(
+        report.c03_manifest_generation_version,
+        MANIFEST_GENERATION_VERSION
+    );
+    assert_eq!(report.baseline_state, DoctorBaselineStatus::InvalidBaseline);
     assert_eq!(report.status, DoctorBaselineStatus::InvalidBaseline);
     assert_eq!(report.next_safe_action, Some(expected_action.clone()));
 
@@ -185,8 +232,24 @@ fn assert_empty_baseline_invalid(
         .iter()
         .find(|item| item.kind == empty_kind)
         .expect("empty artifact");
+    assert_checklist_contract_fields(item, empty_kind, empty_path);
     assert_eq!(item.status, DoctorArtifactStatus::Empty);
     assert_eq!(item.next_safe_action, Some(expected_action));
+    assert_eq!(report.blockers.len(), 1);
+    assert_eq!(
+        report.blockers[0].category,
+        BlockerCategory::RequiredArtifactEmpty
+    );
+    match &report.blockers[0].subject {
+        SubjectRef::CanonicalArtifact {
+            kind,
+            canonical_repo_relative_path,
+        } => {
+            assert_eq!(*kind, empty_kind);
+            assert_eq!(*canonical_repo_relative_path, empty_path);
+        }
+        other => panic!("expected canonical artifact subject, got {other:?}"),
+    }
 }
 
 #[test]
@@ -206,6 +269,7 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     );
 
     let report = doctor(repo_root).expect("doctor");
+    assert_eq!(report.baseline_state, DoctorBaselineStatus::InvalidBaseline);
     assert_eq!(report.status, DoctorBaselineStatus::InvalidBaseline);
     assert_eq!(
         report.next_safe_action,
@@ -214,6 +278,11 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     assert_eq!(report.checklist.len(), 3);
 
     assert_eq!(report.checklist[0].kind, CanonicalArtifactKind::Charter);
+    assert_checklist_contract_fields(
+        &report.checklist[0],
+        CanonicalArtifactKind::Charter,
+        ".system/charter/CHARTER.md",
+    );
     assert_eq!(
         report.checklist[0].status,
         DoctorArtifactStatus::ValidCanonicalTruth
@@ -223,6 +292,11 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     assert_eq!(
         report.checklist[1].kind,
         CanonicalArtifactKind::ProjectContext
+    );
+    assert_checklist_contract_fields(
+        &report.checklist[1],
+        CanonicalArtifactKind::ProjectContext,
+        ".system/project_context/PROJECT_CONTEXT.md",
     );
     assert_eq!(report.checklist[1].status, DoctorArtifactStatus::Invalid);
     assert_eq!(
@@ -234,11 +308,32 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
         report.checklist[2].kind,
         CanonicalArtifactKind::EnvironmentInventory
     );
+    assert_checklist_contract_fields(
+        &report.checklist[2],
+        CanonicalArtifactKind::EnvironmentInventory,
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+    );
     assert_eq!(
         report.checklist[2].status,
         DoctorArtifactStatus::ValidCanonicalTruth
     );
     assert_eq!(report.checklist[2].next_safe_action, None);
+    assert_eq!(report.blockers.len(), 1);
+    assert_eq!(
+        report.blockers[0].category,
+        BlockerCategory::ArtifactReadError
+    );
+    assert_eq!(
+        report.blockers[0].subject,
+        SubjectRef::CanonicalArtifact {
+            kind: CanonicalArtifactKind::ProjectContext,
+            canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
+        }
+    );
+    assert_eq!(
+        report.blockers[0].summary,
+        "failed to read canonical artifact"
+    );
 }
 
 #[cfg(unix)]
@@ -270,6 +365,7 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
     .expect("symlink environment inventory");
 
     let report = doctor(repo_root).expect("doctor");
+    assert_eq!(report.baseline_state, DoctorBaselineStatus::InvalidBaseline);
     assert_eq!(report.status, DoctorBaselineStatus::InvalidBaseline);
     assert_eq!(
         report.next_safe_action,
@@ -290,10 +386,20 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
         .iter()
         .find(|item| item.kind == CanonicalArtifactKind::EnvironmentInventory)
         .expect("environment inventory");
+    assert_checklist_contract_fields(
+        environment_inventory,
+        CanonicalArtifactKind::EnvironmentInventory,
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+    );
     assert_eq!(environment_inventory.status, DoctorArtifactStatus::Invalid);
     assert_eq!(
         environment_inventory.next_safe_action,
         Some(NextSafeAction::RunSetupRefresh)
+    );
+    assert_eq!(report.blockers.len(), 1);
+    assert_eq!(
+        report.blockers[0].category,
+        BlockerCategory::ArtifactReadError
     );
 }
 
@@ -343,6 +449,7 @@ fn doctor_keeps_all_starter_owned_baseline_in_scaffolded() {
     );
 
     let report = doctor(repo_root).expect("doctor");
+    assert_eq!(report.baseline_state, DoctorBaselineStatus::Scaffolded);
     assert_eq!(report.status, DoctorBaselineStatus::Scaffolded);
     assert_eq!(
         report.next_safe_action,
@@ -352,4 +459,81 @@ fn doctor_keeps_all_starter_owned_baseline_in_scaffolded() {
         .checklist
         .iter()
         .all(|item| item.status == DoctorArtifactStatus::StarterOwned));
+    assert_eq!(report.blockers.len(), 3);
+    assert_eq!(
+        report
+            .blockers
+            .iter()
+            .map(|blocker| blocker.category)
+            .collect::<Vec<_>>(),
+        vec![
+            BlockerCategory::RequiredArtifactStarterTemplate,
+            BlockerCategory::RequiredArtifactStarterTemplate,
+            BlockerCategory::RequiredArtifactStarterTemplate,
+        ]
+    );
+}
+
+#[test]
+fn doctor_reports_root_missing_blocker_before_checklist_actions() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    let report = doctor(repo_root).expect("doctor");
+
+    assert_eq!(report.c04_result_version, C04_RESULT_VERSION);
+    assert_eq!(report.c03_schema_version, C03_SCHEMA_VERSION);
+    assert_eq!(
+        report.c03_manifest_generation_version,
+        MANIFEST_GENERATION_VERSION
+    );
+    assert_eq!(report.baseline_state, DoctorBaselineStatus::Scaffolded);
+    assert_eq!(report.status, DoctorBaselineStatus::Scaffolded);
+    assert_eq!(report.next_safe_action, Some(NextSafeAction::RunSetup));
+    assert_eq!(report.blockers.len(), 1);
+    assert_eq!(
+        report.blockers[0].category,
+        BlockerCategory::SystemRootMissing
+    );
+    assert_eq!(
+        report.blockers[0].subject,
+        SubjectRef::Policy {
+            policy_id: "system_root"
+        }
+    );
+}
+
+#[test]
+fn doctor_reports_complete_baseline_with_empty_blockers() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+
+    let report = doctor(repo_root).expect("doctor");
+
+    assert_eq!(report.c04_result_version, C04_RESULT_VERSION);
+    assert_eq!(report.c03_schema_version, C03_SCHEMA_VERSION);
+    assert_eq!(
+        report.c03_manifest_generation_version,
+        MANIFEST_GENERATION_VERSION
+    );
+    assert_eq!(
+        report.baseline_state,
+        DoctorBaselineStatus::BaselineComplete
+    );
+    assert_eq!(report.status, DoctorBaselineStatus::BaselineComplete);
+    assert!(report.blockers.is_empty());
+    assert_eq!(report.next_safe_action, None);
 }

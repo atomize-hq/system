@@ -117,6 +117,57 @@ fn oversized_valid_project_context_markdown() -> String {
     format!("{}\n{}", valid_project_context_markdown(), "x".repeat(256))
 }
 
+fn valid_environment_inventory_markdown() -> &'static str {
+    "# Environment Inventory
+
+> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+
+## What this is
+Canonical environment and runtime inventory.
+
+## How to use
+- Update this file when runtime assumptions change.
+
+## 1) Environment Variables (Inventory)
+- None yet.
+
+## 2) External Services / Infrastructure Dependencies
+- None yet.
+
+## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)
+- None yet.
+
+## 4) Local Development Requirements
+- None yet.
+
+## 5) CI Requirements
+- None yet.
+
+## 6) Production / Deployment Requirements (even if not live yet)
+- None yet.
+
+## 7) Dependency & Tooling Inventory (project-specific)
+- None yet.
+
+## 8) Update Contract (non-negotiable)
+- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+
+## 9) Known Unknowns
+- None yet.
+"
+}
+
+fn assert_in_order(haystack: &str, needles: &[&str]) {
+    let mut last = 0;
+    for needle in needles {
+        let offset = haystack[last..]
+            .find(needle)
+            .unwrap_or_else(|| panic!("missing `{needle}` in output:\n{haystack}"));
+        last += offset + needle.len();
+    }
+}
+
 #[test]
 fn render_markdown_keeps_trust_header_first_for_ready_result() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -398,6 +449,14 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
         valid_charter_markdown().as_bytes(),
     );
     write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"demo feature",
     );
@@ -423,11 +482,58 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
     assert!(rendered.contains("FIXTURE SET: basic"));
     assert!(rendered.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.system/"));
     assert!(rendered.contains("FIXTURE LINEAGE:"));
-    assert!(rendered.contains("Charter [.system/charter/CHARTER.md]"));
-    assert!(rendered.contains("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]"));
+    assert_in_order(
+        &rendered,
+        &[
+            "1. Charter [.system/charter/CHARTER.md]",
+            "2. ProjectContext [.system/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+            "4. FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]",
+        ],
+    );
     assert!(rendered.contains("### CHARTER (.system/charter/CHARTER.md)"));
     assert!(rendered.contains("# Engineering Charter — System"));
     assert!(rendered.contains("demo feature"));
+}
+
+#[test]
+fn render_json_preserves_execution_demo_fixture_lineage_order() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().join("tests/fixtures/execution_demo/basic");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"demo feature",
+    );
+
+    let request = system_compiler::ResolveRequest {
+        packet_id: "execution.demo.packet",
+        ..Default::default()
+    };
+    let result = resolve(&root, request).expect("resolve");
+    let model = build_output_model(&result).expect("model");
+
+    let rendered = render_json(&model);
+    assert_in_order(
+        &rendered,
+        &[
+            "\"canonical_repo_relative_path\": \".system/charter/CHARTER.md\"",
+            "\"canonical_repo_relative_path\": \".system/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".system/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
+            "\"canonical_repo_relative_path\": \".system/feature_spec/FEATURE_SPEC.md\"",
+        ],
+    );
 }
 
 #[test]
