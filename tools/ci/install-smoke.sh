@@ -31,7 +31,53 @@ cleanup() { rm -rf "$tmp_root"; }
 trap cleanup EXIT
 
 mkdir -p "$tmp_root/.system/charter" "$tmp_root/.system/feature_spec"
-printf "charter" >"$tmp_root/.system/charter/CHARTER.md"
+cat >"$tmp_root/.system/charter/CHARTER.md" <<'EOF'
+# Engineering Charter — Smoke Fixture
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+EOF
 printf "feature" >"$tmp_root/.system/feature_spec/FEATURE_SPEC.md"
 
 set +e
@@ -49,5 +95,12 @@ fi
   echo "$live_out"
   exit 1
 }
+
+if [[ "$live_out" != *'fixture-backed execution demos'* ]] &&
+   [[ "$live_out" != *'NEXT SAFE ACTION: run `system generate --packet planning.packet`'* ]]; then
+  echo "expected live refusal to mention the execution boundary or planning fallback; got:"
+  echo "$live_out"
+  exit 1
+fi
 
 echo "OK"
