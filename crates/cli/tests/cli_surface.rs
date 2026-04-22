@@ -4520,7 +4520,7 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4561,7 +4561,7 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4598,7 +4598,7 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4698,7 +4698,7 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -4834,7 +4834,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup refresh",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "rewritten .system/charter/CHARTER.md",
@@ -5033,7 +5033,7 @@ fn bare_setup_respects_nested_git_root_boundary() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
@@ -5393,7 +5393,7 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",

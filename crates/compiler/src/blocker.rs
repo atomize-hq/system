@@ -5,7 +5,7 @@ use crate::{
 };
 use std::cmp::Ordering;
 
-pub const C04_RESULT_VERSION: &str = "reduced-v1.1";
+pub const C04_RESULT_VERSION: &str = "reduced-v1-m8.1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockerCategory {

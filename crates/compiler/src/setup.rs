@@ -1,6 +1,6 @@
 use crate::canonical_artifacts::{
     canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
-    CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus, CANONICAL_ARTIFACT_ORDER,
+    CanonicalArtifacts, SystemRootStatus, CANONICAL_ARTIFACT_ORDER,
 };
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
@@ -150,7 +150,7 @@ pub fn run_setup(
     Ok(SetupOutcome {
         plan: planned.plan,
         disposition,
-        next_safe_action: setup_next_safe_action(&post_setup_artifacts, disposition),
+        next_safe_action: setup_next_safe_action(disposition),
     })
 }
 
@@ -480,35 +480,29 @@ fn setup_mutation_refusal(
 }
 
 fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
-    if first_setup_scaffolded_starter_kind(artifacts).is_some() {
+    if has_scaffolded_starter_template(artifacts) {
         SetupDisposition::Scaffolded
     } else {
         SetupDisposition::Ready
     }
 }
 
-fn setup_next_safe_action(artifacts: &CanonicalArtifacts, disposition: SetupDisposition) -> String {
+fn setup_next_safe_action(disposition: SetupDisposition) -> String {
     match disposition {
-        SetupDisposition::Ready => format!("run `{SYSTEM_DOCTOR_COMMAND}`"),
-        SetupDisposition::Scaffolded => {
-            let next_kind = first_setup_scaffolded_starter_kind(artifacts)
-                .expect("scaffolded setup outcome should identify a scaffolded baseline artifact");
-            next_setup_author_command(next_kind).to_string()
+        SetupDisposition::Ready | SetupDisposition::Scaffolded => {
+            format!("run `{SYSTEM_DOCTOR_COMMAND}`")
         }
     }
 }
 
-fn first_setup_scaffolded_starter_kind(
-    artifacts: &CanonicalArtifacts,
-) -> Option<CanonicalArtifactKind> {
+fn has_scaffolded_starter_template(artifacts: &CanonicalArtifacts) -> bool {
     canonical_artifact_descriptors()
         .iter()
         .filter(|descriptor| descriptor.setup_scaffolded)
-        .find_map(|descriptor| {
+        .any(|descriptor| {
             artifact_for_kind(artifacts, descriptor.kind)
                 .identity
                 .matches_setup_starter_template
-                .then_some(descriptor.kind)
         })
 }
 
@@ -521,17 +515,6 @@ fn artifact_for_kind(
         crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
         crate::CanonicalArtifactKind::EnvironmentInventory => &artifacts.environment_inventory,
         crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
-    }
-}
-
-fn next_setup_author_command(kind: CanonicalArtifactKind) -> &'static str {
-    match kind {
-        CanonicalArtifactKind::Charter => "run `system author charter`",
-        CanonicalArtifactKind::ProjectContext => "run `system author project-context`",
-        CanonicalArtifactKind::EnvironmentInventory => "run `system author environment-inventory`",
-        CanonicalArtifactKind::FeatureSpec => {
-            "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
-        }
     }
 }
 

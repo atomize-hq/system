@@ -186,8 +186,8 @@ fn resolver_returns_typed_result_when_system_root_missing() {
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
-    assert_eq!(result.c04_result_version, "reduced-v1.1");
-    assert_eq!(result.c03_schema_version, "reduced-v1.1");
+    assert_eq!(result.c04_result_version, "reduced-v1-m8.1");
+    assert_eq!(result.c03_schema_version, "reduced-v1-m8");
     assert_eq!(result.c03_manifest_generation_version, 1);
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
     assert!(result.packet_result.sections.is_empty());

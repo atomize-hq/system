@@ -52,7 +52,7 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system author charter`");
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
     assert_eq!(
         outcome
             .plan
@@ -284,7 +284,7 @@ fn setup_refresh_preserves_required_starter_templates_but_stays_scaffolded() {
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system author charter`");
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
     assert!(outcome
         .plan
         .actions
@@ -319,10 +319,7 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(
-        outcome.next_safe_action,
-        "run `system author project-context`"
-    );
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
     assert_eq!(
         fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
         b"keep this charter\n"
@@ -384,7 +381,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     .expect("setup refresh rewrite");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system author charter`");
+    assert_eq!(outcome.next_safe_action, "run `system doctor`");
     assert_eq!(outcome.plan.actions.len(), starter_paths().len());
     assert!(outcome
         .plan
