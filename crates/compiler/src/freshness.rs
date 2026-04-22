@@ -1,7 +1,7 @@
 use crate::{ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind};
 use sha2::{Digest, Sha256};
 
-pub const C03_SCHEMA_VERSION: &str = "reduced-v1.1";
+pub const C03_SCHEMA_VERSION: &str = "reduced-v1-m8";
 pub const MANIFEST_GENERATION_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,7 +128,7 @@ pub fn compute_freshness(
     }
 
     for artifact in &sorted_artifacts {
-        if !artifact.required {
+        if !artifact.packet_required {
             continue;
         }
 
@@ -203,7 +203,7 @@ fn fingerprint_bytes(
     for artifact in artifacts {
         enc.u8(canonical_artifact_kind_sort_key(artifact.kind));
         enc.str(artifact.relative_path);
-        enc.bool(artifact.required);
+        enc.bool(artifact.packet_required);
         enc.u8(artifact_presence_sort_key(artifact.presence));
         enc.opt_str(artifact.content_sha256.as_deref());
         enc.bool(artifact.matches_setup_starter_template);
@@ -243,7 +243,8 @@ fn canonical_artifact_kind_sort_key(kind: CanonicalArtifactKind) -> u8 {
     match kind {
         CanonicalArtifactKind::Charter => 0,
         CanonicalArtifactKind::ProjectContext => 1,
-        CanonicalArtifactKind::FeatureSpec => 2,
+        CanonicalArtifactKind::EnvironmentInventory => 2,
+        CanonicalArtifactKind::FeatureSpec => 3,
     }
 }
 

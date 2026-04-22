@@ -2,26 +2,24 @@
 contract_id: C-04
 seam_id: SEAM-4
 owner_seam: SEAM-4
-version: reduced-v1
+version: reduced-v1-m8.1
 currentness: current
 status: published
 revalidation_triggers:
   - Any change to determinism guarantees (ordering, tie-breaks, stable IDs).
-  - Any change to the rule that `generate` and `doctor` share one typed resolver result (single-truth invariant).
-  - Any change to the C-03 input confinement rule (canonical `.system/` + manifest truth only; no derived docs).
-  - Any change to budget policy semantics or budget outcome variants (keep/summarize/exclude/refuse) or their required fields.
-  - Any change to refusal categories, refusal required fields, or refusal ordering/priority rules.
+  - Any change to the baseline readiness state set or its semantics.
+  - Any change to the set of baseline artifacts inspected by `doctor`.
+  - Any change to checklist line requirements (artifact label, canonical path, status, exact author command).
   - Any change to blocker categories, blocker required fields, or blocker ordering/priority rules.
-  - Any change to decision-log entry kinds, required fields, or ordering rules.
 ---
 
-# C-04 Resolver Result and Doctor Blockers Contract
+# C-04 Doctor Baseline-Readiness and Blockers Contract
 
 ## Purpose
 
-This contract defines the reduced-v1 typed resolver result produced by `SEAM-4` and the blocker/refusal semantics that both `generate` and `doctor` must share.
+This contract defines the reduced-v1 `M8` baseline-readiness model produced for `doctor`, plus the blocker and checklist semantics that downstream docs and renderers rely on.
 
-It exists so downstream seams (notably `SEAM-5` renderers and `SEAM-7` conformance) can treat packet identity, decision evidence, budget outcomes, refusals, and doctor-ready blockers as one explicit, versioned truth without parsing freeform strings or relying on incidental iteration order.
+It exists so downstream seams can treat baseline states, checklist ordering, blocker structure, and next-safe-action requirements as explicit contract truth without parsing freeform strings.
 
 ## Canonical Location
 
@@ -31,47 +29,43 @@ It exists so downstream seams (notably `SEAM-5` renderers and `SEAM-7` conforman
 
 ## Owned Surface
 
-`C-04` is authoritative about the **shape and semantics** of the resolver result and its ordered evidence:
+`C-04` is authoritative about the **shape and semantics** of the doctor baseline-readiness result:
 
-- Packet identity (stable, deterministic) and selection reasons.
-- An ordered decision log that explains resolver choices.
-- Typed budget policy outcomes (including exact recovery action when refusing).
-- Typed refusal structure for `generate` (compact, action-oriented).
-- Typed blocker structure for `doctor` (ordered, action-oriented).
-- Deterministic ordering rules and tie-breaks for all ordered lists.
+- baseline readiness states
+- the baseline artifact set inspected by `doctor`
+- ordered checklist items for baseline artifacts
+- typed blocker structure for `doctor` (ordered, action-oriented)
+- deterministic ordering rules and tie-breaks for all ordered lists
 
-`C-04` is **not** authoritative about renderer wording, formatting, or presentation order (owned by `SEAM-5`), and it is not authoritative about conformance rails (owned by `SEAM-7`).
+`C-04` is **not** authoritative about packet renderer wording, packet proof ordering, or conformance rails.
 
 ## Normative Rules
 
-### Single-truth invariant (generate + doctor)
+### Doctor scope
 
-- The system MUST produce one typed resolver result per request.
-- `generate` and `doctor` MUST be views over the same typed resolver result.
-- `doctor` MUST NOT compute blockers independently from the resolver truth used by `generate`.
-- If the resolver produces a refusal outcome, `doctor` MUST surface the corresponding blockers and next actions from the same result (not by re-running divergent logic).
+- `doctor` MUST compute baseline readiness from canonical `.system/` truth rather than from packet readiness.
+- `doctor` MUST inspect exactly these baseline artifacts:
+  - `.system/charter/CHARTER.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `doctor` MUST NOT treat `.system/feature_spec/FEATURE_SPEC.md` as part of baseline readiness.
 
 ### Input confinement (consume C-03 only)
 
-- Resolver inputs MUST be confined to:
-  - a request (what packet is being requested and with what policy parameters), and
-  - canonical manifest + freshness truth produced under `C-03`.
-- Resolver logic MUST treat repo-local `.system/` as the only canonical project-truth input surface, as defined by `C-03`.
-- Resolver logic MUST NOT treat derived views as canonical inputs, including (non-exhaustive):
+- Doctor logic MUST treat repo-local `.system/` as the only canonical project-truth input surface, as defined by `C-03`.
+- Doctor logic MUST NOT treat derived views as canonical inputs, including (non-exhaustive):
   - `README.md`, `PLAN.md`, any doc under `docs/` other than referenced contracts
   - any renderer outputs (`inspect`, markdown, JSON)
   - `dist/` and `artifacts/`
-- Resolver logic MUST NOT read wall-clock time or ambient environment state as a source of selection, refusal, budget, or blocker decisions.
+- Doctor logic MUST NOT read wall-clock time or ambient environment state as a source of readiness, checklist, or blocker decisions.
 
 ### Determinism (same inputs -> same outputs)
 
-For identical inputs (request + C-03 manifest truth):
+For identical canonical baseline inputs:
 
-- The resolver MUST produce identical:
-  - packet identity selection (or refusal)
-  - decision-log content and ordering
-  - budget outcome and ordering of any budget-related lists
-  - refusal category and refusal ordering rules (when multiple refusal candidates exist)
+- `doctor` MUST produce identical:
+  - baseline state
+  - checklist content and ordering
   - blocker set and blocker ordering
 - Ordering MUST NOT depend on:
   - hash map iteration order
@@ -81,7 +75,7 @@ For identical inputs (request + C-03 manifest truth):
 
 ### Versioning and compatibility
 
-The resolver result MUST carry an explicit `c04_result_version` field.
+The doctor/result surface MUST carry an explicit `c04_result_version` field.
 
 - The version MUST be a stable identifier for the meaning of the result fields and ordering rules.
 - Any change to:
@@ -95,91 +89,58 @@ The resolver result MUST carry an explicit `c04_result_version` field.
 
 This contract specifies field **semantics**. Concrete Rust type names are implementation detail, but the result MUST faithfully represent the following records and fields.
 
-### Subject references (shared)
+### Subject references
 
-Any refusal or blocker MUST reference a **subject** using contract-defined identifiers, not freeform text.
+Checklist items and blockers MUST use contract-defined subject identifiers, not freeform text.
 
-A subject reference MUST be one of:
+Checklist item subjects MUST always be:
 
 - `CanonicalArtifact`:
-  - `kind`: `{ charter, project_context, feature_spec }` (aligned with `C-03`)
-  - `canonical_repo_relative_path`: the exact path from `C-03` (for example `.system/charter/CHARTER.md`)
-- `InheritedDependency`:
-  - `dependency_id`: stable string identifier
-  - `version`: optional string
+  - `kind`: `{ charter, project_context, environment_inventory }`
+  - `canonical_repo_relative_path`: the exact path from `C-03`
+
+Doctor blocker subjects MUST be one of:
+
+- `CanonicalArtifact`:
+  - used for artifact-specific blockers
+  - `kind`: `{ charter, project_context, environment_inventory }`
+  - `canonical_repo_relative_path`: the exact path from `C-03`
 - `Policy`:
-  - `policy_id`: stable string identifier (for example `budget`)
+  - used for system-root blockers only
+  - `policy_id`: `system_root`
 
-### Resolver result (top-level)
+### Doctor result (top-level)
 
-The resolver result MUST include:
+The doctor result MUST include:
 
-- `c04_result_version`: string (see Versioning)
-- `c03_schema_version`: string (copied from C-03 manifest truth)
-- `c03_manifest_generation_version`: integer (copied from C-03 manifest truth)
-- `c03_fingerprint_sha256`: string (copied from C-03 manifest truth)
-- `packet_identity`:
-  - `packet_id`: stable string identifier for the selected packet
-  - `selection_reasons[]`: ordered list of selection-reason records (see Ordering)
-- `decision_log`: a decision-log record (see below)
-- `budget`: a budget outcome record (see below)
-- exactly one of:
-  - `refusal`: a refusal record (generate-facing failure path), or
-  - `refusal` absent and the result is not refused
-- `blockers[]`: ordered list of blockers (doctor-facing; may be empty)
+- `c04_result_version`: string
+- `c03_schema_version`: string
+- `c03_manifest_generation_version`: integer
+- `baseline_state`: one of:
+  - `SCAFFOLDED`
+  - `PARTIAL_BASELINE`
+  - `INVALID_BASELINE`
+  - `BASELINE_COMPLETE`
+- `checklist[]`: ordered list of checklist items
+- `blockers[]`: ordered list of blockers (may be empty)
 
-The resolver result MAY include additional fields as long as:
+### Checklist items
 
-- they do not broaden inputs beyond `C-03` + request
-- they do not introduce non-deterministic ordering
-- they preserve backward compatibility expectations for downstream consumers
+Each checklist item MUST include:
 
-### Decision log
+- `artifact_label`
+- `subject`
+- `status`
+- `author_command`
 
-The decision log MUST be an ordered list of typed entries.
+Checklist item `subject` MUST be a `CanonicalArtifact` subject.
 
-Each entry MUST include:
+Checklist item statuses MUST distinguish at least:
 
-- `kind`: a value from the Decision Entry Kind enum
-- `summary`: short human-readable string
-- `subject`: optional subject reference (when the entry applies to a specific artifact/dependency/policy)
-
-The decision log MUST be stable and deterministic in ordering.
-
-#### Decision entry kinds (initial)
-
-The decision log `kind` MUST be one of (initial set; additions require revalidation):
-
-- `Ingest`
-- `Freshness`
-- `Selection`
-- `Budget`
-- `Refusal`
-- `Blocker`
-
-### Budget outcome
-
-Budget must be represented as typed data.
-
-The budget outcome MUST include:
-
-- `policy_id`: stable identifier (for example `budget`)
-- `outcome`: one of `{ Keep, Summarize, Exclude, Refuse }`
-- `reason`: short human-readable string
-- `next_safe_action`: present when `outcome` is `Refuse`, absent otherwise
-
-If budget produces any ordered lists (for example, ordered omissions), those lists MUST have contract-defined ordering and explicit tie-breaks.
-
-### Refusal (generate)
-
-The refusal record MUST be compact and action-oriented.
-
-The refusal MUST include:
-
-- `category`: one of the Refusal Category enum values
-- `summary`: short human-readable string
-- `broken_subject`: subject reference
-- `next_safe_action`: exactly one explicit recovery action
+- `missing`
+- `starter_owned`
+- `invalid`
+- `complete`
 
 ### Blockers (doctor)
 
@@ -191,28 +152,14 @@ Each blocker MUST include:
 - `subject`: subject reference
 - `summary`: short human-readable string
 - `next_safe_action`: exactly one explicit recovery action
-- Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family (`system setup`, `system setup init`, `system setup refresh`) while preserving this contract's single-truth blocker semantics.
-- Renderer-facing wording for charter-specific empty or starter-template required-artifact blockers SHOULD route the operator toward `system author charter` while preserving this contract's single-truth blocker semantics.
+- System-root blockers (`SystemRootMissing`, `SystemRootNotDir`, `SystemRootSymlinkNotAllowed`) MUST use `Policy { policy_id: "system_root" }` as the subject.
+- Artifact-specific blockers MUST use `CanonicalArtifact` as the subject.
+- Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family.
+- Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `system author ...` command for that artifact.
 
 ## Categories and Ordering Rules
 
 This section defines the initial category enums and their ordering priorities.
-
-### Refusal categories (generate) (initial)
-
-Allowed refusal categories include:
-
-- `NonCanonicalInputAttempt`
-- `SystemRootMissing`
-- `SystemRootNotDir`
-- `SystemRootSymlinkNotAllowed`
-- `RequiredArtifactMissing`
-- `RequiredArtifactEmpty`
-- `RequiredArtifactStarterTemplate`
-- `ArtifactReadError`
-- `FreshnessInvalid`
-- `BudgetRefused`
-- `UnsupportedRequest`
 
 ### Blocker categories (doctor) (initial)
 
@@ -224,28 +171,10 @@ Allowed blocker categories include:
 - `RequiredArtifactMissing`
 - `RequiredArtifactEmpty`
 - `RequiredArtifactStarterTemplate`
+- `RequiredArtifactInvalid`
 - `ArtifactReadError`
-- `FreshnessInvalid`
-- `BudgetRefused`
-- `UnsupportedRequest`
 
 ### Category priority tables
-
-When multiple refusal candidates exist, refusal ordering MUST be deterministic and MUST use this priority order (lowest number = highest priority):
-
-| Priority | Refusal category |
-|---:|---|
-| 0 | `NonCanonicalInputAttempt` |
-| 1 | `SystemRootMissing` |
-| 2 | `SystemRootSymlinkNotAllowed` |
-| 3 | `SystemRootNotDir` |
-| 4 | `RequiredArtifactMissing` |
-| 5 | `RequiredArtifactEmpty` |
-| 6 | `RequiredArtifactStarterTemplate` |
-| 7 | `ArtifactReadError` |
-| 8 | `FreshnessInvalid` |
-| 9 | `BudgetRefused` |
-| 10 | `UnsupportedRequest` |
 
 When multiple blockers exist, blocker ordering MUST be deterministic and MUST use this priority order (lowest number = highest priority):
 
@@ -257,10 +186,8 @@ When multiple blockers exist, blocker ordering MUST be deterministic and MUST us
 | 3 | `RequiredArtifactMissing` |
 | 4 | `RequiredArtifactEmpty` |
 | 5 | `RequiredArtifactStarterTemplate` |
-| 6 | `ArtifactReadError` |
-| 7 | `FreshnessInvalid` |
-| 8 | `BudgetRefused` |
-| 9 | `UnsupportedRequest` |
+| 6 | `RequiredArtifactInvalid` |
+| 7 | `ArtifactReadError` |
 
 ### Tie-break rules (stable ordering within a category)
 
@@ -269,28 +196,25 @@ Within the same category, ordering MUST be deterministic.
 Tie-break MUST be applied in this order:
 
 1. Subject kind order:
-   - For `CanonicalArtifact`: `{ charter, project_context, feature_spec }` (aligned with `C-03`)
-   - For `InheritedDependency`: lexical by `dependency_id`, then by `version`
-   - For `Policy`: lexical by `policy_id`
+   - For `CanonicalArtifact`: `{ charter, project_context, environment_inventory }` (aligned with `C-03`)
 2. Subject path (for canonical artifacts): lexical by `canonical_repo_relative_path`
 3. Summary: lexical by `summary`
 
 ## Compatibility and Downstream Revalidation
 
-- Downstream seams MUST treat category enums and required fields as authoritative contract surface.
+- Downstream seams MUST treat baseline states, checklist-item fields, and blocker categories as authoritative contract surface.
 - Downstream seams MUST NOT parse semantics out of freeform strings to recover meaning that should be represented by categories or structured fields.
-- Adding a new refusal category, blocker category, budget outcome, or decision entry kind MUST trigger downstream revalidation.
+- Adding a new blocker category, checklist field, or baseline state MUST trigger downstream revalidation.
+- Adding or renaming a `RefusalCategory` or `BlockerCategory` enum variant in the typed resolver surface MUST trigger downstream revalidation of markdown, inspect, and JSON renderers plus any category-string assertions or snapshots.
 - Changing any priority table or tie-break rule MUST trigger downstream revalidation.
 
 ## Verification Checklist
 
-- [ ] A resolver result carries `c04_result_version` and C-03 provenance (`schema_version`, `manifest_generation_version`, `fingerprint_sha256`).
-- [ ] `generate` and `doctor` are views over one typed resolver result; `doctor` does not compute blockers separately.
-- [ ] Inputs are confined to the request plus C-03 manifest/freshness truth; derived docs are never canonical inputs.
-- [ ] All ordered lists (decision log, selection reasons, refusals, blockers) have explicit deterministic ordering and tie-break rules.
-- [ ] Budget outcomes are typed (`Keep`, `Summarize`, `Exclude`, `Refuse`) and budget refusal includes exactly one next safe action.
-- [ ] Refusals are compact and always include: category, summary, broken subject, and exactly one next safe action.
+- [ ] A doctor result carries `c04_result_version` and C-03 provenance.
+- [ ] `doctor` baseline states are exactly `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`.
+- [ ] Inputs are confined to C-03 baseline artifact truth; derived docs are never canonical inputs.
+- [ ] Checklist items always include artifact label, canonical path, status, and exact author command.
 - [ ] Blockers are compact and always include: category, subject, summary, and exactly one next safe action.
-- [ ] Refusal categories and blocker categories match the initial enums in this contract and are ordered by the priority tables.
-- [ ] Any change to budget/refusal/blocker semantics is captured as a contract revision and triggers downstream revalidation.
+- [ ] Blocker categories match the initial enum in this contract and are ordered by the priority table.
+- [ ] Any change to baseline-state, checklist, or blocker semantics is captured as a contract revision and triggers downstream revalidation.
 - [ ] `artifacts/planning/reduced-v1-seam-pack/threading.md` describes `C-04` in the same nouns as this contract.

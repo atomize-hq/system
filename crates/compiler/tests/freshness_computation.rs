@@ -13,18 +13,24 @@ fn identity(
     let relative_path = match kind {
         CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
         CanonicalArtifactKind::ProjectContext => ".system/project_context/PROJECT_CONTEXT.md",
+        CanonicalArtifactKind::EnvironmentInventory => {
+            ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+        }
         CanonicalArtifactKind::FeatureSpec => ".system/feature_spec/FEATURE_SPEC.md",
     };
-    let required = match kind {
-        CanonicalArtifactKind::Charter => true,
-        CanonicalArtifactKind::ProjectContext => false,
-        CanonicalArtifactKind::FeatureSpec => false,
+    let (packet_required, baseline_required, setup_scaffolded) = match kind {
+        CanonicalArtifactKind::Charter => (true, true, true),
+        CanonicalArtifactKind::ProjectContext => (false, true, true),
+        CanonicalArtifactKind::EnvironmentInventory => (false, true, true),
+        CanonicalArtifactKind::FeatureSpec => (false, false, false),
     };
 
     CanonicalArtifactIdentity {
         kind,
         relative_path,
-        required,
+        packet_required,
+        baseline_required,
+        setup_scaffolded,
         presence,
         byte_len,
         content_sha256: content_sha256.map(|s| s.to_string()),

@@ -9,6 +9,7 @@ pub enum RefusalCategory {
     RequiredArtifactMissing,
     RequiredArtifactEmpty,
     RequiredArtifactStarterTemplate,
+    RequiredArtifactInvalid,
     ArtifactReadError,
     FreshnessInvalid,
     BudgetRefused,
@@ -36,6 +37,8 @@ pub enum NextSafeAction {
     RunSetupInit,
     RunSetupRefresh,
     RunAuthorCharter,
+    RunAuthorProjectContext,
+    RunAuthorEnvironmentInventory,
     CreateSystemRoot {
         canonical_repo_relative_path: &'static str,
     },

@@ -1,6 +1,6 @@
 use crate::canonical_artifacts::{
     canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
-    CanonicalArtifacts, SystemRootStatus,
+    CanonicalArtifacts, SystemRootStatus, CANONICAL_ARTIFACT_ORDER,
 };
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
@@ -150,7 +150,7 @@ pub fn run_setup(
     Ok(SetupOutcome {
         plan: planned.plan,
         disposition,
-        next_safe_action: setup_next_safe_action(&post_setup_artifacts, disposition),
+        next_safe_action: setup_next_safe_action(disposition),
     })
 }
 
@@ -176,6 +176,7 @@ fn build_setup_execution_plan(
         .collect::<BTreeSet<_>>();
     let planned_starter_actions = canonical_artifact_descriptors()
         .iter()
+        .filter(|descriptor| descriptor.setup_scaffolded)
         .map(|descriptor| {
             plan_starter_action(
                 repo_root,
@@ -212,9 +213,10 @@ fn build_setup_execution_plan(
         }));
     }
     actions.sort_by(|a, b| {
-        a.path
-            .cmp(&b.path)
+        artifact_order_index_for_path(&a.path)
+            .cmp(&artifact_order_index_for_path(&b.path))
             .then_with(|| action_rank(a).cmp(&action_rank(b)))
+            .then_with(|| a.path.cmp(&b.path))
     });
 
     let mut mutations = Vec::new();
@@ -332,6 +334,7 @@ fn plan_starter_action(
     let artifact = match descriptor.kind {
         crate::CanonicalArtifactKind::Charter => &artifacts.charter,
         crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
+        crate::CanonicalArtifactKind::EnvironmentInventory => &artifacts.environment_inventory,
         crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
     };
 
@@ -477,37 +480,29 @@ fn setup_mutation_refusal(
 }
 
 fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
-    if first_required_starter_template_path(artifacts).is_some() {
+    if has_scaffolded_starter_template(artifacts) {
         SetupDisposition::Scaffolded
     } else {
         SetupDisposition::Ready
     }
 }
 
-fn setup_next_safe_action(artifacts: &CanonicalArtifacts, disposition: SetupDisposition) -> String {
+fn setup_next_safe_action(disposition: SetupDisposition) -> String {
     match disposition {
-        SetupDisposition::Ready => format!("run `{SYSTEM_DOCTOR_COMMAND}`"),
-        SetupDisposition::Scaffolded => {
-            let next_path = first_required_starter_template_path(artifacts)
-                .expect("scaffolded setup outcome should identify a required starter template");
-            if next_path == ".system/charter/CHARTER.md" {
-                "run `system author charter`".to_string()
-            } else {
-                format!("fill canonical artifact at {next_path}")
-            }
+        SetupDisposition::Ready | SetupDisposition::Scaffolded => {
+            format!("run `{SYSTEM_DOCTOR_COMMAND}`")
         }
     }
 }
 
-fn first_required_starter_template_path(artifacts: &CanonicalArtifacts) -> Option<&'static str> {
+fn has_scaffolded_starter_template(artifacts: &CanonicalArtifacts) -> bool {
     canonical_artifact_descriptors()
         .iter()
-        .filter(|descriptor| descriptor.required)
-        .find_map(|descriptor| {
+        .filter(|descriptor| descriptor.setup_scaffolded)
+        .any(|descriptor| {
             artifact_for_kind(artifacts, descriptor.kind)
                 .identity
                 .matches_setup_starter_template
-                .then_some(descriptor.relative_path)
         })
 }
 
@@ -518,8 +513,16 @@ fn artifact_for_kind(
     match kind {
         crate::CanonicalArtifactKind::Charter => &artifacts.charter,
         crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
+        crate::CanonicalArtifactKind::EnvironmentInventory => &artifacts.environment_inventory,
         crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
     }
+}
+
+fn artifact_order_index_for_path(path: &str) -> usize {
+    CANONICAL_ARTIFACT_ORDER
+        .iter()
+        .position(|kind| kind.relative_path() == path)
+        .unwrap_or(usize::MAX)
 }
 
 fn action_rank(action: &SetupAction) -> usize {

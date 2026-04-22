@@ -19,9 +19,9 @@ revalidation_triggers:
 
 This contract defines the reduced-v1 renderer and proof-surface truth for `SEAM-5`.
 
-It exists so downstream seams, especially `SEAM-7`, can treat markdown, JSON, and inspect output as one deterministic view layer over the typed `C-04` resolver result without recomputing refusals, blockers, or budget policy semantics.
+It exists so downstream seams, especially `SEAM-7`, can treat markdown, JSON, inspect, and doctor output as deterministic view layers over typed compiler-owned result models without recomputing semantics.
 
-`C-04` remains authoritative for the typed resolver result, refusal/blocker meaning, and ordering semantics of that result. `C-05` is authoritative only for how those truths are rendered and ordered for operator and machine consumption.
+`C-04` remains authoritative for doctor baseline-readiness semantics, blocker meaning, and ordering. `C-05` is authoritative only for how those truths are rendered and ordered for operator and machine consumption.
 
 ## Canonical Location
 

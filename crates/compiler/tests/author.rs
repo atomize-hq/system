@@ -3,20 +3,35 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use system_compiler::{
-    author_charter, parse_charter_structured_input_yaml, preflight_author_charter,
-    render_charter_markdown, run_setup, setup_starter_template_bytes,
-    validate_charter_structured_input, AuthorCharterRefusalKind, CanonicalArtifactKind,
-    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, SetupRequest, DEFAULT_EXCEPTION_RECORD_LOCATION,
+    author_charter, author_environment_inventory, author_project_context_from_input,
+    parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
+    preflight_author_charter, preflight_author_environment_inventory,
+    preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
+    run_setup, setup_starter_template_bytes, validate_charter_structured_input,
+    validate_project_context_markdown, validate_project_context_structured_input,
+    AuthorCharterRefusalKind, AuthorEnvironmentInventoryRefusalKind,
+    AuthorProjectContextRefusalKind, CanonicalArtifactKind, CharterAudience,
+    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
+    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
+    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
+    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
+    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
+    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
+    CharterSurface, ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
+    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
+    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
+    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
+    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
+    SetupRequest, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
+    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
+const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
+    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
+const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
 
 fn write_file(path: &Path, contents: &[u8]) {
@@ -36,24 +51,54 @@ fn with_author_runtime_override<T>(
     model: Option<&str>,
     action: impl FnOnce() -> T,
 ) -> T {
+    with_runtime_override(
+        AUTHOR_CHARTER_CODEX_BIN_ENV_VAR,
+        AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR,
+        binary_path,
+        model,
+        action,
+    )
+}
+
+fn with_environment_inventory_runtime_override<T>(
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
+    with_runtime_override(
+        AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR,
+        AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR,
+        binary_path,
+        model,
+        action,
+    )
+}
+
+fn with_runtime_override<T>(
+    binary_env_var: &str,
+    model_env_var: &str,
+    binary_path: &Path,
+    model: Option<&str>,
+    action: impl FnOnce() -> T,
+) -> T {
     let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous_bin = std::env::var_os(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR);
-    let previous_model = std::env::var_os(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR);
-    std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, binary_path);
+    let previous_bin = std::env::var_os(binary_env_var);
+    let previous_model = std::env::var_os(model_env_var);
+    std::env::set_var(binary_env_var, binary_path);
     match model {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+        Some(value) => std::env::set_var(model_env_var, value),
+        None => std::env::remove_var(model_env_var),
     }
 
     let result = catch_unwind(AssertUnwindSafe(action));
 
     match previous_bin {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR),
+        Some(value) => std::env::set_var(binary_env_var, value),
+        None => std::env::remove_var(binary_env_var),
     }
     match previous_model {
-        Some(value) => std::env::set_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR, value),
-        None => std::env::remove_var(AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR),
+        Some(value) => std::env::set_var(model_env_var, value),
+        None => std::env::remove_var(model_env_var),
     }
 
     match result {
@@ -97,6 +142,24 @@ fn with_author_runtime_on_path<T>(
     match previous_path {
         Some(value) => std::env::set_var("PATH", value),
         None => std::env::remove_var("PATH"),
+    }
+
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
+fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
+    let _guard = author_runtime_lock().lock().expect("author runtime lock");
+    let previous = std::env::var_os(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR);
+    std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, value);
+
+    let result = catch_unwind(AssertUnwindSafe(action));
+
+    match previous {
+        Some(previous) => std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, previous),
+        None => std::env::remove_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR),
     }
 
     match result {
@@ -274,6 +337,204 @@ fn dimension(name: CharterDimensionName) -> CharterDimensionInput {
 
 fn expected_charter_markdown() -> String {
     render_charter_markdown(&valid_input()).expect("render valid input")
+}
+
+fn valid_project_context_input() -> ProjectContextStructuredInput {
+    ProjectContextStructuredInput {
+        schema_version: "0.1.0".to_string(),
+        project_name: "System".to_string(),
+        owner: "compiler-team".to_string(),
+        team: "System".to_string(),
+        repo_or_project_ref: "system".to_string(),
+        charter_ref: ".system/charter/CHARTER.md".to_string(),
+        project_summary: ProjectContextSummaryInput {
+            what_this_project_is:
+                "CLI and compiler for canonical planning artifacts and workflow proofs".to_string(),
+            primary_surface: "CLI plus compiler library".to_string(),
+            primary_users: "internal operators and automation".to_string(),
+            key_workflows: vec![
+                "scaffold canonical .system state".to_string(),
+                "author baseline artifacts".to_string(),
+                "compile and inspect planning outputs".to_string(),
+            ],
+            non_goals: "End-user product delivery".to_string(),
+        },
+        operational_reality: ProjectContextOperationalRealityInput {
+            is_live_in_production_today: "no".to_string(),
+            users: "internal operators only".to_string(),
+            data_in_production: "none".to_string(),
+            uptime_expectations: "best effort during active development".to_string(),
+            incident_on_call_reality: "no formal on-call rotation today".to_string(),
+            primary_risk_flags_present:
+                "incorrect planning guidance and canonical write regressions".to_string(),
+        },
+        classification_implications: ProjectContextClassificationImplicationsInput {
+            project_type: "greenfield with an active brownfield codebase".to_string(),
+            backward_compatibility_required: "no".to_string(),
+            backward_compatibility_notes:
+                "no external customers depend on the current compiler API".to_string(),
+            migration_planning_required: "not applicable".to_string(),
+            migration_planning_notes: "no legacy production data to migrate".to_string(),
+            deprecation_policy_exists: "not yet".to_string(),
+            deprecation_policy_notes:
+                "internal interfaces can change with coordinated release notes".to_string(),
+            rollout_controls_required: "lightweight only".to_string(),
+            rollout_controls_notes: "feature branches and tests gate changes before merge"
+                .to_string(),
+        },
+        system_boundaries: ProjectContextSystemBoundariesInput {
+            owned_areas: vec![
+                "compiler and CLI crates in this repository".to_string(),
+                "canonical .system artifact formats and setup flow".to_string(),
+            ],
+            external_dependencies: vec![
+                "OpenAI Codex runtime used for charter synthesis".to_string(),
+                "local filesystem layout and git worktree state".to_string(),
+            ],
+        },
+        integrations: vec![
+            ProjectContextIntegrationInput {
+                name: "Codex exec".to_string(),
+                integration_type: "CLI runtime".to_string(),
+                contract_surface: "codex exec --output-last-message -".to_string(),
+                authentication_authorization:
+                    "inherits local operator credentials and API configuration".to_string(),
+                failure_mode_expectations:
+                    "auth or process failures must refuse without partial writes".to_string(),
+            },
+            ProjectContextIntegrationInput {
+                name: "Repo-local .system tree".to_string(),
+                integration_type: "filesystem".to_string(),
+                contract_surface: "canonical artifact paths under .system/**".to_string(),
+                authentication_authorization:
+                    "write guards reject symlinks and non-regular targets".to_string(),
+                failure_mode_expectations: "invalid paths block authoring until repaired"
+                    .to_string(),
+            },
+        ],
+        environments_and_delivery: ProjectContextEnvironmentsAndDeliveryInput {
+            environments_that_exist: "local development and CI".to_string(),
+            deployment_model: "cargo-driven local execution".to_string(),
+            ci_cd_reality: "basic CI with compiler and CLI test coverage".to_string(),
+            release_cadence: "repo-driven iterative releases".to_string(),
+            config_and_secrets: "standard local environment variables and git config".to_string(),
+            observability_stack: "test output and local command stderr".to_string(),
+        },
+        data_reality: ProjectContextDataRealityInput {
+            primary_data_stores: "repo-local markdown, yaml, and route-state files".to_string(),
+            data_classification: "source code and internal planning metadata".to_string(),
+            retention_requirements: "none beyond repository history".to_string(),
+            backups_disaster_recovery: "git history plus local worktree backups".to_string(),
+            existing_migrations_history: "none for production data".to_string(),
+        },
+        repo_codebase_reality: ProjectContextRepoCodebaseRealityInput {
+            codebase_exists_today: true,
+            current_maturity: "medium-sized active Rust workspace".to_string(),
+            key_modules_or_areas: vec![
+                "crates/compiler".to_string(),
+                "crates/cli".to_string(),
+                "core/library".to_string(),
+            ],
+            known_constraints_from_existing_code:
+                "lane ownership and canonical artifact ordering must be preserved".to_string(),
+        },
+        constraints: ProjectContextConstraintsInput {
+            deadline_time_constraints: "must fit the current milestone split".to_string(),
+            budget_constraints: "limited to local engineering time".to_string(),
+            must_use_or_prohibited_tech: "must stay in Rust and preserve existing canonical paths"
+                .to_string(),
+            compliance_legal_constraints: "none beyond repository policy".to_string(),
+            performance_constraints: "compiler authoring should stay fast and deterministic"
+                .to_string(),
+            security_constraints: "no writes outside canonical repo-owned targets".to_string(),
+        },
+        known_unknowns: vec![
+            ProjectContextKnownUnknownInput {
+                item: "final CLI interview wording for project-context authoring".to_string(),
+                owner: "Lane D".to_string(),
+                revisit_trigger: "when the CLI subcommand lands".to_string(),
+            },
+            ProjectContextKnownUnknownInput {
+                item: "doctor-side invalid baseline messaging for project context".to_string(),
+                owner: "Lane D".to_string(),
+                revisit_trigger: "when doctor baseline classification is wired".to_string(),
+            },
+        ],
+    }
+}
+
+fn expected_project_context_markdown() -> String {
+    with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        render_project_context_markdown(&valid_project_context_input())
+            .expect("render valid project-context input")
+    })
+}
+
+fn legacy_placeholder_project_context_markdown() -> String {
+    expected_project_context_markdown()
+        .replace("> **Owner:** compiler-team", "> **Owner:** unknown-owner")
+        .replace("> **Team:** System", "> **Team:** project-team")
+        .replace(
+            "- **Is anything live in production today?** no",
+            "- **Is anything live in production today?** Unknown from local repo inspection; confirm before planning live changes.",
+        )
+}
+
+fn expected_environment_inventory_markdown(project_context_ref: &str) -> String {
+    format!(
+        "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
+    )
+    .trim_end()
+    .to_string()
+}
+
+fn valid_charter_markdown() -> &'static str {
+    "# Engineering Charter — System
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+"
 }
 
 fn required_headings() -> [&'static str; 12] {
@@ -564,7 +825,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"custom charter truth\n",
+        expected_charter_markdown().as_bytes(),
     );
 
     let err = author_charter(dir.path(), &valid_input()).expect_err("existing truth should refuse");
@@ -573,7 +834,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
     assert_eq!(
         std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
             .expect("existing charter"),
-        "custom charter truth\n"
+        expected_charter_markdown()
     );
 }
 
@@ -583,7 +844,7 @@ fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"custom charter truth\n",
+        expected_charter_markdown().as_bytes(),
     );
 
     let err = preflight_author_charter(dir.path())
@@ -601,7 +862,7 @@ fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"custom charter truth\n",
+        expected_charter_markdown().as_bytes(),
     );
     let stub = install_stub_codex(
         dir.path(),
@@ -614,6 +875,49 @@ fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::ExistingCanonicalTruth);
     assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_charter_repairs_semantically_invalid_canonical_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"custom charter truth\n",
+    );
+    let expected_markdown = expected_charter_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input()).expect("invalid charter should be repaired")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("repaired charter"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn preflight_author_charter_routes_ingest_invalid_target_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    std::fs::remove_file(dir.path().join(".system/charter/CHARTER.md")).expect("remove charter");
+    std::fs::create_dir_all(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("charter target directory");
+
+    let err = preflight_author_charter(dir.path())
+        .expect_err("ingest-invalid charter target should block authoring");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::MutationRefused);
+    assert_eq!(err.next_safe_action, "run `system setup refresh`");
+    assert!(err.summary.contains("system setup refresh"));
 }
 
 #[test]
@@ -797,4 +1101,572 @@ fn starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring
         std::fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("starter bytes"),
         setup_starter_template_bytes(CanonicalArtifactKind::Charter)
     );
+}
+
+#[test]
+fn parse_project_context_structured_input_refuses_on_malformed_yaml() {
+    let err = parse_project_context_structured_input_yaml("not: [valid")
+        .expect_err("malformed yaml should refuse");
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::MalformedStructuredInput
+    );
+}
+
+#[test]
+fn validate_project_context_structured_input_refuses_incomplete_fields() {
+    let mut input = valid_project_context_input();
+    input.project_summary.key_workflows.clear();
+    input.known_unknowns[0].item = "tbd".to_string();
+
+    let err = validate_project_context_structured_input(&input)
+        .expect_err("incomplete project-context input should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::IncompleteStructuredInput
+    );
+    assert!(err.summary.contains("project_summary.key_workflows"));
+    assert!(err.summary.contains("known_unknowns[0].item"));
+}
+
+#[test]
+fn render_project_context_markdown_includes_required_structure() {
+    let markdown = expected_project_context_markdown();
+
+    assert!(markdown.starts_with("# Project Context — System"));
+    assert!(markdown.contains("> **Created (UTC):** 2026-04-21T12:34:56Z"));
+    assert!(markdown.contains("## 3) System Boundaries (what we own vs integrate with)"));
+    assert!(markdown.contains("### What we own"));
+    assert!(markdown.contains("### What we do NOT own (but may depend on)"));
+    assert!(markdown.contains("## 10) Update Triggers"));
+}
+
+#[test]
+fn validate_project_context_markdown_accepts_rendered_output() {
+    validate_project_context_markdown(&expected_project_context_markdown())
+        .expect("rendered project-context markdown should validate");
+}
+
+#[test]
+fn validate_project_context_markdown_refuses_known_placeholder_boilerplate() {
+    let err = validate_project_context_markdown(&legacy_placeholder_project_context_markdown())
+        .expect_err("legacy placeholder markdown should refuse");
+
+    assert!(err.summary.contains("known fabricated placeholder text"));
+}
+
+#[test]
+fn validate_project_context_markdown_refuses_missing_required_heading() {
+    let err = validate_project_context_markdown(
+        "# Project Context — System\n\n> **File:** `PROJECT_CONTEXT.md`\n> **Created (UTC):** 2026-04-21T12:34:56Z\n> **Owner:** compiler-team\n> **Team:** System\n> **Repo / Project:** system\n> **Charter Ref:** .system/charter/CHARTER.md\n",
+    )
+    .expect_err("missing sections should refuse");
+
+    assert!(err.summary.contains("missing required heading"));
+}
+
+#[test]
+fn author_project_context_refuses_when_system_root_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let err = author_project_context_from_input(dir.path(), &valid_project_context_input())
+        .expect_err("missing system root");
+
+    assert_eq!(err.kind, AuthorProjectContextRefusalKind::MissingSystemRoot);
+    assert_eq!(err.next_safe_action, "run `system setup`");
+}
+
+#[test]
+fn author_project_context_replaces_starter_template_and_writes_only_canonical_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let expected_markdown = expected_project_context_markdown();
+
+    let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        author_project_context_from_input(dir.path(), &valid_project_context_input())
+            .expect("author project context")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("canonical project context"),
+        expected_markdown
+    );
+    let mut entries = std::fs::read_dir(dir.path().join(".system/project_context"))
+        .expect("read project-context dir")
+        .map(|entry| {
+            entry
+                .expect("project-context dir entry")
+                .file_name()
+                .into_string()
+                .expect("utf8 project-context entry")
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    assert_eq!(entries, vec!["PROJECT_CONTEXT.md"]);
+    assert!(!dir
+        .path()
+        .join("artifacts/project_context/PROJECT_CONTEXT.md")
+        .exists());
+    assert!(!dir.path().join("PROJECT_CONTEXT.md").exists());
+}
+
+#[test]
+fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        expected_project_context_markdown().as_bytes(),
+    );
+
+    let err = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        author_project_context_from_input(dir.path(), &valid_project_context_input())
+            .expect_err("existing project context truth should refuse")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::ExistingCanonicalTruth
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("existing project context"),
+        expected_project_context_markdown()
+    );
+}
+
+#[test]
+fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        expected_project_context_markdown().as_bytes(),
+    );
+
+    let err = preflight_author_project_context(dir.path())
+        .expect_err("existing project context truth should refuse during preflight");
+
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::ExistingCanonicalTruth
+    );
+    assert!(err
+        .summary
+        .contains("canonical project context truth already exists"));
+}
+
+#[test]
+fn author_project_context_repairs_semantically_invalid_canonical_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+
+    let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        author_project_context_from_input(dir.path(), &valid_project_context_input())
+            .expect("invalid project context should be repaired")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("repaired project context"),
+        expected_project_context_markdown()
+    );
+}
+
+#[test]
+fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    std::fs::remove_file(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+    )
+    .expect("remove project context");
+    std::fs::create_dir_all(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+    )
+    .expect("project-context target directory");
+
+    let err = preflight_author_project_context(dir.path())
+        .expect_err("ingest-invalid project-context target should block authoring");
+
+    assert_eq!(err.kind, AuthorProjectContextRefusalKind::MutationRefused);
+    assert_eq!(err.next_safe_action, "run `system setup refresh`");
+    assert!(err.summary.contains("system setup refresh"));
+}
+
+#[test]
+fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+
+    assert_eq!(
+        std::fs::read(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("starter project-context bytes"),
+        setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext)
+    );
+}
+
+#[test]
+fn author_environment_inventory_replaces_starter_template_and_writes_only_canonical_output() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let expected_markdown = expected_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path()).expect("author environment inventory")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("canonical environment inventory"),
+        expected_markdown
+    );
+    let mut entries = std::fs::read_dir(dir.path().join(".system/environment_inventory"))
+        .expect("read environment-inventory dir")
+        .map(|entry| {
+            entry
+                .expect("environment-inventory dir entry")
+                .file_name()
+                .into_string()
+                .expect("utf8 environment-inventory entry")
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    assert_eq!(entries, vec!["ENVIRONMENT_INVENTORY.md"]);
+    assert!(!dir.path().join("ENVIRONMENT_INVENTORY.md").exists());
+    assert!(!dir
+        .path()
+        .join("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
+        .exists());
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
+        expected_environment_inventory_markdown("None").as_bytes(),
+    );
+
+    let err = author_environment_inventory(dir.path())
+        .expect_err("existing environment inventory truth should refuse");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("existing environment inventory"),
+        expected_environment_inventory_markdown("None")
+    );
+}
+
+#[test]
+fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_truth_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
+        expected_environment_inventory_markdown("None").as_bytes(),
+    );
+
+    let err = preflight_author_environment_inventory(dir.path())
+        .expect_err("existing environment inventory truth should refuse during preflight");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth
+    );
+    assert!(err
+        .summary
+        .contains("canonical environment inventory truth already exists"));
+}
+
+#[test]
+fn author_environment_inventory_repairs_semantically_invalid_canonical_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
+        b"custom environment inventory truth\n",
+    );
+    let expected_markdown = expected_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect("invalid environment inventory should be repaired")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("repaired environment inventory"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn preflight_author_environment_inventory_routes_ingest_invalid_target_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    std::fs::remove_file(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("remove environment inventory");
+    std::fs::create_dir_all(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("environment inventory target directory");
+
+    let err = preflight_author_environment_inventory(dir.path())
+        .expect_err("ingest-invalid environment inventory target should block authoring");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::MutationRefused
+    );
+    assert_eq!(err.next_safe_action, "run `system setup refresh`");
+    assert!(err.summary.contains("system setup refresh"));
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_required_headings_only_appear_in_body_text() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(
+            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nThis body mentions `## How to use`, `## 1) Environment Variables (Inventory)`, `## 2) External Services / Infrastructure Dependencies`, `## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)`, `## 4) Local Development Requirements`, `## 5) CI Requirements`, `## 6) Production / Deployment Requirements (even if not live yet)`, `## 7) Dependency & Tooling Inventory (project-specific)`, `## 8) Update Contract (non-negotiable)`, and `## 9) Known Unknowns`, but it does not render them as headings.\n",
+        ),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("body prose headings should fail validation")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(err
+        .summary
+        .contains("missing required heading `## How to use`"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_required_heading_is_duplicated() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(
+            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- Still none.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
+        ),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("duplicate headings should fail validation")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(err.summary.contains(
+        "required heading `## 2) External Services / Infrastructure Dependencies` must appear exactly once"
+    ));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_required_headings_are_out_of_order() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(
+            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
+        ),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("out-of-order headings should fail validation")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(err
+        .summary
+        .contains("required heading `## 1) Environment Variables (Inventory)` is out of order"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after failure"),
+        before
+    );
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(&expected_environment_inventory_markdown("None")),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("invalid upstream charter should refuse before synthesis")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
+    );
+    assert!(err.summary.contains("canonical charter truth is invalid"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after refusal"),
+        before
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_refuses_when_optional_project_context_is_semantically_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+    let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("starter environment inventory bytes");
+    let stub = install_stub_codex(
+        dir.path(),
+        &successful_stub_script(&expected_environment_inventory_markdown(
+            "`.system/project_context/PROJECT_CONTEXT.md`",
+        )),
+    );
+
+    let err = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect_err("invalid optional project context should refuse before synthesis")
+    });
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
+    );
+    assert!(err
+        .summary
+        .contains("canonical project context truth is invalid"));
+    assert_eq!(
+        std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("environment inventory after refusal"),
+        before
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
 }

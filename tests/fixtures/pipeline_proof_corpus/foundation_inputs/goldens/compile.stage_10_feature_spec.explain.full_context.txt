@@ -22,7 +22,7 @@ ROUTE BASIS:
   runner:
     id = codex-cli
     file = runners/codex-cli.md
-    file_sha256 = 7af94edf447c93f042831db080c34b404ea09293f4b9184a6004878d4d2ce32b
+    file_sha256 = 0b8693c8d0f81b48aa97ab875dffb69e5730843cde8022b5968aa90fdb6eee4c
   profile:
     id = python-uv
     profile.yaml.sha256 = 88a0080f75a7660944df592783c266af9f124565ac06bde3985ea63da0ccfb53

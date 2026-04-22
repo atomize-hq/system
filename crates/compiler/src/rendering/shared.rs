@@ -210,6 +210,12 @@ pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
         NextSafeAction::RunSetupInit => "run `system setup init`".to_string(),
         NextSafeAction::RunSetupRefresh => "run `system setup refresh`".to_string(),
         NextSafeAction::RunAuthorCharter => "run `system author charter`".to_string(),
+        NextSafeAction::RunAuthorProjectContext => {
+            "run `system author project-context`".to_string()
+        }
+        NextSafeAction::RunAuthorEnvironmentInventory => {
+            "run `system author environment-inventory`".to_string()
+        }
         NextSafeAction::CreateSystemRoot {
             canonical_repo_relative_path,
         } => format!("create canonical .system root at {canonical_repo_relative_path}"),
@@ -246,6 +252,7 @@ pub fn render_refusal_category(category: RefusalCategory) -> &'static str {
         RefusalCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         RefusalCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
         RefusalCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
+        RefusalCategory::RequiredArtifactInvalid => "RequiredArtifactInvalid",
         RefusalCategory::ArtifactReadError => "ArtifactReadError",
         RefusalCategory::FreshnessInvalid => "FreshnessInvalid",
         RefusalCategory::BudgetRefused => "BudgetRefused",
@@ -261,6 +268,7 @@ pub fn render_blocker_category(category: BlockerCategory) -> &'static str {
         BlockerCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         BlockerCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
         BlockerCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
+        BlockerCategory::RequiredArtifactInvalid => "RequiredArtifactInvalid",
         BlockerCategory::ArtifactReadError => "ArtifactReadError",
         BlockerCategory::FreshnessInvalid => "FreshnessInvalid",
         BlockerCategory::BudgetRefused => "BudgetRefused",
@@ -293,6 +301,7 @@ pub fn render_canonical_artifact_kind(kind: CanonicalArtifactKind) -> &'static s
     match kind {
         CanonicalArtifactKind::Charter => "Charter",
         CanonicalArtifactKind::ProjectContext => "ProjectContext",
+        CanonicalArtifactKind::EnvironmentInventory => "EnvironmentInventory",
         CanonicalArtifactKind::FeatureSpec => "FeatureSpec",
     }
 }

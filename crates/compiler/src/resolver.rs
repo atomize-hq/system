@@ -1,37 +1,29 @@
+use crate::baseline_validation::{
+    baseline_artifact_validation_for_path, baseline_artifact_validations,
+    BaselineArtifactValidation, BaselineArtifactVerdict,
+};
 use crate::budget::evaluate_budget;
 use crate::packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
     PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
 };
 use crate::{
-    blocker_category_priority, ArtifactIngestIssueKind, ArtifactManifest, Blocker, BlockerCategory,
-    BudgetDisposition, BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifact,
-    CanonicalArtifactKind, CanonicalArtifacts, CompilerError, DecisionLog, FreshnessIssueKind,
-    FreshnessStatus, ManifestInputs, NextSafeAction, Refusal, RefusalCategory, SubjectRef,
-    SystemRootStatus,
+    ArtifactIngestIssueKind, ArtifactManifest, Blocker, BlockerCategory, BudgetDisposition,
+    BudgetNextSafeAction, BudgetOutcome, BudgetPolicy, CanonicalArtifact, CanonicalArtifactKind,
+    CanonicalArtifacts, CompilerError, DecisionLog, FreshnessIssueKind, FreshnessStatus,
+    ManifestInputs, NextSafeAction, Refusal, RefusalCategory, SubjectRef, SystemRootStatus,
 };
-use std::cmp::Ordering;
 use std::path::Path;
 
-const C04_RESULT_VERSION: &str = "reduced-v1";
+pub use crate::blocker::C04_RESULT_VERSION;
+use crate::blocker::{
+    author_or_fill_next_safe_action, build_required_baseline_blockers, ingest_issue_for_path,
+    required_artifact_blocker, sort_blockers,
+};
 const DEFAULT_PACKET_ID: &str = "planning.packet";
 const DEMO_EXECUTION_PACKET_ID: &str = "execution.demo.packet";
 const LIVE_EXECUTION_PACKET_ID: &str = "execution.live.packet";
 const SYSTEM_ROOT_PATH: &str = ".system";
-
-fn author_or_fill_next_safe_action(
-    kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
-) -> NextSafeAction {
-    match kind {
-        CanonicalArtifactKind::Charter => NextSafeAction::RunAuthorCharter,
-        CanonicalArtifactKind::ProjectContext | CanonicalArtifactKind::FeatureSpec => {
-            NextSafeAction::FillCanonicalArtifact {
-                canonical_repo_relative_path,
-            }
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveRequest {
@@ -83,6 +75,7 @@ pub fn resolve(
 
     let manifest =
         ArtifactManifest::from_canonical_artifacts(&canonical_artifacts, ManifestInputs::default());
+    let baseline_validations = baseline_artifact_validations(&canonical_artifacts);
 
     let mut decision_log = DecisionLog {
         entries: Vec::new(),
@@ -104,7 +97,7 @@ pub fn resolve(
         decision_log.entries.push(format!(
             "c03.artifact kind={:?} required={} presence={:?} byte_len={:?} sha256={:?} path={}",
             artifact.kind,
-            artifact.required,
+            artifact.packet_required,
             artifact.presence,
             artifact.byte_len,
             artifact.content_sha256.as_deref(),
@@ -115,7 +108,17 @@ pub fn resolve(
     for issue in &manifest.ingest_issues {
         decision_log.entries.push(format!(
             "c03.ingest.issue kind={:?} required={} path={}",
-            issue.kind, issue.required, issue.canonical_repo_relative_path
+            issue.kind, issue.packet_required, issue.canonical_repo_relative_path
+        ));
+    }
+    for validation in &baseline_validations {
+        decision_log.entries.push(format!(
+            "c04.baseline.validation kind={:?} required={} verdict={} path={} detail={}",
+            validation.kind,
+            validation.packet_required,
+            baseline_verdict_label(&validation.verdict),
+            validation.canonical_repo_relative_path,
+            baseline_verdict_detail(&validation.verdict)
         ));
     }
 
@@ -132,6 +135,12 @@ pub fn resolve(
     }
 
     let budget_outcome = evaluate_budget(&manifest.artifacts, request.budget_policy);
+    let packet_artifact_plans = packet_artifact_plans_for(
+        &manifest,
+        &canonical_artifacts,
+        &baseline_validations,
+        &budget_outcome,
+    );
     decision_log.entries.push(format!(
         "budget disposition={:?} reason={:?} targets={} next_safe_action={}",
         budget_outcome.disposition,
@@ -139,8 +148,18 @@ pub fn resolve(
         budget_outcome.targets.len(),
         budget_outcome.next_safe_action.is_some()
     ));
+    for plan in &packet_artifact_plans {
+        if !plan.artifact.identity.packet_required
+            && matches!(plan.disposition, PacketArtifactDisposition::OmittedInvalid)
+        {
+            decision_log.entries.push(format!(
+                "packet.optional.invalid_omitted path={} detail=invalid canonical truth was not ingested",
+                plan.artifact.identity.relative_path
+            ));
+        }
+    }
 
-    let refusal = compute_refusal(&manifest, &budget_outcome, &request);
+    let refusal = compute_refusal(&manifest, &baseline_validations, &budget_outcome, &request);
     if let Some(refusal) = &refusal {
         decision_log.entries.push(format!(
             "refusal category={:?} broken_subject={:?} next_safe_action={:?}",
@@ -148,7 +167,7 @@ pub fn resolve(
         ));
     }
 
-    let blockers = compute_blockers(&manifest, &budget_outcome, &request);
+    let blockers = compute_blockers(&manifest, &baseline_validations, &budget_outcome, &request);
     for blocker in &blockers {
         decision_log.entries.push(format!(
             "blocker category={:?} subject={:?} next_safe_action={:?}",
@@ -176,6 +195,8 @@ pub fn resolve(
         request: &request,
         artifacts: &canonical_artifacts,
         manifest: &manifest,
+        packet_artifact_plans: &packet_artifact_plans,
+        baseline_validations: &baseline_validations,
         budget_outcome: &budget_outcome,
         selection_status,
         refusal: refusal.as_ref(),
@@ -205,6 +226,8 @@ struct BuildPacketResultInput<'a> {
     request: &'a ResolveRequest,
     artifacts: &'a CanonicalArtifacts,
     manifest: &'a ArtifactManifest,
+    packet_artifact_plans: &'a [PacketArtifactPlan<'a>],
+    baseline_validations: &'a [BaselineArtifactValidation],
     budget_outcome: &'a BudgetOutcome,
     selection_status: PacketSelectionStatus,
     refusal: Option<&'a Refusal>,
@@ -218,6 +241,8 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
         request,
         artifacts,
         manifest,
+        packet_artifact_plans,
+        baseline_validations,
         budget_outcome,
         selection_status,
         refusal,
@@ -226,17 +251,27 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
     } = input;
 
     let variant = packet_variant_for(request.packet_id);
-    let included_sources = included_sources_for(artifacts, budget_outcome);
+    let included_sources = included_sources_for(packet_artifact_plans);
     let packet_body_ready = selection_status == PacketSelectionStatus::Selected
         && refusal.is_none()
         && blockers.is_empty();
-    let notes = packet_notes_for(manifest, budget_outcome, artifacts, packet_body_ready);
+    let notes = packet_notes_for(
+        manifest,
+        budget_outcome,
+        packet_artifact_plans,
+        packet_body_ready,
+    );
     let sections = if packet_body_ready {
-        packet_sections_for(artifacts, budget_outcome)
+        packet_sections_for(packet_artifact_plans)
     } else {
         Vec::new()
     };
-    let fixture_context = fixture_context_for(repo_root, request.packet_id, artifacts);
+    let fixture_context = fixture_context_for(
+        repo_root,
+        request.packet_id,
+        artifacts,
+        baseline_validations,
+    );
 
     let summary_line = if selection_status == PacketSelectionStatus::Selected {
         let fixture_suffix = fixture_context
@@ -304,73 +339,177 @@ fn packet_variant_for(packet_id: &str) -> PacketVariant {
     }
 }
 
-fn included_sources_for(
-    artifacts: &CanonicalArtifacts,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PacketArtifactDisposition {
+    BlockedIngest,
+    OmittedMissing,
+    OmittedEmpty,
+    OmittedStarterTemplate,
+    OmittedInvalid,
+    IncludedVerbatim,
+    IncludedSummary,
+    ExcludedDueToBudget,
+}
+
+#[derive(Debug, Clone)]
+struct PacketArtifactPlan<'a> {
+    artifact: &'a CanonicalArtifact,
+    title: &'static str,
+    disposition: PacketArtifactDisposition,
+}
+
+fn packet_artifact_plans_for<'a>(
+    manifest: &ArtifactManifest,
+    artifacts: &'a CanonicalArtifacts,
+    baseline_validations: &[BaselineArtifactValidation],
     budget_outcome: &BudgetOutcome,
-) -> Vec<PacketSourceSummary> {
-    present_sources_for(artifacts)
-        .into_iter()
-        .filter(|source| {
-            !should_exclude_artifact(source.canonical_repo_relative_path, budget_outcome)
+) -> Vec<PacketArtifactPlan<'a>> {
+    [
+        (&artifacts.charter, "CHARTER"),
+        (&artifacts.project_context, "PROJECT_CONTEXT"),
+        (&artifacts.environment_inventory, "ENVIRONMENT_INVENTORY"),
+        (&artifacts.feature_spec, "FEATURE_SPEC"),
+    ]
+    .into_iter()
+    .map(|(artifact, title)| PacketArtifactPlan {
+        artifact,
+        title,
+        disposition: packet_artifact_disposition_for(
+            manifest,
+            baseline_validations,
+            artifact,
+            budget_outcome,
+        ),
+    })
+    .collect()
+}
+
+fn packet_artifact_disposition_for(
+    manifest: &ArtifactManifest,
+    baseline_validations: &[BaselineArtifactValidation],
+    artifact: &CanonicalArtifact,
+    budget_outcome: &BudgetOutcome,
+) -> PacketArtifactDisposition {
+    if let Some(validation) =
+        baseline_artifact_validation_for_path(baseline_validations, artifact.identity.relative_path)
+    {
+        match &validation.verdict {
+            BaselineArtifactVerdict::IngestInvalid => {
+                return PacketArtifactDisposition::BlockedIngest;
+            }
+            BaselineArtifactVerdict::SemanticallyInvalid { .. } => {
+                return PacketArtifactDisposition::OmittedInvalid;
+            }
+            BaselineArtifactVerdict::Missing
+            | BaselineArtifactVerdict::Empty
+            | BaselineArtifactVerdict::StarterOwned
+            | BaselineArtifactVerdict::ValidCanonicalTruth { .. } => {}
+        }
+    }
+
+    if ingest_issue_for_path(manifest, artifact.identity.relative_path).is_some() {
+        return PacketArtifactDisposition::BlockedIngest;
+    }
+
+    match artifact.identity.presence {
+        crate::ArtifactPresence::Missing => PacketArtifactDisposition::OmittedMissing,
+        crate::ArtifactPresence::PresentEmpty => PacketArtifactDisposition::OmittedEmpty,
+        crate::ArtifactPresence::PresentNonEmpty
+            if artifact.identity.matches_setup_starter_template =>
+        {
+            PacketArtifactDisposition::OmittedStarterTemplate
+        }
+        crate::ArtifactPresence::PresentNonEmpty => {
+            if should_exclude_artifact(artifact.identity.relative_path, budget_outcome) {
+                PacketArtifactDisposition::ExcludedDueToBudget
+            } else if should_summarize_artifact(artifact.identity.relative_path, budget_outcome) {
+                PacketArtifactDisposition::IncludedSummary
+            } else {
+                PacketArtifactDisposition::IncludedVerbatim
+            }
+        }
+    }
+}
+
+fn included_sources_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSourceSummary> {
+    plans
+        .iter()
+        .filter_map(|plan| {
+            if !matches!(
+                plan.disposition,
+                PacketArtifactDisposition::IncludedVerbatim
+                    | PacketArtifactDisposition::IncludedSummary
+            ) {
+                return None;
+            }
+
+            Some(PacketSourceSummary {
+                kind: plan.artifact.identity.kind,
+                canonical_repo_relative_path: plan.artifact.identity.relative_path,
+                required: plan.artifact.identity.packet_required,
+                presence: plan.artifact.identity.presence,
+                byte_len: plan.artifact.identity.byte_len,
+                content_sha256: plan.artifact.identity.content_sha256.clone(),
+            })
         })
         .collect()
 }
 
-fn present_sources_for(artifacts: &CanonicalArtifacts) -> Vec<PacketSourceSummary> {
-    artifacts
-        .identities()
-        .into_iter()
-        .filter_map(|identity| {
-            if !should_include_artifact_in_packet(identity) {
-                None
-            } else {
-                Some(PacketSourceSummary {
-                    kind: identity.kind,
-                    canonical_repo_relative_path: identity.relative_path,
-                    required: identity.required,
-                    presence: identity.presence,
-                    byte_len: identity.byte_len,
-                    content_sha256: identity.content_sha256.clone(),
-                })
+fn present_fixture_sources_for(
+    artifacts: &CanonicalArtifacts,
+    baseline_validations: &[BaselineArtifactValidation],
+) -> Vec<PacketSourceSummary> {
+    [
+        &artifacts.charter.identity,
+        &artifacts.project_context.identity,
+        &artifacts.environment_inventory.identity,
+        &artifacts.feature_spec.identity,
+    ]
+    .into_iter()
+    .filter_map(|identity| {
+        if let Some(validation) =
+            baseline_artifact_validation_for_path(baseline_validations, identity.relative_path)
+        {
+            if matches!(
+                validation.verdict,
+                BaselineArtifactVerdict::IngestInvalid
+                    | BaselineArtifactVerdict::SemanticallyInvalid { .. }
+            ) {
+                return None;
             }
+        }
+
+        match identity.presence {
+            crate::ArtifactPresence::Missing => return None,
+            crate::ArtifactPresence::PresentEmpty if !identity.packet_required => return None,
+            crate::ArtifactPresence::PresentNonEmpty
+                if !identity.packet_required && identity.matches_setup_starter_template =>
+            {
+                return None;
+            }
+            crate::ArtifactPresence::PresentEmpty | crate::ArtifactPresence::PresentNonEmpty => {}
+        }
+
+        Some(PacketSourceSummary {
+            kind: identity.kind,
+            canonical_repo_relative_path: identity.relative_path,
+            required: identity.packet_required,
+            presence: identity.presence,
+            byte_len: identity.byte_len,
+            content_sha256: identity.content_sha256.clone(),
         })
-        .collect()
+    })
+    .collect()
 }
 
 fn packet_notes_for(
     manifest: &ArtifactManifest,
     budget_outcome: &BudgetOutcome,
-    artifacts: &CanonicalArtifacts,
+    plans: &[PacketArtifactPlan<'_>],
     packet_body_ready: bool,
 ) -> Vec<PacketBodyNote> {
     let mut notes = Vec::new();
-    push_optional_source_omission_notes(&mut notes, manifest, artifacts);
-
-    match budget_outcome.disposition {
-        BudgetDisposition::Summarize => {
-            for target in &budget_outcome.targets {
-                notes.push(PacketBodyNote {
-                    kind: PacketBodyNoteKind::Budget,
-                    text: format!(
-                        "optional source summarized due to budget: {}",
-                        target.canonical_repo_relative_path
-                    ),
-                });
-            }
-        }
-        BudgetDisposition::Exclude => {
-            for target in &budget_outcome.targets {
-                notes.push(PacketBodyNote {
-                    kind: PacketBodyNoteKind::Omission,
-                    text: format!(
-                        "optional source excluded due to budget: {}",
-                        target.canonical_repo_relative_path
-                    ),
-                });
-            }
-        }
-        BudgetDisposition::Keep | BudgetDisposition::Refuse => {}
-    }
+    push_packet_artifact_notes(&mut notes, plans);
 
     if !packet_body_ready {
         notes.push(PacketBodyNote {
@@ -393,113 +532,88 @@ fn packet_notes_for(
     notes
 }
 
-fn packet_sections_for(
-    artifacts: &CanonicalArtifacts,
-    budget_outcome: &BudgetOutcome,
-) -> Vec<PacketSection> {
-    let mut sections = Vec::new();
-    push_packet_section(&mut sections, &artifacts.charter, "CHARTER", budget_outcome);
-    push_packet_section(
-        &mut sections,
-        &artifacts.project_context,
-        "PROJECT_CONTEXT",
-        budget_outcome,
-    );
-    push_packet_section(
-        &mut sections,
-        &artifacts.feature_spec,
-        "FEATURE_SPEC",
-        budget_outcome,
-    );
-    sections
-}
+fn push_packet_artifact_notes(notes: &mut Vec<PacketBodyNote>, plans: &[PacketArtifactPlan<'_>]) {
+    for plan in plans {
+        if plan.artifact.identity.packet_required {
+            continue;
+        }
 
-fn push_packet_section(
-    sections: &mut Vec<PacketSection>,
-    artifact: &CanonicalArtifact,
-    title: &str,
-    budget_outcome: &BudgetOutcome,
-) {
-    if !should_include_artifact_in_packet(&artifact.identity) {
-        return;
-    }
-
-    if should_exclude_artifact(artifact.identity.relative_path, budget_outcome) {
-        return;
-    }
-
-    let (mode, contents) =
-        if should_summarize_artifact(artifact.identity.relative_path, budget_outcome) {
-            (PacketSectionMode::Summary, summarize_artifact(artifact))
-        } else {
-            let contents = artifact
-                .bytes
-                .as_ref()
-                .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
-                .unwrap_or_default();
-            (PacketSectionMode::Verbatim, contents)
+        let text = match plan.disposition {
+            PacketArtifactDisposition::OmittedMissing => Some(format!(
+                "optional source omitted: {}",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::OmittedEmpty => Some(format!(
+                "optional source omitted: {} (empty)",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::OmittedStarterTemplate => Some(format!(
+                "optional source omitted: {} (shipped starter template)",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::OmittedInvalid => Some(format!(
+                "optional source omitted: {} (invalid canonical truth)",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::IncludedSummary => Some(format!(
+                "optional source summarized due to budget: {}",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::ExcludedDueToBudget => Some(format!(
+                "optional source excluded due to budget: {}",
+                plan.artifact.identity.relative_path
+            )),
+            PacketArtifactDisposition::BlockedIngest
+            | PacketArtifactDisposition::IncludedVerbatim => None,
         };
 
-    sections.push(PacketSection {
-        kind: artifact.identity.kind,
-        canonical_repo_relative_path: artifact.identity.relative_path,
-        title: title.to_string(),
-        mode,
-        contents,
-    });
-}
-
-fn should_include_artifact_in_packet(identity: &crate::CanonicalArtifactIdentity) -> bool {
-    match identity.presence {
-        crate::ArtifactPresence::Missing => false,
-        crate::ArtifactPresence::PresentEmpty => identity.required,
-        crate::ArtifactPresence::PresentNonEmpty => {
-            identity.required || !identity.matches_setup_starter_template
+        if let Some(text) = text {
+            notes.push(PacketBodyNote {
+                kind: match plan.disposition {
+                    PacketArtifactDisposition::IncludedSummary => PacketBodyNoteKind::Budget,
+                    _ => PacketBodyNoteKind::Omission,
+                },
+                text,
+            });
         }
     }
 }
 
-fn push_optional_source_omission_notes(
-    notes: &mut Vec<PacketBodyNote>,
-    manifest: &ArtifactManifest,
-    artifacts: &CanonicalArtifacts,
-) {
-    push_optional_source_omission_note(notes, manifest, &artifacts.project_context.identity);
-    push_optional_source_omission_note(notes, manifest, &artifacts.feature_spec.identity);
-}
+fn packet_sections_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSection> {
+    plans
+        .iter()
+        .filter_map(|plan| {
+            let (mode, contents) = match plan.disposition {
+                PacketArtifactDisposition::IncludedVerbatim => {
+                    let contents = plan
+                        .artifact
+                        .bytes
+                        .as_ref()
+                        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+                        .unwrap_or_default();
+                    (PacketSectionMode::Verbatim, contents)
+                }
+                PacketArtifactDisposition::IncludedSummary => (
+                    PacketSectionMode::Summary,
+                    summarize_artifact(plan.artifact),
+                ),
+                PacketArtifactDisposition::BlockedIngest
+                | PacketArtifactDisposition::OmittedMissing
+                | PacketArtifactDisposition::OmittedEmpty
+                | PacketArtifactDisposition::OmittedStarterTemplate
+                | PacketArtifactDisposition::OmittedInvalid
+                | PacketArtifactDisposition::ExcludedDueToBudget => return None,
+            };
 
-fn push_optional_source_omission_note(
-    notes: &mut Vec<PacketBodyNote>,
-    manifest: &ArtifactManifest,
-    identity: &crate::CanonicalArtifactIdentity,
-) {
-    if identity.required || ingest_issue_for_path(manifest, identity.relative_path).is_some() {
-        return;
-    }
-
-    let text = match identity.presence {
-        crate::ArtifactPresence::Missing => {
-            format!("optional source omitted: {}", identity.relative_path)
-        }
-        crate::ArtifactPresence::PresentEmpty => {
-            format!(
-                "optional source omitted: {} (empty)",
-                identity.relative_path
-            )
-        }
-        crate::ArtifactPresence::PresentNonEmpty if identity.matches_setup_starter_template => {
-            format!(
-                "optional source omitted: {} (shipped starter template)",
-                identity.relative_path
-            )
-        }
-        crate::ArtifactPresence::PresentNonEmpty => return,
-    };
-
-    notes.push(PacketBodyNote {
-        kind: PacketBodyNoteKind::Omission,
-        text,
-    });
+            Some(PacketSection {
+                kind: plan.artifact.identity.kind,
+                canonical_repo_relative_path: plan.artifact.identity.relative_path,
+                title: plan.title.to_string(),
+                mode,
+                contents,
+            })
+        })
+        .collect()
 }
 
 fn should_summarize_artifact(
@@ -546,6 +660,7 @@ fn fixture_context_for(
     repo_root: &Path,
     packet_id: &str,
     artifacts: &CanonicalArtifacts,
+    baseline_validations: &[BaselineArtifactValidation],
 ) -> Option<PacketFixtureContext> {
     if packet_variant_for(packet_id) != PacketVariant::ExecutionDemo {
         return None;
@@ -574,7 +689,7 @@ fn fixture_context_for(
     Some(PacketFixtureContext {
         fixture_set_id,
         fixture_basis_root,
-        fixture_lineage: present_sources_for(artifacts),
+        fixture_lineage: present_fixture_sources_for(artifacts, baseline_validations),
     })
 }
 
@@ -601,8 +716,101 @@ fn next_safe_action_for_ready_packet(
     }
 }
 
+fn baseline_verdict_label(verdict: &BaselineArtifactVerdict) -> &'static str {
+    match verdict {
+        BaselineArtifactVerdict::Missing => "missing",
+        BaselineArtifactVerdict::Empty => "empty",
+        BaselineArtifactVerdict::StarterOwned => "starter_owned",
+        BaselineArtifactVerdict::IngestInvalid => "ingest_invalid",
+        BaselineArtifactVerdict::SemanticallyInvalid { .. } => "semantically_invalid",
+        BaselineArtifactVerdict::ValidCanonicalTruth { .. } => "valid_canonical_truth",
+    }
+}
+
+fn baseline_verdict_detail(verdict: &BaselineArtifactVerdict) -> String {
+    match verdict {
+        BaselineArtifactVerdict::SemanticallyInvalid { summary } => summary.clone(),
+        BaselineArtifactVerdict::ValidCanonicalTruth { .. } => "<none>".to_string(),
+        BaselineArtifactVerdict::Missing
+        | BaselineArtifactVerdict::Empty
+        | BaselineArtifactVerdict::StarterOwned
+        | BaselineArtifactVerdict::IngestInvalid => "<none>".to_string(),
+    }
+}
+
+fn required_artifact_refusal(
+    category: RefusalCategory,
+    summary: String,
+    kind: CanonicalArtifactKind,
+    canonical_repo_relative_path: &'static str,
+    next_safe_action: NextSafeAction,
+) -> Refusal {
+    Refusal {
+        category,
+        summary,
+        broken_subject: SubjectRef::CanonicalArtifact {
+            kind,
+            canonical_repo_relative_path,
+        },
+        next_safe_action,
+    }
+}
+
+fn refusal_for_required_baseline_truth(
+    baseline_validations: &[BaselineArtifactValidation],
+) -> Option<Refusal> {
+    baseline_validations
+        .iter()
+        .filter(|validation| validation.packet_required)
+        .find_map(|validation| match &validation.verdict {
+            BaselineArtifactVerdict::Missing => Some(required_artifact_refusal(
+                RefusalCategory::RequiredArtifactMissing,
+                "missing required canonical artifact".to_string(),
+                validation.kind,
+                validation.canonical_repo_relative_path,
+                NextSafeAction::RunSetupRefresh,
+            )),
+            BaselineArtifactVerdict::Empty => Some(required_artifact_refusal(
+                RefusalCategory::RequiredArtifactEmpty,
+                "required canonical artifact is empty".to_string(),
+                validation.kind,
+                validation.canonical_repo_relative_path,
+                author_or_fill_next_safe_action(
+                    validation.kind,
+                    validation.canonical_repo_relative_path,
+                ),
+            )),
+            BaselineArtifactVerdict::StarterOwned => Some(required_artifact_refusal(
+                RefusalCategory::RequiredArtifactStarterTemplate,
+                "required canonical artifact still contains the shipped starter template"
+                    .to_string(),
+                validation.kind,
+                validation.canonical_repo_relative_path,
+                author_or_fill_next_safe_action(
+                    validation.kind,
+                    validation.canonical_repo_relative_path,
+                ),
+            )),
+            BaselineArtifactVerdict::SemanticallyInvalid { summary } => {
+                Some(required_artifact_refusal(
+                    RefusalCategory::RequiredArtifactInvalid,
+                    format!("required canonical artifact is invalid: {summary}"),
+                    validation.kind,
+                    validation.canonical_repo_relative_path,
+                    author_or_fill_next_safe_action(
+                        validation.kind,
+                        validation.canonical_repo_relative_path,
+                    ),
+                ))
+            }
+            BaselineArtifactVerdict::IngestInvalid
+            | BaselineArtifactVerdict::ValidCanonicalTruth { .. } => None,
+        })
+}
+
 fn compute_refusal(
     manifest: &ArtifactManifest,
+    baseline_validations: &[BaselineArtifactValidation],
     budget_outcome: &BudgetOutcome,
     request: &ResolveRequest,
 ) -> Option<Refusal> {
@@ -644,8 +852,15 @@ fn compute_refusal(
         return Some(refusal);
     }
 
+    if let Some(refusal) = refusal_for_required_baseline_truth(baseline_validations) {
+        return Some(refusal);
+    }
+
     for artifact in &manifest.artifacts {
-        if !artifact.required {
+        if !artifact.packet_required
+            || baseline_artifact_validation_for_path(baseline_validations, artifact.relative_path)
+                .is_some()
+        {
             continue;
         }
 
@@ -655,48 +870,34 @@ fn compute_refusal(
 
         match artifact.presence {
             crate::ArtifactPresence::Missing => {
-                return Some(Refusal {
-                    category: RefusalCategory::RequiredArtifactMissing,
-                    summary: "missing required canonical artifact".to_string(),
-                    broken_subject: SubjectRef::CanonicalArtifact {
-                        kind: artifact.kind,
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
-                    next_safe_action: NextSafeAction::RunSetupRefresh,
-                });
+                return Some(required_artifact_refusal(
+                    RefusalCategory::RequiredArtifactMissing,
+                    "missing required canonical artifact".to_string(),
+                    artifact.kind,
+                    artifact.relative_path,
+                    NextSafeAction::RunSetupRefresh,
+                ));
             }
             crate::ArtifactPresence::PresentEmpty => {
-                return Some(Refusal {
-                    category: RefusalCategory::RequiredArtifactEmpty,
-                    summary: "required canonical artifact is empty".to_string(),
-                    broken_subject: SubjectRef::CanonicalArtifact {
-                        kind: artifact.kind,
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
-                    next_safe_action: author_or_fill_next_safe_action(
-                        artifact.kind,
-                        artifact.relative_path,
-                    ),
-                });
+                return Some(required_artifact_refusal(
+                    RefusalCategory::RequiredArtifactEmpty,
+                    "required canonical artifact is empty".to_string(),
+                    artifact.kind,
+                    artifact.relative_path,
+                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                ));
             }
-            crate::ArtifactPresence::PresentNonEmpty => {
-                if artifact.matches_setup_starter_template {
-                    return Some(Refusal {
-                        category: RefusalCategory::RequiredArtifactStarterTemplate,
-                        summary:
-                            "required canonical artifact still contains the shipped starter template"
-                                .to_string(),
-                        broken_subject: SubjectRef::CanonicalArtifact {
-                            kind: artifact.kind,
-                            canonical_repo_relative_path: artifact.relative_path,
-                        },
-                        next_safe_action: author_or_fill_next_safe_action(
-                            artifact.kind,
-                            artifact.relative_path,
-                        ),
-                    });
-                }
+            crate::ArtifactPresence::PresentNonEmpty if artifact.matches_setup_starter_template => {
+                return Some(required_artifact_refusal(
+                    RefusalCategory::RequiredArtifactStarterTemplate,
+                    "required canonical artifact still contains the shipped starter template"
+                        .to_string(),
+                    artifact.kind,
+                    artifact.relative_path,
+                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                ));
             }
+            crate::ArtifactPresence::PresentNonEmpty => {}
         }
     }
 
@@ -768,7 +969,7 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<Refusal> {
                 first_symlink_issue.get_or_insert(issue);
             }
             ArtifactIngestIssueKind::CanonicalArtifactReadError => {
-                if issue.required {
+                if issue.packet_required {
                     first_required_read_issue.get_or_insert(issue);
                 }
             }
@@ -806,74 +1007,23 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<Refusal> {
     None
 }
 
-fn ingest_issue_for_path(
-    manifest: &ArtifactManifest,
-    canonical_repo_relative_path: &'static str,
-) -> Option<ArtifactIngestIssueKind> {
-    manifest
-        .ingest_issues
-        .iter()
-        .find(|issue| issue.canonical_repo_relative_path == canonical_repo_relative_path)
-        .map(|issue| issue.kind)
-}
-
 fn compute_blockers(
     manifest: &ArtifactManifest,
+    baseline_validations: &[BaselineArtifactValidation],
     budget_outcome: &BudgetOutcome,
     request: &ResolveRequest,
 ) -> Vec<Blocker> {
-    let mut blockers = Vec::new();
-
-    for issue in &manifest.ingest_issues {
-        blockers.push(Blocker {
-            category: BlockerCategory::ArtifactReadError,
-            subject: SubjectRef::CanonicalArtifact {
-                kind: issue.artifact_kind,
-                canonical_repo_relative_path: issue.canonical_repo_relative_path,
-            },
-            summary: match issue.kind {
-                ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed => {
-                    "canonical artifact path must not be a symlink".to_string()
-                }
-                ArtifactIngestIssueKind::CanonicalArtifactReadError => {
-                    "failed to read canonical artifact".to_string()
-                }
-            },
-            next_safe_action: NextSafeAction::RunSetupRefresh,
-        });
-    }
-
-    match manifest.system_root_status {
-        SystemRootStatus::Ok => {}
-        SystemRootStatus::Missing => blockers.push(Blocker {
-            category: BlockerCategory::SystemRootMissing,
-            subject: SubjectRef::Policy {
-                policy_id: "system_root",
-            },
-            summary: "missing canonical .system root".to_string(),
-            next_safe_action: NextSafeAction::RunSetup,
-        }),
-        SystemRootStatus::NotDir => blockers.push(Blocker {
-            category: BlockerCategory::SystemRootNotDir,
-            subject: SubjectRef::Policy {
-                policy_id: "system_root",
-            },
-            summary: "canonical .system root is not a directory".to_string(),
-            next_safe_action: NextSafeAction::RunSetup,
-        }),
-        SystemRootStatus::SymlinkNotAllowed => blockers.push(Blocker {
-            category: BlockerCategory::SystemRootSymlinkNotAllowed,
-            subject: SubjectRef::Policy {
-                policy_id: "system_root",
-            },
-            summary: "canonical .system root must not be a symlink".to_string(),
-            next_safe_action: NextSafeAction::RunSetup,
-        }),
-    }
+    let mut blockers = build_required_baseline_blockers(manifest, baseline_validations);
 
     if blockers.is_empty() {
         for artifact in &manifest.artifacts {
-            if !artifact.required {
+            if !artifact.packet_required
+                || baseline_artifact_validation_for_path(
+                    baseline_validations,
+                    artifact.relative_path,
+                )
+                .is_some()
+            {
                 continue;
             }
 
@@ -882,45 +1032,33 @@ fn compute_blockers(
             }
 
             match artifact.presence {
-                crate::ArtifactPresence::Missing => blockers.push(Blocker {
-                    category: BlockerCategory::RequiredArtifactMissing,
-                    subject: SubjectRef::CanonicalArtifact {
-                        kind: artifact.kind,
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
-                    summary: "missing required canonical artifact".to_string(),
-                    next_safe_action: NextSafeAction::RunSetupRefresh,
-                }),
-                crate::ArtifactPresence::PresentEmpty => blockers.push(Blocker {
-                    category: BlockerCategory::RequiredArtifactEmpty,
-                    subject: SubjectRef::CanonicalArtifact {
-                        kind: artifact.kind,
-                        canonical_repo_relative_path: artifact.relative_path,
-                    },
-                    summary: "required canonical artifact is empty".to_string(),
-                    next_safe_action: author_or_fill_next_safe_action(
+                crate::ArtifactPresence::Missing => blockers.push(required_artifact_blocker(
+                    BlockerCategory::RequiredArtifactMissing,
+                    "missing required canonical artifact".to_string(),
+                    artifact.kind,
+                    artifact.relative_path,
+                    NextSafeAction::RunSetupRefresh,
+                )),
+                crate::ArtifactPresence::PresentEmpty => blockers.push(required_artifact_blocker(
+                    BlockerCategory::RequiredArtifactEmpty,
+                    "required canonical artifact is empty".to_string(),
+                    artifact.kind,
+                    artifact.relative_path,
+                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                )),
+                crate::ArtifactPresence::PresentNonEmpty
+                    if artifact.matches_setup_starter_template =>
+                {
+                    blockers.push(required_artifact_blocker(
+                        BlockerCategory::RequiredArtifactStarterTemplate,
+                        "required canonical artifact still contains the shipped starter template"
+                            .to_string(),
                         artifact.kind,
                         artifact.relative_path,
-                    ),
-                }),
-                crate::ArtifactPresence::PresentNonEmpty => {
-                    if artifact.matches_setup_starter_template {
-                        blockers.push(Blocker {
-                            category: BlockerCategory::RequiredArtifactStarterTemplate,
-                            subject: SubjectRef::CanonicalArtifact {
-                                kind: artifact.kind,
-                                canonical_repo_relative_path: artifact.relative_path,
-                            },
-                            summary:
-                                "required canonical artifact still contains the shipped starter template"
-                                    .to_string(),
-                            next_safe_action: author_or_fill_next_safe_action(
-                                artifact.kind,
-                                artifact.relative_path,
-                            ),
-                        });
-                    }
+                        author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                    ));
                 }
+                crate::ArtifactPresence::PresentNonEmpty => {}
             }
         }
     }
@@ -976,71 +1114,6 @@ fn compute_blockers(
         });
     }
 
-    blockers.sort_by(|a, b| {
-        let cat = blocker_category_priority(a.category).cmp(&blocker_category_priority(b.category));
-        if cat != Ordering::Equal {
-            return cat;
-        }
-
-        let subj = cmp_subject(&a.subject, &b.subject);
-        if subj != Ordering::Equal {
-            return subj;
-        }
-
-        a.summary.cmp(&b.summary)
-    });
+    sort_blockers(&mut blockers);
     blockers
-}
-
-fn cmp_subject(a: &SubjectRef, b: &SubjectRef) -> Ordering {
-    let kind_a = subject_kind_priority(a);
-    let kind_b = subject_kind_priority(b);
-    let kind_cmp = kind_a.cmp(&kind_b);
-    if kind_cmp != Ordering::Equal {
-        return kind_cmp;
-    }
-
-    match (a, b) {
-        (
-            SubjectRef::CanonicalArtifact {
-                kind: kind_a,
-                canonical_repo_relative_path: path_a,
-            },
-            SubjectRef::CanonicalArtifact {
-                kind: kind_b,
-                canonical_repo_relative_path: path_b,
-            },
-        ) => (canonical_artifact_kind_priority(*kind_a), path_a)
-            .cmp(&(canonical_artifact_kind_priority(*kind_b), path_b)),
-        (
-            SubjectRef::InheritedDependency {
-                dependency_id: id_a,
-                version: ver_a,
-            },
-            SubjectRef::InheritedDependency {
-                dependency_id: id_b,
-                version: ver_b,
-            },
-        ) => (id_a, ver_a).cmp(&(id_b, ver_b)),
-        (SubjectRef::Policy { policy_id: id_a }, SubjectRef::Policy { policy_id: id_b }) => {
-            id_a.cmp(id_b)
-        }
-        _ => Ordering::Equal,
-    }
-}
-
-fn subject_kind_priority(subject: &SubjectRef) -> u8 {
-    match subject {
-        SubjectRef::CanonicalArtifact { .. } => 0,
-        SubjectRef::InheritedDependency { .. } => 1,
-        SubjectRef::Policy { .. } => 2,
-    }
-}
-
-fn canonical_artifact_kind_priority(kind: CanonicalArtifactKind) -> u8 {
-    match kind {
-        CanonicalArtifactKind::Charter => 0,
-        CanonicalArtifactKind::ProjectContext => 1,
-        CanonicalArtifactKind::FeatureSpec => 2,
-    }
 }

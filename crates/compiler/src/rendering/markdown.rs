@@ -113,6 +113,7 @@ fn render_refusal_category(category: RefusalCategory) -> &'static str {
         RefusalCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         RefusalCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
         RefusalCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
+        RefusalCategory::RequiredArtifactInvalid => "RequiredArtifactInvalid",
         RefusalCategory::ArtifactReadError => "ArtifactReadError",
         RefusalCategory::FreshnessInvalid => "FreshnessInvalid",
         RefusalCategory::BudgetRefused => "BudgetRefused",
@@ -147,6 +148,7 @@ fn render_blocker_category(category: BlockerCategory) -> &'static str {
         BlockerCategory::RequiredArtifactMissing => "RequiredArtifactMissing",
         BlockerCategory::RequiredArtifactEmpty => "RequiredArtifactEmpty",
         BlockerCategory::RequiredArtifactStarterTemplate => "RequiredArtifactStarterTemplate",
+        BlockerCategory::RequiredArtifactInvalid => "RequiredArtifactInvalid",
         BlockerCategory::ArtifactReadError => "ArtifactReadError",
         BlockerCategory::FreshnessInvalid => "FreshnessInvalid",
         BlockerCategory::BudgetRefused => "BudgetRefused",
@@ -183,6 +185,7 @@ fn render_canonical_artifact_kind(kind: CanonicalArtifactKind) -> &'static str {
     match kind {
         CanonicalArtifactKind::Charter => "Charter",
         CanonicalArtifactKind::ProjectContext => "ProjectContext",
+        CanonicalArtifactKind::EnvironmentInventory => "EnvironmentInventory",
         CanonicalArtifactKind::FeatureSpec => "FeatureSpec",
     }
 }

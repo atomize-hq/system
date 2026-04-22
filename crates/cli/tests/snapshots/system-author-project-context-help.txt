@@ -1,0 +1,7 @@
+Author canonical `.system/project_context/PROJECT_CONTEXT.md`
+
+Usage: system author project-context [OPTIONS]
+
+Options:
+      --from-inputs <path|->  Read normalized structured inputs from a YAML file or `-` for stdin
+  -h, --help                  Print help

@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.0.0] - 2026-04-22
+
+### Added
+- Added the shipped M8 baseline-authoring surfaces `system author project-context` and `system author environment-inventory`, including guided and structured-input project-context flows, environment-inventory synthesis, canonical-write safety, and validation/refusal coverage for invalid or already-authored truth.
+- Added a compiler-owned baseline validation and doctor model that classifies `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`, with ordered checklist output and concrete next-safe-action commands for each baseline artifact.
+
+### Changed
+- Cut the setup/bootstrap contract over to the M8 baseline tier so setup now scaffolds only the real baseline set, hands operators to `system doctor`, and no longer treats `FEATURE_SPEC` as part of baseline readiness.
+- Split compiler authoring into explicit `charter`, `project_context`, and `environment_inventory` modules, and made the canonical artifact registry the single source of truth for baseline participation, setup scaffolding, and downstream rendering semantics.
+- Realigned README, supported-command docs, contracts, glossary, tone/output guides, fixtures, and help snapshots around the new baseline truth story where `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the sole canonical environment-inventory path.
+
+### Fixed
+- Fixed M8 canonical-truth regressions so empty baseline files classify as `INVALID_BASELINE`, doctor repair guidance points at the concrete authoring commands, and invalid baseline truth no longer slips through as a scaffolded or partial state.
+- Fixed environment-inventory authority drift by rejecting legacy root-canonical claims in templates, directives, synthesis output, proof corpus fixtures, and product-surface docs.
+
 ## [0.6.0.0] - 2026-04-20
 
 ### Added

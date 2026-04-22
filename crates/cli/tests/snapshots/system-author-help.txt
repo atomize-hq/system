@@ -1,9 +1,11 @@
-Human-guided and deterministic charter authoring surfaces
+Human-guided and deterministic baseline authoring surfaces
 
 Usage: system author [COMMAND]
 
 Commands:
-  charter  Author canonical `.system/charter/CHARTER.md`
+  charter                Author canonical `.system/charter/CHARTER.md`
+  project-context        Author canonical `.system/project_context/PROJECT_CONTEXT.md`
+  environment-inventory  Author canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
 
 Options:
   -h, --help  Print help

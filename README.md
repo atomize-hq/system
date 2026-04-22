@@ -4,7 +4,7 @@ Rust-first planning/compiler CLI for the reduced-v1 `system` product.
 
 The supported path is the Rust workspace in `crates/`. The older Python harness still ships in this repo, but only as frozen reference material while the cutover finishes.
 
-## Current Status
+## Current Status:
 
 - The governing repo-surface truth is [C-01 Approved Repo Surface](docs/contracts/C-01-approved-repo-surface.md).
 - The command-surface truth is [C-02 Rust Workspace and CLI Command Surface](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
@@ -14,11 +14,14 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 - `setup` remains the durable product term. `init` is only the concrete first-run subcommand name.
 - `setup refresh` preserves canonical files by default. `setup refresh --rewrite` rewrites only setup-owned starter files, and `setup refresh --reset-state` resets only `.system/state/**`.
-- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/feature_spec/FEATURE_SPEC.md`, and `.system/project_context/PROJECT_CONTEXT.md`. `FEATURE_SPEC.md` and `PROJECT_CONTEXT.md` are optional semantically for planning readiness, but setup still creates both as starter files.
-- The shipped starter templates are scaffolding only. In the M7 wedge, replacing the charter starter file is what clears `doctor` and planning `generate`; starter `FEATURE_SPEC.md` remains setup-owned future input and is omitted from planning output until real truth exists.
-- Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
+- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/project_context/PROJECT_CONTEXT.md`, and `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+- The shipped starter templates are scaffolding only. Setup establishes the baseline file set; `doctor` classifies baseline readiness as `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
+- `FEATURE_SPEC.md` remains outside baseline setup and baseline `doctor`. The shipped feature-spec path stays packet-driven: `pipeline compile stage.10_feature_spec` emits model input payload, an external model or operator produces the completed markdown, and `pipeline capture stage.10_feature_spec` materializes it.
+- Setup hands off to `system doctor`, which renders the ordered baseline checklist and the next exact authoring command.
 - The repo-owned charter authoring method lives at `core/library/authoring/charter_authoring_method.md`.
 - This repository does not ship completed canonical `.system/` truth at repo root. On a fresh clone, start with `system setup`; only after replacing starter text with real canonical truth does `system doctor` become the ready-path next step.
+- The public baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`.
+- The automation-safe structured-input authoring paths are `system author charter --from-inputs <path|->` and `system author project-context --from-inputs <path|->`.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.

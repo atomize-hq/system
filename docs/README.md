@@ -10,6 +10,7 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - CLI interaction contract: [`DESIGN.md`](../DESIGN.md)
 - CLI product vocabulary: [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
 - CLI command hierarchy and front door: [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
+- Baseline authoring commands: `system author charter`, `system author project-context`, `system author environment-inventory`
 - Reviewed orchestration surface: `pipeline` for route resolution, explicit stage compilation, explicit stage-output capture, and narrow route-state mutation
 - First shipped compile wedge: `pipeline compile --id <pipeline-id> --stage <stage-id>` with payload-only stdout, plus `pipeline compile --explain` for proof-only stdout
 - First shipped writer wedge: `pipeline capture --id <pipeline-id> --stage <stage-id>` plus `pipeline capture --preview` and `pipeline capture apply --capture-id <capture-id>`
@@ -25,7 +26,7 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - Repo surface contract: [`C-01`](contracts/C-01-approved-repo-surface.md)
 - CLI command surface: [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md)
 - Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
-- Resolver result + doctor blockers: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
+- Doctor baseline readiness + blockers: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Renderer and proof surfaces: [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)
 - Fixture-backed execution demo boundary: [`C-06`](contracts/C-06-fixture-execution-demo-boundary.md)
 - Conformance rails and docs cutover: [`C-07`](contracts/C-07-conformance-rails-and-docs-cutover.md)

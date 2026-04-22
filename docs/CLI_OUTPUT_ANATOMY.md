@@ -26,7 +26,7 @@ This document depends on:
 - Proof output is allowed to be denser, but section ordering stays stable.
 - `pipeline compile` is a special M2 case: plain success is payload-only stdout, and `pipeline compile --explain` is proof-only stdout.
 - `pipeline capture` is a special M3 case: preview and apply use stable capture-specific section ordering instead of the packet trust-header shape.
-- `doctor` is a special case in current reduced v1: its shipped anatomy is still transitional and does not yet use the same trust-header shape as `generate` and `inspect`.
+- `doctor` is a special case in reduced v1: it is the baseline-readiness and recovery surface rather than a packet renderer.
 - `setup` is a special M6 case: the setup family (`setup`, `setup init`, `setup refresh`) uses setup-family anatomy rather than packet anatomy.
 
 ## `generate` Anatomy
@@ -125,38 +125,33 @@ Conditional rule:
 
 ## `doctor` Anatomy
 
-### Current shipped reduced-v1 anatomy
+### Baseline-readiness anatomy
 
-`doctor` is still transitional.
+First three lines:
 
-Current ready shape:
+1. `SCAFFOLDED` or `PARTIAL_BASELINE` or `INVALID_BASELINE` or `BASELINE_COMPLETE`
+2. `ROOT STATUS: <status>`
+3. `NEXT SAFE ACTION: <exact recovery action>` or `NEXT SAFE ACTION: <none>`
 
-1. `READY`
+Section order:
 
-Current blocked shape:
+1. `## BASELINE CHECKLIST`
 
-1. `BLOCKED`
-2. repeated blocker groups with:
-   - `CATEGORY`
-   - `SUMMARY`
-   - `SUBJECT`
-   - `NEXT ACTION`
+Checklist rules:
 
-Important honesty rule:
-
-- Until `doctor` is upgraded, docs must not claim that it already shares the full trust-header anatomy used by `generate` and `inspect`.
-
-### Required future alignment
-
-The long-term anatomy should converge on:
-
-1. `OUTCOME`
-2. `OBJECT`
-3. `NEXT SAFE ACTION`
-4. `## BLOCKERS`
-5. readiness or retry guidance
-
-But that is not the full shipped shape today.
+- checklist items are ordered
+- when more than one baseline artifact still needs work, item `1` is the next safe action
+- each checklist line includes:
+  - artifact label
+  - canonical path
+  - per-artifact status
+  - exact author command
+- the checklist covers only:
+  - `.system/charter/CHARTER.md`
+  - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- doctor does not currently emit separate object, blocker, or guidance sections
+- `FEATURE_SPEC.md` does not participate in baseline doctor anatomy
 
 ## `pipeline compile` Anatomy
 
@@ -265,7 +260,7 @@ First three lines:
 
 1. `OUTCOME: SCAFFOLDED` or `OUTCOME: READY`
 2. `OBJECT: setup init` or `OBJECT: setup refresh`
-3. `NEXT SAFE ACTION: run \`system author charter\`` or `NEXT SAFE ACTION: run \`system doctor\``
+3. `NEXT SAFE ACTION: run \`system doctor\``
 
 Section order:
 
@@ -280,12 +275,10 @@ Rules:
 - `setup` remains the durable family term; `init` is only the concrete first-run subcommand name
 - the canonical setup-owned starter files are exactly:
   - `.system/charter/CHARTER.md`
-  - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
-- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file
-- the shipped starter templates are scaffolding only; packet work stays blocked until the charter starter file is replaced with completed canonical truth, and starter `FEATURE_SPEC.md` is omitted until it becomes real source truth
-- scaffolded setup success routes to the charter authoring surface, not to raw blank-file editing guidance
-- scaffolded setup success must say the repo still needs canonical truth before `system doctor` or packet work
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- the shipped starter templates are scaffolding only; setup success must point to `system doctor` for baseline classification rather than guessing which authoring command comes next
+- `FEATURE_SPEC.md` stays off the setup anatomy and baseline-doctor anatomy
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` reports only setup-owned starter-file rewrites
 - `setup refresh --reset-state` reports only `.system/state/**` resets
@@ -330,7 +323,7 @@ For any surface that has the full reduced-v1 anatomy:
 - what object that applies to
 - what to do next
 
-For surfaces that are still transitional (`doctor`), docs must say so explicitly rather than silently implying parity.
+For surfaces with a distinct non-packet role (`doctor`), docs must say so explicitly rather than silently implying packet-renderer parity.
 
 ## Downstream Dependencies
 

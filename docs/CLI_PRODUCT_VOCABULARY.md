@@ -46,7 +46,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `author`
   - The human-guided and automation-safe canonical authoring surface.
   - Use when the operator needs to replace a setup-owned starter file with completed canonical truth.
-  - The first shipped authoring wedge is `system author charter`.
+  - The baseline authoring commands are `system author charter`, `system author project-context`, and `system author environment-inventory`.
   - `system author charter` is the human-guided surface.
   - `system author charter --from-inputs <path|->` is the agent and automation surface.
   - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
@@ -70,8 +70,8 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
   - The compile proof surface for the supported M2 stage-compile wedge.
   - Use when the operator wants route-basis, input-decision, and output-contract proof for one compiled stage payload.
 - `doctor`
-  - The recovery surface.
-  - Use when the operator needs blocker aggregation and the next safe recovery path.
+  - The recovery and baseline-readiness surface.
+  - Use when the operator needs blocker aggregation, a baseline checklist, or the next safe recovery path.
 
 ### Core nouns
 
@@ -81,10 +81,16 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `setup-owned starter files`
   - The canonical files created by setup:
     - `.system/charter/CHARTER.md`
-    - `.system/feature_spec/FEATURE_SPEC.md`
     - `.system/project_context/PROJECT_CONTEXT.md`
-  - `PROJECT_CONTEXT.md` is optional semantically, but it remains one of the starter files created by setup.
-  - The shipped starter templates are scaffolding only until the charter starter file is replaced with completed canonical truth.
+    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - The shipped starter templates are scaffolding only until the baseline artifacts are replaced with completed canonical truth.
+- `baseline artifacts`
+  - The reduced-v1 `M8` baseline set:
+    - `.system/charter/CHARTER.md`
+    - `.system/project_context/PROJECT_CONTEXT.md`
+    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `later-phase packet artifact`
+  - `FEATURE_SPEC.md` remains on the packet path rather than in setup bootstrap or baseline doctor readiness.
 - `runtime zone`
   - The preferred term for non-canonical derived state kept under `.system/`.
   - Runtime zones are not canonical inputs and must never be described as project truth.
@@ -127,11 +133,12 @@ These phrases should remain stable across top-level docs and help text unless th
 - "`setup refresh` preserves canonical files by default"
 - "`setup refresh --rewrite` rewrites only setup-owned starter files"
 - "`setup refresh --reset-state` resets only `.system/state/**`"
-- "scaffolded setup path ends with `system author charter`"
-- "ready setup path ends with `system doctor`"
+- "setup hands off to `system doctor` for baseline readiness"
 - "`author` is the canonical authoring surface"
 - "`system author charter` is the human-guided charter authoring surface"
 - "`system author charter --from-inputs <path|->` is the agent and automation charter authoring surface"
+- "`system author project-context` authors canonical project context"
+- "`system author environment-inventory` authors canonical environment inventory"
 - `planning packet generation`
 - `canonical repo-local `.system/` inputs`
 - `fixture-backed execution demo`
@@ -140,7 +147,8 @@ These phrases should remain stable across top-level docs and help text unless th
 - "`pipeline compile --explain` is the compile proof surface"
 - "`pipeline capture` is the explicit writer surface"
 - "`pipeline handoff emit` is the downstream handoff-emission surface"
-- "`doctor` is the recovery surface"
+- "`doctor` is the recovery and baseline-readiness surface"
+- "`doctor` reports `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`"
 - `payload-only stdout`
 - `proof-only stdout`
 - `bundle-only reads`
@@ -220,7 +228,8 @@ Use:
 - `NEXT SAFE ACTION: run \`system setup refresh --rewrite\``
 - "`inspect` is the packet proof surface"
 - "`pipeline compile --explain` is the compile proof surface"
-- "`doctor` is the recovery surface"
+- "`doctor` is the recovery and baseline-readiness surface"
+- `1. PROJECT_CONTEXT | .system/project_context/PROJECT_CONTEXT.md | invalid | run \`system author project-context\``
 
 Do not use:
 

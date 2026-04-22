@@ -13,7 +13,7 @@ In practical terms, this repo exists to remove a specific class of operator pain
 - inconsistent planning outputs across runs
 - fragile human babysitting of multi-step planning flows
 
-The current shipped wedge is the foundation-family planning flow. That flow turns canonical project truth into structured artifacts such as charter inputs, charter synthesis, optional project context, foundation pack outputs, and feature-spec handoff material.
+The current shipped wedge is the baseline + foundation-family planning flow. Setup scaffolds the baseline truth set under `.system/`, authoring replaces starter content with canonical baseline truth, `doctor` classifies baseline readiness, and the packet path continues into foundation-flow artifacts and feature-spec handoff material.
 
 ## The Problem It Solves
 
@@ -34,10 +34,11 @@ This repo centralizes those responsibilities inside a deterministic CLI. Instead
 The operator-facing surface is the `system` CLI. The main commands are:
 
 - `setup` to initialize or refresh canonical `.system/` inputs
+- `author` to replace setup-owned baseline scaffolding with canonical truth
 - `pipeline` to list, inspect, resolve, compile, capture, hand off, and mutate narrow route state
 - `generate` to produce supported packets from canonical inputs
 - `inspect` to render proof and decision evidence
-- `doctor` to explain blockers and next safe actions
+- `doctor` to explain blockers, baseline readiness, and next safe actions
 
 The most important workflow in the repo today is the `pipeline.foundation_inputs` route:
 

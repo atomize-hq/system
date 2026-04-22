@@ -13,7 +13,7 @@ This document depends on [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULA
 The reviewed reduced-v1 CLI product has six operator-facing surfaces, in this order:
 
 1. `setup` (`setup`, `setup init`, `setup refresh`)
-2. `author` (`author charter`, `author charter --from-inputs <path|->`)
+2. `author` (`author charter`, `author charter --from-inputs <path|->`, `author project-context`, `author environment-inventory`)
 3. `pipeline`
 4. `generate`
 5. `inspect`
@@ -22,11 +22,11 @@ The reviewed reduced-v1 CLI product has six operator-facing surfaces, in this or
 That ordering is not arbitrary.
 
 - The `setup` family establishes or refreshes trusted project truth.
-- `author` replaces setup-owned charter scaffolding with completed canonical truth.
+- `author` replaces setup-owned baseline scaffolding with completed canonical truth.
 - `pipeline` owns orchestration truth, route resolution, explicit stage selection, explicit stage compilation, explicit stage-output capture, and narrow route-state mutation.
 - `generate` is the default ready-path command once trusted truth exists.
 - `inspect` is the packet proof surface when the operator needs to verify why a packet looks the way it does.
-- `doctor` is the recovery and readiness surface when the operator needs blocker aggregation, repair guidance, or a readiness check.
+- `doctor` is the recovery and baseline-readiness surface when the operator needs blocker aggregation, repair guidance, or a readiness check.
 
 Current implementation note:
 
@@ -61,12 +61,12 @@ Reduced v1 now has one explicit setup-family story:
 - `setup refresh` preserves canonical files by default.
 - `setup refresh --rewrite` rewrites only the setup-owned starter files:
   - `.system/charter/CHARTER.md`
-  - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
 - `setup refresh --reset-state` resets only `.system/state/**`.
-- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
-- The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the charter starter file is replaced with completed canonical truth; starter `FEATURE_SPEC.md` stays setup-owned and is omitted from planning output until authored.
-- Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
+- The shipped starter templates are scaffolding only. Setup establishes the baseline set; `doctor` classifies the repo as `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
+- `doctor` checklist lines include the artifact label, canonical path, status, and exact author command for each baseline artifact that still needs work.
+- `FEATURE_SPEC.md` stays on the packet path. It is not part of setup bootstrap or baseline doctor readiness.
 
 ## Hierarchy Rules
 
@@ -106,11 +106,17 @@ Use `author` when:
 - a setup-owned starter file must be replaced with completed canonical truth
 - the operator needs a supported human-guided or automation-safe authoring surface
 
-The first shipped authoring wedge is `system author charter`.
+The shipped baseline authoring surface includes `system author charter`, `system author project-context`, and `system author environment-inventory`.
 
 `system author charter` is the human-guided surface.
 
 `system author charter --from-inputs <path|->` is the agent and automation surface.
+
+`system author project-context` is the guided project-context authoring surface.
+
+`system author project-context --from-inputs <path|->` is the automation-safe project-context authoring surface.
+
+`system author environment-inventory` authors canonical environment inventory.
 
 ### `generate`
 
@@ -152,7 +158,14 @@ Use `doctor` when:
 - the next safe action is not obvious from one compact refusal
 - the operator wants a readiness check before retrying `generate`
 
-`doctor` is the recovery and readiness command, not a competing front door.
+`doctor` is the recovery and baseline-readiness command, not a competing front door.
+
+Its baseline-readiness states are:
+
+- `SCAFFOLDED`
+- `PARTIAL_BASELINE`
+- `INVALID_BASELINE`
+- `BASELINE_COMPLETE`
 
 ## Repo-State Routing
 

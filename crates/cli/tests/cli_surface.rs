@@ -287,11 +287,56 @@ fn committed_execution_demo_fixture_dir() -> std::path::PathBuf {
 }
 
 fn repair_to_ready(root: &std::path::Path) {
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+}
+
+fn assert_doctor_empty_baseline_invalid(
+    empty_path: &str,
+    expected_next_safe_action: &str,
+    expected_checklist_line: &str,
+) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(&root.join(empty_path), b"");
+
+    let output = run_in(root, &["doctor"]);
+    assert!(
+        !output.status.success(),
+        "doctor should block on empty baseline"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(stdout.contains(expected_next_safe_action), "{stdout}");
+    assert!(stdout.contains(expected_checklist_line), "{stdout}");
 }
 
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
@@ -299,12 +344,14 @@ fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
         ".system/charter/CHARTER.md" => system_compiler::setup_starter_template_bytes(
             system_compiler::CanonicalArtifactKind::Charter,
         ),
-        ".system/feature_spec/FEATURE_SPEC.md" => system_compiler::setup_starter_template_bytes(
-            system_compiler::CanonicalArtifactKind::FeatureSpec,
-        ),
         ".system/project_context/PROJECT_CONTEXT.md" => {
             system_compiler::setup_starter_template_bytes(
                 system_compiler::CanonicalArtifactKind::ProjectContext,
+            )
+        }
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
+            system_compiler::setup_starter_template_bytes(
+                system_compiler::CanonicalArtifactKind::EnvironmentInventory,
             )
         }
         _ => panic!("unexpected starter path: {path}"),
@@ -315,9 +362,175 @@ fn partial_system_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     write_file(
         dir.path().join(".system/charter/CHARTER.md").as_path(),
-        b"charter",
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md")
+            .as_path(),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        dir.path()
+            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+            .as_path(),
+        valid_environment_inventory_markdown().as_bytes(),
     );
     dir
+}
+
+fn valid_charter_markdown() -> &'static str {
+    "# Engineering Charter — System
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+"
+}
+
+fn valid_project_context_markdown() -> &'static str {
+    "# Project Context — System
+
+> **File:** `PROJECT_CONTEXT.md`
+> **Created (UTC):** 2026-04-21T00:00:00Z
+> **Owner:** project-owner
+> **Team:** system-team
+> **Repo / Project:** /tmp/system
+> **Charter Ref:** .system/charter/CHARTER.md
+
+## What this is
+Project reality.
+
+## How to use this
+Use this document to ground planning in reality.
+
+## 0) Project Summary (factual, 3–6 bullets)
+- Summary.
+
+## 1) Operational Reality (the most important section)
+- Operations.
+
+## 2) Project Classification Implications (planning guardrails)
+- Guardrails.
+
+## 3) System Boundaries (what we own vs integrate with)
+### What we own
+- Canonical `.system/` truth.
+### What we do NOT own (but may depend on)
+- External delivery systems.
+
+## 4) Integrations & Contracts (top 1–5)
+- Integrations.
+
+## 5) Environments & Delivery
+- Delivery.
+
+## 6) Data Reality
+- Data.
+
+## 7) Repo / Codebase Reality (brownfield-friendly, but safe for greenfield)
+- Codebase.
+
+## 8) Constraints
+- Constraints.
+
+## 9) Known Unknowns (explicitly tracked)
+- Unknowns.
+
+## 10) Update Triggers
+- Update when reality changes.
+"
+}
+
+fn legacy_placeholder_project_context_markdown() -> String {
+    valid_project_context_markdown()
+        .replace("> **Owner:** project-owner", "> **Owner:** unknown-owner")
+        .replace("> **Team:** system-team", "> **Team:** project-team")
+        .replace(
+            "- Operations.",
+            "- Unknown from local repo inspection; confirm before planning live changes.",
+        )
+}
+
+fn valid_environment_inventory_markdown() -> &'static str {
+    "# Environment Inventory
+
+> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+
+## What this is
+Canonical environment and runtime inventory.
+
+## How to use
+- Update this file when runtime assumptions change.
+
+## 1) Environment Variables (Inventory)
+- None yet.
+
+## 2) External Services / Infrastructure Dependencies
+- None yet.
+
+## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)
+- None yet.
+
+## 4) Local Development Requirements
+- None yet.
+
+## 5) CI Requirements
+- None yet.
+
+## 6) Production / Deployment Requirements (even if not live yet)
+- None yet.
+
+## 7) Dependency & Tooling Inventory (project-specific)
+- None yet.
+
+## 8) Update Contract (non-negotiable)
+- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+
+## 9) Known Unknowns
+- None yet.
+"
 }
 
 fn malformed_optional_project_context_repo() -> tempfile::TempDir {
@@ -325,6 +538,8 @@ fn malformed_optional_project_context_repo() -> tempfile::TempDir {
     let root = dir.path();
 
     repair_to_ready(root);
+    std::fs::remove_file(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        .expect("remove project_context file");
     std::fs::create_dir_all(root.join(".system/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context directory");
 
@@ -4305,12 +4520,12 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4320,14 +4535,15 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
 
     for path in [
         ".system/charter/CHARTER.md",
-        ".system/feature_spec/FEATURE_SPEC.md",
         ".system/project_context/PROJECT_CONTEXT.md",
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ] {
         assert_eq!(
             std::fs::read(root.join(path)).expect("starter bytes"),
             starter_template_bytes_for_path(path),
         );
     }
+    assert!(!root.join(".system/feature_spec/FEATURE_SPEC.md").exists());
 }
 
 #[test]
@@ -4345,12 +4561,12 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4382,12 +4598,12 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4423,6 +4639,10 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
     );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"custom inventory\n",
+    );
 
     let output = run_in(root, &["setup"]);
     assert!(output.status.success(), "setup should succeed");
@@ -4437,8 +4657,8 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "preserved .system/charter/CHARTER.md",
-                "preserved .system/feature_spec/FEATURE_SPEC.md",
                 "preserved .system/project_context/PROJECT_CONTEXT.md",
+                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: false,
@@ -4458,6 +4678,11 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
         fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
         b"custom context\n"
     );
+    assert_eq!(
+        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory"),
+        b"custom inventory\n"
+    );
 }
 
 #[test]
@@ -4473,12 +4698,12 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4537,6 +4762,10 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"keep context\n",
     );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"keep inventory\n",
+    );
 
     let output = run_in(root, &["setup", "refresh"]);
     assert!(output.status.success(), "setup refresh should succeed");
@@ -4551,8 +4780,8 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "preserved .system/charter/CHARTER.md",
-                "preserved .system/feature_spec/FEATURE_SPEC.md",
                 "preserved .system/project_context/PROJECT_CONTEXT.md",
+                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: false,
@@ -4579,6 +4808,10 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         b"custom context\n",
     );
     write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"custom inventory\n",
+    );
+    write_file(
         &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"state: keep\n",
     );
@@ -4601,12 +4834,12 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup refresh",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "rewritten .system/charter/CHARTER.md",
-                "rewritten .system/feature_spec/FEATURE_SPEC.md",
                 "rewritten .system/project_context/PROJECT_CONTEXT.md",
+                "rewritten .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4618,13 +4851,18 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         fs::read(root.join(".system/charter/CHARTER.md")).expect("charter after"),
         b"custom charter\n"
     );
-    assert_ne!(
+    assert_eq!(
         fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature after"),
         b"custom feature\n"
     );
     assert_ne!(
         fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context after"),
         b"custom context\n"
+    );
+    assert_ne!(
+        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory after"),
+        b"custom inventory\n"
     );
     assert_eq!(
         fs::read(root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
@@ -4652,6 +4890,10 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
         b"context\n",
     );
     write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
+    );
+    write_file(
         &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline state\n",
     );
@@ -4677,8 +4919,8 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
             root_status: "STATUS: reused canonical `.system/` root",
             starter_actions: &[
                 "preserved .system/charter/CHARTER.md",
-                "preserved .system/feature_spec/FEATURE_SPEC.md",
                 "preserved .system/project_context/PROJECT_CONTEXT.md",
+                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[
                 "reset .system/state/pipeline",
@@ -4702,6 +4944,11 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     assert_eq!(
         fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
         b"context\n"
+    );
+    assert_eq!(
+        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+            .expect("inventory"),
+        b"inventory\n"
     );
     assert_eq!(
         fs::read(root.join(".system/custom/KEEP.md")).expect("custom"),
@@ -4731,6 +4978,10 @@ fn setup_refresh_reset_state_refusal_is_fail_safe() {
     write_file(
         &root.join(".system/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"inventory\n",
     );
     write_file(&root.join(".system/state/a.yaml"), b"a: 1\n");
     let external = tempfile::tempdir().expect("external tempdir");
@@ -4782,12 +5033,12 @@ fn bare_setup_respects_nested_git_root_boundary() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4797,11 +5048,14 @@ fn bare_setup_respects_nested_git_root_boundary() {
 
     assert!(child_root.join(".system/charter/CHARTER.md").is_file());
     assert!(child_root
-        .join(".system/feature_spec/FEATURE_SPEC.md")
-        .is_file());
-    assert!(child_root
         .join(".system/project_context/PROJECT_CONTEXT.md")
         .is_file());
+    assert!(child_root
+        .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        .is_file());
+    assert!(!child_root
+        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .exists());
 }
 
 #[test]
@@ -4893,8 +5147,9 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     let first = run_in(root, &["doctor"]);
     assert!(!first.status.success(), "initial doctor should fail");
     let first_stdout = String::from_utf8(first.stdout).expect("stdout is utf-8");
-    assert!(first_stdout.contains("BLOCKED"));
-    assert!(first_stdout.contains("SystemRootMissing"));
+    assert!(first_stdout.contains("SCAFFOLDED"));
+    assert!(first_stdout.contains("ROOT STATUS: MISSING"));
+    assert!(first_stdout.contains("NEXT SAFE ACTION: run `system setup`"));
 
     repair_to_ready(root);
 
@@ -4904,7 +5159,200 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
         "doctor should succeed after repair"
     );
     let second_stdout = String::from_utf8(second.stdout).expect("stdout is utf-8");
-    assert_eq!(second_stdout.trim(), "READY");
+    assert!(
+        second_stdout.contains("BASELINE_COMPLETE"),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains("## BASELINE CHECKLIST"),
+        "{second_stdout}"
+    );
+    assert!(second_stdout.contains("ROOT STATUS: OK"), "{second_stdout}");
+    assert!(
+        second_stdout.contains("NEXT SAFE ACTION: <none>"),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
+        ),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author project-context`"
+        ),
+        "{second_stdout}"
+    );
+    assert!(
+        second_stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author environment-inventory`"
+        ),
+        "{second_stdout}"
+    );
+}
+
+#[test]
+fn doctor_rejects_legacy_placeholder_project_context_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+
+    let output = run_in(root, &["doctor"]);
+    assert!(
+        !output.status.success(),
+        "doctor should reject legacy placeholder project context"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn doctor_marks_empty_charter_as_invalid_baseline() {
+    assert_doctor_empty_baseline_invalid(
+        ".system/charter/CHARTER.md",
+        "NEXT SAFE ACTION: run `system author charter`",
+        "CHARTER [.system/charter/CHARTER.md] STATUS: EMPTY ACTION: run `system author charter`",
+    );
+}
+
+#[test]
+fn doctor_marks_empty_project_context_as_invalid_baseline() {
+    assert_doctor_empty_baseline_invalid(
+        ".system/project_context/PROJECT_CONTEXT.md",
+        "NEXT SAFE ACTION: run `system author project-context`",
+        "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: EMPTY ACTION: run `system author project-context`",
+    );
+}
+
+#[test]
+fn doctor_marks_empty_environment_inventory_as_invalid_baseline() {
+    assert_doctor_empty_baseline_invalid(
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        "NEXT SAFE ACTION: run `system author environment-inventory`",
+        "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: EMPTY ACTION: run `system author environment-inventory`",
+    );
+}
+
+#[test]
+fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = run_in(root, &["generate"]);
+    assert!(output.status.success(), "generate should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+        ],
+    );
+    assert!(stdout.contains(
+        "optional source omitted: .system/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
+    ));
+    assert!(!stdout.contains("### PROJECT_CONTEXT"));
+    assert!(!stdout.contains("ProjectContext [.system/project_context/PROJECT_CONTEXT.md]"));
+}
+
+#[test]
+fn inspect_omits_semantically_invalid_optional_environment_inventory_but_stays_ready() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        b"# Environment Inventory\n\nlegacy repo/project root claim\n",
+    );
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = run_in(root, &["inspect"]);
+    assert!(output.status.success(), "inspect should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: READY",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+        ],
+    );
+    assert!(stdout.contains(
+        "optional source omitted: .system/environment_inventory/ENVIRONMENT_INVENTORY.md (invalid canonical truth)"
+    ));
+    assert!(!stdout.contains("### ENVIRONMENT_INVENTORY"));
+    assert!(!stdout
+        .contains("EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]"));
+}
+
+#[test]
+fn generate_blocks_invalid_required_charter_with_required_artifact_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        b"feature-body",
+    );
+
+    let output = run_in(root, &["generate"]);
+    assert!(!output.status.success(), "generate should fail");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert_first_three_lines(
+        &stdout,
+        [
+            "OUTCOME: REFUSED",
+            "OBJECT: planning.packet",
+            "NEXT SAFE ACTION: run `system author charter`",
+        ],
+    );
+    assert!(stdout.contains("CATEGORY: RequiredArtifactInvalid"));
+    assert!(stdout.contains("required canonical artifact is invalid"));
 }
 
 #[test]
@@ -4913,8 +5361,8 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
 
     for path in [
         ".system/charter/CHARTER.md",
-        ".system/feature_spec/FEATURE_SPEC.md",
         ".system/project_context/PROJECT_CONTEXT.md",
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ] {
         assert!(
             !root.join(path).exists(),
@@ -4928,13 +5376,10 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
         "doctor should stay blocked in the checked-in workspace root"
     );
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"), "{stdout}");
+    assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
         stdout.contains("NEXT SAFE ACTION: run `system setup`"),
-        "{stdout}"
-    );
-    assert!(
-        !stdout.contains("RequiredArtifactStarterTemplate"),
         "{stdout}"
     );
 }
@@ -4952,12 +5397,12 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system author charter`",
+            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
             root_status: "STATUS: established canonical `.system/` root",
             starter_actions: &[
                 "created .system/charter/CHARTER.md",
-                "created .system/feature_spec/FEATURE_SPEC.md",
-                "created .system/project_context/PROJECT_CONTEXT.md (optional)",
+                "created .system/project_context/PROJECT_CONTEXT.md",
+                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4971,9 +5416,30 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         "doctor should stay blocked on shipped starter templates"
     );
     let doctor_stdout = String::from_utf8(doctor_after_setup.stdout).expect("stdout is utf-8");
-    assert!(doctor_stdout.contains("BLOCKED"));
-    assert!(doctor_stdout.contains("RequiredArtifactStarterTemplate"));
-    assert!(doctor_stdout.contains(".system/charter/CHARTER.md"));
+    assert!(doctor_stdout.contains("SCAFFOLDED"), "{doctor_stdout}");
+    assert!(
+        doctor_stdout.contains("## BASELINE CHECKLIST"),
+        "{doctor_stdout}"
+    );
+    assert!(doctor_stdout.contains("ROOT STATUS: OK"), "{doctor_stdout}");
+    assert!(
+        doctor_stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: STARTER_OWNED ACTION: run `system author charter`"
+        ),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `system author project-context`"
+        ),
+        "{doctor_stdout}"
+    );
+    assert!(
+        doctor_stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `system author environment-inventory`"
+        ),
+        "{doctor_stdout}"
+    );
 
     let generate_after_setup = run_in(root, &["generate"]);
     assert!(
@@ -5000,7 +5466,7 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
     );
     let doctor_after_repair_stdout =
         String::from_utf8(doctor_after_repair.stdout).expect("stdout is utf-8");
-    assert_eq!(doctor_after_repair_stdout.trim(), "READY");
+    assert!(doctor_after_repair_stdout.contains("BASELINE_COMPLETE"));
 
     let generate_after_repair = run_in(root, &["generate"]);
     assert!(
@@ -5123,17 +5589,10 @@ fn doctor_blocks_when_system_root_missing() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
+        stdout.contains("SCAFFOLDED"),
+        "expected scaffolded header: {stdout}"
     );
-    assert!(
-        stdout.contains("SystemRootMissing"),
-        "expected SystemRootMissing category: {stdout}"
-    );
-    assert!(
-        stdout.contains("SUBJECT: policy system_root"),
-        "expected human-facing subject: {stdout}"
-    );
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
         stdout.contains("NEXT SAFE ACTION: run `system setup`"),
         "expected human-facing next action: {stdout}"
@@ -5152,7 +5611,7 @@ fn doctor_reports_ready_when_feature_spec_is_missing_in_partial_system_tree() {
     assert!(output.status.success(), "doctor should return success");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert_eq!(stdout.trim(), "READY");
+    assert!(stdout.contains("BASELINE_COMPLETE"), "{stdout}");
 }
 
 #[test]
@@ -5225,14 +5684,8 @@ fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root(
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
-    );
-    assert!(
-        stdout.contains("SystemRootNotDir"),
-        "expected SystemRootNotDir category: {stdout}"
-    );
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: NOT_DIR"), "{stdout}");
 }
 
 #[test]
@@ -5250,19 +5703,17 @@ fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
-    );
-    assert!(
-        stdout.contains("SystemRootMissing"),
-        "expected SystemRootMissing category: {stdout}"
-    );
+    assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
 }
 
 #[test]
 fn generate_emits_real_packet_body_when_ready() {
     let (_dir, root) = planning_ready_repo();
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
 
     let output = binary_in(&root)
         .arg("generate")
@@ -5317,8 +5768,12 @@ fn generate_emits_real_packet_body_when_ready() {
         "expected charter body section: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
+    );
+    assert!(
+        stdout.contains("### ENVIRONMENT_INVENTORY"),
+        "expected environment inventory body section: {stdout}"
     );
     assert!(
         stdout.contains("### FEATURE_SPEC"),
@@ -5355,7 +5810,7 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
         "expected packet body: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -5366,9 +5821,10 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
 
 #[test]
 fn doctor_reports_ready_when_required_artifacts_present() {
-    let (_dir, root) = planning_ready_repo();
+    let dir = partial_system_repo();
+    let root = dir.path();
 
-    let output = binary_in(&root)
+    let output = binary_in(root)
         .arg("doctor")
         .output()
         .expect("doctor should run");
@@ -5376,12 +5832,20 @@ fn doctor_reports_ready_when_required_artifacts_present() {
     assert!(output.status.success(), "doctor should succeed when ready");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("READY"), "expected ready header: {stdout}");
+    assert!(
+        stdout.contains("BASELINE_COMPLETE"),
+        "expected baseline header: {stdout}"
+    );
 }
 
 #[test]
 fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
-    let (_dir, nested) = planning_ready_repo_with_nested_cwd();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".git")).expect("git root");
+    let nested = root.join("nested/work");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+    repair_to_ready(root);
 
     let output = binary_in(&nested)
         .arg("doctor")
@@ -5391,7 +5855,10 @@ fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
     assert!(output.status.success(), "doctor should succeed when ready");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("READY"), "expected ready header: {stdout}");
+    assert!(
+        stdout.contains("BASELINE_COMPLETE"),
+        "expected baseline header: {stdout}"
+    );
 }
 
 #[test]
@@ -5439,7 +5906,7 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         "expected charter body section: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -5481,7 +5948,7 @@ fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
         "expected packet body: {stdout}"
     );
     assert!(
-        stdout.contains("# Canonical planning-ready charter fixture"),
+        stdout.contains("# Engineering Charter — Planning Ready Fixture"),
         "expected committed charter fixture contents: {stdout}"
     );
     assert!(
@@ -5777,6 +6244,68 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
 }
 
 #[test]
+fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    let fixture_root = root.join("tests/fixtures/execution_demo/full-lineage/.system");
+
+    write_file(
+        &fixture_root.join("charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("feature_spec/FEATURE_SPEC.md"),
+        b"demo feature",
+    );
+
+    let output = binary_in(root)
+        .args([
+            "inspect",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "full-lineage",
+        ])
+        .output()
+        .expect("inspect should run");
+
+    assert!(output.status.success(), "inspect should succeed when ready");
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    let fixture_section_start = stdout.find("## FIXTURE DEMO").expect("fixture section");
+    let json_section_start = stdout.find("## JSON FALLBACK").expect("json fallback");
+    let fixture_section = &stdout[fixture_section_start..json_section_start];
+    assert_in_order(
+        fixture_section,
+        &[
+            "1. Charter [.system/charter/CHARTER.md]",
+            "2. ProjectContext [.system/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+            "4. FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]",
+        ],
+    );
+
+    let json_section = &stdout[json_section_start..];
+    assert_in_order(
+        json_section,
+        &[
+            "\"canonical_repo_relative_path\": \".system/charter/CHARTER.md\"",
+            "\"canonical_repo_relative_path\": \".system/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".system/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
+            "\"canonical_repo_relative_path\": \".system/feature_spec/FEATURE_SPEC.md\"",
+        ],
+    );
+}
+
+#[test]
 fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
     let (_dir, nested) = execution_demo_repo_with_nested_cwd();
 
@@ -5911,14 +6440,8 @@ fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BLOCKED"),
-        "expected blocked header: {stdout}"
-    );
-    assert!(
-        stdout.contains("SystemRootMissing"),
-        "expected system root blocker: {stdout}"
-    );
+    assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
         stdout.contains("NEXT SAFE ACTION: run `system setup`"),
         "expected setup-family guidance: {stdout}"
@@ -6002,7 +6525,10 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -6039,7 +6565,10 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
@@ -6064,7 +6593,7 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
     assert!(stdout.contains("## JSON FALLBACK"));
     assert!(stdout.contains("\"packet_result\""));
     assert!(stdout.contains("\"packet body omitted because request is not ready\""));
-    assert!(!stdout.contains("charter-body"));
+    assert!(!stdout.contains(valid_charter_markdown()));
     assert!(!stdout.contains("feature-body"));
 }
 
@@ -6117,10 +6646,30 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     assert!(!output.status.success(), "doctor should return nonzero");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(stdout.contains("BLOCKED"));
-    assert!(stdout.contains("ArtifactReadError"));
-    assert!(stdout.contains(".system/project_context/PROJECT_CONTEXT.md"));
-    assert!(stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"));
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(stdout.contains("ROOT STATUS: OK"), "{stdout}");
+    assert!(
+        stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(
+            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author environment-inventory`"
+        ),
+        "{stdout}"
+    );
 }
 
 fn command_section_lines(help: &str) -> Vec<&str> {
@@ -6150,6 +6699,16 @@ fn command_section_lines(help: &str) -> Vec<&str> {
 fn assert_first_three_lines(stdout: &str, expected: [&str; 3]) {
     let lines: Vec<&str> = stdout.lines().take(3).collect();
     assert_eq!(lines, expected, "unexpected trust header: {stdout}");
+}
+
+fn assert_in_order(haystack: &str, needles: &[&str]) {
+    let mut last = 0;
+    for needle in needles {
+        let offset = haystack[last..]
+            .find(needle)
+            .unwrap_or_else(|| panic!("missing `{needle}` in output:\n{haystack}"));
+        last += offset + needle.len();
+    }
 }
 
 fn assert_help_snapshot(args: &[&str], snapshot_filename: &str) {
@@ -6269,14 +6828,7 @@ fn assert_setup_success(stdout: &str, expected: SetupSuccessExpectation<'_>) {
         index += 1;
     }
     assert_eq!(
-        lines.get(index).copied(),
-        Some(
-            "`PROJECT_CONTEXT.md` remains optional semantically for planning packets but is still setup-owned."
-        ),
-        "{stdout}"
-    );
-    assert_eq!(
-        index + 1,
+        index,
         lines.len(),
         "unexpected trailing setup output: {stdout}"
     );

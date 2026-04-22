@@ -10,6 +10,55 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn valid_charter_markdown() -> &'static str {
+    "# Engineering Charter — System
+
+## What this is
+Body.
+
+## How to use this charter
+Use it.
+
+## Rubric: 1–5 rigor levels
+Levels.
+
+## Project baseline posture
+Baseline.
+
+## Domains / areas (optional overrides)
+None.
+
+## Posture at a glance (quick scan)
+Snapshot.
+
+## Dimensions (details + guardrails)
+Details.
+
+## Cross-cutting red lines (global non-negotiables)
+- Keep trust boundaries intact.
+
+## Exceptions / overrides process
+- **Approvers:** project_owner
+- **Record location:** docs/exceptions.md
+- **Minimum required fields:**
+  - what
+  - why
+  - scope
+  - risk
+  - owner
+  - expiry_or_revisit_date
+
+## Debt tracking expectations
+Tracked in issues.
+
+## Decision Records (ADRs): how to use this charter
+Use ADRs.
+
+## Review & updates
+Review monthly.
+"
+}
+
 #[test]
 fn refusal_system_root_missing_is_highest_priority() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -107,6 +156,30 @@ fn refusal_required_artifact_starter_template() {
 }
 
 #[test]
+fn refusal_required_artifact_invalid() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&root.join(".system/feature_spec/FEATURE_SPEC.md"), b"spec");
+
+    let result = resolve(root, ResolveRequest::default()).expect("resolve");
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(refusal.category, RefusalCategory::RequiredArtifactInvalid);
+    assert_eq!(
+        refusal.broken_subject,
+        SubjectRef::CanonicalArtifact {
+            kind: CanonicalArtifactKind::Charter,
+            canonical_repo_relative_path: ".system/charter/CHARTER.md",
+        }
+    );
+    assert_eq!(
+        render_next_safe_action_value(&refusal.next_safe_action),
+        "run `system author charter`"
+    );
+}
+
+#[test]
 fn refusal_required_artifact_read_error_is_selected_for_malformed_required_path() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -135,7 +208,10 @@ fn refusal_budget_refused_is_selected_when_other_inputs_ok() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature spec that is longer than one byte",
@@ -160,7 +236,10 @@ fn refusal_unsupported_request_is_selected_for_live_execution_packet_when_other_
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
     write_file(
         &root.join(".system/feature_spec/FEATURE_SPEC.md"),
         b"feature",

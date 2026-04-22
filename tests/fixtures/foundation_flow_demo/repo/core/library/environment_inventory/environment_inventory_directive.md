@@ -16,11 +16,10 @@ This is NOT a setup guide and NOT a profile definition.
 
 ## Canonical location
 
-- **Canonical file (repo/project root):** `${repo_root}/ENVIRONMENT_INVENTORY.md`
-- **Pipeline artifact copy (for traceability):** `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+- **Canonical file:** `${repo_root}/.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
 
-You will output the document content once; the harness/orchestrator is responsible for writing/syncing
-the canonical repo file and the artifact copy.
+You will output the document content once; the harness/orchestrator is responsible for writing
+the canonical `.system` file.
 
 ## Inputs
 

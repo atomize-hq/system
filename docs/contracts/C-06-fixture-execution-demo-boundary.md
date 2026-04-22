@@ -46,7 +46,7 @@ Downstream conformance (`SEAM-7`) consumes this contract to write tests and docs
 
 ### Request and packet identity
 
-- Reduced v1 MUST continue to expose only the verbs defined by `C-02` (`setup`, `generate`, `inspect`, `doctor`).
+- Reduced v1 MUST continue to expose only the verbs defined by `C-02` (`setup`, `author`, `pipeline`, `generate`, `inspect`, `doctor`).
 - The execution demo MUST be requested through the existing `generate` surface by selecting an execution-demo packet identity.
 - The canonical packet identities for this boundary are:
   - **Planning packet** (live): `planning.packet` (default)
@@ -94,7 +94,7 @@ Determinism rules:
 - Fixture set selection MUST be explicit (no default "pick one", no glob-based selection).
 - When enumerating fixture lineage evidence, ordering MUST be deterministic and MUST NOT depend on filesystem traversal order.
 - The lineage order MUST be:
-  1. canonical artifacts in `C-03` kind order: `CHARTER`, then `PROJECT_CONTEXT` (if present), then `FEATURE_SPEC`
+  1. canonical artifacts in `C-03` kind order: `CHARTER`, then `PROJECT_CONTEXT` (if present), then `ENVIRONMENT_INVENTORY` (if present), then `FEATURE_SPEC`
   2. inherited dependency artifacts (if used), ordered lexically by dependency id
   3. any additional fixture-only evidence items, ordered lexically by their repo-relative path
 - If tie-breaks are required, they MUST use lexical order of repo-relative paths.

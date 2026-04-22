@@ -1,9 +1,11 @@
 pub mod artifact_manifest;
 pub mod author;
+mod baseline_validation;
 pub mod blocker;
 pub mod budget;
 pub mod canonical_artifacts;
 pub mod decision_log;
+pub mod doctor;
 pub mod error;
 pub mod freshness;
 pub mod packet_result;
@@ -24,19 +26,33 @@ pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
 };
 pub use author::{
-    author_charter, is_unusably_vague_charter_text, normalize_charter_free_text,
-    parse_charter_structured_input_yaml, preflight_author_charter, render_charter_markdown,
-    validate_charter_structured_input, AuthorCharterRefusal, AuthorCharterRefusalKind,
-    AuthorCharterResult, CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, CANONICAL_CHARTER_REPO_PATH,
+    author_charter, author_environment_inventory, author_project_context,
+    author_project_context_from_input, is_unusably_vague_charter_text, normalize_charter_free_text,
+    parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
+    preflight_author_charter, preflight_author_environment_inventory,
+    preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
+    validate_charter_markdown, validate_charter_structured_input,
+    validate_environment_inventory_markdown, validate_project_context_markdown,
+    validate_project_context_structured_input, AuthorCharterRefusal, AuthorCharterRefusalKind,
+    AuthorCharterResult, AuthorEnvironmentInventoryRefusal, AuthorEnvironmentInventoryRefusalKind,
+    AuthorEnvironmentInventoryResult, AuthorProjectContextRefusal, AuthorProjectContextRefusalKind,
+    AuthorProjectContextResult, CharterAudience, CharterBackwardCompatibility,
+    CharterDebtTrackingInput, CharterDecisionRecordsInput, CharterDefaultImplicationsInput,
+    CharterDeprecationPolicy, CharterDimensionInput, CharterDimensionName, CharterDomainInput,
+    CharterExceptionsInput, CharterExpectedLifetime, CharterObservabilityThreshold,
+    CharterOperationalRealityInput, CharterPostureInput, CharterProjectClassification,
+    CharterProjectConstraintsInput, CharterProjectInput, CharterRequiredness,
+    CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput, CharterSurface,
+    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
+    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
+    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
+    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
+    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
+    ProjectContextValidationError, CANONICAL_CHARTER_REPO_PATH,
+    CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, CANONICAL_PROJECT_CONTEXT_REPO_PATH,
     DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
-pub use blocker::{blocker_category_priority, Blocker, BlockerCategory};
+pub use blocker::{blocker_category_priority, Blocker, BlockerCategory, C04_RESULT_VERSION};
 pub use budget::{
     BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason,
     NextSafeAction as BudgetNextSafeAction,
@@ -48,6 +64,10 @@ pub use canonical_artifacts::{
     CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
 pub use decision_log::DecisionLog;
+pub use doctor::{
+    doctor, doctor_from_artifacts, DoctorArtifactStatus, DoctorBaselineStatus, DoctorChecklistItem,
+    DoctorReport,
+};
 pub use error::CompilerError;
 pub use freshness::{
     compute_freshness, FreshnessIssue, FreshnessIssueKind, FreshnessStatus, FreshnessTruth,

@@ -17,6 +17,10 @@ cargo run -p system-cli -- --help
 cargo run -p system-cli -- setup
 cargo run -p system-cli -- setup init
 cargo run -p system-cli -- setup refresh
+cargo run -p system-cli -- author charter
+cargo run -p system-cli -- author project-context --from-inputs /tmp/PROJECT_CONTEXT_INPUTS.yaml
+cargo run -p system-cli -- author project-context
+cargo run -p system-cli -- author environment-inventory
 cargo run -p system-cli -- setup refresh --rewrite
 cargo run -p system-cli -- setup refresh --reset-state
 cargo run -p system-cli -- pipeline --help
@@ -69,17 +73,19 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `setup refresh` preserves canonical files by default while refreshing setup-owned posture.
 - `setup refresh --rewrite` rewrites only the setup-owned starter files:
   - `.system/charter/CHARTER.md`
-  - `.system/feature_spec/FEATURE_SPEC.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
+  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
 - `setup refresh --reset-state` resets only `.system/state/**`.
-- `PROJECT_CONTEXT.md` is optional semantically for planning packets, but setup still creates it as a starter file.
-- The shipped starter templates are scaffolding only. `generate` and `doctor` stay blocked until the charter starter file is replaced with completed canonical truth; starter `FEATURE_SPEC.md` stays setup-owned and is omitted from planning output until authored.
-- Scaffolded setup flows end with `run \`system author charter\`` as the next safe action; ready setup flows end with `system doctor`.
+- The shipped starter templates are scaffolding only. `setup` establishes the baseline file set; `doctor` owns baseline readiness and reports `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
+- `doctor` checklist lines include the artifact label, canonical path, status, and exact author command.
+- `FEATURE_SPEC.md` stays off the setup/bootstrap path and off the baseline-readiness path. It remains a packet-stage artifact.
 - `author` owns canonical content authoring for setup-created starter truth.
-- `author` is the charter authoring surface.
-- The first shipped authoring wedge is `system author charter`.
+- `author` is the baseline authoring surface.
 - `system author charter` is the human-guided surface.
 - `system author charter --from-inputs <path|->` is the agent and automation surface.
+- `system author project-context` is the guided project-context authoring surface.
+- `system author project-context --from-inputs <path|->` is the agent and automation surface for project-context authoring.
+- `system author environment-inventory` authors `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
@@ -107,6 +113,7 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `generate` produces planning packets from canonical repo-local `.system/` inputs and supports the fixture-backed execution demo via `execution.demo.packet`.
 - `inspect` is the packet proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.
+- `doctor` is also the baseline-readiness surface for `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.
 
 ## What to expect right now
 

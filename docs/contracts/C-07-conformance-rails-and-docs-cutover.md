@@ -10,6 +10,7 @@ revalidation_triggers:
   - Any change to supported install-smoke targets (`macOS arm64`, `Linux x86_64`).
   - Any change to CLI help wording that affects the supported-vs-legacy story.
   - Any change to proof-surface ordering, trust header wording, or refusal structure.
+  - Any change to the doctor baseline-state set, checklist shape, or baseline artifact vocabulary.
 ---
 
 # C-07 Conformance Rails and Docs Cutover Contract
@@ -21,6 +22,7 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 `C-07` exists to ensure the shipped repository continues to tell **one coherent supported story**:
 
 - Rust is the only supported runtime path for reduced v1
+- setup scaffolds the `M8` baseline set under canonical repo-local `.system/`
 - planning packets resolve deterministically from canonical repo-local `.system/` artifacts
 - proof surfaces and refusal semantics remain stable and test-pinned
 - the fixture-backed execution demo cannot be mistaken for live slice execution
@@ -40,7 +42,7 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 - [`C-01`](C-01-approved-repo-surface.md) approved repo surface and legacy freeze (supported-vs-legacy messaging; archive/runtime boundary)
 - [`C-02`](C-02-rust-workspace-and-cli-command-surface.md) Rust workspace and CLI command surface (verbs, help posture, crate boundaries)
 - [`C-03`](C-03-canonical-artifact-manifest-contract.md) canonical artifact manifest contract (`.system/` inputs + freshness)
-- [`C-04`](C-04-resolver-result-and-doctor-blockers.md) resolver result and `doctor` blocker taxonomy (refusal structure; next-safe-action requirements)
+- [`C-04`](C-04-resolver-result-and-doctor-blockers.md) doctor baseline-readiness and blocker taxonomy (checklist structure; next-safe-action requirements)
 - [`C-05`](C-05-renderer-and-proof-surfaces.md) renderer and proof surfaces (trust header ordering; inspect ordering; deterministic JSON/markdown rules)
 - [`C-06`](C-06-fixture-execution-demo-boundary.md) fixture execution demo boundary (fixture-only scope; live refusal semantics)
 
@@ -115,9 +117,9 @@ The conformance rails owned by `C-07` are expected to pin drift against the upst
 | Drift risk (what can drift) | Semantic source contract (what defines the truth) |
 | --- | --- |
 | Supported-vs-legacy wording (no implied Python support; archive/runtime boundary) | [`C-01`](C-01-approved-repo-surface.md) |
-| CLI verb vocabulary and help posture (setup/generate/inspect/doctor ordering and copy) | [`C-02`](C-02-rust-workspace-and-cli-command-surface.md) |
+| CLI verb vocabulary and help posture (setup/author/pipeline/generate/inspect/doctor ordering and copy) | [`C-02`](C-02-rust-workspace-and-cli-command-surface.md) |
 | Canonical `.system/` inputs + freshness fields used by planning packets | [`C-03`](C-03-canonical-artifact-manifest-contract.md) |
-| Refusal category structure + “next safe action” semantics (including `doctor` blocker taxonomy) | [`C-04`](C-04-resolver-result-and-doctor-blockers.md) |
+| Doctor baseline-state structure + “next safe action” semantics (including checklist and blocker taxonomy) | [`C-04`](C-04-resolver-result-and-doctor-blockers.md) |
 | Trust header field set + ordering; proof ordering; deterministic markdown/JSON/inspect rendering | [`C-05`](C-05-renderer-and-proof-surfaces.md) |
 | Fixture-backed execution demo boundary (fixture-only posture; live refusal semantics) | [`C-06`](C-06-fixture-execution-demo-boundary.md) |
 

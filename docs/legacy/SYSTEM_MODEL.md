@@ -1,4 +1,4 @@
-# System Model
+# Legacy System Model
 
 ## Legacy Scope
 
@@ -115,11 +115,14 @@ The harness filters scoped blocks during compile, so early stages stay concise w
 ## Outputs: artifacts vs repo files
 
 - **Artifacts** are written under `system/artifacts/…` and represent pipeline outputs.
-- **Repo files** are written to `${repo_root}/…` and represent canonical project docs.
+- **Repo files** are written to `${repo_root}/…` as part of the legacy harness behavior.
 
-Current canonical doc behavior:
+Legacy repo-file behavior:
 - `CHARTER.md` is written to `${repo_root}/CHARTER.md` and `artifacts/charter/CHARTER.md`
 - `ENVIRONMENT_INVENTORY.md` is written to `${repo_root}/ENVIRONMENT_INVENTORY.md` and `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
+
+Current reduced-v1 product note:
+- the shipped baseline canonical environment-inventory path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`, not the repo root
 
 ## Model output contracts (what the harness can parse)
 
