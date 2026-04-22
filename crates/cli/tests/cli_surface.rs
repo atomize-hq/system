@@ -5163,6 +5163,10 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
         second_stdout.contains("BASELINE_COMPLETE"),
         "{second_stdout}"
     );
+    assert!(
+        second_stdout.contains("## BASELINE CHECKLIST"),
+        "{second_stdout}"
+    );
     assert!(second_stdout.contains("ROOT STATUS: OK"), "{second_stdout}");
     assert!(
         second_stdout.contains("NEXT SAFE ACTION: <none>"),
@@ -5413,6 +5417,10 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
     );
     let doctor_stdout = String::from_utf8(doctor_after_setup.stdout).expect("stdout is utf-8");
     assert!(doctor_stdout.contains("SCAFFOLDED"), "{doctor_stdout}");
+    assert!(
+        doctor_stdout.contains("## BASELINE CHECKLIST"),
+        "{doctor_stdout}"
+    );
     assert!(doctor_stdout.contains("ROOT STATUS: OK"), "{doctor_stdout}");
     assert!(
         doctor_stdout.contains(

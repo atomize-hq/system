@@ -44,6 +44,20 @@ fn read_help_snapshot(filename: &str) -> String {
     )
 }
 
+fn markdown_h2_section<'a>(text: &'a str, heading: &str) -> &'a str {
+    let start = text
+        .find(heading)
+        .unwrap_or_else(|| panic!("missing section heading `{heading}`"));
+    let rest = &text[start..];
+    let next = rest[heading.len()..]
+        .find("\n## `")
+        .map(|offset| heading.len() + offset);
+    match next {
+        Some(end) => &rest[..end],
+        None => rest,
+    }
+}
+
 fn assert_help_matches_snapshot(args: &[&str], snapshot_filename: &str, command_name: &str) {
     let actual = run_help(args, command_name);
     let snapshot_path = help_snapshot_path(snapshot_filename);
@@ -754,6 +768,35 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         assert!(
             anatomy_text.contains(phrase),
             "CLI output anatomy doc missing phrase `{phrase}`"
+        );
+    }
+
+    let doctor_section = markdown_h2_section(&anatomy_text, "## `doctor` Anatomy");
+    let required_doctor_phrases = [
+        "`SCAFFOLDED` or `PARTIAL_BASELINE` or `INVALID_BASELINE` or `BASELINE_COMPLETE`",
+        "`ROOT STATUS: <status>`",
+        "`NEXT SAFE ACTION: <exact recovery action>` or `NEXT SAFE ACTION: <none>`",
+        "`## BASELINE CHECKLIST`",
+    ];
+
+    for phrase in required_doctor_phrases {
+        assert!(
+            doctor_section.contains(phrase),
+            "doctor anatomy section missing phrase `{phrase}`"
+        );
+    }
+
+    let forbidden_doctor_phrases = [
+        "OBJECT: baseline readiness",
+        "## CHECKLIST",
+        "## BLOCKERS",
+        "## GUIDANCE",
+    ];
+
+    for phrase in forbidden_doctor_phrases {
+        assert!(
+            !doctor_section.contains(phrase),
+            "doctor anatomy section must not contain `{phrase}`"
         );
     }
 }

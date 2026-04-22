@@ -129,15 +129,13 @@ Conditional rule:
 
 First three lines:
 
-1. `OUTCOME: SCAFFOLDED` or `OUTCOME: PARTIAL_BASELINE` or `OUTCOME: INVALID_BASELINE` or `OUTCOME: BASELINE_COMPLETE`
-2. `OBJECT: baseline readiness`
-3. `NEXT SAFE ACTION: <exact recovery action>`
+1. `SCAFFOLDED` or `PARTIAL_BASELINE` or `INVALID_BASELINE` or `BASELINE_COMPLETE`
+2. `ROOT STATUS: <status>`
+3. `NEXT SAFE ACTION: <exact recovery action>` or `NEXT SAFE ACTION: <none>`
 
 Section order:
 
-1. `## CHECKLIST`
-2. `## BLOCKERS`
-3. `## GUIDANCE`
+1. `## BASELINE CHECKLIST`
 
 Checklist rules:
 
@@ -152,6 +150,7 @@ Checklist rules:
   - `.system/charter/CHARTER.md`
   - `.system/project_context/PROJECT_CONTEXT.md`
   - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- doctor does not currently emit separate object, blocker, or guidance sections
 - `FEATURE_SPEC.md` does not participate in baseline doctor anatomy
 
 ## `pipeline compile` Anatomy
