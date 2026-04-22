@@ -4,7 +4,7 @@ Rust-first planning/compiler CLI for the reduced-v1 `system` product.
 
 The supported path is the Rust workspace in `crates/`. The older Python harness still ships in this repo, but only as frozen reference material while the cutover finishes.
 
-## Current Status
+## Current Status:
 
 - The governing repo-surface truth is [C-01 Approved Repo Surface](docs/contracts/C-01-approved-repo-surface.md).
 - The command-surface truth is [C-02 Rust Workspace and CLI Command Surface](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md).
