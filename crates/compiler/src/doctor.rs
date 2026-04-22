@@ -151,9 +151,12 @@ fn classify_doctor_status(
         return DoctorBaselineStatus::InvalidBaseline;
     }
 
-    let has_invalid = checklist
-        .iter()
-        .any(|item| item.status == DoctorArtifactStatus::Invalid);
+    let has_invalid = checklist.iter().any(|item| {
+        matches!(
+            item.status,
+            DoctorArtifactStatus::Empty | DoctorArtifactStatus::Invalid
+        )
+    });
     if has_invalid {
         return DoctorBaselineStatus::InvalidBaseline;
     }

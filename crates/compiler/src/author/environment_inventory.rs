@@ -1,7 +1,6 @@
+use super::{baseline_authoring_eligibility, BaselineAuthoringEligibility};
 use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
-use crate::canonical_artifacts::{
-    ArtifactPresence, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
-};
+use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
     RepoRelativeWritePathError,
@@ -272,22 +271,31 @@ fn validate_environment_inventory_authoring_preconditions(
         });
     }
 
-    let existing_non_starter_truth = match environment_inventory.presence {
-        ArtifactPresence::PresentNonEmpty => !environment_inventory.matches_setup_starter_template,
-        ArtifactPresence::Missing | ArtifactPresence::PresentEmpty => false,
-    };
-    if existing_non_starter_truth {
-        return Err(AuthorEnvironmentInventoryRefusal {
-            kind: AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth,
-            summary:
-                "canonical environment inventory truth already exists; `system author environment-inventory` only replaces missing, empty, or setup-starter content"
-                    .to_string(),
-            broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
-            next_safe_action: format!(
-                "inspect `{}` instead of rerunning `system author environment-inventory`",
-                CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
-            ),
-        });
+    match baseline_authoring_eligibility(artifacts, CanonicalArtifactKind::EnvironmentInventory) {
+        BaselineAuthoringEligibility::Authorable => {}
+        BaselineAuthoringEligibility::ExistingValidCanonicalTruth => {
+            return Err(AuthorEnvironmentInventoryRefusal {
+                kind: AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth,
+                summary:
+                    "canonical environment inventory truth already exists as valid non-starter truth; `system author environment-inventory` refuses to overwrite authored canonical truth"
+                        .to_string(),
+                broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
+                next_safe_action: format!(
+                    "inspect `{}` instead of rerunning `system author environment-inventory`",
+                    CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
+                ),
+            });
+        }
+        BaselineAuthoringEligibility::RequiresSetupRefresh => {
+            return Err(AuthorEnvironmentInventoryRefusal {
+                kind: AuthorEnvironmentInventoryRefusalKind::MutationRefused,
+                summary:
+                    "canonical environment inventory truth is unreadable or path-invalid; repair it with `system setup refresh` before rerunning `system author environment-inventory`"
+                        .to_string(),
+                broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
+                next_safe_action: "run `system setup refresh`".to_string(),
+            });
+        }
     }
 
     resolve_repo_relative_write_path(repo_root, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH)
@@ -1079,7 +1087,7 @@ The canonical store of record for this project's environment and runtime require
         write_charter(repo.path(), valid_charter_markdown());
         fs::write(
             repo.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
-            "# Existing environment inventory\n",
+            valid_environment_inventory_markdown(),
         )
         .expect("write inventory");
 
@@ -1111,6 +1119,47 @@ The canonical store of record for this project's environment and runtime require
             content,
         )
         .expect("write project context");
+    }
+
+    fn valid_environment_inventory_markdown() -> &'static str {
+        r#"# Environment Inventory - Example
+
+> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** None
+
+## What this is
+The canonical store of record for this project's environment and runtime requirements.
+
+## How to use
+- Update this file whenever runtime assumptions change.
+
+## 1) Environment Variables (Inventory)
+- None yet.
+
+## 2) External Services / Infrastructure Dependencies
+- None yet.
+
+## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)
+- None yet.
+
+## 4) Local Development Requirements
+- None yet.
+
+## 5) CI Requirements
+- None yet.
+
+## 6) Production / Deployment Requirements (even if not live yet)
+- None yet.
+
+## 7) Dependency & Tooling Inventory (project-specific)
+- None yet.
+
+## 8) Update Contract (non-negotiable)
+- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+
+## 9) Known Unknowns
+- None yet.
+"#
     }
 
     fn write_fake_codex(repo_root: &Path) -> String {

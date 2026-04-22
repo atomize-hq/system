@@ -1,5 +1,6 @@
 use system_compiler::{
-    doctor, CanonicalArtifactKind, DoctorArtifactStatus, DoctorBaselineStatus, NextSafeAction,
+    doctor, setup_starter_template_bytes, CanonicalArtifactKind, DoctorArtifactStatus,
+    DoctorBaselineStatus, NextSafeAction,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -153,6 +154,41 @@ Canonical environment and runtime inventory.
 "
 }
 
+fn assert_empty_baseline_invalid(
+    empty_path: &str,
+    empty_kind: CanonicalArtifactKind,
+    expected_action: NextSafeAction,
+) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(&repo_root.join(empty_path), b"");
+
+    let report = doctor(repo_root).expect("doctor");
+    assert_eq!(report.status, DoctorBaselineStatus::InvalidBaseline);
+    assert_eq!(report.next_safe_action, Some(expected_action.clone()));
+
+    let item = report
+        .checklist
+        .iter()
+        .find(|item| item.kind == empty_kind)
+        .expect("empty artifact");
+    assert_eq!(item.status, DoctorArtifactStatus::Empty);
+    assert_eq!(item.next_safe_action, Some(expected_action));
+}
+
 #[test]
 fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -259,4 +295,61 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
         environment_inventory.next_safe_action,
         Some(NextSafeAction::RunSetupRefresh)
     );
+}
+
+#[test]
+fn doctor_treats_empty_charter_as_invalid_baseline() {
+    assert_empty_baseline_invalid(
+        ".system/charter/CHARTER.md",
+        CanonicalArtifactKind::Charter,
+        NextSafeAction::RunAuthorCharter,
+    );
+}
+
+#[test]
+fn doctor_treats_empty_project_context_as_invalid_baseline() {
+    assert_empty_baseline_invalid(
+        ".system/project_context/PROJECT_CONTEXT.md",
+        CanonicalArtifactKind::ProjectContext,
+        NextSafeAction::RunAuthorProjectContext,
+    );
+}
+
+#[test]
+fn doctor_treats_empty_environment_inventory_as_invalid_baseline() {
+    assert_empty_baseline_invalid(
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        CanonicalArtifactKind::EnvironmentInventory,
+        NextSafeAction::RunAuthorEnvironmentInventory,
+    );
+}
+
+#[test]
+fn doctor_keeps_all_starter_owned_baseline_in_scaffolded() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::Charter),
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext),
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::EnvironmentInventory),
+    );
+
+    let report = doctor(repo_root).expect("doctor");
+    assert_eq!(report.status, DoctorBaselineStatus::Scaffolded);
+    assert_eq!(
+        report.next_safe_action,
+        Some(NextSafeAction::RunAuthorCharter)
+    );
+    assert!(report
+        .checklist
+        .iter()
+        .all(|item| item.status == DoctorArtifactStatus::StarterOwned));
 }

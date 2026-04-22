@@ -305,6 +305,40 @@ fn repair_to_ready(root: &std::path::Path) {
     );
 }
 
+fn assert_doctor_empty_baseline_invalid(
+    empty_path: &str,
+    expected_next_safe_action: &str,
+    expected_checklist_line: &str,
+) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(&root.join(empty_path), b"");
+
+    let output = run_in(root, &["doctor"]);
+    assert!(
+        !output.status.success(),
+        "doctor should block on empty baseline"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
+    assert!(stdout.contains(expected_next_safe_action), "{stdout}");
+    assert!(stdout.contains(expected_checklist_line), "{stdout}");
+}
+
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
     match path {
         ".system/charter/CHARTER.md" => system_compiler::setup_starter_template_bytes(
@@ -5185,6 +5219,33 @@ fn doctor_rejects_legacy_placeholder_project_context_truth() {
             "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
         ),
         "{stdout}"
+    );
+}
+
+#[test]
+fn doctor_marks_empty_charter_as_invalid_baseline() {
+    assert_doctor_empty_baseline_invalid(
+        ".system/charter/CHARTER.md",
+        "NEXT SAFE ACTION: run `system author charter`",
+        "CHARTER [.system/charter/CHARTER.md] STATUS: EMPTY ACTION: run `system author charter`",
+    );
+}
+
+#[test]
+fn doctor_marks_empty_project_context_as_invalid_baseline() {
+    assert_doctor_empty_baseline_invalid(
+        ".system/project_context/PROJECT_CONTEXT.md",
+        "NEXT SAFE ACTION: run `system author project-context`",
+        "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: EMPTY ACTION: run `system author project-context`",
+    );
+}
+
+#[test]
+fn doctor_marks_empty_environment_inventory_as_invalid_baseline() {
+    assert_doctor_empty_baseline_invalid(
+        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        "NEXT SAFE ACTION: run `system author environment-inventory`",
+        "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: EMPTY ACTION: run `system author environment-inventory`",
     );
 }
 

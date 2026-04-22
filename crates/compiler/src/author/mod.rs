@@ -35,9 +35,10 @@ pub use project_context::{
     ProjectContextValidationError, CANONICAL_PROJECT_CONTEXT_REPO_PATH,
 };
 
+use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
 use crate::canonical_artifacts::{
-    ArtifactPresence, CanonicalArtifact, CanonicalArtifactIdentity, CanonicalArtifactKind,
-    CanonicalArtifacts, SystemRootStatus,
+    CanonicalArtifact, CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts,
+    SystemRootStatus,
 };
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, RepoRelativeMutationError, RepoRelativeWritePathError,
@@ -82,6 +83,13 @@ fn validate_system_root_for_authoring(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BaselineAuthoringEligibility {
+    Authorable,
+    ExistingValidCanonicalTruth,
+    RequiresSetupRefresh,
+}
+
 fn canonical_artifact_identity(
     artifacts: &CanonicalArtifacts,
     kind: CanonicalArtifactKind,
@@ -101,9 +109,27 @@ fn canonical_artifact(
     }
 }
 
-fn has_existing_non_starter_truth(identity: &CanonicalArtifactIdentity) -> bool {
-    matches!(identity.presence, ArtifactPresence::PresentNonEmpty)
-        && !identity.matches_setup_starter_template
+fn baseline_authoring_eligibility(
+    artifacts: &CanonicalArtifacts,
+    kind: CanonicalArtifactKind,
+) -> BaselineAuthoringEligibility {
+    let validation = baseline_artifact_validation(artifacts, kind)
+        .expect("baseline authoring eligibility requires a baseline artifact");
+
+    match validation.verdict {
+        BaselineArtifactVerdict::Missing
+        | BaselineArtifactVerdict::Empty
+        | BaselineArtifactVerdict::StarterOwned
+        | BaselineArtifactVerdict::SemanticallyInvalid { .. } => {
+            BaselineAuthoringEligibility::Authorable
+        }
+        BaselineArtifactVerdict::ValidCanonicalTruth { .. } => {
+            BaselineAuthoringEligibility::ExistingValidCanonicalTruth
+        }
+        BaselineArtifactVerdict::IngestInvalid => {
+            BaselineAuthoringEligibility::RequiresSetupRefresh
+        }
+    }
 }
 
 fn validate_canonical_write_target(

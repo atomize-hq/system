@@ -1087,7 +1087,7 @@ fn file_inputs_refuse_existing_truth_before_parsing_malformed_yaml() {
     let dir = scaffold_repo();
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        "custom charter truth\n",
+        &stubbed_authored_markdown(),
     );
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, "project: [not valid");
@@ -1149,6 +1149,41 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
     assert!(prompt_capture_path(dir.path()).exists());
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
+}
+
+#[test]
+fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
+    );
+    let inputs_path = dir.path().join("charter-inputs.yaml");
+    write_file(&inputs_path, valid_structured_inputs_yaml());
+    let expected_markdown = stubbed_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let output = with_author_runtime_override(&stub, None, || {
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "charter",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf-8 path"),
+            ],
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "repair should succeed: {}",
+        stdout(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
+        expected_markdown
+    );
 }
 
 #[test]
@@ -1448,6 +1483,44 @@ fn project_context_stdin_inputs_succeed() {
 }
 
 #[test]
+fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        "custom project context truth\n",
+    );
+    let inputs_path = dir.path().join("project-context-inputs.yaml");
+    write_file(&inputs_path, valid_project_context_inputs_yaml());
+
+    let output = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "project-context",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf-8 path"),
+            ],
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "repair should succeed: {}",
+        stdout(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("project context"),
+        expected_project_context_markdown_from_yaml()
+    );
+}
+
+#[test]
 fn guided_tty_author_project_context_succeeds() {
     let dir = scaffold_repo();
 
@@ -1569,7 +1642,7 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
     write_file(
         &dir.path()
             .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
-        "custom environment inventory truth\n",
+        &valid_environment_inventory_markdown("None"),
     );
     let stub = install_stub_codex(
         dir.path(),
@@ -1594,9 +1667,43 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
                 .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
         )
         .expect("environment inventory"),
-        "custom environment inventory truth\n"
+        valid_environment_inventory_markdown("None")
     );
     assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_command_repairs_semantically_invalid_canonical_truth() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
+    );
+    write_file(
+        &dir.path()
+            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        "custom environment inventory truth\n",
+    );
+    let expected_markdown = valid_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let output = with_environment_inventory_runtime_override(&stub, None, || {
+        run_in(dir.path(), &["author", "environment-inventory"])
+    });
+
+    assert!(
+        output.status.success(),
+        "repair should succeed: {}",
+        stdout(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(
+            dir.path()
+                .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        )
+        .expect("environment inventory"),
+        expected_markdown
+    );
 }
 
 #[test]

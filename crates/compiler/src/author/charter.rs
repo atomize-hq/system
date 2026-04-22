@@ -1,8 +1,8 @@
 use super::{
-    acquire_authoring_lock, canonical_artifact_identity, format_repo_mutation_error,
-    format_repo_write_path_error, has_existing_non_starter_truth, render_exit_status,
+    acquire_authoring_lock, baseline_authoring_eligibility, canonical_artifact_identity,
+    format_repo_mutation_error, format_repo_write_path_error, render_exit_status,
     summarize_process_output, validate_canonical_write_target, validate_system_root_for_authoring,
-    AuthoringLockError, SystemRootAuthoringError,
+    AuthoringLockError, BaselineAuthoringEligibility, SystemRootAuthoringError,
 };
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
 use crate::repo_file_access::write_repo_relative_bytes;
@@ -1294,18 +1294,31 @@ fn validate_authoring_preconditions(
         });
     }
 
-    if has_existing_non_starter_truth(charter) {
-        return Err(AuthorCharterRefusal {
-            kind: AuthorCharterRefusalKind::ExistingCanonicalTruth,
-            summary:
-                "canonical charter truth already exists; `system author charter` only replaces missing, empty, or setup-starter content"
-                    .to_string(),
-            broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
-            next_safe_action: format!(
-                "inspect `{}` instead of rerunning `system author charter`",
-                CANONICAL_CHARTER_REPO_PATH
-            ),
-        });
+    match baseline_authoring_eligibility(artifacts, CanonicalArtifactKind::Charter) {
+        BaselineAuthoringEligibility::Authorable => {}
+        BaselineAuthoringEligibility::ExistingValidCanonicalTruth => {
+            return Err(AuthorCharterRefusal {
+                kind: AuthorCharterRefusalKind::ExistingCanonicalTruth,
+                summary:
+                    "canonical charter truth already exists as valid non-starter truth; `system author charter` refuses to overwrite authored canonical truth"
+                        .to_string(),
+                broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
+                next_safe_action: format!(
+                    "inspect `{}` instead of rerunning `system author charter`",
+                    CANONICAL_CHARTER_REPO_PATH
+                ),
+            });
+        }
+        BaselineAuthoringEligibility::RequiresSetupRefresh => {
+            return Err(AuthorCharterRefusal {
+                kind: AuthorCharterRefusalKind::MutationRefused,
+                summary:
+                    "canonical charter truth is unreadable or path-invalid; repair it with `system setup refresh` before rerunning `system author charter`"
+                        .to_string(),
+                broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
+                next_safe_action: "run `system setup refresh`".to_string(),
+            });
+        }
     }
 
     validate_canonical_write_target(repo_root, CANONICAL_CHARTER_REPO_PATH).map_err(|err| {

@@ -825,7 +825,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"custom charter truth\n",
+        expected_charter_markdown().as_bytes(),
     );
 
     let err = author_charter(dir.path(), &valid_input()).expect_err("existing truth should refuse");
@@ -834,7 +834,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
     assert_eq!(
         std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
             .expect("existing charter"),
-        "custom charter truth\n"
+        expected_charter_markdown()
     );
 }
 
@@ -844,7 +844,7 @@ fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"custom charter truth\n",
+        expected_charter_markdown().as_bytes(),
     );
 
     let err = preflight_author_charter(dir.path())
@@ -862,7 +862,7 @@ fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
-        b"custom charter truth\n",
+        expected_charter_markdown().as_bytes(),
     );
     let stub = install_stub_codex(
         dir.path(),
@@ -875,6 +875,49 @@ fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::ExistingCanonicalTruth);
     assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_charter_repairs_semantically_invalid_canonical_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        b"custom charter truth\n",
+    );
+    let expected_markdown = expected_charter_markdown();
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input()).expect("invalid charter should be repaired")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("repaired charter"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn preflight_author_charter_routes_ingest_invalid_target_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    std::fs::remove_file(dir.path().join(".system/charter/CHARTER.md")).expect("remove charter");
+    std::fs::create_dir_all(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("charter target directory");
+
+    let err = preflight_author_charter(dir.path())
+        .expect_err("ingest-invalid charter target should block authoring");
+
+    assert_eq!(err.kind, AuthorCharterRefusalKind::MutationRefused);
+    assert_eq!(err.next_safe_action, "run `system setup refresh`");
+    assert!(err.summary.contains("system setup refresh"));
 }
 
 #[test]
@@ -1182,7 +1225,7 @@ fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     write_file(
         &dir.path()
             .join(".system/project_context/PROJECT_CONTEXT.md"),
-        b"custom project context truth\n",
+        expected_project_context_markdown().as_bytes(),
     );
 
     let err = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
@@ -1200,7 +1243,7 @@ fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
                 .join(".system/project_context/PROJECT_CONTEXT.md")
         )
         .expect("existing project context"),
-        "custom project context truth\n"
+        expected_project_context_markdown()
     );
 }
 
@@ -1211,7 +1254,7 @@ fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exi
     write_file(
         &dir.path()
             .join(".system/project_context/PROJECT_CONTEXT.md"),
-        b"custom project context truth\n",
+        expected_project_context_markdown().as_bytes(),
     );
 
     let err = preflight_author_project_context(dir.path())
@@ -1224,6 +1267,58 @@ fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exi
     assert!(err
         .summary
         .contains("canonical project context truth already exists"));
+}
+
+#[test]
+fn author_project_context_repairs_semantically_invalid_canonical_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+        legacy_placeholder_project_context_markdown().as_bytes(),
+    );
+
+    let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+        author_project_context_from_input(dir.path(), &valid_project_context_input())
+            .expect("invalid project context should be repaired")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            dir.path()
+                .join(".system/project_context/PROJECT_CONTEXT.md")
+        )
+        .expect("repaired project context"),
+        expected_project_context_markdown()
+    );
+}
+
+#[test]
+fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    std::fs::remove_file(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+    )
+    .expect("remove project context");
+    std::fs::create_dir_all(
+        dir.path()
+            .join(".system/project_context/PROJECT_CONTEXT.md"),
+    )
+    .expect("project-context target directory");
+
+    let err = preflight_author_project_context(dir.path())
+        .expect_err("ingest-invalid project-context target should block authoring");
+
+    assert_eq!(err.kind, AuthorProjectContextRefusalKind::MutationRefused);
+    assert_eq!(err.next_safe_action, "run `system setup refresh`");
+    assert!(err.summary.contains("system setup refresh"));
 }
 
 #[test]
@@ -1295,7 +1390,7 @@ fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists(
     );
     write_file(
         &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
-        b"custom environment inventory truth\n",
+        expected_environment_inventory_markdown("None").as_bytes(),
     );
 
     let err = author_environment_inventory(dir.path())
@@ -1308,7 +1403,7 @@ fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists(
     assert_eq!(
         std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
             .expect("existing environment inventory"),
-        "custom environment inventory truth\n"
+        expected_environment_inventory_markdown("None")
     );
 }
 
@@ -1322,7 +1417,7 @@ fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_tru
     );
     write_file(
         &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
-        b"custom environment inventory truth\n",
+        expected_environment_inventory_markdown("None").as_bytes(),
     );
 
     let err = preflight_author_environment_inventory(dir.path())
@@ -1335,6 +1430,62 @@ fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_tru
     assert!(err
         .summary
         .contains("canonical environment inventory truth already exists"));
+}
+
+#[test]
+fn author_environment_inventory_repairs_semantically_invalid_canonical_truth() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
+        b"custom environment inventory truth\n",
+    );
+    let expected_markdown = expected_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    let result = with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path())
+            .expect("invalid environment inventory should be repaired")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+            .expect("repaired environment inventory"),
+        expected_markdown
+    );
+    assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn preflight_author_environment_inventory_routes_ingest_invalid_target_to_setup_refresh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".system/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    std::fs::remove_file(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("remove environment inventory");
+    std::fs::create_dir_all(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
+        .expect("environment inventory target directory");
+
+    let err = preflight_author_environment_inventory(dir.path())
+        .expect_err("ingest-invalid environment inventory target should block authoring");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::MutationRefused
+    );
+    assert_eq!(err.next_safe_action, "run `system setup refresh`");
+    assert!(err.summary.contains("system setup refresh"));
 }
 
 #[test]
