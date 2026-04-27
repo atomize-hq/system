@@ -98,6 +98,18 @@
 **Priority:** P2
 **Depends on:** Shipped Rust `setup` family, updated `doctor` readiness guidance, real operator feedback on post-setup friction
 
+### Claude Code Conversational Intake Surface
+
+**What:** Add the second conversational-intake agent surface for Claude Code after the Codex-first charter slice lands.
+
+**Why:** The target architecture is a portable conversational intake protocol, not a Codex-only wrapper. Proving Claude Code next prevents Codex-specific behavior from silently becoming the protocol.
+
+**Context:** The accepted eng-review scope for the first slice is explicit: one preferred-agent surface first, Codex now and Claude Code next. This follow-on should reuse the same canonical protocol assets, the same `~/.system` thin adapter install/update path, the same setup-state routing through `system setup*` and `system doctor`, and the same deterministic sink via `system author ... --from-inputs`. It should validate portability without reopening slice-1 scope or rebuilding per-agent business logic.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Shipped Codex-first conversational intake slice with schema versioning, live smoke coverage, and `~/.system` adapter compatibility checks
+
 ### Operator Outcome Scoreboard
 
 **What:** Add an operator-outcome scoreboard for the pipeline/compiler wedge.
