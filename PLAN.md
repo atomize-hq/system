@@ -29,6 +29,7 @@ These points are not up for reinterpretation inside `M10`:
 4. Keep the installed family name `system`, not a repo-name alias.
 5. Keep user-home runtime naming under `system`, including `~/.codex/skills/system`, `~/.codex/skills/system-charter-intake`, and `~/.local/state/system/intake/runs/`.
 6. Preserve the shipped `M9.5` operator contract unless a change is required to make the packaging surface truly match the target shape.
+7. Do not reopen earlier reviewed reduced-v1 pipeline boundaries during `M10`; the M1 activation clause shape remains boolean-only in the form `variables.<name> == true|false`.
 
 ## Objective
 

@@ -638,6 +638,7 @@ fn author_environment_inventory_command() -> ExitCode {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_author_charter_command<
     GetCurrentDir,
     InteractiveAllowed,

@@ -172,6 +172,18 @@
 
 ## CLI Product Interaction Design
 
+### Author Charter Command Refactor
+
+**What:** Restructure `execute_author_charter_command` so guided mode and `--from-inputs` mode no longer share one large helper with heavily injected dependencies.
+
+**Why:** The current helper is carrying too many responsibilities and relies on an argument-heavy test seam. It currently needs a narrow clippy allowance for `too_many_arguments`, which is acceptable as a stopgap but not the ideal long-term shape.
+
+**Context:** The immediate lint failure was resolved by allowing `clippy::too_many_arguments` on the helper in `crates/cli/src/main.rs` to preserve behavior and avoid a risky lifetime-heavy refactor under time pressure. The better cleanup is structural, not cosmetic: split guided and file-input execution into separate helpers, move injected operations behind a small harness type or trait with concrete methods, and reduce the branching and responsibility concentrated in the current helper.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable `author charter` command behavior, preserved CLI test coverage for guided and file-input flows
+
 ### Chosen Interaction Direction (2026-04-08)
 
 The interaction direction for the CLI product is:
