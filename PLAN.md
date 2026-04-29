@@ -1,728 +1,620 @@
-<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m8-autoplan-restore-20260421-112647.md -->
+<!-- PLAN rewrite restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m8-plan-rewrite-restore-20260428-204203.md -->
 # PLAN
 
 ## Status
 
-This is the active execution source of truth for `M8`.
+This is the consolidated execution plan for `M9`, the conversational intake milestone on branch `feat/m8`.
 
-It supersedes the charter-only `M7` authoring plan and replaces it with the approved baseline-canonical-truth milestone.
+The branch name still says `m8` because this work builds directly on the shipped M8 baseline-authoring foundation. The active milestone is `M9`.
 
-Archived predecessor:
+This pass replaces the earlier accreted review-style plan text with one implementation contract. It folds in:
 
-- `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-plan-archive-20260421-100326.md`
-
-Primary design basis:
-
-- `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-main-design-20260421-082110.md`
-
-Current shipped baseline on `main`:
-
-- `system setup` is the front door
-- `system author charter` is shipped
-- `system doctor` is the readiness/recovery surface
-- canonical truth is moving under `.system/*`
-- readiness/product copy still reflects the charter-only `M7` story
-
-The shipped reduced-v1 pipeline-routing contract remains intentionally narrow: activation clauses use only `variables.<name> == true|false`, and string or numeric activation literals are not part of shipped `M1`.
-
-## Landing Notes
-
-`M7` landed the first real authoring wedge on 2026-04-20.
-
-That was the right first move, but it left the repo baseline incomplete:
-
-- `CHARTER` is first-class
-- `PROJECT_CONTEXT` is still setup/legacy-shaped, not baseline-authored
-- `ENVIRONMENT_INVENTORY` still has split authority in docs, rules, and stage material
-- `doctor` does not yet expose a truthful `baseline complete` tier
-
-This milestone fixes that without widening into generic authoring orchestration.
+- the design doc at `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-feat-m8-design-20260426-145728.md`
+- the latest eng-review test plan at `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/spensermcconnell-feat-m8-eng-review-test-plan-20260428-192306.md`
+- the prior `/autoplan` and `/plan-eng-review` scope reductions already recorded for this branch
+- the gstack pattern synthesis references in:
+  - `/Users/spensermcconnell/__Active_Code/system/substrate_gstack_pattern_synthesis_consolidated_2026-04-18 (1).md`
+  - `/Users/spensermcconnell/__Active_Code/system/substrate_gstack_pattern_synthesis_consolidated_2026-04-18 (1).json`
 
 ## Active Objective
 
-Ship the `M8` baseline canonical truth tier.
+Ship `M9`, the first real conversational intake surface for baseline authoring on top of the M8 foundation.
 
-That means:
+The job is not "make the guided interview nicer." The job is:
 
-- keep `system author charter` as the completed first slice
-- add `system author project-context`
-- add `system author environment-inventory`
-- define the baseline canonical set explicitly as:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-- make `doctor` compute readiness from that baseline set
-- separate `baseline complete` from later feature-specific readiness
-- remove split-authority claims for `ENVIRONMENT_INVENTORY`
+- let the agent own the conversational capture loop
+- keep `system` as the only authority for readiness, validation, refusal, and canonical writes
+- prove that the charter intake path can gather better truth conversationally without weakening the compiler-owned trust boundary
 
-This repo remains a compiler/generator product, not a chat runtime and not a generic document-authoring framework.
+## Review Inputs
 
-## Exact Shipped Behavior
+- Prior CEO/eng review outcome: reduce the first wedge to one agent, one artifact, one deterministic sink, one thin adapter boundary.
+- Prior eng review outcome: keep `project-context` as the model for deterministic `--from-inputs`; do not invent a second authoring architecture.
+- Current code reality:
+  - `system_compiler::doctor()` already returns a typed `DoctorReport`
+  - `system author project-context --from-inputs` is already deterministic
+  - `system author charter --from-inputs` is not deterministic yet, it still shells out to `codex exec`
+  - `tools/intake/` does not exist yet
+  - `tools/ci/install-smoke.sh` currently proves CLI install only, not intake-bundle install/update/runtime behavior
 
-The milestone is only done when all of the following are true:
-
-1. `system setup` scaffolds the baseline canonical paths needed for `M8`, including `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
-2. `system author charter` remains the shipped charter surface with the existing `M7` refusal boundary.
-3. `system author project-context` exists as a first-class public command.
-4. `system author environment-inventory` exists as a first-class public command.
-5. The baseline canonical set is exactly `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.
-6. `BASE_CONTEXT` is not treated as baseline canonical truth anywhere in `M8`.
-7. `doctor` exposes distinct baseline states:
-   - `SCAFFOLDED`
-   - `PARTIAL_BASELINE`
-   - `INVALID_BASELINE`
-   - `BASELINE_COMPLETE`
-8. `doctor` computes `BASELINE_COMPLETE` from canonical `.system` truth only.
-9. `FEATURE_SPEC` does not block `BASELINE_COMPLETE`.
-10. `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the only canonical environment inventory path in product contracts/docs/runtime behavior.
-11. Repo-root `ENVIRONMENT_INVENTORY.md` is never described as canonical after `M8`.
-12. This milestone ships no end-user migration workflow, no dual-write system, and no compatibility product surface.
-13. Any internal cleanup of old repo-root or artifact-path files is handled as repo maintenance, not product behavior.
-14. Setup/help/docs/contracts/tests all describe the same baseline-vs-feature readiness boundary.
-
-## Scope
+## Scope Lock
 
 ### In scope
 
-- extend the top-level `author` family with:
-  - `system author project-context`
-  - `system author environment-inventory`
-- scaffold the new canonical environment inventory path under `.system/`
-- baseline readiness-state model in `doctor`
-- canonical-artifact contract updates for baseline truth
-- authority cleanup for `ENVIRONMENT_INVENTORY`
-- docs/help/contracts/snapshots/tests cutover for the new baseline story
-- repo-owned authoring-method artifacts for the new baseline surfaces if needed
+- one supported conversational intake surface: Codex first
+- charter authoring only
+- `system doctor --json` as the machine-readable readiness surface
+- `system author charter --validate --from-inputs <path|->` as a mutation-free preflight
+- deterministic `system author charter --from-inputs <path|->`
+- explicit split between guided charter authoring and deterministic structured-input charter authoring
+- repo-owned conversational intake assets
+- thin home-level install/update/runtime boundary under `~/.config/system`, `~/.local/state/system`, and `~/.local/bin/system`
+- run-artifact persistence for intake sessions
+- docs, contracts, help, smoke proof, and one bounded live Codex happy-path smoke for this shipped surface
 
 ### NOT in scope
 
-- bundled `system author baseline`
-- `system author feature-spec`
-- generic multi-artifact authoring engine
-- productized migration/import flow for old repos
-- dual-write or long-lived compatibility shims
-- redesigning `BASE_CONTEXT`
-- changing live execution/demo boundaries
-- public distribution changes
-- MCP/UI companion work
+- `project-context` conversational intake
+- `environment-inventory` conversational intake
+- Claude Code support in this milestone
+- a generic multi-agent framework
+- repo-evidence auto-drafting or compiler-side intake inference
+- a hosted service, remote API, or background daemon
+- package-manager or public binary distribution
+- a redesign of the human-guided charter interview beyond the minimum separation needed to keep `--from-inputs` deterministic
 
 ## Frozen Decisions
 
-These are already settled for `M8`:
-
-1. The next milestone is the formal baseline canonical truth tier, not “charter done, now generate.”
-2. `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY` make up the baseline set.
-3. `BASE_CONTEXT` is out because it is still run metadata, not durable repo truth.
-4. `doctor` needs a first-class `baseline complete` state.
-5. `ENVIRONMENT_INVENTORY` must have one authoritative home.
-6. The milestone is greenfield from a user-adoption perspective, so no shipped migration support is required.
-7. No bundled `system author baseline` surface ships in this milestone.
-8. No generic authoring abstraction is allowed.
-9. `M8` authoring extends a shared compiler core, but artifact-specific logic must be split into small modules under `crates/compiler/src/author/`, not piled into one giant file.
-10. `crates/compiler/src/canonical_artifacts.rs` is the single source of truth for the `M8` baseline artifact set and its required/optional semantics.
-11. CLI integration tests are the primary proof for `M8` authoring and doctor flows, with unit tests underneath for shared validation and artifact-specific internals.
-
-## Review-Locked Decisions
-
-These decisions were locked during `/plan-eng-review`:
-
-1. `setup` stops scaffolding `.system/feature_spec/FEATURE_SPEC.md` in `M8`. Bootstrap creates only the true baseline set.
-2. Repo-root `ENVIRONMENT_INVENTORY.md` is fully unsupported after `M8`. There is no mirror in the live product contract.
-3. `doctor` shows a compact ordered checklist when multiple baseline artifacts are incomplete, with item 1 marked as the next safe action.
+1. `M9` is the post-M8 conversational intake milestone, not more M8 baseline-core work.
+2. The first shipped wedge is Codex-only. Claude Code is a follow-on already captured in `TODOS.md`.
+3. The only authored artifact in `M9` is `.system/charter/CHARTER.md`.
+4. `system doctor` and `system setup` remain the only truth for readiness and repair routing.
+5. `system author charter --from-inputs` must become deterministic and Codex-free.
+6. Guided `system author charter` may remain Codex-backed in `M9`, but it must no longer share the deterministic sink path.
+7. The adapter is allowed to install, version-check, route commands, and persist artifacts. It is not allowed to reimplement readiness, validation, or write semantics.
+8. The milestone ships one repo-owned intake bundle plus a thin home-level runtime boundary. It does not ship a second compiler, a second readiness model, or a second schema language.
 
 ## Step 0: Scope Challenge
+
+### Current-state diagnosis
+
+The actual seam is narrow and concrete:
+
+- `crates/compiler/src/doctor.rs` already computes the typed baseline report. The missing piece is a first-class JSON CLI surface.
+- `crates/compiler/src/author/project_context.rs` already shows the target shape: validate structured input, preflight the repo, render deterministically, write canonically.
+- `crates/compiler/src/author/charter.rs` still routes both guided and `--from-inputs` flows through `synthesize_charter_markdown()`, which invokes `codex exec`. That is the core trust-boundary bug this milestone fixes.
+- `tools/intake/` does not exist, which means the bundle, installer, wrapper, and happy-path smoke still need to be defined from zero.
+
+This is why the right plan is charter-only plus one agent. Anything larger is an ocean.
 
 ### What already exists
 
 | Sub-problem | Existing code or asset | Reuse decision |
 | --- | --- | --- |
-| top-level `author` family and charter wiring | `crates/cli/src/main.rs`, `crates/compiler/src/author.rs` | extend, do not replace |
-| canonical artifact starter templates and setup refresh behavior | `crates/compiler/src/setup.rs`, `crates/compiler/src/canonical_artifacts.rs` | reuse |
-| readiness rendering and next-safe-action infrastructure | `crates/compiler/src/resolver.rs`, `crates/compiler/src/rendering/shared.rs`, `system doctor` surfaces | reuse and extend with checklist rendering |
-| project-context content/template assets | `core/library/project_context/*`, `core/stages/06_project_context_interview.md` | reuse content, do not expose stage ids |
-| environment inventory content/template assets | `core/library/environment_inventory/*`, `core/stages/07_foundation_pack.md` | reuse content, replace root-canonical claims |
-| docs/help drift rails | `crates/cli/tests/help_drift_guard.rs`, `crates/cli/tests/cli_surface.rs` | reuse and extend |
-| existing canonical path for project context | `.system/project_context/PROJECT_CONTEXT.md` in `crates/compiler/src/canonical_artifacts.rs` | keep |
+| baseline readiness computation | `crates/compiler/src/doctor.rs`, `docs/contracts/C-04-resolver-result-and-doctor-blockers.md` | Reuse exactly. Add JSON CLI rendering, do not rebuild readiness logic in the adapter. |
+| setup routing | `crates/cli/src/main.rs` + compiler setup flow | Reuse exactly. The adapter may call bare `system setup`, never infer init vs refresh itself. |
+| deterministic structured-input authoring pattern | `crates/compiler/src/author/project_context.rs` | Reuse as the implementation model for deterministic charter writes. |
+| charter structured-input parser and validator | `crates/compiler/src/author/charter.rs` | Reuse and split. Keep the validation logic, remove Codex from the deterministic path. |
+| baseline authoring preflight and refusal posture | compiler authoring helpers in `crates/compiler/src/author/` | Reuse. New surfaces must preserve existing refusal classes and write-target checks. |
+| CLI help/test drift posture | `crates/cli/tests/help_drift_guard.rs`, CLI snapshots | Reuse and extend instead of inventing a new docs-proof mechanism. |
+| install smoke conventions | `tools/ci/install-smoke.sh` | Reuse and extend instead of building a second smoke harness. |
+| repo-owned content assets | `core/library/authoring/`, `core/library/charter/`, `core/schemas/` | Reuse as the source tree for the intake bundle assets. |
 
 ### Scope reduction verdict
 
-This milestone is large in file count, but structurally still small enough to be the right lake:
+The minimal complete lake is:
 
-- no new top-level product noun
-- no new persistence model
-- no new external transport
-- no generic authoring framework
-- no user-migration subsystem
+- one agent surface
+- one artifact write path
+- one machine-readable readiness surface
+- one thin adapter/runtime boundary
 
-Anything bigger than that is overbuilt. Anything smaller leaves the repo baseline half-finished again.
+Anything smaller is fake completeness:
 
-### Search check
+- a prompt wrapper with no `doctor --json`
+- a deterministic flag that still shells out to Codex
+- a conversation surface with no proof artifacts or version checks
 
-- **[Layer 1]** Reuse the existing CLI subcommand and compiler-boundary pattern already proven by `system author charter`.
-- **[Layer 1]** Reuse existing template/directive assets for `PROJECT_CONTEXT` and `ENVIRONMENT_INVENTORY` instead of inventing new authoring formats.
-- **[Layer 3]** The eureka here is that baseline truth in this repo is not passive documentation. It is machine-usable canonical truth for downstream planning. That is why `PROJECT_CONTEXT` and `ENVIRONMENT_INVENTORY` belong in baseline readiness, while `BASE_CONTEXT` does not.
+Anything larger is premature:
 
-### TODO cross-reference
+- multi-agent portability now
+- `project-context` authoring now
+- environment inventory now
+- a shared baseline-intake super-artifact now
 
-Existing TODOs for UI companion, release automation, live execution packets, and richer onboarding remain deferred.
+### Distribution check
 
-No existing TODO blocks `M8`. The main risk is plan drift, not missing backlog capture.
+`M9` introduces a user-facing distribution shape, but it stays local-first:
 
-### Completeness and distribution check
+- repo-owned source assets
+- installer-managed home assets
+- one stable `system` wrapper entrypoint under `~/.local/bin/system`
+- no public publishing pipeline yet
 
-- This is a boilable lake.
-- The complete version is baseline authoring + readiness + authority cleanup, not a shortcut.
-- No new distributable artifact is introduced, so no new release pipeline is required.
+Public distribution remains a follow-on TODO, not silent scope creep.
+
+## Exact Shipped Behavior
+
+`M9` is done only when all of the following are true:
+
+1. The repo ships one supported conversational entrypoint for this milestone:
+   - `tools/intake/run_codex_charter_intake.sh --repo-root <path>`
+2. That entrypoint installs or refreshes home assets under:
+   - `~/.config/system/intake/`
+   - `~/.local/state/system/intake/`
+   - `~/.local/bin/system`
+3. The home wrapper at `~/.local/bin/system` is thin. It resolves the real CLI, prepares the runtime, and dispatches. It does not duplicate compiler logic.
+4. The adapter performs version-compatibility checks before starting a run and refuses if the installed home assets are stale or incompatible with the repo-owned assets.
+5. The adapter always calls `system doctor --json` before any baseline questioning.
+6. If doctor reports a missing or invalid `.system` root, the adapter runs bare `system setup`, then reruns `system doctor --json`.
+7. If doctor reports existing valid charter truth, the adapter refuses overwrite and surfaces the compiler-owned next action.
+8. The conversation layer captures and normalizes charter inputs only. It does not write canonical truth directly.
+9. The adapter writes normalized YAML to a temp/run path under `~/.local/state/system/intake/runs/<timestamp>/`.
+10. The adapter calls `system author charter --validate --from-inputs <path|->` before any write attempt.
+11. `system author charter --validate --from-inputs <path|->`:
+    - parses exactly as `--from-inputs` does
+    - runs the same structured-input validation rules
+    - runs the same repo preflight that `--from-inputs` uses
+    - performs no mutation
+12. The adapter calls `system author charter --from-inputs <path|->` only after validation succeeds.
+13. `system author charter --from-inputs <path|->` performs a deterministic compiler-owned render/write with no `codex exec` dependency.
+14. Guided `system author charter` remains available and Codex-backed, but it is a separate codepath from deterministic `--from-inputs`.
+15. `system doctor --json` emits one UTF-8 JSON object to stdout on success and ordinary non-ready states. The top-level object includes exactly:
+    - `c04_result_version`
+    - `c03_schema_version`
+    - `c03_manifest_generation_version`
+    - `baseline_state`
+    - `status`
+    - `system_root_status`
+    - `checklist`
+    - `blockers`
+    - `next_safe_action`
+16. Every checklist item in that JSON includes exactly:
+    - `artifact_label`
+    - `subject`
+    - `author_command`
+    - `kind`
+    - `canonical_repo_relative_path`
+    - `status`
+    - `next_safe_action`
+17. Ordinary non-ready states still emit valid JSON plus a non-zero exit code.
+18. After a successful write, the adapter reruns `system doctor --json` and reports that charter is complete while `project-context` and `environment-inventory` may still remain.
+19. The adapter persists a run artifact containing at minimum:
+    - `doctor.before.json`
+    - `doctor.after_setup.json` when setup ran
+    - `doctor.after_write.json`
+    - `charter_inputs.yaml`
+    - `validate_inputs.result.json` or equivalent structured result
+    - `author_from_inputs.result.json` or equivalent structured result
+20. The repo ships proof for:
+    - a fresh repo happy path
+    - an existing-authored-charter refusal
+    - a broken `.system` repair path
+    - install/update smoke
+    - one live Codex happy-path smoke for the shipped intake surface
 
 ## Architecture Review
 
-### Primary architecture decision
+### System boundary
 
-Extend the compiler-owned authoring pattern from `M7` into a bounded baseline tier.
-
-That means:
-
-- CLI owns command parsing, help text, and refusal rendering
-- compiler owns authoring semantics, validation, canonical writes, and readiness classification
-- baseline readiness is computed from canonical `.system` artifacts only
-- no stage-id UX leaks into the public surface
-
-### Baseline truth model
+The compiler stays the trust boundary. The conversation layer is just capture and routing.
 
 ```text
-baseline canonical truth
-  ├── .system/charter/CHARTER.md
-  ├── .system/project_context/PROJECT_CONTEXT.md
-  └── .system/environment_inventory/ENVIRONMENT_INVENTORY.md
-
-later feature-phase truth
-  └── .system/feature_spec/FEATURE_SPEC.md (later phase, not scaffolded by setup in M8)
-
-run metadata / legacy stage artifacts
-  ├── artifacts/base/BASE_CONTEXT.md
-  ├── artifacts/project_context/PROJECT_CONTEXT.md
-  └── artifacts/foundation/ENVIRONMENT_INVENTORY.md
+human
+  |
+  v
+Codex intake bundle
+  |
+  v
+home-level intake adapter
+  |
+  +--> system doctor --json
+  +--> system setup
+  +--> system author charter --validate --from-inputs
+  +--> system author charter --from-inputs
+  |
+  v
+compiler-owned readiness + refusal + deterministic write
+  |
+  v
+.system/charter/CHARTER.md
 ```
 
-The milestone succeeds only if operators and downstream code no longer have to guess which layer they are looking at.
-
-### Command/data-flow diagram
+### Command/data-flow
 
 ```text
-operator
-  │
-  ├── system setup
-  │     └── writes starter baseline files under `.system/`
-  │
-  ├── system author charter
-  │     └── canonical `.system/charter/CHARTER.md`
-  │
-  ├── system author project-context
-  │     └── canonical `.system/project_context/PROJECT_CONTEXT.md`
-  │
-  ├── system author environment-inventory
-  │     └── canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-  │
-  └── system doctor
-        ├── checks baseline canonical paths
-        ├── classifies readiness state
-        └── renders a compact ordered checklist with item 1 as next safe action
+operator -> run_codex_charter_intake.sh --repo-root <path>
+            |
+            v
+      install/update preflight
+            |
+            v
+      system doctor --json
+            |
+            +--> missing/invalid root? -> system setup -> system doctor --json
+            +--> valid charter already exists? -> refuse overwrite
+            +--> otherwise continue
+            |
+            v
+      conversational capture
+            |
+            +--> examples
+            +--> clarifying follow-ups
+            +--> completeness checks
+            +--> normalize to charter_inputs.yaml
+            |
+            v
+      system author charter --validate --from-inputs <path|->
+            |
+            +--> refusal? surface exact broken fields and stop
+            |
+            v
+      system author charter --from-inputs <path|->
+            |
+            +--> deterministic render/write
+            +--> canonical .system/charter/CHARTER.md
+            |
+            v
+      system doctor --json
+            |
+            +--> truthfully report remaining baseline work
+            +--> persist run artifacts
 ```
 
-### Readiness-state diagram
+### Ownership map
 
-```text
-                 missing / starter-owned baseline file
-       ┌────────────────────────────────────────────────────┐
-       │                                                    ▼
-  [SCAFFOLDED] ── author one artifact ──> [PARTIAL_BASELINE]
-       ▲                                      │
-       │                                      │ another missing/starter file
-       │                                      │
-       │ invalid file repaired                ▼
-       └────────────── [INVALID_BASELINE] <───┘
-                               │
-                               │ all baseline files valid
-                               ▼
-                      [BASELINE_COMPLETE]
-                               │
-                               │ later milestone work
-                               ▼
-                         [FEATURE_READY]
-```
-
-### Module boundaries
-
-| Area | Ownership | Planned work |
+| Area | Ownership | Required change |
 | --- | --- | --- |
-| `crates/cli/src/` | CLI | add project-context and environment-inventory subcommands, help text, refusal mapping |
-| `crates/compiler/src/author.rs` or adjacent compiler authoring modules | compiler | shared baseline-authoring execution and validation |
-| `crates/compiler/src/canonical_artifacts.rs` | compiler | canonical path/starter-template updates, including environment inventory |
-| `crates/compiler/src/resolver.rs` + renderers | compiler | baseline readiness-state computation and messaging |
-| `core/library/project_context/` | authoring assets | reuse/update content for public authoring |
-| `core/library/environment_inventory/` | authoring assets | reuse/update content, remove root-canonical claims |
-| `core/rules/` + `docs/contracts/` + `docs/` | product truth | cut authority/readiness wording over to the M8 model |
-
-### Security and production-failure review
-
-| New codepath | Realistic failure | Planned response |
-| --- | --- | --- |
-| `system author project-context` | writes invalid or incomplete structure | structural validation refusal, no canonical write |
-| `system author environment-inventory` | old root-canonical assumptions leak into generated content | explicit canonical-path contract, root claims removed from directives and docs |
-| setup scaffold update | environment inventory starter missing or wrong path | setup regression tests |
-| readiness computation | feature-spec or legacy artifact accidentally blocks baseline complete | baseline-state tests against canonical `.system` set only |
-| docs/contracts cutover | README/help/contracts disagree on authority boundary | help-drift and docs parity regression coverage |
-
-## Code Quality Review
-
-### Minimal-diff rules
-
-- extend the existing `author` family, do not add a new top-level command
-- reuse compiler-side authoring boundary, do not scatter artifact-specific logic through CLI renderers
-- keep baseline classification explicit, not clever
-- update existing contracts/docs instead of introducing shadow design docs in code comments everywhere
-- avoid creating a separate migration subsystem for a greenfield milestone
-- keep one shared compiler authoring core, but split artifact-specific logic into small modules rather than growing `crates/compiler/src/author.rs` into a blob
-- make `canonical_artifacts` the baseline source of truth; setup/doctor/rendering should consume it instead of redefining baseline rules
-
-### DRY guardrails
-
-1. Do not build three independent authoring engines. Reuse the `M7` authoring pattern.
-2. Do not let readiness logic live in multiple places with different artifact sets.
-3. Do not maintain two canonical stories for `ENVIRONMENT_INVENTORY`.
-4. Do not let legacy `artifacts/*` outputs silently continue to drive baseline truth.
-5. Do not duplicate baseline required/optional semantics across setup, resolver, and rendering.
-
-### Overbuild traps that fail review
-
-- bundled `system author baseline`
-- auto-import/migration machinery for nonexistent users
-- generic “canonical document” framework
-- reclassifying `BASE_CONTEXT` without redesigning it
-- long-lived root-file compatibility shims
-
-### Files that deserve inline ASCII comments
-
-- compiler-side readiness classification code
-- any shared baseline-authoring entrypoint that multiple commands converge on
-- the module boundary comment in `crates/compiler/src/author/` explaining shared core vs artifact-specific modules
-- canonical-artifact ownership code if both baseline and later feature-phase artifacts are handled nearby
-
-## Test Review
-
-### Coverage diagram
-
-```text
-M8 BASELINE TIER COVERAGE
-=========================
-[+] setup baseline scaffolding
-    │
-    ├── [GAP] creates `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-    ├── [GAP] preserves existing baseline canonical truth on refresh
-    └── [GAP] no longer scaffolds `.system/feature_spec/FEATURE_SPEC.md`
-
-[+] system author project-context
-    │
-    ├── [GAP] scaffolded happy path writes canonical `.system/project_context/PROJECT_CONTEXT.md`
-    ├── [GAP] refuses overwrite of existing valid truth
-    ├── [GAP] validates structure before write
-    └── [GAP] public help/docs describe it as baseline authoring, not legacy stage capture
-
-[+] system author environment-inventory
-    │
-    ├── [GAP] scaffolded happy path writes canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-    ├── [GAP] refuses overwrite of existing valid truth
-    ├── [GAP] strips root-canonical language from generated/runtime contract
-    └── [GAP] does not write repo-root canonical truth
-
-[+] doctor readiness states and checklist
-    │
-    ├── [GAP] SCAFFOLDED when all three baseline files are starter-owned/missing
-    ├── [GAP] PARTIAL_BASELINE when some but not all baseline files are valid
-    ├── [GAP] INVALID_BASELINE when a non-starter file fails structural validation
-    ├── [GAP] BASELINE_COMPLETE when all baseline files are valid
-    ├── [GAP] FEATURE_SPEC absence does not block BASELINE_COMPLETE
-    └── [GAP] multiple missing artifacts render a compact ordered checklist with item 1 as next safe action
-
-[+] authority boundary
-    │
-    ├── [GAP] `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the only canonical env-inventory path
-    ├── [GAP] repo-root ENVIRONMENT_INVENTORY is not described as canonical or emitted as a mirror in docs/help/contracts/runtime
-    └── [GAP] BASE_CONTEXT remains outside baseline readiness
-
-─────────────────────────────────
-COVERAGE: 0/17 M8 paths implemented yet
-  Setup: 0/3
-  Project Context: 0/4
-  Environment Inventory: 0/4
-  Doctor readiness: 0/6
-  Authority boundary: 0/3
-─────────────────────────────────
-```
-
-### Required tests and expected homes
-
-Primary testing posture for `M8`:
-
-- command-surface behavior is proved first through CLI integration tests
-- shared validation and artifact-specific normalization rules get unit coverage underneath
-- no new baseline authoring surface lands with unit-only proof
-
-| Test requirement | Expected home | Type |
-| --- | --- | --- |
-| setup scaffolds env inventory starter path and stops scaffolding feature spec | `crates/compiler/tests/setup.rs` | regression |
-| setup refresh preserves valid baseline truth | `crates/compiler/tests/setup.rs` | regression |
-| project-context author happy path | `crates/cli/tests/author_cli.rs`, `crates/compiler/tests/author.rs` | integration/unit |
-| environment-inventory author happy path | `crates/cli/tests/author_cli.rs`, `crates/compiler/tests/author.rs` | integration/unit |
-| refusal on existing valid truth for both new commands | `crates/compiler/tests/author.rs` | regression |
-| structural validation failure maps to INVALID_BASELINE | `crates/compiler/tests/author.rs`, `crates/compiler/tests/resolver_core.rs` | regression |
-| doctor readiness-state classification for all four baseline states | `crates/compiler/tests/resolver_core.rs` or matching doctor/rendering tests | regression |
-| doctor checklist rendering marks item 1 as next safe action | `crates/compiler/tests/rendering_surface.rs`, CLI regression tests | regression |
-| feature-spec absence and non-scaffolding do not block baseline complete | `crates/compiler/tests/resolver_core.rs`, CLI regression tests | regression |
-| docs/help/contracts no longer call root env inventory canonical | `crates/cli/tests/help_drift_guard.rs`, snapshots, docs parity | regression |
-| BASE_CONTEXT remains excluded from baseline readiness | `crates/compiler/tests/resolver_core.rs` | regression |
-
-### Mandatory regression rules
-
-- any readiness regression that still makes feature-spec block baseline completion is critical
-- any authority regression that still treats repo-root env inventory as canonical or emits it as a live mirror is critical
-- any authoring regression that silently overwrites valid baseline truth is critical
-
-## Failure Modes Registry
-
-| Failure mode | Severity | Test cover | Error handling | User-visible outcome |
-| --- | --- | --- | --- | --- |
-| environment inventory still has two canonical homes | Critical | required | hard failure in docs/contracts/tests | prevents split authority |
-| project context authoring writes invalid structure | High | required | explicit refusal | clear repair path |
-| invalid baseline file is reported as complete | Critical | required | explicit invalid state | prevents false readiness |
-| setup still scaffolds feature spec in M8 | High | required | regression failure | prevents baseline boundary drift |
-| doctor shows only one opaque next action when multiple baseline files are incomplete | High | required | checklist rendering | prevents hidden recovery work |
-| BASE_CONTEXT accidentally enters baseline checks | High | required | explicit exclusion tests | prevents boundary drift |
-| docs/help keep old root-canonical env language | High | required | drift-guard/docs parity | avoids product-story split |
-
-Critical-gap rule:
-
-- any failure mode with no test, no refusal, and silent wrong readiness is a release blocker
-
-## Performance Review
-
-### Determinism and bounded-work rules
-
-- baseline readiness must read only the bounded canonical baseline set, not scan arbitrary repo files
-- authoring paths must perform one write to one canonical path per successful run
-- no productized migration/import workflow means no background reconciliation logic
-- help/docs parity remains machine-checked because wording drift is part of the risk surface here
-
-### Performance smells that fail review
-
-- readiness computed from broad filesystem heuristics instead of explicit artifact list
-- duplicated validation logic across CLI and compiler layers
-- legacy root/artifact-path reads kept in the hot path after cleanup
-
-## Deterministic Implementation Contract
-
-The plan is not implementation-ready unless two independent workers would choose the same structural diff.
-
-For `M8`, that means these decisions are no longer discretionary:
-
-1. `crates/compiler/src/canonical_artifacts.rs` becomes the single registry for all canonical artifact semantics used by setup, doctor, and downstream rendering.
-   It must explicitly model four artifacts:
-   - `CHARTER`
-   - `PROJECT_CONTEXT`
-   - `ENVIRONMENT_INVENTORY`
-   - `FEATURE_SPEC`
-2. The registry must separate these concerns instead of collapsing them into one `required` boolean:
-   - baseline-readiness participation
-   - setup scaffolding participation
-   - later feature-phase participation
-   - canonical path ownership
-3. `system doctor` must stop using raw planning-packet `READY` versus `BLOCKED` as its repo-baseline model.
-   `doctor` needs a compiler-owned baseline-readiness result with named states:
-   - `SCAFFOLDED`
-   - `PARTIAL_BASELINE`
-   - `INVALID_BASELINE`
-   - `BASELINE_COMPLETE`
-4. `system author` grows exactly two new public commands in `M8`:
-   - `system author project-context`
-   - `system author environment-inventory`
-5. Compiler-side authoring stops growing as one file.
-   `M8` must leave authoring split under `crates/compiler/src/author/` with these module targets:
-   - `mod.rs`
-   - `charter.rs`
-   - `project_context.rs`
-   - `environment_inventory.rs`
-6. Repo-root `ENVIRONMENT_INVENTORY.md` is not a supported canonical output after `M8`.
-   The live product contract is the `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` path only.
-   Any legacy capture/mirror cleanup is internal repo maintenance, not shipped compatibility behavior.
-7. `setup` may keep its own mutation result vocabulary, but it must stop implying that repo readiness is equivalent to packet readiness or charter-only completion.
-   `setup` hands off to `doctor` for baseline truth.
-8. `doctor` next actions must name the command when a command exists.
-   Do not leave `project-context` or `environment-inventory` recovery as a generic “fill canonical artifact” file-path hint.
+| `crates/compiler/src/doctor.rs` | compiler | keep `DoctorReport` semantics stable, expose JSON-serializable contract cleanly |
+| `crates/cli/src/main.rs` | CLI | add `doctor --json`; add `author charter --validate --from-inputs`; keep human-readable default output intact |
+| `crates/compiler/src/author/charter.rs` | compiler | split guided Codex synthesis from deterministic `--from-inputs`; preserve preflight/refusal logic |
+| `crates/compiler/src/author/project_context.rs` | compiler reference | no redesign, use as the deterministic pattern to copy |
+| `crates/compiler/tests/author.rs` | compiler tests | prove deterministic charter sink, validation-only surface, overwrite refusal, malformed/incomplete input refusals |
+| `crates/compiler/tests/doctor.rs` | compiler tests | prove JSON contract fields, status behavior, blockers, and checklist semantics |
+| `crates/cli/tests/author_cli.rs` + `help_drift_guard.rs` | CLI tests | prove new flags, exit behavior, and docs/help parity |
+| `core/library/authoring/`, `core/library/charter/`, `core/schemas/` | repo-owned protocol assets | add intake protocol, charter examples, and structured-input schema |
+| `tools/intake/` | adapter/runtime | add installer, runtime entrypoint, and Codex happy-path launcher |
+| `tools/ci/install-smoke.sh` | smoke harness | extend from plain CLI install smoke to intake-bundle install/update/runtime smoke |
+| `README.md`, `docs/`, `docs/contracts/`, `DESIGN.md` | docs/contracts | align the public command story, trust boundary, and proof expectations |
 
 ## Implementation Plan
 
-### Slice 1: Shared baseline model and setup cutover
+### Workstream 1: Compiler sink hardening
 
-**Owned files**
+This is the first hard gate. Nothing else is allowed to invent around it.
 
-- `crates/compiler/src/canonical_artifacts.rs`
-- `crates/compiler/src/setup.rs`
-- `crates/compiler/src/refusal.rs`
-- `crates/compiler/src/rendering/shared.rs`
+Deliverables:
+
+- add `--json` to the existing `doctor` command, not a second command name
+- add `--validate` to `system author charter`, valid only alongside `--from-inputs <path|->`
+- keep `--from-inputs <path|->` as the source selector and `--validate` as the mutation-free mode selector
+- move deterministic charter rendering/writing onto a compiler-owned non-Codex path
+- keep guided `system author charter` as the only charter flow that may still invoke Codex
+
+Files/modules:
+
 - `crates/cli/src/main.rs`
-- `crates/compiler/tests/setup.rs`
-- `crates/cli/tests/cli_surface.rs`
-- `crates/cli/tests/snapshots/system-setup-help.txt`
-- `crates/cli/tests/snapshots/system-setup-init-help.txt`
-- `crates/cli/tests/snapshots/system-setup-refresh-help.txt`
-
-**Required code changes**
-
-1. Extend the canonical artifact registry with `EnvironmentInventory`.
-2. Replace the current single-axis required/optional model with explicit baseline semantics so:
-   - `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY` are baseline artifacts
-   - `FEATURE_SPEC` remains canonical but is later-phase only
-3. Make setup scaffold exactly the baseline starter set for `M8`.
-   That means:
-   - create `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-   - keep `.system/charter/CHARTER.md`
-   - keep `.system/project_context/PROJECT_CONTEXT.md`
-   - stop creating `.system/feature_spec/FEATURE_SPEC.md`
-4. Remove the current setup note that says project context is optional for the setup-owned story.
-5. Expand next-safe-action vocabulary so later doctor/checklist rendering can point to the concrete author commands, not only file paths.
-
-**Acceptance**
-
-- setup creates only the baseline starter set
-- setup refresh preserves valid baseline truth
-- no shared compiler or CLI file still assumes `FEATURE_SPEC` is part of setup bootstrap
-- setup snapshots and CLI surface tests are updated to the new baseline language
-
-### Slice 2: Restructure compiler authoring into explicit modules
-
-**Owned files**
-
-- `crates/compiler/src/author.rs` replaced by `crates/compiler/src/author/mod.rs`
+- `crates/compiler/src/doctor.rs`
 - `crates/compiler/src/author/charter.rs`
-- `crates/compiler/src/author/project_context.rs`
-- `crates/compiler/src/author/environment_inventory.rs`
-- `crates/compiler/src/lib.rs`
-
-**Required code changes**
-
-1. Move the existing charter implementation into `author/charter.rs` without changing its shipped refusal boundary.
-2. Make `author/mod.rs` the shared entrypoint for all authoring surfaces.
-3. Keep only shared utilities in the module root:
-   - canonical-write guardrails
-   - starter-template detection
-   - shared validation/refusal helpers
-   - codex-process plumbing only where truly shared
-4. Do not leave `project-context` or `environment-inventory` as giant copy-paste branches inside one file.
-
-**Acceptance**
-
-- `charter` behavior remains unchanged except for mechanical module movement
-- the new authoring surfaces plug into the same compiler-owned write boundary
-- the post-`M8` authoring tree has obvious ownership by artifact
-
-### Slice 3: Add `system author project-context`
-
-**Owned files**
-
-- `crates/cli/src/main.rs`
-- `crates/compiler/src/author/project_context.rs`
-- `core/library/project_context/PROJECT_CONTEXT.md.tmpl`
-- `core/library/project_context/project_context_gen_directive.md`
+- `crates/compiler/tests/doctor.rs`
 - `crates/compiler/tests/author.rs`
 - `crates/cli/tests/author_cli.rs`
-- `crates/cli/tests/snapshots/system-author-help.txt`
-- new help snapshot for `system author project-context`
-
-**Required code changes**
-
-1. Add the public CLI subcommand and help text.
-2. Add compiler-owned project-context authoring that writes only `.system/project_context/PROJECT_CONTEXT.md`.
-3. Match `M7` write-safety posture:
-   - missing or starter-owned file can be authored
-   - existing valid non-starter truth refuses overwrite by default
-4. Add project-context structural validation strong enough for doctor to classify invalid versus starter versus valid.
-5. Keep public UX free of stage ids and artifact-copy jargon.
-
-**Acceptance**
-
-- `system author project-context` works end to end from scaffolded repo to canonical write
-- overwrite refusal matches the charter precedent
-- invalid project-context content can be surfaced later by doctor as `INVALID_BASELINE`
-
-### Slice 4: Add `system author environment-inventory` and cut authority
-
-**Owned files**
-
-- `crates/cli/src/main.rs`
-- `crates/compiler/src/author/environment_inventory.rs`
-- `core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl`
-- `core/library/environment_inventory/environment_inventory_directive.md`
-- `core/rules/p0_absolute.md`
-- `crates/compiler/tests/author.rs`
-- `crates/cli/tests/author_cli.rs`
-- new help snapshot for `system author environment-inventory`
-
-**Required code changes**
-
-1. Add the public CLI subcommand and help text.
-2. Add compiler-owned environment-inventory authoring that writes only `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
-3. Rewrite environment-inventory prompt/template/rules text so the `.system` path is the sole canonical home.
-4. Remove product-surface language that still claims:
-   - repo-root `ENVIRONMENT_INVENTORY.md` is canonical
-   - `artifacts/foundation/ENVIRONMENT_INVENTORY.md` is the canonical store of record
-5. Keep pipeline-capture legacy artifact behavior out of the `M8` product contract.
-   If older fixture or capture tests still reference repo-root or artifact copies, they remain legacy implementation surfaces and must not be described as live canonical truth in docs/help/rules.
-
-**Acceptance**
-
-- `system author environment-inventory` writes only the `.system` canonical path
-- no live authoring/rules/help copy still names the repo-root file as canonical
-- the plan leaves no ambiguity about which file downstream operators should edit
-
-### Slice 5: Introduce a compiler-owned doctor model for baseline readiness
-
-**Owned files**
-
-- new `crates/compiler/src/doctor.rs`
-- `crates/compiler/src/lib.rs`
-- `crates/cli/src/main.rs`
-- `crates/compiler/tests/resolver_core.rs`
-- `crates/compiler/tests/rendering_surface.rs`
-- `crates/cli/tests/cli_surface.rs`
-
-**Required code changes**
-
-1. Stop making `system doctor` a thin wrapper around packet `resolve()`.
-2. Add a compiler-owned baseline-readiness result that classifies exactly:
-   - `SCAFFOLDED`
-   - `PARTIAL_BASELINE`
-   - `INVALID_BASELINE`
-   - `BASELINE_COMPLETE`
-3. Make the classifier inspect only the three baseline artifacts.
-   `FEATURE_SPEC` must not participate in this state machine.
-4. Render a compact ordered checklist when more than one baseline artifact still needs work.
-   Item 1 is the next safe action.
-5. Use concrete command guidance:
-   - `run \`system author charter\``
-   - `run \`system author project-context\``
-   - `run \`system author environment-inventory\``
-6. Preserve packet resolver behavior as a separate concern.
-   `doctor` reports repo-baseline truth, not planning-packet selection.
-
-**Acceptance**
-
-- doctor no longer prints a misleading bare `READY` when only packet prerequisites happen to pass
-- invalid authored files are separated from missing/starter-owned files
-- feature-spec absence does not affect baseline completion
-
-### Slice 6: Product-story cutover and proof
-
-**Owned files**
-
-- `README.md`
-- `docs/contracts/C-03-canonical-artifact-manifest-contract.md`
-- `docs/CLI_OUTPUT_ANATOMY.md`
-- `docs/VISION.md`
-- `docs/GLOSSARY.md`
-- `docs/legacy/SYSTEM_MODEL.md`
-- `docs/legacy/stages/stage.07_foundation_pack.md`
-- `docs/legacy/guides/mechanisms/environment_inventory.md`
-- `core/library/foundation_pack/foundation_pack_directive.md`
 - `crates/cli/tests/help_drift_guard.rs`
 
-**Required code and doc changes**
+Exit condition:
 
-1. Cut every live product description from charter-only or root-canonical wording to the `M8` baseline tier.
-2. Update the artifact contract docs so `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the canonical environment-inventory path.
-3. Where legacy docs are kept for historical mechanism coverage, mark them as legacy and remove statements that would contradict the shipped product contract.
-4. Make help-drift coverage fail if author/setup/doctor help slips back to the old story.
+- charter `--from-inputs` no longer shells out to `codex exec`
+- `doctor --json` is stable and covered
+- `--validate --from-inputs` proves preflight without mutation
 
-**Acceptance**
+### Workstream 2: Intake bundle and home runtime
 
-- docs, help, contracts, and rules all tell the same baseline story
-- no user-facing source instructs the operator to treat repo-root `ENVIRONMENT_INVENTORY.md` as canonical
-- proof is test-backed, not trust-me prose
+This workstream may start once Workstream 1 command contracts are written down, but it must not redefine them.
+
+Deliverables:
+
+- repo-owned protocol asset for the conversational intake method
+- repo-owned charter example/coaching asset
+- repo-owned structured-input schema for the bundle/runtime
+- installer that copies or refreshes home assets
+- home wrapper/runtime that:
+  - verifies install/version compatibility
+  - targets one repo root explicitly
+  - writes run artifacts under `~/.local/state/system/intake/runs/`
+  - calls `system`, maps exit codes, and surfaces exact refusals
+- launcher script for the supported Codex entrypoint
+
+Files/modules:
+
+- `core/library/authoring/conversational_intake_protocol.md`
+- `core/library/authoring/conversational_intake_charter_examples.md`
+- `core/schemas/charter_structured_input.schema.json`
+- `tools/intake/install.sh`
+- `tools/intake/runtime.sh`
+- `tools/intake/run_codex_charter_intake.sh`
+
+Exit condition:
+
+- a fresh machine/user can install the intake assets
+- the adapter refuses stale installs clearly
+- the adapter can execute the happy-path command loop with exact run artifacts
+
+### Workstream 3: Docs, proofs, and cutover
+
+This workstream waits until the CLI contract and adapter contract are real.
+
+Deliverables:
+
+- docs/help/contract alignment for the new surfaces
+- install/update smoke coverage
+- transcript or fixture proof for happy path, overwrite refusal, and broken-root repair
+- one bounded live Codex smoke for the shipped happy path
+
+Files/modules:
+
+- `README.md`
+- `docs/SUPPORTED_COMMANDS.md`
+- `docs/START_HERE.md`
+- `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
+- `docs/contracts/C-04-resolver-result-and-doctor-blockers.md`
+- `docs/contracts/C-07-conformance-rails-and-docs-cutover.md`
+- `DESIGN.md`
+- `tools/ci/install-smoke.sh`
+- `tests/fixtures/` or `.implemented/` evidence directory, whichever best fits the shipped proof posture
+
+Exit condition:
+
+- the docs tell the same story as the CLI
+- install smoke covers the home runtime boundary
+- proof artifacts exist for each required operator path
+
+## Code Quality Review
+
+### Boring-by-default rules
+
+- Do not build a generic "baseline intake engine."
+- Do not create a second readiness model in `tools/intake/`.
+- Do not introduce a second schema language if the Rust structured-input contract already defines the truth.
+- Do split the guided charter path from deterministic `--from-inputs` cleanly. That split is the whole point.
+
+### DRY rules
+
+- Reuse the `project-context` deterministic authoring pattern for charter.
+- Reuse existing refusal formatting where new CLI surfaces need operator-facing error output.
+- Reuse the existing help drift and smoke harnesses instead of making sidecar proof systems.
+
+### Required inline diagrams during implementation
+
+- `crates/compiler/src/author/charter.rs`
+  - guided vs deterministic charter flow
+- `crates/compiler/src/doctor.rs`
+  - typed readiness report -> human output / JSON output ownership boundary
+- `tools/intake/runtime.sh` or equivalent runtime entrypoint
+  - install preflight -> doctor -> setup -> validate -> write -> doctor loop
+
+## Test Review
+
+### Framework baseline
+
+No new test framework is needed.
+
+Current layers are already right:
+
+- compiler tests under `crates/compiler/tests/`
+- CLI surface tests under `crates/cli/tests/`
+- shell smoke under `tools/ci/install-smoke.sh`
+
+### Code path coverage to add
+
+```text
+CODE PATH COVERAGE
+==================
+[+] doctor --json
+    |
+    ├-- [GAP] valid baseline report serializes exact top-level fields
+    ├-- [GAP] scaffolded report serializes with non-zero exit at CLI layer
+    ├-- [GAP] invalid-root report still emits JSON on ordinary non-ready states
+    └-- [GAP] catastrophic inspection failure emits refusal text instead of partial JSON
+
+[+] author charter --validate --from-inputs
+    |
+    ├-- [GAP] valid YAML -> exit 0, no mutation
+    ├-- [GAP] malformed YAML -> refusal, no mutation
+    ├-- [GAP] incomplete YAML -> refusal, no mutation
+    └-- [GAP] existing valid charter -> refusal before mutation
+
+[+] author charter --from-inputs
+    |
+    ├-- [GAP] deterministic render/write with no codex exec
+    ├-- [GAP] malformed YAML -> refusal
+    ├-- [GAP] incomplete YAML -> refusal
+    ├-- [GAP] existing valid charter -> refuse overwrite
+    └-- [GAP] invalid write target -> mutation refused
+
+[+] guided author charter
+    |
+    ├-- [GAP] remains the only charter path allowed to use Codex
+    └-- [GAP] regression: guided/runtime logic must not leak into deterministic path
+```
+
+### User flow coverage to add
+
+```text
+USER FLOW COVERAGE
+==================
+[+] Fresh repo intake flow [->E2E]
+    |
+    ├-- [GAP] doctor --json -> setup -> doctor --json -> validate -> write -> doctor --json
+    └-- [GAP] final doctor still reports project-context + environment-inventory as remaining
+
+[+] Existing authored charter flow
+    |
+    └-- [GAP] adapter refuses overwrite and surfaces compiler-owned next action
+
+[+] Broken .system flow [->E2E]
+    |
+    └-- [GAP] doctor detects invalid root, adapter routes through setup, reruns doctor
+
+[+] Install/update flow
+    |
+    ├-- [GAP] missing ~/.local/bin/system shim -> install smoke fails clearly
+    └-- [GAP] stale home asset version -> adapter refuses before conversation starts
+
+[+] LLM-backed conversation handoff [->EVAL]
+    |
+    └-- [GAP] one bounded live Codex smoke proves the shipped happy path
+```
+
+### Required tests and proofs
+
+- `crates/compiler/tests/doctor.rs`
+  - JSON contract and checklist field coverage
+  - blocker and next-safe-action behavior
+- `crates/compiler/tests/author.rs`
+  - validation-only charter path
+  - deterministic charter `--from-inputs`
+  - regression that deterministic charter path does not invoke Codex
+- `crates/cli/tests/author_cli.rs`
+  - new flag parsing, refusal text, and exit behavior
+- `crates/cli/tests/help_drift_guard.rs`
+  - help/docs parity for `doctor --json` and `author charter --validate --from-inputs`
+- `tools/ci/install-smoke.sh`
+  - home install/update/runtime checks
+- proof artifacts
+  - fresh repo happy path
+  - existing charter refusal
+  - broken-root repair
+  - one live Codex happy-path smoke
+
+### Regression rules
+
+- The current Codex dependency in charter `--from-inputs` is a regression gap. The fix is not optional and the regression test is mandatory.
+- Any adapter behavior that guesses readiness without `system doctor --json` is a regression against the trust boundary and must be caught by smoke or integration proof.
+
+## Performance and Reliability Review
+
+This milestone is not CPU-heavy, but it still has sharp operational boundaries.
+
+- The adapter must not walk the repo to infer readiness. It should pay the cost of calling `system`, not invent a cache.
+- The adapter should execute at most:
+  - one install/version preflight
+  - one initial `doctor --json`
+  - optional `system setup`
+  - one follow-up `doctor --json`
+  - one validation call
+  - one write call
+  - one final `doctor --json`
+- Run artifacts should stream to disk as they are produced. Do not hold large transcripts in memory.
+- No long-lived daemon, file watcher, or persisted readiness cache ships in `M9`.
+- Ordinary refusal and non-ready states must remain fast, explicit, and finite.
+
+## Failure Modes Registry
+
+| Codepath | Realistic production failure | Test required | Error handling required | User-visible outcome |
+| --- | --- | --- | --- | --- |
+| install preflight | stale or missing home asset version | yes | adapter refusal before questioning | explicit compatibility refusal |
+| repo targeting | wrong `--repo-root` or missing repo root | yes | explicit repo-root refusal | exact failing path shown |
+| doctor JSON | text output accidentally treated as JSON | yes | hard refusal on invalid JSON payload | no guessing, exact failure surfaced |
+| setup routing | adapter skips bare `system setup` after doctor says root missing/invalid | yes | regression-blocking smoke or integration test | no write attempt, exact setup action shown |
+| charter YAML emission | vague or malformed structured YAML | yes | validation refusal before write | field-specific repair guidance |
+| deterministic charter sink | `--from-inputs` still invokes Codex | yes, critical | regression test in compiler/CLI coverage | ship blocker |
+| existing canonical truth | overwrite of valid authored charter | yes | compiler-owned refusal | exact next action to inspect existing charter |
+| final handoff | adapter claims baseline complete after charter-only completion | yes | final doctor rerun is mandatory | remaining work shown clearly |
+| logging | sensitive charter values echoed noisily to stdout | yes | bounded logging/run-artifact policy | sanitized operator output |
+
+Critical gap rule: any path that writes canonically without doctor truth, without validation, or without deterministic compiler ownership is a ship blocker.
+
+## TODOS Cross-Reference
+
+Existing TODOs already capture the correct follow-ons:
+
+- `Claude Code Conversational Intake Surface`
+- `Public CLI Distribution`
+- `CLI Release Workflow`
+- broader `Live Authoring Smoke Coverage`
+
+This plan does not add new TODOs. The right move is to finish the charter-only Codex-first wedge cleanly before widening the surface area.
 
 ## Worktree Parallelization Strategy
 
-### Required lane ownership
+### Dependency table
 
-Parallel work is safe only if ownership is explicit.
+| Step | Modules touched | Depends on |
+| --- | --- | --- |
+| 1. Compiler sink hardening | `crates/compiler/src/author/`, `crates/compiler/src/doctor.rs`, `crates/cli/src/`, compiler/CLI tests | --- |
+| 2. Intake bundle and home runtime | `core/library/authoring/`, `core/library/charter/`, `core/schemas/`, `tools/intake/` | Step 1 command contracts written down |
+| 3. Docs/help/smoke cutover | `README.md`, `docs/`, `DESIGN.md`, `tools/ci/`, proof artifacts | 1 and 2 |
 
-| Lane | Ownership | Write set | Must not edit |
-| --- | --- | --- | --- |
-| Lane A: shared baseline foundation | baseline registry, setup, shared next-safe-action vocabulary | `crates/compiler/src/canonical_artifacts.rs`, `crates/compiler/src/setup.rs`, `crates/compiler/src/refusal.rs`, `crates/compiler/src/rendering/shared.rs`, setup-related CLI/help snapshots | author modules, doctor module, docs cutover |
-| Lane B: author module restructure + project-context | author module split and project-context authoring | `crates/compiler/src/author/*`, project-context assets, project-context author tests | authority docs, doctor module |
-| Lane C: environment-inventory authority cutover | environment-inventory authoring plus authority docs/rules | `crates/compiler/src/author/environment_inventory.rs`, environment-inventory assets, `core/rules/p0_absolute.md`, authority docs listed in Slice 6 | setup registry internals, doctor module |
-| Lane D: doctor closeout | baseline readiness classification and doctor rendering | `crates/compiler/src/doctor.rs`, `crates/cli/src/main.rs`, doctor-facing tests and snapshots | author asset files, authority docs except wording needed for doctor snapshots |
+### Parallel lanes
 
-### Handoff rules
+- Lane A: Step 1
+  - sequential inside the lane because CLI routing, doctor output, and charter sink ownership all touch the same trust boundary
+- Lane B: Step 2
+  - can launch in parallel once Lane A's command contracts are locked in the plan
+- Lane C: Step 3
+  - sequential after A and B merge because docs, help drift, install smoke, and proof artifacts must reflect the final shipped interfaces
 
-1. Lane A lands first.
-   It establishes the shared artifact model and removes the current “feature spec is part of setup bootstrap” assumption.
-2. Lane B and Lane C branch only after Lane A lands.
-   They depend on the same canonical registry and next-safe-action vocabulary.
-3. Lane D starts only after both Lane B and Lane C land.
-   Doctor cannot finalize checklist text or state classification until both new authoring surfaces and the environment-inventory authority boundary are real.
+### Execution order
 
-### Why this is the only safe parallel split
+Launch Lane A and Lane B in parallel worktrees after this plan is approved.
 
-- `crates/cli/src/main.rs` is a conflict magnet.
-  Do not have multiple lanes racing there.
-  Lane D owns the final CLI closeout after the compiler-side authoring work is real.
-- `crates/compiler/src/author/*` is shared infrastructure.
-  Project-context and environment-inventory authoring may share helpers, but only Lane B owns the structural module split.
-- authority-doc cleanup is not a side quest.
-  Lane C owns it because environment-inventory canonical-path truth is part of the shipped feature, not post-merge polish.
+Merge both.
 
-### Parallelization verdict
+Then run Lane C for docs, smoke, and proof cutover.
 
-The safe plan is one sequential foundation lane, two middle implementation lanes, then one sequential doctor closeout lane.
-That is the highest parallelism available without inviting merge-conflict roulette or divergent product wording.
+### Conflict flags
 
-## Verification Commands
+- Lane A and Lane B must not both edit `README.md`, `docs/`, or help snapshots. Reserve those for Lane C.
+- Lane A owns `crates/cli/src/` and compiler authoring/doctor code. Lane B must not touch those modules.
+- Lane B owns `core/library/authoring/`, `core/schemas/`, and `tools/intake/`. Lane A must not create duplicate runtime assets there.
 
-Run these as the minimum acceptance proof for `M8`:
+Result: 3 lanes total, 2 launchable in parallel, 1 final sequential integration lane.
 
-```bash
-cargo test -p system-compiler --test setup --test author --test resolver_core --test rendering_surface
-cargo test -p system-cli --test author_cli --test cli_surface --test help_drift_guard
-```
+## Acceptance Criteria
 
-If help snapshots or new command snapshots are split into additional test files, they join this minimum bar. `M8` is not done on unit coverage alone.
+1. `system doctor --json` is documented, tested, and emits the exact locked contract.
+2. `system author charter --validate --from-inputs <path|->` is documented, tested, and mutation-free.
+3. `system author charter --from-inputs <path|->` is deterministic and does not invoke Codex.
+4. Guided `system author charter` still works and is clearly separated from the deterministic sink.
+5. The Codex intake bundle can complete the fresh-repo charter flow end to end.
+6. The adapter persists run artifacts under `~/.local/state/system/intake/runs/`.
+7. Install/update checks cover `~/.config/system`, `~/.local/state/system`, and `~/.local/bin/system`.
+8. The adapter refuses overwrite of existing valid charter truth.
+9. The final doctor handoff truthfully shows remaining baseline work after charter-only completion.
+10. Docs, help text, contracts, smoke scripts, and proof artifacts all describe the same shipped command story.
 
-## Exit Criteria
+## Unresolved Decisions
 
-The milestone is complete only when:
+None.
 
-- the active plan and approved design agree on the `M8` baseline tier
-- setup scaffolds the baseline set required for `M8`
-- setup does not scaffold `FEATURE_SPEC`
-- `system author project-context` and `system author environment-inventory` are first-class surfaces
-- baseline readiness is computed from `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`
-- `doctor` exposes `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`
-- `FEATURE_SPEC` does not block `BASELINE_COMPLETE`
-- `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the only canonical environment inventory path in the live product story
-- repo-root `ENVIRONMENT_INVENTORY.md` is not described as canonical anywhere in live docs/contracts/help and is not emitted as a live mirror
-- `BASE_CONTEXT` remains outside the baseline tier
-- doctor shows a compact ordered checklist when more than one baseline action remains
-- doctor next actions name the concrete `author` command for each missing or invalid baseline artifact
-- compiler authoring is split under `crates/compiler/src/author/` rather than left as a monolith
-- regression coverage proves the authority boundary and readiness model
+The remaining work is execution. The plan is intentionally specific enough that the next choices should be implementation details, not scope debates.
+
+## Completion Summary
+
+- Step 0: Scope Challenge, accepted as charter-only, one-agent, deterministic-sink-first
+- Architecture Review: compiler-owned truth boundary retained, adapter kept thin
+- Code Quality Review: generic intake framework explicitly rejected
+- Test Review: full coverage diagram produced, deterministic-sink regression test required
+- Performance Review: no daemon/cache layer allowed, command count bounded
+- NOT in scope: written
+- What already exists: written
+- TODOS.md updates: 0 new items proposed
+- Failure modes: written, with deterministic-sink and readiness-guessing blockers called out
+- Outside voice: prior `/autoplan` already ran; this consolidation carries forward its accepted scope reductions
+- Parallelization: 3 lanes, 2 parallel / 1 sequential
+- Lake Score: 7/7 major recommendations chose the complete option over the shortcut
 
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR | 16 proposals, 16 accepted, 0 deferred |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | issues_open via `/autoplan` | 5 proposals, 1 accepted, 4 deferred |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 7 | CLEAR | 6 issues, 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | clean | latest run: 29 issues, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
-- **UNRESOLVED:** 0
-- **VERDICT:** CEO + ENG CLEARED — ready to implement
+**CROSS-MODEL:** Prior `/autoplan` dual-voice review converged on the main scope reduction: one agent first, charter only, deterministic compiler sink, no generic framework.
+
+**UNRESOLVED:** 0 in the latest direct eng-review run on `2026-04-28`.
+
+**VERDICT:** ENG CLEARED. CEO review narrowed scope but does not block implementation. This plan reflects the narrowed implementation contract and is ready to execute.
