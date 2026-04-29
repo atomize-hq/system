@@ -1,0 +1,7 @@
+Diagnose blockers and safe next actions
+
+Usage: system doctor [OPTIONS]
+
+Options:
+      --json  Emit machine-readable JSON to stdout
+  -h, --help  Print help

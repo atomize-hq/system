@@ -1,0 +1,302 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# runtime-root resolution -> version check -> doctor/setup/validate/write loop
+
+readonly SKILL_NAME="__SKILL_NAME__"
+readonly CHARTER_PATH=".system/charter/CHARTER.md"
+readonly STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/system/intake/runs"
+
+usage() {
+  cat <<'EOF'
+Usage: system-charter-intake --inputs <path|->
+EOF
+}
+
+die() {
+  printf 'REFUSED: %s\n' "$1" >&2
+  exit 1
+}
+
+normalize_token() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'
+}
+
+read_manifest_field() {
+  local manifest_path="$1"
+  local field_name="$2"
+  python3 - "$manifest_path" "$field_name" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    data = json.load(handle)
+value = data.get(sys.argv[2])
+if value is None:
+    raise SystemExit(1)
+if isinstance(value, (dict, list)):
+    raise SystemExit(1)
+print(str(value))
+PY
+}
+
+doctor_json_read() {
+  local doctor_json_path="$1"
+  local expression="$2"
+  python3 - "$doctor_json_path" "$expression" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    data = json.load(handle)
+expr = sys.argv[2]
+
+def stringify(value):
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, separators=(",", ":"), sort_keys=True)
+
+if expr == "system_root_status":
+    print(stringify(data.get("system_root_status")))
+elif expr == "next_safe_action":
+    print(stringify(data.get("next_safe_action")))
+elif expr == "charter_status":
+    checklist = data.get("checklist") or []
+    for item in checklist:
+        path = item.get("canonical_repo_relative_path")
+        label = item.get("artifact_label")
+        subject = item.get("subject") or {}
+        if isinstance(subject, dict) and not path:
+            path = subject.get("canonical_repo_relative_path")
+        if path == ".system/charter/CHARTER.md" or label == "CHARTER":
+            print(stringify(item.get("status")))
+            break
+else:
+    raise SystemExit(1)
+PY
+}
+
+ensure_valid_doctor_json() {
+  local doctor_json_path="$1"
+  python3 - "$doctor_json_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    data = json.load(handle)
+required = {
+    "c04_result_version",
+    "c03_schema_version",
+    "c03_manifest_generation_version",
+    "baseline_state",
+    "blockers",
+    "status",
+    "system_root_status",
+    "checklist",
+    "next_safe_action",
+}
+missing = sorted(required.difference(data))
+if missing:
+    raise SystemExit(1)
+PY
+}
+
+run_doctor_json() {
+  local output_path="$1"
+  local stderr_path="$output_path.stderr"
+  set +e
+  (
+    cd "$REPO_ROOT"
+    system doctor --json >"$output_path" 2>"$stderr_path"
+  )
+  local status=$?
+  set -e
+  if ! ensure_valid_doctor_json "$output_path"; then
+    if [[ -s "$stderr_path" ]]; then
+      cat "$stderr_path" >&2
+    fi
+    die "system doctor --json failed to emit the locked JSON contract"
+  fi
+  rm -f "$stderr_path"
+  DOCTOR_EXIT_STATUS="$status"
+}
+
+write_session_json() {
+  local output_path="$1"
+  python3 - "$output_path" <<'PY'
+import json
+import os
+import sys
+
+payload = {
+    "started_at_utc": os.environ["STARTED_AT_UTC"],
+    "repo_root": os.environ["REPO_ROOT"],
+    "runtime_root": os.environ["RUNTIME_ROOT"],
+    "system_release_version": os.environ["SYSTEM_RELEASE_VERSION"],
+    "runtime_manifest_version": os.environ["RUNTIME_MANIFEST_VERSION"],
+}
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+}
+
+copy_inputs_into_run_dir() {
+  local source_path="$1"
+  local destination_path="$2"
+  if [[ "$source_path" == "-" ]]; then
+    cat >"$destination_path"
+  else
+    [[ -f "$source_path" ]] || die "input file does not exist: $source_path"
+    cp "$source_path" "$destination_path"
+  fi
+}
+
+initialize_run_artifacts() {
+  local run_dir="$1"
+  : >"$run_dir/validate.stdout.txt"
+  : >"$run_dir/validate.stderr.txt"
+  printf 'not_run\n' >"$run_dir/validate.exit"
+  : >"$run_dir/author.stdout.txt"
+  : >"$run_dir/author.stderr.txt"
+  printf 'not_run\n' >"$run_dir/author.exit"
+}
+
+run_with_transcripts() {
+  local stdout_path="$1"
+  local stderr_path="$2"
+  local exit_path="$3"
+  shift 3
+  set +e
+  (
+    cd "$REPO_ROOT"
+    "$@" >"$stdout_path" 2>"$stderr_path"
+  )
+  local status=$?
+  set -e
+  printf '%s\n' "$status" >"$exit_path"
+  return "$status"
+}
+
+runtime_root_is_complete() {
+  local candidate_root="$1"
+  [[ -f "$candidate_root/runtime-manifest.json" ]] || return 1
+  [[ -f "$candidate_root/bin/system-charter-intake" ]] || return 1
+  [[ -f "$candidate_root/share/authoring/charter_authoring_method.md" ]] || return 1
+  [[ -f "$candidate_root/share/charter/CHARTER_INPUTS.yaml.tmpl" ]] || return 1
+  [[ -f "$candidate_root/share/charter/charter_inputs_directive.md" ]] || return 1
+}
+
+resolve_repo_root() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+  git rev-parse --show-toplevel 2>/dev/null
+}
+
+resolve_runtime_root() {
+  local repo_runtime="$REPO_ROOT/.agents/skills/system"
+  local home_runtime="$HOME/.codex/skills/system"
+  if runtime_root_is_complete "$repo_runtime"; then
+    printf '%s\n' "$repo_runtime"
+    return 0
+  fi
+  printf '%s\n' "$home_runtime"
+}
+
+inputs_path=""
+while (($# > 0)); do
+  case "$1" in
+    --inputs)
+      shift
+      (($# > 0)) || die "missing value for --inputs"
+      inputs_path="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$inputs_path" ]] || {
+  usage >&2
+  exit 1
+}
+
+command -v system >/dev/null 2>&1 || die "'system' must exist on PATH"
+REPO_ROOT="$(resolve_repo_root)" || die "run this skill from inside a real git repository"
+RUNTIME_ROOT="$(resolve_runtime_root)"
+runtime_root_is_complete "$RUNTIME_ROOT" || die "runtime root is incomplete: $RUNTIME_ROOT"
+export REPO_ROOT RUNTIME_ROOT SYSTEM_CODEX_ROOT="$RUNTIME_ROOT"
+
+MANIFEST_PATH="$RUNTIME_ROOT/runtime-manifest.json"
+SYSTEM_RELEASE_VERSION="$(read_manifest_field "$MANIFEST_PATH" "system_release_version")" || die "runtime manifest missing system_release_version"
+RUNTIME_MANIFEST_VERSION="$(read_manifest_field "$MANIFEST_PATH" "manifest_version")" || die "runtime manifest missing manifest_version"
+manifest_skill_name="$(read_manifest_field "$MANIFEST_PATH" "skill_name")" || die "runtime manifest missing skill_name"
+[[ "$manifest_skill_name" == "$SKILL_NAME" ]] || die "runtime manifest skill_name mismatch: expected $SKILL_NAME, found $manifest_skill_name"
+
+binary_version="$(system --version | awk '{print $NF}')"
+[[ "$binary_version" == "$SYSTEM_RELEASE_VERSION" ]] || die "runtime version mismatch: manifest=$SYSTEM_RELEASE_VERSION system=$binary_version"
+
+mkdir -p "$STATE_ROOT"
+STARTED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+run_dir="$STATE_ROOT/$(date -u +%Y%m%dT%H%M%SZ)-$$"
+mkdir -p "$run_dir"
+export STARTED_AT_UTC SYSTEM_RELEASE_VERSION RUNTIME_MANIFEST_VERSION
+
+write_session_json "$run_dir/session.json"
+copy_inputs_into_run_dir "$inputs_path" "$run_dir/charter_inputs.yaml"
+initialize_run_artifacts "$run_dir"
+
+run_doctor_json "$run_dir/doctor.before.json"
+doctor_path_for_gates="$run_dir/doctor.before.json"
+charter_status_before="$(doctor_json_read "$doctor_path_for_gates" "charter_status")"
+if [[ "$(normalize_token "$charter_status_before")" == "validcanonicaltruth" ]]; then
+  next_action="$(doctor_json_read "$doctor_path_for_gates" "next_safe_action")"
+  die "canonical charter already exists. ${next_action:+NEXT SAFE ACTION: $next_action}"
+fi
+
+root_status="$(doctor_json_read "$doctor_path_for_gates" "system_root_status")"
+if [[ "$(normalize_token "$root_status")" != "ok" ]]; then
+  (
+    cd "$REPO_ROOT"
+    system setup
+  ) || die "system setup failed"
+  run_doctor_json "$run_dir/doctor.after_setup.json"
+  doctor_path_for_gates="$run_dir/doctor.after_setup.json"
+  charter_status_after_setup="$(doctor_json_read "$doctor_path_for_gates" "charter_status")"
+  if [[ "$(normalize_token "$charter_status_after_setup")" == "validcanonicaltruth" ]]; then
+    next_action="$(doctor_json_read "$doctor_path_for_gates" "next_safe_action")"
+    die "canonical charter already exists after setup. ${next_action:+NEXT SAFE ACTION: $next_action}"
+  fi
+fi
+
+if ! run_with_transcripts \
+  "$run_dir/validate.stdout.txt" \
+  "$run_dir/validate.stderr.txt" \
+  "$run_dir/validate.exit" \
+  system author charter --validate --from-inputs "$run_dir/charter_inputs.yaml"; then
+  printf 'VALIDATION_FAILED\nRUN ARTIFACTS: %s\n' "$run_dir" >&2
+  exit 1
+fi
+
+if ! run_with_transcripts \
+  "$run_dir/author.stdout.txt" \
+  "$run_dir/author.stderr.txt" \
+  "$run_dir/author.exit" \
+  system author charter --from-inputs "$run_dir/charter_inputs.yaml"; then
+  printf 'AUTHOR_FAILED\nRUN ARTIFACTS: %s\n' "$run_dir" >&2
+  exit 1
+fi
+
+run_doctor_json "$run_dir/doctor.after_write.json"
+final_next_action="$(doctor_json_read "$run_dir/doctor.after_write.json" "next_safe_action")"
+printf 'AUTHORED_CHARTER\nRUN ARTIFACTS: %s\n' "$run_dir"
+if [[ -n "$final_next_action" ]]; then
+  printf 'NEXT SAFE ACTION: %s\n' "$final_next_action"
+fi

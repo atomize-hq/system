@@ -1,9 +1,11 @@
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CanonicalArtifactKind {
     Charter,
     ProjectContext,
@@ -165,7 +167,8 @@ pub fn matches_setup_starter_template(kind: CanonicalArtifactKind, bytes: &[u8])
     bytes == setup_starter_template_bytes(kind)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SystemRootStatus {
     Ok,
     Missing,

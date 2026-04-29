@@ -2,6 +2,7 @@ use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use system_compiler::author::{author_charter_guided, preflight_author_charter_from_input};
 use system_compiler::{
     author_charter, author_environment_inventory, author_project_context_from_input,
     parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
@@ -689,11 +690,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let expected_markdown = expected_charter_markdown();
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
-
-    let result = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect("author charter")
-    });
+    let result = author_charter(dir.path(), &valid_input()).expect("author charter");
 
     assert_eq!(
         result.canonical_repo_relative_path,
@@ -702,7 +699,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     assert_eq!(
         std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
             .expect("canonical charter"),
-        expected_charter_markdown()
+        expected_markdown
     );
     let mut charter_entries = std::fs::read_dir(dir.path().join(".system/charter"))
         .expect("read charter dir")
@@ -718,17 +715,65 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     assert_eq!(charter_entries, vec!["CHARTER.md"]);
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
+    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
-fn author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
+fn preflight_author_charter_from_input_validates_without_mutation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        .expect("starter charter bytes");
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
+
+    with_author_runtime_override(&stub, None, || {
+        preflight_author_charter_from_input(dir.path(), &valid_input())
+            .expect("validate-only preflight should succeed");
+    });
+
+    assert_eq!(
+        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("charter after validate-only preflight"),
+        before
+    );
+    assert!(!dir
+        .path()
+        .join(".system/state/authoring/charter.lock")
+        .exists());
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_charter_is_deterministic_and_does_not_invoke_codex() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
+
+    let result = with_author_runtime_override(&stub, None, || {
+        author_charter(dir.path(), &valid_input()).expect("author charter")
+    });
+
+    assert_eq!(
+        result.canonical_repo_relative_path,
+        ".system/charter/CHARTER.md"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+            .expect("canonical charter"),
+        expected_charter_markdown()
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn guided_author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let expected_markdown = expected_charter_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
     with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect("author charter");
+        author_charter_guided(dir.path(), &valid_input()).expect("guided author charter");
     });
 
     let prompt = std::fs::read_to_string(prompt_capture_path(dir.path())).expect("prompt capture");
@@ -751,14 +796,14 @@ fn author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs() {
 }
 
 #[test]
-fn author_charter_uses_codex_from_path_when_override_unset() {
+fn guided_author_charter_uses_codex_from_path_when_override_unset() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let expected_markdown = expected_charter_markdown();
     let _codex = install_path_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
     let result = with_author_runtime_on_path(dir.path(), None, || {
-        author_charter(dir.path(), &valid_input()).expect("author charter")
+        author_charter_guided(dir.path(), &valid_input()).expect("guided author charter")
     });
 
     assert_eq!(
@@ -774,14 +819,14 @@ fn author_charter_uses_codex_from_path_when_override_unset() {
 }
 
 #[test]
-fn author_charter_emits_model_flag_when_runtime_model_override_is_set() {
+fn guided_author_charter_emits_model_flag_when_runtime_model_override_is_set() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let expected_markdown = expected_charter_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
     let result = with_author_runtime_override(&stub, Some("gpt-5.4-mini"), || {
-        author_charter(dir.path(), &valid_input()).expect("author charter")
+        author_charter_guided(dir.path(), &valid_input()).expect("guided author charter")
     });
 
     assert_eq!(
@@ -797,14 +842,14 @@ fn author_charter_emits_model_flag_when_runtime_model_override_is_set() {
 }
 
 #[test]
-fn author_charter_ignores_blank_runtime_model_override() {
+fn guided_author_charter_ignores_blank_runtime_model_override() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let expected_markdown = expected_charter_markdown();
     let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
 
     let result = with_author_runtime_override(&stub, Some("   "), || {
-        author_charter(dir.path(), &valid_input()).expect("author charter")
+        author_charter_guided(dir.path(), &valid_input()).expect("guided author charter")
     });
 
     assert_eq!(
@@ -857,7 +902,7 @@ fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
 }
 
 #[test]
-fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
+fn guided_author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
@@ -870,7 +915,7 @@ fn author_charter_refuses_before_synthesis_when_non_starter_truth_exists() {
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect_err("existing truth should refuse")
+        author_charter_guided(dir.path(), &valid_input()).expect_err("existing truth should refuse")
     });
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::ExistingCanonicalTruth);
@@ -886,11 +931,8 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
         b"custom charter truth\n",
     );
     let expected_markdown = expected_charter_markdown();
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
-
-    let result = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect("invalid charter should be repaired")
-    });
+    let result =
+        author_charter(dir.path(), &valid_input()).expect("invalid charter should be repaired");
 
     assert_eq!(
         result.canonical_repo_relative_path,
@@ -901,7 +943,7 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
             .expect("repaired charter"),
         expected_markdown
     );
-    assert!(prompt_capture_path(dir.path()).exists());
+    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -921,7 +963,7 @@ fn preflight_author_charter_routes_ingest_invalid_target_to_setup_refresh() {
 }
 
 #[test]
-fn author_charter_does_not_partially_write_when_synthesis_fails() {
+fn guided_author_charter_does_not_partially_write_when_synthesis_fails() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
@@ -929,7 +971,7 @@ fn author_charter_does_not_partially_write_when_synthesis_fails() {
     let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
+        author_charter_guided(dir.path(), &valid_input()).expect_err("synthesis should fail")
     });
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
@@ -942,7 +984,7 @@ fn author_charter_does_not_partially_write_when_synthesis_fails() {
 }
 
 #[test]
-fn author_charter_surfaces_tail_error_line_from_long_codex_stderr() {
+fn guided_author_charter_surfaces_tail_error_line_from_long_codex_stderr() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let stub = install_stub_codex(
@@ -953,7 +995,7 @@ fn author_charter_surfaces_tail_error_line_from_long_codex_stderr() {
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
+        author_charter_guided(dir.path(), &valid_input()).expect_err("synthesis should fail")
     });
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
@@ -966,7 +1008,7 @@ fn author_charter_surfaces_tail_error_line_from_long_codex_stderr() {
 }
 
 #[test]
-fn author_charter_surfaces_auth_failure_from_codex_stderr() {
+fn guided_author_charter_surfaces_auth_failure_from_codex_stderr() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let stub = install_stub_codex(
@@ -977,7 +1019,7 @@ fn author_charter_surfaces_auth_failure_from_codex_stderr() {
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect_err("synthesis should fail")
+        author_charter_guided(dir.path(), &valid_input()).expect_err("synthesis should fail")
     });
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
@@ -985,7 +1027,7 @@ fn author_charter_surfaces_auth_failure_from_codex_stderr() {
 }
 
 #[test]
-fn author_charter_refuses_invalid_synthesized_markdown() {
+fn guided_author_charter_refuses_invalid_synthesized_markdown() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
@@ -998,7 +1040,7 @@ fn author_charter_refuses_invalid_synthesized_markdown() {
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect_err("invalid output should refuse")
+        author_charter_guided(dir.path(), &valid_input()).expect_err("invalid output should refuse")
     });
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
@@ -1011,7 +1053,7 @@ fn author_charter_refuses_invalid_synthesized_markdown() {
 }
 
 #[test]
-fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
+fn guided_author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
@@ -1024,7 +1066,8 @@ fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect_err("leaked scaffold should refuse")
+        author_charter_guided(dir.path(), &valid_input())
+            .expect_err("leaked scaffold should refuse")
     });
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
@@ -1039,7 +1082,7 @@ fn author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
 }
 
 #[test]
-fn author_charter_refuses_synthesized_markdown_missing_exception_record_location() {
+fn guided_author_charter_refuses_synthesized_markdown_missing_exception_record_location() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
@@ -1052,7 +1095,7 @@ fn author_charter_refuses_synthesized_markdown_missing_exception_record_location
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input())
+        author_charter_guided(dir.path(), &valid_input())
             .expect_err("missing exception record location should refuse")
     });
 
@@ -1066,7 +1109,7 @@ fn author_charter_refuses_synthesized_markdown_missing_exception_record_location
 }
 
 #[test]
-fn author_charter_refuses_when_required_headings_only_appear_in_body_text() {
+fn guided_author_charter_refuses_when_required_headings_only_appear_in_body_text() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
@@ -1079,7 +1122,7 @@ fn author_charter_refuses_when_required_headings_only_appear_in_body_text() {
     );
 
     let err = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input())
+        author_charter_guided(dir.path(), &valid_input())
             .expect_err("body text headings should not satisfy validation")
     });
 

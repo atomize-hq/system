@@ -1,0 +1,126 @@
+schema_version: "0.1.0"
+project:
+  name: "System Runtime Smoke"
+  classification: greenfield
+  team_size: 2
+  users: internal
+  expected_lifetime: months
+  surfaces:
+    - cli
+    - api
+  runtime_environments:
+    - server
+  constraints:
+    deadline: ""
+    budget: ""
+    experience_notes: "small team"
+    must_use_tech:
+      - rust
+  operational_reality:
+    in_production_today: false
+    prod_users_or_data: ""
+    external_contracts_to_preserve: []
+    uptime_expectations: "best effort"
+  default_implications:
+    backward_compatibility: not_required
+    migration_planning: not_required
+    rollout_controls: lightweight
+    deprecation_policy: not_required_yet
+    observability_threshold: standard
+posture:
+  rubric_scale: "1-5"
+  baseline_level: 3
+  baseline_rationale:
+    - "internal operators"
+    - "moderate blast radius"
+domains:
+  - name: "planning"
+    blast_radius: "medium"
+    touches:
+      - "internal operators"
+    constraints:
+      - "preserve trust boundaries"
+dimensions:
+  - name: speed_vs_quality
+    level: 3
+    default_stance: "optimize for durability over shortcuts"
+    raise_the_bar_triggers: ["production data"]
+    allowed_shortcuts: ["time-boxed exploration"]
+    red_lines: ["ship without review"]
+    domain_overrides: []
+  - name: type_safety_static_analysis
+    level: 3
+    default_stance: "type-safe by default"
+    raise_the_bar_triggers: ["cross-boundary interfaces"]
+    allowed_shortcuts: ["fixture-backed exploration"]
+    red_lines: ["unchecked public contracts"]
+    domain_overrides: []
+  - name: testing_rigor
+    level: 3
+    default_stance: "test the shipped path"
+    raise_the_bar_triggers: ["regression risk"]
+    allowed_shortcuts: ["manual validation for throwaway work"]
+    red_lines: ["merge without exercising the path"]
+    domain_overrides: []
+  - name: scalability_performance
+    level: 3
+    default_stance: "track obvious bottlenecks"
+    raise_the_bar_triggers: ["user-visible latency"]
+    allowed_shortcuts: ["defer micro-optimizations"]
+    red_lines: ["ignore known load cliffs"]
+    domain_overrides: []
+  - name: reliability_operability
+    level: 3
+    default_stance: "prefer recoverable changes"
+    raise_the_bar_triggers: ["long-lived state changes"]
+    allowed_shortcuts: ["local-only iteration"]
+    red_lines: ["unrecoverable migrations without a plan"]
+    domain_overrides: []
+  - name: security_privacy
+    level: 3
+    default_stance: "protect boundaries by default"
+    raise_the_bar_triggers: ["credentials or user data"]
+    allowed_shortcuts: ["synthetic data in local dev"]
+    red_lines: ["plaintext secrets"]
+    domain_overrides: []
+  - name: observability
+    level: 3
+    default_stance: "emit enough proof to debug production issues"
+    raise_the_bar_triggers: ["background jobs"]
+    allowed_shortcuts: ["manual logs for local-only work"]
+    red_lines: ["silent failures"]
+    domain_overrides: []
+  - name: dx_tooling_automation
+    level: 3
+    default_stance: "prefer automation that pays for itself"
+    raise_the_bar_triggers: ["frequent repeated workflows"]
+    allowed_shortcuts: ["temporary local scripts"]
+    red_lines: ["manual-only release steps"]
+    domain_overrides: []
+  - name: ux_polish_api_usability
+    level: 3
+    default_stance: "clear operator and API ergonomics"
+    raise_the_bar_triggers: ["external users"]
+    allowed_shortcuts: ["rough internal copy while iterating"]
+    red_lines: ["unclear operator failure modes"]
+    domain_overrides: []
+exceptions:
+  approvers:
+    - project_owner
+  record_location: ".system/charter/CHARTER.md#exceptions"
+  minimum_fields:
+    - what
+    - why
+    - scope
+    - risk
+    - owner
+    - expiry_or_revisit_date
+debt_tracking:
+  system: "issues"
+  labels:
+    - debt
+  review_cadence: "monthly"
+decision_records:
+  enabled: false
+  path: ""
+  format: ""

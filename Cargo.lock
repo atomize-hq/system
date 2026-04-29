@@ -694,6 +694,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "portable-pty",
+ "serde_json",
  "system-compiler",
  "tempfile",
 ]

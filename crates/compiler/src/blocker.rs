@@ -3,11 +3,13 @@ use crate::{
     ArtifactIngestIssueKind, ArtifactManifest, CanonicalArtifactKind, NextSafeAction, SubjectRef,
     SystemRootStatus,
 };
+use serde::Serialize;
 use std::cmp::Ordering;
 
 pub const C04_RESULT_VERSION: &str = "reduced-v1-m8.1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BlockerCategory {
     SystemRootMissing,
     SystemRootNotDir,
@@ -22,7 +24,7 @@ pub enum BlockerCategory {
     UnsupportedRequest,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Blocker {
     pub category: BlockerCategory,
     pub subject: SubjectRef,

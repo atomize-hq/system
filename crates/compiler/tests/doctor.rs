@@ -4,6 +4,40 @@ use system_compiler::{
     C04_RESULT_VERSION, MANIFEST_GENERATION_VERSION,
 };
 
+fn assert_json_object_keys(
+    value: &serde_json::Value,
+    expected_keys: &[&str],
+) -> serde_json::Map<String, serde_json::Value> {
+    let object = value
+        .as_object()
+        .unwrap_or_else(|| panic!("expected JSON object, got {value:?}"));
+    let mut actual_keys = object.keys().map(String::as_str).collect::<Vec<_>>();
+    actual_keys.sort_unstable();
+    let mut expected_keys = expected_keys.to_vec();
+    expected_keys.sort_unstable();
+    assert_eq!(actual_keys, expected_keys);
+    object.clone()
+}
+
+fn assert_doctor_report_json_contract(report: &system_compiler::DoctorReport) -> serde_json::Value {
+    let value = serde_json::to_value(report).expect("serialize doctor report");
+    assert_json_object_keys(
+        &value,
+        &[
+            "c04_result_version",
+            "c03_schema_version",
+            "c03_manifest_generation_version",
+            "baseline_state",
+            "blockers",
+            "status",
+            "system_root_status",
+            "checklist",
+            "next_safe_action",
+        ],
+    );
+    value
+}
+
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("mkdirs");
@@ -504,6 +538,64 @@ fn doctor_reports_root_missing_blocker_before_checklist_actions() {
 }
 
 #[test]
+fn doctor_json_contract_serializes_exact_top_level_fields_for_missing_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let report = doctor(dir.path()).expect("doctor");
+
+    let value = assert_doctor_report_json_contract(&report);
+    assert_eq!(value["baseline_state"], "scaffolded");
+    assert_eq!(value["status"], "scaffolded");
+    assert_eq!(value["system_root_status"], "missing");
+    assert_eq!(
+        value["next_safe_action"],
+        serde_json::json!({ "kind": "run_setup" })
+    );
+
+    let blocker = &value["blockers"][0];
+    assert_json_object_keys(
+        blocker,
+        &["category", "subject", "summary", "next_safe_action"],
+    );
+    assert_eq!(blocker["category"], "system_root_missing");
+    assert_eq!(
+        blocker["subject"],
+        serde_json::json!({ "policy_id": "system_root" })
+    );
+    assert_eq!(
+        blocker["next_safe_action"],
+        serde_json::json!({ "kind": "run_setup" })
+    );
+
+    let checklist_item = &value["checklist"][0];
+    assert_json_object_keys(
+        checklist_item,
+        &[
+            "artifact_label",
+            "subject",
+            "author_command",
+            "kind",
+            "canonical_repo_relative_path",
+            "status",
+            "next_safe_action",
+        ],
+    );
+    assert_eq!(checklist_item["artifact_label"], "CHARTER");
+    assert_eq!(checklist_item["kind"], "charter");
+    assert_eq!(checklist_item["status"], "missing");
+    assert_eq!(
+        checklist_item["subject"],
+        serde_json::json!({
+            "kind": "charter",
+            "canonical_repo_relative_path": ".system/charter/CHARTER.md"
+        })
+    );
+    assert_eq!(
+        checklist_item["next_safe_action"],
+        serde_json::json!({ "kind": "run_setup" })
+    );
+}
+
+#[test]
 fn doctor_reports_complete_baseline_with_empty_blockers() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
@@ -536,4 +628,70 @@ fn doctor_reports_complete_baseline_with_empty_blockers() {
     assert_eq!(report.status, DoctorBaselineStatus::BaselineComplete);
     assert!(report.blockers.is_empty());
     assert_eq!(report.next_safe_action, None);
+}
+
+#[test]
+fn doctor_json_contract_preserves_non_ready_canonical_artifact_semantics() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    write_file(
+        &repo_root.join(".system/charter/CHARTER.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::Charter),
+    );
+    write_file(
+        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext),
+    );
+    write_file(
+        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        setup_starter_template_bytes(CanonicalArtifactKind::EnvironmentInventory),
+    );
+
+    let report = doctor(repo_root).expect("doctor");
+    let value = assert_doctor_report_json_contract(&report);
+
+    assert_eq!(value["baseline_state"], "scaffolded");
+    assert_eq!(value["status"], "scaffolded");
+    assert_eq!(
+        value["next_safe_action"],
+        serde_json::json!({ "kind": "run_author_charter" })
+    );
+
+    let checklist_item = value["checklist"]
+        .as_array()
+        .expect("checklist array")
+        .iter()
+        .find(|item| item["kind"] == "charter")
+        .expect("charter checklist item");
+    assert_eq!(checklist_item["status"], "starter_owned");
+    assert_eq!(
+        checklist_item["subject"],
+        serde_json::json!({
+            "kind": "charter",
+            "canonical_repo_relative_path": ".system/charter/CHARTER.md"
+        })
+    );
+    assert_eq!(
+        checklist_item["next_safe_action"],
+        serde_json::json!({ "kind": "run_author_charter" })
+    );
+
+    let blocker = value["blockers"]
+        .as_array()
+        .expect("blockers array")
+        .iter()
+        .find(|item| item["category"] == "required_artifact_starter_template")
+        .expect("starter template blocker");
+    assert_eq!(
+        blocker["subject"],
+        serde_json::json!({
+            "kind": "charter",
+            "canonical_repo_relative_path": ".system/charter/CHARTER.md"
+        })
+    );
+    assert_eq!(
+        blocker["next_safe_action"],
+        serde_json::json!({ "kind": "run_author_charter" })
+    );
 }

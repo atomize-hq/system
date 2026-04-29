@@ -1,0 +1,36 @@
+# __SKILL_NAME__
+
+Generated discovery surface for the `system` charter intake runtime. Do not hand-edit `.agents/skills/**`; regenerate from `tools/codex/generate.sh`.
+
+Use this skill only from inside a real git work tree. Resolve the shared runtime root in this order and export `SYSTEM_CODEX_ROOT` to the resolved path:
+
+```bash
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "REFUSED: run this skill from inside a real git repository." >&2
+  exit 1
+}
+repo_runtime="$repo_root/.agents/skills/system"
+home_runtime="$HOME/.codex/skills/system"
+for candidate in "$repo_runtime" "$home_runtime"; do
+  if [[ -f "$candidate/runtime-manifest.json" ]] && \
+     [[ -f "$candidate/bin/system-charter-intake" ]] && \
+     [[ -f "$candidate/share/authoring/charter_authoring_method.md" ]] && \
+     [[ -f "$candidate/share/charter/CHARTER_INPUTS.yaml.tmpl" ]] && \
+     [[ -f "$candidate/share/charter/charter_inputs_directive.md" ]]; then
+    export SYSTEM_CODEX_ROOT="$candidate"
+    break
+  fi
+done
+[[ -n "${SYSTEM_CODEX_ROOT:-}" ]] || {
+  echo "REFUSED: missing generated or installed system runtime root." >&2
+  exit 1
+}
+```
+
+Workflow:
+
+1. Review `$SYSTEM_CODEX_ROOT/share/authoring/charter_authoring_method.md` and `$SYSTEM_CODEX_ROOT/share/charter/charter_inputs_directive.md`.
+2. Gather only the charter facts needed to fill the normalized YAML shape from `$SYSTEM_CODEX_ROOT/share/charter/CHARTER_INPUTS.yaml.tmpl`.
+3. Write the normalized YAML to a temporary file outside the target repo.
+4. Invoke `$SYSTEM_CODEX_ROOT/bin/system-charter-intake --inputs <path|->`.
+5. Treat `~/.local/state/system/intake/runs/.../` as the evidence surface. Only `system doctor --json` may be machine-parsed.

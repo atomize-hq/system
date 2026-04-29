@@ -73,12 +73,16 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - `author` MUST remain a thin CLI surface over compiler-owned authoring semantics.
 - The shipped baseline authoring surface MUST expose exactly:
   - `system author charter`
+  - `system author charter --validate --from-inputs <path|->`
   - `system author charter --from-inputs <path|->`
   - `system author project-context`
   - `system author project-context --from-inputs <path|->`
   - `system author environment-inventory`
 - `system author charter` MUST be the human-guided charter-authoring surface.
+- `system author charter --validate --from-inputs <path|->` MUST be the mutation-free charter preflight surface.
+- `system author charter --validate` MUST be legal only when `--from-inputs <path|->` is also present.
 - `system author charter --from-inputs <path|->` MUST be the agent and automation charter-authoring surface.
+- `system author charter --from-inputs <path|->` MUST remain deterministic and compiler-owned.
 - The public authoring wedge MUST write canonical charter truth only to `.system/charter/CHARTER.md`.
 - `system author project-context` MUST be the guided project-context authoring surface.
 - `system author project-context --from-inputs <path|->` MUST be the agent and automation project-context authoring surface.
@@ -115,6 +119,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - `generate` MUST be the supported reduced-v1 packet-generation surface for canonical repo-local `.system/` inputs.
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery and baseline-readiness surface for blockers, checklist rendering, and next safe actions.
+- `system doctor --json` MUST be the only machine-readable readiness surface for the installed charter-intake skill.
 - Missing-root, invalid-root, and missing-artifact recovery guidance MUST point to the setup family rather than to raw file-creation instructions.
 - Fixture-backed execution demo support MUST remain scoped to the existing `generate` / `inspect` request surface and defer detailed boundary semantics to [`C-06`](C-06-fixture-execution-demo-boundary.md).
 - Packet body structure, proof ordering, and renderer-specific output guarantees are owned by [`C-05`](C-05-renderer-and-proof-surfaces.md), not this contract.
@@ -143,7 +148,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
 - [ ] `crates/compiler` owns shared types and compiler-core logic.
 - [ ] `--help` shows the supported surface in setup-first order and presents the setup family as `setup`, `setup init`, and `setup refresh`.
-- [ ] `--help` shows `author` between `setup` and `pipeline`, and documents `system author charter`, `system author charter --from-inputs <path|->`, `system author project-context`, `system author project-context --from-inputs <path|->`, and `system author environment-inventory`.
+- [ ] `--help` shows `author` between `setup` and `pipeline`, and documents `system author charter`, `system author charter --validate --from-inputs <path|->`, `system author charter --from-inputs <path|->`, `system author project-context`, `system author project-context --from-inputs <path|->`, and `system author environment-inventory`.
 - [ ] Help text matches the supported reduced-v1 command story, documents the routed setup family, documents `author` as the canonical authoring surface, documents `pipeline` as the orchestration surface, and exposes the M2 compile wedge plus the M3 capture wedge.
 - [ ] `pipeline` owns route resolution, explicit stage compilation, and narrow pipeline-run state mutation once the family lands.
 - [ ] `pipeline capture` is documented as the explicit stage-output writer surface for the bounded M3 / M3.5 wedge.
@@ -153,6 +158,7 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] Setup docs and help state that `setup refresh` preserves canonical files by default, that `--rewrite` touches only the three baseline starter files, and that `--reset-state` touches only `.system/state/**`.
 - [ ] Setup docs and help state that setup success hands off to `system doctor`.
 - [ ] `doctor` docs and help state the four baseline states exactly and document checklist lines as artifact label + canonical path + status + exact author command.
+- [ ] `doctor` docs and help state that `system doctor --json` is the machine-readable readiness surface.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.
 - [ ] `doctor` is documented as the recovery surface.

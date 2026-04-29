@@ -1,6 +1,8 @@
 use crate::CanonicalArtifactKind;
+use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RefusalCategory {
     NonCanonicalInputAttempt,
     SystemRootMissing,
@@ -16,7 +18,8 @@ pub enum RefusalCategory {
     UnsupportedRequest,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
 pub enum SubjectRef {
     CanonicalArtifact {
         kind: CanonicalArtifactKind,
@@ -31,7 +34,8 @@ pub enum SubjectRef {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum NextSafeAction {
     RunSetup,
     RunSetupInit,
@@ -63,7 +67,7 @@ pub enum NextSafeAction {
     RunDoctor,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Refusal {
     pub category: RefusalCategory,
     pub summary: String,
