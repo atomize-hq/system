@@ -1,4 +1,4 @@
-<!-- PLAN rewrite restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m8-plan-rewrite-restore-20260429-113428.md -->
+<!-- PLAN rewrite restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m8-plan-solidify-restore-20260429-160200.md -->
 # PLAN
 
 ## Status
@@ -186,76 +186,140 @@ No half-shipped wrapper story. No "we'll add the install/update part later."
 
 ## Exact Shipped Behavior
 
-1. The repo contains a source packaging layer under `tools/codex/` plus shared authoring assets under existing `core/library/authoring/` and `core/library/charter/`.
-2. The repo can generate exactly two Codex-facing outputs:
-   - `.agents/skills/system-charter-intake/`
+### Source of truth
+
+1. Handwritten packaging source lives under `tools/codex/`. That directory owns generation, install, dev-setup, runtime templates, and the discoverable `SKILL.md` template.
+2. Shared charter methodology assets continue to live under existing repo truth:
+   - `core/library/authoring/charter_authoring_method.md`
+   - `core/library/charter/CHARTER_INPUTS.yaml.tmpl`
+   - `core/library/charter/charter_inputs_directive.md`
+3. `.agents/skills/` is generated output only. It is never hand-edited. If the repo does not already ignore `.agents/skills/`, this milestone adds that ignore rule as part of the packaging work.
+
+### Generated and installed assets
+
+4. `tools/codex/generate.sh` generates exactly two repo-local outputs:
+   - `.agents/skills/system-charter-intake/SKILL.md`
    - `.agents/skills/system/`
-3. `.agents/skills/system-charter-intake/` contains the discoverable Codex `SKILL.md` for the shipped user command.
-4. `.agents/skills/system/` contains the shared runtime root content used by generated and installed Codex assets.
-5. `tools/codex/install.sh` installs or refreshes exactly:
-   - `~/.codex/skills/system-charter-intake/`
-   - `~/.codex/skills/system/`
-6. `tools/codex/relink.sh` or equivalent refresh command can reinstall the generated home assets without manual deletion.
-7. `tools/codex/dev-setup.sh` creates a dev-only symlinked setup from the home skill discovery/runtime entries back to the current repo-generated assets.
-8. The installed runtime root at `~/.codex/skills/system/` contains at minimum:
+5. `.agents/skills/system/` is the full generated runtime root. It contains exactly:
    - `SKILL.md`
    - `runtime-manifest.json`
    - `bin/system-charter-intake`
-   - any prompt/example/template assets required by the runtime
-9. The generated skill preamble resolves `SYSTEM_CODEX_ROOT` by checking the current git root for `.agents/skills/system/`, then falling back to `~/.codex/skills/system/`.
-10. Before asking any questions, the installed skill verifies:
-    - `system` is on `PATH`
-    - `system --version` matches the installed `runtime-manifest.json`
-    - the shared runtime root exists and is complete
-11. The skill resolves the target repo from the current working directory or enclosing git root and refuses if no valid target repo exists.
-12. The skill calls `system doctor --json` as its first readiness action.
-13. `system doctor --json` emits valid UTF-8 JSON for ready and ordinary non-ready states. It does not mix prose and JSON.
-14. If doctor reports a missing or invalid `.system` root, the skill runs bare `system setup`, then reruns `system doctor --json`.
-15. If doctor reports existing valid charter truth, the skill refuses overwrite and surfaces the compiler-owned next safe action.
-16. The conversation layer only gathers charter facts and normalizes them into one structured YAML input file.
-17. The runtime writes each run artifact under `~/.local/state/system/intake/runs/<timestamp>/`, including:
-    - `doctor.before.json`
-    - `doctor.after_setup.json` when setup ran
-    - `doctor.after_write.json`
-    - `charter_inputs.yaml`
-    - `validate.result.txt` or structured equivalent
-    - `author.result.txt` or structured equivalent
-18. Before any write, the skill calls `system author charter --validate --from-inputs <path|->`.
-19. `system author charter --validate --from-inputs <path|->`:
-    - parses the same YAML as the real write path
-    - runs the same structured-input validation
-    - runs the same repo preflight
-    - performs no mutation
-20. Only after validation succeeds does the skill call `system author charter --from-inputs <path|->`.
-21. `system author charter --from-inputs <path|->` performs a deterministic compiler-owned render/write with no `codex exec` dependency.
-22. Guided `system author charter` remains the only charter path that may still invoke Codex.
-23. After a successful write, the skill reruns `system doctor --json` and reports that charter is complete while other baseline artifacts may still remain.
-24. `tools/ci/install-smoke.sh` proves fresh install, refresh, and stale-runtime refusal for the installed Codex packaging surface.
-25. One bounded live Codex smoke proves that the installed `system-charter-intake` skill can complete the happy path against a fresh temp repo.
+   - `share/authoring/charter_authoring_method.md`
+   - `share/charter/CHARTER_INPUTS.yaml.tmpl`
+   - `share/charter/charter_inputs_directive.md`
+6. `runtime-manifest.json` contains at minimum:
+   - `skill_name`
+   - `system_release_version`
+   - `manifest_version`
+   - `generated_at_utc`
+7. `tools/codex/install.sh` is the normal product installer. It runs generation first, then copies exactly:
+   - `.agents/skills/system-charter-intake/` -> `~/.codex/skills/system-charter-intake/`
+   - `.agents/skills/system/` -> `~/.codex/skills/system/`
+8. `tools/codex/dev-setup.sh` is the only symlink-based path. It is explicitly for local development, not normal installation. It generates assets first, then recreates:
+   - `~/.codex/skills/system-charter-intake` as a symlink to the repo-generated discovery directory
+   - `~/.codex/skills/system` as a symlink to the repo-generated runtime root
+9. `tools/codex/relink.sh` is a developer convenience wrapper around the dev-symlink flow. It does not introduce a second product install mode.
+
+### Runtime contract
+
+10. The generated discoverable skill resolves `SYSTEM_CODEX_ROOT` in one order only:
+   - current working repo git root + `/.agents/skills/system/`, but only if that directory exists and contains a complete runtime manifest
+   - otherwise `~/.codex/skills/system/`
+11. Before any conversational intake, the runtime performs these checks in order:
+    - `system` exists on `PATH`
+    - `runtime-manifest.json` exists
+    - `system --version` matches the manifest release version exactly after trimming the leading binary name from clap version output
+    - the runtime root contains the required `bin/` and `share/` assets
+12. The discoverable skill resolves the target repo from the current working directory or its enclosing git root. If the command is launched outside a real git repo, it refuses before asking questions.
+13. The runtime never derives readiness by inspecting repo files directly. It trusts only `system doctor --json`.
+
+### CLI and compiler contract
+
+14. `system doctor --json` is the only machine-parsed readiness surface for this milestone.
+15. `system doctor --json` writes valid UTF-8 JSON to stdout for ready and ordinary non-ready states, with no prose mixed into stdout.
+16. The JSON shape is the serialized `DoctorReport` contract and includes these top-level fields:
+    - `c04_result_version`
+    - `c03_schema_version`
+    - `c03_manifest_generation_version`
+    - `baseline_state`
+    - `blockers`
+    - `status`
+    - `system_root_status`
+    - `checklist`
+    - `next_safe_action`
+17. `system doctor --json` keeps the current exit-code semantics:
+    - exit `0` only for `BaselineComplete`
+    - exit non-zero for ordinary scaffolded, partial, or invalid baseline states
+18. `system author charter --validate --from-inputs <path|->` is a new preflight-only mode.
+19. `--validate` is legal only when `--from-inputs <path|->` is also present. Guided `system author charter` does not accept `--validate`.
+20. The runtime does not machine-parse `author charter` success or refusal output. For validate and write calls it relies on exit code, preserves stdout/stderr transcripts, and stores them as evidence.
+21. `system author charter --validate --from-inputs <path|->` must:
+    - parse the exact same YAML schema as the write path
+    - run the same structured-input validation
+    - run the same repo preflight and overwrite checks
+    - perform zero mutation
+22. `system author charter --from-inputs <path|->` becomes a deterministic compiler-owned render/write path with no `codex exec` dependency.
+23. Guided `system author charter` remains the only charter path that may invoke Codex synthesis.
+
+### Intake and run-artifact contract
+
+24. The discoverable skill only gathers charter facts and normalizes them into one YAML file. It never writes canonical markdown itself.
+25. Each run persists to `~/.local/state/system/intake/runs/<timestamp>-<pid>/`.
+26. Every run directory contains:
+   - `session.json`
+   - `doctor.before.json`
+   - `doctor.after_setup.json` when setup ran
+   - `doctor.after_write.json` when write ran
+   - `charter_inputs.yaml`
+   - `validate.stdout.txt`
+   - `validate.stderr.txt`
+   - `validate.exit`
+   - `author.stdout.txt`
+   - `author.stderr.txt`
+   - `author.exit`
+27. `session.json` records at minimum:
+   - `started_at_utc`
+   - `repo_root`
+   - `runtime_root`
+   - `system_release_version`
+   - `runtime_manifest_version`
+28. On the happy path the runtime sequence is fixed:
+   - `system doctor --json`
+   - optional bare `system setup`
+   - `system doctor --json` again if setup ran
+   - `system author charter --validate --from-inputs`
+   - `system author charter --from-inputs`
+   - final `system doctor --json`
+29. If the first or second doctor report shows charter already at `ValidCanonicalTruth`, the skill refuses overwrite and surfaces the compiler-owned next action instead of interviewing further.
+30. After a successful write, the runtime reports charter success even if other baseline artifacts remain scaffolded. It does not pretend the whole baseline is complete unless doctor says so.
+
+### Proof requirements
+
+31. `tools/ci/install-smoke.sh` proves fresh install, reinstall, stale-runtime refusal, and copy-based idempotence for the installed Codex surface.
+32. `tools/ci/codex-skill-live-smoke.sh` is the one bounded real Codex smoke. It proves the installed `system-charter-intake` surface against a fresh temp repo.
+33. Live smoke and install smoke evidence lands under `.implemented/m9.5-codex-skill-packaging/`. This plan does not use `tests/fixtures/` as a catch-all proof bucket for human-readable transcripts.
 
 ## Architecture Review
 
 ### Layered ownership
 
-The important architecture change is not another runtime.
-
-It is a clean three-layer split:
+The architecture is one trust boundary with three packaging layers around it.
 
 ```text
-repo source assets
+handwritten repo source
   |
-  +--> tools/codex/                   (installer, relink, dev setup, templates)
-  +--> core/library/authoring/        (shared authoring method assets)
-  +--> core/library/charter/          (shared charter assets)
+  +--> tools/codex/                         generation + install + dev setup
+  +--> core/library/authoring/             charter authoring method source
+  +--> core/library/charter/               charter input template + intake directive
   |
   v
-generated Codex layer
+generated repo-local Codex assets
   |
-  +--> .agents/skills/system-charter-intake/
+  +--> .agents/skills/system-charter-intake/SKILL.md
   +--> .agents/skills/system/
   |
   v
-installed home layer
+installed home Codex assets
   |
   +--> ~/.codex/skills/system-charter-intake/
   +--> ~/.codex/skills/system/
@@ -272,6 +336,8 @@ target working repo
 .system/charter/CHARTER.md
 ```
 
+Nothing in the top two layers is allowed to become a second source of canonical repo truth. They only package access to the existing compiler boundary.
+
 ### Runtime execution flow
 
 ```text
@@ -280,11 +346,14 @@ Codex invokes system-charter-intake
   v
 resolve SYSTEM_CODEX_ROOT
   |
-  +--> repo-local .agents/skills/system/ override exists? use it
+  +--> repo-local override complete? use <repo>/.agents/skills/system/
   +--> else use ~/.codex/skills/system/
   |
   v
-check runtime-manifest.json and `system --version`
+validate runtime-manifest.json + required runtime files
+  |
+  v
+run `system --version` and compare exact release version
   |
   v
 resolve target repo root
@@ -292,8 +361,9 @@ resolve target repo root
   v
 system doctor --json
   |
-  +--> invalid/missing root? -> system setup -> system doctor --json
-  +--> existing charter complete? -> refuse overwrite
+  +--> missing or invalid `.system` root? -> run bare `system setup`
+  |                                      -> rerun `system doctor --json`
+  +--> charter already valid? -> refuse overwrite
   +--> otherwise continue
   |
   v
@@ -302,46 +372,52 @@ conversational capture -> charter_inputs.yaml
   v
 system author charter --validate --from-inputs
   |
-  +--> refusal? stop with exact repair action
+  +--> non-zero exit? stop and surface saved transcripts
   |
   v
 system author charter --from-inputs
+  |
+  +--> non-zero exit? stop and surface saved transcripts
   |
   v
 system doctor --json
   |
   v
-persist run artifacts and report next safe action
+persist run evidence + print next safe action
 ```
 
 ### Ownership map
 
 | Area | Ownership | Required change |
 | --- | --- | --- |
-| `crates/compiler/src/doctor.rs` | compiler | expose a JSON-serializable doctor contract without changing doctor semantics |
-| `crates/cli/src/main.rs` | CLI | add `doctor --json`; add `author charter --validate --from-inputs`; keep human-readable defaults stable |
-| `crates/compiler/src/author/charter.rs` | compiler | split guided Codex synthesis from deterministic structured-input render/write |
-| `crates/compiler/src/author/project_context.rs` | compiler reference | no redesign; use as the deterministic authoring template |
-| `crates/compiler/tests/doctor.rs` | compiler tests | prove doctor JSON fields, exit behavior, and non-ready semantics |
-| `crates/compiler/tests/author.rs` | compiler tests | prove validation-only mode, deterministic sink, overwrite refusal, and no-Codex regression |
-| `crates/cli/tests/author_cli.rs` + `help_drift_guard.rs` | CLI tests | prove new flag parsing, output wording, help/docs parity, and exit codes |
-| `tools/codex/` | packaging/install runtime | add install, relink, dev-setup, generator, runtime manifest, and runtime entrypoint |
-| `.agents/skills/` | generated Codex assets | generate the discoverable skill and the shared runtime root |
-| `tools/ci/install-smoke.sh` + live smoke helpers | smoke harness | extend from CLI install smoke to Codex packaging install/update/runtime smoke |
-| `README.md`, `docs/`, `docs/contracts/`, `DESIGN.md` | docs/contracts | align the new packaging story with the existing CLI trust story |
+| `crates/compiler/src/doctor.rs` | compiler | keep doctor semantics, add serde-backed JSON contract so CLI can emit the existing report structurally |
+| `crates/cli/src/main.rs` | CLI | add `doctor --json`; add `author charter --validate --from-inputs`; preserve current human-readable defaults |
+| `crates/compiler/src/author/charter.rs` | compiler | split guided Codex synthesis from deterministic render/write so `--from-inputs` never shells out |
+| `crates/compiler/src/author/project_context.rs` | compiler reference | reuse its deterministic authoring shape as the model for charter refactor |
+| `crates/compiler/tests/doctor.rs` | compiler tests | lock JSON fields, checklist serialization, and non-ready exit semantics |
+| `crates/compiler/tests/author.rs` | compiler tests | lock validation-only mode, deterministic sink, overwrite refusal, and no-Codex regression |
+| `crates/cli/tests/author_cli.rs` + `help_drift_guard.rs` | CLI tests | lock flag parsing, help text, refusal wording, and exit-code behavior |
+| `tools/codex/` | packaging/install runtime | add generator, installer, dev setup, relink wrapper, runtime manifest, and runtime entrypoint |
+| `.agents/skills/` | generated build output | hold the generated discoverable skill and runtime root, never handwritten source |
+| `tools/ci/install-smoke.sh` + `tools/ci/codex-skill-live-smoke.sh` | smoke harness | prove install, runtime compatibility, and one bounded live happy path |
+| `.implemented/m9.5-codex-skill-packaging/` | proof artifacts | store install and live smoke evidence for docs and cutover review |
+| `README.md`, `docs/`, `docs/contracts/`, `DESIGN.md` | docs/contracts | align product wording with the new machine-readable readiness and installed skill story |
 
 ## Implementation Plan
 
-### Workstream 1: CLI and compiler contract hardening
+Implementation order is fixed at the gate level. No later gate is considered done until its exit condition is met.
 
-This is the first hard gate. The installed skill cannot ship honestly until these surfaces are real.
+### Gate 1: Harden the CLI and compiler contract
+
+This gate makes the installed skill honest. Without it, the packaging layer would still be guessing.
 
 Deliverables:
 
 - add `doctor --json` to the existing `doctor` command
-- add `--validate` to `system author charter`, valid only alongside `--from-inputs <path|->`
-- make `system author charter --from-inputs <path|->` deterministic and compiler-owned
-- keep guided `system author charter` as the only charter path allowed to invoke Codex
+- serialize the current `DoctorReport` shape without changing doctor semantics
+- add `--validate` to `system author charter`, valid only with `--from-inputs <path|->`
+- refactor charter authoring so deterministic `--from-inputs` never calls `codex exec`
+- keep guided `system author charter` as the only Codex-backed path
 
 Files/modules:
 
@@ -356,76 +432,82 @@ Files/modules:
 
 Exit condition:
 
-- `doctor --json` emits the locked machine-readable contract
+- `doctor --json` emits the locked top-level contract and preserves current exit semantics
 - `author charter --validate --from-inputs` performs full preflight with zero mutation
 - deterministic charter `--from-inputs` no longer shells out to `codex exec`
 
-### Workstream 2: Codex generation and runtime-root packaging
+### Gate 2: Generate the Codex packaging surface
 
-This workstream creates the actual Codex product surface. No generic host abstraction is allowed.
+This gate creates the repo-local build output for the discoverable skill and shared runtime root.
 
 Deliverables:
 
-- one handwritten source packaging layer under `tools/codex/`
-- generated `.agents/skills/system-charter-intake/`
-- generated `.agents/skills/system/`
-- shared runtime manifest and runtime entrypoint under the generated root
-- exact runtime-root resolution order in the generated skill preamble
+- add `tools/codex/generate.sh`
+- add one discoverable `SKILL.md` template for `system-charter-intake`
+- add one runtime-root template set under `tools/codex/runtime/`
+- generate `.agents/skills/system-charter-intake/`
+- generate `.agents/skills/system/`
+- define the exact runtime-root resolution preamble
+- add `.agents/skills/` ignore rules if the repo does not already ignore generated output
 
 Files/modules:
 
 - `tools/codex/generate.sh`
-- `tools/codex/install.sh`
-- `tools/codex/relink.sh`
-- `tools/codex/dev-setup.sh`
 - `tools/codex/templates/system-charter-intake.SKILL.md.tmpl`
 - `tools/codex/runtime/`
+- `.gitignore`
 - `.agents/skills/system-charter-intake/` (generated)
 - `.agents/skills/system/` (generated)
 
 Exit condition:
 
-- the repo can generate the two Codex outputs deterministically
-- the generated skill resolves the shared runtime root correctly
-- the runtime manifest expresses exact compatibility with the `system` binary
+- the repo can generate the two Codex outputs deterministically from handwritten source
+- the generated runtime root contains the exact locked file set
+- the generated skill resolves repo-local override first, then installed home runtime
 
-### Workstream 3: Home install, refresh, and smoke proof
+### Gate 3: Install, reinstall, and prove the home-level skill
 
-This workstream makes the packaging real instead of repo-local theater.
+This gate makes the surface real in `~/.codex/skills/` rather than repo-local theater.
 
 Deliverables:
 
-- install or refresh of `~/.codex/skills/system-charter-intake/`
-- install or refresh of `~/.codex/skills/system/`
-- idempotent refresh behavior
+- add `tools/codex/install.sh`
+- add `tools/codex/dev-setup.sh`
+- add `tools/codex/relink.sh`
+- copy-based install or reinstall into `~/.codex/skills/`
+- symlink-based dev setup into `~/.codex/skills/`
 - stale-runtime refusal
-- fresh install smoke
-- one bounded live installed-skill happy-path smoke
+- install smoke
+- one bounded live installed-skill smoke
 
 Files/modules:
 
 - `tools/codex/install.sh`
+- `tools/codex/dev-setup.sh`
 - `tools/codex/relink.sh`
 - `tools/ci/install-smoke.sh`
 - `tools/ci/codex-skill-live-smoke.sh`
-- fixture or transcript evidence under `tests/fixtures/` or `.implemented/`
+- `.implemented/m9.5-codex-skill-packaging/`
 
 Exit condition:
 
-- a user can install the Codex skill assets into `~/.codex/skills/`
-- rerunning install/refresh is idempotent
-- stale runtime/binary mismatches are refused before conversation starts
+- a user can install the skill assets into `~/.codex/skills/` from any repo checkout
+- rerunning install is idempotent and converges on the same copied home layout
+- rerunning dev setup recreates the two expected symlinks cleanly
+- stale runtime or binary mismatches refuse before any conversational intake begins
 
-### Workstream 4: Docs, contracts, and cutover proof
+### Gate 4: Cut over docs, contracts, and proof
 
-This workstream lands last. It tells one product story after the real surfaces exist.
+This gate lands last so the docs describe the implemented surface instead of the aspirational one.
 
 Deliverables:
 
-- docs/help/contract alignment for `doctor --json`, `--validate`, and Codex packaging install
-- packaging proof artifacts
-- explicit local-only distribution wording
-- no conflict between shell installer naming and the `system setup` CLI verb
+- docs/help/contract alignment for `doctor --json`
+- docs/help/contract alignment for `author charter --validate --from-inputs`
+- explicit install, dev-setup, and relink documentation for Codex packaging
+- local-first distribution wording
+- linked proof artifacts for install smoke and live smoke
+- no naming collision between packaging scripts and the `system setup` product verb
 
 Files/modules:
 
@@ -441,8 +523,8 @@ Files/modules:
 Exit condition:
 
 - docs and help describe the same shipped surface
-- the distribution story remains local-first and honest
-- the install/update/runtime proof is visible to a future implementer without extra context
+- the distribution story remains local-first and exact about what installs where
+- a future implementer can see the proof trail without hunting through chat history
 
 ## Code Quality Review
 
@@ -466,6 +548,7 @@ Exit condition:
 - One discoverable skill, one shared runtime root, one manifest file.
 - One compatibility policy: exact runtime-manifest version must match `system --version`.
 - One place for mutable run state: `~/.local/state/system/intake/`.
+- One packaging build-output rule: `.agents/skills/` is generated, ignored, and never hand-edited.
 
 ### Required inline diagrams during implementation
 
@@ -501,9 +584,9 @@ CODE PATH COVERAGE
 ==================
 [+] doctor --json
     |
-    ├-- [GAP] typed DoctorReport serializes exact locked top-level fields
+    ├-- [GAP] typed `DoctorReport` serializes the exact locked top-level fields
     ├-- [GAP] non-ready ordinary states still emit valid JSON with non-zero exit
-    ├-- [GAP] catastrophic inspection failure emits refusal text, not partial JSON
+    ├-- [GAP] catastrophic inspection failure emits refusal prose, not partial JSON
     └-- [GAP] checklist items keep exact subject/path/action semantics
 
 [+] author charter --validate --from-inputs
@@ -511,7 +594,8 @@ CODE PATH COVERAGE
     ├-- [GAP] valid YAML -> exit 0, no mutation
     ├-- [GAP] malformed YAML -> refusal, no mutation
     ├-- [GAP] incomplete YAML -> refusal, no mutation
-    └-- [GAP] existing valid charter -> refusal before mutation
+    ├-- [GAP] existing valid charter -> refusal before mutation
+    └-- [GAP] `--validate` without `--from-inputs` -> CLI refusal
 
 [+] author charter --from-inputs
     |
@@ -519,21 +603,24 @@ CODE PATH COVERAGE
     ├-- [GAP] malformed YAML -> refusal
     ├-- [GAP] incomplete YAML -> refusal
     ├-- [GAP] overwrite refusal on existing valid charter
-    └-- [GAP] invalid write target -> mutation refused
+    ├-- [GAP] invalid write target -> mutation refused
+    └-- [GAP] guided path still works and remains the only Codex-backed route
 
 [+] Codex packaging generation/install
     |
     ├-- [GAP] generate .agents/skills/system-charter-intake deterministically
     ├-- [GAP] generate .agents/skills/system runtime root deterministically
     ├-- [GAP] install copies both roots into ~/.codex/skills/
-    └-- [GAP] refresh is idempotent and cleans stale files safely
+    ├-- [GAP] dev setup creates the two expected symlinks only
+    └-- [GAP] reinstall is idempotent and cleans stale files safely
 
 [+] installed skill runtime
     |
     ├-- [GAP] runtime root fallback order works
     ├-- [GAP] runtime manifest version mismatch refuses early
     ├-- [GAP] missing `system` binary refuses early
-    └-- [GAP] run artifacts persist under ~/.local/state/system/intake/runs/
+    ├-- [GAP] runtime root missing required `share/` assets refuses early
+    └-- [GAP] run artifacts persist under ~/.local/state/system/intake/runs/<timestamp>-<pid>/
 ```
 
 ### User flow coverage to add
@@ -544,12 +631,14 @@ USER FLOW COVERAGE
 [+] Fresh install and discovery flow [->E2E]
     |
     ├-- [GAP] install -> ~/.codex/skills/system-charter-intake appears
-    └-- [GAP] install -> ~/.codex/skills/system runtime root appears and is readable
+    ├-- [GAP] install -> ~/.codex/skills/system runtime root appears and is readable
+    └-- [GAP] reinstall keeps the same file set without manual cleanup
 
 [+] Fresh target repo happy path [->E2E]
     |
     ├-- [GAP] doctor --json -> setup -> doctor --json -> validate -> write -> doctor --json
-    └-- [GAP] final doctor reports remaining baseline work truthfully
+    ├-- [GAP] final doctor reports remaining baseline work truthfully
+    └-- [GAP] run directory contains the exact locked evidence files
 
 [+] Existing charter refusal flow
     |
@@ -578,6 +667,7 @@ USER FLOW COVERAGE
   - mutation-free charter validation path
   - deterministic charter structured-input sink
   - regression test that deterministic `--from-inputs` does not invoke Codex
+  - regression test that guided `system author charter` still invokes the synthesis path
 - `crates/cli/tests/author_cli.rs`
   - new flag parsing
   - refusal text
@@ -585,7 +675,7 @@ USER FLOW COVERAGE
 - `crates/cli/tests/help_drift_guard.rs`
   - help/docs parity for `doctor --json` and `author charter --validate --from-inputs`
 - `tools/ci/install-smoke.sh`
-  - generate/install/refresh/stale-runtime checks for Codex packaging
+  - generate/install/reinstall/stale-runtime checks for Codex packaging
 - `tools/ci/codex-skill-live-smoke.sh`
   - bounded installed-skill happy path
 - proof artifacts
@@ -593,6 +683,17 @@ USER FLOW COVERAGE
   - fresh target repo happy path
   - existing charter refusal
   - stale runtime refusal
+  - dev override proof
+
+### Exact test-plan expectations
+
+The implementation is not done until the new tests prove both the trust boundary and the packaging boundary.
+
+- `doctor --json` tests must assert field names and exit semantics, not just "parses as JSON".
+- `author charter --validate --from-inputs` tests must assert zero mutation by checking that `.system/charter/CHARTER.md` is untouched on both success and refusal.
+- deterministic `author charter --from-inputs` tests must fail if `codex exec` is invoked, even accidentally through a leftover helper.
+- packaging tests must assert the exact installed file set under `~/.codex/skills/system/`, not just directory existence.
+- live smoke must exercise the installed skill surface, not a repo-local wrapper or direct binary invocation.
 
 ### Regression rules
 
@@ -608,21 +709,22 @@ This milestone is packaging-heavy, not CPU-heavy, but it still has real operatio
 - The runtime should shell out at most:
   - one `system --version` compatibility check
   - one initial `system doctor --json`
-  - optional `system setup`
-  - one follow-up `system doctor --json`
+  - optional bare `system setup`
+  - one follow-up `system doctor --json` if setup ran
   - one validation call
   - one write call
   - one final `system doctor --json`
-- The install script should copy only the generated skill/runtime assets. It should not compile Rust code itself.
+- `tools/codex/install.sh` must not compile Rust code itself. It installs already-built packaging assets and assumes the user has installed or rebuilt the `system` binary separately.
 - Run artifacts should stream to disk as they are produced. Do not hold long transcripts or JSON blobs in memory unnecessarily.
 - No daemon, file watcher, background sync loop, or persisted readiness cache ships in `M9.5`.
-- Install and refresh must be idempotent. A second run should converge on the same home layout without manual cleanup.
+- Install and reinstall must be idempotent. A second run should converge on the same copied home layout without manual cleanup.
+- Dev setup must be reversible. Re-running normal install after dev setup must replace symlinks with copied directories cleanly.
 
 ## Failure Modes Registry
 
 | Codepath | Realistic production failure | Test required | Error handling required | User-visible outcome |
 | --- | --- | --- | --- | --- |
-| generated skill discovery | `~/.codex/skills/system-charter-intake/` missing or half-installed | yes | install/refesh refusal with exact missing path | explicit install failure |
+| generated skill discovery | `~/.codex/skills/system-charter-intake/` missing or half-installed | yes | install/reinstall refusal with exact missing path | explicit install failure |
 | runtime root resolution | repo-local override missing files or malformed manifest | yes | hard refusal before conversation | exact broken runtime root shown |
 | binary/runtime drift | installed skill version does not match `system --version` | yes | early compatibility refusal | explicit "rerun install" guidance |
 | target repo detection | skill launched outside a real repo | yes | repo-root refusal | exact failing directory shown |
@@ -632,6 +734,7 @@ This milestone is packaging-heavy, not CPU-heavy, but it still has real operatio
 | deterministic charter sink | `--from-inputs` still invokes Codex | yes, critical | regression test | ship blocker |
 | existing canonical truth | installed skill overwrites valid authored charter | yes | compiler-owned refusal | exact next action to inspect existing charter |
 | run-artifact persistence | skill writes artifacts into `~/.codex/skills/system/` or target repo accidentally | yes | fixed state-path enforcement | no mutable runtime-root writes |
+| install-mode crossover | normal install leaves symlinks behind after dev setup | yes | installer replaces symlinks with copied directories | explicit install success, no dangling dev links |
 | operator output | compatibility or refusal output hides the exact next step | yes | exact repair wording | no mystery failure |
 
 Critical gap rule: any path that writes canonically without doctor JSON truth, without validation, or without deterministic compiler ownership is a ship blocker.
@@ -653,8 +756,8 @@ No new TODOs are added by this plan. The right move is to land one honest instal
 | Step | Modules touched | Depends on |
 | --- | --- | --- |
 | 1. CLI/compiler contract hardening | `crates/compiler/src/author/`, `crates/compiler/src/doctor.rs`, `crates/cli/src/`, compiler/CLI tests | --- |
-| 2. Codex generation and runtime packaging | `tools/codex/`, `.agents/skills/` | frozen command contracts from this plan |
-| 3. Home install and smoke proof | `tools/ci/`, packaging fixtures/evidence | Steps 1 and 2 |
+| 2. Codex generation and runtime packaging | `tools/codex/`, `.agents/skills/`, `.gitignore` | frozen command names and runtime policy from this plan |
+| 3. Home install and smoke proof | `tools/ci/`, `.implemented/m9.5-codex-skill-packaging/` | Steps 1 and 2 |
 | 4. Docs and contract cutover | `README.md`, `docs/`, `DESIGN.md`, `PLAN.md` | Steps 1, 2, and 3 |
 
 ### Parallel lanes
@@ -662,9 +765,11 @@ No new TODOs are added by this plan. The right move is to land one honest instal
 - Lane A: Step 1
   - sequential inside the lane because `doctor`, charter authoring, and CLI flag semantics share one trust boundary
 - Lane B: Step 2
-  - can launch in parallel with Lane A because the file set is separate once the command names and runtime-root policy are frozen
-- Lane C: Step 3 -> Step 4
-  - sequential after A and B merge because smoke proof and docs must reflect the final implemented interfaces
+  - launchable in parallel with Lane A because it touches packaging assets only and the command names are already frozen in this plan
+- Lane C: Step 3
+  - waits for A and B because install smoke needs the real CLI contract and the real generated packaging surface
+- Lane D: Step 4
+  - waits for C because docs and contracts must match the final proven behavior
 
 ### Execution order
 
@@ -672,16 +777,19 @@ Launch Lane A and Lane B in parallel worktrees after this plan is approved.
 
 Merge both.
 
-Then run Lane C for smoke proof and docs/contracts cutover.
+Then run Lane C for install and smoke proof.
+
+Then run Lane D for docs/contracts cutover.
 
 ### Conflict flags
 
-- Lane A and Lane B must not both edit `README.md`, `docs/`, or help snapshots. Reserve those for Lane C.
+- Lane A and Lane B must not both edit `README.md`, `docs/`, or help snapshots. Reserve those for Lane D.
 - Lane A owns `crates/cli/src/` and `crates/compiler/src/author/charter.rs`. Lane B must not touch those modules.
-- Lane B owns `tools/codex/` and generated `.agents/skills/`. Lane A must not create packaging logic there.
-- Lane C is the only lane allowed to finalize wording in docs, help snapshots, and smoke naming.
+- Lane B owns `tools/codex/`, `.gitignore`, and generated `.agents/skills/`. Lane A must not create packaging logic there.
+- Lane C owns `tools/ci/` and `.implemented/m9.5-codex-skill-packaging/`. Lanes A and B should not create final proof artifacts there.
+- Lane D is the only lane allowed to finalize wording in docs, help snapshots, and contract prose.
 
-Result: 3 lanes total, 2 launchable in parallel, 1 final sequential integration lane.
+Result: 4 lanes total, 2 launchable in parallel, 2 final sequential integration lanes.
 
 ## Acceptance Criteria
 
@@ -690,12 +798,12 @@ Result: 3 lanes total, 2 launchable in parallel, 1 final sequential integration 
 3. `system author charter --from-inputs <path|->` is deterministic and does not invoke Codex.
 4. Guided `system author charter` still works and remains clearly separate from the deterministic structured-input sink.
 5. The repo can generate `.agents/skills/system-charter-intake/` and `.agents/skills/system/` deterministically.
-6. `tools/codex/install.sh` installs or refreshes `~/.codex/skills/system-charter-intake/` and `~/.codex/skills/system/`.
+6. `tools/codex/install.sh` installs or reinstalls `~/.codex/skills/system-charter-intake/` and `~/.codex/skills/system/`.
 7. The installed skill refuses early when the runtime manifest and `system --version` do not match.
 8. The installed skill can complete the fresh target repo charter happy path end to end.
 9. The installed skill persists run artifacts under `~/.local/state/system/intake/runs/`.
 10. The installed skill refuses overwrite of existing valid charter truth.
-11. Install/update smoke covers fresh install, refresh, stale-runtime refusal, and live skill happy path.
+11. Install/reinstall smoke covers fresh install, reinstall, stale-runtime refusal, dev-override behavior, and live skill happy path.
 12. Docs, help, contracts, and smoke artifacts all describe the same shipped packaging story.
 
 ## Unresolved Decisions
@@ -713,16 +821,16 @@ The important design choices that were open in the draft design doc are now lock
 
 - Step 0: Scope Challenge, accepted as one-skill, Codex-first, packaging-first, deterministic-sink-backed
 - Architecture Review: one source layer, one generated Codex layer, one installed runtime/discovery layer
-- Code Quality Review: generic host framework rejected, shell-based packaging chosen
+- Code Quality Review: generic host framework rejected, shell-based packaging chosen, generated assets locked as build output
 - Test Review: full coverage diagram produced, installed-skill smoke and deterministic-sink regression tests required
-- Performance Review: no daemon/cache layer allowed, runtime shell-out count bounded
+- Performance Review: no daemon/cache layer allowed, runtime shell-out count bounded, install/dev-setup reversibility required
 - NOT in scope: written
 - What already exists: written
 - TODOS.md updates: 0 new items proposed
-- Failure modes: written, with deterministic sink, readiness guessing, and version drift blockers called out
+- Failure modes: written, with deterministic sink, readiness guessing, version drift, and install-mode crossover blockers called out
 - Outside voice: checkpoint + design doc + local `gstack` packaging inspection incorporated; no fresh dual-model challenge was run in this rewrite
-- Parallelization: 3 lanes, 2 parallel / 1 sequential
-- Lake Score: 9/9 major recommendations chose the complete option over the shortcut
+- Parallelization: 4 lanes, 2 parallel / 2 sequential
+- Lake Score: 10/10 major recommendations chose the complete option over the shortcut
 
 ## GSTACK REVIEW REPORT
 
@@ -730,7 +838,7 @@ The important design choices that were open in the draft design doc are now lock
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | carried forward | checkpoint + latest design narrowed the wedge to Codex-first, charter-only packaging |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | rewritten plan | scope challenge, architecture, test diagram, failure modes, and parallelization are all refreshed for `M9.5` |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | rewritten plan | scope challenge, locked contracts, test diagram, failure modes, and parallelization are all refreshed for `M9.5` |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | skipped, no UI scope | — |
 
 **VERDICT:** Fresh `M9.5` implementation contract is ready. If you want an additional independent challenge pass before coding starts, re-run `/autoplan` against this rewritten plan.
