@@ -1,0 +1,1369 @@
+{
+  "title": "GStack Pattern Synthesis for Substrate \u2014 Consolidated Final",
+  "date": "2026-04-18",
+  "status": "consolidated-reference",
+  "purpose": "All-encompassing baseline reference for later alternatives research on intake/planning completeness, memory, persistence, and execution structure.",
+  "what_added": [
+    "Compiled template/resolver architecture as a first-class pattern.",
+    "The shared preamble as a runtime kernel for retrieval, session awareness, and operational policy.",
+    "Checkpoint/resume as a distinct artifact type, not a side effect.",
+    "Builder/developer profile memory and the ongoing migration from `builder-profile.jsonl` to `developer-profile.json`.",
+    "Global retro and cross-tool discovery as a separate meta-memory plane.",
+    "Autoplan\u2019s explicit phase gates, required outputs, review report footer, and on-disk decision audit trail.",
+    "Telemetry separation and version-sensitive operational nuances.",
+    "LangGraph memory taxonomy and Reflexion as adjacent references alongside MemGPT and Generative Agents."
+  ],
+  "core_synthesis": [
+    "gstack is best understood as a compiled artifact-first workflow runtime, not a bag of prompts.",
+    "Its strongest abstraction is the separation between methodology, runtime metadata, and persisted artifacts.",
+    "A \u201ccomplete\u201d plan in gstack is not a filled template; it is a plan that has passed the required review axes for its task class, under an explicit mode, with mandatory Step 0 outputs and no unresolved critical gaps.",
+    "Its durable memory system is layered: session awareness, project-local ledgers, checkpoints, review memory, behavioral profile memory, and global retro/meta-memory.",
+    "Compounding happens because the right slice of prior artifacts is retrieved before the next skill runs, and because the system makes that compounding visible.",
+    "The repo\u2019s append-only, local-first persistence model is a major strength for auditability and hackability, but it also reveals where substrate should add stronger typing and validation.",
+    "The repo is currently in a mild migration state around builder-profile versus developer-profile, which is itself a useful pattern study for backward-compatible evolution.",
+    "The main ceiling in gstack is not planning taste; it is deterministic verification of machine-checkable claims."
+  ],
+  "session_types": [
+    {
+      "name": "/office-hours",
+      "role": "intake, premise challenge, alternatives generation",
+      "input": "user request + local repo context + prior designs/profile",
+      "output": "design doc + profile event",
+      "axis": "problem clarity, alternatives, premise challenge"
+    },
+    {
+      "name": "/plan-ceo-review",
+      "role": "strategy/scope review",
+      "input": "design doc / plan",
+      "output": "reviewed plan + strategic outputs",
+      "axis": "right problem, right scope, ambition, reversibility"
+    },
+    {
+      "name": "/plan-eng-review",
+      "role": "engineering completeness review",
+      "input": "design doc / plan",
+      "output": "reviewed plan + failure/test/execution artifacts",
+      "axis": "architecture, tests, failure modes, implementation shape"
+    },
+    {
+      "name": "/plan-design-review",
+      "role": "UX/design completeness review",
+      "input": "plan + optional designs/system docs",
+      "output": "reviewed plan + design pass outputs",
+      "axis": "IA, states, journey, responsiveness, accessibility"
+    },
+    {
+      "name": "/plan-devex-review",
+      "role": "developer experience completeness review",
+      "input": "plan + docs + developer-facing scope",
+      "output": "reviewed plan + DX artifacts",
+      "axis": "onboarding, docs, API ergonomics, TTHW, persona fit"
+    },
+    {
+      "name": "/autoplan",
+      "role": "orchestrated synthesis and gating",
+      "input": "design doc + skill files + plan file",
+      "output": "living reviewed plan + review logs + audit trail",
+      "axis": "multi-axis completeness with explicit handoffs"
+    },
+    {
+      "name": "/review",
+      "role": "implementation diff review",
+      "input": "git diff + prior learnings + prior review memory",
+      "output": "merged findings + persisted review result",
+      "axis": "shipped-code risk, regressions, production failure exposure"
+    },
+    {
+      "name": "/checkpoint",
+      "role": "save/resume working state",
+      "input": "current branch, working tree, conversation state",
+      "output": "checkpoint artifact",
+      "axis": "continuity and resumability"
+    },
+    {
+      "name": "/learn",
+      "role": "inspect and curate learnings",
+      "input": "project learnings ledger",
+      "output": "searched/pruned/exported learnings",
+      "axis": "memory hygiene"
+    },
+    {
+      "name": "/retro global",
+      "role": "cross-project behavioral synthesis",
+      "input": "discovered local AI-coding session metadata + repos",
+      "output": "global retro snapshot",
+      "axis": "meta-memory and operating pattern visibility"
+    }
+  ],
+  "artifact_inventory": [
+    {
+      "class": "design_doc",
+      "question": "What problem are we solving, under what assumptions, with what alternatives?",
+      "scope": "branch / feature",
+      "producers": [
+        "/office-hours"
+      ],
+      "consumers": [
+        "/plan-*",
+        "/autoplan"
+      ],
+      "notes": "supports supersedes lineage; branch-scoped durable intake artifact"
+    },
+    {
+      "class": "builder_or_developer_profile_event",
+      "question": "What do we know about the builder/operator across sessions?",
+      "scope": "user / machine",
+      "producers": [
+        "/office-hours",
+        "developer-profile tooling"
+      ],
+      "consumers": [
+        "future office-hours sessions",
+        "behavioral tuning"
+      ],
+      "notes": "currently mid-migration from builder-profile.jsonl to developer-profile.json"
+    },
+    {
+      "class": "reviewed_plan",
+      "question": "What exactly are we building and why?",
+      "scope": "branch / feature",
+      "producers": [
+        "/plan-*",
+        "/autoplan"
+      ],
+      "consumers": [
+        "implementation",
+        "/ship",
+        "future sessions"
+      ],
+      "notes": "living object with review report, phase outputs, and decision audit trail"
+    },
+    {
+      "class": "error_and_rescue_registry",
+      "question": "How do non-happy paths fail and recover?",
+      "scope": "plan-local",
+      "producers": [
+        "/plan-ceo-review",
+        "/autoplan"
+      ],
+      "consumers": [
+        "implementers",
+        "QA",
+        "future reviews"
+      ],
+      "notes": "focuses on user-visible rescue paths, not just exceptions"
+    },
+    {
+      "class": "failure_modes_registry",
+      "question": "What realistic production failures still exist?",
+      "scope": "plan-local",
+      "producers": [
+        "/plan-ceo-review",
+        "/plan-eng-review"
+      ],
+      "consumers": [
+        "implementation",
+        "QA"
+      ],
+      "notes": "used to surface silent-failure critical gaps"
+    },
+    {
+      "class": "test_plan_artifact",
+      "question": "What must be tested and where?",
+      "scope": "branch / feature",
+      "producers": [
+        "/plan-eng-review"
+      ],
+      "consumers": [
+        "/qa",
+        "implementation"
+      ],
+      "notes": "bridges planning into validation"
+    },
+    {
+      "class": "checkpoint",
+      "question": "Where are we right now, what was decided, and what remains?",
+      "scope": "branch / session",
+      "producers": [
+        "/checkpoint"
+      ],
+      "consumers": [
+        "resume logic",
+        "context recovery"
+      ],
+      "notes": "captures decisions made, remaining work, notes, modified files, duration"
+    },
+    {
+      "class": "learnings_ledger",
+      "question": "What do we know now that should compound later?",
+      "scope": "project, optionally cross-project",
+      "producers": [
+        "many skills",
+        "manual /learn"
+      ],
+      "consumers": [
+        "many skills via preamble or explicit search"
+      ],
+      "notes": "typed, source-labeled, confidence-scored, trust-gated"
+    },
+    {
+      "class": "timeline_ledger",
+      "question": "What happened, in what order, on what branch?",
+      "scope": "project",
+      "producers": [
+        "all skills automatically"
+      ],
+      "consumers": [
+        "retro",
+        "context recovery"
+      ],
+      "notes": "activity memory, not semantic memory"
+    },
+    {
+      "class": "review_log",
+      "question": "Which gates have run, on which commit, and with what unresolved risk?",
+      "scope": "branch",
+      "producers": [
+        "/plan-*",
+        "/review",
+        "/autoplan"
+      ],
+      "consumers": [
+        "/ship",
+        "dashboards",
+        "staleness checks"
+      ],
+      "notes": "release-gating memory"
+    },
+    {
+      "class": "decision_audit_trail",
+      "question": "What autonomous decisions were made, under which principle?",
+      "scope": "plan-local",
+      "producers": [
+        "/autoplan"
+      ],
+      "consumers": [
+        "humans",
+        "future auditors"
+      ],
+      "notes": "kept on disk to avoid conversation-context bloat"
+    },
+    {
+      "class": "global_retro_snapshot",
+      "question": "What patterns recur across repos, tools, and time windows?",
+      "scope": "user / machine",
+      "producers": [
+        "/retro global"
+      ],
+      "consumers": [
+        "weekly retros",
+        "operating-pattern analysis"
+      ],
+      "notes": "distinct from project memory"
+    },
+    {
+      "class": "telemetry_analytics",
+      "question": "How is the product being used?",
+      "scope": "product analytics",
+      "producers": [
+        "skill preambles when enabled"
+      ],
+      "consumers": [
+        "maintainers"
+      ],
+      "notes": "should be kept separate from operational memory"
+    }
+  ],
+  "patterns": [
+    {
+      "id": "P01",
+      "title": "Compiled methodology / runtime / artifact separation",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "gstack keeps the judgment-heavy workflow in `SKILL.md.tmpl`, then compiles live `SKILL.md` files using `gen-skill-docs.ts` and resolvers that inject preambles, dashboards, test bootstrap, and optional cross-model blocks.",
+      "why_it_matters": "This reduces prompt drift without freezing the methodology into code. The method stays hand-authored; the operational sections stay synchronized with implementation.",
+      "carry_forward": "Treat substrate planning/intake as a compiled prompt DSL or template system. Separate methodology, runtime metadata, and persisted outputs as different layers.",
+      "refs": [
+        "G01"
+      ]
+    },
+    {
+      "id": "P02",
+      "title": "Shared preamble as runtime kernel",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "Every skill starts with a generated preamble that performs update checks, session tracking, active-session counting, contributor mode, universal question formatting, search-before-building policy, learning lookup, and timeline writes.",
+      "why_it_matters": "This makes important runtime behaviors consistent across all skills and gives memory retrieval a predictable insertion point.",
+      "carry_forward": "Implement a policy-layer preamble in substrate that runs before task-specific logic: context recovery, session awareness, retrieval, telemetry gating, and standardized user decision formatting.",
+      "refs": [
+        "G01",
+        "G10",
+        "G21"
+      ]
+    },
+    {
+      "id": "P03",
+      "title": "Artifact-first session typing",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "gstack sessions are defined less by chat persona and more by what artifact they transform: office-hours creates a design doc, plan reviews enrich it, review logs persist gating results, checkpoint captures working state.",
+      "why_it_matters": "This creates typed handoffs instead of loosely related conversations.",
+      "carry_forward": "Define substrate session kinds as artifact transforms with required inputs, outputs, completeness gates, freshness rules, and persistence rules.",
+      "refs": [
+        "G02",
+        "G03",
+        "G04",
+        "G07",
+        "G11"
+      ]
+    },
+    {
+      "id": "P04",
+      "title": "Intake emits multiple related artifacts, not one plan blob",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "`/office-hours` appends a builder/developer-profile event and writes a design doc; downstream reviews discover that design automatically.",
+      "why_it_matters": "Different artifacts answer different downstream questions: planning state, builder state, review state, resume state.",
+      "carry_forward": "At intake time, write at least a framing artifact, a project-local design/plan artifact, and a behavioral/session event. Do not collapse them into one file.",
+      "refs": [
+        "G02",
+        "G17",
+        "G18"
+      ]
+    },
+    {
+      "id": "P05",
+      "title": "Lineage is first-class",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "Design docs can carry a `Supersedes:` link; review logs are branch+commit scoped; checkpoints capture branch and timestamp; global retros snapshot windows for later trend comparison.",
+      "why_it_matters": "Lineage is what turns \u201cmore context\u201d into trustworthy context.",
+      "carry_forward": "Every substrate artifact should carry identifiers such as artifact_id, parent_ids, supersedes, session_id, project_id, branch, commit, mode, status, timestamps.",
+      "refs": [
+        "G02",
+        "G07",
+        "G11",
+        "G14",
+        "G20"
+      ]
+    },
+    {
+      "id": "P06",
+      "title": "Search before building / landscape awareness",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "The preamble contains a search-before-building policy; office-hours adds a dedicated landscape-awareness phase; review/search phases verify that proposed patterns are still current best practice.",
+      "why_it_matters": "It prevents the workflow from locking onto stale or needlessly bespoke solutions.",
+      "carry_forward": "Make \u201csearch first when unfamiliar or current-best-practice matters\u201d a runtime rule, not an optional reviewer habit.",
+      "refs": [
+        "G01",
+        "G02",
+        "G08",
+        "G04"
+      ]
+    },
+    {
+      "id": "P07",
+      "title": "Mode selection before depth",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "CEO review forces an explicit review posture: scope expansion, selective expansion, hold scope, or scope reduction, with defaults based on task shape and file-count heuristics.",
+      "why_it_matters": "The same review posture should not serve greenfield ideation, bugfix hardening, and overbuilt-plan reduction.",
+      "carry_forward": "Make planning mode explicit at intake or pre-review time. \u201cComplete\u201d depends on what sort of completeness the workflow is optimizing for.",
+      "refs": [
+        "G03"
+      ]
+    },
+    {
+      "id": "P08",
+      "title": "Pre-review system audit before planning judgments",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "CEO review begins with recent git history, diff stats, stash inspection, TODO/FIXME/HACK scans, and recently touched files before evaluating scope or architecture.",
+      "why_it_matters": "This grounds the review in the actual working state and avoids plan review in a vacuum.",
+      "carry_forward": "Before deep review, run a cheap system audit: branch context, diff shape, deferred backlog, pending hacks, and surrounding recent work.",
+      "refs": [
+        "G03"
+      ]
+    },
+    {
+      "id": "P09",
+      "title": "Mandatory Step 0 before detailed review",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "Engineering review starts with a Step 0 scope challenge: existing code reuse, minimum viable change, complexity smell test, search check, TODO cross-reference, completeness check, and distribution check.",
+      "why_it_matters": "Many planning failures happen before architecture review even begins: rebuilding what exists, hiding deferrals, or ignoring distribution and silent failure.",
+      "carry_forward": "Require a Step 0 contract ahead of plan detail. Substrate should not allow architecture review to start until Step 0 outputs exist.",
+      "refs": [
+        "G04"
+      ]
+    },
+    {
+      "id": "P10",
+      "title": "Phase transitions gate on written outputs",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "`/autoplan` refuses to begin the next phase until the current phase\u2019s mandatory artifacts are written to the plan file and the relevant gate has passed.",
+      "why_it_matters": "This is one of the strongest reasons gstack plans feel finished: handoffs are artifact-gated, not token-budget-gated.",
+      "carry_forward": "In substrate, transitions should depend on persisted outputs and gate checks, not just model confidence or \u201cI think I\u2019m done.\u201d",
+      "refs": [
+        "G07"
+      ]
+    },
+    {
+      "id": "P11",
+      "title": "Completion summaries are machine-gatable handoff contracts",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "CEO and eng reviews end with compact summaries that count issues, note whether negative-space sections were written, report gaps, diagram counts, outside-voice status, and unresolved items.",
+      "why_it_matters": "A compact summary lets later stages decide what ran and what still blocks execution without re-reading the entire plan.",
+      "carry_forward": "Emit structured completion summaries from every review axis. Treat them as state for downstream routing and dashboards.",
+      "refs": [
+        "G03",
+        "G04",
+        "G07"
+      ]
+    },
+    {
+      "id": "P12",
+      "title": "Living plan status belongs on disk",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "`/autoplan` can append a `GSTACK REVIEW REPORT` footer to the plan file if one is missing, making review state part of the plan\u2019s living status.",
+      "why_it_matters": "A plan is more useful when its freshness and review coverage are visible in the artifact itself.",
+      "carry_forward": "Make reviewed-plan artifacts self-describing: include review state, freshness, unresolved gaps, and next-step hints inside the artifact.",
+      "refs": [
+        "G07"
+      ]
+    },
+    {
+      "id": "P13",
+      "title": "Decision audit trail stays on disk, not in chat history",
+      "category": "workflow-architecture",
+      "confidence": "High",
+      "observed": "`/autoplan` appends one audit-trail row per auto-decision into the plan file so decision rationale does not accumulate only in ephemeral conversation context.",
+      "why_it_matters": "This preserves accountability while minimizing context-window clutter.",
+      "carry_forward": "Persist autonomous decisions as a structured decision log linked to the artifact they modified.",
+      "refs": [
+        "G07"
+      ]
+    },
+    {
+      "id": "P14",
+      "title": "Completeness is multi-axis, not scalar",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "gstack decomposes review into strategy, engineering, design, DX, and implementation diff review rather than one universal \u201cgood plan\u201d pass.",
+      "why_it_matters": "Different failure modes require different passes. A plan can be strategically sound but implementation-incomplete or great technically but weak in DX.",
+      "carry_forward": "Model completeness as the conjunction of required axes for a task class rather than a single global score.",
+      "refs": [
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08"
+      ]
+    },
+    {
+      "id": "P15",
+      "title": "Alternatives are mandatory before commitment",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "Office-hours and CEO review require multiple materially different approaches instead of letting the first plausible path become the plan.",
+      "why_it_matters": "Alternatives expose hidden assumptions and create an honest trade-space between minimal change and ideal architecture.",
+      "carry_forward": "Require 2\u20133 materially different approaches for non-trivial work and preserve the rejected options as part of the artifact history.",
+      "refs": [
+        "G02",
+        "G03"
+      ]
+    },
+    {
+      "id": "P16",
+      "title": "Explicit reuse inventory",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "Plan reviews repeatedly force a \u201cWhat already exists\u201d section mapping sub-problems to current code or infrastructure.",
+      "why_it_matters": "Without an explicit reuse pass, agents routinely propose parallel systems instead of extending what is already there.",
+      "carry_forward": "Every serious plan should include a reuse inventory with evidence and reuse strategy, not just a sentence saying \u201cexisting code exists.\u201d",
+      "refs": [
+        "G03",
+        "G04",
+        "G07"
+      ]
+    },
+    {
+      "id": "P17",
+      "title": "Explicit negative space / `NOT in scope`",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "CEO and eng reviews insist on a written `NOT in scope` section and push deferred items into it rather than letting them disappear.",
+      "why_it_matters": "Completeness is not \u201cinclude everything\u201d; it is \u201cmake omissions explicit and reviewable.\u201d",
+      "carry_forward": "Track deferments as first-class artifacts with rationale, not as silent absences.",
+      "refs": [
+        "G03",
+        "G04",
+        "G07"
+      ]
+    },
+    {
+      "id": "P18",
+      "title": "Distribution path is part of completeness",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "Eng review treats distribution as mandatory when a plan introduces a new artifact type such as a CLI, library, container, or mobile app: CI/CD, target platforms, and install path must be present or explicitly deferred.",
+      "why_it_matters": "Code that cannot be built, published, or installed is not complete for artifact-producing work.",
+      "carry_forward": "Substrate plan schemas should include distribution/publish/install fields whenever the deliverable is something users download or integrate.",
+      "refs": [
+        "G04",
+        "G02"
+      ]
+    },
+    {
+      "id": "P19",
+      "title": "Future-implementer temporal interrogation",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "CEO review asks what the implementer will wish had been planned for in hour 1, hours 2\u20133, and hours 6+.",
+      "why_it_matters": "This surfaces the details that are cheapest to specify now and most expensive to rediscover mid-execution.",
+      "carry_forward": "Bake a temporal interrogation pass into plan hardening: what future execution loops will regret not having now?",
+      "refs": [
+        "G03"
+      ]
+    },
+    {
+      "id": "P20",
+      "title": "Hidden-path rendering and mandatory diagrams",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "CEO review requires diagrams for architecture, data flow, state machine, error flow, deployment sequence, and rollback; design/eng reviews force loading, empty, error, boundary, and partial states into view.",
+      "why_it_matters": "The most dangerous implementation gaps are often the paths the plan merely implies.",
+      "carry_forward": "Represent critical flows explicitly. Hidden-path rendering should be a gate, not a \u201cnice to have.\u201d",
+      "refs": [
+        "G03",
+        "G04",
+        "G05",
+        "G07"
+      ]
+    },
+    {
+      "id": "P21",
+      "title": "Failure-mode surfacing and silent-failure critical gaps",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "For each new codepath, eng review asks how it can fail in production, whether a test covers it, whether error handling exists, and whether the user sees a clear error or a silent failure. No test + no handling + silent user experience becomes a critical gap.",
+      "why_it_matters": "This is a practical way to convert edge cases into actionable risk state.",
+      "carry_forward": "Use a failure-mode registry that links each risk to test coverage, error handling, and user-visible outcome.",
+      "refs": [
+        "G04"
+      ]
+    },
+    {
+      "id": "P22",
+      "title": "Anti-skip rule: if nothing is wrong, say what was checked",
+      "category": "planning-completeness",
+      "confidence": "High",
+      "observed": "Review skills require sections with no findings to still say what was evaluated and why nothing was flagged.",
+      "why_it_matters": "This prevents fake completeness where a pass is \u201cdone\u201d without demonstrating that it actually ran.",
+      "carry_forward": "Require every axis to leave a trace, even when the result is clean.",
+      "refs": [
+        "G05",
+        "G06",
+        "G07"
+      ]
+    },
+    {
+      "id": "P23",
+      "title": "Planning should emit execution-lane hints",
+      "category": "execution-bridge",
+      "confidence": "High",
+      "observed": "Eng review includes a worktree parallelization strategy that groups work into independent lanes or explicitly marks the plan as sequential.",
+      "why_it_matters": "This is the bridge from planning to a modular execution framework.",
+      "carry_forward": "Have planning artifacts emit dependency lanes, critical path hints, or an execution graph rather than just a prose step list.",
+      "refs": [
+        "G04"
+      ]
+    },
+    {
+      "id": "P24",
+      "title": "Memory is layered into planes, not one store",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "gstack separates session awareness, project-local learnings and timelines, checkpoints, review logs, builder/developer profile data, and global retros.",
+      "why_it_matters": "These stores answer different questions and should not all be queried or injected the same way.",
+      "carry_forward": "Use at least session, project, builder/operator, and global scopes. Within them, separate semantic learnings, episodic timeline, checkpoints, review facts, and behavioral profile.",
+      "refs": [
+        "G09",
+        "G10",
+        "G11",
+        "G18",
+        "G20"
+      ]
+    },
+    {
+      "id": "P25",
+      "title": "Append-only local artifacts with read-time consolidation",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Learnings, timeline events, review logs, builder-profile events, and checkpoints are written append-first or file-first, with dedup and summary logic happening on read.",
+      "why_it_matters": "Append-only writes are robust, auditable, and concurrency-friendly enough for local agent workflows.",
+      "carry_forward": "Prefer append-only event or artifact writes, then consolidate on read or in synthesis jobs. Preserve the raw trail.",
+      "refs": [
+        "G09",
+        "G12",
+        "G13",
+        "G14",
+        "G15",
+        "G18",
+        "G20"
+      ]
+    },
+    {
+      "id": "P26",
+      "title": "Typed learnings with provenance, trust, and confidence",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Learnings carry constrained types, sources, keys, confidence, branch, commit, and related files; the logger validates and sanitizes inputs before storage.",
+      "why_it_matters": "This prevents \u201cmemory\u201d from becoming an uninspectable blob and reduces prompt-injection or low-quality carryover risk.",
+      "carry_forward": "Memory records should encode what kind of thing they are, where they came from, how much to trust them, and where they apply.",
+      "refs": [
+        "G09",
+        "G12"
+      ]
+    },
+    {
+      "id": "P27",
+      "title": "Confidence decay and cross-project trust gating",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Observed and inferred learnings decay over time; cross-project retrieval is opt-in; untrusted cross-project learnings are filtered out to avoid contamination.",
+      "why_it_matters": "Portable memory should be harder to earn than local memory.",
+      "carry_forward": "Make portability, trust tier, and decay policy explicit fields, not retrieval-side guesswork.",
+      "refs": [
+        "G09",
+        "G13",
+        "G08"
+      ]
+    },
+    {
+      "id": "P28",
+      "title": "Context recovery and cross-session injection belong in the preamble",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Session intelligence proposes and skills implement a preamble that reads recent plans, reviews, checkpoints, and timelines after compaction or on session start, and can emit a `Last session:` one-liner.",
+      "why_it_matters": "Memory only compounds if the right slice is loaded before the next reasoning step.",
+      "carry_forward": "Put retrieval policy in a pre-task context composer rather than relying on each planner prompt to remember to retrieve the right things.",
+      "refs": [
+        "G10",
+        "G11",
+        "G01"
+      ]
+    },
+    {
+      "id": "P29",
+      "title": "Visible compounding beats silent compounding",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "When a current review finding matches a past learning, gstack tells the user: \u201cPrior learning applied \u2026\u201d so compounding is visible.",
+      "why_it_matters": "Users need to see that memory helped, otherwise memory becomes an invisible source of unexplained behavior.",
+      "carry_forward": "Expose retrieved-memory influence explicitly when it changes the current review or plan.",
+      "refs": [
+        "G08",
+        "G09"
+      ]
+    },
+    {
+      "id": "P30",
+      "title": "Checkpoint/resume is a first-class artifact",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "`/checkpoint` writes a durable markdown artifact with summary, decisions made, remaining work, notes, files modified, branch, timestamp, and session duration; resume mode reads it back and warns on branch mismatch.",
+      "why_it_matters": "This is what makes long-running work and cross-branch handoffs survivable.",
+      "carry_forward": "Keep checkpoint artifacts distinct from plans and learnings. They answer \u201cwhere was I?\u201d not \u201cwhat do we believe?\u201d",
+      "refs": [
+        "G11",
+        "G10"
+      ]
+    },
+    {
+      "id": "P31",
+      "title": "Behavioral builder/developer profile is its own memory plane",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Office-hours appends builder-profile events; the repo now includes a unified developer-profile with tiers, accumulated signals, cross-project detection, resources shown, inferred dimensions, and mismatch checks.",
+      "why_it_matters": "Some useful memory is about how the operator works, not about the codebase.",
+      "carry_forward": "Keep operator-profile memory separate from project memory. Use it for guidance, tuning, and resource curation, not for code facts.",
+      "refs": [
+        "G02",
+        "G17",
+        "G18"
+      ]
+    },
+    {
+      "id": "P32",
+      "title": "Global retros provide cross-project meta-memory",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "`/retro global` plus `gstack-global-discover` scan local tool metadata from multiple AI coding tools, resolve repos, deduplicate by normalized remote URL, and save cross-project snapshots with session and streak metrics.",
+      "why_it_matters": "This creates a higher plane of memory about how the builder works across repos and tools, not just within one project.",
+      "carry_forward": "If substrate needs cross-project learning, distinguish project memory from behavioral meta-memory and keep their retrieval/use cases separate.",
+      "refs": [
+        "G19",
+        "G20"
+      ]
+    },
+    {
+      "id": "P33",
+      "title": "Telemetry is separate from operational memory",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Config exposes telemetry modes (`off | anonymous | community`), and skill preambles gate analytics/remote telemetry behavior separately from project-local learnings and timelines.",
+      "why_it_matters": "Product analytics and durable task memory should not be the same system.",
+      "carry_forward": "Keep analytics, memory, and review state as separate stores with separate policies and consent models.",
+      "refs": [
+        "G21",
+        "G01"
+      ]
+    },
+    {
+      "id": "P34",
+      "title": "Review memory is release-gating memory",
+      "category": "memory",
+      "confidence": "High",
+      "observed": "Review log scripts store branch-scoped JSONL facts that later phases and `/ship` can use to know which gates ran, on what commit, and with what unresolved risk.",
+      "why_it_matters": "Knowing that \u201ca review happened once\u201d is not enough; the system needs commit-aware review freshness.",
+      "carry_forward": "Persist review facts as their own memory class with branch, commit, status, unresolved counts, and source phase.",
+      "refs": [
+        "G07",
+        "G08",
+        "G14"
+      ]
+    },
+    {
+      "id": "P35",
+      "title": "Independent voices are useful when they remain independent",
+      "category": "execution-review",
+      "confidence": "High",
+      "observed": "`/autoplan` runs Codex and a Claude subagent independently, treats outside-voice findings as informational until explicitly accepted, and logs consensus/disagreement instead of silently merging everything.",
+      "why_it_matters": "Agreement is signal; disagreement reveals judgment boundaries.",
+      "carry_forward": "Treat multi-voice review as a consensus engine with explicit merge rules and disagreement surfacing, not as invisible ensemble averaging.",
+      "refs": [
+        "G03",
+        "G04",
+        "G07",
+        "G08"
+      ]
+    },
+    {
+      "id": "P36",
+      "title": "Parallelize by dependency, not enthusiasm",
+      "category": "execution-review",
+      "confidence": "High",
+      "observed": "Specialist subagents can run in parallel, but major `autoplan` phases are explicitly serialized because each phase depends on written outputs from the previous one.",
+      "why_it_matters": "Blind parallelism often shifts cost into reconciliation.",
+      "carry_forward": "Only parallelize independent lanes. Serialize artifact-dependent stages and use the plan\u2019s execution graph to decide where concurrency is actually safe.",
+      "refs": [
+        "G07",
+        "G08",
+        "G04"
+      ]
+    },
+    {
+      "id": "P37",
+      "title": "Tier ceremony to task complexity",
+      "category": "execution-review",
+      "confidence": "High",
+      "observed": "OpenClaw/gstack-lite patterns show a reduced-ceremony path for simple work and fuller pipelines for larger or more ambiguous work.",
+      "why_it_matters": "The full process is too heavy for small changes, but too little structure creates ambiguity debt on large work.",
+      "carry_forward": "Add explicit ceremony tiers based on change size, uncertainty, and artifact requirements.",
+      "refs": [
+        "G22"
+      ]
+    },
+    {
+      "id": "P38",
+      "title": "Prompt-only structure has a ceiling",
+      "category": "execution-review",
+      "confidence": "High",
+      "observed": "Issue reports show that even a strong review structure can miss wrong file paths, math, CLI flags, and other machine-verifiable claims when the system relies only on narrative review.",
+      "why_it_matters": "A plan can sound complete while still being concretely wrong.",
+      "carry_forward": "Separate narrative review from deterministic verification. Substrate should lint or verify concrete claims such as file paths, APIs, CLI flags, package versions, and arithmetic.",
+      "refs": [
+        "GI04",
+        "G08",
+        "G04"
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "id": "M01",
+      "name": "Six forcing questions with smart routing",
+      "summary": "Ask one forcing question at a time; route only the relevant subset based on stage (pre-product, has users, paying customers, pure infra).",
+      "refs": [
+        "G02"
+      ]
+    },
+    {
+      "id": "M02",
+      "name": "Related-design discovery before starting fresh",
+      "summary": "After the user states the problem, search prior design docs for keyword overlap and ask whether to build on them or start fresh.",
+      "refs": [
+        "G02"
+      ]
+    },
+    {
+      "id": "M03",
+      "name": "Landscape awareness / search before building",
+      "summary": "After understanding the problem, search conventional wisdom and recent best practice before committing to infrastructure or architecture choices.",
+      "refs": [
+        "G01",
+        "G02",
+        "G08",
+        "G04"
+      ]
+    },
+    {
+      "id": "M04",
+      "name": "Mode selection card",
+      "summary": "Force an explicit review posture: scope expansion, selective expansion, hold scope, or scope reduction.",
+      "refs": [
+        "G03"
+      ]
+    },
+    {
+      "id": "M05",
+      "name": "Step 0 scope challenge",
+      "summary": "Before detailed review, answer: what already exists, minimum viable change, complexity smell, search check, deferred backlog, completeness check, distribution path.",
+      "refs": [
+        "G04"
+      ]
+    },
+    {
+      "id": "M06",
+      "name": "Alternatives-first gate",
+      "summary": "Require 2\u20133 materially different approaches with effort, risk, pros/cons, and reuse story before locking the plan.",
+      "refs": [
+        "G02",
+        "G03"
+      ]
+    },
+    {
+      "id": "M07",
+      "name": "Reuse inventory",
+      "summary": "Map each sub-problem to existing code, assets, or flows that can be extended rather than rebuilt.",
+      "refs": [
+        "G03",
+        "G04",
+        "G07"
+      ]
+    },
+    {
+      "id": "M08",
+      "name": "Negative-space section",
+      "summary": "Write a `NOT in scope` section with rationale for every deferred item.",
+      "refs": [
+        "G03",
+        "G04",
+        "G07"
+      ]
+    },
+    {
+      "id": "M09",
+      "name": "Distribution gate",
+      "summary": "If the deliverable is a CLI, library, package, container, mobile app, or similar artifact, require build/publish/install details or explicitly defer them.",
+      "refs": [
+        "G04",
+        "G02"
+      ]
+    },
+    {
+      "id": "M10",
+      "name": "Temporal interrogation",
+      "summary": "Ask what the implementer will wish had been planned for in hour 1, hours 2\u20133, and hours 6+.",
+      "refs": [
+        "G03"
+      ]
+    },
+    {
+      "id": "M11",
+      "name": "Happy / nil / empty / error / partial rendering",
+      "summary": "For every new flow or user-facing state, render the path instead of implying it.",
+      "refs": [
+        "G03",
+        "G04",
+        "G05"
+      ]
+    },
+    {
+      "id": "M12",
+      "name": "Failure-mode registry",
+      "summary": "For each new codepath, list a realistic production failure and whether it has test coverage, error handling, and clear user-visible behavior.",
+      "refs": [
+        "G04"
+      ]
+    },
+    {
+      "id": "M13",
+      "name": "Phase-transition summary",
+      "summary": "End each phase with a written summary and do not advance until the required outputs are on disk.",
+      "refs": [
+        "G07"
+      ]
+    },
+    {
+      "id": "M14",
+      "name": "Decision audit trail row",
+      "summary": "For every autonomous decision, write phase, classification, principle, rationale, and rejected alternative to an audit table on disk.",
+      "refs": [
+        "G07"
+      ]
+    },
+    {
+      "id": "M15",
+      "name": "Prior-learning callout",
+      "summary": "When a current finding matches prior learning, say so explicitly with key, confidence, and date.",
+      "refs": [
+        "G08",
+        "G09"
+      ]
+    },
+    {
+      "id": "M16",
+      "name": "Checkpoint template",
+      "summary": "Persist summary, decisions made, remaining work, notes, modified files, branch, timestamp, and duration as a resumable artifact.",
+      "refs": [
+        "G11"
+      ]
+    },
+    {
+      "id": "M17",
+      "name": "After-action reflection into operational learnings",
+      "summary": "At skill end, reflect on failures, wrong approaches, and project quirks, then log them as operational learnings.",
+      "refs": [
+        "G01",
+        "G09"
+      ]
+    },
+    {
+      "id": "M18",
+      "name": "DX persona and TTHW target",
+      "summary": "Choose the developer persona and target time-to-hello-world tier before reviewing docs, onboarding, and API ergonomics.",
+      "refs": [
+        "G06"
+      ]
+    },
+    {
+      "id": "M19",
+      "name": "Cross-phase theme extraction",
+      "summary": "Surface concerns that appeared independently in two or more phases as high-confidence themes.",
+      "refs": [
+        "G07"
+      ]
+    }
+  ],
+  "structural_primitives": {
+    "artifact_lineage_fields": [
+      "artifact_id",
+      "parent_ids",
+      "supersedes",
+      "session_id",
+      "project_id",
+      "branch",
+      "commit",
+      "mode",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "plan_bundle_minimum_sections": [
+      "problem_statement",
+      "constraints",
+      "premises",
+      "alternatives",
+      "selected_approach",
+      "what_already_exists",
+      "not_in_scope",
+      "minimum_viable_change",
+      "distribution_path",
+      "architecture",
+      "user_states_and_edge_paths",
+      "error_and_rescue_registry",
+      "failure_modes_registry",
+      "test_plan",
+      "observability",
+      "rollout",
+      "rollback",
+      "execution_lanes",
+      "completion_summary",
+      "review_state"
+    ],
+    "memory_record_core_fields": [
+      "memory_id",
+      "scope",
+      "class",
+      "type",
+      "key",
+      "value",
+      "source",
+      "derivation",
+      "trust_level",
+      "portable_across_projects",
+      "confidence",
+      "decay_policy",
+      "related_artifacts",
+      "lineage",
+      "timestamps"
+    ],
+    "gate_checks": [
+      "all required review axes ran for the task class",
+      "all mandatory outputs exist on disk",
+      "critical gaps == 0 or explicitly accepted",
+      "staleness / commit drift is below threshold or review re-ran",
+      "negative-space sections are present",
+      "decision log and completion summary were written"
+    ]
+  },
+  "evaluation_questions": [
+    "Does the alternative separate methodology, runtime metadata, and persisted artifacts, or does it collapse everything into prompts?",
+    "Does intake emit multiple related artifacts (design/plan, behavioral/session event, lineage metadata), or just one document?",
+    "Can the alternative enforce mode selection and a mandatory Step 0 before detailed review?",
+    "Does it require negative-space outputs such as reuse inventory, `NOT in scope`, distribution path, and failure modes?",
+    "Can it express completeness as required review axes rather than a single generic score?",
+    "Does it support append-only lineage and read-time or synthesis-time consolidation?",
+    "Does memory have distinct scopes or planes (session, project, builder/operator, global) with explicit trust and portability?",
+    "Can the system recover context after compaction or session loss via checkpoints, timeline, and recent artifact injection?",
+    "Does it persist review/gate state with commit awareness so later phases can reason about freshness?",
+    "Can it expose which memories were applied so compounding is visible to operators?",
+    "Does it distinguish telemetry/product analytics from operational memory and planning artifacts?",
+    "Does it pair narrative planning/review with deterministic verification for machine-checkable claims?"
+  ],
+  "risks": [
+    {
+      "id": "R01",
+      "title": "Hidden storage hurts discoverability",
+      "summary": "Persisting value mostly under `~/.gstack/` is practical, but users can lose track of where the canonical artifacts live.",
+      "refs": [
+        "GI01"
+      ]
+    },
+    {
+      "id": "R02",
+      "title": "Canonical-source drift is a real risk",
+      "summary": "When multiple plan or design file locations can exist (`.gstack`, `.claude/plans`, etc.), downstream skills may read the wrong one unless there is a single canonical artifact ID/path.",
+      "refs": [
+        "GI02"
+      ]
+    },
+    {
+      "id": "R03",
+      "title": "Workflow-state resume needs stronger machine state",
+      "summary": "Checkpoint and review memory help, but issue reports show that users still want more explicit workflow-state tracking for session resume.",
+      "refs": [
+        "GI03",
+        "G11",
+        "G10"
+      ]
+    },
+    {
+      "id": "R04",
+      "title": "Behavioral profile is mid-migration",
+      "summary": "The repo currently bridges legacy `builder-profile.jsonl` and a newer `developer-profile.json`; office-hours still appends builder-profile events while reader tooling is already migrating to the unified profile.",
+      "refs": [
+        "G02",
+        "G17",
+        "G18"
+      ]
+    },
+    {
+      "id": "R05",
+      "title": "Local-first JSONL is excellent for auditability but lightly structured",
+      "summary": "The file-based append-only model is easy to inspect, grep, and debug, but it will need stronger typing, migration handling, and concurrency semantics if substrate becomes a shared multi-crate core.",
+      "refs": [
+        "G09",
+        "G12",
+        "G13",
+        "G14",
+        "G15",
+        "G18"
+      ],
+      "confidence": "Synthesis"
+    },
+    {
+      "id": "R06",
+      "title": "Prompt compliance is not the same as validation",
+      "summary": "Even strong prompts can omit required fields or approve concrete claims that should have been machine-checked.",
+      "refs": [
+        "GI04",
+        "G07",
+        "G04"
+      ]
+    },
+    {
+      "id": "R07",
+      "title": "Telemetry and analytics behavior is version-sensitive",
+      "summary": "Config and current preambles clearly separate telemetry settings from operational memory, but analytics behaviors should still be treated as version-sensitive and policy-controlled.",
+      "refs": [
+        "G21",
+        "G01"
+      ]
+    }
+  ],
+  "adjacent_systems": [
+    {
+      "id": "A01",
+      "title": "Every compound-knowledge-plugin",
+      "fit": "Reinforces the value of git-tracked knowledge artifacts, multi-granularity plans, and explicit compounding across work sessions.",
+      "refs": [
+        "A01"
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Compound Engineering (Every)",
+      "fit": "Sharpens outcome-focused instructions and parallel workstream thinking that pair well with execution-lane planning.",
+      "refs": [
+        "A02"
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "LangGraph memory taxonomy",
+      "fit": "Adds a clean split between thread-scoped short-term memory and namespace-scoped long-term memory, plus a useful memory-class vocabulary.",
+      "refs": [
+        "A03",
+        "A04"
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "MemGPT",
+      "fit": "Contributes the hot/warm/cold or tiered-memory metaphor for tight context injection.",
+      "refs": [
+        "A05"
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "Generative Agents",
+      "fit": "Adds the reflection layer: raw event streams become more useful when periodically synthesized into higher-order learnings that guide planning.",
+      "refs": [
+        "A06"
+      ]
+    },
+    {
+      "id": "A06",
+      "title": "Reflexion",
+      "fit": "Strengthens the case for an explicit after-action reflection artifact or service for repeated task families.",
+      "refs": [
+        "A07"
+      ]
+    }
+  ],
+  "source_map": [
+    {
+      "id": "G01",
+      "title": "gstack/ARCHITECTURE.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/ARCHITECTURE.md",
+      "note": "Template/compiler architecture, preamble responsibilities, committed generated docs, review dashboard placeholders."
+    },
+    {
+      "id": "G02",
+      "title": "gstack/office-hours/SKILL.md.tmpl",
+      "url": "https://github.com/garrytan/gstack/blob/main/office-hours/SKILL.md.tmpl",
+      "note": "Six forcing questions, related-design discovery, landscape awareness, builder profile append, design doc path, Supersedes chain, distribution plan in design template."
+    },
+    {
+      "id": "G03",
+      "title": "gstack/plan-ceo-review/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/plan-ceo-review/SKILL.md",
+      "note": "Mode selection, pre-review system audit, mandatory diagrams, outside voice rules, completion summary, scope proposal handling."
+    },
+    {
+      "id": "G04",
+      "title": "gstack/plan-eng-review/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/plan-eng-review/SKILL.md",
+      "note": "Step 0 scope challenge, boil-the-lake completeness, distribution check, failure modes, worktree parallelization, completion summary."
+    },
+    {
+      "id": "G05",
+      "title": "gstack/plan-design-review/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/plan-design-review/SKILL.md",
+      "note": "Seven-pass UX/design completeness review and anti-skip behavior."
+    },
+    {
+      "id": "G06",
+      "title": "gstack/plan-devex-review/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/plan-devex-review/SKILL.md",
+      "note": "Developer persona, TTHW targeting, DX artifact outputs."
+    },
+    {
+      "id": "G07",
+      "title": "gstack/autoplan/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/autoplan/SKILL.md",
+      "note": "Restore points, phase checklists, phase outputs, review report footer, decision audit trail, dual voices, cross-phase themes, review logging."
+    },
+    {
+      "id": "G08",
+      "title": "gstack/review/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/review/SKILL.md",
+      "note": "Prior learnings retrieval, visible compounding, cross-project opt-in, specialist synthesis, review result persistence."
+    },
+    {
+      "id": "G09",
+      "title": "gstack/docs/designs/SELF_LEARNING_V0.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/docs/designs/SELF_LEARNING_V0.md",
+      "note": "Learning taxonomy, append-only JSONL, confidence decay, cross-project trust gating, timeline/checkpoint/health separation."
+    },
+    {
+      "id": "G10",
+      "title": "gstack/docs/designs/SESSION_INTELLIGENCE.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/docs/designs/SESSION_INTELLIGENCE.md",
+      "note": "Persistent artifact directory, context recovery, session timeline, cross-session injection, checkpoint and health layers."
+    },
+    {
+      "id": "G11",
+      "title": "gstack/checkpoint/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/checkpoint/SKILL.md",
+      "note": "Checkpoint save schema, resume flow, branch-aware listing, remaining work and notes, cross-branch handoff warning."
+    },
+    {
+      "id": "G12",
+      "title": "gstack/bin/gstack-learnings-log",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-learnings-log",
+      "note": "Learning write path, schema validation, injection sanitization, trust assignment."
+    },
+    {
+      "id": "G13",
+      "title": "gstack/bin/gstack-learnings-search",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-learnings-search",
+      "note": "Confidence decay, latest-winner dedup, type/query filtering, trusted cross-project restriction."
+    },
+    {
+      "id": "G14",
+      "title": "gstack/bin/gstack-review-log",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-review-log",
+      "note": "Branch-scoped persisted review memory."
+    },
+    {
+      "id": "G15",
+      "title": "gstack/bin/gstack-timeline-log",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-timeline-log",
+      "note": "Timeline event persistence."
+    },
+    {
+      "id": "G16",
+      "title": "gstack/bin/gstack-timeline-read",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-timeline-read",
+      "note": "Timeline reading windows, branch filters, recent-entry retrieval."
+    },
+    {
+      "id": "G17",
+      "title": "gstack/bin/gstack-builder-profile",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-builder-profile",
+      "note": "Legacy shim showing builder-profile migration to developer-profile."
+    },
+    {
+      "id": "G18",
+      "title": "gstack/bin/gstack-developer-profile",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-developer-profile",
+      "note": "Unified behavioral profile, tiers, accumulated signals, cross-project detection, inferred dimensions, mismatch checks."
+    },
+    {
+      "id": "G19",
+      "title": "gstack/bin/gstack-global-discover.ts",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-global-discover.ts",
+      "note": "Cross-tool session discovery, repo resolution, normalized remote dedup, structured JSON output."
+    },
+    {
+      "id": "G20",
+      "title": "gstack/retro/SKILL.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/retro/SKILL.md",
+      "note": "Repo retros, global retro mode, snapshot saving, all-project overview and trend comparisons."
+    },
+    {
+      "id": "G21",
+      "title": "gstack/bin/gstack-config",
+      "url": "https://github.com/garrytan/gstack/blob/main/bin/gstack-config",
+      "note": "Telemetry modes, configuration surface."
+    },
+    {
+      "id": "G22",
+      "title": "gstack/docs/OPENCLAW.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/docs/OPENCLAW.md",
+      "note": "Tiered ceremony and routing by task size."
+    },
+    {
+      "id": "G23",
+      "title": "gstack/docs/skills.md",
+      "url": "https://github.com/garrytan/gstack/blob/main/docs/skills.md",
+      "note": "Skill inventory and pipeline overview."
+    },
+    {
+      "id": "GI01",
+      "title": "gstack issue #401",
+      "url": "https://github.com/garrytan/gstack/issues/401",
+      "note": "Hidden `.gstack` discoverability pain."
+    },
+    {
+      "id": "GI02",
+      "title": "gstack issue #542",
+      "url": "https://github.com/garrytan/gstack/issues/542",
+      "note": "`.gstack` vs `.claude/plans` drift / canonical-source risk."
+    },
+    {
+      "id": "GI03",
+      "title": "gstack issue #341",
+      "url": "https://github.com/garrytan/gstack/issues/341",
+      "note": "Resume/workflow-state brittleness across sessions."
+    },
+    {
+      "id": "GI04",
+      "title": "gstack issue #973",
+      "url": "https://github.com/garrytan/gstack/issues/973",
+      "note": "Prompt-only spec review blind spots for file paths, CLI flags, math, and similar concrete claims."
+    },
+    {
+      "id": "A01",
+      "title": "Every compound-knowledge-plugin",
+      "url": "https://github.com/EveryInc/compound-knowledge-plugin",
+      "note": "Compounding knowledge-work loop and git-tracked docs/plans."
+    },
+    {
+      "id": "A02",
+      "title": "Every / Compound Engineering guide",
+      "url": "https://every.to/guides/compound-engineering",
+      "note": "Outcome-focused compound engineering and parallel workstream ideas."
+    },
+    {
+      "id": "A03",
+      "title": "LangGraph memory overview",
+      "url": "https://docs.langchain.com/oss/python/langgraph/memory",
+      "note": "Short-term vs long-term memory in LangGraph, thread-scoped vs namespace-scoped."
+    },
+    {
+      "id": "A04",
+      "title": "LangChain long-term memory docs",
+      "url": "https://docs.langchain.com/oss/python/langchain/long-term-memory",
+      "note": "JSON-document memory with namespace + key organization."
+    },
+    {
+      "id": "A05",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "url": "https://arxiv.org/abs/2310.08560",
+      "note": "Hierarchical memory tiers and paging metaphor."
+    },
+    {
+      "id": "A06",
+      "title": "Generative Agents: Interactive Simulacra of Human Behavior",
+      "url": "https://arxiv.org/abs/2304.03442",
+      "note": "Memory stream + reflection + planning architecture."
+    },
+    {
+      "id": "A07",
+      "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+      "url": "https://arxiv.org/abs/2303.11366",
+      "note": "After-action verbal reflection as episodic memory for later trials."
+    }
+  ]
+}

@@ -5,9 +5,11 @@ use crate::blocker::{build_doctor_blockers, C04_RESULT_VERSION};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
 use crate::refusal::{NextSafeAction, SubjectRef};
 use crate::{ArtifactManifest, Blocker, ManifestInputs};
+use serde::Serialize;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DoctorBaselineStatus {
     Scaffolded,
     PartialBaseline,
@@ -15,7 +17,8 @@ pub enum DoctorBaselineStatus {
     BaselineComplete,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DoctorArtifactStatus {
     Missing,
     Empty,
@@ -24,7 +27,7 @@ pub enum DoctorArtifactStatus {
     ValidCanonicalTruth,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DoctorChecklistItem {
     pub artifact_label: &'static str,
     pub subject: SubjectRef,
@@ -35,7 +38,7 @@ pub struct DoctorChecklistItem {
     pub next_safe_action: Option<NextSafeAction>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DoctorReport {
     pub c04_result_version: String,
     pub c03_schema_version: String,

@@ -69,10 +69,15 @@ const CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS: [&str; 6] = [
     "- e.g., ci, formatting, linting, release automation, local dev scripts",
     "- e.g., accessibility baseline, performance perception, error messaging clarity",
 ];
-// Command path:
-// `system author charter` or `system author charter --from-inputs <path|->`
+// Command paths:
+// `system author charter --from-inputs <path|->`
 // -> normalized `CharterStructuredInput`
-// -> one shared synthesis request
+// -> compiler-owned deterministic render
+// -> guarded write to `.system/charter/CHARTER.md`
+//
+// `system author charter`
+// -> normalized `CharterStructuredInput`
+// -> Codex-backed guided synthesis
 // -> guarded write to `.system/charter/CHARTER.md`
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1182,11 +1187,74 @@ pub fn validate_charter_markdown(markdown: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn preflight_author_charter_from_input(
+    repo_root: impl AsRef<Path>,
+    input: &CharterStructuredInput,
+) -> Result<(), AuthorCharterRefusal> {
+    let repo_root = repo_root.as_ref();
+    compiler_owned_charter_markdown(input)?;
+    preflight_author_charter(repo_root)?;
+    Ok(())
+}
+
 pub fn author_charter(
     repo_root: impl AsRef<Path>,
     input: &CharterStructuredInput,
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
+    preflight_author_charter_from_input(repo_root, input)?;
+    let _lock =
+        acquire_authoring_lock(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH).map_err(
+            |err| match err {
+                AuthoringLockError::WritePath(path_err) => AuthorCharterRefusal {
+                    kind: AuthorCharterRefusalKind::MutationRefused,
+                    summary: format_repo_write_path_error(
+                        CHARTER_AUTHORING_LOCK_REPO_PATH,
+                        path_err,
+                    ),
+                    broken_subject: "charter authoring lock".to_string(),
+                    next_safe_action:
+                        "repair the blocked charter authoring lock path and retry `system author charter`"
+                            .to_string(),
+                },
+                AuthoringLockError::Io { lock_path, source } => AuthorCharterRefusal {
+                    kind: AuthorCharterRefusalKind::MutationRefused,
+                    summary: format!(
+                        "failed to acquire exclusive charter authoring lock at {}: {source}",
+                        lock_path.display()
+                    ),
+                    broken_subject: "charter authoring lock".to_string(),
+                    next_safe_action:
+                        "wait for any in-progress `system author charter` run to finish or repair the lock path, then retry `system author charter`"
+                            .to_string(),
+                },
+            },
+        )?;
+    preflight_author_charter_from_input(repo_root, input)?;
+
+    let markdown = compiler_owned_charter_markdown(input)?;
+    write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
+        .map_err(|err| AuthorCharterRefusal {
+            kind: AuthorCharterRefusalKind::MutationRefused,
+            summary: format_repo_mutation_error(CANONICAL_CHARTER_REPO_PATH, err),
+            broken_subject: "canonical charter write target".to_string(),
+            next_safe_action:
+                "repair the blocked canonical charter path and retry `system author charter`"
+                    .to_string(),
+        })?;
+
+    Ok(AuthorCharterResult {
+        canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,
+        bytes_written: markdown.len(),
+    })
+}
+
+pub fn author_charter_guided(
+    repo_root: impl AsRef<Path>,
+    input: &CharterStructuredInput,
+) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
+    let repo_root = repo_root.as_ref();
+    validate_charter_structured_input(input)?;
     preflight_author_charter(repo_root)?;
     let _lock =
         acquire_authoring_lock(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH).map_err(
@@ -1215,6 +1283,7 @@ pub fn author_charter(
                 },
             },
         )?;
+    validate_charter_structured_input(input)?;
     preflight_author_charter(repo_root)?;
 
     let markdown = synthesize_charter_markdown(repo_root, input)?;
@@ -1610,6 +1679,17 @@ fn structured_input_refusal(
     }
 }
 
+fn deterministic_render_refusal(summary: impl Into<String>) -> AuthorCharterRefusal {
+    AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::SynthesisFailed,
+        summary: summary.into(),
+        broken_subject: "final charter render".to_string(),
+        next_safe_action:
+            "repair the structured charter input or compiler-owned charter render path and retry `system author charter --from-inputs <path|->`"
+                .to_string(),
+    }
+}
+
 fn synthesis_refusal(summary: impl Into<String>) -> AuthorCharterRefusal {
     AuthorCharterRefusal {
         kind: AuthorCharterRefusalKind::SynthesisFailed,
@@ -1619,6 +1699,35 @@ fn synthesis_refusal(summary: impl Into<String>) -> AuthorCharterRefusal {
             "repair the charter synthesis runtime or prompt inputs and retry `system author charter`"
                 .to_string(),
     }
+}
+
+fn compiler_owned_charter_markdown(
+    input: &CharterStructuredInput,
+) -> Result<String, AuthorCharterRefusal> {
+    let markdown = render_charter_markdown(input)?;
+    validate_compiler_owned_charter_markdown(&markdown, input)?;
+    Ok(markdown)
+}
+
+fn validate_compiler_owned_charter_markdown(
+    markdown: &str,
+    input: &CharterStructuredInput,
+) -> Result<(), AuthorCharterRefusal> {
+    validate_charter_markdown(markdown).map_err(|summary| {
+        deterministic_render_refusal(format!(
+            "compiler-owned charter markdown failed validation: {summary}"
+        ))
+    })?;
+
+    let expected_exception_record_location =
+        normalize_charter_free_text(&input.exceptions.record_location);
+    if !markdown.contains(&expected_exception_record_location) {
+        return Err(deterministic_render_refusal(format!(
+            "compiler-owned charter markdown must include the exact exception record location `{expected_exception_record_location}`"
+        )));
+    }
+
+    Ok(())
 }
 
 fn synthesize_charter_markdown(

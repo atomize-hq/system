@@ -183,6 +183,10 @@ fn successful_stub_script(markdown: &str) -> String {
     )
 }
 
+fn failing_stub_script() -> String {
+    "#!/bin/sh\nset -eu\necho \"unexpected codex invocation\" >&2\nexit 23\n".to_string()
+}
+
 fn scaffold_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     let output = run_in(dir.path(), &["setup"]);
@@ -428,6 +432,14 @@ decision_records:
 fn stubbed_authored_markdown() -> String {
     system_compiler::render_charter_markdown(&guided_expected_input())
         .expect("render stubbed authored markdown")
+}
+
+fn deterministic_authored_markdown() -> String {
+    let input =
+        system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
+            .expect("parse deterministic charter inputs");
+    system_compiler::render_charter_markdown(&input)
+        .expect("render deterministic authored markdown")
 }
 
 fn guided_expected_input() -> system_compiler::CharterStructuredInput {
@@ -1083,7 +1095,7 @@ fn stdin_inputs_refuse_when_yaml_is_malformed() {
 }
 
 #[test]
-fn file_inputs_refuse_existing_truth_before_parsing_malformed_yaml() {
+fn file_inputs_preserve_malformed_yaml_refusal_even_when_truth_exists() {
     let dir = scaffold_repo();
     write_file(
         &dir.path().join(".system/charter/CHARTER.md"),
@@ -1104,13 +1116,12 @@ fn file_inputs_refuse_existing_truth_before_parsing_malformed_yaml() {
 
     assert!(
         !output.status.success(),
-        "existing charter truth should refuse before yaml parse: {}",
+        "malformed yaml should still refuse: {}",
         stdout(&output)
     );
     let out = stdout(&output);
     assert!(out.contains("OUTCOME: REFUSED"));
-    assert!(out.contains("CATEGORY: ExistingCanonicalTruth"));
-    assert!(!out.contains("CATEGORY: MalformedStructuredInput"));
+    assert!(out.contains("CATEGORY: MalformedStructuredInput"));
 }
 
 #[test]
@@ -1118,8 +1129,8 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
     let dir = scaffold_repo();
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
-    let expected_markdown = stubbed_authored_markdown();
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+    let expected_markdown = deterministic_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_author_runtime_override(&stub, None, || {
         run_in(
@@ -1146,7 +1157,7 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
-    assert!(prompt_capture_path(dir.path()).exists());
+    assert!(!prompt_capture_path(dir.path()).exists());
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
 }
@@ -1160,8 +1171,8 @@ fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
     );
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
-    let expected_markdown = stubbed_authored_markdown();
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+    let expected_markdown = deterministic_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_author_runtime_override(&stub, None, || {
         run_in(
@@ -1187,12 +1198,12 @@ fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
 }
 
 #[test]
-fn file_inputs_author_charter_succeeds_with_runtime_model_override() {
+fn file_inputs_author_charter_ignores_runtime_model_override_for_deterministic_path() {
     let dir = scaffold_repo();
     let inputs_path = dir.path().join("charter-inputs-model.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
-    let expected_markdown = stubbed_authored_markdown();
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+    let expected_markdown = deterministic_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_author_runtime_override(&stub, Some("gpt-5.4-mini"), || {
         run_in(
@@ -1215,14 +1226,14 @@ fn file_inputs_author_charter_succeeds_with_runtime_model_override() {
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
-    assert!(prompt_capture_path(dir.path()).exists());
+    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
 fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
     let dir = scaffold_repo();
-    let expected_markdown = stubbed_authored_markdown();
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+    let expected_markdown = deterministic_authored_markdown();
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_author_runtime_override(&stub, None, || {
         run_in_with_input(
@@ -1245,9 +1256,62 @@ fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
         fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
-    assert!(prompt_capture_path(dir.path()).exists());
+    assert!(!prompt_capture_path(dir.path()).exists());
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
+}
+
+#[test]
+fn validate_from_inputs_succeeds_without_mutation() {
+    let dir = scaffold_repo();
+    let inputs_path = dir.path().join("charter-inputs.yaml");
+    write_file(&inputs_path, valid_structured_inputs_yaml());
+    let before = fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("starter charter");
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
+
+    let output = with_author_runtime_override(&stub, None, || {
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "charter",
+                "--validate",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf-8 path"),
+            ],
+        )
+    });
+
+    assert!(
+        output.status.success(),
+        "validate should succeed: {}",
+        stdout(&output)
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: VALIDATED"));
+    assert!(out.contains("MODE: structured_inputs_file"));
+    assert_eq!(
+        fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("charter after validate"),
+        before
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn validate_refuses_without_from_inputs() {
+    let dir = scaffold_repo();
+
+    let output = run_in(dir.path(), &["author", "charter", "--validate"]);
+
+    assert!(
+        !output.status.success(),
+        "validate without from-inputs should refuse"
+    );
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"));
+    assert!(out.contains("CATEGORY: InvalidRequest"));
+    assert!(out.contains("--validate"));
+    assert!(out.contains("--from-inputs <path|->"));
 }
 
 #[test]

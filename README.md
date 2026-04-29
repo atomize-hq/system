@@ -22,6 +22,12 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - This repository does not ship completed canonical `.system/` truth at repo root. On a fresh clone, start with `system setup`; only after replacing starter text with real canonical truth does `system doctor` become the ready-path next step.
 - The public baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`.
 - The automation-safe structured-input authoring paths are `system author charter --from-inputs <path|->` and `system author project-context --from-inputs <path|->`.
+- `system author charter --validate --from-inputs <path|->` is the mutation-free charter preflight surface. `--validate` is not supported on guided `system author charter`.
+- `system author charter --from-inputs <path|->` is deterministic and compiler-owned. The guided `system author charter` path remains the Codex-backed interview surface.
+- `system doctor --json` is the only machine-readable readiness surface for the installed charter-intake skill.
+- Codex packaging source lives under `tools/codex/`. Generated repo-local skill assets live under `.agents/skills/`, and installed skill assets live under `~/.codex/skills/`.
+- `tools/codex/install.sh` installs packaging assets only. It assumes `system` is already on `PATH` and does not build or reinstall the Rust binary.
+- `tools/codex/dev-setup.sh` is the dev-only symlink path. Normal install is copy-based, and re-running normal install after dev setup replaces those symlinks with copied directories cleanly.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.
@@ -74,6 +80,22 @@ cargo run -p system-cli -- setup
 cargo run -p system-cli -- setup init
 cargo run -p system-cli -- setup refresh
 cargo run -p system-cli -- doctor
+cargo run -p system-cli -- doctor --json
+```
+
+Exercise the shipped deterministic charter surfaces:
+
+```bash
+cargo run -p system-cli -- author charter --validate --from-inputs tools/fixtures/charter_inputs/runtime_smoke_valid.yaml
+cargo run -p system-cli -- author charter --from-inputs tools/fixtures/charter_inputs/runtime_smoke_valid.yaml
+```
+
+Generate and install the Codex packaging layer:
+
+```bash
+bash tools/codex/generate.sh
+bash tools/codex/install.sh
+bash tools/codex/dev-setup.sh
 ```
 
 Exercise the packet surfaces once canonical `.system/` artifacts exist:

@@ -161,6 +161,15 @@ fn system_inspect_help_matches_snapshot() {
 }
 
 #[test]
+fn system_doctor_help_matches_snapshot() {
+    assert_help_matches_snapshot(
+        &["doctor", "--help"],
+        "system-doctor-help.txt",
+        "system doctor --help",
+    );
+}
+
+#[test]
 fn system_pipeline_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "--help"],

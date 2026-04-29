@@ -18,6 +18,8 @@ cargo run -p system-cli -- setup
 cargo run -p system-cli -- setup init
 cargo run -p system-cli -- setup refresh
 cargo run -p system-cli -- author charter
+cargo run -p system-cli -- author charter --validate --from-inputs /tmp/CHARTER_INPUTS.yaml
+cargo run -p system-cli -- author charter --from-inputs /tmp/CHARTER_INPUTS.yaml
 cargo run -p system-cli -- author project-context --from-inputs /tmp/PROJECT_CONTEXT_INPUTS.yaml
 cargo run -p system-cli -- author project-context
 cargo run -p system-cli -- author environment-inventory
@@ -38,6 +40,7 @@ cargo run -p system-cli -- pipeline capture apply --capture-id <capture-id>
 cargo run -p system-cli -- generate
 cargo run -p system-cli -- inspect
 cargo run -p system-cli -- doctor
+cargo run -p system-cli -- doctor --json
 ```
 
 ## Reviewed `pipeline` surface
@@ -83,10 +86,13 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `author` is the baseline authoring surface.
 - `system author charter` is the human-guided surface.
 - `system author charter --from-inputs <path|->` is the agent and automation surface.
+- `system author charter --validate --from-inputs <path|->` is the mutation-free charter preflight surface.
+- `system author charter --validate` is invalid without `--from-inputs <path|->`.
 - `system author project-context` is the guided project-context authoring surface.
 - `system author project-context --from-inputs <path|->` is the agent and automation surface for project-context authoring.
 - `system author environment-inventory` authors `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
+- `doctor --json` is the only machine-readable readiness surface for the installed charter-intake skill.
 - `pipeline` owns `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` for the reviewed wedge.
 - `pipeline compile --id <pipeline-id> --stage <stage-id>` is the supported M2 compile surface for the first bounded target: `pipeline.foundation_inputs` + `stage.10_feature_spec`.
 - Plain `pipeline compile` success is payload-only stdout. `pipeline compile --explain` is proof-only stdout.
@@ -114,6 +120,24 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 - `inspect` is the packet proof surface for packet composition and decision evidence.
 - `doctor` is the recovery surface for blockers and safe next actions.
 - `doctor` is also the baseline-readiness surface for `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.
+
+## Codex packaging and install surfaces
+
+```bash
+bash tools/codex/generate.sh
+bash tools/codex/install.sh
+bash tools/codex/dev-setup.sh
+bash tools/codex/relink.sh
+bash tools/ci/install-smoke.sh
+bash tools/ci/codex-skill-live-smoke.sh
+```
+
+- `tools/codex/generate.sh` is the handwritten source-to-generated-assets boundary for `.agents/skills/**`.
+- `tools/codex/install.sh` installs or reinstalls packaging assets under `~/.codex/skills/`. It does not build or reinstall the Rust binary.
+- `tools/codex/dev-setup.sh` is the dev-only symlink flow.
+- `tools/codex/relink.sh` is a convenience wrapper around the dev symlink flow.
+- `tools/ci/install-smoke.sh` proves install, reinstall, stale-runtime refusal, and install-mode crossover.
+- `tools/ci/codex-skill-live-smoke.sh` proves the installed happy path, existing-charter refusal, repo-local runtime override, and outside-git-repo refusal.
 
 ## What to expect right now
 

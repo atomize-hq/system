@@ -11,6 +11,7 @@ revalidation_triggers:
   - Any change to CLI help wording that affects the supported-vs-legacy story.
   - Any change to proof-surface ordering, trust header wording, or refusal structure.
   - Any change to the doctor baseline-state set, checklist shape, or baseline artifact vocabulary.
+  - Any change to the installed Codex packaging layout, runtime wrapper behavior, or run-artifact file set.
 ---
 
 # C-07 Conformance Rails and Docs Cutover Contract
@@ -26,7 +27,7 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 - planning packets resolve deterministically from canonical repo-local `.system/` artifacts
 - proof surfaces and refusal semantics remain stable and test-pinned
 - the fixture-backed execution demo cannot be mistaken for live slice execution
-- direct Codex transport drift on the shipped charter-authoring path cannot land without automated detection
+- installed Codex packaging and charter-intake runtime drift cannot land without automated detection
 
 `C-07` is owned by `SEAM-7` and is intentionally **downstream-facing**: it binds tests, CI rails, install smoke, and docs/help parity to the contracts it consumes (`C-01..C-06`).
 
@@ -53,6 +54,7 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 - which **local checks** must exist and be runnable deterministically
 - which **surfaces must be pinned by tests** (ordering + wording) to prevent drift
 - what **install smoke** must prove for supported targets
+- what the installed Codex packaging and charter-intake runtime must prove
 - what **docs/help parity** must guarantee (no Python-support leakage; help aligns with runtime)
 - what constitutes sufficient **closeout evidence** for this conformance seam
 
@@ -68,14 +70,30 @@ Reduced v1 MUST provide deterministic commands that:
 - validate compilation and tests (`cargo test --workspace`)
 - validate CLI surface tests (at minimum: `cargo test -p system-cli`)
 - validate compiler tests (at minimum: `cargo test -p system-compiler`)
+- validate packaging install smoke (`bash tools/ci/install-smoke.sh`)
+- validate installed charter-intake runtime smoke (`bash tools/ci/codex-skill-live-smoke.sh`)
 
 CI MUST run the same logical checks (or stricter) on supported targets.
 
-For the shipped `system author charter --from-inputs <path|->` surface, CI MUST also run a change-scoped live Codex smoke whenever the compiler-owned `codex exec` contract or charter authoring assets change. That smoke MUST use a fresh temp repo, invoke the real Codex CLI, and prove the `--output-last-message` write path before treating the changed authoring transport as landed.
+For the shipped Codex packaging wedge, CI MUST also prove:
 
-The live author smoke MUST be model-configurable via repo-owned environment variables. `SYSTEM_AUTHOR_CHARTER_CODEX_MODEL` selects the runtime model for compiler-owned charter synthesis, and the smoke wrapper MAY drive that through `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL`. CI MUST pin an explicit smoke model rather than inheriting whatever the Codex CLI default happens to be.
-
-For direct `codex exec` use in CI/CD, the live smoke runtime MUST provide `CODEX_API_KEY` to the Codex CLI. The repository MAY continue storing the secret as `OPENAI_API_KEY` in GitHub Actions so long as the workflow maps it into `CODEX_API_KEY` for the smoke step.
+- `.agents/skills/system-charter-intake/` and `.agents/skills/system/` regenerate deterministically
+- the generated runtime root contains exactly:
+  - `SKILL.md`
+  - `runtime-manifest.json`
+  - `bin/system-charter-intake`
+  - `share/authoring/charter_authoring_method.md`
+  - `share/charter/CHARTER_INPUTS.yaml.tmpl`
+  - `share/charter/charter_inputs_directive.md`
+- `runtime-manifest.json` contains at minimum:
+  - `skill_name`
+  - `system_release_version`
+  - `manifest_version`
+  - `generated_at_utc`
+- `tools/codex/install.sh` installs packaging assets only and assumes `system` is already on `PATH`
+- `tools/codex/dev-setup.sh` creates the dev symlink mode only, and normal install after dev setup replaces those symlinks with copied directories cleanly
+- the installed runtime may machine-parse only `system doctor --json`
+- validate/write steps rely on exit code plus persisted stdout/stderr transcripts only, with no new machine-readable authoring contract
 
 ### Supported install-smoke targets
 
@@ -88,6 +106,8 @@ Install smoke MUST, at minimum:
 
 - build and install `system` from this repository (`cargo install --path crates/cli`)
 - execute `system --help` (and any required verb-level help) without panicking
+- run `bash tools/ci/install-smoke.sh`
+- run `bash tools/ci/codex-skill-live-smoke.sh`
 
 ### Proof-surface drift must fail fast
 
@@ -97,6 +117,7 @@ Conformance rails MUST fail fast if:
 - refusal categories, ordering, or “exact next safe action” semantics drift (`C-04`)
 - inspect proof ordering drifts (`C-05`)
 - demo-boundary wording drifts (fixture-backed labeling or live refusal semantics; `C-06`)
+- installed charter-intake runtime behavior drifts from the locked happy-path sequence, refusal order, or run-artifact contract
 
 This is typically enforced by golden-output tests and/or snapshot tests at the compiler or CLI surface.
 
@@ -107,6 +128,13 @@ Docs and CLI help MUST NOT:
 - imply Python is a supported runtime path for reduced v1
 - imply live slice execution is supported
 - treat `archived/` as a runtime input (it is reference-only per `C-01`)
+
+Docs and CLI help MUST:
+
+- identify `system doctor --json` as the only machine-readable readiness surface for the installed charter-intake skill
+- identify `system author charter --validate --from-inputs <path|->` as the mutation-free charter preflight surface
+- identify `system author charter --from-inputs <path|->` as deterministic and compiler-owned
+- describe `tools/codex/install.sh` as packaging-only install, not Rust binary installation
 
 Docs and help SHOULD link directly to the authoritative contracts they reference.
 
@@ -131,13 +159,18 @@ The following checklist is normative for conformance execution and closeout:
 - [ ] `cargo test --workspace`
 - [ ] `cargo test -p system-cli`
 - [ ] `cargo test -p system-compiler`
-- [ ] change-scoped live author smoke
-  - [ ] `SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1 cargo test -p system-cli --test author_cli structured_inputs_author_charter_succeeds_with_live_codex_transport -- --exact`
-  - [ ] `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL=<model>` can override the smoke model locally
-  - [ ] CI pins `SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL=gpt-5.4-mini`
+- [ ] `bash tools/ci/install-smoke.sh`
+- [ ] `bash tools/ci/codex-skill-live-smoke.sh`
 - [ ] `cargo install --path crates/cli` (smoke)
 - [ ] `system --help` (smoke)
+- [ ] `system doctor --help` and `system author charter --help` (help parity)
 - [ ] `system generate --help` and `system inspect --help` (help parity)
+- [ ] generated `.agents/skills/system-charter-intake/` and `.agents/skills/system/` are deterministic outputs
+- [ ] generated runtime root file set matches the locked contract
+- [ ] normal install after dev setup replaces symlinks with copied directories cleanly
+- [ ] the installed runtime happy path is `doctor --json` -> optional `system setup` -> `doctor --json` -> `author charter --validate --from-inputs` -> `author charter --from-inputs` -> final `doctor --json`
+- [ ] outside-git-repo refusal happens before questioning
+- [ ] existing-charter refusal is covered as a first-class smoke case
 - [ ] execution demo happy-path
   - [ ] `cargo run -p system-cli -- generate --packet execution.demo.packet --fixture-set basic`
   - [ ] `cargo run -p system-cli -- inspect --packet execution.demo.packet --fixture-set basic`

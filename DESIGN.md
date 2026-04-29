@@ -177,12 +177,15 @@ Role:
 - canonical content-authoring surface for setup-created starter truth
 - the baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`
 
-Planned M7 reality:
+Shipped M9.5 reality:
 
 - the first shipped slice is `system author charter`
 - `system author charter` is a TTY-only guided interview
 - `system author charter --from-inputs <path|->` is the deterministic non-interactive path
-- both paths converge on one compiler-owned synthesis flow
+- `system author charter --validate --from-inputs <path|->` is the mutation-free preflight path
+- `--validate` is legal only with `--from-inputs <path|->`
+- the deterministic `--from-inputs` write path is compiler-owned and does not shell out to `codex exec`
+- the guided `system author charter` path remains the Codex-backed interview surface
 - the public authoring surface writes canonical truth to `.system/charter/CHARTER.md`
 - if real charter truth already exists, `author` refuses rather than silently broadening scope
 
@@ -196,6 +199,36 @@ Finished interaction target:
 - `author` is the only normal path from scaffolded setup to a usable charter
 - `author` reuses compiler-owned charter assets internally while keeping the public story simple
 - `author` keeps one authority boundary: canonical `.system/*` truth, no public derived mirrors
+
+### Installed Codex Skill
+
+Role:
+
+- installed Codex discovery surface for charter intake
+- thin runtime wrapper over `system`, not a second source of truth
+
+Shipped M9.5 reality:
+
+- one discoverable skill name: `system-charter-intake`
+- generated repo-local skill assets live under `.agents/skills/`
+- installed discovery and runtime assets live under `~/.codex/skills/`
+- `tools/codex/install.sh` installs packaging assets only and assumes `system` is already on `PATH`
+- `tools/codex/dev-setup.sh` is the only symlink-based dev flow
+- the installed runtime may machine-parse only `system doctor --json`
+- validate/write steps use exit code plus persisted stdout/stderr transcripts; there is no second machine-readable authoring contract
+- the runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when outside a real git repo
+
+Finished interaction target:
+
+- fixed happy path:
+  - `system doctor --json`
+  - optional bare `system setup`
+  - `system doctor --json` again if setup ran
+  - `system author charter --validate --from-inputs`
+  - `system author charter --from-inputs`
+  - final `system doctor --json`
+- run artifacts persist under `~/.local/state/system/intake/runs/`
+- normal install after dev setup replaces symlinks with copied directories cleanly
 
 ### `generate`
 

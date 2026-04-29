@@ -98,6 +98,18 @@
 **Priority:** P2
 **Depends on:** Shipped Rust `setup` family, updated `doctor` readiness guidance, real operator feedback on post-setup friction
 
+### Claude Code Conversational Intake Surface
+
+**What:** Add the second conversational-intake agent surface for Claude Code after the Codex-first charter slice lands.
+
+**Why:** The target architecture is a portable conversational intake protocol, not a Codex-only wrapper. Proving Claude Code next prevents Codex-specific behavior from silently becoming the protocol.
+
+**Context:** The accepted eng-review scope for the first slice is explicit: one preferred-agent surface first, Codex now and Claude Code next. This follow-on should reuse the same canonical protocol assets, the same XDG-style home adapter install/update path under `~/.config/system` and `~/.local/state/system`, the same setup-state routing through `system setup*` and `system doctor`, and the same deterministic sink via `system author ... --from-inputs`. It should validate portability without reopening slice-1 scope or rebuilding per-agent business logic.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** Shipped Codex-first conversational intake slice with schema versioning, live smoke coverage, and home adapter compatibility checks for `~/.config/system` / `~/.local/state/system`
+
 ### Operator Outcome Scoreboard
 
 **What:** Add an operator-outcome scoreboard for the pipeline/compiler wedge.
@@ -159,6 +171,18 @@
 **Depends on:** Stable capture surface, clear target-path ownership rules, added concurrency test strategy
 
 ## CLI Product Interaction Design
+
+### Author Charter Command Refactor
+
+**What:** Restructure `execute_author_charter_command` so guided mode and `--from-inputs` mode no longer share one large helper with heavily injected dependencies.
+
+**Why:** The current helper is carrying too many responsibilities and relies on an argument-heavy test seam. It currently needs a narrow clippy allowance for `too_many_arguments`, which is acceptable as a stopgap but not the ideal long-term shape.
+
+**Context:** The immediate lint failure was resolved by allowing `clippy::too_many_arguments` on the helper in `crates/cli/src/main.rs` to preserve behavior and avoid a risky lifetime-heavy refactor under time pressure. The better cleanup is structural, not cosmetic: split guided and file-input execution into separate helpers, move injected operations behind a small harness type or trait with concrete methods, and reduce the branching and responsibility concentrated in the current helper.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Stable `author charter` command behavior, preserved CLI test coverage for guided and file-input flows
 
 ### Chosen Interaction Direction (2026-04-08)
 

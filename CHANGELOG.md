@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.1.0] - 2026-04-29
+
+### Added
+- Added `system doctor --json` as the machine-readable readiness surface for the installed charter-intake runtime, with serialized blocker, checklist, and next-safe-action contracts locked by compiler and CLI tests.
+- Added the Codex packaging/install surface under `tools/codex/`, including generated `.agents/skills/` assets, install and dev-setup flows, and install/live-smoke coverage for the shipped charter-intake path.
+- Added `system author charter --validate --from-inputs <path|->` as a mutation-free preflight that validates structured inputs and repo write preconditions without touching canonical truth.
+
+### Changed
+- Changed `system author charter --from-inputs <path|->` to a compiler-owned deterministic write path, while keeping guided `system author charter` as the Codex-backed interview surface.
+- Updated docs, contracts, help snapshots, and smoke rails so the shipped runtime story matches the installed `system` and `system-charter-intake` skill surfaces and the deterministic charter-authoring contract.
+
+### Fixed
+- Fixed charter authoring so malformed structured-input refusals win before existing-truth checks on the deterministic path, preserving the real input error instead of masking it behind repo state.
+- Fixed packaging smoke coverage with a valid runtime charter fixture and end-to-end checks for reinstall safety, stale-runtime refusal, repo-local runtime override, and outside-repo refusal behavior.
+
 ## [0.7.0.0] - 2026-04-22
 
 ### Added

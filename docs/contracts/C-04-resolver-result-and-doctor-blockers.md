@@ -121,8 +121,19 @@ The doctor result MUST include:
   - `PARTIAL_BASELINE`
   - `INVALID_BASELINE`
   - `BASELINE_COMPLETE`
+- `status`: string
+- `system_root_status`: string
 - `checklist[]`: ordered list of checklist items
 - `blockers[]`: ordered list of blockers (may be empty)
+- `next_safe_action`: string
+
+### Machine-readable runtime surface
+
+- `system doctor --json` MUST be the only machine-readable readiness surface consumed by the installed charter-intake runtime.
+- `system doctor --json` MUST emit valid UTF-8 JSON to stdout for ready and ordinary non-ready states, with no prose mixed into stdout.
+- `system doctor --json` MUST preserve baseline exit semantics:
+  - exit `0` only for `BASELINE_COMPLETE`
+  - exit non-zero for ordinary scaffolded, partial, or invalid baseline states
 
 ### Checklist items
 
@@ -212,6 +223,7 @@ Tie-break MUST be applied in this order:
 
 - [ ] A doctor result carries `c04_result_version` and C-03 provenance.
 - [ ] `doctor` baseline states are exactly `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`.
+- [ ] `system doctor --json` top-level fields include exactly `c04_result_version`, `c03_schema_version`, `c03_manifest_generation_version`, `baseline_state`, `blockers`, `status`, `system_root_status`, `checklist`, and `next_safe_action`.
 - [ ] Inputs are confined to C-03 baseline artifact truth; derived docs are never canonical inputs.
 - [ ] Checklist items always include artifact label, canonical path, status, and exact author command.
 - [ ] Blockers are compact and always include: category, subject, summary, and exactly one next safe action.

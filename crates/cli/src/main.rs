@@ -108,7 +108,7 @@ enum Command {
     /// Inspect packet composition and decision evidence.
     Inspect(RequestArgs),
     /// Diagnose blockers and safe next actions.
-    Doctor,
+    Doctor(DoctorArgs),
 }
 
 impl Command {
@@ -119,7 +119,7 @@ impl Command {
             Command::Pipeline(args) => pipeline(args),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
-            Command::Doctor => doctor(),
+            Command::Doctor(args) => doctor(args),
         }
     }
 }
@@ -169,6 +169,9 @@ struct AuthorCharterArgs {
     /// Read normalized structured inputs from a YAML file or `-` for stdin.
     #[arg(long = "from-inputs", value_name = "path|-")]
     from_inputs: Option<String>,
+    /// Validate normalized structured inputs and repo write preconditions without mutation.
+    #[arg(long)]
+    validate: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -176,6 +179,13 @@ struct AuthorProjectContextArgs {
     /// Read normalized structured inputs from a YAML file or `-` for stdin.
     #[arg(long = "from-inputs", value_name = "path|-")]
     from_inputs: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+struct DoctorArgs {
+    /// Emit machine-readable JSON to stdout.
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -563,7 +573,9 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
         std::env::current_dir,
         interactive_authoring_is_allowed,
         |repo_root| system_compiler::preflight_author_charter(repo_root),
+        |repo_root, input| system_compiler::preflight_author_charter_from_input(repo_root, input),
         collect_guided_charter_input,
+        |repo_root, input| system_compiler::author_charter_guided(repo_root, input),
         |repo_root, input| system_compiler::author_charter(repo_root, input),
     );
     println!("{}", rendered.output);
@@ -626,26 +638,41 @@ fn author_environment_inventory_command() -> ExitCode {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_author_charter_command<
     GetCurrentDir,
     InteractiveAllowed,
-    PreflightAuthoring,
+    PreflightGuided,
+    PreflightFromInput,
     CollectGuidedInput,
-    RunAuthor,
+    RunGuidedAuthor,
+    RunDeterministicAuthor,
 >(
     args: AuthorCharterArgs,
     get_current_dir: GetCurrentDir,
     interactive_allowed: InteractiveAllowed,
-    preflight_authoring: PreflightAuthoring,
+    preflight_guided: PreflightGuided,
+    preflight_from_input: PreflightFromInput,
     collect_guided_input: CollectGuidedInput,
-    run_author: RunAuthor,
+    run_guided_author: RunGuidedAuthor,
+    run_deterministic_author: RunDeterministicAuthor,
 ) -> RenderedCommand
 where
     GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
     InteractiveAllowed: Fn() -> bool,
-    PreflightAuthoring: Fn(&Path) -> Result<(), system_compiler::AuthorCharterRefusal>,
+    PreflightGuided: Fn(&Path) -> Result<(), system_compiler::AuthorCharterRefusal>,
+    PreflightFromInput: Fn(
+        &Path,
+        &system_compiler::CharterStructuredInput,
+    ) -> Result<(), system_compiler::AuthorCharterRefusal>,
     CollectGuidedInput: Fn() -> Result<system_compiler::CharterStructuredInput, String>,
-    RunAuthor:
+    RunGuidedAuthor:
+        Fn(
+            &Path,
+            &system_compiler::CharterStructuredInput,
+        )
+            -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal>,
+    RunDeterministicAuthor:
         Fn(
             &Path,
             &system_compiler::CharterStructuredInput,
@@ -670,6 +697,20 @@ where
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
+    if args.validate && args.from_inputs.is_none() {
+        return RenderedCommand {
+            output: render_author_custom_refusal(
+                "author charter",
+                "REFUSED",
+                "InvalidRequest",
+                "`system author charter --validate` requires `--from-inputs <path|->`",
+                "command arguments",
+                "retry `system author charter --validate --from-inputs <path|->`",
+            ),
+            exit_code: ExitCode::from(1),
+        };
+    }
+
     if args.from_inputs.is_none() && !interactive_allowed() {
         return RenderedCommand {
             output: render_author_custom_refusal(
@@ -684,14 +725,16 @@ where
         };
     }
 
-    if let Err(refusal) = preflight_authoring(&repo_root) {
-        return RenderedCommand {
-            output: render_author_charter_refusal(&refusal),
-            exit_code: ExitCode::from(1),
-        };
+    if args.from_inputs.is_none() {
+        if let Err(refusal) = preflight_guided(&repo_root) {
+            return RenderedCommand {
+                output: render_author_charter_refusal(&refusal),
+                exit_code: ExitCode::from(1),
+            };
+        }
     }
 
-    let (input, input_mode, input_source) = match args.from_inputs.as_deref() {
+    let (input, input_mode, input_source, guided_mode) = match args.from_inputs.as_deref() {
         Some(path_or_dash) => {
             let yaml = match read_author_inputs_source(
                 "author charter",
@@ -720,7 +763,7 @@ where
             } else {
                 "structured_inputs_file"
             };
-            (input, input_mode, path_or_dash.to_string())
+            (input, input_mode, path_or_dash.to_string(), false)
         }
         None => {
             let input = match collect_guided_input() {
@@ -736,11 +779,33 @@ where
                 input,
                 "guided_interview",
                 "interactive terminal".to_string(),
+                true,
             )
         }
     };
 
-    match run_author(&repo_root, &input) {
+    if !guided_mode {
+        if let Err(refusal) = preflight_from_input(&repo_root, &input) {
+            return RenderedCommand {
+                output: render_author_charter_refusal(&refusal),
+                exit_code: ExitCode::from(1),
+            };
+        }
+        if args.validate {
+            return RenderedCommand {
+                output: render_author_charter_validation_success(input_mode, &input_source),
+                exit_code: ExitCode::SUCCESS,
+            };
+        }
+    }
+
+    let result = if guided_mode {
+        run_guided_author(&repo_root, &input)
+    } else {
+        run_deterministic_author(&repo_root, &input)
+    };
+
+    match result {
         Ok(result) => RenderedCommand {
             output: render_author_charter_success(&result, input_mode, &input_source),
             exit_code: ExitCode::SUCCESS,
@@ -898,6 +963,21 @@ fn render_author_charter_success(
     out.push_str("## INPUT MODE\n");
     out.push_str(&format!("MODE: {input_mode}\n"));
     out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.trim_end().to_string()
+}
+
+fn render_author_charter_validation_success(input_mode: &str, input_source: &str) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: VALIDATED\n");
+    out.push_str("OBJECT: author charter\n");
+    out.push_str("NEXT SAFE ACTION: run `system author charter --from-inputs <path|->`\n");
+    out.push_str("## INPUT MODE\n");
+    out.push_str(&format!("MODE: {input_mode}\n"));
+    out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.push_str("## SUMMARY\n");
+    out.push_str(
+        "Structured charter inputs and repo write preconditions validated without mutation.",
+    );
     out.trim_end().to_string()
 }
 
@@ -2544,7 +2624,16 @@ fn setup_refusal_kind_name(kind: system_compiler::SetupRefusalKind) -> &'static 
     }
 }
 
-fn doctor() -> ExitCode {
+fn render_doctor_json(report: &system_compiler::DoctorReport) -> Result<String, String> {
+    serde_json::to_string_pretty(report)
+        .map(|mut output| {
+            output.push('\n');
+            output
+        })
+        .map_err(|err| format!("failed to serialize doctor json: {err}"))
+}
+
+fn doctor(args: DoctorArgs) -> ExitCode {
     let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(err) => {
@@ -2563,35 +2652,46 @@ fn doctor() -> ExitCode {
         }
     };
 
-    println!("{}", doctor_status_name(report.status));
-    println!(
-        "ROOT STATUS: {}",
-        doctor_root_status_name(report.system_root_status)
-    );
-    if let Some(next_safe_action) = &report.next_safe_action {
-        println!(
-            "NEXT SAFE ACTION: {}",
-            system_compiler::render_next_safe_action_value(next_safe_action)
-        );
+    if args.json {
+        match render_doctor_json(&report) {
+            Ok(json) => print!("{json}"),
+            Err(err) => {
+                println!("INVALID_BASELINE");
+                println!("SUMMARY: {err}");
+                return ExitCode::from(1);
+            }
+        }
     } else {
-        println!("NEXT SAFE ACTION: <none>");
-    }
-    println!("## BASELINE CHECKLIST");
-    for item in report.checklist {
-        let subject_path = match &item.subject {
-            system_compiler::SubjectRef::CanonicalArtifact {
-                canonical_repo_relative_path,
-                ..
-            } => *canonical_repo_relative_path,
-            _ => item.canonical_repo_relative_path,
-        };
+        println!("{}", doctor_status_name(report.status));
         println!(
-            "{} [{}] STATUS: {} ACTION: {}",
-            item.artifact_label,
-            subject_path,
-            doctor_artifact_status_name(item.status),
-            item.author_command
+            "ROOT STATUS: {}",
+            doctor_root_status_name(report.system_root_status)
         );
+        if let Some(next_safe_action) = &report.next_safe_action {
+            println!(
+                "NEXT SAFE ACTION: {}",
+                system_compiler::render_next_safe_action_value(next_safe_action)
+            );
+        } else {
+            println!("NEXT SAFE ACTION: <none>");
+        }
+        println!("## BASELINE CHECKLIST");
+        for item in report.checklist.iter() {
+            let subject_path = match &item.subject {
+                system_compiler::SubjectRef::CanonicalArtifact {
+                    canonical_repo_relative_path,
+                    ..
+                } => *canonical_repo_relative_path,
+                _ => item.canonical_repo_relative_path,
+            };
+            println!(
+                "{} [{}] STATUS: {} ACTION: {}",
+                item.artifact_label,
+                subject_path,
+                doctor_artifact_status_name(item.status),
+                item.author_command
+            );
+        }
     }
 
     if report.status == system_compiler::DoctorBaselineStatus::BaselineComplete {
@@ -3703,10 +3803,14 @@ decision_records:
         let author_called = Cell::new(false);
 
         let rendered = execute_author_charter_command(
-            AuthorCharterArgs { from_inputs: None },
+            AuthorCharterArgs {
+                from_inputs: None,
+                validate: false,
+            },
             || Ok(dir.path().to_path_buf()),
             || true,
             |_| Ok(()),
+            |_, _| panic!("guided mode should not run from-input preflight"),
             || {
                 collect_called.set(true);
                 system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
@@ -3721,6 +3825,7 @@ decision_records:
                     bytes_written: 42,
                 })
             },
+            |_, _| panic!("guided mode should not run deterministic author"),
         );
 
         assert!(collect_called.get(), "guided input should be collected");
@@ -3741,11 +3846,14 @@ decision_records:
         let rendered = execute_author_charter_command(
             AuthorCharterArgs {
                 from_inputs: Some(inputs_path.to_string_lossy().into_owned()),
+                validate: false,
             },
             || Ok(dir.path().to_path_buf()),
             || panic!("file inputs should not check interactive tty state"),
-            |_| Ok(()),
+            |_| panic!("file inputs should not run guided preflight"),
+            |_, _| Ok(()),
             || panic!("file inputs should not run guided collection"),
+            |_, _| panic!("file inputs should not run guided author"),
             |repo_root, input| {
                 author_called.set(true);
                 assert_eq!(repo_root, dir.path());
@@ -3770,12 +3878,17 @@ decision_records:
         let dir = tempfile::tempdir().expect("tempdir");
 
         let rendered = execute_author_charter_command(
-            AuthorCharterArgs { from_inputs: None },
+            AuthorCharterArgs {
+                from_inputs: None,
+                validate: false,
+            },
             || Ok(dir.path().to_path_buf()),
             || false,
             |_| panic!("guided non-tty refusal should happen before preflight"),
+            |_, _| panic!("guided non-tty refusal should happen before from-input preflight"),
             || panic!("guided collection should not run without tty"),
             |_, _| panic!("authoring should not run without tty"),
+            |_, _| panic!("deterministic author should not run without tty"),
         );
 
         assert_eq!(rendered.exit_code, ExitCode::from(1));
@@ -3792,7 +3905,10 @@ decision_records:
         let collect_called = Cell::new(false);
 
         let rendered = execute_author_charter_command(
-            AuthorCharterArgs { from_inputs: None },
+            AuthorCharterArgs {
+                from_inputs: None,
+                validate: false,
+            },
             || Ok(dir.path().to_path_buf()),
             || true,
             |_| {
@@ -3805,11 +3921,13 @@ decision_records:
                             .to_string(),
                 })
             },
+            |_, _| panic!("guided preflight refusal should happen before from-input preflight"),
             || {
                 collect_called.set(true);
                 panic!("guided collection should not run after preflight refusal")
             },
             |_, _| panic!("authoring should not run after preflight refusal"),
+            |_, _| panic!("deterministic author should not run after preflight refusal"),
         );
 
         assert!(

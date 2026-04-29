@@ -30,8 +30,17 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - **Baseline authoring**
   - `system author charter` writes canonical charter truth.
+  - `system author charter --validate --from-inputs <path|->` validates the same structured-input contract and repo write preconditions without mutation.
+  - `system author charter --from-inputs <path|->` is the deterministic charter write path for agents and automation.
   - `system author project-context` writes canonical project-context truth.
   - `system author environment-inventory` writes canonical environment-inventory truth.
+- **Installed Codex charter intake**
+  - `system doctor --json` is the only machine-readable readiness surface the installed skill may parse.
+  - Generated repo-local Codex assets live under `.agents/skills/`.
+  - Installed discovery/runtime assets live under `~/.codex/skills/`.
+  - `tools/codex/install.sh` installs packaging assets only; it assumes `system` is already on `PATH`.
+  - `tools/codex/dev-setup.sh` is the dev-only symlink path.
+  - The installed runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when run outside a real git repo.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
 - **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, one explicit downstream handoff-emission wedge, and narrow route-state mutation.
   - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
@@ -60,6 +69,7 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - It reports exactly `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
   - When more than one baseline artifact still needs work, the checklist is ordered and item `1` is the next safe action.
   - Each checklist line includes the artifact label, canonical path, status, and exact author command.
+  - `system doctor --json` is the machine-readable variant and its top-level fields are locked by contract.
 - **Missing-root, invalid-root, and missing-artifact recovery** should route the operator back to the setup family rather than to ad hoc file-creation instructions.
 
 Fixture orientation for operators:
