@@ -1,0 +1,6 @@
+interface:
+  display_name: "system"
+  short_description: "Thin discovery metadata for the system family and the system-charter-intake workflow."
+  default_prompt: "Use system for this task."
+policy:
+  allow_implicit_invocation: true
