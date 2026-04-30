@@ -109,7 +109,7 @@ run_doctor_json() {
   set +e
   (
     cd "$REPO_ROOT"
-    system doctor --json >"$output_path" 2>"$stderr_path"
+    "$SYSTEM_BIN" doctor --json >"$output_path" 2>"$stderr_path"
   )
   local status=$?
   set -e
@@ -194,14 +194,14 @@ resolve_repo_root() {
   git rev-parse --show-toplevel 2>/dev/null
 }
 
-resolve_runtime_root() {
-  local repo_runtime="$REPO_ROOT/.agents/skills/system"
-  local home_runtime="$HOME/.codex/skills/system"
-  if runtime_root_is_complete "$repo_runtime"; then
-    printf '%s\n' "$repo_runtime"
+resolve_system_home() {
+  if [[ -n "${SYSTEM_HOME:-}" ]]; then
+    printf '%s\n' "$SYSTEM_HOME"
     return 0
   fi
-  printf '%s\n' "$home_runtime"
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  cd "$script_dir/.." && pwd
 }
 
 inputs_path=""
@@ -228,11 +228,13 @@ done
   exit 1
 }
 
-command -v system >/dev/null 2>&1 || die "'system' must exist on PATH"
 REPO_ROOT="$(resolve_repo_root)" || die "run this skill from inside a real git repository"
-RUNTIME_ROOT="$(resolve_runtime_root)"
+SYSTEM_HOME="$(resolve_system_home)"
+SYSTEM_BIN="$SYSTEM_HOME/bin/system"
+RUNTIME_ROOT="$SYSTEM_HOME"
+[[ -x "$SYSTEM_BIN" ]] || die "installed system binary is missing: $SYSTEM_BIN"
 runtime_root_is_complete "$RUNTIME_ROOT" || die "runtime root is incomplete: $RUNTIME_ROOT"
-export REPO_ROOT RUNTIME_ROOT SYSTEM_CODEX_ROOT="$RUNTIME_ROOT"
+export REPO_ROOT RUNTIME_ROOT SYSTEM_CODEX_ROOT="$RUNTIME_ROOT" SYSTEM_HOME SYSTEM_BIN
 
 MANIFEST_PATH="$RUNTIME_ROOT/runtime-manifest.json"
 SYSTEM_RELEASE_VERSION="$(read_manifest_field "$MANIFEST_PATH" "system_release_version")" || die "runtime manifest missing system_release_version"
@@ -240,7 +242,7 @@ RUNTIME_MANIFEST_VERSION="$(read_manifest_field "$MANIFEST_PATH" "manifest_versi
 manifest_skill_name="$(read_manifest_field "$MANIFEST_PATH" "skill_name")" || die "runtime manifest missing skill_name"
 [[ "$manifest_skill_name" == "$SKILL_NAME" ]] || die "runtime manifest skill_name mismatch: expected $SKILL_NAME, found $manifest_skill_name"
 
-binary_version="$(system --version | awk '{print $NF}')"
+binary_version="$("$SYSTEM_BIN" --version | awk '{print $NF}')"
 [[ "$binary_version" == "$SYSTEM_RELEASE_VERSION" ]] || die "runtime version mismatch: manifest=$SYSTEM_RELEASE_VERSION system=$binary_version"
 
 mkdir -p "$STATE_ROOT"
@@ -265,7 +267,7 @@ root_status="$(doctor_json_read "$doctor_path_for_gates" "system_root_status")"
 if [[ "$(normalize_token "$root_status")" != "ok" ]]; then
   (
     cd "$REPO_ROOT"
-    system setup
+    "$SYSTEM_BIN" setup
   ) || die "system setup failed"
   run_doctor_json "$run_dir/doctor.after_setup.json"
   doctor_path_for_gates="$run_dir/doctor.after_setup.json"
@@ -280,7 +282,7 @@ if ! run_with_transcripts \
   "$run_dir/validate.stdout.txt" \
   "$run_dir/validate.stderr.txt" \
   "$run_dir/validate.exit" \
-  system author charter --validate --from-inputs "$run_dir/charter_inputs.yaml"; then
+  "$SYSTEM_BIN" author charter --validate --from-inputs "$run_dir/charter_inputs.yaml"; then
   printf 'VALIDATION_FAILED\nRUN ARTIFACTS: %s\n' "$run_dir" >&2
   exit 1
 fi
@@ -289,7 +291,7 @@ if ! run_with_transcripts \
   "$run_dir/author.stdout.txt" \
   "$run_dir/author.stderr.txt" \
   "$run_dir/author.exit" \
-  system author charter --from-inputs "$run_dir/charter_inputs.yaml"; then
+  "$SYSTEM_BIN" author charter --from-inputs "$run_dir/charter_inputs.yaml"; then
   printf 'AUTHOR_FAILED\nRUN ARTIFACTS: %s\n' "$run_dir" >&2
   exit 1
 fi
