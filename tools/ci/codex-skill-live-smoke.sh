@@ -2,10 +2,13 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-EVIDENCE_DIR="$ROOT_DIR/.implemented/m9.5-codex-skill-packaging"
+EVIDENCE_DIR="$ROOT_DIR/.implemented/m10-orchestration"
 LOG_PATH="$EVIDENCE_DIR/codex-skill-live-smoke.log"
 STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/system/intake/runs"
-RUNTIME_WRAPPER="$HOME/.codex/skills/system/bin/system-charter-intake"
+SYSTEM_HOME="$HOME/system"
+CODEX_ROOT_SKILL="$HOME/.codex/skills/system"
+CODEX_DISCOVERY_SKILL="$HOME/.codex/skills/system-charter-intake"
+RUNTIME_WRAPPER="$SYSTEM_HOME/bin/system-charter-intake"
 FIXTURE_INPUTS="$ROOT_DIR/tools/fixtures/charter_inputs/runtime_smoke_valid.yaml"
 export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
@@ -77,6 +80,28 @@ assert_run_dir_file_set() {
   }
 }
 
+assert_no_misplaced_run_evidence() {
+  local root="$1"
+  local misplaced
+  misplaced="$(
+    find "$root" -type f \( \
+      -name 'session.json' -o \
+      -name 'doctor.before.json' -o \
+      -name 'doctor.after_setup.json' -o \
+      -name 'doctor.after_write.json' -o \
+      -name 'author.stdout.txt' -o \
+      -name 'author.stderr.txt' -o \
+      -name 'validate.stdout.txt' -o \
+      -name 'validate.stderr.txt' \
+    \) -print
+  )"
+  [[ -z "$misplaced" ]] || {
+    echo "unexpected run evidence under $root"
+    printf '%s\n' "$misplaced"
+    exit 1
+  }
+}
+
 common_success_files() {
   cat <<'EOF'
 author.exit
@@ -135,7 +160,7 @@ happy_run_dir="$(extract_run_dir "$happy_output")"
   exit 1
 }
 assert_run_dir_file_set "$happy_run_dir" "$(common_success_files)"
-assert_session_fields "$happy_run_dir/session.json" "$HOME/.codex/skills/system"
+assert_session_fields "$happy_run_dir/session.json" "$SYSTEM_HOME"
 test -f "$happy_repo/.system/charter/CHARTER.md"
 
 echo "==> existing charter refusal smoke"
@@ -170,25 +195,34 @@ existing_run_dir="$(latest_run_dir)"
   exit 1
 }
 assert_run_dir_file_set "$existing_run_dir" "$(existing_truth_refusal_files)"
-assert_session_fields "$existing_run_dir/session.json" "$HOME/.codex/skills/system"
+assert_session_fields "$existing_run_dir/session.json" "$SYSTEM_HOME"
 
-echo "==> repo-local runtime override smoke"
-override_repo="$tmp_root/repo-override"
-mkdir -p "$override_repo/.agents/skills"
+echo "==> dev-setup discovery override keeps installed runtime root"
+bash tools/codex/dev-setup.sh
+[[ "$(readlink "$CODEX_ROOT_SKILL")" == "$ROOT_DIR/.agents/skills/system" ]] || {
+  echo "unexpected dev root discovery link target"
+  readlink "$CODEX_ROOT_SKILL" || true
+  exit 1
+}
+[[ "$(readlink "$CODEX_DISCOVERY_SKILL")" == "$ROOT_DIR/.agents/skills/system-charter-intake" ]] || {
+  echo "unexpected dev leaf discovery link target"
+  readlink "$CODEX_DISCOVERY_SKILL" || true
+  exit 1
+}
+override_repo="$tmp_root/dev-override-runtime-root"
+mkdir -p "$override_repo"
 git -C "$override_repo" init -q
-cp -R "$ROOT_DIR/.agents/skills/system" "$override_repo/.agents/skills/system"
-cp -R "$ROOT_DIR/.agents/skills/system-charter-intake" "$override_repo/.agents/skills/system-charter-intake"
 override_output="$(
   cd "$override_repo"
   "$RUNTIME_WRAPPER" --inputs "$FIXTURE_INPUTS"
 )"
 override_run_dir="$(extract_run_dir "$override_output")"
 [[ -n "$override_run_dir" && -d "$override_run_dir" ]] || {
-  echo "failed to capture repo-override run dir"
+  echo "failed to capture dev-override run dir"
   echo "$override_output"
   exit 1
 }
-assert_session_fields "$override_run_dir/session.json" "$override_repo/.agents/skills/system"
+assert_session_fields "$override_run_dir/session.json" "$SYSTEM_HOME"
 
 echo "==> outside-git-repo refusal smoke"
 outside_dir="$tmp_root/not-a-repo"
@@ -209,5 +243,8 @@ fi
   echo "$outside_output"
   exit 1
 }
+
+assert_no_misplaced_run_evidence "$SYSTEM_HOME"
+assert_no_misplaced_run_evidence "$HOME/.codex/skills"
 
 echo "OK"
