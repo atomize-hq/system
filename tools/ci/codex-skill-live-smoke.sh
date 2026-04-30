@@ -224,6 +224,19 @@ override_run_dir="$(extract_run_dir "$override_output")"
 }
 assert_session_fields "$override_run_dir/session.json" "$SYSTEM_HOME"
 
+echo "==> restore installed discovery topology"
+bash tools/codex/install.sh
+[[ "$(readlink "$CODEX_ROOT_SKILL")" == "$SYSTEM_HOME/.agents/skills/system" ]] || {
+  echo "unexpected restored root discovery link target"
+  readlink "$CODEX_ROOT_SKILL" || true
+  exit 1
+}
+[[ "$(readlink "$CODEX_DISCOVERY_SKILL")" == "$SYSTEM_HOME/.agents/skills/system-charter-intake" ]] || {
+  echo "unexpected restored leaf discovery link target"
+  readlink "$CODEX_DISCOVERY_SKILL" || true
+  exit 1
+}
+
 echo "==> outside-git-repo refusal smoke"
 outside_dir="$tmp_root/not-a-repo"
 mkdir -p "$outside_dir"
