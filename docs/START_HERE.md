@@ -36,9 +36,11 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `system author environment-inventory` writes canonical environment-inventory truth.
 - **Installed Codex charter intake**
   - `system doctor --json` is the only machine-readable readiness surface the installed skill may parse.
-  - Generated repo-local Codex assets live under `.agents/skills/`.
-  - Installed discovery/runtime assets live under `~/.codex/skills/`.
-  - `tools/codex/install.sh` installs packaging assets only; it assumes `system` is already on `PATH`.
+  - Repo-local `.agents/skills/*` trees are thin generated projections only.
+  - `~/system/` is the installed home.
+  - Installed thin projections live under `~/system/.agents/skills/*`.
+  - `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`.
+  - `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue.
   - `tools/codex/dev-setup.sh` is the dev-only symlink path.
   - The installed runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when run outside a real git repo.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
