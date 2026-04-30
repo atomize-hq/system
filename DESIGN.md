@@ -210,9 +210,11 @@ Role:
 Shipped M9.5 reality:
 
 - one discoverable skill name: `system-charter-intake`
-- generated repo-local skill assets live under `.agents/skills/`
-- installed discovery and runtime assets live under `~/.codex/skills/`
-- `tools/codex/install.sh` installs packaging assets only and assumes `system` is already on `PATH`
+- repo-local `.agents/skills/*` trees are thin generated projections only
+- the installed home is `~/system/`
+- installed thin projections live under `~/system/.agents/skills/*`
+- `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
+- `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue
 - `tools/codex/dev-setup.sh` is the only symlink-based dev flow
 - the installed runtime may machine-parse only `system doctor --json`
 - validate/write steps use exit code plus persisted stdout/stderr transcripts; there is no second machine-readable authoring contract

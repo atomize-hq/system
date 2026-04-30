@@ -77,7 +77,7 @@ CI MUST run the same logical checks (or stricter) on supported targets.
 
 For the shipped Codex packaging wedge, CI MUST also prove:
 
-- `.agents/skills/system-charter-intake/` and `.agents/skills/system/` regenerate deterministically
+- repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` regenerate deterministically as thin generated projections
 - the generated runtime root contains exactly:
   - `SKILL.md`
   - `runtime-manifest.json`
@@ -90,8 +90,10 @@ For the shipped Codex packaging wedge, CI MUST also prove:
   - `system_release_version`
   - `manifest_version`
   - `generated_at_utc`
-- `tools/codex/install.sh` installs packaging assets only and assumes `system` is already on `PATH`
-- `tools/codex/dev-setup.sh` creates the dev symlink mode only, and normal install after dev setup replaces those symlinks with copied directories cleanly
+- `~/system/` is the installed home, with installed thin projections under `~/system/.agents/skills/*`
+- `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
+- `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the thin Codex discovery glue
+- `tools/codex/dev-setup.sh` creates the dev symlink mode only, and normal install after dev setup restores the `~/.codex/skills/system* -> ~/system/.agents/skills/*` discovery topology cleanly
 - the installed runtime may machine-parse only `system doctor --json`
 - validate/write steps rely on exit code plus persisted stdout/stderr transcripts only, with no new machine-readable authoring contract
 
@@ -134,7 +136,10 @@ Docs and CLI help MUST:
 - identify `system doctor --json` as the only machine-readable readiness surface for the installed charter-intake skill
 - identify `system author charter --validate --from-inputs <path|->` as the mutation-free charter preflight surface
 - identify `system author charter --from-inputs <path|->` as deterministic and compiler-owned
-- describe `tools/codex/install.sh` as packaging-only install, not Rust binary installation
+- identify `~/system/` as the installed home for the Codex-facing install surface
+- describe repo `.agents/skills/*` as thin generated projections only
+- describe `~/.codex/skills/system*` as discovery glue only, pointing into `~/system/.agents/skills/*`
+- describe `tools/codex/install.sh` as owning the installed `~/system/` home and Codex discovery-glue refresh
 
 Docs and help SHOULD link directly to the authoritative contracts they reference.
 
@@ -165,9 +170,11 @@ The following checklist is normative for conformance execution and closeout:
 - [ ] `system --help` (smoke)
 - [ ] `system doctor --help` and `system author charter --help` (help parity)
 - [ ] `system generate --help` and `system inspect --help` (help parity)
-- [ ] generated `.agents/skills/system-charter-intake/` and `.agents/skills/system/` are deterministic outputs
+- [ ] generated repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` are deterministic thin-projection outputs
 - [ ] generated runtime root file set matches the locked contract
-- [ ] normal install after dev setup replaces symlinks with copied directories cleanly
+- [ ] `~/system/` is the installed home and installed thin projections live under `~/system/.agents/skills/*`
+- [ ] `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
+- [ ] normal install after dev setup restores the `~/.codex/skills/system* -> ~/system/.agents/skills/*` discovery topology cleanly
 - [ ] the installed runtime happy path is `doctor --json` -> optional `system setup` -> `doctor --json` -> `author charter --validate --from-inputs` -> `author charter --from-inputs` -> final `doctor --json`
 - [ ] outside-git-repo refusal happens before questioning
 - [ ] existing-charter refusal is covered as a first-class smoke case

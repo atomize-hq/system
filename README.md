@@ -25,8 +25,8 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - `system author charter --validate --from-inputs <path|->` is the mutation-free charter preflight surface. `--validate` is not supported on guided `system author charter`.
 - `system author charter --from-inputs <path|->` is deterministic and compiler-owned. The guided `system author charter` path remains the Codex-backed interview surface.
 - `system doctor --json` is the only machine-readable readiness surface for the installed charter-intake skill.
-- Codex packaging source lives under `tools/codex/`. Generated repo-local skill assets live under `.agents/skills/`, and installed skill assets live under `~/.codex/skills/`.
-- `tools/codex/install.sh` installs packaging assets only. It assumes `system` is already on `PATH` and does not build or reinstall the Rust binary.
+- Codex packaging source lives under `tools/codex/`. Repo-local `.agents/skills/*` trees are thin generated projections only. The installed home is `~/system/`, installed thin projections live under `~/system/.agents/skills/*`, and `~/.codex/skills/system*` is discovery glue only.
+- `tools/codex/install.sh` owns the installed `~/system/` home and refreshes `~/.codex/skills/system*` as thin discovery glue into `~/system/.agents/skills/*`.
 - `tools/codex/dev-setup.sh` is the dev-only symlink path. Normal install is copy-based, and re-running normal install after dev setup replaces those symlinks with copied directories cleanly.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
