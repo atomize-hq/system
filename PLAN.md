@@ -32,6 +32,10 @@ Success means all of the following are true at once:
 - normal install restores discovery to `~/system/.agents/skills/*` even after dev override mode
 - the `system-charter-intake` skill executes by invoking `~/system/bin/system` directly
 
+Legacy invariant preserved during `M10.5`:
+
+- `M1` activation remains boolean-only in the form `variables.<name> == true|false`.
+
 ## Step 0: Scope Challenge
 
 ### What already exists
