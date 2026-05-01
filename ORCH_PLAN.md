@@ -1,201 +1,270 @@
-# M10 Orchestration Plan
+# M10.5 Orchestration Plan: Installed Home Contract Cutover
 
 ## Summary
-- Parent integrator starts from the current branch `feat/m10` in `/Users/spensermcconnell/__Active_Code/system`, but does not perform final merges or final verification there.
-- Recommended worktree root under this repo: `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10`.
-- Parent-only integration branch and worktree:
-  - branch: `feat/m10-integrate`
-  - worktree: `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate`
-- Worker branches:
-  - `feat/m10-source-gen`
-  - `feat/m10-install-home`
-  - `feat/m10-docs-cutover`
-  - `feat/m10-smokes`
-- Orchestration run artifacts live only under `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/`. These are run artifacts, not authored source, not product payload, and not long-term contract files.
-- Parent-maintained orchestration source of truth:
-  - task queue / status tracker: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/task-queue.md`
-  - session log / handoff log: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/session-log.md`
-  - per-task sentinels / completion markers: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/`
-  - final verification record: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/final-verification.md`
-- Queue discipline:
-  - `task-queue.md` is the only orchestration state authority.
-  - `session-log.md` is append-only narrative and handoff evidence.
-  - sentinel files are convenience markers only. They never override queue state.
-- Execution shape:
-  - serial setup and `M10-W1`
-  - parallel `M10-W2`, `M10-W3`, `M10-W4`
-  - parent-only integration and final verification in `feat/m10-integrate`
-  - only after green integration does parent fast-forward or merge back to `feat/m10`
+- This session exists to complete `PLAN.md` for `M10.5` without improvising new milestone semantics.
+- The milestone contract is fixed:
+  - authored install-home skill truth moves under `install/system-home/`
+  - repo `.agents/skills/*` stays thin generated projection output only
+  - `~/system/` is the installed home
+  - `~/.codex/skills/*` is discovery glue only
+  - `~/system/bin/system` is the only installed executable for this Codex surface
+  - `tools/codex/runtime/bin/system-charter-intake.tmpl` must be removed
+  - `~/system/bin/system-charter-intake` must not exist
+  - `~/system/share/**` must not exist
+  - `~/system/resources/**` is the installed runtime guidance root
+  - `system-charter-intake` must invoke `~/system/bin/system` directly
+  - `system doctor --json` remains the only machine-parsed output
+  - mutable run evidence belongs only under `~/.local/state/system/intake/runs/`
+- Parent is the only integrator, the only scope interpreter, and the only actor allowed to resolve cross-lane contract conflicts.
+- Recommended orchestration root under this repo:
+  - worktrees: `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/`
+  - run artifacts: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/`
+- Parent integration branch and worktree:
+  - branch: `codex/m10.5-parent`
+  - worktree: `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent`
+- Worker branches and worktrees:
+  - `codex/m10.5-source-gen` at `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/source-gen`
+  - `codex/m10.5-install-runtime` at `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/install-runtime`
+  - `codex/m10.5-docs-contracts` at `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/docs-contracts`
+  - `codex/m10.5-smokes` at `/Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/smokes`
+- Parent-owned orchestration artifacts:
+  - queue: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/task-queue.md`
+  - session log: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/session-log.md`
+  - sentinels: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/`
+  - final verification record: `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/final-verification.md`
+- Queue discipline is fixed:
+  - `task-queue.md` is the only orchestration state authority
+  - `session-log.md` is append-only narrative and handoff evidence
+  - sentinels are convenience markers only and never override queue state
+- Execution order is strict where the contract freezes and parallel where it is safe:
+  - parent preflight
+  - `W1` source migration plus generator rewrite, serialized
+  - parent gate `G1`
+  - `W2` install/runtime cutover and `W3` docs/contracts, parallel
+  - parent gate `G2`
+  - `W4` smokes/regression
+  - parent-only merge, real-home verification, and landing back to `feat/m10`
 
 ## Hard Guards
-- `~/system/` is the real installed home. `~/.codex/skills/system*` is never the installed home.
-- Repo `.agents/skills/*` must stay thin generated projections. They are never manually authored and never treated as runtime payload.
-- `~/.codex/skills/*` must become thin discovery links into `~/system/.agents/skills/*`.
-- `bash tools/codex/generate.sh` owns repo outputs only and must never mutate `$HOME`, `~/system/`, or `~/.codex/skills/`.
-- `bash tools/codex/install.sh` owns installed-home and discovery outputs only. It must not compile Rust.
-- `install.sh` must require `system` on `PATH`, compare that binary version against repo `VERSION`, then copy the verified binary into `~/system/bin/system`.
-- Runtime payload belongs only under `~/system/`, including `runtime-manifest.json`, `share/**`, and `bin/system-charter-intake` if that helper remains.
-- `system doctor --json` remains the only machine-parsed output. Any schema or contract drift is an immediate stop.
-- Mutable run evidence stays under `~/.local/state/system/intake/runs/`, never under `~/system/` and never under `~/.codex/skills/`.
-- Required docs and smokes are fixed scope:
-  - `README.md`
-  - `DESIGN.md`
-  - `docs/START_HERE.md`
-  - `docs/SUPPORTED_COMMANDS.md`
-  - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
-  - `docs/contracts/C-07-conformance-rails-and-docs-cutover.md`
-  - `tools/ci/install-smoke.sh`
-  - `tools/ci/codex-skill-live-smoke.sh`
-- Any lane that runs `install.sh`, live smokes, or otherwise mutates install/discovery state must use an isolated `HOME` and isolated `XDG_STATE_HOME`. Worker lanes must not touch the real default home.
-- The real default home is reserved strictly for the parent’s final merged verification pass in `feat/m10-integrate`.
-- Stop immediately and return to parent if a lane would:
-  - touch a file outside its write ownership
-  - alter operator-visible CLI behavior instead of topology
-  - make `generate.sh` write outside the repo
-  - make `install.sh` compile Rust or skip the PATH/version gate
+- `PLAN.md` is authoritative for milestone scope. Workers execute it; they do not reinterpret it.
+- `generate.sh` may read authored inputs and write repo `.agents/skills/*` only. It must not mutate `$HOME`, `~/system/`, `~/.codex/skills/`, or repo-root install-home files.
+- `install.sh` owns install-time staging into `~/system/` and refresh of `~/.codex/skills/*`. It must not compile Rust and must not install a repo clone.
+- `~/system/bin/system` is the only installed executable for this Codex surface. No worker may preserve or reintroduce `~/system/bin/system-charter-intake`.
+- `tools/codex/runtime/bin/system-charter-intake.tmpl` is a required deletion target. If it survives, the milestone is incomplete.
+- `~/system/share/**` is forbidden. Installed runtime guidance must resolve from `~/system/resources/**`.
+- Repo `.agents/skills/*` is generated projection output only. Workers must not hand-author files there.
+- `~/.codex/skills/*` is discovery glue only. It must never become a runtime payload location.
+- `system-charter-intake` remains a skill/discovery surface, not a helper binary. Its runtime path must invoke `~/system/bin/system` directly.
+- `system doctor --json` is the only machine-parsed output. Any schema or semantics drift is an immediate stop.
+- Mutable evidence must land only under `~/.local/state/system/intake/runs/`. Writes under `~/system/` or `~/.codex/skills/` are a hard failure.
+- `tools/codex/relink.sh` is ambiguous in the current repo. This plan resolves that by deleting it unless the parent explicitly chooses a tightly controlled production-relink replacement that does not recreate dev-mode ambiguity.
+- Any worker lane that runs install, dev-setup, smoke, or live-skill commands must use isolated `HOME` and `XDG_STATE_HOME`. Only the parent may use the real default home, and only during final merged verification.
+- Workers stop immediately and hand control back to the parent if they would:
+  - edit outside their write ownership
+  - preserve the helper-binary contract
+  - keep `share/**` alive
   - change `system doctor --json`
-  - put mutable evidence under `~/system/` or `~/.codex/skills/`
+  - reinterpret milestone scope
 
 ## Workstream Plan
-Parent-only critical path and gates:
-1. `M10-P0` Preflight on `feat/m10`: confirm branch, capture `git status --short`, create orchestration artifact root, and seed `task-queue.md` plus `session-log.md`.
-2. `M10-P1` Create all worktrees, but start only `M10-W1`. `M10-W1` must run alone because it freezes the canonical source locations, the generator ownership boundary, and the thin-projection shape that every downstream lane assumes.
-3. `M10-G1` Parent gate: review `M10-W1`, merge it into `feat/m10-integrate`, rerun `bash tools/codex/generate.sh`, and freeze the source/generator contract before any install, docs, or smoke work proceeds.
-4. `M10-P2` Rebase `feat/m10-install-home`, `feat/m10-docs-cutover`, and `feat/m10-smokes` onto `feat/m10-integrate`, then launch `M10-W2`, `M10-W3`, and `M10-W4` in parallel.
-5. `M10-G2` Parent gate: do not merge docs or smokes until install topology is proven against isolated-home verification and the `~/system/` contract is stable.
-6. `M10-P3` Parent-only integration in `feat/m10-integrate`: merge worker branches, resolve all conflicts locally, and run the full required verification set there.
-7. `M10-G3` Landing gate: only after `feat/m10-integrate` is fully green does parent merge or fast-forward back to `feat/m10`, update final evidence, and declare the session complete.
+### Parent-Only Critical Path
+1. `P0` Preflight on `feat/m10`.
+   - Capture `git status --short`.
+   - Create orchestration directories.
+   - Seed `task-queue.md` and `session-log.md`.
+   - Record current repo reality, including that root-authored install-home files still exist and `install/system-home/` may not.
+2. `P1` Create worktrees and branches, but launch only `W1`.
+   - `W1` is the freeze point for source-of-truth paths and thin projection shape.
+   - No downstream lane starts before `G1` passes.
+3. `G1` Parent verification after `W1`.
+   - Merge `codex/m10.5-source-gen` into `codex/m10.5-parent`.
+   - Run generator verification.
+   - Confirm repo-root authored install-home files are removed from active contract use.
+   - Freeze the canonical source/generator contract before opening downstream work.
+4. `P2` Launch `W2` and `W3` in parallel from the updated parent branch.
+   - `W2` owns install/runtime behavior.
+   - `W3` owns docs/contracts wording.
+   - `W4` stays closed because smoke assertions must target the post-`W2` runtime contract, not an in-between state.
+5. `G2` Parent verification after `W2`.
+   - Merge `codex/m10.5-install-runtime` into `codex/m10.5-parent`.
+   - Verify installed-home topology, helper-binary deletion, `resources/**`, and direct `~/system/bin/system` invocation.
+   - Only after `G2` passes may `W4` start.
+6. `P3` Launch `W4` from the updated parent branch while `W3` finishes or rebases if needed.
+7. `G3` Parent integration.
+   - Merge `W3` and `W4`.
+   - Resolve all conflicts locally in `codex/m10.5-parent`.
+   - Run the full verification set, including the real-home pass.
+8. `P4` Landing.
+   - Fast-forward or merge `codex/m10.5-parent` back to `feat/m10`.
+   - Record final results in `final-verification.md`.
+   - Mark queue items `LANDED`.
 
-Recommended setup commands:
+### Setup Commands
 ```bash
-mkdir -p /Users/spensermcconnell/__Active_Code/system/.worktrees/m10
-mkdir -p /Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels
+mkdir -p /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5
+mkdir -p /Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels
 
-git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate -b feat/m10-integrate feat/m10
-git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/source-gen -b feat/m10-source-gen feat/m10
-git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/install-home -b feat/m10-install-home feat/m10
-git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/docs-cutover -b feat/m10-docs-cutover feat/m10
-git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/smokes -b feat/m10-smokes feat/m10
+git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent -b codex/m10.5-parent feat/m10
+git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/source-gen -b codex/m10.5-source-gen feat/m10
+git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/install-runtime -b codex/m10.5-install-runtime feat/m10
+git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/docs-contracts -b codex/m10.5-docs-contracts feat/m10
+git -C /Users/spensermcconnell/__Active_Code/system worktree add /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/smokes -b codex/m10.5-smokes feat/m10
 ```
 
-Bounded worker lanes with disjoint write ownership:
-
-| Lane | Branch | Task ids | Write ownership | Start gate | Exit condition |
+### Worker Lanes
+| Lane | Branch / worktree | Locked write ownership | Start gate | Required commands | Exit conditions |
 | --- | --- | --- | --- | --- | --- |
-| `M10-W1` Source + Generator | `feat/m10-source-gen` | `M10-W1.1` canonical root/leaf skill truth, `M10-W1.2` generator rewrite, `M10-W1.3` thin-projection guardrails | `SKILL.md.tmpl`, `SKILL.md`, `charter-intake/SKILL.md.tmpl`, `charter-intake/SKILL.md`, `agents/openai.yaml`, `tools/codex/generate.sh`, `tools/codex/runtime/SKILL.md.tmpl`, `tools/codex/templates/system-charter-intake.SKILL.md.tmpl` | `M10-P1` | `bash tools/codex/generate.sh` regenerates thin repo `.agents/skills/system*` with no `bin/`, `runtime-manifest.json`, or `share/` in repo projections |
-| `M10-W2` Install Topology | `feat/m10-install-home` | `M10-W2.1` install to `~/system/`, `M10-W2.2` thin Codex discovery, `M10-W2.3` PATH/version gate, `M10-W2.4` helper/runtime payload placement, `M10-W2.5` dev override preservation | `tools/codex/install.sh`, `tools/codex/dev-setup.sh`, `tools/codex/relink.sh`, `tools/codex/runtime/runtime-manifest.json.tmpl`, `tools/codex/runtime/bin/system-charter-intake.tmpl` | `M10-G1` | isolated-home install flow creates curated `~/system/`, installs thin `~/system/.agents/skills/*`, and restores `~/.codex/skills/* -> ~/system/.agents/skills/*` on normal install |
-| `M10-W3` Docs + Contracts | `feat/m10-docs-cutover` | `M10-W3.1` installed-home wording, `M10-W3.2` install ownership wording, `M10-W3.3` machine-parsed output wording | `README.md`, `DESIGN.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`, `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` | `M10-G1` | every required doc says `~/system/` is the installed home, `.agents/skills/*` is thin, `~/.codex/skills/*` is discovery glue only, and `system doctor --json` is the only machine-parsed surface |
-| `M10-W4` Smokes | `feat/m10-smokes` | `M10-W4.1` install smoke topology assertions, `M10-W4.2` live smoke runtime-root assertions, `M10-W4.3` dev-setup crossover assertions, `M10-W4.4` run-evidence assertions | `tools/ci/install-smoke.sh`, `tools/ci/codex-skill-live-smoke.sh` | `M10-G1` | smokes fail on wrong repo projection shape, wrong `~/system/` file set, wrong discovery links, wrong runtime root, or misplaced run evidence |
+| `W1` Source Migration + Generator Freeze | `codex/m10.5-source-gen` / `.worktrees/m10.5/source-gen` | `install/system-home/**` creation; removal of repo-root `SKILL.md.tmpl`, `SKILL.md`, `agents/openai.yaml`, `charter-intake/SKILL.md.tmpl`, `charter-intake/SKILL.md`; `tools/codex/generate.sh`; generated repo `.agents/skills/system/**` and `.agents/skills/system-charter-intake/**` only via `generate.sh` | `P1` | `bash tools/codex/generate.sh`; `find install/system-home -maxdepth 3 -print | sort`; `find .agents/skills/system -maxdepth 3 -print | sort`; `find .agents/skills/system-charter-intake -maxdepth 3 -print | sort` | authored install-home truth exists only under `install/system-home/`; repo-root authored install-home files are removed from the active contract; repo `.agents/skills/*` is thin and generated; generator never writes repo-root install-home files |
+| `W2` Install / Runtime Cutover | `codex/m10.5-install-runtime` / `.worktrees/m10.5/install-runtime` | `tools/codex/install.sh`; `tools/codex/dev-setup.sh`; `tools/codex/relink.sh`; `tools/codex/runtime/runtime-manifest.json.tmpl`; deletion of `tools/codex/runtime/bin/system-charter-intake.tmpl`; runtime invocation edits in `install/system-home/charter-intake/SKILL.md.tmpl` after `G1` transfers that file to this lane | `G1` | `export HOME="$PWD/.tmp/home"`; `export XDG_STATE_HOME="$PWD/.tmp/state"`; `export CARGO_HOME="$HOME/.cargo"`; `export PATH="$CARGO_HOME/bin:$PATH"`; `mkdir -p "$HOME" "$XDG_STATE_HOME" "$CARGO_HOME"`; `cargo install --locked --force --path crates/cli`; `bash tools/codex/install.sh`; `system doctor --json`; `test ! -e "$HOME/system/bin/system-charter-intake"`; `test ! -e "$HOME/system/share"` | normal install stages a curated `~/system/` home; `~/system/bin/system` is the only installed executable; `tools/codex/runtime/bin/system-charter-intake.tmpl` is gone; `~/system/bin/system-charter-intake` does not exist; `~/system/resources/**` exists; `~/system/share/**` does not exist; `~/.codex/skills/*` restores to installed thin projections; `system-charter-intake` invokes `~/system/bin/system` directly; `relink.sh` is deleted or parent-approved as a tightly controlled production relink only |
+| `W3` Docs / Contracts Cutover | `codex/m10.5-docs-contracts` / `.worktrees/m10.5/docs-contracts` | `README.md`; `DESIGN.md`; `docs/START_HERE.md`; `docs/SUPPORTED_COMMANDS.md`; `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`; `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` | `G1` | `rg -n "system-charter-intake|share/|resources/|install/system-home|~/.codex/skills|~/system/bin/system|doctor --json" README.md DESIGN.md docs/START_HERE.md docs/SUPPORTED_COMMANDS.md docs/contracts/C-02-rust-workspace-and-cli-command-surface.md docs/contracts/C-07-conformance-rails-and-docs-cutover.md` | every packaging-facing doc matches the M10.5 contract exactly; no doc preserves the helper binary, `share/**`, repo-root authored install-home truth, or `~/.codex/skills/*` as installed home |
+| `W4` Smokes / Regression Rails | `codex/m10.5-smokes` / `.worktrees/m10.5/smokes` | `tools/ci/install-smoke.sh`; `tools/ci/codex-skill-live-smoke.sh` | `G2` | `export HOME="$PWD/.tmp/home"`; `export XDG_STATE_HOME="$PWD/.tmp/state"`; `export CARGO_HOME="$HOME/.cargo"`; `export PATH="$CARGO_HOME/bin:$PATH"`; `mkdir -p "$HOME" "$XDG_STATE_HOME" "$CARGO_HOME"`; `cargo install --locked --force --path crates/cli`; `bash tools/ci/install-smoke.sh`; `bash tools/ci/codex-skill-live-smoke.sh` | smoke rails fail on any drift from thin repo projections, curated installed home, no helper binary, no `share/**`, direct `~/system/bin/system` invocation, and evidence restricted to `~/.local/state/system/intake/runs/` |
 
-Lane-local working commands:
-- `M10-W1`
+### Lane Subtasks
+- `W1` Source Migration + Generator Freeze
+  - `W1.1` Create `install/system-home/` as the only authored install-home source subtree.
+  - `W1.2` Move authored skill inputs out of repo root and remove repo-root install-home ownership from the active contract.
+  - `W1.3` Rewrite `tools/codex/generate.sh` to read only from `install/system-home/`.
+  - `W1.4` Regenerate repo `.agents/skills/system*` as thin projections only.
+  - `W1.5` Add or tighten exact thin-projection assertions so repo-root generated install-home files cannot reappear.
+- `W2` Install / Runtime Cutover
+  - `W2.1` Rewrite `tools/codex/install.sh` staging around the curated `~/system/` file set.
+  - `W2.2` Preserve PATH/version gate behavior and ensure install refreshes thin discovery into `~/.codex/skills/*`.
+  - `W2.3` Remove the helper-binary contract by deleting `tools/codex/runtime/bin/system-charter-intake.tmpl` and preventing `~/system/bin/system-charter-intake`.
+  - `W2.4` Move installed runtime guidance resolution to `~/system/resources/**` and prove `~/system/share/**` absence.
+  - `W2.5` Resolve `tools/codex/relink.sh` ambiguity by deletion, or by a parent-approved production-only relink behavior that does not recreate dev override semantics.
+  - `W2.6` Update the leaf skill template so `system-charter-intake` invokes `~/system/bin/system` directly and preserves evidence-path rules.
+- `W3` Docs / Contracts Cutover
+  - `W3.1` Update installed-home wording so `~/system/` is the only installed home.
+  - `W3.2` Update source-of-truth wording so authored install-home truth exists only under `install/system-home/`.
+  - `W3.3` Update discovery wording so repo `.agents/skills/*` stays thin and `~/.codex/skills/*` stays discovery glue only.
+  - `W3.4` Remove all helper-binary and `share/**` language from packaging-facing docs.
+  - `W3.5` Reconfirm that `system doctor --json` is documented as the only machine-parsed surface.
+- `W4` Smokes / Regression Rails
+  - `W4.1` Rewrite install smoke assertions for the exact thin repo projection shape.
+  - `W4.2` Rewrite install smoke assertions for curated `~/system/`, `resources/**`, and absence of helper binary and `share/**`.
+  - `W4.3` Add assertions that normal install after dev override restores installed discovery topology.
+  - `W4.4` Rewrite live smoke around direct `~/system/bin/system` invocation.
+  - `W4.5` Add evidence-path assertions so mutable run evidence is accepted only under `~/.local/state/system/intake/runs/`.
+
+### Parent Merge Order
+1. Merge `W1` into `codex/m10.5-parent`.
+2. Open `W2` and `W3`.
+3. Merge `W2` into `codex/m10.5-parent`.
+4. Open `W4`.
+5. Merge `W3` and `W4`.
+6. Run full verification in `codex/m10.5-parent`.
+7. Land into `feat/m10`.
+
+### Worker Return Contract
+- Every worker returns only:
+  - changed files
+  - commands run with exit codes
+  - blockers and unresolved assumptions
+- Parent records that return in `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/session-log.md` and updates `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/task-queue.md`.
+
+### Parent Review Discipline
+- Parent reviews the worker return contract plus a narrow diff only.
+- Parent does not treat full worker transcripts as the review artifact.
+- Recommended parent diff review commands:
 ```bash
-bash tools/codex/generate.sh
-find .agents/skills/system -maxdepth 4 -print | sort
-find .agents/skills/system-charter-intake -maxdepth 4 -print | sort
+git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent diff --stat codex/m10.5-parent...codex/m10.5-source-gen
+git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent diff --stat codex/m10.5-parent...codex/m10.5-install-runtime
+git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent diff --stat codex/m10.5-parent...codex/m10.5-docs-contracts
+git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent diff --stat codex/m10.5-parent...codex/m10.5-smokes
 ```
-- `M10-W2`
+
+### Serialization Boundaries
+- `W1` must run alone because it freezes the canonical authored source paths, removes repo-root ownership from the install-home contract, and locks the thin-projection output shape that install logic, docs wording, and smoke assertions all consume.
+- `W4` must wait until after `G2` because smoke rails are contract enforcement. They must validate the final install/runtime topology after helper-binary removal, `resources/**` cutover, and direct `~/system/bin/system` invocation are already proven, not an intermediate state.
+- Final integration stays parent-only because install/runtime behavior, docs wording, and smoke expectations converge on the same contract. One integrator prevents cross-lane reinterpretation and keeps conflict resolution centralized.
+
+## Context-Control Rules
+- Parent is the only owner of:
+  - `task-queue.md`
+  - `session-log.md`
+  - sentinel creation
+  - merge decisions
+  - scope decisions
+  - cross-lane conflict resolution
+- Queue states are parent-written only:
+  - `READY`
+  - `IN_PROGRESS`
+  - `BLOCKED`
+  - `AWAIT_PARENT_GATE`
+  - `MERGED_PARENT`
+  - `VERIFIED`
+  - `LANDED`
+- Sentinel naming is fixed:
+  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/W1.done`
+  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/W2.done`
+  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/W3.done`
+  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/W4.done`
+  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/parent-final.done`
+- Worker briefs must contain only:
+  - current gate
+  - owned files
+  - required commands
+  - exit conditions
+  - known blockers
+- Workers do not treat prior worker transcripts as authority. The parent queue and current gate are the only execution authority.
+- Workers do not hand-edit repo `.agents/skills/*`. They edit source or scripts, then regenerate.
+- `W2` is the only lane allowed to touch install/runtime behavior and the moved `install/system-home/charter-intake/SKILL.md.tmpl` after `G1`.
+- `W4` may not start early to “get ahead.” Smoke assertions are contract enforcement and must target the post-`W2` runtime topology.
+- Blocked-lane procedure:
+  - worker stops
+  - worker reports changed files, commands run, exit codes, and blocker
+  - parent records blocker in `task-queue.md` and `session-log.md`
+  - parent writes `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/<lane>.blocked`
+  - parent either resolves locally, relaunches the same lane, or creates a replacement lane from the current parent branch
+- If a worker blocks after partial progress:
+  - parent marks the lane `BLOCKED` in `task-queue.md`
+  - parent appends the handoff and current partial state to `session-log.md`
+  - parent writes `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/<lane>.blocked`
+  - parent chooses exactly one next action:
+    - resolve locally in `codex/m10.5-parent`
+    - relaunch the same lane with narrowed scope
+    - open a replacement lane from the current parent branch
+  - partial progress is never silently carried across lanes without a parent decision and queue update
+
+## Tests And Acceptance
+### Parent Verification Gates
+- `G1` after `W1`:
 ```bash
-export HOME="$PWD/.tmp/home"
-export XDG_STATE_HOME="$PWD/.tmp/state"
+cd /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent
+git merge --no-ff codex/m10.5-source-gen
+bash tools/codex/generate.sh
+test -d install/system-home
+test ! -e SKILL.md.tmpl
+test ! -e SKILL.md
+test ! -e agents/openai.yaml
+test ! -e charter-intake/SKILL.md.tmpl
+test ! -e charter-intake/SKILL.md
+find .agents/skills/system -maxdepth 3 -print | sort
+find .agents/skills/system-charter-intake -maxdepth 3 -print | sort
+```
+- `G2` after `W2`:
+```bash
+cd /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent
+git merge --no-ff codex/m10.5-install-runtime
+export HOME="$PWD/.tmp/parent-home-g2"
+export XDG_STATE_HOME="$PWD/.tmp/parent-state-g2"
 export CARGO_HOME="$HOME/.cargo"
 export PATH="$CARGO_HOME/bin:$PATH"
 mkdir -p "$HOME" "$XDG_STATE_HOME" "$CARGO_HOME"
 cargo install --locked --force --path crates/cli
 bash tools/codex/install.sh
 system doctor --json
-```
-- `M10-W3`
-```bash
-rg -n "~/.codex/skills|packaging-only|doctor --json|~/system/|\\.agents/skills/" README.md DESIGN.md docs/START_HERE.md docs/SUPPORTED_COMMANDS.md docs/contracts/C-02-rust-workspace-and-cli-command-surface.md docs/contracts/C-07-conformance-rails-and-docs-cutover.md
-```
-- `M10-W4`
-```bash
-export HOME="$PWD/.tmp/home"
-export XDG_STATE_HOME="$PWD/.tmp/state"
-export CARGO_HOME="$HOME/.cargo"
-export PATH="$CARGO_HOME/bin:$PATH"
-mkdir -p "$HOME" "$XDG_STATE_HOME" "$CARGO_HOME"
-bash tools/ci/install-smoke.sh
-bash tools/ci/codex-skill-live-smoke.sh
+test -x "$HOME/system/bin/system"
+test ! -e "$HOME/system/bin/system-charter-intake"
+test ! -e "$HOME/system/share"
+test -d "$HOME/system/resources"
 ```
 
-Worker return contract:
-- Every worker returns only:
-  - changed files
-  - commands run with exit codes
-  - blockers and assumptions
-- Parent records that return into `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/session-log.md` and updates `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/task-queue.md`.
-- Parent reviews only the worker summary and a narrow diff:
+### Final Parent Verification
 ```bash
-git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate diff --stat feat/m10-integrate...feat/m10-source-gen
-git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate diff --stat feat/m10-integrate...feat/m10-install-home
-git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate diff --stat feat/m10-integrate...feat/m10-docs-cutover
-git -C /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate diff --stat feat/m10-integrate...feat/m10-smokes
-```
-- Parent does not rely on full worker transcripts as the review artifact.
-
-Blocked behavior and partial-progress handling:
-- If a worker blocks after partial progress, it stops immediately, commits nothing further, and returns its summary under the worker return contract.
-- Parent marks the task `BLOCKED` in `task-queue.md`, appends the handoff in `session-log.md`, and writes a sentinel such as `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/M10-W2.3.blocked`.
-- Parent then chooses exactly one next action:
-  - resolve locally in `feat/m10-integrate`
-  - narrow the scope and relaunch the same lane
-  - open a replacement lane on a new branch from `feat/m10-integrate`
-- Partial progress is never silently carried across lanes without a parent decision and queue update.
-
-Why the serialization boundary exists:
-- `M10-W1` must run alone because it determines the canonical authored-source paths, whether legacy template paths are removed or retained, and the exact thin-projection contract that install logic, docs wording, and smoke expectations all consume.
-- Final integration stays parent-only because install topology, docs vocabulary, helper retention, and smoke assertions all converge on the same contract. One integrator prevents parallel reinterpretation of the milestone and keeps creative conflict resolution local to the parent.
-
-## Context-Control Rules
-- Parent is the only agent allowed to reinterpret M10 scope, change file ownership boundaries, decide helper retention for `bin/system-charter-intake`, or resolve cross-lane conflicts.
-- Workers get only the plan slice they need plus their owned files. They do not reopen unrelated M10 decisions.
-- Workers do not edit `.agents/skills/*` directly. They edit authored sources or scripts, then regenerate.
-- Workers do not edit `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/*`. Those orchestration files are parent-maintained run artifacts only.
-- Any worker lane that runs `install.sh`, `dev-setup.sh`, `relink.sh`, install smoke, live smoke, or any command that mutates install/discovery state must use an isolated `HOME` and isolated `XDG_STATE_HOME`.
-- Worker-safe isolation pattern:
-```bash
-export HOME="$PWD/.tmp/home"
-export XDG_STATE_HOME="$PWD/.tmp/state"
-export CARGO_HOME="$HOME/.cargo"
-export PATH="$CARGO_HOME/bin:$PATH"
-mkdir -p "$HOME" "$XDG_STATE_HOME" "$CARGO_HOME"
-```
-- Worker lanes must not inspect or mutate the real `~/system/`, `~/.codex/skills/`, or the real `~/.local/state/system/intake/runs/`.
-- The real default home is used once, by the parent only, in the merged `feat/m10-integrate` verification pass.
-- Parent updates queue state before and after every lane transition:
-  - `READY`
-  - `IN_PROGRESS`
-  - `BLOCKED`
-  - `MERGED_INTEGRATE`
-  - `VERIFIED`
-  - `LANDED`
-- Completion markers are emitted only after parent confirmation:
-  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/M10-W1.done`
-  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/M10-W2.done`
-  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/M10-W3.done`
-  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/M10-W4.done`
-  - `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/sentinels/M10-parent-final.done`
-
-## Tests And Acceptance
-Required verification commands on merged `feat/m10-integrate`:
-```bash
-cargo fmt --all -- --check
-cargo test --workspace
-bash tools/codex/generate.sh
-cargo install --locked --force --path crates/cli
-bash tools/ci/install-smoke.sh
-bash tools/ci/codex-skill-live-smoke.sh
-```
-
-Parent-only final merged verification pass:
-```bash
-cd /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate
-git merge --no-ff feat/m10-source-gen
-git merge --no-ff feat/m10-install-home
-git merge --no-ff feat/m10-docs-cutover
-git merge --no-ff feat/m10-smokes
+cd /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent
+git merge --no-ff codex/m10.5-docs-contracts
+git merge --no-ff codex/m10.5-smokes
 
 cargo fmt --all -- --check
 cargo test --workspace
@@ -203,47 +272,61 @@ bash tools/codex/generate.sh
 cargo install --locked --force --path crates/cli
 bash tools/ci/install-smoke.sh
 bash tools/ci/codex-skill-live-smoke.sh
-
+system doctor --json
 readlink ~/.codex/skills/system
 readlink ~/.codex/skills/system-charter-intake
-find ~/system -maxdepth 4 -type f | sort
-system doctor --json
+test -x ~/system/bin/system
+test ! -e ~/system/bin/system-charter-intake
+test ! -e ~/system/share
+test -d ~/system/resources
+find ~/system -maxdepth 4 -print | sort
 ```
 
-Acceptance conditions:
-- repo `.agents/skills/*` is thin and generated
-- `~/system/` exists as the curated installed home
-- installed runtime payload is under `~/system/`, not under `.agents/skills/**` and not under `~/.codex/skills/**`
-- `~/system/.agents/skills/system*` exists and stays thin
-- `~/.codex/skills/system*` points into `~/system/.agents/skills/*`
-- `install.sh` does not compile Rust and does enforce the PATH/version gate
-- required docs match the shipped topology and no longer describe `~/.codex/skills/system/` as the installed home
-- install and live smokes prove `~/system/` as the runtime root and keep evidence under `~/.local/state/system/intake/runs/`
-- `system doctor --json` remains the only machine-parsed output
-- final verification evidence exists under `/Users/spensermcconnell/__Active_Code/system/.implemented/m10-orchestration/`:
-  - `task-queue.md` with all tasks in terminal success state
-  - `session-log.md` with the parent merge and verification summary
-  - `.implemented/m10-orchestration/sentinels/M10-parent-final.done`
-  - `final-verification.md` listing required commands, exit codes, and the final topology checks
+### Milestone Acceptance Conditions
+- `install/system-home/` is the only authored install-home source subtree.
+- Repo root no longer owns active authored install-home files.
+- Repo `.agents/skills/system/**` and `.agents/skills/system-charter-intake/**` remain thin generated projection output only.
+- `~/system/` is the installed product home and is curated by install, not by cloning the repo.
+- `~/system/bin/system` is the only installed executable for this Codex surface.
+- `tools/codex/runtime/bin/system-charter-intake.tmpl` is removed.
+- `~/system/bin/system-charter-intake` does not exist.
+- `~/system/runtime-manifest.json` exists.
+- `~/system/resources/**` exists and is the installed runtime guidance root.
+- `~/system/share/**` does not exist.
+- `system-charter-intake` invokes `~/system/bin/system` directly.
+- `~/.codex/skills/*` points to installed thin projections after normal install.
+- `system doctor --json` remains the only machine-parsed output.
+- Mutable run evidence appears only under `~/.local/state/system/intake/runs/`.
+- `tools/codex/relink.sh` is deleted, or the parent explicitly records a tighter production-only replacement decision that does not recreate dev-mode ambiguity.
+- `task-queue.md`, `session-log.md`, sentinels, and `final-verification.md` all exist and reflect the completed session.
 
-End-of-session cleanup and closure:
-1. Parent lands `feat/m10-integrate` back onto `feat/m10`.
-2. Parent appends the landing result to `session-log.md` and marks all queue items `LANDED`.
-3. Parent removes worktrees:
+## Closure
+1. Land `codex/m10.5-parent` back to `feat/m10`.
+2. Append the landing result, verification result, and final branch state to `session-log.md`.
+3. Mark all queue items `LANDED` in `task-queue.md`.
+4. Write `/Users/spensermcconnell/__Active_Code/system/.implemented/m10.5-orchestration/sentinels/parent-final.done`.
+5. Remove orchestration worktrees:
 ```bash
-git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/source-gen
-git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/install-home
-git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/docs-cutover
-git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/smokes
-git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10/integrate
+git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/source-gen
+git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/install-runtime
+git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/docs-contracts
+git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/smokes
+git -C /Users/spensermcconnell/__Active_Code/system worktree remove /Users/spensermcconnell/__Active_Code/system/.worktrees/m10.5/parent
 ```
-4. Branch retention policy:
-  - keep `feat/m10-integrate` until `feat/m10` is confirmed green
-  - delete worker branches after landing unless a blocked follow-up explicitly needs one preserved
-5. Session is complete only when the queue, session log, sentinels, and final verification record all exist and the landing branch is `feat/m10`.
+6. Branch retention policy:
+  - keep `codex/m10.5-parent` until `feat/m10` is confirmed green after landing
+  - delete worker branches after landing unless a blocked follow-up requires one to remain as evidence
+7. Session completion requires:
+  - `feat/m10` contains the landed parent branch result
+  - queue state is terminal and consistent
+  - session log contains the landing record
+  - final verification record exists
+  - worktrees are removed unless an explicit blocked follow-up says otherwise
 
 ## Assumptions
-- `feat/m10` remains the authoritative landing branch for the milestone, but `feat/m10-integrate` is the parent-only branch for all merge resolution and final verification.
-- The helper `bin/system-charter-intake` may remain if it shells through `~/system/bin/system`. The parent is the only actor allowed to decide otherwise.
-- Worker-local isolated-home verification is sufficient for lane validation before the parent’s final real-home verification pass.
-- Existing generated `.agents/skills/*` outputs and orchestration run artifacts are disposable and may be regenerated or recreated during the session.
+- `feat/m10` remains the milestone landing branch.
+- The parent may create temporary integration branches and worktrees under this repo without changing the milestone branch target.
+- `cargo install --locked --force --path crates/cli` remains the supported way to place a version-matching `system` binary on `PATH` for verification.
+- Isolated-home verification is sufficient for worker lanes; the real default home is reserved for the parent’s final merged pass.
+- If `relink.sh` is retained for any reason, that requires an explicit parent decision recorded in `session-log.md`; default action is deletion.
+- Orchestration artifacts under `.implemented/m10.5-orchestration/` are execution evidence only and are not part of the shipped product contract.
