@@ -113,7 +113,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y gettext-base
           fi
-          envsubst < dist/release-template.md > "$RUNNER_TEMP/release-notes.md"
+          envsubst < .github/release-template.md > "$RUNNER_TEMP/release-notes.md"
       - name: Publish GitHub release
         run: |
           set -euo pipefail
