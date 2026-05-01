@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SOURCE_ROOT="$ROOT_DIR/install/system-home"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/system-codex-generate.XXXXXX")"
 cleanup() {
@@ -53,22 +54,19 @@ assert_exact_file_set() {
   }
 }
 
-repo_root_skill_tmp="$tmp_dir/repo-root-skill.md"
-repo_leaf_skill_tmp="$tmp_dir/repo-leaf-skill.md"
+generated_root_skill_tmp="$tmp_dir/system-skill.md"
+generated_leaf_skill_tmp="$tmp_dir/system-charter-intake-skill.md"
 generated_root="$tmp_dir/.agents/skills"
 root_projection_tmp="$generated_root/system"
 leaf_projection_tmp="$generated_root/system-charter-intake"
 
-render_template "$ROOT_DIR/SKILL.md.tmpl" "$repo_root_skill_tmp"
-render_template "$ROOT_DIR/charter-intake/SKILL.md.tmpl" "$repo_leaf_skill_tmp"
+render_template "$SOURCE_ROOT/SKILL.md.tmpl" "$generated_root_skill_tmp"
+render_template "$SOURCE_ROOT/charter-intake/SKILL.md.tmpl" "$generated_leaf_skill_tmp"
 
-copy_file "$repo_root_skill_tmp" "$ROOT_DIR/SKILL.md"
-copy_file "$repo_leaf_skill_tmp" "$ROOT_DIR/charter-intake/SKILL.md"
-
-copy_file "$repo_root_skill_tmp" "$root_projection_tmp/SKILL.md"
-copy_file "$ROOT_DIR/agents/openai.yaml" "$root_projection_tmp/agents/openai.yaml"
-copy_file "$repo_leaf_skill_tmp" "$leaf_projection_tmp/SKILL.md"
-copy_file "$ROOT_DIR/agents/openai.yaml" "$leaf_projection_tmp/agents/openai.yaml"
+copy_file "$generated_root_skill_tmp" "$root_projection_tmp/SKILL.md"
+copy_file "$SOURCE_ROOT/agents/openai.yaml" "$root_projection_tmp/agents/openai.yaml"
+copy_file "$generated_leaf_skill_tmp" "$leaf_projection_tmp/SKILL.md"
+copy_file "$SOURCE_ROOT/agents/openai.yaml" "$leaf_projection_tmp/agents/openai.yaml"
 
 assert_exact_file_set "$root_projection_tmp" "$(cat <<'EOF'
 SKILL.md
