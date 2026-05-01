@@ -207,11 +207,15 @@ Role:
 - installed Codex discovery surface for charter intake
 - thin runtime wrapper over `system`, not a second source of truth
 
-Shipped M9.5 reality:
+Shipped M10.5 reality:
 
 - one discoverable skill name: `system-charter-intake`
+- authored install-home skill inputs live under `install/system-home/`
 - repo-local `.agents/skills/*` trees are thin generated projections only
 - the installed home is `~/system/`
+- `~/system/bin/system` is the only installed executable for this Codex surface
+- `~/system/runtime-manifest.json` remains part of the runtime contract
+- installed static guidance lives under `~/system/resources/**`
 - installed thin projections live under `~/system/.agents/skills/*`
 - `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
 - `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue
@@ -219,6 +223,8 @@ Shipped M9.5 reality:
 - the installed runtime may machine-parse only `system doctor --json`
 - validate/write steps use exit code plus persisted stdout/stderr transcripts; there is no second machine-readable authoring contract
 - the runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when outside a real git repo
+- there is no installed `~/system/bin/system-charter-intake`
+- there is no installed `~/system/share/**`
 
 Finished interaction target:
 
