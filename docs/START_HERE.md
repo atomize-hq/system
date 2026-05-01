@@ -44,6 +44,8 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - Installed static guidance lives under `~/system/resources/**`.
   - Installed thin projections live under `~/system/.agents/skills/*`.
   - `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`.
+  - Tagged GitHub Releases publish curated `~/system/` bundles for `macOS arm64` and `Linux x86_64`, together with `SHA256SUMS`.
+  - `scripts/system/install.sh` is the public release installer wrapper. It downloads the matching release bundle, verifies checksums, installs `~/system/`, and refreshes the Codex discovery glue without requiring a preinstalled `system` binary.
   - `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue.
   - `tools/codex/dev-setup.sh` is the dev-only symlink path.
   - There is no installed `~/system/bin/system-charter-intake` or `~/system/share/**`.
