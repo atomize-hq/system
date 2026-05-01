@@ -36,10 +36,19 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - `system author environment-inventory` writes canonical environment-inventory truth.
 - **Installed Codex charter intake**
   - `system doctor --json` is the only machine-readable readiness surface the installed skill may parse.
-  - Generated repo-local Codex assets live under `.agents/skills/`.
-  - Installed discovery/runtime assets live under `~/.codex/skills/`.
-  - `tools/codex/install.sh` installs packaging assets only; it assumes `system` is already on `PATH`.
+  - Codex packaging authored skill inputs live under `install/system-home/`.
+  - Repo-local `.agents/skills/*` trees are thin generated projections only.
+  - `~/system/` is the installed home.
+  - `~/system/bin/system` is the only installed executable for this Codex surface.
+  - `~/system/runtime-manifest.json` remains part of the runtime contract.
+  - Installed static guidance lives under `~/system/resources/**`.
+  - Installed thin projections live under `~/system/.agents/skills/*`.
+  - `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`.
+  - Tagged GitHub Releases publish curated `~/system/` bundles for `macOS arm64` and `Linux x86_64`, together with `SHA256SUMS`.
+  - `scripts/system/install.sh` is the public release installer wrapper. It downloads the matching release bundle, verifies checksums, installs `~/system/`, and refreshes the Codex discovery glue without requiring a preinstalled `system` binary.
+  - `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue.
   - `tools/codex/dev-setup.sh` is the dev-only symlink path.
+  - There is no installed `~/system/bin/system-charter-intake` or `~/system/share/**`.
   - The installed runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when run outside a real git repo.
 - **Planning packet generation** is supported from canonical repo-local `.system/`.
 - **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, one explicit downstream handoff-emission wedge, and narrow route-state mutation.

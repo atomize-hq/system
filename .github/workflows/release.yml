@@ -1,0 +1,129 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to publish, for example v0.7.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  verify-tag:
+    runs-on: ubuntu-22.04
+    outputs:
+      release_tag: ${{ steps.verify.outputs.release_tag }}
+      release_version: ${{ steps.verify.outputs.release_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.release_tag || github.ref_name }}
+      - id: verify
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          TAG="${RELEASE_TAG}"
+          if [[ -z "${TAG}" || "${TAG}" != "v${VERSION}" ]]; then
+            echo "release tag must exactly match VERSION: expected v${VERSION}, got ${TAG:-<empty>}" >&2
+            exit 1
+          fi
+          echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build-bundle:
+    needs: verify-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            label: linux_x86_64
+          - os: macos-14
+            label: macos_arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify-tag.outputs.release_tag }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release binary
+        run: cargo build --locked --release -p system-cli
+      - name: Verify built binary version
+        env:
+          RELEASE_VERSION: ${{ needs.verify-tag.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          BUILT_VERSION="$(./target/release/system --version | awk '{print $NF}')"
+          [[ "$BUILT_VERSION" == "$RELEASE_VERSION" ]] || {
+            echo "built binary version mismatch: expected ${RELEASE_VERSION}, found ${BUILT_VERSION}" >&2
+            exit 1
+          }
+      - name: Package curated system home
+        run: |
+          set -euo pipefail
+          mkdir -p dist/bundles
+          bash tools/release/package-system-home.sh \
+            --binary ./target/release/system \
+            --label "${{ matrix.label }}" \
+            --version "${{ needs.verify-tag.outputs.release_version }}" \
+            --output-dir dist/bundles
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle-${{ matrix.label }}
+          path: dist/bundles/*
+
+  publish:
+    needs:
+      - verify-tag
+      - build-bundle
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ needs.verify-tag.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.verify-tag.outputs.release_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify-tag.outputs.release_tag }}
+      - name: Download bundles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-bundle-*
+          path: release-bundles
+          merge-multiple: true
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd release-bundles
+          sha256sum system-v${RELEASE_VERSION}-*.tar.gz > SHA256SUMS
+      - name: Prepare release notes
+        run: |
+          set -euo pipefail
+          if ! command -v envsubst >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y gettext-base
+          fi
+          envsubst < dist/release-template.md > "$RUNNER_TEMP/release-notes.md"
+      - name: Publish GitHub release
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-bundles/* --clobber
+            gh release edit "$RELEASE_TAG" --title "system ${RELEASE_VERSION}" --notes-file "$RUNNER_TEMP/release-notes.md" >/dev/null
+          else
+            gh release create "$RELEASE_TAG" \
+              --target "${GITHUB_SHA}" \
+              --title "system ${RELEASE_VERSION}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              release-bundles/*
+          fi

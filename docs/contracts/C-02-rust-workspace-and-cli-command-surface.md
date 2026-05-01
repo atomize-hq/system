@@ -120,6 +120,15 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - `inspect` MUST be the supported proof surface for packet composition and decision evidence.
 - `doctor` MUST be the supported recovery and baseline-readiness surface for blockers, checklist rendering, and next safe actions.
 - `system doctor --json` MUST be the only machine-readable readiness surface for the installed charter-intake skill.
+- Docs and help text MUST identify `install/system-home/` as the authored source of install-home skill content.
+- Docs and help text MUST identify `~/system/` as the installed home for the Codex-facing install surface.
+- Docs and help text MUST identify `~/system/bin/system` as the only installed executable for the Codex-facing install surface.
+- Docs and help text MUST identify `~/system/runtime-manifest.json` as part of the installed runtime contract.
+- Docs and help text MUST identify `~/system/resources/**` as the installed static guidance root.
+- Repo-local `.agents/skills/*` trees MUST be described as thin generated projections only, never as the runtime payload root.
+- Installed thin projections MUST be described as living under `~/system/.agents/skills/*`.
+- `~/.codex/skills/system*` MUST be described as discovery glue only, pointing into `~/system/.agents/skills/*`.
+- Docs and help text MUST make clear that there is no installed `~/system/bin/system-charter-intake` and no installed `~/system/share/**`.
 - Missing-root, invalid-root, and missing-artifact recovery guidance MUST point to the setup family rather than to raw file-creation instructions.
 - Fixture-backed execution demo support MUST remain scoped to the existing `generate` / `inspect` request surface and defer detailed boundary semantics to [`C-06`](C-06-fixture-execution-demo-boundary.md).
 - Packet body structure, proof ordering, and renderer-specific output guarantees are owned by [`C-05`](C-05-renderer-and-proof-surfaces.md), not this contract.
@@ -159,6 +168,8 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 - [ ] Setup docs and help state that setup success hands off to `system doctor`.
 - [ ] `doctor` docs and help state the four baseline states exactly and document checklist lines as artifact label + canonical path + status + exact author command.
 - [ ] `doctor` docs and help state that `system doctor --json` is the machine-readable readiness surface.
+- [ ] Docs and help identify `install/system-home/` as the authored install-home source, `~/system/` as the installed home, `~/system/bin/system` as the only installed executable, `~/system/runtime-manifest.json` plus `~/system/resources/**` as installed runtime contract surfaces, repo `.agents/skills/*` as thin generated projections only, installed thin projections as living under `~/system/.agents/skills/*`, and `~/.codex/skills/system*` as discovery glue only.
+- [ ] Docs and help state that there is no installed `~/system/bin/system-charter-intake` and no installed `~/system/share/**`.
 - [ ] `generate` supports ready-path planning packet output from canonical repo-local `.system/` inputs.
 - [ ] `inspect` is documented as the packet proof surface.
 - [ ] `doctor` is documented as the recovery surface.

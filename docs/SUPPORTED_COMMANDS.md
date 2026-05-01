@@ -124,18 +124,18 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 ## Codex packaging and install surfaces
 
 ```bash
+bash scripts/system/install.sh
 bash tools/codex/generate.sh
 bash tools/codex/install.sh
 bash tools/codex/dev-setup.sh
-bash tools/codex/relink.sh
 bash tools/ci/install-smoke.sh
 bash tools/ci/codex-skill-live-smoke.sh
 ```
 
-- `tools/codex/generate.sh` is the handwritten source-to-generated-assets boundary for `.agents/skills/**`.
-- `tools/codex/install.sh` installs or reinstalls packaging assets under `~/.codex/skills/`. It does not build or reinstall the Rust binary.
+- `scripts/system/install.sh` is the thin public release installer wrapper. It downloads a tagged `~/system/` release bundle from GitHub Releases, verifies `SHA256SUMS`, installs `~/system/`, and refreshes `~/.codex/skills/system*`.
+- `tools/codex/generate.sh` is the handwritten source-to-generated-assets boundary from `install/system-home/` into thin generated `.agents/skills/**` projections.
+- `tools/codex/install.sh` is the repo-local installer. It owns the curated installed `~/system/` home, refreshes `~/.codex/skills/system*` as thin discovery glue into `~/system/.agents/skills/*`, installs `~/system/bin/system` as the only executable, and places runtime guidance under `~/system/resources/**`. It still expects a version-matching `system` binary on `PATH`.
 - `tools/codex/dev-setup.sh` is the dev-only symlink flow.
-- `tools/codex/relink.sh` is a convenience wrapper around the dev symlink flow.
 - `tools/ci/install-smoke.sh` proves install, reinstall, stale-runtime refusal, and install-mode crossover.
 - `tools/ci/codex-skill-live-smoke.sh` proves the installed happy path, existing-charter refusal, repo-local runtime override, and outside-git-repo refusal.
 

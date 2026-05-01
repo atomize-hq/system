@@ -50,29 +50,17 @@
 **Priority:** P3
 **Depends on:** Stable v1 packet resolver, real usage data, profiling evidence
 
-### Public CLI Distribution
+### Release Installer Smoke Coverage
 
-**What:** Add public CLI distribution and release packaging after the local install path is stable.
+**What:** Add a dedicated smoke rail for the public release installer wrapper and tagged GitHub Release bundles.
 
-**Why:** V1 only commits to explicit local installation on supported development targets, but a real CLI product will eventually need repeatable release artifacts, installation instructions, and update mechanics.
+**Why:** The repo now has a public release path, but the current CI proof still centers on repo-local install smoke. A separate rail should prove that the released tarball, `SHA256SUMS`, and `scripts/system/install.sh` work together the same way they will for real users.
 
-**Context:** The review locked v1 distribution to local Rust CLI installation on `macOS arm64` and `Linux x86_64`, with package-manager and public publishing work explicitly deferred. Once CLI UX and install smoke are stable, the next step is defining release artifacts, supported targets, checksums, and a boring installation/update path that does not require cloning the repo.
-
-**Effort:** M
-**Priority:** P3
-**Depends on:** Stable CLI UX, stable install smoke on supported targets, release channel decision
-
-### CLI Release Workflow
-
-**What:** Add a GitHub Actions release workflow that builds and publishes versioned CLI artifacts for the supported targets.
-
-**Why:** The Rust CLI now ships as a real product surface, but this branch intentionally deferred distribution automation. Without a release workflow, users still need the repo and local toolchain to install it.
-
-**Context:** `/ship` detected the new standalone CLI surface and the existing CI only validates build quality. It does not publish downloadable artifacts, checksums, or tagged releases. The local install smoke is now in place, so the next concrete step is a boring release workflow that packages the CLI for `macOS arm64` and `Linux x86_64` and attaches those artifacts to tagged releases.
+**Context:** Tagged GitHub Releases now publish curated `~/system/` bundles for `macOS arm64` and `Linux x86_64`, and `scripts/system/install.sh` installs those bundles without a preinstalled `system` binary. The remaining gap is automated proof for the release-distribution path itself: asset naming, checksum verification, top-level `system/` archive layout, and Codex discovery-link refresh from a downloaded bundle rather than a repo-local binary.
 
 **Effort:** S
-**Priority:** P1
-**Depends on:** Stable install smoke, release artifact naming, version tag convention
+**Priority:** P2
+**Depends on:** Stable release asset naming, stable public installer wrapper, available test host for served or local release assets
 
 ### Live Authoring Smoke Coverage
 

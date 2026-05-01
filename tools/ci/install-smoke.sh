@@ -2,56 +2,44 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-EVIDENCE_DIR="$ROOT_DIR/.implemented/m9.5-codex-skill-packaging"
+EVIDENCE_DIR="$ROOT_DIR/.implemented/m10-orchestration"
 LOG_PATH="$EVIDENCE_DIR/install-smoke.log"
 export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
 mkdir -p "$EVIDENCE_DIR"
 exec > >(tee "$LOG_PATH") 2>&1
 
-DISCOVERY_INSTALL_ROOT="$HOME/.codex/skills/system-charter-intake"
-RUNTIME_INSTALL_ROOT="$HOME/.codex/skills/system"
-RUNTIME_WRAPPER="$RUNTIME_INSTALL_ROOT/bin/system-charter-intake"
-FIXTURE_INPUTS="$ROOT_DIR/tools/fixtures/charter_inputs/runtime_smoke_valid.yaml"
+SYSTEM_HOME="$HOME/system"
+INSTALLED_ROOT_SKILL="$SYSTEM_HOME/.agents/skills/system"
+INSTALLED_DISCOVERY_SKILL="$SYSTEM_HOME/.agents/skills/system-charter-intake"
+CODEX_ROOT_SKILL="$HOME/.codex/skills/system"
+CODEX_DISCOVERY_SKILL="$HOME/.codex/skills/system-charter-intake"
 
-manifest_backup=""
-tmp_root=""
-
-cleanup() {
-  if [[ -n "$manifest_backup" && -f "$manifest_backup" ]]; then
-    cp "$manifest_backup" "$RUNTIME_INSTALL_ROOT/runtime-manifest.json"
-    rm -f "$manifest_backup"
-  fi
-  if [[ -n "$tmp_root" && -d "$tmp_root" ]]; then
-    rm -rf "$tmp_root"
-  fi
-}
-trap cleanup EXIT
-
-assert_runtime_root_exact_file_set() {
+assert_exact_file_set() {
   local root="$1"
+  local expected="$2"
   local actual
+
   actual="$(
-    find "$root" -maxdepth 4 -type f -print \
+    find "$root" -type f -print \
       | sed "s#^$root/##" \
       | sort
   )"
-  local expected
-  expected="$(cat <<'EOF'
-SKILL.md
-bin/system-charter-intake
-runtime-manifest.json
-share/authoring/charter_authoring_method.md
-share/charter/CHARTER_INPUTS.yaml.tmpl
-share/charter/charter_inputs_directive.md
-EOF
-)"
   [[ "$actual" == "$expected" ]] || {
-    echo "unexpected runtime root file set under $root"
+    echo "unexpected file set under $root"
     echo "actual:"
     printf '%s\n' "$actual"
     echo "expected:"
     printf '%s\n' "$expected"
+    exit 1
+  }
+}
+
+assert_path_absent() {
+  local path="$1"
+
+  [[ ! -e "$path" ]] || {
+    echo "unexpected path present: $path"
     exit 1
   }
 }
@@ -74,30 +62,83 @@ required = {
 missing = sorted(required.difference(data))
 if missing:
     raise SystemExit(f"missing manifest fields: {missing}")
+if data["skill_name"] != "system-charter-intake":
+    raise SystemExit(f"unexpected manifest skill_name: {data['skill_name']}")
 PY
 }
 
-assert_discovery_root() {
-  [[ -f "$DISCOVERY_INSTALL_ROOT/SKILL.md" ]] || {
-    echo "missing installed discovery SKILL.md"
+assert_repo_projection_thin() {
+  assert_exact_file_set "$ROOT_DIR/.agents/skills/system" "$(cat <<'EOF'
+SKILL.md
+agents/openai.yaml
+EOF
+)"
+  assert_exact_file_set "$ROOT_DIR/.agents/skills/system-charter-intake" "$(cat <<'EOF'
+SKILL.md
+agents/openai.yaml
+EOF
+)"
+}
+
+assert_repo_root_install_sources_absent() {
+  assert_path_absent "$ROOT_DIR/SKILL.md"
+  assert_path_absent "$ROOT_DIR/SKILL.md.tmpl"
+  assert_path_absent "$ROOT_DIR/agents"
+  assert_path_absent "$ROOT_DIR/charter-intake"
+}
+
+assert_installed_home_file_set() {
+  assert_exact_file_set "$SYSTEM_HOME" "$(cat <<'EOF'
+.agents/skills/system-charter-intake/SKILL.md
+.agents/skills/system-charter-intake/agents/openai.yaml
+.agents/skills/system/SKILL.md
+.agents/skills/system/agents/openai.yaml
+SKILL.md
+SKILL.md.tmpl
+agents/openai.yaml
+bin/system
+charter-intake/SKILL.md
+charter-intake/SKILL.md.tmpl
+resources/authoring/charter_authoring_method.md
+resources/charter/CHARTER_INPUTS.yaml.tmpl
+resources/charter/charter_inputs_directive.md
+runtime-manifest.json
+EOF
+)"
+}
+
+assert_installed_runtime_contract() {
+  test -x "$SYSTEM_HOME/bin/system"
+  test -d "$SYSTEM_HOME/resources/authoring"
+  test -d "$SYSTEM_HOME/resources/charter"
+  assert_path_absent "$SYSTEM_HOME/bin/system-charter-intake"
+  assert_path_absent "$SYSTEM_HOME/share"
+}
+
+assert_discovery_links_to_system_home() {
+  [[ "$(readlink "$CODEX_ROOT_SKILL")" == "$INSTALLED_ROOT_SKILL" ]] || {
+    echo "unexpected root discovery link target"
+    readlink "$CODEX_ROOT_SKILL" || true
+    exit 1
+  }
+  [[ "$(readlink "$CODEX_DISCOVERY_SKILL")" == "$INSTALLED_DISCOVERY_SKILL" ]] || {
+    echo "unexpected leaf discovery link target"
+    readlink "$CODEX_DISCOVERY_SKILL" || true
     exit 1
   }
 }
 
-tamper_manifest_version() {
-  local manifest_path="$1"
-  python3 - "$manifest_path" <<'PY'
-import json
-import sys
-
-path = sys.argv[1]
-with open(path, encoding="utf-8") as handle:
-    data = json.load(handle)
-data["system_release_version"] = "0.0.0-stale"
-with open(path, "w", encoding="utf-8") as handle:
-    json.dump(data, handle, indent=2, sort_keys=True)
-    handle.write("\n")
-PY
+assert_dev_setup_links_to_repo() {
+  [[ "$(readlink "$CODEX_ROOT_SKILL")" == "$ROOT_DIR/.agents/skills/system" ]] || {
+    echo "unexpected dev root discovery link target"
+    readlink "$CODEX_ROOT_SKILL" || true
+    exit 1
+  }
+  [[ "$(readlink "$CODEX_DISCOVERY_SKILL")" == "$ROOT_DIR/.agents/skills/system-charter-intake" ]] || {
+    echo "unexpected dev leaf discovery link target"
+    readlink "$CODEX_DISCOVERY_SKILL" || true
+    exit 1
+  }
 }
 
 echo "==> cargo install (crates/cli)"
@@ -110,61 +151,39 @@ system doctor --help >/dev/null
 system author charter --help >/dev/null
 
 echo "==> generator/install smoke"
+bash tools/codex/generate.sh
+assert_repo_projection_thin
+assert_repo_root_install_sources_absent
 bash tools/codex/install.sh
-assert_discovery_root
-assert_runtime_root_exact_file_set "$RUNTIME_INSTALL_ROOT"
-assert_manifest_fields "$RUNTIME_INSTALL_ROOT/runtime-manifest.json"
+assert_installed_home_file_set
+assert_installed_runtime_contract
+assert_discovery_links_to_system_home
+assert_manifest_fields "$SYSTEM_HOME/runtime-manifest.json"
 
 echo "==> reinstall smoke"
-before_listing="$(find "$RUNTIME_INSTALL_ROOT" -maxdepth 4 -type f -print | sort)"
+before_listing="$(find "$SYSTEM_HOME" -type f -print | sort)"
 bash tools/codex/install.sh
-after_listing="$(find "$RUNTIME_INSTALL_ROOT" -maxdepth 4 -type f -print | sort)"
+after_listing="$(find "$SYSTEM_HOME" -type f -print | sort)"
 [[ "$before_listing" == "$after_listing" ]] || {
   echo "reinstall changed installed file set"
   exit 1
 }
-
-echo "==> stale runtime refusal smoke"
-tmp_root="$(mktemp -d)"
-repo_root="$tmp_root/stale-runtime-repo"
-mkdir -p "$repo_root"
-git -C "$repo_root" init -q
-manifest_backup="$(mktemp)"
-cp "$RUNTIME_INSTALL_ROOT/runtime-manifest.json" "$manifest_backup"
-tamper_manifest_version "$RUNTIME_INSTALL_ROOT/runtime-manifest.json"
-
-set +e
-stale_output="$(
-  cd "$repo_root"
-  "$RUNTIME_WRAPPER" --inputs "$FIXTURE_INPUTS" 2>&1
-)"
-stale_status=$?
-set -e
-if [[ $stale_status -eq 0 ]]; then
-  echo "expected nonzero exit for stale runtime refusal"
-  exit 1
-fi
-[[ "$stale_output" == *"runtime version mismatch"* ]] || {
-  echo "expected runtime version mismatch refusal"
-  echo "$stale_output"
-  exit 1
-}
-cp "$manifest_backup" "$RUNTIME_INSTALL_ROOT/runtime-manifest.json"
-rm -f "$manifest_backup"
-manifest_backup=""
+assert_installed_home_file_set
+assert_installed_runtime_contract
+assert_discovery_links_to_system_home
 
 echo "==> dev-setup symlink smoke"
 bash tools/codex/dev-setup.sh
-test -L "$DISCOVERY_INSTALL_ROOT"
-test -L "$RUNTIME_INSTALL_ROOT"
+test -L "$CODEX_ROOT_SKILL"
+test -L "$CODEX_DISCOVERY_SKILL"
+assert_dev_setup_links_to_repo
 
 echo "==> install-mode crossover smoke"
 bash tools/codex/install.sh
-test ! -L "$DISCOVERY_INSTALL_ROOT"
-test ! -L "$RUNTIME_INSTALL_ROOT"
-test -d "$DISCOVERY_INSTALL_ROOT"
-test -d "$RUNTIME_INSTALL_ROOT"
-assert_discovery_root
-assert_runtime_root_exact_file_set "$RUNTIME_INSTALL_ROOT"
+test -L "$CODEX_ROOT_SKILL"
+test -L "$CODEX_DISCOVERY_SKILL"
+assert_discovery_links_to_system_home
+assert_installed_home_file_set
+assert_installed_runtime_contract
 
 echo "OK"

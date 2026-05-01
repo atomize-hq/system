@@ -1,585 +1,759 @@
-<!-- /autoplan restore point: /Users/spensermcconnell/.gstack/projects/atomize-hq-system/feat-m8-autoplan-restore-20260429-164522.md -->
 # PLAN
 
 ## Status
 
-This is the implementation plan for `M10` on branch `feat/m8`.
+This is the corrective implementation plan for `M10.5` on branch `feat/m10`.
 
-`M9.5` already shipped and passed verification. `M10` is not a behavior rewrite, not a new host milestone, and not release packaging. It is the source-of-truth correction that makes `system` match the `gstack` style of Codex skill authorship and projection, while intentionally preserving the installed family name `system`.
+It replaces the earlier `M10` packaging story because the repo still codifies the wrong model in three places:
 
-## Checkpoint Resume
+- authored install-home inputs still live at repo root instead of under a curated install subtree
+- the installed runtime still includes a second helper executable, `~/system/bin/system-charter-intake`
+- installed static guidance still uses `share/**` naming even though this is product runtime content and should be `resources/**`
 
-Recovered from `/Users/spensermcconnell/.gstack/projects/atomize-hq-system/checkpoints/20260429-142427-m95-codex-packaging-landed-m10-gstack-parity-gap.md`.
+The milestone lock is:
 
-Locked facts from that checkpoint:
-
-- `M9.5` landed and is usable.
-- The install and discovery surface already works.
-- The gap is canonical packaging authorship, not runtime behavior for operators.
-- `gstack` parity means repo-owned `SKILL.md.tmpl` sources, generated host projections, and a real root host skill pattern.
-- The root host skill pattern stays in scope for `system`.
-
-## Locked Direction
-
-These points are not up for reinterpretation inside `M10`:
-
-1. Match the `gstack` type of install surface and source layout, not an approximation invented during implementation.
-2. Keep the root host skill pattern.
-3. Keep the discoverable leaf skill `system-charter-intake`.
-4. Keep the installed family name `system`, not a repo-name alias.
-5. Keep user-home runtime naming under `system`, including `~/.codex/skills/system`, `~/.codex/skills/system-charter-intake`, and `~/.local/state/system/intake/runs/`.
-6. Preserve the shipped `M9.5` operator contract unless a change is required to make the packaging surface truly match the target shape.
-7. Do not reopen earlier reviewed reduced-v1 pipeline boundaries during `M10`; the M1 activation clause shape remains boolean-only in the form `variables.<name> == true|false`.
+> We want a gstack-style installed home, but populated from a curated `install/system-home/` source subtree, not from repo root and not by installing the repo itself; `~/system/bin/system` is the only installed executable, and `system-charter-intake` is only a skill/discovery surface, not a second binary.
 
 ## Objective
 
-Move Codex packaging authorship out of `tools/codex/` and into a repo-owned canonical skill layout that mirrors `gstack`:
+Land one coherent packaging and runtime contract:
 
-- repo root owns the root host skill source
-- leaf skill directory owns the discoverable skill source
-- authored skill content lives in `SKILL.md.tmpl`
-- generated host outputs live under `.agents/skills/`
-- installed outputs live under `~/.codex/skills/`
-- runtime payload membership is driven by one explicit manifest
+1. Authored install-home skill inputs live under `install/system-home/`.
+2. Repo `.agents/skills/*` remains thin generated projection output only.
+3. `~/system/` is the only installed product home.
+4. `~/.codex/skills/*` remains discovery glue only.
+5. `~/system/bin/system` is the only installed executable for this Codex surface.
 
-The result should be boring:
+Success means all of the following are true at once:
 
-- one authored source layout
-- one generator
-- one generated repo-local projection
-- one installed projection
-- one place to edit each class of truth
+- repo root no longer owns install-home authored files
+- normal install produces a curated `~/system/` home, not a repo clone
+- the installed runtime has `runtime-manifest.json` plus `resources/**`, but no `bin/system-charter-intake` and no `share/**`
+- normal install restores discovery to `~/system/.agents/skills/*` even after dev override mode
+- the `system-charter-intake` skill executes by invoking `~/system/bin/system` directly
 
-## Exact Target Shape
+Legacy invariant preserved during `M10.5`:
 
-### Canonical authored source
-
-```text
-SKILL.md.tmpl
-runtime-manifest.json.tmpl
-runtime-assets.json
-charter-intake/
-  SKILL.md.tmpl
-```
-
-Rules:
-
-- Root `SKILL.md.tmpl` is the canonical authored source for the root host skill `system`.
-- `charter-intake/SKILL.md.tmpl` is the canonical authored source for the discoverable leaf skill `system-charter-intake`.
-- `runtime-manifest.json.tmpl` is the canonical authored source for runtime manifest metadata.
-- `runtime-assets.json` is the only authored list of non-template runtime payloads copied into the root runtime.
-- The orchestration currently authored in `tools/codex/runtime/bin/system-charter-intake.tmpl` moves into `charter-intake/SKILL.md.tmpl`.
-- There are no handwritten runtime shell programs left under `tools/codex/runtime/bin/` after `M10`.
-- `bin/` in generated and installed runtime roots contains the packaged `system` binary, not a template wrapper.
-- Runtime payload content that already belongs in `core/library/**` stays there. `M10` does not create a second handwritten content tree.
-
-### Generated repo-local projection
-
-```text
-.agents/skills/system/
-  SKILL.md
-  runtime-manifest.json
-  bin/system
-  share/authoring/charter_authoring_method.md
-  share/charter/CHARTER_INPUTS.yaml.tmpl
-  share/charter/charter_inputs_directive.md
-
-.agents/skills/system-charter-intake/
-  SKILL.md
-```
-
-### Installed user-home projection
-
-```text
-~/.codex/skills/system/
-~/.codex/skills/system-charter-intake/
-```
-
-### Runtime naming tweak, intentionally preserved
-
-This plan keeps the user-home family name as `system`, not a repo-name alias:
-
-- `~/.codex/skills/system`
-- `~/.codex/skills/system-charter-intake`
-- `~/.local/state/system/intake/runs/`
-
-That is the intentional naming tweak. It is not a different surface model.
-
-## Scope Lock
-
-### In scope
-
-- add repo-root `SKILL.md.tmpl` for the root host skill
-- add repo-root `runtime-manifest.json.tmpl`
-- add repo-root `runtime-assets.json`
-- add leaf `charter-intake/SKILL.md.tmpl`
-- rewrite `tools/codex/generate.sh` to project from those authored sources
-- package the real `system` binary into the root runtime as `bin/system`
-- move intake orchestration from a runtime wrapper template into the generated leaf `SKILL.md`
-- keep `.agents/skills/system` and `.agents/skills/system-charter-intake` as generated outputs
-- keep `tools/codex/install.sh`, `tools/codex/dev-setup.sh`, and `tools/codex/relink.sh` as the install and dev entrypoints
-- update smoke rails and docs so they describe the new source-of-truth model exactly
-- preserve repo-local runtime override precedence: `<repo>/.agents/skills/system` first, then `~/.codex/skills/system`
-
-### NOT in scope
-
-- changing `system doctor --json`
-- changing `system author charter --validate --from-inputs`
-- changing `system author charter --from-inputs`
-- adding more discoverable skills
-- adding `.claude/skills/` generation
-- adding a generic multi-host packaging framework
-- changing the repo-local `.agents/skills/` override precedence model
-- adding stale-override invalidation logic that does not exist in the target `gstack` shape
-- public release packaging or registry distribution
+- `M1` activation remains boolean-only in the form `variables.<name> == true|false`.
 
 ## Step 0: Scope Challenge
 
 ### What already exists
 
-| Sub-problem | Existing code or asset | `M10` decision |
+| Surface | Current state | Keep / change |
 | --- | --- | --- |
-| generator entrypoint | `tools/codex/generate.sh` | keep, but make it projection-only |
-| install flow | `tools/codex/install.sh` | keep |
-| dev symlink flow | `tools/codex/dev-setup.sh`, `tools/codex/relink.sh` | keep |
-| generated output names | `.agents/skills/system`, `.agents/skills/system-charter-intake` | keep |
-| installed output names | `~/.codex/skills/system`, `~/.codex/skills/system-charter-intake` | keep |
-| root runtime templates | `tools/codex/runtime/SKILL.md.tmpl`, `tools/codex/runtime/runtime-manifest.json.tmpl` | replace with repo-root authored sources |
-| leaf skill template | `tools/codex/templates/system-charter-intake.SKILL.md.tmpl` | move to `charter-intake/SKILL.md.tmpl` |
-| runtime wrapper logic | `tools/codex/runtime/bin/system-charter-intake.tmpl` | remove as an authored runtime file, inline into leaf `SKILL.md.tmpl` |
-| runtime payload files | `core/library/authoring/charter_authoring_method.md`, `core/library/charter/**` | keep as content sources, copy via manifest |
-| runtime binary contract | installed `system` CLI on `PATH` | copy that exact binary into generated root runtime after version check |
-| conformance rails | `tools/ci/install-smoke.sh`, `tools/ci/codex-skill-live-smoke.sh`, `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` | extend for the new source model |
+| `tools/codex/generate.sh` | already generates thin repo `.agents/skills/system*` | keep purpose, change inputs and stop writing repo-root skill files |
+| `tools/codex/install.sh` | already owns `~/system/` mutation, PATH checks, version checks, stage-then-swap install | keep install spine, change staged payload and delete legacy runtime wrapper contract |
+| `tools/codex/dev-setup.sh` | already points Codex discovery at repo-generated projections | keep as the only explicit dev override flow |
+| `tools/codex/relink.sh` | currently aliases `dev-setup.sh` and therefore reinforces the wrong default mental model | remove or repurpose; `install.sh` should be the only production relink path |
+| repo `.agents/skills/system*` | already thin | keep thinness invariant |
+| repo-root `SKILL.md.tmpl`, `SKILL.md`, `agents/openai.yaml`, `charter-intake/**` | currently treated as install-home truth | migrate authored truth into `install/system-home/`, then delete repo-root ownership |
+| `tools/codex/runtime/runtime-manifest.json.tmpl` | still part of the installed runtime contract | keep, but only as install-time manifest source |
+| `tools/codex/runtime/bin/system-charter-intake.tmpl` | still encodes the second helper-binary contract | delete this contract entirely |
+| `core/library/authoring/**` and `core/library/charter/**` | already hold the static guidance the installed runtime needs | keep as the source of installed `resources/**` payload |
+| `tools/ci/install-smoke.sh` | already validates install topology in an isolated home | keep harness, rewrite assertions to the exact `M10.5` file set |
+| `tools/ci/codex-skill-live-smoke.sh` | already validates end-to-end skill execution | keep harness, rewrite it around direct `~/system/bin/system` invocation and `resources/**` |
+
+### Existing-code leverage map
+
+| Sub-problem | Existing code to reuse | `M10.5` action |
+| --- | --- | --- |
+| generate thin repo projections | `tools/codex/generate.sh` | rewrite inputs, preserve thin output contract |
+| stage and atomically replace `~/system/` | `tools/codex/install.sh` temp-dir swap pattern | preserve pattern, shrink staged payload to the curated contract |
+| dev discovery override | `tools/codex/dev-setup.sh` | preserve as explicit override mode only |
+| restore production discovery topology | `tools/codex/install.sh` | make reinstall the only supported production relink path |
+| installed runtime manifest rendering | `tools/codex/runtime/runtime-manifest.json.tmpl` | preserve manifest role, keep it install-owned |
+| installed static guidance | `core/library/authoring/**`, `core/library/charter/**` | preserve source locations, rename installed destination to `resources/**` |
+| live skill smoke | `tools/ci/codex-skill-live-smoke.sh` | preserve scenario coverage, change runtime expectations |
+| install smoke | `tools/ci/install-smoke.sh` | preserve file-set and symlink assertions, update the expected contract |
 
 ### Minimum change set
 
-The minimum honest implementation is:
+This milestone touches more than 8 files. That is not scope creep here, it is one packaging contract spread across scripts, templates, generated projections, smoke rails, and user-facing docs.
 
-1. introduce repo-root and leaf authored sources
-2. rewrite generation to consume them
-3. package `bin/system` instead of an authored wrapper script
-4. keep generated and installed output names stable
-5. prove the new source model through smoke rails and docs
+The minimum complete fix is:
 
-Anything less leaves `tools/codex/` as the real authored home. That would miss the whole point.
+1. move authored install-home skill inputs into `install/system-home/`
+2. make `generate.sh` read only from that subtree and emit only thin repo projections
+3. make `install.sh` build the curated installed home from explicit sources instead of repo-root install-home files
+4. delete the second helper-binary contract entirely
+5. rename installed static guidance from `share/**` to `resources/**`
+6. cut docs and smokes to the same exact topology
 
-### Complexity check
+Anything smaller leaves dual truth in the repo. That is worse than waiting.
 
-This plan touches more than 8 files, but it does not introduce new crates, new services, or new infrastructure. The blast radius is packaging sources, packaging scripts, generated assets, smoke rails, and docs/contracts only. That is acceptable.
+### Complexity ruling
 
-### Search and parity check
+The plan is intentionally not being scope-reduced below the six items above.
 
-The target pattern is grounded in the actual `gstack` shape already present on disk:
+Why:
 
-- a repo-owned root `SKILL.md.tmpl`
-- repo-owned leaf `SKILL.md.tmpl` sources
-- generated `.agents/skills/<family>` and `.agents/skills/<family>-<skill>` projections
-- installed `~/.codex/skills/<family>` and `~/.codex/skills/<family>-<skill>` surfaces
+- repo-root authorship, helper-binary runtime, and `share/**` naming are all the same bug, one incorrect packaging story split across different files
+- changing only one layer would guarantee another corrective pass
+- the blast radius is bounded and boring: shell scripts, markdown, symlinks, and exact file-set assertions
 
-The current `system` layout is weaker because authored truth is split across `tools/codex/runtime/`, `tools/codex/templates/`, and `core/library/`. `M10` fixes that.
+### Search and boring-tech check
 
-### TODOS cross-reference
+This plan introduces no new infrastructure and spends zero innovation tokens.
 
-`TODOS.md` already has downstream items for public CLI distribution and later host surfaces. Nothing in `TODOS.md` blocks `M10`, and `M10` does not need new TODO entries if it lands as written.
+It stays with:
+
+- shell scripts
+- deterministic file copies
+- rendered templates
+- symlink-based discovery glue
+- exact smoke assertions
+
+That is the right call.
 
 ### Completeness check
 
-The complete version is cheap here. Half-moving the source model would save almost no effort and force another cleanup milestone immediately after this one.
+Shortcut version:
+
+- move files under `install/system-home/`
+- keep the helper binary
+- keep `share/**`
+- leave docs and smokes partially stale
+
+Complete version:
+
+- move authored install-home skill inputs under `install/system-home/`
+- install only `~/system/bin/system`
+- delete the helper-binary contract
+- rename installed static guidance to `resources/**`
+- make docs and smoke rails fail on any drift
+
+Recommendation: do the complete version. The delta is minutes of shell and docs work now versus another cleanup milestone immediately after this one.
 
 ### Distribution check
 
-`M10` does not introduce a new artifact type. Local Codex installation remains the only supported distribution path in this milestone. Public CLI release automation stays deferred.
+This milestone does not add a new public artifact type. Distribution remains explicit local installation on supported development targets only.
 
-## Architecture Review
+Out of scope for `M10.5`:
 
-### Current to target
+- GitHub Releases
+- package-manager distribution
+- installer/updater channels
+- multi-platform release automation
+
+That deferral must stay explicit. `M10.5` is about fixing the local installed-home contract, not widening distribution.
+
+## Canonical Contract
+
+### Source-of-truth layers
+
+| Layer | Owner | Purpose | Allowed contents | Forbidden contents |
+| --- | --- | --- | --- | --- |
+| `install/system-home/` | authored source | skill-facing install-home inputs | `SKILL.md.tmpl`, `agents/openai.yaml`, leaf skill templates | generated outputs, runtime manifest, installed resources payload |
+| `tools/codex/runtime/` | install-time runtime templates | installed runtime metadata only | `runtime-manifest.json.tmpl` | helper executables, discovery projections |
+| `core/library/authoring/**`, `core/library/charter/**` | canonical library content | installed static guidance | markdown/templates copied into `resources/**` | install logic, generated projections |
+| repo `.agents/skills/*` | generator output | thin repo-local discovery projections | `SKILL.md`, `agents/openai.yaml` | `bin/`, `runtime-manifest.json`, `resources/` |
+| `~/system/` | installer-owned runtime | real installed product home | exact curated file set below | repo clone, helper binaries, stray legacy payload |
+| `~/.codex/skills/*` | discovery glue | Codex discovery only | symlinks or thin copies into `~/system/.agents/skills/*` or repo projections in dev mode | runtime payload, install-home source |
+
+### Repo source shape
 
 ```text
-CURRENT
-=======
-tools/codex/runtime/*           tools/codex/templates/*
-             \                  /
-              \                /
-               +-- generate.sh +
-                        |
-                        v
-              .agents/skills/system*
-                        |
-                        v
-              ~/.codex/skills/system*
-
-TARGET
-======
-repo root SKILL.md.tmpl
-repo root runtime-manifest.json.tmpl
-repo root runtime-assets.json
-charter-intake/SKILL.md.tmpl
-             |
-             v
-     tools/codex/generate.sh
-             |
-             +--> .agents/skills/system/
-             |      - SKILL.md
-             |      - runtime-manifest.json
-             |      - bin/system
-             |      - share/**
-             |
-             +--> .agents/skills/system-charter-intake/
-                    - SKILL.md
-             |
-             v
-     tools/codex/install.sh
-             |
-             v
-     ~/.codex/skills/system/
-     ~/.codex/skills/system-charter-intake/
+install/system-home/
+  SKILL.md.tmpl
+  agents/
+    openai.yaml
+  charter-intake/
+    SKILL.md.tmpl
 ```
 
-### Ownership contract
+Rules:
 
-| Concern | Authoritative source | Generated output | Not allowed after `M10` |
-| --- | --- | --- | --- |
-| root host skill text | `SKILL.md.tmpl` | `.agents/skills/system/SKILL.md` | authored root skill text in `tools/codex/runtime/` |
-| leaf skill text | `charter-intake/SKILL.md.tmpl` | `.agents/skills/system-charter-intake/SKILL.md` | authored leaf skill text in `tools/codex/templates/` |
-| runtime manifest metadata | `runtime-manifest.json.tmpl` | `.agents/skills/system/runtime-manifest.json` | inline manifest JSON in shell |
-| runtime payload membership | `runtime-assets.json` | `.agents/skills/system/share/**` | hidden copy lists inside `generate.sh` |
-| packaged executable | installed `system` binary on `PATH`, version-matched to repo `VERSION` | `.agents/skills/system/bin/system` | generated wrapper as the primary runtime program |
-| intake orchestration | `charter-intake/SKILL.md.tmpl` | `.agents/skills/system-charter-intake/SKILL.md` | authored `tools/codex/runtime/bin/system-charter-intake.tmpl` |
+- `install/system-home/` is the authored source of truth for install-home skill content.
+- repo root must not retain authored install-home files after this migration.
+- shared installed runtime guidance still comes from `core/library/**`, not from `install/system-home/`.
+- the installer never installs the repo itself.
 
-### Root host skill contract
+### Installed home shape
 
-The root host skill stays, but it is not the main discoverable workflow. Its job is:
+```text
+~/system/
+  SKILL.md.tmpl
+  SKILL.md
+  agents/
+    openai.yaml
+  runtime-manifest.json
+  bin/
+    system
+  charter-intake/
+    SKILL.md.tmpl
+    SKILL.md
+  resources/
+    authoring/
+      charter_authoring_method.md
+    charter/
+      CHARTER_INPUTS.yaml.tmpl
+      charter_inputs_directive.md
+  .agents/
+    skills/
+      system/
+        SKILL.md
+        agents/
+          openai.yaml
+      system-charter-intake/
+        SKILL.md
+        agents/
+          openai.yaml
+```
 
-- root skill metadata for the `system` family
-- runtime manifest ownership
-- packaged binary ownership
-- shared payload ownership
-- install and override anchor for the family
+Rules:
 
-It should describe the runtime root clearly and refuse hand edits to generated output.
+- `~/system/` is curated and install-owned, not a git checkout.
+- `~/system/bin/system` is the only installed executable for this Codex surface.
+- `~/system/runtime-manifest.json` remains part of the runtime contract.
+- `~/system/resources/**` is the installed static guidance root.
+- `~/system/.agents/skills/*` stays thin.
+- there is no `~/system/bin/system-charter-intake`.
+- there is no `~/system/share/**`.
 
-### Leaf skill orchestration contract
+### Codex discovery shape
 
-The discoverable workflow remains `system-charter-intake`. After `M10`, the generated leaf `SKILL.md` owns the orchestration that `M9.5` previously put in `bin/system-charter-intake`.
+```text
+~/.codex/skills/
+  system -> ~/system/.agents/skills/system
+  system-charter-intake -> ~/system/.agents/skills/system-charter-intake
+```
 
-The generated leaf `SKILL.md` must do all of this explicitly:
+Rules:
 
-1. resolve `repo_root` with `git rev-parse --show-toplevel`
-2. resolve runtime root in this order:
-   - `<repo>/.agents/skills/system`
-   - `~/.codex/skills/system`
-3. require this exact runtime root file set:
-   - `SKILL.md`
-   - `runtime-manifest.json`
-   - `bin/system`
-   - `share/authoring/charter_authoring_method.md`
-   - `share/charter/CHARTER_INPUTS.yaml.tmpl`
-   - `share/charter/charter_inputs_directive.md`
-4. export `SYSTEM_CODEX_ROOT` to the resolved runtime root
-5. run the shipped loop using `"$SYSTEM_CODEX_ROOT/bin/system"` for every command, not `PATH` lookup:
-   - `doctor --json`
-   - `setup` if required
-   - `author charter --validate --from-inputs`
-   - `author charter --from-inputs`
-   - post-write `doctor --json`
-6. keep the run-evidence contract at `~/.local/state/system/intake/runs/<timestamp-pid>/`
-7. keep `system doctor --json` as the only machine-parsed output
+- `~/.codex/skills/*` is discovery glue only.
+- normal install must restore this topology.
+- dev setup may temporarily repoint discovery to repo `.agents/skills/*`, but only in explicit override mode.
 
-This is the key architectural decision in `M10`: orchestration moves into the generated skill document, while the packaged runtime root contains only the real `system` binary plus shared assets.
+### Installed artifact map
 
-### Generator contract
+| Installed path | Source | Produced by |
+| --- | --- | --- |
+| `~/system/SKILL.md.tmpl` | `install/system-home/SKILL.md.tmpl` | `install.sh` copy |
+| `~/system/SKILL.md` | `install/system-home/SKILL.md.tmpl` | `install.sh` render |
+| `~/system/agents/openai.yaml` | `install/system-home/agents/openai.yaml` | `install.sh` copy |
+| `~/system/charter-intake/SKILL.md.tmpl` | `install/system-home/charter-intake/SKILL.md.tmpl` | `install.sh` copy |
+| `~/system/charter-intake/SKILL.md` | `install/system-home/charter-intake/SKILL.md.tmpl` | `install.sh` render |
+| `~/system/runtime-manifest.json` | `tools/codex/runtime/runtime-manifest.json.tmpl` | `install.sh` render |
+| `~/system/bin/system` | verified `system` on `PATH` matching repo `VERSION` | `install.sh` copy |
+| `~/system/resources/authoring/charter_authoring_method.md` | `core/library/authoring/charter_authoring_method.md` | `install.sh` copy |
+| `~/system/resources/charter/CHARTER_INPUTS.yaml.tmpl` | `core/library/charter/CHARTER_INPUTS.yaml.tmpl` | `install.sh` copy |
+| `~/system/resources/charter/charter_inputs_directive.md` | `core/library/charter/charter_inputs_directive.md` | `install.sh` copy |
+| `~/system/.agents/skills/system/**` | repo `.agents/skills/system/**` | `install.sh` copy after generation |
+| `~/system/.agents/skills/system-charter-intake/**` | repo `.agents/skills/system-charter-intake/**` | `install.sh` copy after generation |
 
-`tools/codex/generate.sh` becomes purely a projection script. It must:
+### Explicit non-goals
 
-1. read repo `VERSION`
-2. require `system` on `PATH`
-3. assert `system --version` matches repo `VERSION`
-4. render root `SKILL.md.tmpl` into `.agents/skills/system/SKILL.md`
-5. render `runtime-manifest.json.tmpl` into `.agents/skills/system/runtime-manifest.json`
-6. render `charter-intake/SKILL.md.tmpl` into `.agents/skills/system-charter-intake/SKILL.md`
-7. copy the resolved `system` binary into `.agents/skills/system/bin/system`
-8. copy payload assets declared in `runtime-assets.json` into `.agents/skills/system/share/**`
-9. remove outputs that no longer belong, including `bin/system-charter-intake`
+We do not want:
 
-The generator may not contain any second copy of runtime payload membership once `runtime-assets.json` exists.
+- repo-root install-home source files
+- `~/system/` as a repo clone
+- runtime payload under repo `.agents/skills/*`
+- runtime payload under `~/.codex/skills/*`
+- a second installed helper binary
+- compatibility shims that keep `share/**` around
 
-### Install behavior
+## Behavioral Contract
 
-Install behavior stays the shipped `M9.5` story:
+### `tools/codex/generate.sh`
 
-- `bash tools/codex/install.sh` regenerates and copies both roots into `~/.codex/skills/`
-- `bash tools/codex/dev-setup.sh` regenerates and symlinks both roots into `~/.codex/skills/`
-- normal install after dev setup replaces symlinks with copied directories
+`generate.sh` must:
 
-No new install surface is introduced. No repo clone is copied into the home directory.
+1. read authored skill inputs only from `install/system-home/`
+2. render repo `.agents/skills/system/SKILL.md`
+3. render repo `.agents/skills/system-charter-intake/SKILL.md`
+4. copy `agents/openai.yaml` into both thin projections
+5. assert the thin file set exactly
+6. never write repo-root `SKILL.md`
+7. never write repo-root `charter-intake/SKILL.md`
+8. never mutate `$HOME`
 
-## Code Quality Review
+### `tools/codex/install.sh`
 
-### Required design rules
+`install.sh` must:
 
-- `tools/codex/` becomes tooling only, not authored skill content
-- generated `.agents/skills/**` remains ignored build output
-- no duplicated handwritten copies of `core/library/**` payload files
-- no hidden runtime shell wrapper authored under `tools/codex/runtime/bin/`
-- no generic host abstraction layer
-- no new crate
-- no new command surface
+1. require `system` on `PATH`
+2. verify `system --version` matches repo `VERSION`
+3. call `generate.sh` or otherwise guarantee fresh thin projections before staging
+4. stage the curated file set into a temp dir
+5. render installed `SKILL.md` files directly from `install/system-home/**/*.tmpl`
+6. render `runtime-manifest.json` from `tools/codex/runtime/runtime-manifest.json.tmpl`
+7. copy static runtime guidance into `~/system/resources/**`
+8. copy only the thin repo projections into `~/system/.agents/skills/*`
+9. remove legacy heavy-install leftovers by replacing the entire installed root
+10. refresh `~/.codex/skills/*` to point into `~/system/.agents/skills/*`
 
-### Directory hygiene
+### `tools/codex/dev-setup.sh` and `tools/codex/relink.sh`
 
-After `M10`, a contributor should be able to answer these questions in under 30 seconds:
+`dev-setup.sh` remains the only explicit override mode. Its job is simple: point Codex discovery at repo `.agents/skills/*`.
 
-1. Where is the authored root skill source?
-2. Where is the authored leaf skill source?
-3. Where is the authoritative runtime manifest template?
-4. Where is the authoritative runtime payload list?
-5. What script turns authored sources into generated projections?
+`relink.sh` in its current form is ambiguous because it is just another way to enable dev mode. `M10.5` should remove that ambiguity:
 
-If any answer still starts with "part of it is in `tools/codex/` and part of it is somewhere else", the plan failed.
+- either delete `tools/codex/relink.sh`
+- or repurpose it to mean "restore production discovery topology" by delegating to install behavior
+
+Recommendation: delete it. `dev-setup.sh` is the override path. `install.sh` is the production relink path. One command for each story.
+
+### `system-charter-intake` runtime flow
+
+After `M10.5`, the leaf skill flow is:
+
+1. refuse immediately if the user is not inside a real git repo
+2. resolve `SYSTEM_HOME`, defaulting to `~/system`
+3. assert `~/system/bin/system` exists and is executable
+4. assert `~/system/runtime-manifest.json` exists
+5. assert required runtime guidance exists under `~/system/resources/**`
+6. validate manifest fields and verify the installed binary version still matches the manifest
+7. run the existing doctor/setup/validate/write loop by invoking `~/system/bin/system` directly
+8. persist transcripts and session evidence under `~/.local/state/system/intake/runs/`
+
+Rules:
+
+- the leaf skill remains a skill/discovery surface, not an installed executable
+- no writes land under `~/system/`
+- no writes land under `~/.codex/skills/`
+- the manifest still records `skill_name = system-charter-intake`
+- installed static guidance is read from `resources/**`, never `share/**`
+
+### Repo and runtime paths that must disappear
+
+The plan is incomplete if any of these remain as active contract paths:
+
+- repo-root `SKILL.md.tmpl`
+- repo-root `SKILL.md`
+- repo-root `agents/openai.yaml`
+- repo-root `charter-intake/SKILL.md.tmpl`
+- repo-root `charter-intake/SKILL.md`
+- `tools/codex/runtime/bin/system-charter-intake.tmpl`
+- `~/system/bin/system-charter-intake`
+- `~/system/share/**`
+
+## Architecture
+
+### Packaging dependency graph
+
+```text
+install/system-home/*.tmpl            core/library/**                 tools/codex/runtime/**
+          │                                   │                                  │
+          ├──────────────┐                    │                                  │
+          │              │                    │                                  │
+          ▼              ▼                    ▼                                  ▼
+   tools/codex/generate.sh          tools/codex/install.sh <──────────── runtime-manifest.json.tmpl
+          │                                   │
+          │                                   ├── render installed SKILL.md files
+          │                                   ├── copy verified ~/system/bin/system
+          │                                   ├── copy installed resources/**
+          │                                   ├── copy thin .agents projections
+          │                                   └── refresh ~/.codex/skills/*
+          ▼
+repo .agents/skills/system*
+          │
+          ▼
+~/system/.agents/skills/system*
+          │
+          ▼
+~/.codex/skills/system*
+```
+
+### Runtime invocation flow
+
+```text
+Codex discovery: ~/.codex/skills/system-charter-intake
+        │
+        ▼
+installed thin skill: ~/system/.agents/skills/system-charter-intake/SKILL.md
+        │
+        ▼
+resolve repo root -> resolve SYSTEM_HOME -> validate manifest/resources/binary
+        │
+        ▼
+invoke ~/system/bin/system
+        │
+        ├── doctor --json
+        ├── optional setup guidance
+        ├── author charter --validate --from-inputs
+        └── author charter --from-inputs
+        │
+        ▼
+persist evidence under ~/.local/state/system/intake/runs/
+```
+
+### Exact modules and documents in scope
+
+| Module / directory | Why it is in scope |
+| --- | --- |
+| `install/system-home/` | new authored install-home source of truth |
+| `tools/codex/generate.sh` | generator input and output contract |
+| `tools/codex/install.sh` | installed-home staging, rendering, binary copy, discovery refresh |
+| `tools/codex/dev-setup.sh` | explicit dev override topology |
+| `tools/codex/relink.sh` | remove or repurpose ambiguity |
+| `tools/codex/runtime/**` | manifest template retained, helper-binary template removed |
+| `tools/ci/install-smoke.sh` | exact installed-home and discovery assertions |
+| `tools/ci/codex-skill-live-smoke.sh` | direct invocation and evidence-path assertions |
+| `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `DESIGN.md`, `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` | packaging story and contract docs that currently expose the old topology |
 
 ## Implementation Plan
 
-### Step 1: Introduce canonical authored sources
+### Phase 1. Source migration and ownership cleanup
 
-Add:
+Create the authored source subtree:
 
-- `SKILL.md.tmpl`
-- `runtime-manifest.json.tmpl`
-- `runtime-assets.json`
-- `charter-intake/SKILL.md.tmpl`
+```text
+install/system-home/
+  SKILL.md.tmpl
+  agents/openai.yaml
+  charter-intake/SKILL.md.tmpl
+```
 
-Authorship rules:
+Tasks:
 
-- the two `SKILL.md.tmpl` files are the only handwritten skill documents
-- root `SKILL.md.tmpl` describes the runtime family, not the intake workflow
-- leaf `charter-intake/SKILL.md.tmpl` contains the intake workflow, including the orchestration now authored in the wrapper template
-- no template files belong under runtime `bin/`
+1. move repo-root authored install-home files into `install/system-home/`
+2. update scripts to read from the new subtree
+3. remove repo-root authored ownership completely
+4. make it impossible for future generation to recreate repo-root install-home files
 
-### Step 2: Rewire generation
+Exit criteria:
 
-Update `tools/codex/generate.sh` so it:
+- repo root no longer contains active install-home authored files
+- every consumer reads from `install/system-home/`
 
-- renders the root and leaf `SKILL.md.tmpl` sources
-- renders the runtime manifest from the repo-root template
-- reads `runtime-assets.json` as the only copy-membership source
-- copies the version-matched `system` binary into `.agents/skills/system/bin/system`
-- deletes legacy output files that no longer belong, especially `bin/system-charter-intake`
-- regenerates `.agents/skills/system/**` and `.agents/skills/system-charter-intake/**`
+### Phase 2. Thin projection rewrite
 
-### Step 3: Keep install and relink entrypoints stable
+Rewrite `tools/codex/generate.sh` so it:
 
-Keep the external commands unchanged:
+1. reads only `install/system-home/SKILL.md.tmpl`
+2. reads only `install/system-home/charter-intake/SKILL.md.tmpl`
+3. copies only `install/system-home/agents/openai.yaml`
+4. writes only repo `.agents/skills/system/**`
+5. writes only repo `.agents/skills/system-charter-intake/**`
+6. asserts the exact thin file set
+7. performs no repo-root writes
 
-- `bash tools/codex/generate.sh`
-- `bash tools/codex/install.sh`
-- `bash tools/codex/dev-setup.sh`
-- `bash tools/codex/relink.sh`
+Thin projection invariant:
 
-Only their source inputs and expected runtime file set change.
+```text
+.agents/skills/system/
+  SKILL.md
+  agents/openai.yaml
 
-### Step 4: Update generated outputs and expectations
+.agents/skills/system-charter-intake/
+  SKILL.md
+  agents/openai.yaml
+```
 
-- regenerate `.agents/skills/system/**`
-- regenerate `.agents/skills/system-charter-intake/**`
-- update any tests or snapshots that assert generated content
-- make the exact runtime root file set match the new contract
+Exit criteria:
 
-### Step 5: Update smoke rails and docs
+- repo `.agents/skills/*` remains thin and deterministic
+- repo root stays free of generated install-home files
 
-Update:
+### Phase 3. Installed-home rewrite
 
-- `tools/ci/install-smoke.sh`
-- `tools/ci/codex-skill-live-smoke.sh`
+Rewrite `tools/codex/install.sh` so it stages and installs only the locked curated file set under `~/system/`.
+
+Required behaviors:
+
+1. verify the `system` binary on `PATH` matches repo `VERSION`
+2. render installed root and leaf `SKILL.md` files directly from `install/system-home/**/*.tmpl`
+3. copy installed templates alongside the rendered outputs
+4. render `runtime-manifest.json`
+5. copy static guidance into `resources/**`
+6. copy only thin skill projections into `.agents/skills/*`
+7. replace the whole installed root so stale heavy-install payload cannot survive
+8. refresh Codex discovery to the installed projections
+
+Required deletions from the installed contract:
+
+- `~/system/bin/system-charter-intake`
+- `~/system/share/**`
+- any runtime helper or updater binaries not listed in the target shape
+
+Exit criteria:
+
+- install produces the exact curated file set
+- reinstall after old installs removes stale helper/share payload
+- reinstall after dev override restores production discovery topology
+
+### Phase 4. Runtime invocation rewrite
+
+Delete the helper-binary runtime contract and move the leaf skill to direct CLI invocation.
+
+Tasks:
+
+1. remove `tools/codex/runtime/bin/system-charter-intake.tmpl`
+2. update the leaf skill template so the skill itself performs the runtime checks and invokes `~/system/bin/system`
+3. preserve the existing refusal order and transcript/evidence contract where topology is not the changing behavior
+4. change every runtime resource reference from `share/**` to `resources/**`
+
+Exit criteria:
+
+- the skill works without `~/system/bin/system-charter-intake`
+- runtime guidance is resolved from `resources/**`
+- evidence lands only under `~/.local/state/system/intake/runs/`
+
+### Phase 5. Docs and contract cutover
+
+Update the packaging-facing docs so they all say the same thing:
+
+- authored install-home skill truth lives under `install/system-home/`
+- repo `.agents/skills/*` is thin generated projection output only
+- `~/system/` is the installed home
+- `runtime-manifest.json` remains part of the installed runtime contract
+- installed static guidance lives under `~/system/resources/**`
+- `~/.codex/skills/*` is discovery glue only
+- `~/system/bin/system` is the only installed executable for this skill surface
+- `system-charter-intake` is a skill/discovery surface, not a binary
+
+Required doc targets:
+
 - `README.md`
-- `DESIGN.md`
+- `docs/START_HERE.md`
 - `docs/SUPPORTED_COMMANDS.md`
+- `DESIGN.md`
 - `docs/contracts/C-07-conformance-rails-and-docs-cutover.md`
 
-The doc story after `M10` must say one coherent thing:
+Exit criteria:
 
-- canonical Codex packaging authorship lives at repo root plus `charter-intake/`
-- `tools/codex/` is projection and install tooling
-- `.agents/skills/**` is generated output
-- `~/.codex/skills/**` is installed output
-- installed naming stays `system` and `system-charter-intake`
+- no packaging doc still mentions `bin/system-charter-intake`
+- no packaging doc still treats `share/**` as the installed resource root
+- the contract doc matches the actual smoke assertions
+
+### Phase 6. Smoke and regression rails
+
+Rewrite install and live smokes to enforce the exact target shape and fail loudly on drift.
+
+Required smoke assertions:
+
+1. repo `.agents/skills/*` contains only thin projection files
+2. installed `~/system/` matches the exact curated file set
+3. `~/system/bin/system` exists and version-matches repo `VERSION`
+4. `~/system/runtime-manifest.json` exists and validates its required fields
+5. `~/system/resources/**` exists
+6. `~/system/share/**` does not exist
+7. `~/system/bin/system-charter-intake` does not exist
+8. normal install after `dev-setup.sh` restores discovery to the installed projections
+9. the leaf skill invokes `~/system/bin/system` directly
+10. runtime evidence lands only under `~/.local/state/system/intake/runs/`
+
+Exit criteria:
+
+- both smoke scripts fail on any topology drift
+- both smoke scripts pass on the locked target shape
 
 ## Test Review
 
-### Test framework and proof surface
-
-This repo already has the right proof layers:
-
-- Rust workspace tests through `cargo test --workspace`
-- packaging smoke via `tools/ci/install-smoke.sh`
-- installed-skill live smoke via `tools/ci/codex-skill-live-smoke.sh`
-
-No new framework is needed. The smoke rails just need to test the corrected source model.
-
-### Coverage diagram
+### Code path coverage
 
 ```text
 CODE PATH COVERAGE
-==================
-[+] authored source mapping
-    |
-    ├-- [REQ] root SKILL.md.tmpl renders .agents/skills/system/SKILL.md
-    ├-- [REQ] leaf charter-intake/SKILL.md.tmpl renders .agents/skills/system-charter-intake/SKILL.md
-    ├-- [REQ] runtime-manifest.json.tmpl renders .agents/skills/system/runtime-manifest.json
-    └-- [REQ] runtime-assets.json fully defines copied share/** payload membership
+===========================
+[+] install/system-home/*
+    ├── source templates moved out of repo root
+    └── agent metadata becomes the only authored install-home metadata source
 
-[+] generation flow
-    |
-    ├-- [REQ] generate.sh refuses when PATH system version != repo VERSION
-    ├-- [REQ] generate.sh copies bin/system, not bin/system-charter-intake
-    ├-- [REQ] generated SKILL.md files are host-valid and include required frontmatter
-    └-- [REQ] generated runtime root file set matches contract exactly
+[+] tools/codex/generate.sh
+    ├── render root thin skill from install/system-home/SKILL.md.tmpl
+    ├── render leaf thin skill from install/system-home/charter-intake/SKILL.md.tmpl
+    ├── copy install/system-home/agents/openai.yaml into both projections
+    └── refuse any extra generated payload in repo .agents/skills/*
 
-[+] installed runtime flow
-    |
-    ├-- [REQ] install.sh installs both roots
-    ├-- [REQ] dev-setup.sh symlinks both roots
-    ├-- [REQ] install after dev-setup replaces symlinks with copied dirs
-    └-- [REQ] repo-local runtime override still wins over ~/.codex/skills/system
+[+] tools/codex/install.sh
+    ├── require system on PATH
+    ├── compare PATH binary version to repo VERSION
+    ├── stage curated ~/system/ home
+    ├── render installed SKILL.md files
+    ├── render runtime-manifest.json
+    ├── copy resources/**
+    ├── copy thin installed projections
+    ├── remove legacy helper/share payload by replacing the install root
+    └── relink ~/.codex/skills/* to ~/system/.agents/skills/*
 
-[+] intake orchestration flow
-    |
-    ├-- [REQ] generated leaf SKILL contains runtime-root resolution in the correct order
-    ├-- [REQ] generated leaf SKILL invokes "$SYSTEM_CODEX_ROOT/bin/system" for doctor/setup/validate/write
-    ├-- [REQ] happy path preserves run-evidence files under ~/.local/state/system/intake/runs/
-    ├-- [REQ] existing-charter refusal still produces refusal evidence
-    └-- [REQ] outside-git-repo refusal still happens before any mutation
+[+] tools/codex/dev-setup.sh
+    ├── point ~/.codex/skills/system -> repo .agents/skills/system
+    └── point ~/.codex/skills/system-charter-intake -> repo .agents/skills/system-charter-intake
+
+[+] system-charter-intake skill flow
+    ├── refusal outside git repo
+    ├── refusal when ~/system/bin/system is missing
+    ├── refusal when runtime-manifest.json is missing
+    ├── refusal when resources/** is incomplete
+    ├── direct invocation of ~/system/bin/system
+    └── evidence lands only under ~/.local/state/system/intake/runs/
 ```
 
-### Required tests and assertions
+### User flow coverage
 
-1. generation smoke must assert that repo-root `SKILL.md.tmpl` is the source for `.agents/skills/system/SKILL.md`
-2. generation smoke must assert that `charter-intake/SKILL.md.tmpl` is the source for `.agents/skills/system-charter-intake/SKILL.md`
-3. smoke must assert that generated `SKILL.md` files contain valid frontmatter
-4. smoke must assert that root runtime contains `bin/system` and does not contain `bin/system-charter-intake`
-5. smoke must assert the exact runtime root file set
-6. smoke must assert that `runtime-assets.json` is the only payload-membership truth used by generation
-7. live smoke must assert the generated leaf `SKILL.md` still contains the exact orchestration commands and paths
-8. live smoke must reproduce the happy path and refusal behavior using the generated-skill contract, not a handwritten runtime wrapper
+```text
+USER FLOW COVERAGE
+===========================
+[+] Normal install
+    ├── [REQ] generate thin repo projections
+    ├── [REQ] install curated ~/system/ home
+    ├── [REQ] remove helper/share leftovers from prior installs
+    └── [REQ] relink ~/.codex/skills/* into ~/system/.agents/skills/*
 
-### Verification commands
+[+] Dev override
+    ├── [REQ] dev-setup points discovery to repo-generated .agents/skills/*
+    └── [REQ] normal install restores production discovery topology
 
-These stay mandatory:
-
-```bash
-cargo fmt --all -- --check
-cargo test --workspace
-bash tools/codex/generate.sh
-bash tools/ci/install-smoke.sh
-bash tools/ci/codex-skill-live-smoke.sh
+[+] Charter intake execution
+    ├── [REQ] leaf skill invokes ~/system/bin/system directly
+    ├── [REQ] no helper binary is required
+    ├── [REQ] runtime-manifest.json remains available
+    ├── [REQ] installed guidance resolves from resources/**
+    └── [REQ] run evidence stays under ~/.local/state/system/intake/runs/
 ```
 
-## Failure Modes
+### Required test additions
 
-| Failure mode | Test covers it? | Error handling exists? | User-visible? | Critical gap if missing? |
-| --- | --- | --- | --- | --- |
-| root `SKILL.md.tmpl` exists but generator still reads `tools/codex/runtime/SKILL.md.tmpl` | yes, generation smoke | fail generation | yes | yes |
-| leaf `SKILL.md.tmpl` exists but output name drifts from `system-charter-intake` | yes, generation smoke | fail generation | yes | yes |
-| runtime root still contains `bin/system-charter-intake` and omits `bin/system` | yes, install smoke | fail generation or install smoke | yes | yes |
-| runtime payload list is duplicated in shell and manifest | yes, code review plus smoke | collapse back to `runtime-assets.json` only | indirectly | yes |
-| generated leaf `SKILL.md` calls `system` on `PATH` instead of `"$SYSTEM_CODEX_ROOT/bin/system"` | yes, live smoke grep plus execution | fail smoke | yes | yes |
-| repo-local runtime override no longer wins | yes, live smoke | fail smoke | yes | yes |
-| docs still describe `tools/codex/` as the authored source | yes, doc review | patch in same milestone | yes | no |
-| run-evidence files disappear from `~/.local/state/system/intake/runs/` | yes, live smoke | fail smoke | yes | yes |
+`tools/ci/install-smoke.sh` must assert:
 
-There should be no silent failure path in `M10`. Every break in source mapping or runtime packaging must fail in smoke.
+1. repo `.agents/skills/system*` contains only `SKILL.md` and `agents/openai.yaml`
+2. repo root does not contain active install-home authored files
+3. installed `~/system/` contains the exact curated file set and nothing extra
+4. `~/system/bin/system` exists and version-matches repo `VERSION`
+5. `~/system/runtime-manifest.json` exists and validates required fields
+6. `~/system/resources/**` exists with the renamed static payload
+7. `~/system/share/**` does not exist
+8. `~/system/bin/system-charter-intake` does not exist
+9. `~/.codex/skills/system*` points into `~/system/.agents/skills/*` after normal install
+10. normal install after `dev-setup.sh` restores installed discovery topology
+
+`tools/ci/codex-skill-live-smoke.sh` must assert:
+
+1. `system-charter-intake` works without `~/system/bin/system-charter-intake`
+2. the leaf skill invokes `~/system/bin/system` directly
+3. the leaf skill can still resolve `runtime-manifest.json`
+4. the leaf skill can still resolve installed static guidance under `resources/**`
+5. refusal outside a git repo still happens before questioning
+6. refusal when the installed binary is missing is explicit
+7. run evidence appears only under `~/.local/state/system/intake/runs/`
+8. no run evidence lands under `~/system/` or `~/.codex/skills/`
+
+Critical regression tests:
+
+- helper-binary absence is mandatory, not optional
+- `share/**` absence is mandatory, not optional
+- repo-root install-home file absence is mandatory, not optional
+
+## Failure Modes Registry
+
+| Failure mode | Test covers it | Error handling | User-visible outcome |
+| --- | --- | --- | --- |
+| generator still reads repo-root skill files | install smoke + repo-root absence check | exact file-set assertion | immediate CI failure |
+| generator still writes repo-root generated skill files | install smoke + repo-root absence check | exact file-set assertion | immediate CI failure |
+| installed home drops `runtime-manifest.json` | install smoke | exact file-set assertion | immediate CI failure |
+| installed home still contains `share/**` | install smoke | replace-whole-root install + absence assertion | immediate CI failure |
+| installed home still contains `bin/system-charter-intake` | install smoke | replace-whole-root install + absence assertion | immediate CI failure |
+| Codex discovery stays in repo-dev mode after normal install | install smoke | reinstall refreshes discovery | immediate CI failure |
+| leaf skill still depends on helper-binary logic | live smoke | direct invocation rewrite | immediate CI failure |
+| leaf skill cannot resolve `resources/**` | live smoke | runtime path assertions | immediate CI failure |
+| installed `system` binary version does not match repo `VERSION` | install smoke + install hard-refusal | explicit install refusal | explicit install failure |
+| evidence lands inside installed/discovery trees | live smoke | exact evidence-path assertion | immediate CI failure |
+
+No silent failures are acceptable in this milestone. Packaging drift must fail in CI.
+
+## Code Quality Review
+
+### DRY and clarity requirements
+
+- one authored install-home subtree, not duplicated root and subtree truth
+- one installed executable, not a primary binary plus a helper-binary shadow surface
+- one production discovery topology
+- one explicit dev override topology
+- one semantically accurate installed resource root, `resources/**`
+
+### Explicit-over-clever requirements
+
+- keep `generate.sh` and `install.sh` straightforward shell scripts
+- prefer exact file-set assertions over "contains enough files" checks
+- prefer removing ambiguous helpers like `relink.sh` over preserving them with unclear semantics
+- prefer rendering installed `SKILL.md` files directly from templates instead of depending on intermediate repo-root copies
+
+### Diagram maintenance requirement
+
+Any nearby ASCII diagrams or docs that describe the old heavier install shape must be updated in the same milestone. Stale topology diagrams are a bug.
 
 ## Performance Review
 
-`M10` is packaging-heavy, not CPU-heavy.
+This is not a throughput-sensitive milestone. The real risks are correctness, drift, and install determinism.
 
-Acceptable cost:
+Performance constraints that still matter:
 
-- one manifest read during generation
-- one runtime-assets manifest read during generation
-- no meaningful runtime slowdown
-- no new install-time network dependency
+- `generate.sh` stays O(number of projected skill files), which is tiny
+- `install.sh` stays stage-then-swap so repeated installs remain predictable
+- smoke assertions should stay exact and small, not recursive repo-wide content scans
 
-Unacceptable cost:
+## NOT in Scope
 
-- a generic packaging framework
-- new runtime indirection during normal skill execution
-- duplicate scans of the repo to infer payload membership implicitly
-- rebuilding the CLI from scratch inside every smoke step when a version-matched installed binary already exists
-
-## Docs And Contract Updates
-
-Docs and contracts must say one coherent thing after the change:
-
-- authored Codex packaging source is repo-root `SKILL.md.tmpl` plus `charter-intake/SKILL.md.tmpl`
-- `tools/codex/generate.sh` is the projection tool
-- `.agents/skills/**` is generated
-- `~/.codex/skills/**` is installed
-- installed naming stays `system` and `system-charter-intake`
-- the generated leaf skill owns the orchestration contract, not a packaged wrapper script
-
-Required contract updates:
-
-- `docs/contracts/C-07-conformance-rails-and-docs-cutover.md`
-- any doc that still says authored packaging source lives under `tools/codex/`
+- changing `system doctor --json`
+- changing the semantic output of the existing charter authoring flow
+- adding more Codex-discoverable skills
+- adding `.claude/skills/*` generation
+- adding release automation or package-manager distribution
+- turning `~/system/resources/**` into a dumping ground for arbitrary runtime assets
 
 ## Worktree Parallelization Strategy
 
+### Dependency table
+
 | Step | Modules touched | Depends on |
 | --- | --- | --- |
-| Canonical source layout | repo root packaging sources, `charter-intake/` | — |
-| Generator rewrite | `tools/codex/`, generated `.agents/skills/` | Canonical source layout |
-| Smoke and conformance updates | `tools/ci/`, docs/contracts | Generator rewrite |
-| Doc surface cleanup | `README.md`, `DESIGN.md`, `docs/` | Canonical source layout |
+| Source migration | `install/`, repo-root skill source removal, generator input paths | — |
+| Thin projection rewrite | `tools/codex/generate.sh`, repo `.agents/skills/*` contract | Source migration |
+| Installed-home rewrite | `tools/codex/install.sh`, `tools/codex/dev-setup.sh`, `tools/codex/relink.sh`, `tools/codex/runtime/**` | Thin projection rewrite |
+| Runtime invocation rewrite | `install/system-home/charter-intake/`, live skill behavior, runtime path references | Installed-home rewrite |
+| Docs and contract cutover | `README.md`, `docs/`, `DESIGN.md`, contract docs | Source migration |
+| Smoke rewrite | `tools/ci/*` | Thin projection rewrite + installed-home rewrite + runtime invocation rewrite |
 
 ### Parallel lanes
 
-- Lane A: Canonical source layout -> Generator rewrite
-- Lane B: Doc surface cleanup
-- Lane C: Smoke and conformance updates
+- Lane A: source migration -> thin projection rewrite
+- Lane B: installed-home rewrite -> runtime invocation rewrite
+- Lane C: docs and contract cutover
+- Lane D: smoke rewrite
 
 ### Execution order
 
-Launch Lane A first.
-
-Once Lane A freezes the final source paths, generated file names, and `bin/system` contract:
-
-- launch Lane B and Lane C in parallel
-- merge both
-- run the full verification pass once all three lanes land
+1. Launch Lane A first. It freezes the canonical source layout and projection contract.
+2. Launch Lane B after Lane A lands. Installer and runtime behavior depend on the new projection contract.
+3. Launch Lane C after Lane A lands. Docs can move in parallel with Lane B once the source layout is locked.
+4. Launch Lane D after Lane B lands. Smoke rails must validate the final installed/runtime behavior, not an in-between state.
 
 ### Conflict flags
 
-- Lane B and Lane C both touch packaging wording. Keep one final wording owner for docs.
-- Lane A and Lane C both depend on the exact runtime file set. Do not start Lane C before Lane A locks it.
-- Lane C owns the final truth for smoke expectations. Lane B must not reword docs in a way that contradicts smoke assertions.
+- Lane B and Lane D both touch packaging behavior assumptions. Keep them sequential.
+- Lane A and Lane C both define public wording around source-of-truth paths. Lane C must follow Lane A's exact shape, not invent new names.
+- If `relink.sh` is kept instead of deleted, it conflicts conceptually with both Lane B and Lane C because its semantics must be restated everywhere.
 
-## Acceptance Criteria
+## Acceptance Checklist
 
-`M10` is done only when all of this is true:
-
-1. repo root contains the canonical root host skill source as `SKILL.md.tmpl`
-2. `charter-intake/SKILL.md.tmpl` is the canonical leaf skill source
-3. `tools/codex/generate.sh` consumes those authored sources, not `tools/codex/` templates
-4. `runtime-assets.json` is the only authored runtime payload membership list
-5. root runtime `bin/` contains `system`, not a templated wrapper artifact
-6. intake orchestration now lives in the generated leaf `SKILL.md`, not in a packaged wrapper script
-7. `.agents/skills/system/` and `.agents/skills/system-charter-intake/` regenerate deterministically
-8. `~/.codex/skills/system/` and `~/.codex/skills/system-charter-intake/` install exactly as before, except for the corrected root-runtime binary packaging shape
-9. generated `SKILL.md` outputs are host-valid
-10. `cargo test --workspace`, `tools/ci/install-smoke.sh`, and `tools/ci/codex-skill-live-smoke.sh` pass
-11. docs no longer describe `tools/codex/` as the authored packaging home
-12. the shipped `M9.5` operator-visible happy path and refusal behavior remain unchanged
+- [ ] authored install-home truth exists only under `install/system-home/`
+- [ ] repo root no longer owns install-home authored files
+- [ ] repo `.agents/skills/system*` stays thin
+- [ ] `generate.sh` reads only `install/system-home/` and writes only repo projections
+- [ ] `install.sh` installs only the curated `~/system/` shape
+- [ ] `~/system/bin/system` is the only installed executable for the Codex skill surface
+- [ ] `~/system/bin/system-charter-intake` does not exist
+- [ ] `~/system/runtime-manifest.json` exists
+- [ ] `~/system/resources/` exists
+- [ ] `~/system/share/` does not exist
+- [ ] `~/.codex/skills/system*` points into `~/system/.agents/skills/*` after normal install
+- [ ] dev setup can temporarily point discovery to repo `.agents/skills/*`
+- [ ] normal install restores the installed-home discovery topology
+- [ ] live skill flow calls `~/system/bin/system` directly
+- [ ] no run evidence lands under `~/system/` or `~/.codex/skills/`
+- [ ] docs match the new topology exactly
+- [ ] install and live smokes fail on any topology drift
 
 ## Completion Summary
 
-- Step 0: Scope Challenge, accepted as canonical-source parity work with no behavior rewrite
-- Architecture Review: root host skill retained, authored source moved to repo root plus leaf directory, orchestration moved into leaf `SKILL.md`
-- Code Quality Review: `tools/codex/` narrowed to tooling only, no generic abstraction added
-- Test Review: coverage tightened around source mapping truth, runtime file set truth, generated-skill orchestration truth, and refusal-path preservation
-- Performance Review: no runtime expansion allowed
-- NOT in scope: written
-- What already exists: written
-- Failure modes: written
-- Parallelization: 3 lanes, Lane A first, then Lane B + Lane C in parallel
-
-This plan is ready to implement as written.
+- Step 0: Scope Challenge, complete. Scope is accepted as-is because partial correction would preserve dual truth.
+- Architecture Review: one authored source subtree, one installed binary, one thin discovery model.
+- Code Quality Review: repo-root install-home ownership and helper-binary duplication are the main DRY violations to remove.
+- Test Review: full packaging and live-skill coverage is defined above.
+- Performance Review: no throughput concerns, correctness-first milestone.
+- NOT in scope: written.
+- What already exists: written.
+- Failure modes: defined and mapped to smoke enforcement.
+- Parallelization: 4 lanes, with source migration first and smoke rewrite last.
+- Lake Score: 7/7. This plan chooses the complete option everywhere the old heavier shape could linger.
