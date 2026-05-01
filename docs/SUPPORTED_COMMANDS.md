@@ -127,15 +127,13 @@ For the reviewed operator-surface contract baseline, see [`C-09`](contracts/pipe
 bash tools/codex/generate.sh
 bash tools/codex/install.sh
 bash tools/codex/dev-setup.sh
-bash tools/codex/relink.sh
 bash tools/ci/install-smoke.sh
 bash tools/ci/codex-skill-live-smoke.sh
 ```
 
-- `tools/codex/generate.sh` is the handwritten source-to-generated-assets boundary for thin generated `.agents/skills/**` projections.
-- `tools/codex/install.sh` owns the installed `~/system/` home and refreshes `~/.codex/skills/system*` as thin discovery glue into `~/system/.agents/skills/*`.
+- `tools/codex/generate.sh` is the handwritten source-to-generated-assets boundary from `install/system-home/` into thin generated `.agents/skills/**` projections.
+- `tools/codex/install.sh` owns the curated installed `~/system/` home, refreshes `~/.codex/skills/system*` as thin discovery glue into `~/system/.agents/skills/*`, installs `~/system/bin/system` as the only executable, and places runtime guidance under `~/system/resources/**`.
 - `tools/codex/dev-setup.sh` is the dev-only symlink flow.
-- `tools/codex/relink.sh` is a convenience wrapper around the dev symlink flow.
 - `tools/ci/install-smoke.sh` proves install, reinstall, stale-runtime refusal, and install-mode crossover.
 - `tools/ci/codex-skill-live-smoke.sh` proves the installed happy path, existing-charter refusal, repo-local runtime override, and outside-git-repo refusal.
 

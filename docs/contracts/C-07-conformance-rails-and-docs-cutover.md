@@ -77,14 +77,22 @@ CI MUST run the same logical checks (or stricter) on supported targets.
 
 For the shipped Codex packaging wedge, CI MUST also prove:
 
-- repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` regenerate deterministically as thin generated projections
-- the generated runtime root contains exactly:
+- repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` regenerate deterministically from `install/system-home/` as thin generated projections
+- the installed `~/system/` home contains exactly the curated runtime contract:
+  - `SKILL.md.tmpl`
   - `SKILL.md`
+  - `agents/openai.yaml`
+  - `charter-intake/SKILL.md.tmpl`
+  - `charter-intake/SKILL.md`
   - `runtime-manifest.json`
-  - `bin/system-charter-intake`
-  - `share/authoring/charter_authoring_method.md`
-  - `share/charter/CHARTER_INPUTS.yaml.tmpl`
-  - `share/charter/charter_inputs_directive.md`
+  - `bin/system`
+  - `resources/authoring/charter_authoring_method.md`
+  - `resources/charter/CHARTER_INPUTS.yaml.tmpl`
+  - `resources/charter/charter_inputs_directive.md`
+  - `.agents/skills/system/SKILL.md`
+  - `.agents/skills/system/agents/openai.yaml`
+  - `.agents/skills/system-charter-intake/SKILL.md`
+  - `.agents/skills/system-charter-intake/agents/openai.yaml`
 - `runtime-manifest.json` contains at minimum:
   - `skill_name`
   - `system_release_version`
@@ -92,8 +100,10 @@ For the shipped Codex packaging wedge, CI MUST also prove:
   - `generated_at_utc`
 - `~/system/` is the installed home, with installed thin projections under `~/system/.agents/skills/*`
 - `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
-- `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the thin Codex discovery glue
+- `tools/codex/install.sh` owns the installed `~/system/` home, installs `~/system/bin/system` as the only executable, installs runtime guidance under `~/system/resources/**`, and refreshes the thin Codex discovery glue
 - `tools/codex/dev-setup.sh` creates the dev symlink mode only, and normal install after dev setup restores the `~/.codex/skills/system* -> ~/system/.agents/skills/*` discovery topology cleanly
+- the installed home does not contain `~/system/bin/system-charter-intake`
+- the installed home does not contain `~/system/share/**`
 - the installed runtime may machine-parse only `system doctor --json`
 - validate/write steps rely on exit code plus persisted stdout/stderr transcripts only, with no new machine-readable authoring contract
 
@@ -136,10 +146,14 @@ Docs and CLI help MUST:
 - identify `system doctor --json` as the only machine-readable readiness surface for the installed charter-intake skill
 - identify `system author charter --validate --from-inputs <path|->` as the mutation-free charter preflight surface
 - identify `system author charter --from-inputs <path|->` as deterministic and compiler-owned
+- identify `install/system-home/` as the authored source of install-home skill content
 - identify `~/system/` as the installed home for the Codex-facing install surface
+- identify `~/system/bin/system` as the only installed executable for the Codex-facing install surface
+- identify `~/system/runtime-manifest.json` and `~/system/resources/**` as installed runtime contract surfaces
 - describe repo `.agents/skills/*` as thin generated projections only
 - describe `~/.codex/skills/system*` as discovery glue only, pointing into `~/system/.agents/skills/*`
-- describe `tools/codex/install.sh` as owning the installed `~/system/` home and Codex discovery-glue refresh
+- describe `tools/codex/install.sh` as owning the installed `~/system/` home, `~/system/bin/system`, `~/system/resources/**`, and Codex discovery-glue refresh
+- state that there is no installed `~/system/bin/system-charter-intake` and no installed `~/system/share/**`
 
 Docs and help SHOULD link directly to the authoritative contracts they reference.
 
@@ -170,11 +184,15 @@ The following checklist is normative for conformance execution and closeout:
 - [ ] `system --help` (smoke)
 - [ ] `system doctor --help` and `system author charter --help` (help parity)
 - [ ] `system generate --help` and `system inspect --help` (help parity)
-- [ ] generated repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` are deterministic thin-projection outputs
+- [ ] generated repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` are deterministic thin-projection outputs from `install/system-home/`
 - [ ] generated runtime root file set matches the locked contract
 - [ ] `~/system/` is the installed home and installed thin projections live under `~/system/.agents/skills/*`
 - [ ] `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
 - [ ] normal install after dev setup restores the `~/.codex/skills/system* -> ~/system/.agents/skills/*` discovery topology cleanly
+- [ ] `~/system/bin/system` is the only installed executable for this Codex surface
+- [ ] `~/system/runtime-manifest.json` and `~/system/resources/**` exist as installed runtime contract surfaces
+- [ ] `~/system/bin/system-charter-intake` does not exist
+- [ ] `~/system/share/**` does not exist
 - [ ] the installed runtime happy path is `doctor --json` -> optional `system setup` -> `doctor --json` -> `author charter --validate --from-inputs` -> `author charter --from-inputs` -> final `doctor --json`
 - [ ] outside-git-repo refusal happens before questioning
 - [ ] existing-charter refusal is covered as a first-class smoke case
