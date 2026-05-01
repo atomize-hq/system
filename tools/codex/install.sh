@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 GENERATE_SCRIPT="$SCRIPT_DIR/generate.sh"
 RUNTIME_TEMPLATE_ROOT="$SCRIPT_DIR/runtime"
+INSTALL_SOURCE_ROOT="$ROOT_DIR/install/system-home"
 GENERATED_ROOT="$ROOT_DIR/.agents/skills"
 SYSTEM_HOME="$HOME/system"
 SYSTEM_DISCOVERY_ROOT="$SYSTEM_HOME/.agents/skills"
@@ -119,12 +120,9 @@ SYSTEM_BIN_ON_PATH="$(command -v system 2>/dev/null || true)"
 
 require_file "$GENERATE_SCRIPT"
 require_file "$RUNTIME_TEMPLATE_ROOT/runtime-manifest.json.tmpl"
-require_file "$RUNTIME_TEMPLATE_ROOT/bin/system-charter-intake.tmpl"
-require_file "$ROOT_DIR/SKILL.md.tmpl"
-require_file "$ROOT_DIR/SKILL.md"
-require_file "$ROOT_DIR/agents/openai.yaml"
-require_file "$ROOT_DIR/charter-intake/SKILL.md.tmpl"
-require_file "$ROOT_DIR/charter-intake/SKILL.md"
+require_file "$INSTALL_SOURCE_ROOT/SKILL.md.tmpl"
+require_file "$INSTALL_SOURCE_ROOT/agents/openai.yaml"
+require_file "$INSTALL_SOURCE_ROOT/charter-intake/SKILL.md.tmpl"
 require_command system
 bash "$GENERATE_SCRIPT"
 
@@ -154,29 +152,27 @@ mkdir -p \
   "$stage_root/bin" \
   "$stage_root/agents" \
   "$stage_root/charter-intake" \
-  "$stage_root/share/authoring" \
-  "$stage_root/share/charter" \
+  "$stage_root/resources/authoring" \
+  "$stage_root/resources/charter" \
   "$stage_root/.agents/skills"
 
-install_copy "$ROOT_DIR/SKILL.md.tmpl" "$stage_root/SKILL.md.tmpl"
-install_copy "$ROOT_DIR/SKILL.md" "$stage_root/SKILL.md"
-install_copy "$ROOT_DIR/agents/openai.yaml" "$stage_root/agents/openai.yaml"
-install_copy "$ROOT_DIR/charter-intake/SKILL.md.tmpl" "$stage_root/charter-intake/SKILL.md.tmpl"
-install_copy "$ROOT_DIR/charter-intake/SKILL.md" "$stage_root/charter-intake/SKILL.md"
+install_copy "$INSTALL_SOURCE_ROOT/SKILL.md.tmpl" "$stage_root/SKILL.md.tmpl"
+install_copy "$INSTALL_SOURCE_ROOT/agents/openai.yaml" "$stage_root/agents/openai.yaml"
+install_copy "$INSTALL_SOURCE_ROOT/charter-intake/SKILL.md.tmpl" "$stage_root/charter-intake/SKILL.md.tmpl"
 install_copy "$SYSTEM_BIN_ON_PATH" "$stage_root/bin/system"
 install_copy "$ROOT_SKILL_SOURCE" "$stage_root/.agents/skills/$ROOT_SKILL_NAME"
 install_copy "$DISCOVERY_SOURCE" "$stage_root/.agents/skills/$DISCOVERY_NAME"
-install_copy "$ROOT_DIR/core/library/authoring/charter_authoring_method.md" "$stage_root/share/authoring/charter_authoring_method.md"
-install_copy "$ROOT_DIR/core/library/charter/CHARTER_INPUTS.yaml.tmpl" "$stage_root/share/charter/CHARTER_INPUTS.yaml.tmpl"
-install_copy "$ROOT_DIR/core/library/charter/charter_inputs_directive.md" "$stage_root/share/charter/charter_inputs_directive.md"
+install_copy "$ROOT_DIR/core/library/authoring/charter_authoring_method.md" "$stage_root/resources/authoring/charter_authoring_method.md"
+install_copy "$ROOT_DIR/core/library/charter/CHARTER_INPUTS.yaml.tmpl" "$stage_root/resources/charter/CHARTER_INPUTS.yaml.tmpl"
+install_copy "$ROOT_DIR/core/library/charter/charter_inputs_directive.md" "$stage_root/resources/charter/charter_inputs_directive.md"
 
 export GENERATED_AT_UTC MANIFEST_VERSION SYSTEM_RELEASE_VERSION
+export SKILL_NAME="$ROOT_SKILL_NAME"
+render_template "$INSTALL_SOURCE_ROOT/SKILL.md.tmpl" "$stage_root/SKILL.md"
 export SKILL_NAME="$DISCOVERY_NAME"
-
+render_template "$INSTALL_SOURCE_ROOT/charter-intake/SKILL.md.tmpl" "$stage_root/charter-intake/SKILL.md"
 render_template "$RUNTIME_TEMPLATE_ROOT/runtime-manifest.json.tmpl" "$stage_root/runtime-manifest.json"
-render_template "$RUNTIME_TEMPLATE_ROOT/bin/system-charter-intake.tmpl" "$stage_root/bin/system-charter-intake"
-
-chmod 0755 "$stage_root/bin/system" "$stage_root/bin/system-charter-intake"
+chmod 0755 "$stage_root/bin/system"
 
 rm -rf "$SYSTEM_HOME"
 mv "$stage_root" "$SYSTEM_HOME"
