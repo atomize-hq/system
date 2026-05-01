@@ -145,6 +145,7 @@ extract_root="$tmp_root/extracted"
 system_home="$HOME/system"
 codex_root="$HOME/.codex/skills"
 
+mkdir -p "$HOME"
 mkdir -p "$extract_root"
 
 log "Downloading ${ASSET_NAME}"
