@@ -1159,7 +1159,11 @@ fn collect_repo_reread_planning_inputs(
         repo_rereads,
         "artifacts/foundation/QUALITY_GATES_SPEC.md",
     );
-    let _ = read_repo_text(repo_root, repo_rereads, "core/pipelines/foundation_inputs.yaml");
+    let _ = read_repo_text(
+        repo_root,
+        repo_rereads,
+        "core/pipelines/foundation_inputs.yaml",
+    );
     let _ = read_repo_text(repo_root, repo_rereads, "core/stages/10_feature_spec.md");
 
     build_planning_inputs(

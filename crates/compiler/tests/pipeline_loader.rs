@@ -30,9 +30,8 @@ fn write_stage_with_front_matter(repo_root: &Path, relative_path: &str, front_ma
 fn foundation_pipeline_loads_with_deterministic_stage_order() {
     let repo_root = repo_root();
 
-    let definition =
-        load_pipeline_definition(&repo_root, "core/pipelines/foundation.yaml")
-            .expect("load pipeline");
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation.yaml")
+        .expect("load pipeline");
 
     assert_eq!(definition.header.kind, "pipeline");
     assert_eq!(definition.header.id, "pipeline.foundation");
@@ -129,9 +128,11 @@ stages:
 "#,
     );
 
-    let definition =
-        load_pipeline_definition(repo_root, "core/pipelines/matching-front-matter-activation.yaml")
-            .expect("matching activation should load");
+    let definition = load_pipeline_definition(
+        repo_root,
+        "core/pipelines/matching-front-matter-activation.yaml",
+    )
+    .expect("matching activation should load");
 
     assert_eq!(definition.body.stages.len(), 1);
     assert!(definition.body.stages[0].activation.is_some());
@@ -175,8 +176,11 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "core/pipelines/front-matter-only-activation.yaml")
-        .expect_err("front matter only activation should refuse");
+    let err = load_pipeline_definition(
+        repo_root,
+        "core/pipelines/front-matter-only-activation.yaml",
+    )
+    .expect_err("front matter only activation should refuse");
 
     match err {
         PipelineLoadError::Validation {
@@ -274,9 +278,8 @@ stages:
             .as_str(),
         );
 
-        let err =
-            load_pipeline_definition(repo_root, "core/pipelines/activation-drift.yaml")
-                .expect_err(name);
+        let err = load_pipeline_definition(repo_root, "core/pipelines/activation-drift.yaml")
+            .expect_err(name);
 
         match err {
             PipelineLoadError::Validation {
@@ -542,9 +545,8 @@ stages:
 "#,
     );
 
-    let err =
-        load_pipeline_definition(repo_root, "core/pipelines/empty-title.yaml")
-            .expect_err("empty title");
+    let err = load_pipeline_definition(repo_root, "core/pipelines/empty-title.yaml")
+        .expect_err("empty title");
 
     match err {
         PipelineLoadError::Validation {
@@ -1363,9 +1365,8 @@ stages:
 "#,
     );
 
-    let err =
-        load_pipeline_definition(repo_root, "core/pipelines/empty-sets.yaml")
-            .expect_err("empty sets");
+    let err = load_pipeline_definition(repo_root, "core/pipelines/empty-sets.yaml")
+        .expect_err("empty sets");
 
     match err {
         PipelineLoadError::Validation {
