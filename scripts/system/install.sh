@@ -15,7 +15,7 @@ usage() {
   cat <<'EOF'
 Usage: install.sh [--version <version-or-tag>]
 
-Install the latest tagged system release into ~/system and refresh Codex discovery links.
+Install the latest tagged system release into ~/system and refresh agent discovery links.
 
 Options:
   --version <v>  Install a specific release version or tag, for example 0.7.1.0 or v0.7.1.0
@@ -143,7 +143,7 @@ archive_path="$tmp_root/$ASSET_NAME"
 checksums_path="$tmp_root/SHA256SUMS"
 extract_root="$tmp_root/extracted"
 system_home="$HOME/system"
-codex_root="$HOME/.codex/skills"
+agents_root="$HOME/.agents/skills"
 
 mkdir -p "$HOME"
 mkdir -p "$extract_root"
@@ -164,10 +164,10 @@ mv "$extract_root/system" "$system_home"
 [[ -x "$system_home/bin/system" ]] || fatal "installed bundle missing ~/system/bin/system"
 [[ -f "$system_home/runtime-manifest.json" ]] || fatal "installed bundle missing ~/system/runtime-manifest.json"
 
-mkdir -p "$codex_root"
-install_discovery_entry "$system_home/.agents/skills/system" "$codex_root/system"
-install_discovery_entry "$system_home/.agents/skills/system-charter-intake" "$codex_root/system-charter-intake"
+mkdir -p "$agents_root"
+install_discovery_entry "$system_home/.agents/skills/system" "$agents_root/system"
+install_discovery_entry "$system_home/.agents/skills/system-charter-intake" "$agents_root/system-charter-intake"
 
 log "Installed system ${VERSION} to ${system_home}"
-log "Codex discovery links refreshed under ${codex_root}"
+log "Agent discovery links refreshed under ${agents_root}"
 log "Optional PATH entry: ${system_home}/bin"
