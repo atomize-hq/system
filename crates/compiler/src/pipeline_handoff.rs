@@ -1,5 +1,6 @@
 use crate::artifact_manifest::{ArtifactManifest, ManifestInputs};
 use crate::canonical_artifacts::ArtifactPresence;
+use crate::declarative_roots::{is_canonical_declarative_path, DECLARATIVE_ROOT};
 use crate::pipeline::{load_selected_pipeline_definition, supported_route_state_variables};
 use crate::pipeline_compile::{
     compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
@@ -806,10 +807,7 @@ fn trust_class_for_compile_document(
 
 fn expected_trust_class_for_source(source_path: &str) -> Result<PipelineHandoffTrustClass, String> {
     let source_path = source_path.trim();
-    if source_path.starts_with("core/")
-        || source_path.starts_with("runners/")
-        || source_path.starts_with("profiles/")
-    {
+    if is_canonical_declarative_path(source_path) {
         return Ok(PipelineHandoffTrustClass::Canonical);
     }
     if source_path == FEATURE_SPEC_ARTIFACT_PATH {
@@ -820,7 +818,7 @@ fn expected_trust_class_for_source(source_path: &str) -> Result<PipelineHandoffT
     }
 
     Err(format!(
-        "source path `{source_path}` is outside the supported M5 trust model"
+        "source path `{source_path}` is outside the supported M5 trust model; canonical declarative inputs must live under `{DECLARATIVE_ROOT}/`"
     ))
 }
 

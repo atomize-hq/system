@@ -1,3 +1,7 @@
+use crate::declarative_roots::{
+    profile_file as profile_repo_file, profile_root, runner_file as runner_repo_file, runner_root,
+    PROFILES_ROOT_DISPLAY, RUNNERS_ROOT_DISPLAY,
+};
 use crate::pipeline::{load_selected_pipeline_definition, PipelineDefinition};
 use crate::pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, RouteStageReason, RouteStageStatus,
@@ -565,10 +569,10 @@ pub fn build_route_basis(
         });
     }
 
-    let runner_file = format!("runners/{selected_runner_id}.md");
-    let profile_yaml = format!("profiles/{selected_profile_id}/profile.yaml");
-    let commands_yaml = format!("profiles/{selected_profile_id}/commands.yaml");
-    let conventions_md = format!("profiles/{selected_profile_id}/conventions.md");
+    let runner_file = runner_repo_file(&selected_runner_id);
+    let profile_yaml = profile_repo_file(&selected_profile_id, "profile.yaml");
+    let commands_yaml = profile_repo_file(&selected_profile_id, "commands.yaml");
+    let conventions_md = profile_repo_file(&selected_profile_id, "conventions.md");
 
     Ok(RouteBasis {
         schema_version: ROUTE_BASIS_SCHEMA_VERSION.to_string(),
@@ -985,10 +989,13 @@ fn validate_mutation(
             validate_repo_relative_ref(value)
                 .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
         }
-        RouteStateMutation::RunRunner { value } => {
-            validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)
-                .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
-        }
+        RouteStateMutation::RunRunner { value } => validate_inventory_value(
+            value,
+            FIELD_RUN_RUNNER,
+            RUNNERS_ROOT_DISPLAY,
+            &run_inventory.runners,
+        )
+        .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?,
         RouteStateMutation::RunProfile { value } => {
             validate_profile_inventory_value(value, FIELD_RUN_PROFILE, &run_inventory.profiles)
                 .map_err(|reason| RouteStateStoreError::InvalidMutation { reason })?
@@ -1042,7 +1049,7 @@ fn validate_audit_entries(
                         RouteStateFieldPath::RunRunner => validate_inventory_value(
                             value,
                             &entry.field_path,
-                            "runners/",
+                            RUNNERS_ROOT_DISPLAY,
                             &run_inventory.runners,
                         )?,
                         RouteStateFieldPath::RunProfile => validate_profile_inventory_value(
@@ -1087,7 +1094,12 @@ fn validate_state_run(
     run_inventory: &RouteStateRunInventory,
 ) -> Result<(), String> {
     if let Some(value) = &run.runner {
-        validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)?;
+        validate_inventory_value(
+            value,
+            FIELD_RUN_RUNNER,
+            RUNNERS_ROOT_DISPLAY,
+            &run_inventory.runners,
+        )?;
     }
     if let Some(value) = &run.profile {
         validate_profile_inventory_value(value, FIELD_RUN_PROFILE, &run_inventory.profiles)?;
@@ -1103,7 +1115,12 @@ fn validate_route_basis_run(
     run_inventory: &RouteStateRunInventory,
 ) -> Result<(), String> {
     if let Some(value) = &run.runner {
-        validate_inventory_value(value, FIELD_RUN_RUNNER, "runners/", &run_inventory.runners)?;
+        validate_inventory_value(
+            value,
+            FIELD_RUN_RUNNER,
+            RUNNERS_ROOT_DISPLAY,
+            &run_inventory.runners,
+        )?;
     }
     if let Some(value) = &run.profile {
         validate_profile_inventory_value(value, FIELD_RUN_PROFILE, &run_inventory.profiles)?;
@@ -1195,7 +1212,7 @@ fn validate_route_basis(
     validate_inventory_value(
         &route_basis.runner.id,
         "route_basis.runner.id",
-        "runners/",
+        RUNNERS_ROOT_DISPLAY,
         &run_inventory.runners,
     )
     .map_err(|reason| RouteStateReadError::MalformedState {
@@ -1326,7 +1343,7 @@ fn validate_profile_inventory_value(
     }
 
     Err(format!(
-        "{field_path} `{value}` is not declared under `profiles/`"
+        "{field_path} `{value}` is not declared under `{PROFILES_ROOT_DISPLAY}`"
     ))
 }
 
@@ -1336,7 +1353,7 @@ fn format_incomplete_profile_pack_reason(
     missing_files: &[&'static str],
 ) -> String {
     format!(
-        "{field_path} `{profile_id}` points to incomplete profile pack `profiles/{profile_id}/`: missing {}",
+        "{field_path} `{profile_id}` points to incomplete profile pack `{PROFILES_ROOT_DISPLAY}{profile_id}/`: missing {}",
         missing_files.join(", ")
     )
 }
@@ -1346,7 +1363,7 @@ fn format_selected_profile_pack_incomplete_reason(
     missing_files: &[&'static str],
 ) -> String {
     format!(
-        "selected profile pack `profiles/{profile_id}/` is incomplete: missing {}",
+        "selected profile pack `{PROFILES_ROOT_DISPLAY}{profile_id}/` is incomplete: missing {}",
         missing_files.join(", ")
     )
 }
@@ -1514,7 +1531,7 @@ fn load_run_inventory(
 fn load_runner_inventory(
     repo_root: &Path,
 ) -> Result<BTreeSet<String>, RouteStateInventoryLoadError> {
-    let inventory_dir = repo_root.join("runners");
+    let inventory_dir = repo_root.join(runner_root());
     let entries = match fs::read_dir(&inventory_dir) {
         Ok(entries) => entries,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
@@ -1562,7 +1579,7 @@ fn load_runner_inventory(
 fn load_profile_inventory(
     repo_root: &Path,
 ) -> Result<ProfilePackInventory, RouteStateInventoryLoadError> {
-    let inventory_dir = repo_root.join("profiles");
+    let inventory_dir = repo_root.join(profile_root());
     let entries = match fs::read_dir(&inventory_dir) {
         Ok(entries) => entries,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => {

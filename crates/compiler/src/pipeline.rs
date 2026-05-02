@@ -1,3 +1,4 @@
+use crate::declarative_roots::pipeline_root;
 use serde::Deserialize;
 use std::collections::BTreeSet;
 use std::fmt;
@@ -761,7 +762,7 @@ fn load_pipeline_catalog_with_mode(
     let mut stage_memberships: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
 
-    for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
+    for pipeline_path in discover_repo_relative_files(repo_root, pipeline_root(), "yaml")? {
         let definition = load_pipeline_definition_with_mode(repo_root, &pipeline_path, mode)
             .map_err(|source| PipelineCatalogError::PipelineLoad {
                 path: repo_root.join(&pipeline_path),
@@ -837,7 +838,7 @@ fn load_pipeline_metadata_catalog_index(
     let mut stage_memberships: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
 
-    for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
+    for pipeline_path in discover_repo_relative_files(repo_root, pipeline_root(), "yaml")? {
         let definition = match load_pipeline_definition_with_mode(
             repo_root,
             &pipeline_path,
@@ -970,7 +971,7 @@ fn find_selected_pipeline_metadata_error(
     repo_root: &Path,
     selector: &str,
 ) -> Result<Option<PipelineCatalogError>, PipelineCatalogError> {
-    for pipeline_path in discover_repo_relative_files(repo_root, Path::new("pipelines"), "yaml")? {
+    for pipeline_path in discover_repo_relative_files(repo_root, pipeline_root(), "yaml")? {
         let definition = match load_pipeline_definition_with_mode(
             repo_root,
             &pipeline_path,
@@ -1304,7 +1305,7 @@ fn discover_repo_relative_files(
 ) -> Result<Vec<PathBuf>, PipelineCatalogError> {
     let full_dir = repo_root.join(relative_dir);
     let entries = std::fs::read_dir(&full_dir).map_err(|source| {
-        if relative_dir == Path::new("pipelines") {
+        if relative_dir == pipeline_root() {
             PipelineCatalogError::ReadPipelineCatalog {
                 path: full_dir.clone(),
                 source,
@@ -1320,7 +1321,7 @@ fn discover_repo_relative_files(
     let mut out = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|source| {
-            if relative_dir == Path::new("pipelines") {
+            if relative_dir == pipeline_root() {
                 PipelineCatalogError::ReadPipelineCatalog {
                     path: full_dir.clone(),
                     source,
@@ -1531,12 +1532,7 @@ fn load_pipeline_header(
     repo_root: &Path,
     pipeline_path: &Path,
 ) -> Result<Option<PipelineHeader>, PipelineLoadError> {
-    let relative_pipeline_path = validate_repo_relative_path(pipeline_path).map_err(|reason| {
-        PipelineLoadError::UnsupportedPipelinePath {
-            path: pipeline_path.to_path_buf(),
-            reason,
-        }
-    })?;
+    let relative_pipeline_path = validate_pipeline_repo_relative_path(pipeline_path)?;
     let full_path = repo_root.join(relative_pipeline_path);
     let contents =
         std::fs::read_to_string(&full_path).map_err(|source| PipelineLoadError::ReadFailure {
@@ -1568,12 +1564,7 @@ fn load_pipeline_definition_with_mode(
 ) -> Result<PipelineDefinition, PipelineLoadError> {
     let repo_root = repo_root.as_ref();
     let pipeline_path = pipeline_path.as_ref();
-    let relative_pipeline_path = validate_repo_relative_path(pipeline_path).map_err(|reason| {
-        PipelineLoadError::UnsupportedPipelinePath {
-            path: pipeline_path.to_path_buf(),
-            reason,
-        }
-    })?;
+    let relative_pipeline_path = validate_pipeline_repo_relative_path(pipeline_path)?;
     let full_path = repo_root.join(relative_pipeline_path);
     let contents =
         std::fs::read_to_string(&full_path).map_err(|source| PipelineLoadError::ReadFailure {
@@ -2195,6 +2186,31 @@ fn validate_repo_relative_path(path: &Path) -> Result<&Path, &'static str> {
     }
 
     Ok(path)
+}
+
+fn validate_pipeline_repo_relative_path(path: &Path) -> Result<&Path, PipelineLoadError> {
+    let relative_path = validate_repo_relative_path(path).map_err(|reason| {
+        PipelineLoadError::UnsupportedPipelinePath {
+            path: path.to_path_buf(),
+            reason,
+        }
+    })?;
+
+    if !relative_path.starts_with(pipeline_root()) {
+        return Err(PipelineLoadError::UnsupportedPipelinePath {
+            path: path.to_path_buf(),
+            reason: "pipeline YAML must live under `core/pipelines/`",
+        });
+    }
+
+    if relative_path.extension().and_then(|ext| ext.to_str()) != Some("yaml") {
+        return Err(PipelineLoadError::UnsupportedPipelinePath {
+            path: path.to_path_buf(),
+            reason: "pipeline YAML must use the `.yaml` extension under `core/pipelines/`",
+        });
+    }
+
+    Ok(relative_path)
 }
 
 fn invalid_route_variable_name_reason(variable: &str) -> Option<&'static str> {

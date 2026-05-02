@@ -5,6 +5,7 @@ pub mod blocker;
 pub mod budget;
 pub mod canonical_artifacts;
 pub mod decision_log;
+pub mod declarative_roots;
 pub mod doctor;
 pub mod error;
 pub mod freshness;
