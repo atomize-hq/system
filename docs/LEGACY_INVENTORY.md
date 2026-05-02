@@ -28,22 +28,24 @@ Scope:
 | `tools/codex/relink.sh` | `cleanup-candidate` | The file is currently just an alias wrapper that execs `install.sh`. `PLAN.md` and `ORCH_PLAN.md` both call it ambiguous and suggest deletion or repurposing. |
 | `.implemented/` | `evidence-only` | Tracked execution evidence and orchestration logs. `ORCH_PLAN.md` explicitly says `.implemented/m10.5-orchestration/` is execution evidence only and not part of the shipped product contract. |
 | `.runs/` | `likely-stale` | Historical run artifacts. I found no current doc or tooling references to `.runs/`, unlike `.implemented/`, which still has explicit plan references. This looks like preserved historical output rather than active repo surface. |
-| `pipeline.yaml` | `transitional` | Still present and referenced, but it describes the older broad roadmap-to-slice scaffold rather than the currently documented reduced-v1 supported `pipeline.foundation_inputs` path. |
-| `pipelines/foundation_inputs.yaml` | `current` | This is the documented supported packet path. Not legacy. |
-| `pipelines/foundation.yaml`, `pipelines/release.yaml`, `pipelines/sprint.yaml` | `transitional` | These remain in the repo and are still part of the declarative surface, but current product docs center almost entirely on `pipeline.foundation_inputs`. `release` and `sprint` are referenced mostly by legacy docs and scaffold content. |
+| `core/` declarative namespace | `current` | Approved docs/contracts teach one declarative root under `core/**`, including `core/pipelines/`, `core/profiles/`, and `core/runners/`. This is the canonical repo-authored declarative input surface. |
+| `core/pipelines/default.yaml` | `current` | Canonical home for the preserved default pipeline definition that historically lived at repo-root `pipeline.yaml`. |
+| `core/pipelines/foundation_inputs.yaml` | `current` | Canonical supported packet path after the namespace cutover. |
+| `core/pipelines/foundation.yaml`, `core/pipelines/release.yaml`, `core/pipelines/sprint.yaml` | `current` | Canonical pipeline definitions after the declarative namespace moved under `core/`. |
 | `core/stages/04_charter_inputs.md`, `05_charter_synthesize.md`, `06_project_context_interview.md`, `07_foundation_pack.md`, `10_feature_spec.md` | `current` | These are the active stage docs used by the supported `pipeline.foundation_inputs` flow. |
 | `core/stages/01_release_plan.md`, `02_sprint_plan.md` | `transitional` | Real stage files still exist, but the shipped reduced-v1 docs do not treat release/sprint planning as the primary supported path today. Most references are in `docs/legacy/**` or older scaffold terminology. |
 | `core/stages/20_phase_decomp.md`, `30_slice_gen.md`, `40_slice_check.md`, `50_slice_refine.md`, `55_slice_simplify.md`, `60_slice_execute.md`, `70_quality_gate.md` | `future-scaffold` | The full slice/execution stage chain still exists, but several of these files are empty placeholders and `TODOS.md` explicitly says the live slice lineage / execution path is deferred. |
 | `core/schemas/slice.yaml`, `phase_plan.yaml`, `execution_report.yaml`, `evidence_log.yaml`, `quality_gate_report.yaml` | `future-scaffold` | These schema files exist but several are empty. They look like preserved shape placeholders for the deferred execution/slice path. |
-| `profiles/`, `runners/`, `core/library/**`, `core/overlays/**`, `core/rules/**` | `current` | These are still part of the declarative compiler surface in general. Some breadth may be underused, but I did not find strong evidence that the directories themselves are legacy. |
-| `core/stages/examples/`, `core/schemas/examples/`, `core/overlays/examples/`, `core/rules/examples/`, `runners/examples/` | `current` | Intentional specimen/example material. These paths now make the example role explicit and avoid looking like live glob targets or runtime-loaded sources of truth. |
+| Historical top-level `profiles/`, `runners/`, `pipelines/`, and repo-root `pipeline.yaml` paths | `legacy-retained` | These names still appear in frozen legacy docs and historical transcripts, but they are no longer the repo’s supported declarative roots. The canonical namespace is `core/profiles/`, `core/runners/`, and `core/pipelines/`. |
+| `core/library/**`, `core/overlays/**`, `core/rules/**` | `current` | These remain active parts of the declarative compiler surface under the approved `core/**` root. |
+| `core/stages/examples/`, `core/schemas/examples/`, `core/overlays/examples/`, `core/rules/examples/`, `core/runners/examples/` | `current` | Intentional specimen/example material under the canonical `core/**` declarative namespace. |
 | `tools/__pycache__/harness.cpython-311.pyc`, `tools/__pycache__/yaml_lite.cpython-313.pyc` | `cleanup-candidate` | Tracked Python bytecode cache files. These are almost certainly accidental repo baggage. |
 | `substrate_gstack_pattern_synthesis_consolidated_2026-04-18 (1).md` and `.json` | `cleanup-candidate` | Tracked root-level one-off artifacts. I found no in-repo references to either file. They look like imported working notes rather than part of the current product/story. |
 | `.github/release-template.md` | `current` | Tracked source template for release notes. Not legacy. |
 | `dist/` | `transitional` | The contract still treats `dist/` as a generated area. The legacy harness writes compiled prompts there, while the Rust path uses it less centrally. The directory itself is still part of repo vocabulary, but its importance is mostly inherited from the harness era. |
 | `dist/release-template.md` | `likely-stale` | Present locally, but not tracked. The tracked source appears to be `.github/release-template.md`. This looks like generated/local output rather than intentional repo content. |
 | `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, `DESIGN.md`, `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`, `docs/contracts/C-07-conformance-rails-and-docs-cutover.md` | `transitional` | These are current docs, but they still describe discovery glue under `~/.codex/skills/system*`. The current install wrapper and dev-setup scripts now target `~/.agents/skills`, so this wording is stale relative to the scripts. |
-| `docs/GLOSSARY.md` | `transitional` | Intentionally legacy-terms-only, but worth flagging because it still explains `dist/` and `tools/harness.py` mechanics in detail outside `docs/legacy/`. The file is scoped correctly, but it is still part of the non-legacy docs index. |
+| `docs/GLOSSARY.md` | `transitional` | Intentionally legacy-terms-only. After this namespace pass, any mentions of repo-root `pipeline.yaml` or top-level `pipelines/`, `profiles/`, and `runners/` are explicitly historical-only. |
 
 ## Strongest Cleanup Candidates
 
@@ -70,11 +72,11 @@ These look old, but the repo currently treats them as intentionally preserved:
 The repo does still contain real legacy material, but it is not all the same kind:
 
 - Some of it is intentional reference material that the current contracts explicitly preserve.
-- Some of it is transitional scaffold that still exists around the reduced-v1 Rust wedge.
+- Some of it is transitional scaffold that still exists around the reduced-v1 Rust wedge, alongside historical old-root `pipelines/`, `profiles/`, `runners/`, and `pipeline.yaml` wording preserved in legacy materials.
 - Some of it looks like straightforward cleanup debt: tracked cache files, literal placeholder files, ambiguous helper wrappers, and root-level one-off artifacts.
 
 If this inventory is used as the basis for a cleanup pass, the safest order is:
 
 1. remove obvious junk and ambiguity first,
 2. separate evidence/history from shipped surface second,
-3. only then decide whether broader transitional scaffold like `pipeline.yaml`, release/sprint surfaces, and deferred slice scaffolding should stay or move.
+3. only then decide whether broader transitional scaffold like legacy pipeline vocabulary, release/sprint surfaces, and deferred slice scaffolding should stay or move.

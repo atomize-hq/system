@@ -8,19 +8,23 @@ For the supported reduced-v1 product language, start with:
 - [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
 - [`docs/SUPPORTED_COMMANDS.md`](SUPPORTED_COMMANDS.md)
 
-Use this glossary when you need to decode older scaffold docs, `pipeline.yaml`, or legacy stage references.
+Use this glossary when you need to decode older scaffold docs, the historical repo-root `pipeline.yaml` contract, or other historical-only stage references.
 
-> Tip: If you’re trying to understand the legacy stage runner ("what runs when"), start with [`pipeline.yaml`](../pipeline.yaml) and then the stage reference in [`docs/legacy/stages/`](legacy/stages/README.md).
+Approved docs and contracts teach one declarative namespace under `core/**`, including `core/pipelines/`, `core/profiles/`, and `core/runners/`. Any old-root mentions in this file such as `pipeline.yaml`, `pipelines/`, `profiles/`, or `runners/` are historical-only.
+
+> Tip: If you’re trying to understand the legacy stage runner ("what runs when"), start with [`docs/legacy/SYSTEM_MODEL.md`](legacy/SYSTEM_MODEL.md) and then the stage reference in [`docs/legacy/stages/`](legacy/stages/README.md). Those legacy docs describe the historical repo-root `pipeline.yaml` contract.
 
 ---
 
 ## Pipeline
-A YAML file (default: `system/pipeline.yaml`, or another file selected via `--pipeline`) that defines:
+A legacy harness YAML file (historically `system/pipeline.yaml`, or another file selected via `--pipeline`) that defines:
 - pipeline defaults (runner/profile and a few booleans)
 - ordered list of stages
 - a small amount of routing (e.g., `sets`, and stage activation)
 
 The harness uses the pipeline to know **which stage IDs exist** and **what order to run them**.
+
+For the approved reduced-v1 declarative root, use `core/pipelines/` terminology instead.
 
 Related:
 - **Stage**
@@ -77,10 +81,10 @@ The harness parses it to determine:
 A list of files to inline into the compiled prompt.
 Used for:
 - core rules (`core/rules/*.md`)
-- a runner module (`runners/<runner>.md`)
-- profile guidance (`profiles/<profile>/*`)
+- a runner module (historically `runners/<runner>.md`; approved docs now use `core/runners/<runner>.md`)
+- profile guidance (historically `profiles/<profile>/*`; approved docs now use `core/profiles/<profile>/*`)
 
-Includes support simple variable substitution in paths, e.g. `runners/${runner}.md`.
+Includes support simple variable substitution in paths, historically e.g. `runners/${runner}.md`; approved docs now teach `core/runners/${runner}.md`.
 
 ## Inputs
 The things a stage provides to the model. In practice, the compiled prompt shows them as:
@@ -112,7 +116,7 @@ A “.tmpl” markdown file that defines the expected output shape (placeholders
 Templates are inlined into prompts so the model can fill them.
 
 ## Profile
-A “stack pack” directory under `profiles/<id>/` that keeps the core system language/tooling agnostic.
+A historical “stack pack” directory under `profiles/<id>/`; approved docs now teach the declarative profile root as `core/profiles/<id>/`.
 
 A profile contains:
 - `profile.yaml` — metadata + default assumptions
@@ -131,8 +135,8 @@ Example keys in a Python profile might include:
 The point is: core prompts say “run `commands.tests`” rather than “run pytest …”.
 
 ## Runner
-A guidance module under `runners/` describing how an execution agent should operate.
-Example: `runners/codex-cli.md`.
+A historical guidance module under `runners/`; approved docs now teach the declarative runner root as `core/runners/`.
+Historical example: `runners/codex-cli.md`.
 
 Runners describe:
 - how to run commands
@@ -232,7 +236,7 @@ Variable precedence today:
 3) pipeline defaults
 
 ## sets
-A pipeline mechanism (in `pipeline.yaml`) that tells the harness:
+A historical pipeline mechanism (in repo-root `pipeline.yaml`) that tells the harness:
 “after capturing this stage, prompt the user to set these variables.”
 
 Used today by the Charter stage to set:

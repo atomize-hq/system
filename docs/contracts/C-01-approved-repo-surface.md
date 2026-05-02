@@ -17,17 +17,22 @@ revalidation_triggers:
 
 This contract defines the reduced-v1 repo-surface truth for `SEAM-1`. It is the source of truth for what is supported, what is legacy reference material, and what `archived/` may mean if and when it exists.
 
+For declarative planning content, the approved root is `core/**`. Approved docs and contracts MUST teach `core/pipelines/`, `core/profiles/`, and `core/runners/` as the namespace root for declarative pipeline, profile, and runner material.
+
 ## Approved Repo Surface
 
 - Top-level repo surface map:
   - `README.md`: approved
   - `PLAN.md`: approved
   - `docs/`: approved
-  - `core/`: approved
-  - `profiles/`: approved
-  - `runners/`: approved
-  - `pipelines/`: approved
-  - `pipeline.yaml`: approved
+  - `core/`: approved declarative root
+  - `core/pipelines/`: approved declarative pipeline root
+  - `core/profiles/`: approved declarative profile root
+  - `core/runners/`: approved declarative runner root
+  - top-level `pipelines/`: historical/transitional only
+  - top-level `profiles/`: historical/transitional only
+  - top-level `runners/`: historical/transitional only
+  - repo-root `pipeline.yaml`: historical/transitional only
   - `tools/`: legacy/transitional
   - `dist/`: generated
   - `artifacts/`: generated
@@ -53,6 +58,7 @@ This contract defines the reduced-v1 repo-surface truth for `SEAM-1`. It is the 
 - `supported` MUST NOT be used to describe the current Python harness.
 - `legacy` MUST NOT be used to imply that unsupported behavior is acceptable as the long-term product path.
 - Any doc that describes the current Python harness MUST label it `legacy reference material only` or equivalent wording that cannot be mistaken for supported runtime.
+- Any approved doc or contract that mentions top-level `pipelines/`, `profiles/`, `runners/`, or repo-root `pipeline.yaml` MUST mark those paths historical-only or transitional-only. Those old-root paths MUST NOT be taught as the active declarative namespace.
 
 ## Legacy Harness Freeze Policy
 
