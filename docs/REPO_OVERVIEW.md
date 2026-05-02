@@ -57,13 +57,17 @@ The implementation is a small Rust workspace with a deliberate split:
 - `crates/cli`: thin command-line entrypoint, argument parsing, help text, and command dispatch
 - `crates/compiler`: core setup, pipeline loading, route resolution, compile/capture logic, handoff emission, rendering, state handling, and refusal modeling
 
-The compiler is driven by declarative repo content:
+The compiler is driven by declarative repo content rooted under `core/**`:
 
-- `pipelines/`: pipeline definitions that declare stages, activation rules, and defaults
+- `core/pipelines/`: pipeline definitions that declare stages, activation rules, and defaults
+- `core/profiles/`: profile packs that carry command maps, conventions, and stack-specific assumptions
+- `core/runners/`: runner guidance modules that define execution-agent behavior and output expectations
 - `core/stages/`: stage source documents used to assemble planning inputs
 - `core/library/`: reusable templates and directive content
 - `core/schemas/`: structured YAML contracts for generated artifacts
 - `docs/contracts/`: the authoritative behavioral contracts for the shipped CLI surface
+
+Historical-only note: older docs may still mention top-level `pipelines/`, `profiles/`, or `runners/` roots. Approved docs and contracts now treat those names as old-root wording only; the declarative namespace is `core/**`.
 
 At runtime, the system works roughly like this:
 
@@ -83,8 +87,10 @@ The repo also includes strong verification rails:
 
 - `crates/cli/` for the binary entrypoint
 - `crates/compiler/` for the core planning compiler
-- `pipelines/` for declared planning routes
-- `core/` for stages, templates, rules, overlays, and schemas
+- `core/pipelines/` for declared planning routes
+- `core/profiles/` for profile command maps, conventions, and stack assumptions
+- `core/runners/` for runner allowlists and execution-guidance modules
+- `core/` for the broader declarative source tree: stages, templates, rules, overlays, and schemas
 - `docs/contracts/` for product and behavior contracts
 - `tests/fixtures/` for proof fixtures and golden-path validation
 

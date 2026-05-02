@@ -31,6 +31,8 @@ The supported path is the Rust workspace in `crates/`. The older Python harness 
 - `scripts/system/install.sh` is the thin public installer wrapper. It downloads the correct tagged release bundle, verifies the checksum, installs `~/system/`, and refreshes `~/.codex/skills/system*` without requiring a preinstalled `system` binary.
 - `tools/codex/dev-setup.sh` is the dev-only symlink path. Normal install is copy-based, and re-running normal install after dev setup replaces those symlinks with copied directories cleanly.
 - `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and the shipped command family `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set`.
+- Approved docs and contracts teach one declarative namespace root under `core/**`, including `core/pipelines/`, `core/profiles/`, and `core/runners/`.
+- Any retained references to top-level `pipelines/`, `profiles/`, `runners/`, or repo-root `pipeline.yaml` are historical-only wording and are not the approved declarative surface.
 - Planning packet generation reads canonical repo-local `.system/` inputs.
 - `execution.demo.packet` is fixture-backed demo only. Live execution is explicitly refused.
 - Stage `10` stays truthful: `pipeline compile` emits payload-only model input, external model output produces the completed `FEATURE_SPEC.md`, and `pipeline capture` materializes that body.
@@ -133,6 +135,12 @@ cargo run -p system-cli -- inspect
 
 - `crates/cli/`: CLI binary and command-surface tests
 - `crates/compiler/`: compiler, resolver, rendering, and pipeline runtime logic
+- `core/pipelines/`: approved declarative pipeline definitions
+- `core/profiles/`: approved declarative profile packs and profile command surfaces
+- `core/runners/`: approved declarative runner allowlist and execution-guidance modules
+- `core/stages/`: approved stage source documents used by the compiler
+- `core/library/`: reusable authoring directives, templates, and shared planning inputs
+- `core/schemas/`: structured YAML contracts for generated artifacts
 - `docs/`: supported docs, contracts, and frozen legacy docs
 - `tests/fixtures/foundation_flow_demo/`: committed proof corpus for the `pipeline.foundation_inputs` happy/skip journey
 - `artifacts/planning/reduced-v1-seam-pack/`: reviewed reduced-v1 planning pack

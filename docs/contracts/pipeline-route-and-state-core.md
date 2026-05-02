@@ -4,6 +4,7 @@ currentness: current
 status: drafted
 revalidation_triggers:
   - Any change to the accepted pipeline YAML document count, repo-safe path rules, or stage-file boundary.
+  - Any change to the rule that declared pipeline files live under `core/pipelines/`.
   - Any change to the supported activation syntax, boolean clause grammar, or variable-name grammar.
   - Any change to the resolved route status vocabulary or the rule that ordering follows pipeline declaration order.
   - Any change to the runtime-only `.system/state/pipeline/` schema, revision protocol, audit trimming policy, or mutation refusal semantics.
@@ -41,6 +42,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 ### Declared pipeline ingest
 
 - A pipeline definition MUST be loaded from a repo-relative path. Absolute paths, parent-directory escapes, and empty paths MUST be refused.
+- Pipeline definition files MUST live under `core/pipelines/`.
 - The pipeline file MUST contain exactly two YAML documents: one header document and one body document.
 - The header document MUST define non-empty `kind`, `id`, `version`, `title`, and `description` fields.
 - `kind` MUST be exactly `pipeline`.
@@ -105,7 +107,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
   - `profile`
   - `repo_root`
 - `refs.*` values, when present, MUST be non-empty repo-relative paths.
-- `run.runner` and `run.profile`, when present, MUST match declared allowlisted IDs discovered under `runners/` and `profiles/`.
+- `run.runner` and `run.profile`, when present, MUST match declared allowlisted IDs discovered under `core/runners/` and `core/profiles/`.
 - `run.repo_root`, when present, MUST be a clean absolute path string naming the repo root bound to the successful mutation that last persisted the state file.
 - `run.repo_root` is compiler-derived runtime state. In persisted route state it remains an absolute provenance path; in the published route-basis/compile-facing view it MUST be normalized to the stable symbolic root `${repo_root}`.
 - `run.repo_root` is not a direct user-writable mutation field.
@@ -143,7 +145,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 - Every mutation MUST validate the pipeline ID, schema version, routing-variable grammar, and field value type before attempting persistence.
 - Routing mutations MUST target `routing.<variable-name>` and accept boolean values only.
 - `refs.charter_ref` and `refs.project_context_ref` MUST accept repo-relative string values only.
-- `run.runner` and `run.profile` MUST accept only declared allowlisted IDs discovered under `runners/` and `profiles/`.
+- `run.runner` and `run.profile` MUST accept only declared allowlisted IDs discovered under `core/runners/` and `core/profiles/`.
 - `run.repo_root` MUST NOT be accepted as a direct mutation field. Successful compiler-owned mutation persistence MUST derive and persist it from the bound repo root instead.
 - `pipeline resolve` MAY derive a compile-facing route-basis copy of `run.repo_root`, but it MUST normalize that copy to `${repo_root}` instead of leaking the machine-local checkout path into downstream proof or payload surfaces.
 - Every mutation MUST acquire an advisory lock before the read-modify-write sequence begins.
