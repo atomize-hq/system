@@ -576,7 +576,7 @@ fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\nactivation:\n  when:\n    any:\n      - variables.needs_project_context == true\n---\n# base\n",
     );
     write_file(
-        &root.join("pipelines/drift.yaml"),
+        &root.join("core/pipelines/drift.yaml"),
         b"---\nkind: pipeline\nid: pipeline.drift\nversion: 0.1.0\ntitle: Drift\ndescription: drift\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
     );
 
@@ -592,11 +592,11 @@ fn invalid_pipeline_id_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
     );
     write_file(
-        &root.join("pipelines/bad-id.yaml"),
+        &root.join("core/pipelines/bad-id.yaml"),
         b"---\nkind: pipeline\nid: pipeline.bad/path\nversion: 0.1.0\ntitle: Bad Id\ndescription: bad\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
     );
 
@@ -616,7 +616,7 @@ fn unused_bad_stage_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         b"---\nkind: nonsense\nid: stage.bad_unused\nversion: 0.1.0\ntitle: Bad Unused Stage\ndescription: bad\n---\n# bad\n",
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
     );
 
@@ -636,11 +636,11 @@ fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         b"---\nkind: nonsense\nid: stage.bad\nversion: 0.1.0\ntitle: Bad\ndescription: bad\n---\n# bad\n",
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         b"---\nkind: pipeline\nid: pipeline.foundation\nversion: 0.1.0\ntitle: Foundation\ndescription: foundation\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.00_base\n    file: core/stages/00_base.md\n",
     );
     write_file(
-        &root.join("pipelines/broken.yaml"),
+        &root.join("core/pipelines/broken.yaml"),
         b"---\nkind: pipeline\nid: pipeline.broken\nversion: 0.1.0\ntitle: Broken\ndescription: broken\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.bad\n    file: core/stages/bad.md\n",
     );
 
@@ -649,13 +649,13 @@ fn selected_broken_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
 
 fn write_incomplete_profile_pack(root: &std::path::Path, profile_id: &str) {
     write_file(
-        &root.join(format!("profiles/{profile_id}/profile.yaml")),
+        &root.join(format!("core/profiles/{profile_id}/profile.yaml")),
         format!("kind: profile\nid: {profile_id}\n").as_bytes(),
     );
 }
 
 fn set_foundation_inputs_default_profile(root: &std::path::Path, profile_id: &str) {
-    let pipeline_path = root.join("pipelines/foundation_inputs.yaml");
+    let pipeline_path = root.join("core/pipelines/foundation_inputs.yaml");
     let contents = std::fs::read_to_string(&pipeline_path).expect("read foundation pipeline");
     std::fs::write(
         &pipeline_path,
@@ -1159,7 +1159,7 @@ fn collect_repo_reread_planning_inputs(
         repo_rereads,
         "artifacts/foundation/QUALITY_GATES_SPEC.md",
     );
-    let _ = read_repo_text(repo_root, repo_rereads, "pipelines/foundation_inputs.yaml");
+    let _ = read_repo_text(repo_root, repo_rereads, "core/pipelines/foundation_inputs.yaml");
     let _ = read_repo_text(repo_root, repo_rereads, "core/stages/10_feature_spec.md");
 
     build_planning_inputs(
@@ -3353,7 +3353,7 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
     assert!(list_stdout.contains("PIPELINE INVENTORY"));
     assert!(list_stdout.contains("PIPELINE COUNT: 4"));
     assert!(list_stdout.contains("PIPELINE: pipeline.foundation"));
-    assert!(list_stdout.contains("SOURCE: pipelines/foundation.yaml"));
+    assert!(list_stdout.contains("SOURCE: core/pipelines/foundation.yaml"));
 
     let show = run_in(
         root.as_path(),
@@ -3363,7 +3363,7 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
     let show_stdout = String::from_utf8(show.stdout).expect("show stdout is utf-8");
     assert!(show_stdout.contains("PIPELINE: pipeline.foundation_inputs"));
     assert!(show_stdout.contains("DEFAULTS:"));
-    assert!(show_stdout.contains("SOURCE: pipelines/foundation_inputs.yaml"));
+    assert!(show_stdout.contains("SOURCE: core/pipelines/foundation_inputs.yaml"));
     assert!(show_stdout.contains("stage.05_charter_synthesize"));
     assert!(show_stdout.contains("core/stages/05_charter_synthesize.md"));
     assert!(show_stdout.contains("sets: [needs_project_context]"));
@@ -3384,7 +3384,7 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
         b"---\nkind: stage\nid: stage.alpha\nversion: 0.1.0\ntitle: Alpha Stage\ndescription: alpha\n---\n# alpha\n",
     );
     write_file(
-        &ambiguous_root.join("pipelines/alpha.yaml"),
+        &ambiguous_root.join("core/pipelines/alpha.yaml"),
         b"---\nkind: pipeline\nid: pipeline.alpha\nversion: 0.1.0\ntitle: Alpha Pipeline\ndescription: alpha\n---\ndefaults:\n  runner: codex-cli\n  profile: python-uv\n  enable_complexity: false\nstages:\n  - id: stage.alpha\n    file: core/stages/alpha.md\n",
     );
 
@@ -3410,7 +3410,7 @@ fn pipeline_list_and_show_use_canonical_id_discovery() {
 
     let path_like = run_in(
         root.as_path(),
-        &["pipeline", "show", "--id", "pipelines/foundation.yaml"],
+        &["pipeline", "show", "--id", "core/pipelines/foundation.yaml"],
     );
     assert!(
         !path_like.status.success(),
@@ -3528,7 +3528,7 @@ fn pipeline_resolve_refuses_incomplete_default_profile_pack() {
         stdout.contains("REFUSED: route basis build error:"),
         "{stdout}"
     );
-    assert!(stdout.contains("profiles/incomplete/"), "{stdout}");
+    assert!(stdout.contains("core/profiles/incomplete/"), "{stdout}");
     assert!(stdout.contains("commands.yaml"), "{stdout}");
     assert!(stdout.contains("conventions.md"), "{stdout}");
     assert!(
@@ -4012,7 +4012,7 @@ fn pipeline_compile_refuses_stage_not_in_pipeline() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
 
-    let pipeline_path = root.join("pipelines/foundation_inputs.yaml");
+    let pipeline_path = root.join("core/pipelines/foundation_inputs.yaml");
     let pipeline = std::fs::read_to_string(&pipeline_path).expect("read pipeline");
     let updated_pipeline = pipeline.replace(
         "  - id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n",
@@ -4236,7 +4236,7 @@ fn pipeline_state_set_field_rejects_incomplete_profile_pack() {
         "{stdout}"
     );
     assert!(stdout.contains("run.profile `incomplete`"), "{stdout}");
-    assert!(stdout.contains("profiles/incomplete/"), "{stdout}");
+    assert!(stdout.contains("core/profiles/incomplete/"), "{stdout}");
     assert!(stdout.contains("commands.yaml"), "{stdout}");
     assert!(stdout.contains("conventions.md"), "{stdout}");
 }

@@ -17,7 +17,7 @@ fn fixture(path: &str) -> PipelineDefinition {
 
 #[test]
 fn route_evaluation_preserves_declared_order_and_marks_false_activation_skipped() {
-    let definition = fixture("pipelines/foundation_inputs.yaml");
+    let definition = fixture("core/pipelines/foundation_inputs.yaml");
     let variables = RouteVariables::from_pairs([
         ("needs_project_context", false),
         ("charter_gaps_detected", false),
@@ -80,7 +80,7 @@ fn route_evaluation_preserves_declared_order_and_marks_false_activation_skipped(
 
 #[test]
 fn route_evaluation_emits_exactly_one_next_when_route_state_is_missing() {
-    let definition = fixture("pipelines/foundation_inputs.yaml");
+    let definition = fixture("core/pipelines/foundation_inputs.yaml");
     let variables = RouteVariables::empty();
 
     let result = resolve_pipeline_route(&definition, &variables).expect("route");
@@ -143,7 +143,7 @@ fn route_evaluation_emits_exactly_one_next_when_route_state_is_missing() {
 #[test]
 fn route_evaluation_refuses_out_of_contract_activation_inputs() {
     let definition = PipelineDefinition {
-        source_path: PathBuf::from("pipelines/manual.yaml"),
+        source_path: PathBuf::from("core/pipelines/manual.yaml"),
         header: PipelineHeader {
             kind: "pipeline".to_string(),
             id: "pipeline.manual".to_string(),
@@ -190,7 +190,7 @@ fn route_evaluation_refuses_out_of_contract_activation_inputs() {
 
 #[test]
 fn supported_route_state_variables_include_stage_sets_and_activation_clauses() {
-    let definition = fixture("pipelines/foundation_inputs.yaml");
+    let definition = fixture("core/pipelines/foundation_inputs.yaml");
     let variables = supported_route_state_variables(&definition);
 
     assert_eq!(
@@ -205,7 +205,7 @@ fn supported_route_state_variables_include_stage_sets_and_activation_clauses() {
 #[test]
 fn all_operator_with_known_false_and_missing_inputs_is_skipped_not_next() {
     let definition = PipelineDefinition {
-        source_path: PathBuf::from("pipelines/manual-all.yaml"),
+        source_path: PathBuf::from("core/pipelines/manual-all.yaml"),
         header: PipelineHeader {
             kind: "pipeline".to_string(),
             id: "pipeline.manual_all".to_string(),
@@ -265,7 +265,7 @@ fn all_operator_with_known_false_and_missing_inputs_is_skipped_not_next() {
 #[test]
 fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&root, "core/pipelines/foundation_inputs.yaml")
         .expect("proof corpus definition");
     let pipeline_id = definition.header.id.clone();
     let supported_variables = supported_route_state_variables(&definition);
@@ -362,7 +362,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
 #[test]
 fn shared_proof_corpus_state_mutation_outputs_match_repo_owned_goldens() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&root, "core/pipelines/foundation_inputs.yaml")
         .expect("proof corpus definition");
     let pipeline_id = definition.header.id.clone();
     let supported_variables = supported_route_state_variables(&definition);

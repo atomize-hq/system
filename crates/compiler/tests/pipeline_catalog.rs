@@ -52,11 +52,11 @@ fn catalog_discovers_canonical_pipeline_and_stage_ids() {
     }
 
     let unsupported = catalog
-        .resolve_selector("pipelines/foundation.yaml")
+        .resolve_selector("core/pipelines/foundation.yaml")
         .expect_err("path selector refusal");
     match unsupported {
         PipelineLookupError::UnsupportedSelector { selector, reason } => {
-            assert_eq!(selector, "pipelines/foundation.yaml");
+            assert_eq!(selector, "core/pipelines/foundation.yaml");
             assert!(reason.contains("evidence only"));
         }
         other => panic!("expected unsupported-selector refusal, got {other:?}"),
@@ -81,7 +81,7 @@ description: alpha
 "#,
     );
     write_file(
-        &root.join("pipelines/alpha.yaml"),
+        &root.join("core/pipelines/alpha.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.alpha
@@ -123,7 +123,7 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     let pipeline_render = render_pipeline_show(&pipeline);
     assert!(pipeline_render.contains("PIPELINE: pipeline.foundation_inputs"));
     assert!(pipeline_render.contains("TITLE: Foundation Pipeline (Dev/Test Charter Inputs"));
-    assert!(pipeline_render.contains("SOURCE: pipelines/foundation_inputs.yaml"));
+    assert!(pipeline_render.contains("SOURCE: core/pipelines/foundation_inputs.yaml"));
     assert!(pipeline_render.contains("DEFAULTS:"));
     assert!(pipeline_render.contains("runner: codex-cli"));
     assert!(pipeline_render.contains("profile: python-uv"));
@@ -161,7 +161,7 @@ fn catalog_renders_pipeline_yaml_and_stage_front_matter_as_distinct_sources() {
     assert!(list.contains("PIPELINE INVENTORY"));
     assert!(list.contains("PIPELINE COUNT: 4"));
     assert!(list.contains("PIPELINE: pipeline.foundation"));
-    assert!(list.contains("SOURCE: pipelines/foundation.yaml"));
+    assert!(list.contains("SOURCE: core/pipelines/foundation.yaml"));
     assert!(list.contains("PIPELINE: pipeline.sprint"));
 }
 
@@ -184,7 +184,10 @@ fn catalog_outputs_stay_deterministic_and_ignore_unrelated_route_state() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
-    copy_tree(&source_root.join("pipelines"), &root.join("pipelines"));
+    copy_tree(
+        &source_root.join("core/pipelines"),
+        &root.join("core/pipelines"),
+    );
     copy_tree(&source_root.join("core/stages"), &root.join("core/stages"));
 
     let state_path = root
@@ -256,7 +259,7 @@ activation:
 "#,
     );
     write_file(
-        &root.join("pipelines/drift.yaml"),
+        &root.join("core/pipelines/drift.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.drift
@@ -284,7 +287,7 @@ stages:
         .expect("pipeline selection");
     let pipeline_render = render_pipeline_show(&pipeline);
     assert!(pipeline_render.contains("PIPELINE: pipeline.drift"));
-    assert!(pipeline_render.contains("SOURCE: pipelines/drift.yaml"));
+    assert!(pipeline_render.contains("SOURCE: core/pipelines/drift.yaml"));
     assert!(pipeline_render.contains("stage.00_base"));
 
     let stage = catalog
@@ -318,7 +321,7 @@ activation:
 "#,
     );
     write_file(
-        &root.join("pipelines/drift.yaml"),
+        &root.join("core/pipelines/drift.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.drift
@@ -383,7 +386,7 @@ description: bad
 "#,
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.foundation
@@ -436,7 +439,7 @@ description: base
 "#,
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.foundation
@@ -454,7 +457,7 @@ stages:
 "#,
     );
     write_file(
-        &root.join("pipelines/bad-id.yaml"),
+        &root.join("core/pipelines/bad-id.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.bad/path
@@ -510,7 +513,7 @@ description: base
 "#,
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.foundation
@@ -528,7 +531,7 @@ stages:
 "#,
     );
     write_file(
-        &root.join("pipelines/broken.yaml"),
+        &root.join("core/pipelines/broken.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.broken
@@ -585,7 +588,7 @@ description: bad
 "#,
     );
     write_file(
-        &root.join("pipelines/foundation.yaml"),
+        &root.join("core/pipelines/foundation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.foundation
@@ -603,7 +606,7 @@ stages:
 "#,
     );
     write_file(
-        &root.join("pipelines/broken.yaml"),
+        &root.join("core/pipelines/broken.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.broken

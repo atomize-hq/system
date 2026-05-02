@@ -23,7 +23,7 @@
   - artifacts/foundation/FOUNDATION_STRATEGY.md
   - artifacts/foundation/TECH_ARCH_BRIEF.md
   - artifacts/foundation/QUALITY_GATES_SPEC.md
-  - pipelines/foundation_inputs.yaml
+  - core/pipelines/foundation_inputs.yaml
   - core/stages/10_feature_spec.md
 
 ## After: Bundle-Only Consumer

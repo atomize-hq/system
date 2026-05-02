@@ -14,7 +14,7 @@ audit: []
 route_basis:
   schema_version: bad-route-basis
   pipeline_id: pipeline.foundation_inputs
-  pipeline_file: pipelines/foundation_inputs.yaml
+  pipeline_file: core/pipelines/foundation_inputs.yaml
   pipeline_file_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   state_revision: 0
   routing: {}
@@ -33,7 +33,7 @@ route_basis:
       file_sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   runner:
     id: codex-cli
-    file: runners/codex-cli.md
+    file: core/runners/codex-cli.md
     file_sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   profile:
     id: python-uv

@@ -118,7 +118,7 @@ Produces a single FEATURE_SPEC.md for one feature, aligned with the project Char
 
 ## Selected Runner
 
-### runners/codex-cli.md
+### core/runners/codex-cli.md
 # Runner: codex-cli
 
 This runner assumes the agent can:
@@ -143,7 +143,7 @@ This runner assumes the agent can:
 
 ## Selected Profile
 
-### profiles/python-uv/profile.yaml
+### core/profiles/python-uv/profile.yaml
 kind: profile
 id: python-uv
 version: 0.1.0
@@ -172,7 +172,7 @@ evidence:
   required_fields: ["cmd", "exit", "tail", "timestamp"]
   tail_lines: 80
 
-### profiles/python-uv/commands.yaml
+### core/profiles/python-uv/commands.yaml
 commands:
   install: "uv sync"
   format: "uv run ruff format {code_dirs} {test_dirs}"
@@ -185,7 +185,7 @@ commands:
   security: "uv run pip-audit && uv run bandit -r {code_dirs}"
   complexity: "uv run ruff check --select C90 {code_dirs}"
 
-### profiles/python-uv/conventions.md
+### core/profiles/python-uv/conventions.md
 # Profile conventions: Python (uv)
 
 These are **project/tooling conventions** for Python projects managed with **uv**.
@@ -750,7 +750,7 @@ gates:
 - committed text fixtures represent external model output
 
 ## Important Paths
-- `pipelines/foundation_inputs.yaml`
+- `core/pipelines/foundation_inputs.yaml`
 - `core/stages/06_project_context_interview.md`
 - `core/stages/10_feature_spec.md`
 - `tests/fixtures/foundation_flow_demo`

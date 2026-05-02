@@ -108,6 +108,6 @@ gates:
 - external model output is represented by committed markdown fixtures
 
 ## Important Paths
-- `pipelines/foundation_inputs.yaml`
+- `core/pipelines/foundation_inputs.yaml`
 - `core/stages/10_feature_spec.md`
 - `tests/fixtures/foundation_flow_demo`

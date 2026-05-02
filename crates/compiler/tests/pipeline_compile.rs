@@ -17,7 +17,7 @@ const STAGE_ID: &str = "stage.10_feature_spec";
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
 
 fn pipeline_definition(repo_root: &Path) -> system_compiler::PipelineDefinition {
-    load_pipeline_definition(repo_root, "pipelines/foundation_inputs.yaml")
+    load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture")
 }
 
@@ -307,7 +307,7 @@ fn compile_refuses_missing_route_basis() {
 #[test]
 fn compile_refuses_malformed_selected_pipeline_definition() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
-    let pipeline_path = repo_root.join("pipelines/foundation_inputs.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/foundation_inputs.yaml");
     let pipeline = fs::read_to_string(&pipeline_path).expect("read pipeline");
     let updated_pipeline = pipeline.replace("  runner: codex-cli", "  runner:");
     assert_ne!(
@@ -558,7 +558,7 @@ fn compile_refuses_inactive_stage() {
 #[test]
 fn compile_refuses_stage_not_declared_in_pipeline() {
     let (_dir, repo_root) = prepare_compile_ready_repo();
-    let pipeline_path = repo_root.join("pipelines/foundation_inputs.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/foundation_inputs.yaml");
     let pipeline = fs::read_to_string(&pipeline_path).expect("read pipeline");
     let updated_pipeline = pipeline.replace(
         "  - id: stage.10_feature_spec\n    file: core/stages/10_feature_spec.md\n",

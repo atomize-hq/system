@@ -125,7 +125,7 @@ pub fn load_foundation_inputs_definition(
     system_compiler::PipelineDefinition,
     std::collections::BTreeSet<String>,
 ) {
-    let definition = load_pipeline_definition(repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     (definition, supported_variables)
