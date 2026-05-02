@@ -18,7 +18,7 @@ reliability, security, observability, DX, UX polish). It must be practical for a
 
 ## Profile-aware behavior (important)
 
-A profile pack may be provided in the prompt (e.g., `profiles/python-uv/profile.yaml` + `commands.yaml`).
+A profile pack may be provided in the prompt (e.g., `core/profiles/python-uv/profile.yaml` + `commands.yaml`).
 
 - Treat the selected profile as the **default tooling assumption** (lint/format/typecheck/tests/security).
 - Only ask about tooling if:

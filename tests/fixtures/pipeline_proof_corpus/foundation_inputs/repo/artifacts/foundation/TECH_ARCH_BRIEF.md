@@ -18,6 +18,6 @@
 ## Integration Touchpoints
 - `crates/compiler`
 - `crates/cli`
-- `pipelines/foundation_inputs.yaml`
+- `core/pipelines/foundation_inputs.yaml`
 - `core/stages/10_feature_spec.md`
 - `tests/fixtures/pipeline_proof_corpus/foundation_inputs`

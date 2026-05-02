@@ -20,7 +20,7 @@ Optional:
 - `PROJECT_CONTEXT.md` (if present; otherwise treat as unknown and be explicit)
 
 Also available:
-- Selected Profile pack (`profiles/<id>/profile.yaml`, `commands.yaml`, `conventions.md`)
+- Selected Profile pack (`core/profiles/<id>/profile.yaml`, `commands.yaml`, `conventions.md`)
 - Runner adapter (how evidence is captured)
 
 ## Operating Rules (non-negotiable)

@@ -14,8 +14,8 @@ includes:
   - core/rules/evidence_policy.md
   - core/rules/traceability_policy.md
   - core/rules/integration_policy.md
-  - runners/${runner}.md
-  - profiles/${profile}/conventions.md
+  - core/runners/${runner}.md
+  - core/profiles/${profile}/conventions.md
 
 optional_overlays:
   - core/overlays/complexity_assessment.md

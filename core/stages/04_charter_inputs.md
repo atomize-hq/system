@@ -12,10 +12,10 @@ includes:
   - core/rules/p0_absolute.md
   - core/rules/p1_pragmatic.md
   - core/rules/traceability_policy.md
-  - runners/${runner}.md
-  - profiles/${profile}/conventions.md
-  - profiles/${profile}/profile.yaml
-  - profiles/${profile}/commands.yaml
+  - core/runners/${runner}.md
+  - core/profiles/${profile}/conventions.md
+  - core/profiles/${profile}/profile.yaml
+  - core/profiles/${profile}/commands.yaml
 
 inputs:
   library:
@@ -52,4 +52,3 @@ tags:
 ---
 
 <!-- Stage body intentionally minimal. -->
-
