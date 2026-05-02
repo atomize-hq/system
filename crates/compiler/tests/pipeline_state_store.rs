@@ -24,38 +24,38 @@ fn write_file(path: &Path, contents: &str) {
 
 fn seed_complete_profile_pack(repo_root: &Path, profile_id: &str) {
     write_file(
-        &repo_root.join(format!("profiles/{profile_id}/profile.yaml")),
+        &repo_root.join(format!("core/profiles/{profile_id}/profile.yaml")),
         &format!("kind: profile\nid: {profile_id}\n"),
     );
     write_file(
-        &repo_root.join(format!("profiles/{profile_id}/commands.yaml")),
+        &repo_root.join(format!("core/profiles/{profile_id}/commands.yaml")),
         "commands: []\n",
     );
     write_file(
-        &repo_root.join(format!("profiles/{profile_id}/conventions.md")),
+        &repo_root.join(format!("core/profiles/{profile_id}/conventions.md")),
         "# conventions\n",
     );
 }
 
 fn seed_incomplete_profile_pack(repo_root: &Path, profile_id: &str) {
     write_file(
-        &repo_root.join(format!("profiles/{profile_id}/profile.yaml")),
+        &repo_root.join(format!("core/profiles/{profile_id}/profile.yaml")),
         &format!("kind: profile\nid: {profile_id}\n"),
     );
 }
 
 fn seed_run_inventory(repo_root: &Path) {
-    write_file(&repo_root.join("runners/codex-cli.md"), "# runner");
+    write_file(&repo_root.join("core/runners/codex-cli.md"), "# runner");
     write_file(
-        &repo_root.join("runners/examples/runner.example.md"),
+        &repo_root.join("core/runners/examples/runner.example.md"),
         "# ignored noise",
     );
     seed_complete_profile_pack(repo_root, "python-uv");
     write_file(
-        &repo_root.join("profiles/_template/profile.yaml"),
+        &repo_root.join("core/profiles/_template/profile.yaml"),
         "kind: profile\nid: _template\n",
     );
-    write_file(&repo_root.join("profiles/.DS_Store"), "noise");
+    write_file(&repo_root.join("core/profiles/.DS_Store"), "noise");
 }
 
 fn repo_root_string(repo_root: &Path) -> String {
@@ -104,7 +104,7 @@ fn release_unix_lock(file: &std::fs::File) {
 #[test]
 fn route_basis_defaults_runner_and_profile_into_run_snapshot() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -136,7 +136,7 @@ fn route_basis_defaults_runner_and_profile_into_run_snapshot() {
 #[test]
 fn persist_route_basis_accepts_defaulted_run_snapshot_against_unset_state_run() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -188,7 +188,7 @@ fn persist_route_basis_accepts_defaulted_run_snapshot_against_unset_state_run() 
 #[test]
 fn route_basis_round_trips_when_written_by_resolve() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -227,7 +227,7 @@ fn route_basis_round_trips_when_written_by_resolve() {
 #[test]
 fn load_route_state_accepts_legacy_absolute_route_basis_repo_root() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -284,7 +284,7 @@ fn load_route_state_accepts_legacy_absolute_route_basis_repo_root() {
 #[test]
 fn persist_route_basis_refuses_forged_route_status() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -327,7 +327,7 @@ fn build_route_basis_refuses_symlinked_runner_file() {
     use std::os::unix::fs::symlink;
 
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -346,7 +346,7 @@ fn build_route_basis_refuses_symlinked_runner_file() {
     let outside_secret = outside_dir.path().join("system-review-secret.txt");
     write_file(&outside_secret, "outside-secret");
 
-    let runner_file = repo_root.join("runners/codex-cli.md");
+    let runner_file = repo_root.join("core/runners/codex-cli.md");
     std::fs::remove_file(&runner_file).expect("remove runner file");
     symlink(&outside_secret, &runner_file).expect("symlink runner");
 
@@ -366,7 +366,7 @@ fn build_route_basis_refuses_incomplete_default_profile_pack() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     seed_incomplete_profile_pack(&repo_root, "incomplete");
 
-    let pipeline_path = repo_root.join("pipelines/foundation_inputs.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/foundation_inputs.yaml");
     let pipeline_contents = std::fs::read_to_string(&pipeline_path).expect("read pipeline");
     std::fs::write(
         &pipeline_path,
@@ -374,7 +374,7 @@ fn build_route_basis_refuses_incomplete_default_profile_pack() {
     )
     .expect("write pipeline");
 
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -402,7 +402,7 @@ fn build_route_basis_refuses_incomplete_default_profile_pack() {
         }
         other => panic!("expected incomplete selected profile pack error, got {other:?}"),
     }
-    assert!(err.to_string().contains("profiles/incomplete/"));
+    assert!(err.to_string().contains("core/profiles/incomplete/"));
     assert!(!err.to_string().contains("failed to read route_basis input"));
 }
 
@@ -783,7 +783,7 @@ fn malformed_route_basis_is_distinct_from_malformed_route_state() {
 #[test]
 fn persisted_route_basis_refuses_incomplete_profile_pack_on_reload() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -806,7 +806,7 @@ fn persisted_route_basis_refuses_incomplete_profile_pack_on_reload() {
         other => panic!("expected route basis persist to apply, got {other:?}"),
     }
 
-    std::fs::remove_file(repo_root.join("profiles/python-uv/commands.yaml"))
+    std::fs::remove_file(repo_root.join("core/profiles/python-uv/commands.yaml"))
         .expect("remove commands.yaml");
 
     let err = load_route_state_with_supported_variables(
@@ -819,7 +819,7 @@ fn persisted_route_basis_refuses_incomplete_profile_pack_on_reload() {
     match err {
         RouteStateReadError::MalformedState { reason, .. } => {
             assert!(reason.contains("route_basis"), "{reason}");
-            assert!(reason.contains("profiles/python-uv/"), "{reason}");
+            assert!(reason.contains("core/profiles/python-uv/"), "{reason}");
             assert!(reason.contains("commands.yaml"), "{reason}");
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
@@ -829,7 +829,7 @@ fn persisted_route_basis_refuses_incomplete_profile_pack_on_reload() {
 #[test]
 fn stage_05_capture_ready_fixture_persists_route_basis_without_state_mutation() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -849,7 +849,7 @@ fn stage_05_capture_ready_fixture_persists_route_basis_without_state_mutation() 
 #[test]
 fn stage_07_capture_ready_fixture_persists_only_post_charter_route_state() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_07_capture_ready_repo();
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture");
     let supported_variables = supported_route_state_variables(&definition);
     let state = load_route_state_with_supported_variables(
@@ -982,7 +982,7 @@ fn invalid_runner_value_is_rejected_before_write() {
     match err {
         RouteStateStoreError::InvalidMutation { reason } => {
             assert!(reason.contains("run.runner"), "{reason}");
-            assert!(reason.contains("runners/"), "{reason}");
+            assert!(reason.contains("core/runners/"), "{reason}");
             assert!(reason.contains("not-a-runner"), "{reason}");
         }
         other => panic!("expected invalid mutation error, got {other:?}"),
@@ -1010,7 +1010,7 @@ fn invalid_profile_value_is_rejected_before_write() {
     match err {
         RouteStateStoreError::InvalidMutation { reason } => {
             assert!(reason.contains("run.profile"), "{reason}");
-            assert!(reason.contains("profiles/"), "{reason}");
+            assert!(reason.contains("core/profiles/"), "{reason}");
             assert!(reason.contains("not-a-profile"), "{reason}");
         }
         other => panic!("expected invalid mutation error, got {other:?}"),
@@ -1039,7 +1039,7 @@ fn incomplete_profile_pack_is_rejected_before_write() {
     match err {
         RouteStateStoreError::InvalidMutation { reason } => {
             assert!(reason.contains("run.profile"), "{reason}");
-            assert!(reason.contains("profiles/incomplete/"), "{reason}");
+            assert!(reason.contains("core/profiles/incomplete/"), "{reason}");
             assert!(reason.contains("commands.yaml"), "{reason}");
             assert!(reason.contains("conventions.md"), "{reason}");
         }
@@ -1187,7 +1187,7 @@ audit:
         RouteStateReadError::MalformedState { reason, .. } => {
             assert!(reason.contains("run.runner"), "{reason}");
             assert!(reason.contains("not-a-runner"), "{reason}");
-            assert!(reason.contains("runners/"), "{reason}");
+            assert!(reason.contains("core/runners/"), "{reason}");
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
     }
@@ -1222,7 +1222,7 @@ audit:
     match err {
         RouteStateReadError::MalformedState { reason, .. } => {
             assert!(reason.contains("run.profile"), "{reason}");
-            assert!(reason.contains("profiles/incomplete/"), "{reason}");
+            assert!(reason.contains("core/profiles/incomplete/"), "{reason}");
             assert!(reason.contains("commands.yaml"), "{reason}");
             assert!(reason.contains("conventions.md"), "{reason}");
         }
@@ -1262,7 +1262,7 @@ audit:
         RouteStateReadError::MalformedState { reason, .. } => {
             assert!(reason.contains("run.profile"), "{reason}");
             assert!(reason.contains("not-a-profile"), "{reason}");
-            assert!(reason.contains("profiles/"), "{reason}");
+            assert!(reason.contains("core/profiles/"), "{reason}");
         }
         other => panic!("expected malformed-state refusal, got {other:?}"),
     }

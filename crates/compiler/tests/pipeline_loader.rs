@@ -31,7 +31,8 @@ fn foundation_pipeline_loads_with_deterministic_stage_order() {
     let repo_root = repo_root();
 
     let definition =
-        load_pipeline_definition(&repo_root, "pipelines/foundation.yaml").expect("load pipeline");
+        load_pipeline_definition(&repo_root, "core/pipelines/foundation.yaml")
+            .expect("load pipeline");
 
     assert_eq!(definition.header.kind, "pipeline");
     assert_eq!(definition.header.id, "pipeline.foundation");
@@ -71,7 +72,7 @@ fn foundation_pipeline_loads_with_deterministic_stage_order() {
 fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
     let repo_root = repo_root();
 
-    let definition = load_pipeline_definition(&repo_root, "pipelines/foundation_inputs.yaml")
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("load pipeline");
 
     let activation = definition.body.stages[3]
@@ -106,7 +107,7 @@ activation:
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/matching-front-matter-activation.yaml"),
+        &repo_root.join("core/pipelines/matching-front-matter-activation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.matching_front_matter_activation
@@ -129,7 +130,7 @@ stages:
     );
 
     let definition =
-        load_pipeline_definition(repo_root, "pipelines/matching-front-matter-activation.yaml")
+        load_pipeline_definition(repo_root, "core/pipelines/matching-front-matter-activation.yaml")
             .expect("matching activation should load");
 
     assert_eq!(definition.body.stages.len(), 1);
@@ -156,7 +157,7 @@ activation:
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/front-matter-only-activation.yaml"),
+        &repo_root.join("core/pipelines/front-matter-only-activation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.front_matter_only_activation
@@ -174,7 +175,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/front-matter-only-activation.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/front-matter-only-activation.yaml")
         .expect_err("front matter only activation should refuse");
 
     match err {
@@ -252,7 +253,7 @@ fn semantic_activation_drift_is_refused() {
             ),
         );
         write_file(
-            &repo_root.join("pipelines/activation-drift.yaml"),
+            &repo_root.join("core/pipelines/activation-drift.yaml"),
             format!(
                 r#"---
 kind: pipeline
@@ -274,7 +275,8 @@ stages:
         );
 
         let err =
-            load_pipeline_definition(repo_root, "pipelines/activation-drift.yaml").expect_err(name);
+            load_pipeline_definition(repo_root, "core/pipelines/activation-drift.yaml")
+                .expect_err(name);
 
         match err {
             PipelineLoadError::Validation {
@@ -307,7 +309,7 @@ activation:
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/reordered-activation.yaml"),
+        &repo_root.join("core/pipelines/reordered-activation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.reordered_activation
@@ -330,7 +332,7 @@ stages:
 "#,
     );
 
-    load_pipeline_definition(repo_root, "pipelines/reordered-activation.yaml")
+    load_pipeline_definition(repo_root, "core/pipelines/reordered-activation.yaml")
         .expect("reordered semantic activation should load");
 }
 
@@ -354,7 +356,7 @@ activation:
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/malformed-front-matter-activation.yaml"),
+        &repo_root.join("core/pipelines/malformed-front-matter-activation.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.malformed_front_matter_activation
@@ -378,7 +380,7 @@ stages:
 
     let err = load_pipeline_definition(
         repo_root,
-        "pipelines/malformed-front-matter-activation.yaml",
+        "core/pipelines/malformed-front-matter-activation.yaml",
     )
     .expect_err("malformed stage front matter activation should refuse");
 
@@ -407,7 +409,7 @@ fn declared_stage_order_is_preserved_for_core_pipelines() {
 
     let cases = [
         (
-            "pipelines/foundation_inputs.yaml",
+            "core/pipelines/foundation_inputs.yaml",
             vec![
                 "stage.00_base",
                 "stage.04_charter_inputs",
@@ -418,11 +420,11 @@ fn declared_stage_order_is_preserved_for_core_pipelines() {
             ],
         ),
         (
-            "pipelines/release.yaml",
+            "core/pipelines/release.yaml",
             vec!["stage.00_base", "stage.01_release_plan"],
         ),
         (
-            "pipelines/sprint.yaml",
+            "core/pipelines/sprint.yaml",
             vec!["stage.00_base", "stage.02_sprint_plan"],
         ),
     ];
@@ -450,8 +452,11 @@ fn richer_root_pipeline_yaml_is_refused_as_out_of_scope_shape() {
     let err = load_pipeline_definition(&repo_root, "pipeline.yaml").expect_err("root pipeline");
 
     match err {
-        PipelineLoadError::BodyParse { .. } => {}
-        other => panic!("expected body parse refusal, got {other:?}"),
+        PipelineLoadError::UnsupportedPipelinePath { path, reason } => {
+            assert_eq!(path, Path::new("pipeline.yaml"));
+            assert!(reason.contains("core/pipelines/"));
+        }
+        other => panic!("expected unsupported path refusal, got {other:?}"),
     }
 }
 
@@ -459,7 +464,7 @@ fn richer_root_pipeline_yaml_is_refused_as_out_of_scope_shape() {
 fn wrong_document_count_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/one-doc.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/one-doc.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -472,7 +477,7 @@ description: "missing body"
     );
 
     let err =
-        load_pipeline_definition(repo_root, "pipelines/one-doc.yaml").expect_err("wrong docs");
+        load_pipeline_definition(repo_root, "core/pipelines/one-doc.yaml").expect_err("wrong docs");
 
     match err {
         PipelineLoadError::WrongDocumentCount { actual, .. } => assert_eq!(actual, 1),
@@ -484,7 +489,7 @@ description: "missing body"
 fn malformed_yaml_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/malformed.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/malformed.yaml");
     write_file(
         &pipeline_path,
         "---\n\
@@ -503,7 +508,7 @@ stages:\n\
     file: core/stages/00_base.md\n",
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/malformed.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/malformed.yaml")
         .expect_err("malformed yaml");
 
     match err {
@@ -517,7 +522,7 @@ fn empty_header_fields_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/empty-title.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/empty-title.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -538,7 +543,8 @@ stages:
     );
 
     let err =
-        load_pipeline_definition(repo_root, "pipelines/empty-title.yaml").expect_err("empty title");
+        load_pipeline_definition(repo_root, "core/pipelines/empty-title.yaml")
+            .expect_err("empty title");
 
     match err {
         PipelineLoadError::Validation {
@@ -565,7 +571,7 @@ description: base
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/bad-header-id.yaml"),
+        &repo_root.join("core/pipelines/bad-header-id.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.bad/path
@@ -583,7 +589,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/bad-header-id.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/bad-header-id.yaml")
         .expect_err("path-like pipeline id should refuse");
 
     match err {
@@ -623,7 +629,7 @@ description: base
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/bad-stage-id.yaml"),
+        &repo_root.join("core/pipelines/bad-stage-id.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.valid_stage_id_check
@@ -641,7 +647,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/bad-stage-id.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/bad-stage-id.yaml")
         .expect_err("path-like stage id should refuse");
 
     match err {
@@ -681,7 +687,7 @@ description: base
 "#,
     );
     write_file(
-        &repo_root.join("pipelines/bad-header-extension.yaml"),
+        &repo_root.join("core/pipelines/bad-header-extension.yaml"),
         r#"---
 kind: pipeline
 id: pipeline.bad.yaml
@@ -699,7 +705,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/bad-header-extension.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/bad-header-extension.yaml")
         .expect_err("extension-shaped pipeline id should refuse");
 
     match err {
@@ -727,7 +733,7 @@ stages:
 fn unknown_fields_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/unknown-field.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/unknown-field.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -749,7 +755,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/unknown-field.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/unknown-field.yaml")
         .expect_err("unknown field");
 
     match err {
@@ -762,7 +768,7 @@ stages:
 fn unsupported_header_kind_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/wrong-kind.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/wrong-kind.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -782,7 +788,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/wrong-kind.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/wrong-kind.yaml")
         .expect_err("wrong header kind");
 
     match err {
@@ -803,7 +809,7 @@ fn duplicate_stage_ids_are_refused() {
         &repo_root.join("core/stages/05_charter_interview.md"),
         "charter",
     );
-    let pipeline_path = repo_root.join("pipelines/duplicate-stage.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/duplicate-stage.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -825,7 +831,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/duplicate-stage.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/duplicate-stage.yaml")
         .expect_err("duplicate stage");
 
     match err {
@@ -841,7 +847,7 @@ stages:
 fn unsupported_activation_syntax_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/bad-activation.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/bad-activation.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -865,7 +871,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/bad-activation.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/bad-activation.yaml")
         .expect_err("bad activation");
 
     match err {
@@ -878,7 +884,7 @@ stages:
 fn unsupported_activation_value_type_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/bad-activation-value.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/bad-activation-value.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -902,7 +908,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/bad-activation-value.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/bad-activation-value.yaml")
         .expect_err("bad activation value");
 
     match err {
@@ -922,7 +928,7 @@ stages:
 fn numeric_activation_value_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/numeric-activation-value.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/numeric-activation-value.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -946,7 +952,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/numeric-activation-value.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/numeric-activation-value.yaml")
         .expect_err("numeric activation value");
 
     match err {
@@ -966,7 +972,7 @@ stages:
 fn out_of_root_stage_paths_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/out-of-root.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/out-of-root.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -986,7 +992,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/out-of-root.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/out-of-root.yaml")
         .expect_err("out-of-root stage path");
 
     match err {
@@ -1005,7 +1011,7 @@ stages:
 fn missing_stage_files_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/missing-stage.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/missing-stage.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1025,7 +1031,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/missing-stage.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/missing-stage.yaml")
         .expect_err("missing stage file");
 
     match err {
@@ -1050,7 +1056,7 @@ fn repo_local_stage_paths_outside_stage_directory_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("README.md"), "not a stage");
-    let pipeline_path = repo_root.join("pipelines/outside-stage-directory.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/outside-stage-directory.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1070,7 +1076,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/outside-stage-directory.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/outside-stage-directory.yaml")
         .expect_err("outside stage directory");
 
     match err {
@@ -1098,7 +1104,7 @@ fn stage_paths_with_wrong_extension_are_refused() {
         &repo_root.join("core/stages/not_markdown.txt"),
         "not markdown",
     );
-    let pipeline_path = repo_root.join("pipelines/wrong-extension-stage.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/wrong-extension-stage.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1118,7 +1124,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/wrong-extension-stage.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/wrong-extension-stage.yaml")
         .expect_err("wrong extension stage path");
 
     match err {
@@ -1144,7 +1150,7 @@ fn non_regular_stage_paths_are_refused() {
     let repo_root = dir.path();
     let stage_dir = repo_root.join("core/stages/not_a_file.md");
     std::fs::create_dir_all(&stage_dir).expect("mkdirs");
-    let pipeline_path = repo_root.join("pipelines/non-regular-stage.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/non-regular-stage.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1164,7 +1170,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/non-regular-stage.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/non-regular-stage.yaml")
         .expect_err("non-regular stage path");
 
     match err {
@@ -1189,7 +1195,7 @@ fn activation_all_operator_parses_multiple_boolean_clauses() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/all-activation.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/all-activation.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1215,7 +1221,7 @@ stages:
     );
 
     let definition =
-        load_pipeline_definition(repo_root, "pipelines/all-activation.yaml").expect("load");
+        load_pipeline_definition(repo_root, "core/pipelines/all-activation.yaml").expect("load");
 
     let activation = definition.body.stages[0]
         .activation
@@ -1234,7 +1240,7 @@ fn pipeline_path_must_stay_repo_relative() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    let err = load_pipeline_definition(repo_root, "../pipelines/outside.yaml")
+    let err = load_pipeline_definition(repo_root, "../core/pipelines/outside.yaml")
         .expect_err("pipeline path should be rejected");
 
     match err {
@@ -1250,12 +1256,12 @@ fn missing_pipeline_file_is_reported_as_read_failure() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    let err = load_pipeline_definition(repo_root, "pipelines/missing.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/missing.yaml")
         .expect_err("missing pipeline file");
 
     match err {
         PipelineLoadError::ReadFailure { path, .. } => {
-            assert_eq!(path, repo_root.join("pipelines/missing.yaml"));
+            assert_eq!(path, repo_root.join("core/pipelines/missing.yaml"));
         }
         other => panic!("expected read-failure refusal, got {other:?}"),
     }
@@ -1266,7 +1272,7 @@ fn extra_yaml_documents_are_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/extra-doc.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/extra-doc.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1288,7 +1294,7 @@ extra: true
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/extra-doc.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/extra-doc.yaml")
         .expect_err("third document should be refused");
 
     match err {
@@ -1301,7 +1307,7 @@ extra: true
 fn empty_stage_list_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let pipeline_path = repo_root.join("pipelines/empty-stages.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/empty-stages.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1319,7 +1325,7 @@ stages: []
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/empty-stages.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/empty-stages.yaml")
         .expect_err("empty stages");
 
     match err {
@@ -1336,7 +1342,7 @@ fn empty_sets_list_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/empty-sets.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/empty-sets.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1358,7 +1364,8 @@ stages:
     );
 
     let err =
-        load_pipeline_definition(repo_root, "pipelines/empty-sets.yaml").expect_err("empty sets");
+        load_pipeline_definition(repo_root, "core/pipelines/empty-sets.yaml")
+            .expect_err("empty sets");
 
     match err {
         PipelineLoadError::Validation {
@@ -1374,7 +1381,7 @@ fn blank_set_variable_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/blank-set-variable.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/blank-set-variable.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1396,7 +1403,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/blank-set-variable.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/blank-set-variable.yaml")
         .expect_err("blank set variable");
 
     match err {
@@ -1416,7 +1423,7 @@ fn invalid_set_variable_name_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/invalid-set-variable.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/invalid-set-variable.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1438,7 +1445,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/invalid-set-variable.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/invalid-set-variable.yaml")
         .expect_err("invalid set variable");
 
     match err {
@@ -1461,7 +1468,7 @@ fn empty_activation_clause_list_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     write_file(&repo_root.join("core/stages/00_base.md"), "base");
-    let pipeline_path = repo_root.join("pipelines/empty-activation-list.yaml");
+    let pipeline_path = repo_root.join("core/pipelines/empty-activation-list.yaml");
     write_file(
         &pipeline_path,
         r#"---
@@ -1484,7 +1491,7 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_definition(repo_root, "pipelines/empty-activation-list.yaml")
+    let err = load_pipeline_definition(repo_root, "core/pipelines/empty-activation-list.yaml")
         .expect_err("empty activation list");
 
     match err {

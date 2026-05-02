@@ -7,7 +7,7 @@ TARGET:
 ROUTE BASIS:
   schema_version = m2-route-basis-v1
   state_revision = 6
-  pipeline_file = pipelines/foundation_inputs.yaml
+  pipeline_file = core/pipelines/foundation_inputs.yaml
   pipeline_file_sha256 = 1a6fb478c3b0ad36707f57716fb601f3b6a5323e2987309e32618a50c1e1b5c8
   routing:
     charter_gaps_detected = false
@@ -21,7 +21,7 @@ ROUTE BASIS:
     repo_root = ${repo_root}
   runner:
     id = codex-cli
-    file = runners/codex-cli.md
+    file = core/runners/codex-cli.md
     file_sha256 = 0b8693c8d0f81b48aa97ab875dffb69e5730843cde8022b5968aa90fdb6eee4c
   profile:
     id = python-uv
@@ -52,10 +52,10 @@ DOCUMENTS:
   2. include | core/rules/p1_pragmatic.md | required=true | status=present
   3. include | core/rules/traceability_policy.md | required=true | status=present
   4. include | core/rules/evidence_policy.md | required=true | status=present
-  5. runner | runners/codex-cli.md | required=true | status=present
-  6. profile | profiles/python-uv/profile.yaml | required=true | status=present
-  7. profile | profiles/python-uv/commands.yaml | required=true | status=present
-  8. profile | profiles/python-uv/conventions.md | required=true | status=present
+  5. runner | core/runners/codex-cli.md | required=true | status=present
+  6. profile | core/profiles/python-uv/profile.yaml | required=true | status=present
+  7. profile | core/profiles/python-uv/commands.yaml | required=true | status=present
+  8. profile | core/profiles/python-uv/conventions.md | required=true | status=present
   9. library | core/library/feature_spec/feature_spec_architect_directive.md | required=true | status=present
   10. library | core/library/feature_spec/FEATURE_SPEC.md.tmpl | required=true | status=present
   11. artifact | artifacts/base/BASE_CONTEXT.md | required=true | status=present

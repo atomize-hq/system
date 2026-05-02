@@ -92,7 +92,7 @@ gates:
 - committed text fixtures represent external model output
 
 ## Important Paths
-- `pipelines/foundation_inputs.yaml`
+- `core/pipelines/foundation_inputs.yaml`
 - `core/stages/06_project_context_interview.md`
 - `core/stages/10_feature_spec.md`
 - `tests/fixtures/foundation_flow_demo`

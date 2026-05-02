@@ -160,7 +160,7 @@ fn seed_non_canonical_boundary_noise(root: &Path) {
         b"POISON canonical-looking template outside planning packet trust surface\n",
     );
     write_file(
-        &root.join("runners/codex-cli.md"),
+        &root.join("core/runners/codex-cli.md"),
         b"POISON runner outside planning packet trust surface\n",
     );
 }
