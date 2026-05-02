@@ -266,6 +266,14 @@ def load_runner(runner_id: str) -> Dict[str, Any]:
     return {"id": runner_id, "path": str(r_path), "content": _read_text(r_path) if r_path.exists() else ""}
 
 
+def _is_example_path(path: Path, root: Path) -> bool:
+    try:
+        rel_parts = path.relative_to(root).parts
+    except ValueError:
+        return False
+    return "examples" in rel_parts
+
+
 def list_overlays() -> List[str]:
     """List overlay ids under core/overlays.
 
@@ -282,7 +290,7 @@ def list_overlays() -> List[str]:
         return []
     names: List[str] = []
     for p in overlay_dir.rglob("*.md"):
-        if p.name == "*.md":
+        if _is_example_path(p, overlay_dir):
             continue
         rel = p.relative_to(overlay_dir).with_suffix("")
         names.append(str(rel).replace("\\", "/"))

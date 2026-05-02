@@ -25,3 +25,4 @@ tags:
   - tool-enabled
 ---
 
+> Example specimen only. This file documents runner shape and is not a runtime-loaded source of truth.

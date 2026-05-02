@@ -68,3 +68,4 @@ tags:
   - evidence_required
 ---
 
+> Example specimen only. This file documents stage shape and is not a runtime-loaded source of truth.

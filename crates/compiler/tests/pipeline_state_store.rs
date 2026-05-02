@@ -46,7 +46,10 @@ fn seed_incomplete_profile_pack(repo_root: &Path, profile_id: &str) {
 
 fn seed_run_inventory(repo_root: &Path) {
     write_file(&repo_root.join("runners/codex-cli.md"), "# runner");
-    write_file(&repo_root.join("runners/*.md"), "# ignored noise");
+    write_file(
+        &repo_root.join("runners/examples/runner.example.md"),
+        "# ignored noise",
+    );
     seed_complete_profile_pack(repo_root, "python-uv");
     write_file(
         &repo_root.join("profiles/_template/profile.yaml"),

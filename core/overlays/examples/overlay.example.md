@@ -27,3 +27,4 @@ tags:
   - metrics
 ---
 
+> Example specimen only. This file documents overlay shape and is not a runtime-loaded source of truth.

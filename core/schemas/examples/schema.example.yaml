@@ -1,3 +1,5 @@
+# Example specimen only. This file documents schema shape and is not a runtime-loaded source of truth.
+#
 # ---
 # kind: schema
 # id: schema.slice
@@ -15,4 +17,3 @@ properties:
   integration: { type: object }
   acceptance: { type: array }
   gates: { type: object }
-

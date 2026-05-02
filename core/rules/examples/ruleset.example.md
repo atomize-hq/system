@@ -28,3 +28,4 @@ tags:
   - no_weaseling
 ---
 
+> Example specimen only. This file documents ruleset shape and is not a runtime-loaded source of truth.
