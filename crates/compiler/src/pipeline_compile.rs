@@ -1,3 +1,4 @@
+use crate::declarative_roots::{is_profile_file, profile_file};
 use crate::pipeline::{
     load_selected_pipeline_definition, load_stage_compile_definition,
     supported_route_state_variables, CompileStageDefinition, CompileStageInput,
@@ -915,16 +916,18 @@ fn assemble_documents(
     let mut documents = Vec::new();
     let runner_path = basis.runner.file.clone();
     let profile_paths = [
-        format!("profiles/{}/profile.yaml", basis.profile.id),
-        format!("profiles/{}/commands.yaml", basis.profile.id),
-        format!("profiles/{}/conventions.md", basis.profile.id),
+        profile_file(&basis.profile.id, "profile.yaml"),
+        profile_file(&basis.profile.id, "commands.yaml"),
+        profile_file(&basis.profile.id, "conventions.md"),
     ];
 
     for include in &stage_definition.includes {
         let path = substitute_variables(include, variables);
         let kind = if path == runner_path {
             PipelineCompileDocumentKind::Runner
-        } else if profile_paths.iter().any(|candidate| candidate == &path) {
+        } else if is_profile_file(&path, &basis.profile.id)
+            || profile_paths.iter().any(|candidate| candidate == &path)
+        {
             PipelineCompileDocumentKind::Profile
         } else {
             PipelineCompileDocumentKind::Include
