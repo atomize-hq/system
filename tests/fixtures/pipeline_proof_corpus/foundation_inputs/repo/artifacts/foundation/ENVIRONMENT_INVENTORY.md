@@ -10,6 +10,6 @@
 - route basis state stored in a repo-local state file written by `pipeline resolve`
 
 ## Important Paths
-- `pipelines/foundation_inputs.yaml`
+- `core/pipelines/foundation_inputs.yaml`
 - `core/stages/10_feature_spec.md`
 - `tests/fixtures/pipeline_proof_corpus/foundation_inputs`

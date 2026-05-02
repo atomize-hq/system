@@ -10,7 +10,7 @@ You are an AI assistant generating an Engineering Charter (`CHARTER.md`) from a 
 
 ## Profile-aware behavior
 
-A profile pack may be included in the prompt (e.g., `profiles/python-uv/profile.yaml` + `commands.yaml`).
+A profile pack may be included in the prompt (e.g., `core/profiles/python-uv/profile.yaml` + `commands.yaml`).
 
 - Treat the selected profile as the default tooling assumptions.
 - Only mention tooling that is consistent with the profile pack.
@@ -37,4 +37,3 @@ Produce a markdown doc with:
 10. Exceptions/override process
 11. Debt tracking expectations
 12. Decision Records section (if applicable)
-

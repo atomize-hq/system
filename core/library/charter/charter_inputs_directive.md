@@ -18,7 +18,7 @@ This stage is for **development/testing** of the system:
 
 ## Profile-aware behavior
 
-A profile pack may be included (e.g., `profiles/python-uv/profile.yaml` + `commands.yaml`).
+A profile pack may be included (e.g., `core/profiles/python-uv/profile.yaml` + `commands.yaml`).
 
 - Use the selected profile as the default tooling assumption.
 - Do not invent unrelated tooling choices that contradict the profile.
@@ -26,4 +26,3 @@ A profile pack may be included (e.g., `profiles/python-uv/profile.yaml` + `comma
 ## Required output
 
 Emit a complete `CHARTER_INPUTS.yaml` matching the template structure.
-
