@@ -1,8 +1,11 @@
 use crate::declarative_roots::pipeline_root;
+use crate::repo_file_access::{
+    CompilerWorkspace, NormalizedRepoRelativePath, RepoRelativeFileAccessError,
+};
 use serde::Deserialize;
 use std::collections::BTreeSet;
 use std::fmt;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineDefinition {
@@ -666,6 +669,8 @@ pub fn load_stage_compile_definition(
     pipeline: &PipelineDefinition,
     stage_id: &str,
 ) -> Result<CompileStageDefinition, CompileStageLoadError> {
+    let repo_root = repo_root.as_ref();
+    let workspace = CompilerWorkspace::new(repo_root);
     let Some(stage) = pipeline
         .declared_stages()
         .iter()
@@ -678,12 +683,16 @@ pub fn load_stage_compile_definition(
         });
     };
 
-    let path = repo_root.as_ref().join(&stage.file);
-    let contents =
-        std::fs::read_to_string(&path).map_err(|source| CompileStageLoadError::ReadFailure {
-            path: path.clone(),
-            source,
+    let relative_path = workspace
+        .normalize_repo_relative(&stage.file)
+        .map_err(|reason| CompileStageLoadError::ReadFailure {
+            path: repo_root.join(&stage.file),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidInput, reason),
         })?;
+    let path = repo_root.join(relative_path.as_str());
+    let contents = workspace
+        .read_string(&relative_path)
+        .map_err(|err| compile_stage_read_failure(path.clone(), err))?;
     let Some((front_matter_text, body)) = extract_front_matter_parts(&contents) else {
         return Err(CompileStageLoadError::MissingFrontMatter { path });
     };
@@ -914,16 +923,17 @@ fn load_stage_catalog_entry_for_reference(
     stage: &PipelineStage,
 ) -> Result<StageCatalogEntry, PipelineCatalogError> {
     let full_path = repo_root.join(&stage.file);
-    let Some(front_matter) = load_stage_front_matter(&full_path).map_err(|err| match err {
-        StageFrontMatterLoadError::Read(source) => PipelineCatalogError::ReadStageCatalog {
-            path: full_path.clone(),
-            source,
-        },
-        StageFrontMatterLoadError::Parse(source) => PipelineCatalogError::StageFrontMatter {
-            path: full_path.clone(),
-            source,
-        },
-    })?
+    let Some(front_matter) =
+        load_stage_front_matter(repo_root, Path::new(&stage.file)).map_err(|err| match err {
+            StageFrontMatterLoadError::Read(source) => PipelineCatalogError::ReadStageCatalog {
+                path: full_path.clone(),
+                source,
+            },
+            StageFrontMatterLoadError::Parse(source) => PipelineCatalogError::StageFrontMatter {
+                path: full_path.clone(),
+                source,
+            },
+        })?
     else {
         return Err(PipelineCatalogError::StageFrontMatter {
             path: full_path,
@@ -1220,16 +1230,19 @@ fn load_stage_catalog(
     let mut out = std::collections::BTreeMap::new();
     for stage_path in discover_repo_relative_files(repo_root, Path::new("core/stages"), "md")? {
         let full_path = repo_root.join(&stage_path);
-        let Some(front_matter) = load_stage_front_matter(&full_path).map_err(|err| match err {
-            StageFrontMatterLoadError::Read(source) => PipelineCatalogError::ReadStageCatalog {
-                path: full_path.clone(),
-                source,
-            },
-            StageFrontMatterLoadError::Parse(source) => PipelineCatalogError::StageFrontMatter {
-                path: full_path.clone(),
-                source,
-            },
-        })?
+        let Some(front_matter) =
+            load_stage_front_matter(repo_root, &stage_path).map_err(|err| match err {
+                StageFrontMatterLoadError::Read(source) => PipelineCatalogError::ReadStageCatalog {
+                    path: full_path.clone(),
+                    source,
+                },
+                StageFrontMatterLoadError::Parse(source) => {
+                    PipelineCatalogError::StageFrontMatter {
+                        path: full_path.clone(),
+                        source,
+                    }
+                }
+            })?
         else {
             continue;
         };
@@ -1532,8 +1545,8 @@ fn load_pipeline_header(
     repo_root: &Path,
     pipeline_path: &Path,
 ) -> Result<Option<PipelineHeader>, PipelineLoadError> {
-    let relative_pipeline_path = validate_pipeline_repo_relative_path(pipeline_path)?;
-    let full_path = repo_root.join(relative_pipeline_path);
+    let relative_pipeline_path = validate_pipeline_repo_relative_path(repo_root, pipeline_path)?;
+    let full_path = repo_root.join(relative_pipeline_path.as_str());
     let contents =
         std::fs::read_to_string(&full_path).map_err(|source| PipelineLoadError::ReadFailure {
             path: full_path.clone(),
@@ -1564,8 +1577,8 @@ fn load_pipeline_definition_with_mode(
 ) -> Result<PipelineDefinition, PipelineLoadError> {
     let repo_root = repo_root.as_ref();
     let pipeline_path = pipeline_path.as_ref();
-    let relative_pipeline_path = validate_pipeline_repo_relative_path(pipeline_path)?;
-    let full_path = repo_root.join(relative_pipeline_path);
+    let relative_pipeline_path = validate_pipeline_repo_relative_path(repo_root, pipeline_path)?;
+    let full_path = repo_root.join(relative_pipeline_path.as_str());
     let contents =
         std::fs::read_to_string(&full_path).map_err(|source| PipelineLoadError::ReadFailure {
             path: full_path.clone(),
@@ -1614,7 +1627,7 @@ fn load_pipeline_definition_with_mode(
     validate_pipeline_definition(repo_root, &full_path, &header, &body, mode)?;
 
     Ok(PipelineDefinition {
-        source_path: relative_pipeline_path.to_path_buf(),
+        source_path: PathBuf::from(relative_pipeline_path.as_str()),
         header,
         body,
     })
@@ -1952,26 +1965,30 @@ fn validate_stage_file(
     path: &Path,
     stage: &PipelineStage,
 ) -> Result<(), PipelineLoadError> {
-    let file_path = Path::new(&stage.file);
-    if validate_repo_relative_path(file_path).is_err() {
-        return Err(PipelineLoadError::Validation {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let file_path = workspace
+        .normalize_repo_relative(&stage.file)
+        .map_err(|_| PipelineLoadError::Validation {
             path: path.to_path_buf(),
             error: PipelineValidationError::StageFileOutsideRepoRoot {
                 stage_id: stage.id.clone(),
                 file: stage.file.clone(),
             },
+        })?;
+    let file_path_view = Path::new(file_path.as_str());
+
+    if !file_path_view.starts_with(Path::new("core/stages")) {
+        return Err(PipelineLoadError::Validation {
+            path: path.to_path_buf(),
+            error: PipelineValidationError::InvalidStageFile {
+                stage_id: stage.id.clone(),
+                file: stage.file.clone(),
+                reason: StageFileValidationError::OutsideStageDirectory,
+            },
         });
     }
 
-    if !file_path.starts_with(Path::new("core/stages")) {
-        return Err(invalid_stage_file_error(
-            path,
-            stage,
-            StageFileValidationError::OutsideStageDirectory,
-        ));
-    }
-
-    if file_path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+    if file_path_view.extension().and_then(|ext| ext.to_str()) != Some("md") {
         return Err(invalid_stage_file_error(
             path,
             stage,
@@ -1979,44 +1996,30 @@ fn validate_stage_file(
         ));
     }
 
-    let resolved = repo_root.join(file_path);
-    if !resolved.starts_with(repo_root) {
-        return Err(PipelineLoadError::Validation {
-            path: path.to_path_buf(),
-            error: PipelineValidationError::StageFileOutsideRepoRoot {
-                stage_id: stage.id.clone(),
-                file: stage.file.clone(),
-            },
-        });
-    }
-
-    let meta = match std::fs::symlink_metadata(&resolved) {
-        Ok(meta) => meta,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+    match workspace.trusted_read(&file_path) {
+        Ok(_) => Ok(()),
+        Err(RepoRelativeFileAccessError::Missing(_)) => {
             return Err(invalid_stage_file_error(
                 path,
                 stage,
                 StageFileValidationError::Missing,
             ));
         }
-        Err(_) => {
+        Err(
+            RepoRelativeFileAccessError::SymlinkNotAllowed(_)
+            | RepoRelativeFileAccessError::NotRegularFile(_)
+            | RepoRelativeFileAccessError::ReadFailure { .. },
+        ) => {
             return Err(invalid_stage_file_error(
                 path,
                 stage,
                 StageFileValidationError::NotRegularFile,
             ));
         }
-    };
-
-    if !meta.is_file() {
-        return Err(invalid_stage_file_error(
-            path,
-            stage,
-            StageFileValidationError::NotRegularFile,
-        ));
+        Err(RepoRelativeFileAccessError::InvalidPath(_)) => {
+            unreachable!("stage file path was already normalized successfully")
+        }
     }
-
-    Ok(())
 }
 
 fn invalid_stage_file_error(
@@ -2059,7 +2062,7 @@ fn validate_stage_activation_equivalence(
     path: &Path,
     stage: &PipelineStage,
 ) -> Result<(), PipelineLoadError> {
-    let stage_front_matter = load_stage_front_matter(repo_root.join(&stage.file).as_path())
+    let stage_front_matter = load_stage_front_matter(repo_root, Path::new(&stage.file))
         .map_err(|err| invalid_stage_front_matter_error(path, stage, err))?;
 
     let Some(stage_front_matter) = stage_front_matter else {
@@ -2158,9 +2161,16 @@ fn render_sets(sets: &[String]) -> String {
 }
 
 fn load_stage_front_matter(
-    path: &Path,
+    repo_root: &Path,
+    relative_path: &Path,
 ) -> Result<Option<StageFrontMatter>, StageFrontMatterLoadError> {
-    let contents = std::fs::read_to_string(path).map_err(StageFrontMatterLoadError::Read)?;
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative_path(relative_path)
+        .map_err(stage_front_matter_path_error)?;
+    let contents = workspace
+        .read_string(&relative_path)
+        .map_err(stage_front_matter_read_error)?;
     let Some(front_matter_text) = extract_front_matter_block(&contents) else {
         return Ok(None);
     };
@@ -2171,39 +2181,27 @@ fn load_stage_front_matter(
     Ok(Some(front_matter))
 }
 
-fn validate_repo_relative_path(path: &Path) -> Result<&Path, &'static str> {
-    if path.as_os_str().is_empty() {
-        return Err("path must not be empty");
-    }
-
-    for component in path.components() {
-        match component {
-            Component::Normal(_) => {}
-            Component::CurDir => {}
-            Component::ParentDir => return Err("path must not escape the repo root"),
-            Component::RootDir | Component::Prefix(_) => return Err("path must be repo-relative"),
-        }
-    }
-
-    Ok(path)
-}
-
-fn validate_pipeline_repo_relative_path(path: &Path) -> Result<&Path, PipelineLoadError> {
-    let relative_path = validate_repo_relative_path(path).map_err(|reason| {
-        PipelineLoadError::UnsupportedPipelinePath {
+fn validate_pipeline_repo_relative_path(
+    repo_root: &Path,
+    path: &Path,
+) -> Result<NormalizedRepoRelativePath, PipelineLoadError> {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative_path(path)
+        .map_err(|reason| PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
-            reason,
-        }
-    })?;
+            reason: pipeline_path_reason(&reason),
+        })?;
+    let relative_path_view = Path::new(relative_path.as_str());
 
-    if !relative_path.starts_with(pipeline_root()) {
+    if !relative_path_view.starts_with(pipeline_root()) {
         return Err(PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
             reason: "pipeline YAML must live under `core/pipelines/`",
         });
     }
 
-    if relative_path.extension().and_then(|ext| ext.to_str()) != Some("yaml") {
+    if relative_path_view.extension().and_then(|ext| ext.to_str()) != Some("yaml") {
         return Err(PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
             reason: "pipeline YAML must use the `.yaml` extension under `core/pipelines/`",
@@ -2211,6 +2209,63 @@ fn validate_pipeline_repo_relative_path(path: &Path) -> Result<&Path, PipelineLo
     }
 
     Ok(relative_path)
+}
+
+fn pipeline_path_reason(reason: &str) -> &'static str {
+    match reason {
+        "path must not be empty" => "path must not be empty",
+        "path must not escape the repo root" => "path must not escape the repo root",
+        "path must be repo-relative" => "path must be repo-relative",
+        _ => "path must be repo-relative",
+    }
+}
+
+fn compile_stage_read_failure(
+    path: PathBuf,
+    err: RepoRelativeFileAccessError,
+) -> CompileStageLoadError {
+    CompileStageLoadError::ReadFailure {
+        path,
+        source: repo_file_access_error_to_io_error(err),
+    }
+}
+
+fn stage_front_matter_path_error(reason: String) -> StageFrontMatterLoadError {
+    StageFrontMatterLoadError::Read(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        reason,
+    ))
+}
+
+fn stage_front_matter_read_error(err: RepoRelativeFileAccessError) -> StageFrontMatterLoadError {
+    StageFrontMatterLoadError::Read(repo_file_access_error_to_io_error(err))
+}
+
+fn repo_file_access_error_to_io_error(err: RepoRelativeFileAccessError) -> std::io::Error {
+    match err {
+        RepoRelativeFileAccessError::Missing(_) => std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "repo-relative file is missing",
+        ),
+        RepoRelativeFileAccessError::InvalidPath(reason) => {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, reason)
+        }
+        RepoRelativeFileAccessError::SymlinkNotAllowed(path) => std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "repo-relative file must not be a symlink: {}",
+                path.display()
+            ),
+        ),
+        RepoRelativeFileAccessError::NotRegularFile(path) => std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "repo-relative file must be an existing regular file: {}",
+                path.display()
+            ),
+        ),
+        RepoRelativeFileAccessError::ReadFailure { source, .. } => source,
+    }
 }
 
 fn invalid_route_variable_name_reason(variable: &str) -> Option<&'static str> {

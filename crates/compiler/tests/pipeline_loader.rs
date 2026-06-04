@@ -1237,6 +1237,60 @@ stages:
     assert!(!activation.when.clauses[1].value);
 }
 
+#[cfg(unix)]
+#[test]
+fn symlinked_stage_file_is_classified_as_non_regular_file() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let external = tempfile::tempdir().expect("external tempdir");
+    let repo_root = dir.path();
+    write_file(&external.path().join("00_base.md"), "# external stage");
+    std::fs::create_dir_all(repo_root.join("core/stages")).expect("stage dir");
+    symlink(
+        external.path().join("00_base.md"),
+        repo_root.join("core/stages/00_base.md"),
+    )
+    .expect("symlink stage");
+    write_file(
+        &repo_root.join("core/pipelines/symlinked-stage.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.symlinked_stage
+version: 0.1.0
+title: "Symlinked Stage"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+"#,
+    );
+
+    let err = load_pipeline_definition(repo_root, "core/pipelines/symlinked-stage.yaml")
+        .expect_err("symlinked stage path");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::NotRegularFile,
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "core/stages/00_base.md");
+        }
+        other => panic!("expected symlinked-stage refusal, got {other:?}"),
+    }
+}
+
 #[test]
 fn pipeline_path_must_stay_repo_relative() {
     let dir = tempfile::tempdir().expect("tempdir");

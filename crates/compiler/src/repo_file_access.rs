@@ -56,6 +56,12 @@ impl NormalizedRepoRelativePath {
         Ok(Self(normalized))
     }
 
+    pub(crate) fn parse_path(path: &Path) -> Result<Self, String> {
+        let path = validate_repo_relative_path_from_path(path)?;
+        let normalized = normalize_validated_repo_relative_path(path)?;
+        Ok(Self(normalized))
+    }
+
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
@@ -80,6 +86,13 @@ impl<'a> CompilerWorkspace<'a> {
         path: &str,
     ) -> Result<NormalizedRepoRelativePath, String> {
         NormalizedRepoRelativePath::parse(path)
+    }
+
+    pub(crate) fn normalize_repo_relative_path(
+        &self,
+        path: &Path,
+    ) -> Result<NormalizedRepoRelativePath, String> {
+        NormalizedRepoRelativePath::parse_path(path)
     }
 
     pub(crate) fn trusted_read(
@@ -367,11 +380,14 @@ fn resolve_repo_relative_regular_file_path(
 
 pub(crate) fn validate_repo_relative_path(path: &str) -> Result<&Path, String> {
     let trimmed = path.trim();
-    if trimmed.is_empty() {
+    validate_repo_relative_path_from_path(Path::new(trimmed))
+}
+
+pub(crate) fn validate_repo_relative_path_from_path(path: &Path) -> Result<&Path, String> {
+    if path.as_os_str().is_empty() {
         return Err("path must not be empty".to_string());
     }
 
-    let path = Path::new(trimmed);
     if path.is_absolute() {
         return Err("path must be repo-relative".to_string());
     }
@@ -961,7 +977,9 @@ mod tests {
             .normalize_repo_relative("nested/path/output.txt")
             .expect("normalize repo-relative path");
 
-        workspace.write_bytes(&path, b"hello\n").expect("write bytes");
+        workspace
+            .write_bytes(&path, b"hello\n")
+            .expect("write bytes");
 
         assert_eq!(
             fs::read_to_string(repo_root.path().join("nested/path/output.txt"))
@@ -1099,9 +1117,7 @@ mod tests {
             .normalize_repo_relative("nested/output.txt")
             .expect("normalize repo-relative path");
 
-        let err = workspace
-            .delete_file(&path)
-            .expect_err("symlink refusal");
+        let err = workspace.delete_file(&path).expect_err("symlink refusal");
 
         assert!(
             matches!(err, RepoRelativeMutationError::SymlinkNotAllowed(_)),
