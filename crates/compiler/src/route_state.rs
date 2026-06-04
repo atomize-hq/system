@@ -9,7 +9,11 @@ use crate::pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, RouteStageReason, RouteStageStatus,
     RouteVariables,
 };
-use crate::repo_file_access::{sha256_repo_relative_file, RepoRelativeFileAccessError};
+use crate::repo_file_access::{
+    sha256_repo_relative_file, CompilerWorkspace, NormalizedRepoRelativePath,
+    RepoRelativeDirectoryAccessError, RepoRelativeFileAccessError, RepoRelativeMetadataReadError,
+    TrustedRepoDirectory,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -1761,24 +1765,17 @@ fn load_run_inventory(
 fn load_runner_inventory(
     repo_root: &Path,
 ) -> Result<BTreeSet<String>, RouteStateInventoryLoadError> {
-    let inventory_dir = repo_root.join(runner_root());
-    let entries = match fs::read_dir(&inventory_dir) {
-        Ok(entries) => entries,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
-        Err(source) => {
-            return Err(RouteStateInventoryLoadError {
-                path: inventory_dir,
-                source,
-            });
-        }
+    let workspace = CompilerWorkspace::new(repo_root);
+    let inventory_root = inventory_root_path(&workspace, runner_root());
+    let inventory_dir = match workspace.trusted_directory(&inventory_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => return Ok(BTreeSet::new()),
+        Err(err) => return Err(map_inventory_directory_error(err)),
     };
+    let entries = read_inventory_dir_entries(&inventory_dir)?;
 
     let mut ids = BTreeSet::new();
     for entry in entries {
-        let entry = entry.map_err(|source| RouteStateInventoryLoadError {
-            path: inventory_dir.clone(),
-            source,
-        })?;
         let entry_path = entry.path();
         let file_type = entry
             .file_type()
@@ -1809,26 +1806,19 @@ fn load_runner_inventory(
 fn load_profile_inventory(
     repo_root: &Path,
 ) -> Result<ProfilePackInventory, RouteStateInventoryLoadError> {
-    let inventory_dir = repo_root.join(profile_root());
-    let entries = match fs::read_dir(&inventory_dir) {
-        Ok(entries) => entries,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let inventory_root = inventory_root_path(&workspace, profile_root());
+    let inventory_dir = match workspace.trusted_directory(&inventory_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => {
             return Ok(ProfilePackInventory::default());
         }
-        Err(source) => {
-            return Err(RouteStateInventoryLoadError {
-                path: inventory_dir,
-                source,
-            });
-        }
+        Err(err) => return Err(map_inventory_directory_error(err)),
     };
+    let entries = read_inventory_dir_entries(&inventory_dir)?;
 
     let mut profiles = ProfilePackInventory::default();
     for entry in entries {
-        let entry = entry.map_err(|source| RouteStateInventoryLoadError {
-            path: inventory_dir.clone(),
-            source,
-        })?;
         let entry_path = entry.path();
         let file_type = entry
             .file_type()
@@ -1847,27 +1837,18 @@ fn load_profile_inventory(
             continue;
         }
 
-        let profile_yaml = entry_path.join("profile.yaml");
-        let metadata = match fs::symlink_metadata(&profile_yaml) {
-            Ok(metadata) => metadata,
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(source) => {
-                return Err(RouteStateInventoryLoadError {
-                    path: profile_yaml,
-                    source,
-                });
-            }
+        let profile_dir = inventory_entry_path(&workspace, &inventory_root, &id);
+        let profile_yaml = inventory_entry_path(&workspace, &profile_dir, "profile.yaml");
+        let metadata = match workspace.metadata_no_follow(&profile_yaml) {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => continue,
+            Err(err) => return Err(map_inventory_metadata_error(err)),
         };
         if !metadata.is_file() {
             continue;
         }
 
-        let missing_files = missing_profile_pack_files(&entry_path).map_err(|source| {
-            RouteStateInventoryLoadError {
-                path: entry_path.clone(),
-                source,
-            }
-        })?;
+        let missing_files = missing_profile_pack_files(&workspace, &profile_dir)?;
         if missing_files.is_empty() {
             profiles.complete_ids.insert(id);
         } else {
@@ -1878,16 +1859,20 @@ fn load_profile_inventory(
     Ok(profiles)
 }
 
-fn missing_profile_pack_files(path: &Path) -> Result<Vec<&'static str>, std::io::Error> {
+fn missing_profile_pack_files(
+    workspace: &CompilerWorkspace<'_>,
+    profile_dir: &NormalizedRepoRelativePath,
+) -> Result<Vec<&'static str>, RouteStateInventoryLoadError> {
     let mut missing_files = Vec::new();
     for required_file in PROFILE_PACK_REQUIRED_FILES {
-        let metadata = match fs::symlink_metadata(path.join(required_file)) {
-            Ok(metadata) => metadata,
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+        let required_path = inventory_entry_path(workspace, profile_dir, required_file);
+        let metadata = match workspace.metadata_no_follow(&required_path) {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => {
                 missing_files.push(required_file);
                 continue;
             }
-            Err(source) => return Err(source),
+            Err(err) => return Err(map_inventory_metadata_error(err)),
         };
         if !metadata.is_file() {
             missing_files.push(required_file);
@@ -2032,56 +2017,62 @@ enum RuntimeStateResetEntryKind {
 }
 
 pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
-    let state_root = repo_root.join(".handbook").join("state");
-    let root_metadata = match fs::symlink_metadata(&state_root) {
-        Ok(metadata) => metadata,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let state_root = inventory_root_path(&workspace, Path::new(".handbook/state"));
+    let state_root_dir = match workspace.trusted_directory(&state_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => {
             return Ok(RuntimeStateResetPlan {
                 entries: Vec::new(),
                 paths: Vec::new(),
             });
         }
-        Err(source) => {
+        Err(RepoRelativeDirectoryAccessError::SymlinkNotAllowed(path)) => {
+            return Err(format!(
+                "runtime state root `.handbook/state` cannot be reset through symlink {}",
+                path.display()
+            ));
+        }
+        Err(RepoRelativeDirectoryAccessError::NotDirectory(path)) => {
+            return Err(format!(
+                "runtime state root `.handbook/state` is not a directory at {}",
+                path.display()
+            ));
+        }
+        Err(RepoRelativeDirectoryAccessError::ReadFailure { path, source }) => {
             return Err(format!(
                 "failed to inspect runtime state root `.handbook/state` at {}: {source}",
-                state_root.display()
+                path.display()
             ));
         }
     };
-
-    if root_metadata.file_type().is_symlink() {
-        return Err(format!(
-            "runtime state root `.handbook/state` cannot be reset through symlink {}",
-            state_root.display()
-        ));
-    }
-    if !root_metadata.is_dir() {
-        return Err(format!(
-            "runtime state root `.handbook/state` is not a directory at {}",
-            state_root.display()
-        ));
-    }
-
-    let mut entries = fs::read_dir(&state_root)
+    let mut entries = fs::read_dir(state_root_dir.absolute_path())
         .map_err(|source| {
             format!(
                 "failed to read runtime state root `.handbook/state` at {}: {source}",
-                state_root.display()
+                state_root_dir.absolute_path().display()
             )
         })?
-        .map(|entry| entry.map(|entry| entry.path()))
+        .map(|entry| {
+            entry.and_then(|entry| {
+                let relative_path = Path::new(state_root.as_str()).join(entry.file_name());
+                workspace
+                    .normalize_repo_relative_path(&relative_path)
+                    .map_err(std::io::Error::other)
+            })
+        })
         .collect::<Result<Vec<_>, _>>()
         .map_err(|source| {
             format!(
                 "failed to enumerate runtime state root `.handbook/state` at {}: {source}",
-                state_root.display()
+                state_root_dir.absolute_path().display()
             )
         })?;
-    entries.sort();
+    entries.sort_by(|left, right| left.as_str().cmp(right.as_str()));
 
     let mut reset_entries = Vec::new();
     for entry in entries {
-        collect_runtime_state_reset_entry(repo_root, &entry, &mut reset_entries)?;
+        collect_runtime_state_reset_entry(&workspace, &entry, &mut reset_entries)?;
     }
 
     let mut reset_paths = reset_entries
@@ -2123,79 +2114,156 @@ pub(crate) fn apply_runtime_state_reset(plan: &RuntimeStateResetPlan) -> Result<
 }
 
 fn collect_runtime_state_reset_entry(
-    repo_root: &Path,
-    path: &Path,
+    workspace: &CompilerWorkspace<'_>,
+    path: &NormalizedRepoRelativePath,
     reset_entries: &mut Vec<RuntimeStateResetEntry>,
 ) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(path).map_err(|source| {
-        format!(
-            "failed to inspect runtime state path `{}` at {}: {source}",
-            repo_relative_display(repo_root, path),
-            path.display()
-        )
-    })?;
-
-    if metadata.file_type().is_symlink() {
-        return Err(format!(
-            "runtime state path `{}` cannot be reset through symlink {}",
-            repo_relative_display(repo_root, path),
-            path.display()
-        ));
-    }
-
-    if metadata.is_dir() {
-        let mut children = fs::read_dir(path)
+    if let Ok(directory) = workspace.trusted_directory(path) {
+        let mut children = fs::read_dir(directory.absolute_path())
             .map_err(|source| {
                 format!(
                     "failed to read runtime state directory `{}` at {}: {source}",
-                    repo_relative_display(repo_root, path),
-                    path.display()
+                    path.as_str(),
+                    directory.absolute_path().display()
                 )
             })?
-            .map(|entry| entry.map(|entry| entry.path()))
+            .map(|entry| {
+                entry.and_then(|entry| {
+                    let relative_path = Path::new(path.as_str()).join(entry.file_name());
+                    workspace
+                        .normalize_repo_relative_path(&relative_path)
+                        .map_err(std::io::Error::other)
+                })
+            })
             .collect::<Result<Vec<_>, _>>()
             .map_err(|source| {
                 format!(
                     "failed to enumerate runtime state directory `{}` at {}: {source}",
-                    repo_relative_display(repo_root, path),
-                    path.display()
+                    path.as_str(),
+                    directory.absolute_path().display()
                 )
             })?;
-        children.sort();
+        children.sort_by(|left, right| left.as_str().cmp(right.as_str()));
 
         for child in children {
-            collect_runtime_state_reset_entry(repo_root, &child, reset_entries)?;
+            collect_runtime_state_reset_entry(workspace, &child, reset_entries)?;
         }
 
         reset_entries.push(RuntimeStateResetEntry {
-            path: path.to_path_buf(),
-            display_path: repo_relative_display(repo_root, path),
+            path: directory.absolute_path().to_path_buf(),
+            display_path: path.as_str().to_string(),
             kind: RuntimeStateResetEntryKind::Dir,
         });
         return Ok(());
     }
 
-    if metadata.is_file() {
-        reset_entries.push(RuntimeStateResetEntry {
-            path: path.to_path_buf(),
-            display_path: repo_relative_display(repo_root, path),
-            kind: RuntimeStateResetEntryKind::File,
-        });
-        return Ok(());
+    match workspace.trusted_read(path) {
+        Ok(file) => {
+            reset_entries.push(RuntimeStateResetEntry {
+                path: file.absolute_path().to_path_buf(),
+                display_path: path.as_str().to_string(),
+                kind: RuntimeStateResetEntryKind::File,
+            });
+            Ok(())
+        }
+        Err(RepoRelativeFileAccessError::SymlinkNotAllowed(path_buf)) => Err(format!(
+            "runtime state path `{}` cannot be reset through symlink {}",
+            path.as_str(),
+            path_buf.display()
+        )),
+        Err(RepoRelativeFileAccessError::ReadFailure {
+            path: path_buf,
+            source,
+        }) => Err(format!(
+            "failed to inspect runtime state path `{}` at {}: {source}",
+            path.as_str(),
+            path_buf.display()
+        )),
+        Err(RepoRelativeFileAccessError::NotRegularFile(_))
+        | Err(RepoRelativeFileAccessError::Missing(_))
+        | Err(RepoRelativeFileAccessError::InvalidPath(_)) => Err(format!(
+            "runtime state path `{}` is not a regular file or directory",
+            path.as_str()
+        )),
     }
-
-    Err(format!(
-        "runtime state path `{}` is not a regular file or directory",
-        repo_relative_display(repo_root, path)
-    ))
 }
 
-fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
-    path.strip_prefix(repo_root)
-        .ok()
-        .and_then(|relative| relative.to_str())
-        .map(|relative| relative.replace('\\', "/"))
-        .unwrap_or_else(|| path.display().to_string())
+fn inventory_root_path(
+    workspace: &CompilerWorkspace<'_>,
+    root: &Path,
+) -> NormalizedRepoRelativePath {
+    workspace
+        .normalize_repo_relative_path(root)
+        .expect("route-state inventory roots must stay valid repo-relative paths")
+}
+
+fn inventory_entry_path(
+    workspace: &CompilerWorkspace<'_>,
+    parent: &NormalizedRepoRelativePath,
+    child: &str,
+) -> NormalizedRepoRelativePath {
+    let path = Path::new(parent.as_str()).join(child);
+    workspace
+        .normalize_repo_relative_path(&path)
+        .expect("route-state inventory entries must stay valid repo-relative paths")
+}
+
+fn read_inventory_dir_entries(
+    directory: &TrustedRepoDirectory,
+) -> Result<Vec<fs::DirEntry>, RouteStateInventoryLoadError> {
+    fs::read_dir(directory.absolute_path())
+        .map_err(|source| RouteStateInventoryLoadError {
+            path: directory.absolute_path().to_path_buf(),
+            source,
+        })?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| RouteStateInventoryLoadError {
+            path: directory.absolute_path().to_path_buf(),
+            source,
+        })
+}
+
+fn map_inventory_directory_error(
+    err: RepoRelativeDirectoryAccessError,
+) -> RouteStateInventoryLoadError {
+    match err {
+        RepoRelativeDirectoryAccessError::Missing(path) => RouteStateInventoryLoadError {
+            path,
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        },
+        RepoRelativeDirectoryAccessError::SymlinkNotAllowed(path) => RouteStateInventoryLoadError {
+            path: path.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "repo-relative directory cannot be traversed through symlink {}",
+                    path.display()
+                ),
+            ),
+        },
+        RepoRelativeDirectoryAccessError::NotDirectory(path) => RouteStateInventoryLoadError {
+            path: path.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "repo-relative directory is not a directory at {}",
+                    path.display()
+                ),
+            ),
+        },
+        RepoRelativeDirectoryAccessError::ReadFailure { path, source } => {
+            RouteStateInventoryLoadError { path, source }
+        }
+    }
+}
+
+fn map_inventory_metadata_error(
+    err: RepoRelativeMetadataReadError,
+) -> RouteStateInventoryLoadError {
+    RouteStateInventoryLoadError {
+        path: err.path,
+        source: err.source,
+    }
 }
 
 pub(crate) fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
