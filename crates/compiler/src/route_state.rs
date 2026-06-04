@@ -909,7 +909,11 @@ fn classify_trusted_pipeline_session_read_error(
 }
 
 fn malformed_state_targets_route_basis(reason: &str) -> bool {
-    reason.contains("route_basis")
+    let trimmed = reason.trim_start();
+    trimmed.starts_with("route_basis ")
+        || trimmed.starts_with("route_basis.")
+        || trimmed.starts_with("route_basis:")
+        || trimmed.starts_with("unsupported route_basis ")
 }
 
 fn trusted_pipeline_session_stale_reason(

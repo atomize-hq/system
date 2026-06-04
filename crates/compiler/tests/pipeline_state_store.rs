@@ -366,6 +366,33 @@ fn trusted_pipeline_session_classifies_load_time_malformed_route_basis() {
 }
 
 #[test]
+fn trusted_pipeline_session_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let (definition, _) =
+        pipeline_proof_corpus_support::load_foundation_inputs_definition(&repo_root);
+    let _ = pipeline_proof_corpus_support::persist_foundation_inputs_route_basis(&repo_root);
+    let path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let persisted = std::fs::read_to_string(&path).expect("read state");
+    std::fs::write(&path, format!("{persisted}\nroute_basis_extra: true\n"))
+        .expect("write malformed state");
+
+    let err = load_trusted_pipeline_session(&repo_root, &definition)
+        .expect_err("unknown top-level key should stay invalid state");
+
+    match err {
+        TrustedPipelineSessionRefusal::InvalidState {
+            path: refusal_path,
+            reason,
+        } => {
+            assert_eq!(refusal_path, path);
+            assert!(reason.contains("unknown field"), "{reason}");
+            assert!(reason.contains("route_basis_extra"), "{reason}");
+        }
+        other => panic!("expected invalid-state refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn trusted_pipeline_session_normalizes_repo_root_and_refuses_inactive_stage() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     let (definition, _) =
