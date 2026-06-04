@@ -206,27 +206,27 @@ pub fn render_packet_body(output: &mut String, packet: &PacketResult) {
 
 pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
     match action {
-        NextSafeAction::RunSetup => "run `system setup`".to_string(),
-        NextSafeAction::RunSetupInit => "run `system setup init`".to_string(),
-        NextSafeAction::RunSetupRefresh => "run `system setup refresh`".to_string(),
-        NextSafeAction::RunAuthorCharter => "run `system author charter`".to_string(),
+        NextSafeAction::RunSetup => "run `handbook setup`".to_string(),
+        NextSafeAction::RunSetupInit => "run `handbook setup init`".to_string(),
+        NextSafeAction::RunSetupRefresh => "run `handbook setup refresh`".to_string(),
+        NextSafeAction::RunAuthorCharter => "run `handbook author charter`".to_string(),
         NextSafeAction::RunAuthorProjectContext => {
-            "run `system author project-context`".to_string()
+            "run `handbook author project-context`".to_string()
         }
         NextSafeAction::RunAuthorEnvironmentInventory => {
-            "run `system author environment-inventory`".to_string()
+            "run `handbook author environment-inventory`".to_string()
         }
         NextSafeAction::CreateSystemRoot {
             canonical_repo_relative_path,
-        } => format!("create canonical .system root at {canonical_repo_relative_path}"),
+        } => format!("create canonical .handbook root at {canonical_repo_relative_path}"),
         NextSafeAction::EnsureSystemRootIsDirectory {
             canonical_repo_relative_path,
         } => format!(
-            "ensure canonical .system root is a directory at {canonical_repo_relative_path}"
+            "ensure canonical .handbook root is a directory at {canonical_repo_relative_path}"
         ),
         NextSafeAction::RemoveSystemRootSymlink {
             canonical_repo_relative_path,
-        } => format!("remove canonical .system symlink at {canonical_repo_relative_path}"),
+        } => format!("remove canonical .handbook symlink at {canonical_repo_relative_path}"),
         NextSafeAction::CreateCanonicalArtifact {
             canonical_repo_relative_path,
         } => format!("create canonical artifact at {canonical_repo_relative_path}"),
@@ -237,9 +237,9 @@ pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
             canonical_repo_relative_path,
         } => format!("reduce canonical artifact size at {canonical_repo_relative_path}"),
         NextSafeAction::RunGenerate { packet_id } => {
-            format!("run `system generate --packet {packet_id}`")
+            format!("run `handbook generate --packet {packet_id}`")
         }
-        NextSafeAction::RunDoctor => "run `system doctor`".to_string(),
+        NextSafeAction::RunDoctor => "run `handbook doctor`".to_string(),
     }
 }
 

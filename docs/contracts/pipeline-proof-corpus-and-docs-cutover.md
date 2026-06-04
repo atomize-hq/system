@@ -72,7 +72,7 @@ This contract defines the conformance baseline for the shipped M2 and M3 `pipeli
 - The corpus MUST cover the foundation-family wedge that exercises the shipped `pipeline` story without widening into later milestone behavior.
 - The corpus MUST be realistic enough to prove operator value, not just parser correctness.
 - The corpus MUST be shared rather than duplicated across compiler and CLI test suites.
-- The corpus MUST live outside `.system/` and outside runtime-state directories; it is proof data, not canonical project truth and not runtime truth.
+- The corpus MUST live outside `.handbook/` and outside runtime-state directories; it is proof data, not canonical project truth and not runtime truth.
 - The corpus SHOULD be colocated with repo test fixtures so later slices can reference it from compiler and CLI suites without inventing separate fixture trees.
 - The shipped M1 route-bearing corpus MUST live at `tests/fixtures/pipeline_proof_corpus/foundation_inputs/`.
 - The shared repo fixture for that corpus MUST live under `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/`.
@@ -159,9 +159,9 @@ Malformed pipeline and malformed route-state refusals MUST stay explicit:
   - `stage.10_feature_spec`
 - Docs and help MUST describe `pipeline compile stage.10_feature_spec` as payload-only stdout that becomes model input for an external operator or model runner; they MUST describe `pipeline capture stage.10_feature_spec` as materializing the completed `FEATURE_SPEC.md` body, they MUST state that raw `pipeline compile` payload is refused as `invalid_capture_input`, and they MUST NOT imply a direct compile write mode or direct raw `compile | capture` piping as the valid stage-10 path.
 - Docs and help MUST preserve the exact manual `needs_project_context` handoff after `stage.05_charter_synthesize`:
-  - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
-  - `system pipeline resolve --id pipeline.foundation_inputs`
-- Docs and help MUST keep the write-safety claim narrow: transactional apply is guaranteed only for `system`-coordinated single-writer flows.
+  - `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
+  - `handbook pipeline resolve --id pipeline.foundation_inputs`
+- Docs and help MUST keep the write-safety claim narrow: transactional apply is guaranteed only for `handbook`-coordinated single-writer flows.
 - Docs and help MUST keep `inspect` scoped to packet proof rather than compile proof.
 - Docs and help MUST not imply that proof-corpus checks, docs/help cutover, or safety rails are optional once the M2 `pipeline` surface is presented as supported.
 - Docs and help MUST not diverge from the reviewed operator-surface language in `C-09` or the compile-boundary posture in `C-10`.

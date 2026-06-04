@@ -43,16 +43,16 @@ It exists so downstream seams can treat baseline states, checklist ordering, blo
 
 ### Doctor scope
 
-- `doctor` MUST compute baseline readiness from canonical `.system/` truth rather than from packet readiness.
+- `doctor` MUST compute baseline readiness from canonical `.handbook/` truth rather than from packet readiness.
 - `doctor` MUST inspect exactly these baseline artifacts:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-- `doctor` MUST NOT treat `.system/feature_spec/FEATURE_SPEC.md` as part of baseline readiness.
+  - `.handbook/charter/CHARTER.md`
+  - `.handbook/project_context/PROJECT_CONTEXT.md`
+  - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `doctor` MUST NOT treat `.handbook/feature_spec/FEATURE_SPEC.md` as part of baseline readiness.
 
 ### Input confinement (consume C-03 only)
 
-- Doctor logic MUST treat repo-local `.system/` as the only canonical project-truth input surface, as defined by `C-03`.
+- Doctor logic MUST treat repo-local `.handbook/` as the only canonical project-truth input surface, as defined by `C-03`.
 - Doctor logic MUST NOT treat derived views as canonical inputs, including (non-exhaustive):
   - `README.md`, `PLAN.md`, any doc under `docs/` other than referenced contracts
   - any renderer outputs (`inspect`, markdown, JSON)
@@ -71,7 +71,7 @@ For identical canonical baseline inputs:
   - hash map iteration order
   - filesystem traversal order
   - non-deterministic set ordering
-  - system time
+  - handbook time
 
 ### Versioning and compatibility
 
@@ -129,9 +129,9 @@ The doctor result MUST include:
 
 ### Machine-readable runtime surface
 
-- `system doctor --json` MUST be the only machine-readable readiness surface consumed by the installed charter-intake runtime.
-- `system doctor --json` MUST emit valid UTF-8 JSON to stdout for ready and ordinary non-ready states, with no prose mixed into stdout.
-- `system doctor --json` MUST preserve baseline exit semantics:
+- `handbook doctor --json` MUST be the only machine-readable readiness surface consumed by the installed charter-intake runtime.
+- `handbook doctor --json` MUST emit valid UTF-8 JSON to stdout for ready and ordinary non-ready states, with no prose mixed into stdout.
+- `handbook doctor --json` MUST preserve baseline exit semantics:
   - exit `0` only for `BASELINE_COMPLETE`
   - exit non-zero for ordinary scaffolded, partial, or invalid baseline states
 
@@ -166,7 +166,7 @@ Each blocker MUST include:
 - System-root blockers (`SystemRootMissing`, `SystemRootNotDir`, `SystemRootSymlinkNotAllowed`) MUST use `Policy { policy_id: "system_root" }` as the subject.
 - Artifact-specific blockers MUST use `CanonicalArtifact` as the subject.
 - Renderer-facing wording for missing-root and invalid-root blockers SHOULD route the operator toward the setup family.
-- Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `system author ...` command for that artifact.
+- Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `handbook author ...` command for that artifact.
 
 ## Categories and Ordering Rules
 
@@ -223,7 +223,7 @@ Tie-break MUST be applied in this order:
 
 - [ ] A doctor result carries `c04_result_version` and C-03 provenance.
 - [ ] `doctor` baseline states are exactly `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`.
-- [ ] `system doctor --json` top-level fields include exactly `c04_result_version`, `c03_schema_version`, `c03_manifest_generation_version`, `baseline_state`, `blockers`, `status`, `system_root_status`, `checklist`, and `next_safe_action`.
+- [ ] `handbook doctor --json` top-level fields include exactly `c04_result_version`, `c03_schema_version`, `c03_manifest_generation_version`, `baseline_state`, `blockers`, `status`, `system_root_status`, `checklist`, and `next_safe_action`.
 - [ ] Inputs are confined to C-03 baseline artifact truth; derived docs are never canonical inputs.
 - [ ] Checklist items always include artifact label, canonical path, status, and exact author command.
 - [ ] Blockers are compact and always include: category, subject, summary, and exactly one next safe action.

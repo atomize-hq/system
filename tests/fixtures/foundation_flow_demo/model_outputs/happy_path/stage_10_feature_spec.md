@@ -3,7 +3,7 @@
 - Date (UTC): `2026-04-15T16:00:00Z`
 - Owner: Platform Foundations
 - Team: Build Systems
-- Repo / Project Ref: `system`
+- Repo / Project Ref: `handbook`
 - Charter Ref: `CH-M4-FOUNDATION-2026-04`
 
 ## 0) Charter Alignment

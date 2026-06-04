@@ -59,7 +59,7 @@ Stop when:
 
 - live-ness (prod/users/data) is clear,
 - back-compat/migrations are explicitly “required” or “not applicable,”
-- system boundaries/integrations are enumerated (even if minimal),
+- handbook boundaries/integrations are enumerated (even if minimal),
 - environments are stated (even if “dev only”),
 - remaining unknowns are listed with owners/triggers.
 

@@ -148,7 +148,7 @@ fn build_baseline_blockers(
             subject: SubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "missing canonical .system root".to_string(),
+            summary: "missing canonical .handbook root".to_string(),
             next_safe_action: NextSafeAction::RunSetup,
         }),
         SystemRootStatus::NotDir => blockers.push(Blocker {
@@ -156,7 +156,7 @@ fn build_baseline_blockers(
             subject: SubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "canonical .system root is not a directory".to_string(),
+            summary: "canonical .handbook root is not a directory".to_string(),
             next_safe_action: NextSafeAction::RunSetup,
         }),
         SystemRootStatus::SymlinkNotAllowed => blockers.push(Blocker {
@@ -164,7 +164,7 @@ fn build_baseline_blockers(
             subject: SubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "canonical .system root must not be a symlink".to_string(),
+            summary: "canonical .handbook root must not be a symlink".to_string(),
             next_safe_action: NextSafeAction::RunSetup,
         }),
     }

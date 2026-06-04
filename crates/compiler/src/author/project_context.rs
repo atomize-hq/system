@@ -12,12 +12,13 @@ use std::path::Path;
 use time::macros::format_description;
 use time::OffsetDateTime;
 
-pub const CANONICAL_PROJECT_CONTEXT_REPO_PATH: &str = ".system/project_context/PROJECT_CONTEXT.md";
+pub const CANONICAL_PROJECT_CONTEXT_REPO_PATH: &str =
+    ".handbook/project_context/PROJECT_CONTEXT.md";
 
 const PROJECT_CONTEXT_AUTHORING_LOCK_REPO_PATH: &str =
-    ".system/state/authoring/project_context.lock";
+    ".handbook/state/authoring/project_context.lock";
 const PROJECT_CONTEXT_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
-const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
+const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const NOW_UTC_FORMAT: &[time::format_description::FormatItem<'static>] =
     format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
 const REQUIRED_PROJECT_CONTEXT_TOP_LEVEL_HEADINGS: [&str; 13] = [
@@ -555,7 +556,7 @@ pub fn render_project_context_markdown(
             summary,
             broken_subject: "project-context render timestamp".to_string(),
             next_safe_action:
-                "repair the project-context timestamp runtime and retry `system author project-context`"
+                "repair the project-context timestamp runtime and retry `handbook author project-context`"
                     .to_string(),
         }
     })?;
@@ -1061,9 +1062,9 @@ pub fn preflight_author_project_context(
     let artifacts =
         CanonicalArtifacts::load(repo_root).map_err(|err| AuthorProjectContextRefusal {
             kind: AuthorProjectContextRefusalKind::InvalidSystemRoot,
-            summary: format!("failed to inspect canonical `.system` root: {err}"),
-            broken_subject: "canonical `.system` root".to_string(),
-            next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
+            summary: format!("failed to inspect canonical `.handbook` root: {err}"),
+            broken_subject: "canonical `.handbook` root".to_string(),
+            next_safe_action: "repair the canonical `.handbook` root and rerun `handbook setup`"
                 .to_string(),
         })?;
     validate_authoring_preconditions(repo_root, &artifacts)
@@ -1076,7 +1077,7 @@ pub fn author_project_context(
     preflight_author_project_context(repo_root)?;
     Err(structured_input_refusal(
         AuthorProjectContextRefusalKind::IncompleteStructuredInput,
-        "project-context authoring requires guided answers or explicit structured inputs; use `system author project-context --from-inputs <path|->` or provide guided answers through the CLI".to_string(),
+        "project-context authoring requires guided answers or explicit structured inputs; use `handbook author project-context --from-inputs <path|->` or provide guided answers through the CLI".to_string(),
     ))
 }
 
@@ -1096,7 +1097,7 @@ pub fn author_project_context_from_input(
                         path_err,
                     ),
                     "project-context authoring lock",
-                    "repair the blocked project-context authoring lock path and retry `system author project-context`",
+                    "repair the blocked project-context authoring lock path and retry `handbook author project-context`",
                 ),
                 AuthoringLockError::Io { lock_path, source } => mutation_refusal(
                     format!(
@@ -1104,7 +1105,7 @@ pub fn author_project_context_from_input(
                         lock_path.display()
                     ),
                     "project-context authoring lock",
-                    "wait for any in-progress `system author project-context` run to finish or repair the lock path, then retry `system author project-context`",
+                    "wait for any in-progress `handbook author project-context` run to finish or repair the lock path, then retry `handbook author project-context`",
                 ),
             },
         )?;
@@ -1120,7 +1121,7 @@ pub fn author_project_context_from_input(
         mutation_refusal(
             format_repo_mutation_error(CANONICAL_PROJECT_CONTEXT_REPO_PATH, err),
             "canonical project context write target",
-            "repair the blocked canonical project context path and retry `system author project-context`",
+            "repair the blocked canonical project context path and retry `handbook author project-context`",
         )
     })?;
 
@@ -1140,27 +1141,27 @@ fn validate_authoring_preconditions(
             return Err(AuthorProjectContextRefusal {
                 kind: AuthorProjectContextRefusalKind::MissingSystemRoot,
                 summary:
-                    "canonical `.system` root is missing; project-context authoring requires setup first"
+                    "canonical `.handbook` root is missing; project-context authoring requires setup first"
                         .to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "run `system setup`".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action: "run `handbook setup`".to_string(),
             });
         }
         Err(SystemRootAuthoringError::NotDir) => {
             return Err(AuthorProjectContextRefusal {
                 kind: AuthorProjectContextRefusalKind::InvalidSystemRoot,
-                summary: "canonical `.system` root exists but is not a directory".to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
-                    .to_string(),
+                summary: "canonical `.handbook` root exists but is not a directory".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action:
+                    "repair the canonical `.handbook` root and rerun `handbook setup`".to_string(),
             });
         }
         Err(SystemRootAuthoringError::SymlinkNotAllowed) => {
             return Err(AuthorProjectContextRefusal {
                 kind: AuthorProjectContextRefusalKind::InvalidSystemRoot,
-                summary: "canonical `.system` root cannot be a symlink".to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "remove the `.system` symlink and rerun `system setup`"
+                summary: "canonical `.handbook` root cannot be a symlink".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action: "remove the `.handbook` symlink and rerun `handbook setup`"
                     .to_string(),
             });
         }
@@ -1175,7 +1176,7 @@ fn validate_authoring_preconditions(
                 .to_string(),
             broken_subject: "canonical project context truth".to_string(),
             next_safe_action:
-                "inspect canonical artifact metadata and retry `system author project-context`"
+                "inspect canonical artifact metadata and retry `handbook author project-context`"
                     .to_string(),
         });
     }
@@ -1186,11 +1187,11 @@ fn validate_authoring_preconditions(
             return Err(AuthorProjectContextRefusal {
                 kind: AuthorProjectContextRefusalKind::ExistingCanonicalTruth,
                 summary:
-                    "canonical project context truth already exists as valid non-starter truth; `system author project-context` refuses to overwrite authored canonical truth"
+                    "canonical project context truth already exists as valid non-starter truth; `handbook author project-context` refuses to overwrite authored canonical truth"
                         .to_string(),
                 broken_subject: CANONICAL_PROJECT_CONTEXT_REPO_PATH.to_string(),
                 next_safe_action: format!(
-                    "inspect `{}` instead of rerunning `system author project-context`",
+                    "inspect `{}` instead of rerunning `handbook author project-context`",
                     CANONICAL_PROJECT_CONTEXT_REPO_PATH
                 ),
             });
@@ -1199,10 +1200,10 @@ fn validate_authoring_preconditions(
             return Err(AuthorProjectContextRefusal {
                 kind: AuthorProjectContextRefusalKind::MutationRefused,
                 summary:
-                    "canonical project context truth is unreadable or path-invalid; repair it with `system setup refresh` before rerunning `system author project-context`"
+                    "canonical project context truth is unreadable or path-invalid; repair it with `handbook setup refresh` before rerunning `handbook author project-context`"
                         .to_string(),
                 broken_subject: CANONICAL_PROJECT_CONTEXT_REPO_PATH.to_string(),
-                next_safe_action: "run `system setup refresh`".to_string(),
+                next_safe_action: "run `handbook setup refresh`".to_string(),
             });
         }
     }
@@ -1212,7 +1213,7 @@ fn validate_authoring_preconditions(
             mutation_refusal(
                 format_repo_write_path_error(CANONICAL_PROJECT_CONTEXT_REPO_PATH, err),
                 "canonical project context write target",
-                "repair the blocked canonical project context path and retry `system author project-context`",
+                "repair the blocked canonical project context path and retry `handbook author project-context`",
             )
         },
     )?;
@@ -1242,7 +1243,7 @@ fn structured_input_refusal(
         summary,
         broken_subject: "structured project-context input".to_string(),
         next_safe_action:
-            "repair the structured project-context input and retry `system author project-context --from-inputs <path|->`"
+            "repair the structured project-context input and retry `handbook author project-context --from-inputs <path|->`"
                 .to_string(),
     }
 }

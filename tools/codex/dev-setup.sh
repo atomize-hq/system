@@ -5,10 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 GENERATE_SCRIPT="$SCRIPT_DIR/generate.sh"
 GENERATED_ROOT="$ROOT_DIR/.agents/skills"
-INSTALL_ROOT="$HOME/.agents/skills"
+INSTALL_ROOT="$HOME/.codex/skills"
 
-DISCOVERY_NAME="system-charter-intake"
-RUNTIME_NAME="system"
+DISCOVERY_NAME="handbook-charter-intake"
+RUNTIME_NAME="handbook"
 
 DISCOVERY_SOURCE="$GENERATED_ROOT/$DISCOVERY_NAME"
 RUNTIME_SOURCE="$GENERATED_ROOT/$RUNTIME_NAME"

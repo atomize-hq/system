@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use system_compiler::{
+use handbook_compiler::{
     load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_selection_metadata,
     render_pipeline_list, render_pipeline_show, PipelineCatalogError, PipelineLoadError,
     PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
@@ -191,7 +191,7 @@ fn catalog_outputs_stay_deterministic_and_ignore_unrelated_route_state() {
     copy_tree(&source_root.join("core/stages"), &root.join("core/stages"));
 
     let state_path = root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join("pipeline.foundation_inputs.yaml");
@@ -210,7 +210,7 @@ audit:
 "#,
     );
 
-    let entries_before = dir_entries(root.join(".system/state/pipeline").as_path());
+    let entries_before = dir_entries(root.join(".handbook/state/pipeline").as_path());
 
     let catalog = load_pipeline_catalog_metadata(root).expect("catalog with unrelated route state");
     assert_eq!(render_pipeline_list(&catalog), baseline_list);
@@ -231,7 +231,7 @@ audit:
         baseline_stage
     );
     assert_eq!(
-        dir_entries(root.join(".system/state/pipeline").as_path()),
+        dir_entries(root.join(".handbook/state/pipeline").as_path()),
         entries_before,
         "catalog loading and rendering must not create or mutate route state"
     );

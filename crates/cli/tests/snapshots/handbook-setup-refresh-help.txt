@@ -1,0 +1,8 @@
+Preserve canonical files by default and optionally rewrite starter files or reset `.handbook/state/**`
+
+Usage: handbook setup refresh [OPTIONS]
+
+Options:
+      --rewrite      Rewrite setup-owned starter files in place
+      --reset-state  Reset only `.handbook/state/**`
+  -h, --help         Print help

@@ -8,7 +8,7 @@ status: drafted
 revalidation_triggers:
   - Any change to the supported `pipeline capture` targets, parser rules, or the rule that capture is the only writer surface.
   - Any change to preview-cache identity, cache location, or cache-integrity validation.
-  - Any change to repo-file mirror derivation, `system`-coordinated single-writer apply behavior, rollback guarantees, or post-capture state mutation semantics.
+  - Any change to repo-file mirror derivation, `handbook`-coordinated single-writer apply behavior, rollback guarantees, or post-capture state mutation semantics.
   - Any change to the refusal taxonomy or recovery guidance for stale route basis, inactive stages, malformed capture input, or tampered capture cache.
 ---
 
@@ -44,10 +44,10 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 `C-12` is authoritative for:
 
 - the reduced-v1 `pipeline capture` preview/apply boundary
-- the preview cache shape under `.system/state/pipeline/capture/`
+- the preview cache shape under `.handbook/state/pipeline/capture/`
 - capture-input parsing rules
 - repo-file mirror derivation
-- `system`-coordinated single-writer apply and rollback requirements
+- `handbook`-coordinated single-writer apply and rollback requirements
 - post-capture automatic state updates and the required next-safe-action hint
 
 `C-12` is not authoritative for:
@@ -124,11 +124,11 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - `stage.06_project_context_interview` writes `artifacts/project_context/PROJECT_CONTEXT.md` plus any declared repo-file mirror
   - `stage.07_foundation_pack` writes its declared artifact set only
   - `stage.10_feature_spec` writes `artifacts/feature_spec/FEATURE_SPEC.md`
-- `stage.10_feature_spec` capture MUST NOT imply promotion into canonical `.system/feature_spec/FEATURE_SPEC.md`.
+- `stage.10_feature_spec` capture MUST NOT imply promotion into canonical `.handbook/feature_spec/FEATURE_SPEC.md`.
 
 ### Preview cache
 
-- Preview cache entries MUST live under `.system/state/pipeline/capture/<capture-id>.yaml`.
+- Preview cache entries MUST live under `.handbook/state/pipeline/capture/<capture-id>.yaml`.
 - Preview cache paths MUST remain inside the in-repo cache directory and MUST NOT traverse symlinked parent directories.
 - Cached previews MUST include an explicit schema version and the typed capture plan.
 - `capture_id` MUST be deterministic from the plan contents.
@@ -142,7 +142,7 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
 
 ### Apply and rollback
 
-- The shipped reduced-v1 apply/rollback guarantee is scoped to `system`-coordinated single-writer flows.
+- The shipped reduced-v1 apply/rollback guarantee is scoped to `handbook`-coordinated single-writer flows.
 - This contract does not claim protection against arbitrary concurrent external writers modifying the same artifact or repo-file targets during apply.
 - Apply MUST acquire the compiler-owned advisory lock for the pipeline route-state file before re-checking current state and before any write begins.
 - Apply MUST re-check:
@@ -172,14 +172,14 @@ It exists so downstream CLI, proof, and docs work can treat one compiler-owned c
   - preserve declared `stage.sets` order
   - finish with one `pipeline resolve` command before the next compile or capture
 - For `pipeline.foundation_inputs` + `stage.05_charter_synthesize`, the exact manual follow-up sequence remains:
-  - `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
-  - `system pipeline resolve --id pipeline.foundation_inputs`
+  - `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`
+  - `handbook pipeline resolve --id pipeline.foundation_inputs`
 
 ## Verification checklist
 
 - [ ] The compiler exposes preview, direct apply, cached apply, and cache-load APIs for `pipeline capture`.
 - [ ] The supported capture target set for `pipeline.foundation_inputs` is `04`, `05`, `06`, `07`, and `10`.
-- [ ] The preview cache path is `.system/state/pipeline/capture/<capture-id>.yaml`.
+- [ ] The preview cache path is `.handbook/state/pipeline/capture/<capture-id>.yaml`.
 - [ ] Single-file capture refuses FILE wrappers.
 - [ ] Single-file capture refuses empty bodies.
 - [ ] Multi-file capture refuses undeclared, duplicate, or missing declared blocks.

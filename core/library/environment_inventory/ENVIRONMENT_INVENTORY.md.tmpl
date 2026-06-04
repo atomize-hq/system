@@ -1,6 +1,6 @@
 # Environment Inventory — {{PROJECT_NAME}}
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`  
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`  
 > **Created (UTC):** {{NOW_UTC}}  
 > **Owner:** {{OWNER}}  
 > **Team:** {{TEAM}}  
@@ -13,7 +13,7 @@ The canonical store of record for this project’s environment and runtime requi
 It is used to prevent drift and to keep changes (env vars, services, ports, runtime assumptions) explicitly recorded.
 
 ## How to use
-- Use `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` as the authoritative inventory for env vars, services, and runtime assumptions.
+- Use `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` as the authoritative inventory for env vars, services, and runtime assumptions.
 - Feature specs and slices should reference this instead of inventing env details.
 - Any change that adds/changes env vars or runtime dependencies MUST update this file in the same change.
 
@@ -37,7 +37,7 @@ It is used to prevent drift and to keep changes (env vars, services, ports, runt
 ---
 
 ## 2) External Services / Infrastructure Dependencies
-> List what the system depends on at runtime (even if “dev only” today).
+> List what the handbook depends on at runtime (even if “dev only” today).
 
 | Dependency | Required | Environments | Purpose | Connection details | Notes |
 |---|---:|---|---|---|---|

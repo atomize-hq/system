@@ -16,12 +16,12 @@ pub enum CanonicalArtifactKind {
 impl CanonicalArtifactKind {
     pub(crate) fn relative_path(self) -> &'static str {
         match self {
-            CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
-            CanonicalArtifactKind::ProjectContext => ".system/project_context/PROJECT_CONTEXT.md",
+            CanonicalArtifactKind::Charter => ".handbook/charter/CHARTER.md",
+            CanonicalArtifactKind::ProjectContext => ".handbook/project_context/PROJECT_CONTEXT.md",
             CanonicalArtifactKind::EnvironmentInventory => {
-                ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+                ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
             }
-            CanonicalArtifactKind::FeatureSpec => ".system/feature_spec/FEATURE_SPEC.md",
+            CanonicalArtifactKind::FeatureSpec => ".handbook/feature_spec/FEATURE_SPEC.md",
         }
     }
 }
@@ -115,8 +115,8 @@ pub struct CanonicalArtifactDescriptor {
 const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::Charter,
-        relative_path: ".system/charter/CHARTER.md",
-        namespace_dir: ".system/charter",
+        relative_path: ".handbook/charter/CHARTER.md",
+        namespace_dir: ".handbook/charter",
         packet_required: true,
         baseline_required: true,
         setup_scaffolded: true,
@@ -124,8 +124,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::ProjectContext,
-        relative_path: ".system/project_context/PROJECT_CONTEXT.md",
-        namespace_dir: ".system/project_context",
+        relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
+        namespace_dir: ".handbook/project_context",
         packet_required: false,
         baseline_required: true,
         setup_scaffolded: true,
@@ -133,8 +133,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::EnvironmentInventory,
-        relative_path: ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
-        namespace_dir: ".system/environment_inventory",
+        relative_path: ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        namespace_dir: ".handbook/environment_inventory",
         packet_required: false,
         baseline_required: true,
         setup_scaffolded: true,
@@ -142,8 +142,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::FeatureSpec,
-        relative_path: ".system/feature_spec/FEATURE_SPEC.md",
-        namespace_dir: ".system/feature_spec",
+        relative_path: ".handbook/feature_spec/FEATURE_SPEC.md",
+        namespace_dir: ".handbook/feature_spec",
         packet_required: false,
         baseline_required: false,
         setup_scaffolded: false,
@@ -215,7 +215,7 @@ pub struct CanonicalArtifacts {
 impl CanonicalArtifacts {
     pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, ArtifactIngestError> {
         let repo_root = repo_root.as_ref();
-        let system_root = repo_root.join(".system");
+        let system_root = repo_root.join(".handbook");
 
         let system_root_status = match std::fs::symlink_metadata(&system_root) {
             Ok(meta) => {
@@ -359,18 +359,18 @@ impl std::fmt::Display for ArtifactIngestError {
             ArtifactIngestError::SystemRootMissing { system_root } => {
                 write!(
                     f,
-                    "missing canonical .system root at {}",
+                    "missing canonical .handbook root at {}",
                     system_root.display()
                 )
             }
             ArtifactIngestError::SystemRootNotDir { system_root } => write!(
                 f,
-                "canonical .system root is not a directory: {}",
+                "canonical .handbook root is not a directory: {}",
                 system_root.display()
             ),
             ArtifactIngestError::SystemRootSymlinkNotAllowed { system_root } => write!(
                 f,
-                "canonical .system root must not be a symlink: {}",
+                "canonical .handbook root must not be a symlink: {}",
                 system_root.display()
             ),
             ArtifactIngestError::RequiredArtifactMissing { kind, path } => write!(

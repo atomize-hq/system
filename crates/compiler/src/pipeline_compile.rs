@@ -19,7 +19,7 @@ use time::OffsetDateTime;
 
 const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
-pub const PIPELINE_COMPILE_NOW_UTC_ENV_VAR: &str = "SYSTEM_PIPELINE_COMPILE_NOW_UTC";
+pub const PIPELINE_COMPILE_NOW_UTC_ENV_VAR: &str = "HANDBOOK_PIPELINE_COMPILE_NOW_UTC";
 const NOW_UTC_FORMAT: &[time::format_description::FormatItem<'static>] =
     format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
 

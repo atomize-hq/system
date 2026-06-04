@@ -1,16 +1,16 @@
 [package]
-name = "system-cli"
+name = "handbook-cli"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "system"
+name = "handbook"
 path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
-system-compiler = { path = "../compiler" }
+handbook-compiler = { path = "../compiler" }
 
 [dev-dependencies]
 portable-pty = "0.8"

@@ -27,18 +27,18 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 ### Core verbs
 
 - `setup`
-  - The durable front-door operation name for canonical `.system/` truth establishment and repair.
+  - The durable front-door operation name for canonical `.handbook/` truth establishment and repair.
   - Use when naming the setup family or the routed front door.
-  - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+  - Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 - `setup init`
   - The concrete first-run subcommand name.
-  - Use when naming the explicit first-run or recovery path for an absent or invalid canonical `.system/` root.
+  - Use when naming the explicit first-run or recovery path for an absent or invalid canonical `.handbook/` root.
   - Do not promote `init` into the durable product term for the setup family.
 - `setup refresh`
   - Use when existing canonical artifacts must be refreshed because posture is stale or has changed.
   - Preserves canonical files by default.
   - `setup refresh --rewrite` rewrites only the setup-owned starter files.
-  - `setup refresh --reset-state` resets only `.system/state/**`.
+  - `setup refresh --reset-state` resets only `.handbook/state/**`.
   - Do not rename this as bootstrap refresh, re-init, or health repair.
 - `generate`
   - The packet-generation surface.
@@ -46,9 +46,9 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `author`
   - The human-guided and automation-safe canonical authoring surface.
   - Use when the operator needs to replace a setup-owned starter file with completed canonical truth.
-  - The baseline authoring commands are `system author charter`, `system author project-context`, and `system author environment-inventory`.
-  - `system author charter` is the human-guided surface.
-  - `system author charter --from-inputs <path|->` is the agent and automation surface.
+  - The baseline authoring commands are `handbook author charter`, `handbook author project-context`, and `handbook author environment-inventory`.
+  - `handbook author charter` is the human-guided surface.
+  - `handbook author charter --from-inputs <path|->` is the agent and automation surface.
   - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - `pipeline`
   - The orchestration surface.
@@ -76,23 +76,23 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 ### Core nouns
 
 - `canonical artifacts`
-  - The preferred term for the trusted repo-local `.system/` files the system reads as project truth.
+  - The preferred term for the trusted repo-local `.handbook/` files the handbook reads as project truth.
   - In reduced v1, this is the primary noun for the files themselves.
 - `setup-owned starter files`
   - The canonical files created by setup:
-    - `.system/charter/CHARTER.md`
-    - `.system/project_context/PROJECT_CONTEXT.md`
-    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+    - `.handbook/charter/CHARTER.md`
+    - `.handbook/project_context/PROJECT_CONTEXT.md`
+    - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
   - The shipped starter templates are scaffolding only until the baseline artifacts are replaced with completed canonical truth.
 - `baseline artifacts`
   - The reduced-v1 `M8` baseline set:
-    - `.system/charter/CHARTER.md`
-    - `.system/project_context/PROJECT_CONTEXT.md`
-    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+    - `.handbook/charter/CHARTER.md`
+    - `.handbook/project_context/PROJECT_CONTEXT.md`
+    - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 - `later-phase packet artifact`
   - `FEATURE_SPEC.md` remains on the packet path rather than in setup bootstrap or baseline doctor readiness.
 - `runtime zone`
-  - The preferred term for non-canonical derived state kept under `.system/`.
+  - The preferred term for non-canonical derived state kept under `.handbook/`.
   - Runtime zones are not canonical inputs and must never be described as project truth.
 - `canonical inputs`
   - Not a separate concept from `canonical artifacts`.
@@ -117,7 +117,7 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 - `recovery surface`
   - The operator-facing blocker and repair layer.
 - `refusal`
-  - The explicit blocked outcome when the system stops unsafe work.
+  - The explicit blocked outcome when the handbook stops unsafe work.
 - `next safe action`
   - The exact follow-up command or repair action the operator should take next.
 - `legacy reference material`
@@ -127,20 +127,20 @@ This vocabulary does not rewrite legacy docs. Legacy reference material may pres
 
 These phrases should remain stable across top-level docs and help text unless the product boundary changes:
 
-- `system setup`, `system setup init`, `system setup refresh`
+- `handbook setup`, `handbook setup init`, `handbook setup refresh`
 - "`setup` is the durable setup term"
 - "`setup init` is the concrete first-run subcommand"
 - "`setup refresh` preserves canonical files by default"
 - "`setup refresh --rewrite` rewrites only setup-owned starter files"
-- "`setup refresh --reset-state` resets only `.system/state/**`"
-- "setup hands off to `system doctor` for baseline readiness"
+- "`setup refresh --reset-state` resets only `.handbook/state/**`"
+- "setup hands off to `handbook doctor` for baseline readiness"
 - "`author` is the canonical authoring surface"
-- "`system author charter` is the human-guided charter authoring surface"
-- "`system author charter --from-inputs <path|->` is the agent and automation charter authoring surface"
-- "`system author project-context` authors canonical project context"
-- "`system author environment-inventory` authors canonical environment inventory"
+- "`handbook author charter` is the human-guided charter authoring surface"
+- "`handbook author charter --from-inputs <path|->` is the agent and automation charter authoring surface"
+- "`handbook author project-context` authors canonical project context"
+- "`handbook author environment-inventory` authors canonical environment inventory"
 - `planning packet generation`
-- `canonical repo-local `.system/` inputs`
+- `canonical repo-local `.handbook/` inputs`
 - `fixture-backed execution demo`
 - `live execution is explicitly refused`
 - "`inspect` is the packet proof surface"
@@ -224,12 +224,12 @@ These words may still appear in:
 Use:
 
 - `REFUSED: missing required canonical artifact`
-- `NEXT SAFE ACTION: run \`system setup\``
-- `NEXT SAFE ACTION: run \`system setup refresh --rewrite\``
+- `NEXT SAFE ACTION: run \`handbook setup\``
+- `NEXT SAFE ACTION: run \`handbook setup refresh --rewrite\``
 - "`inspect` is the packet proof surface"
 - "`pipeline compile --explain` is the compile proof surface"
 - "`doctor` is the recovery and baseline-readiness surface"
-- `1. PROJECT_CONTEXT | .system/project_context/PROJECT_CONTEXT.md | invalid | run \`system author project-context\``
+- `1. PROJECT_CONTEXT | .handbook/project_context/PROJECT_CONTEXT.md | invalid | run \`handbook author project-context\``
 
 Do not use:
 

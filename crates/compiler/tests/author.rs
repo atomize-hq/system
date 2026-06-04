@@ -2,8 +2,8 @@ use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use system_compiler::author::{author_charter_guided, preflight_author_charter_from_input};
-use system_compiler::{
+use handbook_compiler::author::{author_charter_guided, preflight_author_charter_from_input};
+use handbook_compiler::{
     author_charter, author_environment_inventory, author_project_context_from_input,
     parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
     preflight_author_charter, preflight_author_environment_inventory,
@@ -26,14 +26,14 @@ use system_compiler::{
     SetupRequest, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
-const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
-const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
+const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
-    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
+    "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
-    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
-const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
-const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
+    "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
+const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
+const PROMPT_CAPTURE_REPO_PATH: &str = ".handbook/state/authoring/last_prompt.txt";
 
 fn write_file(path: &Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -217,7 +217,7 @@ fn prompt_capture_path(root: &Path) -> PathBuf {
 
 fn strict_stub_script(markdown: &str, failure_stderr: Option<&str>) -> String {
     format!(
-        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\n{post_validation}",
+        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .handbook/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\n{post_validation}",
         prompt_capture = PROMPT_CAPTURE_REPO_PATH,
         post_validation = if let Some(stderr) = failure_stderr {
             format!("cat <<'EOF' >&2\n{stderr}\nEOF\nexit 23\n")
@@ -247,7 +247,7 @@ fn valid_input() -> CharterStructuredInput {
     CharterStructuredInput {
         schema_version: "0.1.0".to_string(),
         project: CharterProjectInput {
-            name: "System".to_string(),
+            name: "Handbook".to_string(),
             classification: CharterProjectClassification::Greenfield,
             team_size: 2,
             users: CharterAudience::Internal,
@@ -343,18 +343,18 @@ fn expected_charter_markdown() -> String {
 fn valid_project_context_input() -> ProjectContextStructuredInput {
     ProjectContextStructuredInput {
         schema_version: "0.1.0".to_string(),
-        project_name: "System".to_string(),
+        project_name: "Handbook".to_string(),
         owner: "compiler-team".to_string(),
-        team: "System".to_string(),
-        repo_or_project_ref: "system".to_string(),
-        charter_ref: ".system/charter/CHARTER.md".to_string(),
+        team: "Handbook".to_string(),
+        repo_or_project_ref: "handbook".to_string(),
+        charter_ref: ".handbook/charter/CHARTER.md".to_string(),
         project_summary: ProjectContextSummaryInput {
             what_this_project_is:
                 "CLI and compiler for canonical planning artifacts and workflow proofs".to_string(),
             primary_surface: "CLI plus compiler library".to_string(),
             primary_users: "internal operators and automation".to_string(),
             key_workflows: vec![
-                "scaffold canonical .system state".to_string(),
+                "scaffold canonical .handbook state".to_string(),
                 "author baseline artifacts".to_string(),
                 "compile and inspect planning outputs".to_string(),
             ],
@@ -386,7 +386,7 @@ fn valid_project_context_input() -> ProjectContextStructuredInput {
         system_boundaries: ProjectContextSystemBoundariesInput {
             owned_areas: vec![
                 "compiler and CLI crates in this repository".to_string(),
-                "canonical .system artifact formats and setup flow".to_string(),
+                "canonical .handbook artifact formats and setup flow".to_string(),
             ],
             external_dependencies: vec![
                 "OpenAI Codex runtime used for charter synthesis".to_string(),
@@ -404,9 +404,9 @@ fn valid_project_context_input() -> ProjectContextStructuredInput {
                     "auth or process failures must refuse without partial writes".to_string(),
             },
             ProjectContextIntegrationInput {
-                name: "Repo-local .system tree".to_string(),
+                name: "Repo-local .handbook tree".to_string(),
                 integration_type: "filesystem".to_string(),
-                contract_surface: "canonical artifact paths under .system/**".to_string(),
+                contract_surface: "canonical artifact paths under .handbook/**".to_string(),
                 authentication_authorization:
                     "write guards reject symlinks and non-regular targets".to_string(),
                 failure_mode_expectations: "invalid paths block authoring until repaired"
@@ -483,14 +483,14 @@ fn legacy_placeholder_project_context_markdown() -> String {
 
 fn expected_environment_inventory_markdown(project_context_ref: &str) -> String {
     format!(
-        "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
+        "# Environment Inventory - Handbook\n\n> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
     )
     .trim_end()
     .to_string()
 }
 
 fn valid_charter_markdown() -> &'static str {
-    "# Engineering Charter — System
+    "# Engineering Charter — Handbook
 
 ## What this is
 Body.
@@ -562,18 +562,18 @@ fn scaffold_repo(root: &Path) {
 #[test]
 fn author_charter_refuses_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let err = author_charter(dir.path(), &valid_input()).expect_err("missing system root");
+    let err = author_charter(dir.path(), &valid_input()).expect_err("missing handbook root");
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::MissingSystemRoot);
-    assert_eq!(err.next_safe_action, "run `system setup`");
+    assert_eq!(err.next_safe_action, "run `handbook setup`");
 }
 
 #[test]
 fn author_charter_refuses_when_system_root_is_invalid() {
     let dir = tempfile::tempdir().expect("tempdir");
-    write_file(&dir.path().join(".system"), b"not a directory\n");
+    write_file(&dir.path().join(".handbook"), b"not a directory\n");
 
-    let err = author_charter(dir.path(), &valid_input()).expect_err("invalid system root");
+    let err = author_charter(dir.path(), &valid_input()).expect_err("invalid handbook root");
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::InvalidSystemRoot);
 }
@@ -666,7 +666,7 @@ fn validate_structured_input_refuses_markdown_control_syntax() {
 fn render_charter_markdown_includes_required_headings_in_order() {
     let markdown = expected_charter_markdown();
 
-    assert!(markdown.starts_with("# Engineering Charter — System"));
+    assert!(markdown.starts_with("# Engineering Charter — Handbook"));
     let mut previous = 0usize;
     for heading in required_headings() {
         let position = markdown
@@ -694,14 +694,14 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("canonical charter"),
         expected_markdown
     );
-    let mut charter_entries = std::fs::read_dir(dir.path().join(".system/charter"))
+    let mut charter_entries = std::fs::read_dir(dir.path().join(".handbook/charter"))
         .expect("read charter dir")
         .map(|entry| {
             entry
@@ -722,7 +722,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
 fn preflight_author_charter_from_input_validates_without_mutation() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+    let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
@@ -732,13 +732,13 @@ fn preflight_author_charter_from_input_validates_without_mutation() {
     });
 
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("charter after validate-only preflight"),
         before
     );
     assert!(!dir
         .path()
-        .join(".system/state/authoring/charter.lock")
+        .join(".handbook/state/authoring/charter.lock")
         .exists());
     assert!(!prompt_capture_path(dir.path()).exists());
 }
@@ -755,10 +755,10 @@ fn author_charter_is_deterministic_and_does_not_invoke_codex() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("canonical charter"),
         expected_charter_markdown()
     );
@@ -777,10 +777,10 @@ fn guided_author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs
     });
 
     let prompt = std::fs::read_to_string(prompt_capture_path(dir.path())).expect("prompt capture");
-    assert!(prompt.contains("Author only the canonical charter at `.system/charter/CHARTER.md`."));
+    assert!(prompt.contains("Author only the canonical charter at `.handbook/charter/CHARTER.md`."));
     assert!(prompt.contains("Treat `CHARTER_INPUTS.yaml` as the source of truth."));
     assert!(prompt.contains("## What this is"));
-    assert!(prompt.contains("name: System"));
+    assert!(prompt.contains("name: Handbook"));
     assert!(prompt.contains("must_use_tech:"));
     assert!(!prompt.contains("<!--"));
     assert!(!prompt.contains("Example (replace with your own):"));
@@ -808,10 +808,10 @@ fn guided_author_charter_uses_codex_from_path_when_override_unset() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("canonical charter"),
         expected_markdown
     );
@@ -831,10 +831,10 @@ fn guided_author_charter_emits_model_flag_when_runtime_model_override_is_set() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("canonical charter"),
         expected_markdown
     );
@@ -854,10 +854,10 @@ fn guided_author_charter_ignores_blank_runtime_model_override() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("canonical charter"),
         expected_markdown
     );
@@ -869,7 +869,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         expected_charter_markdown().as_bytes(),
     );
 
@@ -877,7 +877,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::ExistingCanonicalTruth);
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("existing charter"),
         expected_charter_markdown()
     );
@@ -888,7 +888,7 @@ fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         expected_charter_markdown().as_bytes(),
     );
 
@@ -906,7 +906,7 @@ fn guided_author_charter_refuses_before_synthesis_when_non_starter_truth_exists(
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         expected_charter_markdown().as_bytes(),
     );
     let stub = install_stub_codex(
@@ -927,7 +927,7 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         b"custom charter truth\n",
     );
     let expected_markdown = expected_charter_markdown();
@@ -936,10 +936,10 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("repaired charter"),
         expected_markdown
     );
@@ -950,23 +950,23 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
 fn preflight_author_charter_routes_ingest_invalid_target_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    std::fs::remove_file(dir.path().join(".system/charter/CHARTER.md")).expect("remove charter");
-    std::fs::create_dir_all(dir.path().join(".system/charter/CHARTER.md"))
+    std::fs::remove_file(dir.path().join(".handbook/charter/CHARTER.md")).expect("remove charter");
+    std::fs::create_dir_all(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("charter target directory");
 
     let err = preflight_author_charter(dir.path())
         .expect_err("ingest-invalid charter target should block authoring");
 
     assert_eq!(err.kind, AuthorCharterRefusalKind::MutationRefused);
-    assert_eq!(err.next_safe_action, "run `system setup refresh`");
-    assert!(err.summary.contains("system setup refresh"));
+    assert_eq!(err.next_safe_action, "run `handbook setup refresh`");
+    assert!(err.summary.contains("handbook setup refresh"));
 }
 
 #[test]
 fn guided_author_charter_does_not_partially_write_when_synthesis_fails() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+    let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
@@ -977,7 +977,7 @@ fn guided_author_charter_does_not_partially_write_when_synthesis_fails() {
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
     assert!(err.summary.contains("synthetic codex failure"));
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("charter after failure"),
         before
     );
@@ -1030,12 +1030,12 @@ fn guided_author_charter_surfaces_auth_failure_from_codex_stderr() {
 fn guided_author_charter_refuses_invalid_synthesized_markdown() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+    let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     let stub = install_stub_codex(
         dir.path(),
         &invalid_output_stub_script(
-            "# Engineering Charter — System\n\n## What this is\n\n{{PROJECT_NAME}}\n",
+            "# Engineering Charter — Handbook\n\n## What this is\n\n{{PROJECT_NAME}}\n",
         ),
     );
 
@@ -1046,7 +1046,7 @@ fn guided_author_charter_refuses_invalid_synthesized_markdown() {
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
     assert!(err.summary.contains("unresolved template placeholders"));
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("charter after failure"),
         before
     );
@@ -1056,12 +1056,12 @@ fn guided_author_charter_refuses_invalid_synthesized_markdown() {
 fn guided_author_charter_refuses_synthesized_markdown_with_leaked_template_scaffold() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+    let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     let stub = install_stub_codex(
         dir.path(),
         &invalid_output_stub_script(
-            "# Engineering Charter — System\n\n## What this is\n\nDocument body.\n\n- Options (choose one):\n",
+            "# Engineering Charter — Handbook\n\n## What this is\n\nDocument body.\n\n- Options (choose one):\n",
         ),
     );
 
@@ -1075,7 +1075,7 @@ fn guided_author_charter_refuses_synthesized_markdown_with_leaked_template_scaff
         .summary
         .contains("contains leaked author-facing scaffold"));
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("charter after failure"),
         before
     );
@@ -1085,12 +1085,12 @@ fn guided_author_charter_refuses_synthesized_markdown_with_leaked_template_scaff
 fn guided_author_charter_refuses_synthesized_markdown_missing_exception_record_location() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+    let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     let stub = install_stub_codex(
         dir.path(),
         &invalid_output_stub_script(
-            "# Engineering Charter — System\n\n## What this is\n\nDocument body.\n\n## How to use this charter\n\nUse this charter.\n\n## Rubric: 1–5 rigor levels\n\nLevel guidance.\n\n## Project baseline posture\n\nBaseline.\n\n## Domains / areas (optional overrides)\n\nNone.\n\n## Posture at a glance (quick scan)\n\nSnapshot.\n\n## Dimensions (details + guardrails)\n\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n\n- Keep trust boundaries intact.\n\n## Exceptions / overrides process\n\n- **Approvers:** project_owner\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\n\nTracked in issues.\n\n## Decision Records (ADRs): how to use this charter\n\nUse ADRs when needed.\n\n## Review & updates\n\nReview monthly.\n",
+            "# Engineering Charter — Handbook\n\n## What this is\n\nDocument body.\n\n## How to use this charter\n\nUse this charter.\n\n## Rubric: 1–5 rigor levels\n\nLevel guidance.\n\n## Project baseline posture\n\nBaseline.\n\n## Domains / areas (optional overrides)\n\nNone.\n\n## Posture at a glance (quick scan)\n\nSnapshot.\n\n## Dimensions (details + guardrails)\n\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n\n- Keep trust boundaries intact.\n\n## Exceptions / overrides process\n\n- **Approvers:** project_owner\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\n\nTracked in issues.\n\n## Decision Records (ADRs): how to use this charter\n\nUse ADRs when needed.\n\n## Review & updates\n\nReview monthly.\n",
         ),
     );
 
@@ -1102,7 +1102,7 @@ fn guided_author_charter_refuses_synthesized_markdown_missing_exception_record_l
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
     assert!(err.summary.contains("exact exception record location"));
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("charter after failure"),
         before
     );
@@ -1112,12 +1112,12 @@ fn guided_author_charter_refuses_synthesized_markdown_missing_exception_record_l
 fn guided_author_charter_refuses_when_required_headings_only_appear_in_body_text() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let before = std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+    let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     let stub = install_stub_codex(
         dir.path(),
         &invalid_output_stub_script(
-            "# Engineering Charter — System\n\n## What this is\n\nThis body mentions `## How to use this charter`, `## Rubric: 1–5 rigor levels`, `## Project baseline posture`, `## Domains / areas (optional overrides)`, `## Posture at a glance (quick scan)`, `## Dimensions (details + guardrails)`, `## Cross-cutting red lines (global non-negotiables)`, `## Exceptions / overrides process`, `## Debt tracking expectations`, `## Decision Records (ADRs): how to use this charter`, and `## Review & updates`, but it does not render them as headings.\n",
+            "# Engineering Charter — Handbook\n\n## What this is\n\nThis body mentions `## How to use this charter`, `## Rubric: 1–5 rigor levels`, `## Project baseline posture`, `## Domains / areas (optional overrides)`, `## Posture at a glance (quick scan)`, `## Dimensions (details + guardrails)`, `## Cross-cutting red lines (global non-negotiables)`, `## Exceptions / overrides process`, `## Debt tracking expectations`, `## Decision Records (ADRs): how to use this charter`, and `## Review & updates`, but it does not render them as headings.\n",
         ),
     );
 
@@ -1129,7 +1129,7 @@ fn guided_author_charter_refuses_when_required_headings_only_appear_in_body_text
     assert_eq!(err.kind, AuthorCharterRefusalKind::SynthesisFailed);
     assert!(err.summary.contains("missing required heading"));
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md"))
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
             .expect("charter after failure"),
         before
     );
@@ -1141,7 +1141,7 @@ fn starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring
     scaffold_repo(dir.path());
 
     assert_eq!(
-        std::fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("starter bytes"),
+        std::fs::read(dir.path().join(".handbook/charter/CHARTER.md")).expect("starter bytes"),
         setup_starter_template_bytes(CanonicalArtifactKind::Charter)
     );
 }
@@ -1177,7 +1177,7 @@ fn validate_project_context_structured_input_refuses_incomplete_fields() {
 fn render_project_context_markdown_includes_required_structure() {
     let markdown = expected_project_context_markdown();
 
-    assert!(markdown.starts_with("# Project Context — System"));
+    assert!(markdown.starts_with("# Project Context — Handbook"));
     assert!(markdown.contains("> **Created (UTC):** 2026-04-21T12:34:56Z"));
     assert!(markdown.contains("## 3) System Boundaries (what we own vs integrate with)"));
     assert!(markdown.contains("### What we own"));
@@ -1202,7 +1202,7 @@ fn validate_project_context_markdown_refuses_known_placeholder_boilerplate() {
 #[test]
 fn validate_project_context_markdown_refuses_missing_required_heading() {
     let err = validate_project_context_markdown(
-        "# Project Context — System\n\n> **File:** `PROJECT_CONTEXT.md`\n> **Created (UTC):** 2026-04-21T12:34:56Z\n> **Owner:** compiler-team\n> **Team:** System\n> **Repo / Project:** system\n> **Charter Ref:** .system/charter/CHARTER.md\n",
+        "# Project Context — Handbook\n\n> **File:** `PROJECT_CONTEXT.md`\n> **Created (UTC):** 2026-04-21T12:34:56Z\n> **Owner:** compiler-team\n> **Team:** Handbook\n> **Repo / Project:** handbook\n> **Charter Ref:** .handbook/charter/CHARTER.md\n",
     )
     .expect_err("missing sections should refuse");
 
@@ -1213,10 +1213,10 @@ fn validate_project_context_markdown_refuses_missing_required_heading() {
 fn author_project_context_refuses_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let err = author_project_context_from_input(dir.path(), &valid_project_context_input())
-        .expect_err("missing system root");
+        .expect_err("missing handbook root");
 
     assert_eq!(err.kind, AuthorProjectContextRefusalKind::MissingSystemRoot);
-    assert_eq!(err.next_safe_action, "run `system setup`");
+    assert_eq!(err.next_safe_action, "run `handbook setup`");
 }
 
 #[test]
@@ -1232,17 +1232,17 @@ fn author_project_context_replaces_starter_template_and_writes_only_canonical_ou
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project_context/PROJECT_CONTEXT.md"
     );
     assert_eq!(
         std::fs::read_to_string(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("canonical project context"),
         expected_markdown
     );
-    let mut entries = std::fs::read_dir(dir.path().join(".system/project_context"))
+    let mut entries = std::fs::read_dir(dir.path().join(".handbook/project_context"))
         .expect("read project-context dir")
         .map(|entry| {
             entry
@@ -1267,7 +1267,7 @@ fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
         expected_project_context_markdown().as_bytes(),
     );
 
@@ -1283,7 +1283,7 @@ fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     assert_eq!(
         std::fs::read_to_string(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("existing project context"),
         expected_project_context_markdown()
@@ -1296,7 +1296,7 @@ fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exi
     scaffold_repo(dir.path());
     write_file(
         &dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
         expected_project_context_markdown().as_bytes(),
     );
 
@@ -1318,7 +1318,7 @@ fn author_project_context_repairs_semantically_invalid_canonical_truth() {
     scaffold_repo(dir.path());
     write_file(
         &dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
 
@@ -1329,12 +1329,12 @@ fn author_project_context_repairs_semantically_invalid_canonical_truth() {
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".system/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project_context/PROJECT_CONTEXT.md"
     );
     assert_eq!(
         std::fs::read_to_string(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("repaired project context"),
         expected_project_context_markdown()
@@ -1347,12 +1347,12 @@ fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refres
     scaffold_repo(dir.path());
     std::fs::remove_file(
         dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
     )
     .expect("remove project context");
     std::fs::create_dir_all(
         dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
     )
     .expect("project-context target directory");
 
@@ -1360,8 +1360,8 @@ fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refres
         .expect_err("ingest-invalid project-context target should block authoring");
 
     assert_eq!(err.kind, AuthorProjectContextRefusalKind::MutationRefused);
-    assert_eq!(err.next_safe_action, "run `system setup refresh`");
-    assert!(err.summary.contains("system setup refresh"));
+    assert_eq!(err.next_safe_action, "run `handbook setup refresh`");
+    assert!(err.summary.contains("handbook setup refresh"));
 }
 
 #[test]
@@ -1372,7 +1372,7 @@ fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaf
     assert_eq!(
         std::fs::read(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("starter project-context bytes"),
         setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext)
@@ -1384,7 +1384,7 @@ fn author_environment_inventory_replaces_starter_template_and_writes_only_canoni
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     let expected_markdown = expected_environment_inventory_markdown("None");
@@ -1403,7 +1403,7 @@ fn author_environment_inventory_replaces_starter_template_and_writes_only_canoni
             .expect("canonical environment inventory"),
         expected_markdown
     );
-    let mut entries = std::fs::read_dir(dir.path().join(".system/environment_inventory"))
+    let mut entries = std::fs::read_dir(dir.path().join(".handbook/environment_inventory"))
         .expect("read environment-inventory dir")
         .map(|entry| {
             entry
@@ -1428,7 +1428,7 @@ fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists(
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
@@ -1455,7 +1455,7 @@ fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_tru
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
@@ -1480,7 +1480,7 @@ fn author_environment_inventory_repairs_semantically_invalid_canonical_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
@@ -1512,7 +1512,7 @@ fn preflight_author_environment_inventory_routes_ingest_invalid_target_to_setup_
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     std::fs::remove_file(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1527,8 +1527,8 @@ fn preflight_author_environment_inventory_routes_ingest_invalid_target_to_setup_
         err.kind,
         AuthorEnvironmentInventoryRefusalKind::MutationRefused
     );
-    assert_eq!(err.next_safe_action, "run `system setup refresh`");
-    assert!(err.summary.contains("system setup refresh"));
+    assert_eq!(err.next_safe_action, "run `handbook setup refresh`");
+    assert!(err.summary.contains("handbook setup refresh"));
 }
 
 #[test]
@@ -1536,7 +1536,7 @@ fn author_environment_inventory_refuses_when_required_headings_only_appear_in_bo
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1544,7 +1544,7 @@ fn author_environment_inventory_refuses_when_required_headings_only_appear_in_bo
     let stub = install_stub_codex(
         dir.path(),
         &successful_stub_script(
-            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nThis body mentions `## How to use`, `## 1) Environment Variables (Inventory)`, `## 2) External Services / Infrastructure Dependencies`, `## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)`, `## 4) Local Development Requirements`, `## 5) CI Requirements`, `## 6) Production / Deployment Requirements (even if not live yet)`, `## 7) Dependency & Tooling Inventory (project-specific)`, `## 8) Update Contract (non-negotiable)`, and `## 9) Known Unknowns`, but it does not render them as headings.\n",
+            "# Environment Inventory - Handbook\n\n> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nThis body mentions `## How to use`, `## 1) Environment Variables (Inventory)`, `## 2) External Services / Infrastructure Dependencies`, `## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)`, `## 4) Local Development Requirements`, `## 5) CI Requirements`, `## 6) Production / Deployment Requirements (even if not live yet)`, `## 7) Dependency & Tooling Inventory (project-specific)`, `## 8) Update Contract (non-negotiable)`, and `## 9) Known Unknowns`, but it does not render them as headings.\n",
         ),
     );
 
@@ -1572,7 +1572,7 @@ fn author_environment_inventory_refuses_when_required_heading_is_duplicated() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1580,7 +1580,7 @@ fn author_environment_inventory_refuses_when_required_heading_is_duplicated() {
     let stub = install_stub_codex(
         dir.path(),
         &successful_stub_script(
-            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- Still none.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
+            "# Environment Inventory - Handbook\n\n> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- Still none.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
         ),
     );
 
@@ -1608,7 +1608,7 @@ fn author_environment_inventory_refuses_when_required_headings_are_out_of_order(
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1616,7 +1616,7 @@ fn author_environment_inventory_refuses_when_required_headings_are_out_of_order(
     let stub = install_stub_codex(
         dir.path(),
         &successful_stub_script(
-            "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
+            "# Environment Inventory - Handbook\n\n> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** None\n\n## What this is\nCanonical environment and runtime inventory.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n",
         ),
     );
 
@@ -1644,7 +1644,7 @@ fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_in
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1677,12 +1677,12 @@ fn author_environment_inventory_refuses_when_optional_project_context_is_semanti
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
         &dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1690,7 +1690,7 @@ fn author_environment_inventory_refuses_when_optional_project_context_is_semanti
     let stub = install_stub_codex(
         dir.path(),
         &successful_stub_script(&expected_environment_inventory_markdown(
-            "`.system/project_context/PROJECT_CONTEXT.md`",
+            "`.handbook/project_context/PROJECT_CONTEXT.md`",
         )),
     );
 

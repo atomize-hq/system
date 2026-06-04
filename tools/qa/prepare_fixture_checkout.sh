@@ -67,7 +67,7 @@ case "$nested_cwd" in
     ;;
 esac
 
-tmp_parent="$(mktemp -d "${TMPDIR:-/tmp}/system-fixture-checkout.XXXXXX")"
+tmp_parent="$(mktemp -d "${TMPDIR:-/tmp}/handbook-fixture-checkout.XXXXXX")"
 checkout_root="$tmp_parent/checkout"
 mkdir -p "$checkout_root"
 cp -R "$fixture_root"/. "$checkout_root"/

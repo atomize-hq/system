@@ -1,6 +1,6 @@
 use std::fs;
 
-use system_compiler::{
+use handbook_compiler::{
     plan_setup, render_next_safe_action_value, resolve, run_setup, setup_starter_template_bytes,
     ResolveRequest, SetupActionLabel, SetupDisposition, SetupMode, SetupRefusalKind, SetupRequest,
 };
@@ -14,22 +14,22 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 
 fn starter_paths() -> [&'static str; 3] {
     [
-        ".system/charter/CHARTER.md",
-        ".system/project_context/PROJECT_CONTEXT.md",
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".handbook/charter/CHARTER.md",
+        ".handbook/project_context/PROJECT_CONTEXT.md",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ]
 }
 
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
     match path {
-        ".system/charter/CHARTER.md" => {
-            setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::Charter)
+        ".handbook/charter/CHARTER.md" => {
+            setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::Charter)
         }
-        ".system/project_context/PROJECT_CONTEXT.md" => {
-            setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::ProjectContext)
+        ".handbook/project_context/PROJECT_CONTEXT.md" => {
+            setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::ProjectContext)
         }
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md" => setup_starter_template_bytes(
-            system_compiler::CanonicalArtifactKind::EnvironmentInventory,
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md" => setup_starter_template_bytes(
+            handbook_compiler::CanonicalArtifactKind::EnvironmentInventory,
         ),
         _ => panic!("unexpected starter path: {path}"),
     }
@@ -52,7 +52,7 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert_eq!(
         outcome
             .plan
@@ -68,12 +68,12 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
         .iter()
         .all(|action| action.label == SetupActionLabel::Created));
 
-    assert!(repo_root.join(".system").is_dir());
-    assert!(repo_root.join(".system/charter").is_dir());
-    assert!(repo_root.join(".system/project_context").is_dir());
-    assert!(repo_root.join(".system/environment_inventory").is_dir());
+    assert!(repo_root.join(".handbook").is_dir());
+    assert!(repo_root.join(".handbook/charter").is_dir());
+    assert!(repo_root.join(".handbook/project_context").is_dir());
+    assert!(repo_root.join(".handbook/environment_inventory").is_dir());
     assert!(!repo_root
-        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .join(".handbook/feature_spec/FEATURE_SPEC.md")
         .exists());
     for path in starter_paths() {
         let bytes = fs::read(repo_root.join(path)).expect("starter bytes");
@@ -88,7 +88,7 @@ fn setup_init_creates_scaffold_and_starter_files_on_uninitialized_repo() {
 fn setup_init_refuses_when_canonical_system_already_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    fs::create_dir_all(repo_root.join(".system/charter")).expect("charter dir");
+    fs::create_dir_all(repo_root.join(".handbook/charter")).expect("charter dir");
 
     let refusal = run_setup(
         repo_root,
@@ -101,9 +101,9 @@ fn setup_init_refuses_when_canonical_system_already_exists() {
     .expect_err("init should refuse");
 
     assert_eq!(refusal.kind, SetupRefusalKind::AlreadyInitialized);
-    assert!(refusal.summary.contains("system setup refresh"));
-    assert_eq!(refusal.broken_subject, "canonical `.system` root");
-    assert_eq!(refusal.next_safe_action, "run `system setup refresh`");
+    assert!(refusal.summary.contains("handbook setup refresh"));
+    assert_eq!(refusal.broken_subject, "canonical `.handbook` root");
+    assert_eq!(refusal.next_safe_action, "run `handbook setup refresh`");
 }
 
 #[cfg(unix)]
@@ -115,8 +115,8 @@ fn setup_mutation_refuses_symlinked_or_escaping_paths() {
     let external = tempfile::tempdir().expect("external tempdir");
     let repo_root = dir.path();
 
-    fs::create_dir_all(repo_root.join(".system")).expect("system root");
-    symlink(external.path(), repo_root.join(".system/charter")).expect("symlink parent");
+    fs::create_dir_all(repo_root.join(".handbook")).expect("system root");
+    symlink(external.path(), repo_root.join(".handbook/charter")).expect("symlink parent");
 
     let refusal = run_setup(
         repo_root,
@@ -136,7 +136,7 @@ fn setup_mutation_refuses_symlinked_or_escaping_paths() {
     );
     assert_eq!(
         refusal.next_safe_action,
-        "repair the blocked target and rerun `system setup`"
+        "repair the blocked target and rerun `handbook setup`"
     );
     assert!(
         !external.path().join("CHARTER.md").exists(),
@@ -149,7 +149,7 @@ fn setup_init_repairs_file_backed_invalid_system_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system"), b"not a directory\n");
+    write_file(&repo_root.join(".handbook"), b"not a directory\n");
 
     let outcome = run_setup(
         repo_root,
@@ -163,7 +163,7 @@ fn setup_init_repairs_file_backed_invalid_system_root() {
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert!(repo_root.join(".system").is_dir());
+    assert!(repo_root.join(".handbook").is_dir());
     for path in starter_paths() {
         assert!(
             repo_root.join(path).is_file(),
@@ -186,14 +186,14 @@ fn setup_auto_repairs_symlinked_invalid_system_root() {
     let external = tempfile::tempdir().expect("external tempdir");
     let repo_root = dir.path();
 
-    symlink(external.path(), repo_root.join(".system")).expect("system symlink");
+    symlink(external.path(), repo_root.join(".handbook")).expect("system symlink");
 
     let outcome = run_setup(repo_root, &SetupRequest::default())
         .expect("auto setup should repair symlinked invalid root");
 
     assert_eq!(outcome.plan.resolved_mode, SetupMode::Init);
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert!(repo_root.join(".system").is_dir());
+    assert!(repo_root.join(".handbook").is_dir());
     assert!(
         external
             .path()
@@ -217,15 +217,15 @@ fn setup_refresh_preserves_existing_canonical_file_bytes_by_default() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         b"custom charter\n",
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"custom inventory\n",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
     );
 
@@ -245,7 +245,7 @@ fn setup_refresh_preserves_existing_canonical_file_bytes_by_default() {
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Ready);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert!(outcome
         .plan
         .actions
@@ -284,7 +284,7 @@ fn setup_refresh_preserves_required_starter_templates_but_stays_scaffolded() {
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert!(outcome
         .plan
         .actions
@@ -304,7 +304,7 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         b"keep this charter\n",
     );
 
@@ -319,16 +319,16 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert_eq!(
-        fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
+        fs::read(repo_root.join(".handbook/charter/CHARTER.md")).expect("charter after"),
         b"keep this charter\n"
     );
     assert!(repo_root
-        .join(".system/project_context/PROJECT_CONTEXT.md")
+        .join(".handbook/project_context/PROJECT_CONTEXT.md")
         .is_file());
     assert!(repo_root
-        .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
         .is_file());
 
     let labels_by_path = outcome
@@ -338,15 +338,15 @@ fn setup_refresh_repairs_missing_setup_owned_scaffold_pieces_without_rewriting_p
         .map(|action| (action.path.as_str(), action.label))
         .collect::<std::collections::BTreeMap<_, _>>();
     assert_eq!(
-        labels_by_path.get(".system/charter/CHARTER.md"),
+        labels_by_path.get(".handbook/charter/CHARTER.md"),
         Some(&SetupActionLabel::Preserved)
     );
     assert_eq!(
-        labels_by_path.get(".system/project_context/PROJECT_CONTEXT.md"),
+        labels_by_path.get(".handbook/project_context/PROJECT_CONTEXT.md"),
         Some(&SetupActionLabel::Created)
     );
     assert_eq!(
-        labels_by_path.get(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        labels_by_path.get(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         Some(&SetupActionLabel::Created)
     );
 }
@@ -360,14 +360,14 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         write_file(&repo_root.join(path), format!("custom {path}\n").as_bytes());
     }
     write_file(
-        &repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &repo_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"state: keep\n",
     );
-    write_file(&repo_root.join(".system/custom/KEEP.md"), b"keep me\n");
+    write_file(&repo_root.join(".handbook/custom/KEEP.md"), b"keep me\n");
 
-    let extra_before = fs::read(repo_root.join(".system/custom/KEEP.md")).expect("extra before");
+    let extra_before = fs::read(repo_root.join(".handbook/custom/KEEP.md")).expect("extra before");
     let state_before =
-        fs::read(repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
+        fs::read(repo_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"))
             .expect("state before");
 
     let outcome = run_setup(
@@ -381,7 +381,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     .expect("setup refresh rewrite");
 
     assert_eq!(outcome.disposition, SetupDisposition::Scaffolded);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert_eq!(outcome.plan.actions.len(), starter_paths().len());
     assert!(outcome
         .plan
@@ -393,11 +393,11 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         assert_eq!(current, starter_template_bytes_for_path(path));
     }
     assert_eq!(
-        fs::read(repo_root.join(".system/custom/KEEP.md")).expect("extra after"),
+        fs::read(repo_root.join(".handbook/custom/KEEP.md")).expect("extra after"),
         extra_before
     );
     assert_eq!(
-        fs::read(repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
+        fs::read(repo_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"))
             .expect("state after"),
         state_before
     );
@@ -408,30 +408,33 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
+        b"charter\n",
+    );
+    write_file(
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"inventory\n",
     );
     write_file(
-        &repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &repo_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline state\n",
     );
     write_file(
-        &repo_root.join(".system/state/pipeline/capture/cache.yaml"),
+        &repo_root.join(".handbook/state/pipeline/capture/cache.yaml"),
         b"capture state\n",
     );
-    write_file(&repo_root.join(".system/custom/KEEP.md"), b"keep me\n");
+    write_file(&repo_root.join(".handbook/custom/KEEP.md"), b"keep me\n");
 
-    let charter_before = fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter");
+    let charter_before = fs::read(repo_root.join(".handbook/charter/CHARTER.md")).expect("charter");
     let context_before =
-        fs::read(repo_root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context");
+        fs::read(repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md")).expect("context");
     let inventory_before =
-        fs::read(repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+        fs::read(repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"))
             .expect("inventory");
 
     let outcome = run_setup(
@@ -445,30 +448,30 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     .expect("setup refresh reset-state");
 
     assert_eq!(outcome.disposition, SetupDisposition::Ready);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert_eq!(
-        fs::read(repo_root.join(".system/charter/CHARTER.md")).expect("charter after"),
+        fs::read(repo_root.join(".handbook/charter/CHARTER.md")).expect("charter after"),
         charter_before
     );
     assert_eq!(
-        fs::read(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
+        fs::read(repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
             .expect("context after"),
         context_before
     );
     assert_eq!(
-        fs::read(repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+        fs::read(repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"))
             .expect("inventory after"),
         inventory_before
     );
     assert_eq!(
-        fs::read(repo_root.join(".system/custom/KEEP.md")).expect("keep after"),
+        fs::read(repo_root.join(".handbook/custom/KEEP.md")).expect("keep after"),
         b"keep me\n"
     );
     assert!(!repo_root
-        .join(".system/state/pipeline/pipeline.foundation_inputs.yaml")
+        .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml")
         .exists());
     assert!(!repo_root
-        .join(".system/state/pipeline/capture/cache.yaml")
+        .join(".handbook/state/pipeline/capture/cache.yaml")
         .exists());
 
     for action in outcome
@@ -478,7 +481,7 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
         .filter(|action| action.label == SetupActionLabel::Reset)
     {
         assert!(
-            action.path.starts_with(".system/state/"),
+            action.path.starts_with(".handbook/state/"),
             "reset path escaped runtime state: {}",
             action.path
         );
@@ -493,18 +496,21 @@ fn setup_refresh_reset_state_refuses_without_partial_deletion() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
+        b"charter\n",
+    );
+    write_file(
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"inventory\n",
     );
-    write_file(&repo_root.join(".system/state/a.yaml"), b"a: 1\n");
+    write_file(&repo_root.join(".handbook/state/a.yaml"), b"a: 1\n");
     let external = tempfile::tempdir().expect("external tempdir");
-    symlink(external.path(), repo_root.join(".system/state/z_symlink")).expect("state symlink");
+    symlink(external.path(), repo_root.join(".handbook/state/z_symlink")).expect("state symlink");
 
     let refusal = run_setup(
         repo_root,
@@ -519,7 +525,7 @@ fn setup_refresh_reset_state_refuses_without_partial_deletion() {
     assert_eq!(refusal.kind, SetupRefusalKind::MutationRefused);
     assert!(refusal.summary.contains("symlink"), "{}", refusal.summary);
     assert!(
-        repo_root.join(".system/state/a.yaml").is_file(),
+        repo_root.join(".handbook/state/a.yaml").is_file(),
         "preflight refusal must leave earlier files intact"
     );
 }
@@ -528,21 +534,24 @@ fn setup_refresh_reset_state_refuses_without_partial_deletion() {
 fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
     let plan_dir = tempfile::tempdir().expect("plan tempdir");
     let plan_root = plan_dir.path();
-    write_file(&plan_root.join(".system/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &plan_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &plan_root.join(".handbook/charter/CHARTER.md"),
+        b"charter\n",
+    );
+    write_file(
+        &plan_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
     );
     write_file(
-        &plan_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &plan_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"inventory\n",
     );
     write_file(
-        &plan_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &plan_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline state\n",
     );
     write_file(
-        &plan_root.join(".system/state/pipeline/capture/cache.yaml"),
+        &plan_root.join(".handbook/state/pipeline/capture/cache.yaml"),
         b"capture state\n",
     );
 
@@ -555,21 +564,21 @@ fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
 
     let run_dir = tempfile::tempdir().expect("run tempdir");
     let run_root = run_dir.path();
-    write_file(&run_root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(&run_root.join(".handbook/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &run_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &run_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
     );
     write_file(
-        &run_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &run_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"inventory\n",
     );
     write_file(
-        &run_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &run_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline state\n",
     );
     write_file(
-        &run_root.join(".system/state/pipeline/capture/cache.yaml"),
+        &run_root.join(".handbook/state/pipeline/capture/cache.yaml"),
         b"capture state\n",
     );
 
@@ -577,7 +586,7 @@ fn plan_setup_and_run_setup_agree_on_reset_state_actions() {
 
     assert_eq!(planned.actions, outcome.plan.actions);
     assert_eq!(outcome.disposition, SetupDisposition::Ready);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
 }
 
 #[test]
@@ -586,20 +595,20 @@ fn setup_refresh_ready_ignores_non_setup_feature_spec_starter_template() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         b"custom charter\n",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"custom inventory\n",
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::FeatureSpec),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
+        setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::FeatureSpec),
     );
 
     let outcome = run_setup(
@@ -613,7 +622,7 @@ fn setup_refresh_ready_ignores_non_setup_feature_spec_starter_template() {
     .expect("setup refresh");
 
     assert_eq!(outcome.disposition, SetupDisposition::Ready);
-    assert_eq!(outcome.next_safe_action, "run `system doctor`");
+    assert_eq!(outcome.next_safe_action, "run `handbook doctor`");
     assert!(outcome
         .plan
         .actions
@@ -628,23 +637,23 @@ fn next_safe_action_mapping_for_missing_invalid_canonical_truth_points_to_setup_
     let missing_refusal = missing_result.refusal.expect("missing root refusal");
     assert_eq!(
         render_next_safe_action_value(&missing_refusal.next_safe_action),
-        "run `system setup`"
+        "run `handbook setup`"
     );
 
     let invalid_root = tempfile::tempdir().expect("invalid root tempdir");
-    write_file(&invalid_root.path().join(".system"), b"not a directory");
+    write_file(&invalid_root.path().join(".handbook"), b"not a directory");
     let invalid_result = resolve(invalid_root.path(), ResolveRequest::default()).expect("resolve");
     let invalid_refusal = invalid_result.refusal.expect("invalid root refusal");
     assert_eq!(
         render_next_safe_action_value(&invalid_refusal.next_safe_action),
-        "run `system setup`"
+        "run `handbook setup`"
     );
 
     let missing_artifact = tempfile::tempdir().expect("missing artifact tempdir");
     write_file(
         &missing_artifact
             .path()
-            .join(".system/feature_spec/FEATURE_SPEC.md"),
+            .join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature\n",
     );
     let artifact_result =
@@ -652,7 +661,7 @@ fn next_safe_action_mapping_for_missing_invalid_canonical_truth_points_to_setup_
     let artifact_refusal = artifact_result.refusal.expect("missing artifact refusal");
     assert_eq!(
         render_next_safe_action_value(&artifact_refusal.next_safe_action),
-        "run `system setup refresh`"
+        "run `handbook setup refresh`"
     );
 }
 
@@ -661,9 +670,9 @@ fn required_artifact_read_error_points_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/charter/CHARTER.md")).expect("charter dir");
+    std::fs::create_dir_all(repo_root.join(".handbook/charter/CHARTER.md")).expect("charter dir");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature\n",
     );
 
@@ -671,7 +680,7 @@ fn required_artifact_read_error_points_to_setup_refresh() {
     let refusal = result.refusal.expect("required read-error refusal");
     assert_eq!(
         render_next_safe_action_value(&refusal.next_safe_action),
-        "run `system setup refresh`"
+        "run `handbook setup refresh`"
     );
 }
 
@@ -683,13 +692,13 @@ fn symlinked_required_artifact_points_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("charter dir");
-    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("feature dir");
+    std::fs::create_dir_all(repo_root.join(".handbook/charter")).expect("charter dir");
+    std::fs::create_dir_all(repo_root.join(".handbook/feature_spec")).expect("feature dir");
     let real = repo_root.join("real_charter.md");
     write_file(&real, b"charter\n");
-    symlink(&real, repo_root.join(".system/charter/CHARTER.md")).expect("charter symlink");
+    symlink(&real, repo_root.join(".handbook/charter/CHARTER.md")).expect("charter symlink");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature\n",
     );
 
@@ -697,6 +706,6 @@ fn symlinked_required_artifact_points_to_setup_refresh() {
     let refusal = result.refusal.expect("symlink refusal");
     assert_eq!(
         render_next_safe_action_value(&refusal.next_safe_action),
-        "run `system setup refresh`"
+        "run `handbook setup refresh`"
     );
 }

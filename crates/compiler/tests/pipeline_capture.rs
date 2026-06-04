@@ -4,8 +4,7 @@ mod pipeline_proof_corpus_support;
 use std::fs;
 use std::path::Path;
 
-use sha2::{Digest, Sha256};
-use system_compiler::{
+use handbook_compiler::{
     apply_pipeline_capture, capture_pipeline_output, compile_pipeline_stage_with_runtime,
     load_pipeline_capture_cache_entry, load_route_state_with_supported_variables,
     preview_pipeline_capture, render_pipeline_capture_apply_result,
@@ -15,6 +14,7 @@ use system_compiler::{
     PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
     PipelineCompileRuntimeContext, RouteState, RouteStateMutation, RouteStateMutationOutcome,
 };
+use sha2::{Digest, Sha256};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -27,7 +27,7 @@ const STAGE_07_ID: &str = pipeline_proof_corpus_support::STAGE_07_FOUNDATION_PAC
 const STAGE_10_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
 const STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
-    ".system/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
+    ".handbook/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 
 fn stage_04_request(input: String) -> PipelineCaptureRequest {
     PipelineCaptureRequest {
@@ -139,7 +139,7 @@ fn capture_next_safe_action(rendered: &str) -> &str {
 fn apply_mutation(repo_root: &Path, mutation: RouteStateMutation) {
     let (definition, supported_variables) =
         pipeline_proof_corpus_support::load_foundation_inputs_definition(repo_root);
-    let state = system_compiler::load_route_state_with_supported_variables(
+    let state = handbook_compiler::load_route_state_with_supported_variables(
         repo_root,
         PIPELINE_ID,
         &supported_variables,
@@ -171,7 +171,7 @@ fn load_route_state(repo_root: &Path) -> RouteState {
 
 fn assert_no_capture_cache_entries(repo_root: &Path) {
     let capture_dir = repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join("capture");
@@ -221,7 +221,7 @@ fn rewrite_tampered_capture_cache(
     cache_entry.capture_id
 }
 
-fn route_basis_sha256(route_basis: &system_compiler::RouteBasis) -> String {
+fn route_basis_sha256(route_basis: &handbook_compiler::RouteBasis) -> String {
     let bytes = serde_json::to_vec(route_basis).expect("serialize route basis");
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
@@ -375,12 +375,12 @@ fn capture_apply_charter_matches_shared_golden_and_writes_repo_mirror() {
     );
     assert!(
         next_safe_action.contains(
-            "system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
+            "handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
         ),
         "stage-05 apply should tell the operator to set needs_project_context"
     );
     assert!(
-        next_safe_action.contains("system pipeline resolve --id pipeline.foundation_inputs"),
+        next_safe_action.contains("handbook pipeline resolve --id pipeline.foundation_inputs"),
         "stage-05 apply should tell the operator to refresh route truth"
     );
 }
@@ -1281,13 +1281,13 @@ fn capture_apply_refuses_symlinked_cache_entry_without_side_effects() {
 fn capture_preview_refuses_cache_path_when_system_root_is_symlinked() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
     let external_root = tempfile::tempdir().expect("external tempdir");
-    let system_root = repo_root.join(".system");
+    let system_root = repo_root.join(".handbook");
     let redirected_system_root = external_root.path().join("redirected-system");
     let initial_state = load_route_state(&repo_root);
 
-    fs::rename(&system_root, &redirected_system_root).expect("move .system");
+    fs::rename(&system_root, &redirected_system_root).expect("move .handbook");
     std::os::unix::fs::symlink(&redirected_system_root, &system_root)
-        .expect("replace .system with symlink");
+        .expect("replace .handbook with symlink");
 
     let refusal = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
         .expect_err("preview refusal");
@@ -1318,7 +1318,7 @@ fn capture_preview_refuses_cache_path_when_capture_parent_is_symlinked() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
     let external_root = tempfile::tempdir().expect("external tempdir");
     let capture_dir = repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join("capture");
@@ -1398,7 +1398,7 @@ fn capture_apply_refuses_symlinked_cache_parent_chain_without_side_effects() {
     let preview = preview_pipeline_capture(&repo_root, &stage_05_request(stage_05_capture_input()))
         .expect("preview");
     let cache_dir = repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join("capture");
@@ -1471,12 +1471,12 @@ fn capture_apply_stage_05_guidance_warns_about_resolve_before_follow_up_capture(
 
     assert!(
         next_safe_action.contains(
-            "system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
+            "handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
         ),
         "stage-05 apply guidance should include the manual route variable step"
     );
     assert!(
-        next_safe_action.contains("system pipeline resolve --id pipeline.foundation_inputs"),
+        next_safe_action.contains("handbook pipeline resolve --id pipeline.foundation_inputs"),
         "stage-05 apply guidance should include route refresh before follow-up work"
     );
 
@@ -1497,7 +1497,7 @@ fn capture_apply_stage_05_guidance_warns_about_resolve_before_follow_up_capture(
     assert!(
         refusal
             .recovery
-            .contains("system pipeline resolve --id pipeline.foundation_inputs"),
+            .contains("handbook pipeline resolve --id pipeline.foundation_inputs"),
         "follow-up capture without resolve should still require route refresh"
     );
 }
@@ -1521,12 +1521,12 @@ fn capture_apply_stage_05_guidance_survives_preexisting_manual_route_value() {
 
     assert!(
         next_safe_action.contains(
-            "system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
+            "handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
         ),
         "stage-05 apply guidance should still include the manual route variable step after re-capture"
     );
     assert!(
-        next_safe_action.contains("system pipeline resolve --id pipeline.foundation_inputs"),
+        next_safe_action.contains("handbook pipeline resolve --id pipeline.foundation_inputs"),
         "stage-05 apply guidance should still include route refresh after re-capture"
     );
 }
@@ -1548,7 +1548,7 @@ fn capture_preview_and_cached_apply_stage_05_guidance_survive_preexisting_manual
     assert_eq!(
         preview.plan.post_apply_next_safe_action.as_deref(),
         Some(
-            "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+            "run `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
         )
     );
 
@@ -1558,12 +1558,12 @@ fn capture_preview_and_cached_apply_stage_05_guidance_survive_preexisting_manual
 
     assert!(
         next_safe_action.contains(
-            "system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
+            "handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>"
         ),
         "cached stage-05 apply guidance should still include the manual route variable step after re-capture"
     );
     assert!(
-        next_safe_action.contains("system pipeline resolve --id pipeline.foundation_inputs"),
+        next_safe_action.contains("handbook pipeline resolve --id pipeline.foundation_inputs"),
         "cached stage-05 apply guidance should still include route refresh after re-capture"
     );
 }

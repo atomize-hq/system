@@ -265,6 +265,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "handbook-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "handbook-compiler",
+ "portable-pty",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "handbook-compiler"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "serde_yaml_bw",
+ "sha2",
+ "tempfile",
+ "time",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -686,30 +710,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "system-cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "portable-pty",
- "serde_json",
- "system-compiler",
- "tempfile",
-]
-
-[[package]]
-name = "system-compiler"
-version = "0.1.0"
-dependencies = [
- "libc",
- "serde",
- "serde_json",
- "serde_yaml_bw",
- "sha2",
- "tempfile",
- "time",
 ]
 
 [[package]]

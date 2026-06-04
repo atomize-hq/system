@@ -339,7 +339,7 @@ def validate_charter_inputs(data: Any, *, strict: bool) -> Tuple[List[str], List
             _list_of_str(mf, errs, ctx="exceptions.minimum_fields", allow_empty=False)
 
     if debt_tracking:
-        _req_str(debt_tracking, "system", errs)
+        _req_str(debt_tracking, "handbook", errs)
         labels = debt_tracking.get("labels")
         if labels is None:
             errs.append("debt_tracking.labels is required")

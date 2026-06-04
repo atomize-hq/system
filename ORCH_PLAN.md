@@ -143,8 +143,8 @@ Gate ownership rules:
 | --- | --- | --- | --- | --- | --- | --- |
 | `Lane A` Tree migration + live reference rewrite | `codex/namespace-cutover-lane-a-tree` / `.worktrees/namespace-cutover/lane-a-tree` | `G0` | `GPT-5.4/high` | `pipelines/**`, `profiles/**`, `runners/**`, `pipeline.yaml`, `core/pipelines/**`, `core/profiles/**`, `core/runners/**`, `core/stages/**`, `core/library/**`, `tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo/**`, `tests/fixtures/foundation_flow_demo/repo/**` | `find core/pipelines core/profiles core/runners -maxdepth 3 -print | sort`; `test ! -d pipelines`; `test ! -d profiles`; `test ! -d runners`; `test ! -e pipeline.yaml`; if `G0` chose preservation, `test -e core/pipelines/default.yaml`; `rg -n '(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/' core/stages core/library tests/fixtures/pipeline_proof_corpus/foundation_inputs/repo tests/fixtures/foundation_flow_demo/repo` | repo tree reflects the new canonical layout; live declarative content no longer points at old runner/profile roots |
 | `Lane B` Docs + contracts | `codex/namespace-cutover-lane-b-docs` / `.worktrees/namespace-cutover/lane-b-docs` | `G0` | `GPT-5.4/high` | `README.md`, `docs/REPO_OVERVIEW.md`, `docs/GLOSSARY.md`, `docs/LEGACY_INVENTORY.md`, `docs/contracts/C-01-approved-repo-surface.md`, `docs/contracts/pipeline-route-and-state-core.md` | `rg -n 'core/pipelines|core/profiles|core/runners' README.md docs/REPO_OVERVIEW.md docs/GLOSSARY.md docs/LEGACY_INVENTORY.md docs/contracts/C-01-approved-repo-surface.md docs/contracts/pipeline-route-and-state-core.md`; `rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' README.md docs/REPO_OVERVIEW.md docs/GLOSSARY.md docs/LEGACY_INVENTORY.md docs/contracts/C-01-approved-repo-surface.md docs/contracts/pipeline-route-and-state-core.md` | approved docs and contracts teach one `core/**` namespace; any retained old-root mentions are explicitly historical-only |
-| `Lane C1` Compiler path normalization | `codex/namespace-cutover-lane-c1-compiler` / `.worktrees/namespace-cutover/lane-c1-compiler` | `G1` | `GPT-5.4/high` | `crates/compiler/src/pipeline.rs`, `crates/compiler/src/route_state.rs`, `crates/compiler/src/pipeline_compile.rs`, `crates/compiler/src/pipeline_handoff.rs`, `crates/compiler/src/lib.rs`, optional new `crates/compiler/src/declarative_roots.rs` | `cargo test -p system-compiler --no-run`; `rg -n 'core/pipelines|core/profiles|core/runners' crates/compiler/src`; `rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' crates/compiler/src` | compiler-generated canonical paths resolve to `core/**`; trust and refusal text point operators at `core/**` |
-| `Lane C2` Proof, tests, and goldens | `codex/namespace-cutover-lane-c2-proof` / `.worktrees/namespace-cutover/lane-c2-proof` | `G3` | `GPT-5.4/high` | `crates/compiler/tests/pipeline_loader.rs`, `crates/compiler/tests/pipeline_catalog.rs`, `crates/compiler/tests/pipeline_route_resolution.rs`, `crates/compiler/tests/pipeline_state_store.rs`, `crates/compiler/tests/pipeline_compile.rs`, `crates/compiler/tests/pipeline_handoff.rs`, `crates/compiler/tests/support/pipeline_proof_corpus_support.rs`, `crates/cli/tests/cli_surface.rs`, `crates/cli/tests/pipeline_handoff_refusals.rs`, `tests/fixtures/pipeline_proof_corpus/**`, `tests/fixtures/foundation_flow_demo/**` | `cargo test -p system-compiler --test pipeline_loader`; `cargo test -p system-compiler --test pipeline_catalog`; `cargo test -p system-compiler --test pipeline_route_resolution`; `cargo test -p system-compiler --test pipeline_state_store`; `cargo test -p system-cli --test cli_surface`; `cargo test -p system-cli --test pipeline_handoff_refusals`; `rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' README.md docs crates tests core` | focused rails pass locally in the lane worktree; proof fixtures and goldens emit `core/**` paths only for supported surfaces |
+| `Lane C1` Compiler path normalization | `codex/namespace-cutover-lane-c1-compiler` / `.worktrees/namespace-cutover/lane-c1-compiler` | `G1` | `GPT-5.4/high` | `crates/compiler/src/pipeline.rs`, `crates/compiler/src/route_state.rs`, `crates/compiler/src/pipeline_compile.rs`, `crates/compiler/src/pipeline_handoff.rs`, `crates/compiler/src/lib.rs`, optional new `crates/compiler/src/declarative_roots.rs` | `cargo test -p handbook-compiler --no-run`; `rg -n 'core/pipelines|core/profiles|core/runners' crates/compiler/src`; `rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' crates/compiler/src` | compiler-generated canonical paths resolve to `core/**`; trust and refusal text point operators at `core/**` |
+| `Lane C2` Proof, tests, and goldens | `codex/namespace-cutover-lane-c2-proof` / `.worktrees/namespace-cutover/lane-c2-proof` | `G3` | `GPT-5.4/high` | `crates/compiler/tests/pipeline_loader.rs`, `crates/compiler/tests/pipeline_catalog.rs`, `crates/compiler/tests/pipeline_route_resolution.rs`, `crates/compiler/tests/pipeline_state_store.rs`, `crates/compiler/tests/pipeline_compile.rs`, `crates/compiler/tests/pipeline_handoff.rs`, `crates/compiler/tests/support/pipeline_proof_corpus_support.rs`, `crates/cli/tests/cli_surface.rs`, `crates/cli/tests/pipeline_handoff_refusals.rs`, `tests/fixtures/pipeline_proof_corpus/**`, `tests/fixtures/foundation_flow_demo/**` | `cargo test -p handbook-compiler --test pipeline_loader`; `cargo test -p handbook-compiler --test pipeline_catalog`; `cargo test -p handbook-compiler --test pipeline_route_resolution`; `cargo test -p handbook-compiler --test pipeline_state_store`; `cargo test -p handbook-cli --test cli_surface`; `cargo test -p handbook-cli --test pipeline_handoff_refusals`; `rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' README.md docs crates tests core` | focused rails pass locally in the lane worktree; proof fixtures and goldens emit `core/**` paths only for supported surfaces |
 
 Parent keeps exclusive ownership of:
 
@@ -325,7 +325,7 @@ rg -n '(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/' core/stages core/library te
 ```bash
 cd /Users/spensermcconnell/__Active_Code/system/.worktrees/namespace-cutover/parent
 git merge --no-ff codex/namespace-cutover-lane-c1-compiler
-cargo test -p system-compiler --no-run
+cargo test -p handbook-compiler --no-run
 rg -n 'core/pipelines|core/profiles|core/runners' crates/compiler/src
 rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' crates/compiler/src
 ```
@@ -349,12 +349,12 @@ Run the exact focused rails from `PLAN.md` on the integrated parent branch:
 ```bash
 cd /Users/spensermcconnell/__Active_Code/system/.worktrees/namespace-cutover/parent
 git merge --no-ff codex/namespace-cutover-lane-c2-proof
-cargo test -p system-compiler --test pipeline_loader
-cargo test -p system-compiler --test pipeline_catalog
-cargo test -p system-compiler --test pipeline_route_resolution
-cargo test -p system-compiler --test pipeline_state_store
-cargo test -p system-cli --test cli_surface
-cargo test -p system-cli --test pipeline_handoff_refusals
+cargo test -p handbook-compiler --test pipeline_loader
+cargo test -p handbook-compiler --test pipeline_catalog
+cargo test -p handbook-compiler --test pipeline_route_resolution
+cargo test -p handbook-compiler --test pipeline_state_store
+cargo test -p handbook-cli --test cli_surface
+cargo test -p handbook-cli --test pipeline_handoff_refusals
 rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\.yaml' README.md docs crates tests core
 ```
 

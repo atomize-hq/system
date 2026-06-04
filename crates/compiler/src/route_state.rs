@@ -1757,7 +1757,7 @@ pub(crate) fn route_state_path(
     validate_pipeline_id(pipeline_id)?;
 
     Ok(repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join(format!("{pipeline_id}.yaml")))
@@ -1802,7 +1802,7 @@ enum RuntimeStateResetEntryKind {
 }
 
 pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
-    let state_root = repo_root.join(".system").join("state");
+    let state_root = repo_root.join(".handbook").join("state");
     let root_metadata = match fs::symlink_metadata(&state_root) {
         Ok(metadata) => metadata,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
@@ -1813,7 +1813,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
         }
         Err(source) => {
             return Err(format!(
-                "failed to inspect runtime state root `.system/state` at {}: {source}",
+                "failed to inspect runtime state root `.handbook/state` at {}: {source}",
                 state_root.display()
             ));
         }
@@ -1821,13 +1821,13 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
 
     if root_metadata.file_type().is_symlink() {
         return Err(format!(
-            "runtime state root `.system/state` cannot be reset through symlink {}",
+            "runtime state root `.handbook/state` cannot be reset through symlink {}",
             state_root.display()
         ));
     }
     if !root_metadata.is_dir() {
         return Err(format!(
-            "runtime state root `.system/state` is not a directory at {}",
+            "runtime state root `.handbook/state` is not a directory at {}",
             state_root.display()
         ));
     }
@@ -1835,7 +1835,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
     let mut entries = fs::read_dir(&state_root)
         .map_err(|source| {
             format!(
-                "failed to read runtime state root `.system/state` at {}: {source}",
+                "failed to read runtime state root `.handbook/state` at {}: {source}",
                 state_root.display()
             )
         })?
@@ -1843,7 +1843,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
         .collect::<Result<Vec<_>, _>>()
         .map_err(|source| {
             format!(
-                "failed to enumerate runtime state root `.system/state` at {}: {source}",
+                "failed to enumerate runtime state root `.handbook/state` at {}: {source}",
                 state_root.display()
             )
         })?;
@@ -2464,14 +2464,14 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let repo_root = dir.path();
 
-        write_file(&repo_root.join(".system/state/a.yaml"), b"a: 1\n");
+        write_file(&repo_root.join(".handbook/state/a.yaml"), b"a: 1\n");
         let external = tempfile::tempdir().expect("external tempdir");
-        symlink(external.path(), repo_root.join(".system/state/z_symlink")).expect("symlink");
+        symlink(external.path(), repo_root.join(".handbook/state/z_symlink")).expect("symlink");
 
         let err = reset_runtime_state_tree(repo_root).expect_err("reset should refuse");
         assert!(err.contains("symlink"), "{err}");
         assert!(
-            repo_root.join(".system/state/a.yaml").is_file(),
+            repo_root.join(".handbook/state/a.yaml").is_file(),
             "preflight refusal must not partially delete state"
         );
     }
@@ -2482,13 +2482,13 @@ mod tests {
         write_file(
             &preview_root
                 .path()
-                .join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+                .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
             b"pipeline state\n",
         );
         write_file(
             &preview_root
                 .path()
-                .join(".system/state/pipeline/capture/cache.yaml"),
+                .join(".handbook/state/pipeline/capture/cache.yaml"),
             b"cache state\n",
         );
 
@@ -2499,13 +2499,13 @@ mod tests {
         write_file(
             &apply_root
                 .path()
-                .join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+                .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
             b"pipeline state\n",
         );
         write_file(
             &apply_root
                 .path()
-                .join(".system/state/pipeline/capture/cache.yaml"),
+                .join(".handbook/state/pipeline/capture/cache.yaml"),
             b"cache state\n",
         );
 
@@ -2515,11 +2515,11 @@ mod tests {
         assert_eq!(preview_paths, reset_paths);
         assert!(!apply_root
             .path()
-            .join(".system/state/pipeline/pipeline.foundation_inputs.yaml")
+            .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml")
             .exists());
         assert!(!apply_root
             .path()
-            .join(".system/state/pipeline/capture/cache.yaml")
+            .join(".handbook/state/pipeline/capture/cache.yaml")
             .exists());
     }
 }

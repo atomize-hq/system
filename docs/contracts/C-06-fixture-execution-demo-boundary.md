@@ -18,7 +18,7 @@ revalidation_triggers:
 
 This contract defines the reduced-v1 execution-demo boundary owned by `SEAM-6`.
 
-It exists to ensure the product can demonstrate an **execution packet** capability in v1 without misrepresenting the system as supporting **live slice execution**.
+It exists to ensure the product can demonstrate an **execution packet** capability in v1 without misrepresenting the handbook as supporting **live slice execution**.
 
 Downstream conformance (`SEAM-7`) consumes this contract to write tests and docs that can enforce:
 
@@ -58,7 +58,7 @@ Any attempt to request **live** slice execution (for example via a reserved pack
 
 The demo request surface MUST NOT add a new verb beyond `C-02`. The supported request surface for selecting the demo is:
 
-- `system generate --packet <packet_id>`
+- `handbook generate --packet <packet_id>`
   - default: `--packet planning.packet`
   - allowed: `--packet execution.demo.packet`
 
@@ -70,10 +70,10 @@ The fixture-backed execution demo MUST operate on committed fixtures, not on liv
 
 - Canonical fixture root (repo-relative): `tests/fixtures/execution_demo/`
 - A fixture set MUST be selected deterministically by an explicit identifier (example CLI surface):
-  - `system generate --packet execution.demo.packet --fixture-set <fixture_set_id>`
+  - `handbook generate --packet execution.demo.packet --fixture-set <fixture_set_id>`
 - The fixture set path MUST be resolved as:
   - `tests/fixtures/execution_demo/<fixture_set_id>/`
-- The fixture set MUST contain an explicit `.system/` tree (fixture-backed canonical artifacts) used as the packet basis for the demo.
+- The fixture set MUST contain an explicit `.handbook/` tree (fixture-backed canonical artifacts) used as the packet basis for the demo.
 
 The demo MUST NOT:
 
@@ -113,14 +113,14 @@ The labeling MUST be present in a way that survives narrow-terminal views and ca
 
 ### Refusal rules for unsupported live slice execution requests
 
-If a user attempts a **live slice execution request** (any request whose intent is to execute slices against live repo state rather than fixtures), the system MUST refuse explicitly:
+If a user attempts a **live slice execution request** (any request whose intent is to execute slices against live repo state rather than fixtures), the handbook MUST refuse explicitly:
 
 - Refusal category MUST be `UnsupportedRequest` (from `C-04`).
 - Refusal summary MUST include the reduced-v1 boundary statement:
   - reduced v1 supports **live planning packets** plus **fixture-backed execution demos only**
   - live slice execution is deferred / unsupported
 - The refusal MUST provide exactly one next-safe-action line that points at a safe alternative, such as:
-  - run `system generate` for `planning.packet`, or
+  - run `handbook generate` for `planning.packet`, or
   - run the fixture-backed demo (`execution.demo.packet`) with an explicit fixture set
 
 ## Verification checklist

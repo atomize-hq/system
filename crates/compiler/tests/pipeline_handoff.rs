@@ -4,7 +4,7 @@ mod pipeline_proof_corpus_support;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use system_compiler::{
+use handbook_compiler::{
     capture_pipeline_output, emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle,
     PipelineCaptureRequest, PipelineHandoffEmitRequest, PipelineHandoffManifest,
     PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
@@ -15,7 +15,7 @@ const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPEL
 const STAGE_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
 const CONSUMER_ID: &str = "feature-slice-decomposer";
 const STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
-    ".system/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
+    ".handbook/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TestConsumerRefusalClassification {
@@ -41,17 +41,17 @@ fn bundle_path(repo_root: &Path, bundle_root: &str, relative_path: &str) -> Path
 
 fn install_canonical_inputs(repo_root: &Path) {
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         &pipeline_proof_corpus_support::read_committed_fixture("artifacts/charter/CHARTER.md"),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         &pipeline_proof_corpus_support::read_committed_fixture(
             "artifacts/project_context/PROJECT_CONTEXT.md",
         ),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         &pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md"),
     );
 }
@@ -80,7 +80,7 @@ fn emit_valid_bundle(
             pipeline_selector: PIPELINE_ID.to_string(),
             consumer_selector: CONSUMER_ID.to_string(),
             producer_command: format!(
-                "system pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
+                "handbook pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
             ),
             producer_version: "test-suite".to_string(),
         },
@@ -164,7 +164,7 @@ fn handoff_validation_refuses_stale_canonical_provenance() {
     let (_dir, repo_root, bundle_root, _validated, _manifest) = prepare_emitted_bundle_repo();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         "# tampered canonical charter\n",
     );
 
@@ -199,7 +199,7 @@ fn handoff_emit_refuses_stale_stage_10_feature_spec_capture_provenance() {
             pipeline_selector: PIPELINE_ID.to_string(),
             consumer_selector: CONSUMER_ID.to_string(),
             producer_command: format!(
-                "system pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
+                "handbook pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
             ),
             producer_version: "test-suite".to_string(),
         },
@@ -242,7 +242,7 @@ fn handoff_emit_refuses_missing_or_corrupt_stage_10_capture_provenance() {
                 pipeline_selector: PIPELINE_ID.to_string(),
                 consumer_selector: CONSUMER_ID.to_string(),
                 producer_command: format!(
-                    "system pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
+                    "handbook pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
                 ),
                 producer_version: "test-suite".to_string(),
             },

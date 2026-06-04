@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use system_compiler::{
+use handbook_compiler::{
     build_route_basis, load_pipeline_definition, load_route_state_with_supported_variables,
     persist_route_basis, resolve_pipeline_route, set_route_state, supported_route_state_variables,
     PipelineCompileRefusal, PipelineCompileRefusalClassification, ResolvedPipelineRoute,
@@ -52,7 +52,7 @@ pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
 
 pub fn pipeline_state_path(repo_root: &Path) -> PathBuf {
     repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join(format!("{FOUNDATION_INPUTS_PIPELINE_ID}.yaml"))
@@ -112,7 +112,7 @@ pub fn assert_capture_golden_inventory_is_committed() {
 
 pub fn pipeline_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBuf {
     repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join("capture")
@@ -122,7 +122,7 @@ pub fn pipeline_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBu
 pub fn load_foundation_inputs_definition(
     repo_root: &Path,
 ) -> (
-    system_compiler::PipelineDefinition,
+    handbook_compiler::PipelineDefinition,
     std::collections::BTreeSet<String>,
 ) {
     let definition = load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
@@ -580,7 +580,7 @@ fn assert_compile_refusal_next_safe_action_matches_shared_golden(
     golden_name: &str,
 ) {
     let expected_refresh_action = format!(
-        "run `system pipeline resolve --id {pipeline_id}` and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+        "run `handbook pipeline resolve --id {pipeline_id}` and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
     );
 
     match refusal.classification {
@@ -599,7 +599,7 @@ fn assert_compile_refusal_next_safe_action_matches_shared_golden(
         }
         PipelineCompileRefusalClassification::InactiveStage => {
             let expected_inactive_stage_action = format!(
-                "run `system pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+                "run `handbook pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
             );
             assert_eq!(
                 next_safe_action, expected_inactive_stage_action,

@@ -41,7 +41,7 @@ The Foundation Pack turns posture + facts into concrete, reusable planning defau
 - `${repo_root}/ENVIRONMENT_INVENTORY.md` (required)
 
 > Legacy note: this stage treated `${repo_root}/ENVIRONMENT_INVENTORY.md` as the repo-root store-of-record.
-> Current reduced-v1 product docs do not treat the repo root as the shipped canonical home; the baseline canonical path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+> Current reduced-v1 product docs do not treat the repo root as the shipped canonical home; the baseline canonical path is `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 
 ## Required model output format (multi-file FILE blocks)
 

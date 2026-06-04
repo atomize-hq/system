@@ -56,23 +56,23 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build release binary
-        run: cargo build --locked --release -p system-cli
+        run: cargo build --locked --release -p handbook-cli
       - name: Verify built binary version
         env:
           RELEASE_VERSION: ${{ needs.verify-tag.outputs.release_version }}
         run: |
           set -euo pipefail
-          BUILT_VERSION="$(./target/release/system --version | awk '{print $NF}')"
+          BUILT_VERSION="$(./target/release/handbook --version | awk '{print $NF}')"
           [[ "$BUILT_VERSION" == "$RELEASE_VERSION" ]] || {
             echo "built binary version mismatch: expected ${RELEASE_VERSION}, found ${BUILT_VERSION}" >&2
             exit 1
           }
-      - name: Package curated system home
+      - name: Package curated handbook home
         run: |
           set -euo pipefail
           mkdir -p dist/bundles
-          bash tools/release/package-system-home.sh \
-            --binary ./target/release/system \
+          bash tools/release/package-handbook-home.sh \
+            --binary ./target/release/handbook \
             --label "${{ matrix.label }}" \
             --version "${{ needs.verify-tag.outputs.release_version }}" \
             --output-dir dist/bundles
@@ -105,7 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           cd release-bundles
-          sha256sum system-v${RELEASE_VERSION}-*.tar.gz > SHA256SUMS
+          sha256sum handbook-v${RELEASE_VERSION}-*.tar.gz > SHA256SUMS
       - name: Prepare release notes
         run: |
           set -euo pipefail
@@ -119,11 +119,11 @@ jobs:
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" release-bundles/* --clobber
-            gh release edit "$RELEASE_TAG" --title "system ${RELEASE_VERSION}" --notes-file "$RUNNER_TEMP/release-notes.md" >/dev/null
+            gh release edit "$RELEASE_TAG" --title "handbook ${RELEASE_VERSION}" --notes-file "$RUNNER_TEMP/release-notes.md" >/dev/null
           else
             gh release create "$RELEASE_TAG" \
               --target "${GITHUB_SHA}" \
-              --title "system ${RELEASE_VERSION}" \
+              --title "handbook ${RELEASE_VERSION}" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
               release-bundles/*
           fi

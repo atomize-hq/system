@@ -6,7 +6,7 @@
 
 **What:** Add a thin MCP/UI companion for setup progress, drift status, packet inspection, and health.
 
-**Why:** The Rust core should stay CLI/library-first in v1, but a small steering surface will make the system much easier to operate once the packet, provenance, freshness, and health contracts are stable.
+**Why:** The Rust core should stay CLI/library-first in v1, but a small steering surface will make the handbook much easier to operate once the packet, provenance, freshness, and health contracts are stable.
 
 **Context:** The CEO review accepted a library-first Rust core with inspect output, structured decision traces, a health/status command, and explicit freshness/repair workflows. It explicitly deferred UI so the team does not ship a pretty wrapper around weak compiler guts. This work should start only after the Rust packet model, provenance headers, structured diagnostics, and health outputs are stable enough that a UI can attach without redefining contracts.
 
@@ -54,9 +54,9 @@
 
 **What:** Add a dedicated smoke rail for the public release installer wrapper and tagged GitHub Release bundles.
 
-**Why:** The repo now has a public release path, but the current CI proof still centers on repo-local install smoke. A separate rail should prove that the released tarball, `SHA256SUMS`, and `scripts/system/install.sh` work together the same way they will for real users.
+**Why:** The repo now has a public release path, but the current CI proof still centers on repo-local install smoke. A separate rail should prove that the released tarball, `SHA256SUMS`, and `scripts/handbook/install.sh` work together the same way they will for real users.
 
-**Context:** Tagged GitHub Releases now publish curated `~/system/` bundles for `macOS arm64` and `Linux x86_64`, and `scripts/system/install.sh` installs those bundles without a preinstalled `system` binary. The remaining gap is automated proof for the release-distribution path itself: asset naming, checksum verification, top-level `system/` archive layout, and Codex discovery-link refresh from a downloaded bundle rather than a repo-local binary.
+**Context:** Tagged GitHub Releases now publish curated `~/handbook/` bundles for `macOS arm64` and `Linux x86_64`, and `scripts/handbook/install.sh` installs those bundles without a preinstalled `handbook` binary. The remaining gap is automated proof for the release-distribution path itself: asset naming, checksum verification, top-level `handbook/` archive layout, and Codex discovery-link refresh from a downloaded bundle rather than a repo-local binary.
 
 **Effort:** S
 **Priority:** P2
@@ -78,9 +78,9 @@
 
 **What:** Extend the `setup` success path beyond the current scaffolded-or-ready handoff with a richer onboarding flow once the Rust front door is stable.
 
-**Why:** `M6` can honestly end at `system doctor`, but that still leaves a lot of operator guidance value on the table. After the front door is real, the next improvement is a tighter onboarding path that helps the operator move from scaffolded `.system/` files to a ready planning flow with less guesswork.
+**Why:** `M6` can honestly end at `handbook doctor`, but that still leaves a lot of operator guidance value on the table. After the front door is real, the next improvement is a tighter onboarding path that helps the operator move from scaffolded `.handbook/` files to a ready planning flow with less guesswork.
 
-**Context:** The current setup family now establishes or refreshes canonical `.system/` truth, reports `SCAFFOLDED` while required starter templates still need real content, and reports `READY` once the repo can hand off to `system doctor`. That keeps `M6` bounded and honest. It also intentionally defers a richer onboarding experience so the team does not mix front-door truth establishment with a bigger guidance or workflow-orchestration redesign. Revisit this after the Rust `setup` family is shipped, docs/help drift is updated, and the team has real usage feedback on where operators still get stuck after the current scaffolded-or-ready handoff.
+**Context:** The current setup family now establishes or refreshes canonical `.handbook/` truth, reports `SCAFFOLDED` while required starter templates still need real content, and reports `READY` once the repo can hand off to `handbook doctor`. That keeps `M6` bounded and honest. It also intentionally defers a richer onboarding experience so the team does not mix front-door truth establishment with a bigger guidance or workflow-orchestration redesign. Revisit this after the Rust `setup` family is shipped, docs/help drift is updated, and the team has real usage feedback on where operators still get stuck after the current scaffolded-or-ready handoff.
 
 **Effort:** S
 **Priority:** P2
@@ -92,11 +92,11 @@
 
 **Why:** The target architecture is a portable conversational intake protocol, not a Codex-only wrapper. Proving Claude Code next prevents Codex-specific behavior from silently becoming the protocol.
 
-**Context:** The accepted eng-review scope for the first slice is explicit: one preferred-agent surface first, Codex now and Claude Code next. This follow-on should reuse the same canonical protocol assets, the same XDG-style home adapter install/update path under `~/.config/system` and `~/.local/state/system`, the same setup-state routing through `system setup*` and `system doctor`, and the same deterministic sink via `system author ... --from-inputs`. It should validate portability without reopening slice-1 scope or rebuilding per-agent business logic.
+**Context:** The accepted eng-review scope for the first slice is explicit: one preferred-agent surface first, Codex now and Claude Code next. This follow-on should reuse the same canonical protocol assets, the same XDG-style home adapter install/update path under `~/.config/handbook` and `~/.local/state/handbook`, the same setup-state routing through `handbook setup*` and `handbook doctor`, and the same deterministic sink via `handbook author ... --from-inputs`. It should validate portability without reopening slice-1 scope or rebuilding per-agent business logic.
 
 **Effort:** S
 **Priority:** P1
-**Depends on:** Shipped Codex-first conversational intake slice with schema versioning, live smoke coverage, and home adapter compatibility checks for `~/.config/system` / `~/.local/state/system`
+**Depends on:** Shipped Codex-first conversational intake slice with schema versioning, live smoke coverage, and home adapter compatibility checks for `~/.config/handbook` / `~/.local/state/handbook`
 
 ### Operator Outcome Scoreboard
 
@@ -112,7 +112,7 @@
 
 ### Pipeline Validate Surface
 
-**What:** Add a first-class `system pipeline validate --id <pipeline>` preflight surface.
+**What:** Add a first-class `handbook pipeline validate --id <pipeline>` preflight surface.
 
 **Why:** Operators should be able to check duplicate ids, shorthand ambiguity, activation drift, and schema issues before they hit a real `resolve` or `compile` refusal in the middle of work.
 
@@ -148,11 +148,11 @@
 
 ### Capture Apply Multi-Writer Safety
 
-**What:** Strengthen `pipeline capture apply` from the current `system`-coordinated single-writer rollback model to a safer boundary for arbitrary concurrent repo writers touching the same output paths.
+**What:** Strengthen `pipeline capture apply` from the current `handbook`-coordinated single-writer rollback model to a safer boundary for arbitrary concurrent repo writers touching the same output paths.
 
 **Why:** The shipped `M3`/`M3.5` posture is intentionally exact: capture apply locks pipeline route state and rolls back its own writes, but it does not claim full protection if some unrelated external process edits the same artifact or repo-file targets mid-apply. That narrower claim is correct today, but the stronger boundary is still valuable technical debt if this surface becomes more heavily used.
 
-**Context:** `/autoplan` on 2026-04-15 explicitly narrowed the capture transactionality claim in `PLAN.md` and `docs/contracts/pipeline-capture-preview-and-apply.md` to `system`-coordinated single-writer flows. This follow-on is the work required to move beyond that exact-but-limited guarantee. Good candidate directions include file-level compare-and-swap semantics, stronger per-target locking, or another explicit writer-coordination boundary that can be proven in tests and stated honestly in contracts/docs.
+**Context:** `/autoplan` on 2026-04-15 explicitly narrowed the capture transactionality claim in `PLAN.md` and `docs/contracts/pipeline-capture-preview-and-apply.md` to `handbook`-coordinated single-writer flows. This follow-on is the work required to move beyond that exact-but-limited guarantee. Good candidate directions include file-level compare-and-swap semantics, stronger per-target locking, or another explicit writer-coordination boundary that can be proven in tests and stated honestly in contracts/docs.
 
 **Effort:** M
 **Priority:** P3
@@ -229,7 +229,7 @@ Recommended implementation order for the remaining interaction backlog:
 
 **Target artifact:** Source-of-truth command hierarchy and entry-routing document plus downstream parity updates for docs, help text, onboarding examples, and tests.
 
-**Resolved decisions:** `setup` is the visible front door, bare `system setup` routes to `setup init` for absent or invalid canonical `.system/` truth and to `setup refresh` otherwise, and setup-family next safe actions now distinguish scaffolded repos from ready repos.
+**Resolved decisions:** `setup` is the visible front door, bare `handbook setup` routes to `setup init` for absent or invalid canonical `.handbook/` truth and to `setup refresh` otherwise, and setup-family next safe actions now distinguish scaffolded repos from ready repos.
 
 **Research needed:** Repo scan of current routing language in `PLAN.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, CLI help, install smoke scripts, and recovery-path tests. Compare current behavior against the intended hierarchy and note contradictions.
 
@@ -293,7 +293,7 @@ Recommended implementation order for the remaining interaction backlog:
 
 **Why:** The repo needs one place future agents can read before changing docs, help text, examples, fixtures, or runtime copy. Without that contract, every edit risks re-litigating vocabulary, hierarchy, tone, and output structure.
 
-**Context:** This product is CLI-only right now. The design problem is interaction design, trust signaling, and recovery UX, not colors or typography. `DESIGN.md` should therefore codify operator experience rules, not invent a fake visual system for a terminal product.
+**Context:** This product is CLI-only right now. The design problem is interaction design, trust signaling, and recovery UX, not colors or typography. `DESIGN.md` should therefore codify operator experience rules, not invent a fake visual handbook for a terminal product.
 
 **Target artifact:** `DESIGN.md` in the repo root, written as the canonical CLI interaction contract and referenced from `CLAUDE.md` and related repo guidance.
 
@@ -363,7 +363,7 @@ Recommended implementation order for the remaining interaction backlog:
 **Test coverage:**
 - snapshot or rendering coverage for ready and blocked `doctor`
 - drift-guard coverage that fails if debug-shaped blocker output or `NEXT ACTION` wording reappears
-- retry-path coverage proving the next safe action is stable for missing `.system/`, malformed artifacts, and ready repos
+- retry-path coverage proving the next safe action is stable for missing `.handbook/`, malformed artifacts, and ready repos
 
 **Effort:** M
 **Priority:** P1
@@ -393,7 +393,7 @@ Recommended implementation order for the remaining interaction backlog:
 
 **Test coverage:**
 - update rendering snapshots for planning and execution-demo inspect success paths
-- add a regression assertion that no ready `inspect` output contains `run \`system inspect`
+- add a regression assertion that no ready `inspect` output contains `run \`handbook inspect`
 
 **Effort:** S
 **Priority:** P1
@@ -403,7 +403,7 @@ Recommended implementation order for the remaining interaction backlog:
 
 ### Support Boundary Reconciliation
 
-**What:** Reconcile `PLAN.md`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, CLI help, and runtime behavior so reduced v1 does not claim supported planning packet generation before `system generate` exits `0` with a non-placeholder packet body.
+**What:** Reconcile `PLAN.md`, `README.md`, `docs/START_HERE.md`, `docs/SUPPORTED_COMMANDS.md`, CLI help, and runtime behavior so reduced v1 does not claim supported planning packet generation before `handbook generate` exits `0` with a non-placeholder packet body.
 
 **Why:** The current repo is caught between underclaim and overclaim. Docs say live planning packet resolution is supported, while CLI help still describes a scaffold and the ready path still returns placeholder body text.
 
@@ -437,7 +437,7 @@ Recommended implementation order for the remaining interaction backlog:
 
 ### Repo Discovery And Recovery Transition Tests
 
-**What:** Define repo discovery semantics and add tests for retry-after-repair, partial `.system/` trees, malformed inputs, and docs/help/runtime vocabulary drift.
+**What:** Define repo discovery semantics and add tests for retry-after-repair, partial `.handbook/` trees, malformed inputs, and docs/help/runtime vocabulary drift.
 
 **Why:** Current coverage is strong on deterministic static states, but weak on state transitions and normal operator invocation paths.
 
@@ -447,10 +447,10 @@ Recommended implementation order for the remaining interaction backlog:
 
 ## Completed
 
-### Canonical `.system/` Bootstrap Flow
+### Canonical `.handbook/` Bootstrap Flow
 
-**What:** Shipped the Rust-owned setup family that creates or refreshes canonical repo-local `.system/` truth through `system setup`, `system setup init`, and `system setup refresh`.
+**What:** Shipped the Rust-owned setup family that creates or refreshes canonical repo-local `.handbook/` truth through `handbook setup`, `handbook setup init`, and `handbook setup refresh`.
 
-**Why:** `generate`, `inspect`, and `doctor` already depended on canonical `.system/` inputs, so the product needed a real front door instead of a placeholder setup surface.
+**Why:** `generate`, `inspect`, and `doctor` already depended on canonical `.handbook/` inputs, so the product needed a real front door instead of a placeholder setup surface.
 
 **Completed:** v0.5.2.0 (2026-04-18)

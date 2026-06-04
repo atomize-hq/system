@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EVIDENCE_DIR="$ROOT_DIR/.implemented/m10-orchestration"
 LOG_PATH="$EVIDENCE_DIR/codex-skill-live-smoke.log"
-STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/system/intake/runs"
-SYSTEM_HOME="$HOME/system"
-SYSTEM_BINARY="$SYSTEM_HOME/bin/system"
-RUNTIME_MANIFEST="$SYSTEM_HOME/runtime-manifest.json"
+STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/handbook/intake/runs"
+HANDBOOK_HOME="$HOME/handbook"
+HANDBOOK_BINARY="$HANDBOOK_HOME/bin/handbook"
+RUNTIME_MANIFEST="$HANDBOOK_HOME/runtime-manifest.json"
 FIXTURE_INPUTS="$ROOT_DIR/tools/fixtures/charter_inputs/runtime_smoke_valid.yaml"
 RELEASE_VERSION="$(tr -d '[:space:]' <"$ROOT_DIR/VERSION")"
 export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
@@ -22,7 +22,7 @@ LAST_RUN_DIR=""
 
 cleanup() {
   if [[ -n "$binary_backup" && -f "$binary_backup" ]]; then
-    mv "$binary_backup" "$SYSTEM_BINARY"
+    mv "$binary_backup" "$HANDBOOK_BINARY"
   fi
   if [[ -n "$tmp_root" && -d "$tmp_root" ]]; then
     rm -rf "$tmp_root"
@@ -57,7 +57,7 @@ required = {
     "started_at_utc",
     "repo_root",
     "runtime_root",
-    "system_release_version",
+    "handbook_release_version",
     "runtime_manifest_version",
     "skill_name",
 }
@@ -70,7 +70,7 @@ if actual_runtime_root != expected_runtime_root:
     raise SystemExit(
         f"unexpected runtime_root: {data['runtime_root']} != {sys.argv[2]}"
     )
-if data["skill_name"] != "system-charter-intake":
+if data["skill_name"] != "handbook-charter-intake":
     raise SystemExit(f"unexpected skill_name: {data['skill_name']}")
 PY
 }
@@ -159,19 +159,19 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 
 required = {
     "skill_name",
-    "system_release_version",
+    "handbook_release_version",
     "manifest_version",
     "generated_at_utc",
 }
 missing = sorted(required.difference(data))
 if missing:
     raise SystemExit(f"missing manifest fields: {missing}")
-if data["skill_name"] != "system-charter-intake":
+if data["skill_name"] != "handbook-charter-intake":
     raise SystemExit(f"unexpected manifest skill_name: {data['skill_name']}")
-if data["system_release_version"] != sys.argv[2]:
+if data["handbook_release_version"] != sys.argv[2]:
     raise SystemExit(
         "runtime manifest version mismatch: "
-        f"manifest={data['system_release_version']} repo={sys.argv[2]}"
+        f"manifest={data['handbook_release_version']} repo={sys.argv[2]}"
     )
 print(data["manifest_version"])
 PY
@@ -214,7 +214,7 @@ capture_doctor_json() {
   fi
   (
     cd "$repo_root"
-    "$SYSTEM_BINARY" doctor --json >"$output_path"
+    "$HANDBOOK_BINARY" doctor --json >"$output_path"
   )
   status=$?
   if [[ $restore_errexit -eq 1 ]]; then
@@ -226,8 +226,8 @@ capture_doctor_json() {
 validate_runtime_contract() {
   local binary_version
 
-  [[ -x "$SYSTEM_BINARY" ]] || {
-    echo "REFUSED: missing installed system binary: $SYSTEM_BINARY" >&2
+  [[ -x "$HANDBOOK_BINARY" ]] || {
+    echo "REFUSED: missing installed handbook binary: $HANDBOOK_BINARY" >&2
     return 1
   }
   [[ -f "$RUNTIME_MANIFEST" ]] || {
@@ -235,19 +235,19 @@ validate_runtime_contract() {
     return 1
   }
   for required in \
-    "$SYSTEM_HOME/resources/authoring/charter_authoring_method.md" \
-    "$SYSTEM_HOME/resources/charter/CHARTER_INPUTS.yaml.tmpl" \
-    "$SYSTEM_HOME/resources/charter/charter_inputs_directive.md"; do
+    "$HANDBOOK_HOME/resources/authoring/charter_authoring_method.md" \
+    "$HANDBOOK_HOME/resources/charter/CHARTER_INPUTS.yaml.tmpl" \
+    "$HANDBOOK_HOME/resources/charter/charter_inputs_directive.md"; do
     [[ -f "$required" ]] || {
-      echo "REFUSED: missing installed system home prerequisite: $required" >&2
+      echo "REFUSED: missing installed handbook home prerequisite: $required" >&2
       return 1
     }
   done
 
   MANIFEST_VERSION_VALUE="$(read_manifest_metadata "$RUNTIME_MANIFEST" "$RELEASE_VERSION")"
-  binary_version="$("$SYSTEM_BINARY" --version | awk '{print $NF}')"
+  binary_version="$("$HANDBOOK_BINARY" --version | awk '{print $NF}')"
   [[ "$binary_version" == "$RELEASE_VERSION" ]] || {
-    echo "REFUSED: installed system binary version mismatch: binary=$binary_version repo=$RELEASE_VERSION" >&2
+    echo "REFUSED: installed handbook binary version mismatch: binary=$binary_version repo=$RELEASE_VERSION" >&2
     return 1
   }
 }
@@ -269,9 +269,9 @@ payload = {
     "started_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "repo_root": str(pathlib.Path(sys.argv[2]).resolve()),
     "runtime_root": str(pathlib.Path(sys.argv[3]).resolve()),
-    "system_release_version": sys.argv[4],
+    "handbook_release_version": sys.argv[4],
     "runtime_manifest_version": sys.argv[5],
-    "skill_name": "system-charter-intake",
+    "skill_name": "handbook-charter-intake",
 }
 destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
@@ -291,18 +291,18 @@ run_leaf_skill() {
   }
 
   validate_runtime_contract || return 1
-  export SYSTEM_HOME
+  export HANDBOOK_HOME
 
   run_dir="$(mktemp -d "$STATE_ROOT/run.XXXXXX")"
   LAST_RUN_DIR="$run_dir"
   cp "$FIXTURE_INPUTS" "$run_dir/charter_inputs.yaml"
-  write_session_json "$run_dir/session.json" "$repo_root" "$SYSTEM_HOME" "$MANIFEST_VERSION_VALUE"
+  write_session_json "$run_dir/session.json" "$repo_root" "$HANDBOOK_HOME" "$MANIFEST_VERSION_VALUE"
 
   doctor_before_status="$(capture_doctor_json "$repo_root" "$run_dir/doctor.before.json")"
-  if [[ ! -d "$repo_root/.system" ]]; then
+  if [[ ! -d "$repo_root/.handbook" ]]; then
     (
       cd "$repo_root"
-      "$SYSTEM_BINARY" setup >/dev/null
+      "$HANDBOOK_BINARY" setup >/dev/null
     )
     capture_doctor_json "$repo_root" "$run_dir/doctor.after_setup.json" >/dev/null
   fi
@@ -312,7 +312,7 @@ run_leaf_skill() {
     "$run_dir/validate.stdout.txt" \
     "$run_dir/validate.stderr.txt" \
     "$run_dir/validate.exit" \
-    "$SYSTEM_BINARY" author charter --validate --from-inputs "$FIXTURE_INPUTS" >/dev/null
+    "$HANDBOOK_BINARY" author charter --validate --from-inputs "$FIXTURE_INPUTS" >/dev/null
 
   author_status="$(
     capture_in_repo \
@@ -320,7 +320,7 @@ run_leaf_skill() {
     "$run_dir/author.stdout.txt" \
     "$run_dir/author.stderr.txt" \
     "$run_dir/author.exit" \
-    "$SYSTEM_BINARY" author charter --from-inputs "$FIXTURE_INPUTS"
+    "$HANDBOOK_BINARY" author charter --from-inputs "$FIXTURE_INPUTS"
   )"
 
   if [[ $author_status -eq 0 ]]; then
@@ -330,16 +330,16 @@ run_leaf_skill() {
   return "$author_status"
 }
 
-echo "==> install current system binary"
+echo "==> install current handbook binary"
 cd "$ROOT_DIR"
 cargo install --locked --force --path crates/cli
 
 echo "==> install generated codex skill assets"
 bash tools/codex/install.sh
-test -x "$SYSTEM_BINARY"
+test -x "$HANDBOOK_BINARY"
 test -f "$RUNTIME_MANIFEST"
-assert_path_absent "$SYSTEM_HOME/bin/system-charter-intake"
-assert_path_absent "$SYSTEM_HOME/share"
+assert_path_absent "$HANDBOOK_HOME/bin/handbook-charter-intake"
+assert_path_absent "$HANDBOOK_HOME/share"
 
 tmp_root="$(mktemp -d)"
 
@@ -356,8 +356,8 @@ after_happy_count="$(count_run_dirs)"
   exit 1
 }
 assert_run_dir_file_set "$happy_run_dir" "$(common_success_files)"
-assert_session_fields "$happy_run_dir/session.json" "$SYSTEM_HOME"
-test -f "$happy_repo/.system/charter/CHARTER.md"
+assert_session_fields "$happy_run_dir/session.json" "$HANDBOOK_HOME"
+test -f "$happy_repo/.handbook/charter/CHARTER.md"
 
 echo "==> existing charter refusal smoke"
 existing_repo="$tmp_root/existing-charter-repo"
@@ -365,8 +365,8 @@ mkdir -p "$existing_repo"
 git -C "$existing_repo" init -q
 (
   cd "$existing_repo"
-  "$SYSTEM_BINARY" setup >/dev/null
-  "$SYSTEM_BINARY" author charter --from-inputs "$FIXTURE_INPUTS" >/dev/null
+  "$HANDBOOK_BINARY" setup >/dev/null
+  "$HANDBOOK_BINARY" author charter --from-inputs "$FIXTURE_INPUTS" >/dev/null
 )
 before_existing_count="$(count_run_dirs)"
 set +e
@@ -390,7 +390,7 @@ existing_refusal="$(cat "$existing_run_dir/author.stdout.txt")"
   exit 1
 }
 assert_run_dir_file_set "$existing_run_dir" "$(existing_truth_refusal_files)"
-assert_session_fields "$existing_run_dir/session.json" "$SYSTEM_HOME"
+assert_session_fields "$existing_run_dir/session.json" "$HANDBOOK_HOME"
 
 echo "==> outside-git-repo refusal smoke"
 outside_dir="$tmp_root/not-a-repo"
@@ -419,21 +419,21 @@ echo "==> missing installed binary refusal smoke"
 missing_binary_repo="$tmp_root/missing-binary-repo"
 mkdir -p "$missing_binary_repo"
 git -C "$missing_binary_repo" init -q
-binary_backup="$SYSTEM_BINARY.bak"
-mv "$SYSTEM_BINARY" "$binary_backup"
+binary_backup="$HANDBOOK_BINARY.bak"
+mv "$HANDBOOK_BINARY" "$binary_backup"
 missing_binary_before_count="$(count_run_dirs)"
 set +e
 missing_binary_output="$(run_leaf_skill "$missing_binary_repo" 2>&1)"
 missing_binary_status=$?
 set -e
-mv "$binary_backup" "$SYSTEM_BINARY"
+mv "$binary_backup" "$HANDBOOK_BINARY"
 binary_backup=""
 if [[ $missing_binary_status -eq 0 ]]; then
-  echo "expected refusal when installed system binary is missing"
+  echo "expected refusal when installed handbook binary is missing"
   exit 1
 fi
-[[ "$missing_binary_output" == *"missing installed system binary"* ]] || {
-  echo "expected missing installed system binary refusal"
+[[ "$missing_binary_output" == *"missing installed handbook binary"* ]] || {
+  echo "expected missing installed handbook binary refusal"
   echo "$missing_binary_output"
   exit 1
 }
@@ -443,7 +443,7 @@ missing_binary_after_count="$(count_run_dirs)"
   exit 1
 }
 
-assert_no_misplaced_run_evidence "$SYSTEM_HOME"
+assert_no_misplaced_run_evidence "$HANDBOOK_HOME"
 assert_no_misplaced_run_evidence "$HOME/.codex/skills"
 
 echo "OK"

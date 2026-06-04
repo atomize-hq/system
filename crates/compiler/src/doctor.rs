@@ -157,7 +157,7 @@ fn artifact_next_safe_action(
                 NextSafeAction::RunAuthorEnvironmentInventory
             }
             CanonicalArtifactKind::FeatureSpec => NextSafeAction::FillCanonicalArtifact {
-                canonical_repo_relative_path: ".system/feature_spec/FEATURE_SPEC.md",
+                canonical_repo_relative_path: ".handbook/feature_spec/FEATURE_SPEC.md",
             },
         }),
     }
@@ -211,11 +211,13 @@ fn doctor_artifact_label(kind: CanonicalArtifactKind) -> &'static str {
 
 fn doctor_author_command(kind: CanonicalArtifactKind) -> &'static str {
     match kind {
-        CanonicalArtifactKind::Charter => "run `system author charter`",
-        CanonicalArtifactKind::ProjectContext => "run `system author project-context`",
-        CanonicalArtifactKind::EnvironmentInventory => "run `system author environment-inventory`",
+        CanonicalArtifactKind::Charter => "run `handbook author charter`",
+        CanonicalArtifactKind::ProjectContext => "run `handbook author project-context`",
+        CanonicalArtifactKind::EnvironmentInventory => {
+            "run `handbook author environment-inventory`"
+        }
         CanonicalArtifactKind::FeatureSpec => {
-            "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+            "fill canonical artifact at .handbook/feature_spec/FEATURE_SPEC.md"
         }
     }
 }

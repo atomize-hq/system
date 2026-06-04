@@ -6,51 +6,51 @@ The legacy Python harness still exists in this repo as **frozen reference materi
 
 ## What is supported in reduced v1
 
-- **`setup` owns canonical `.system/` truth establishment and repair**.
-  - The public setup family is `system setup`, `system setup init`, and `system setup refresh`.
-  - Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- **`setup` owns canonical `.handbook/` truth establishment and repair**.
+  - The public setup family is `handbook setup`, `handbook setup init`, and `handbook setup refresh`.
+  - Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.
   - `setup` is the durable term. `setup init` is only the concrete first-run subcommand name.
   - The canonical setup-created starter files are exactly:
-    - `.system/charter/CHARTER.md`
-    - `.system/project_context/PROJECT_CONTEXT.md`
-    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+    - `.handbook/charter/CHARTER.md`
+    - `.handbook/project_context/PROJECT_CONTEXT.md`
+    - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
   - The shipped starter templates are scaffolding only. Setup creates the baseline file set, then `doctor` reports whether the repo is `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
   - `setup refresh` preserves canonical files by default.
   - `setup refresh --rewrite` rewrites only setup-owned starter files.
-  - `setup refresh --reset-state` resets only `.system/state/**`.
-  - Setup hands off to `system doctor`, which renders an ordered checklist with artifact label, canonical path, per-artifact status, and the exact `system author ...` command for each remaining baseline action.
-- **Canonical inputs live in repo-local `.system/`**.
+  - `setup refresh --reset-state` resets only `.handbook/state/**`.
+  - Setup hands off to `handbook doctor`, which renders an ordered checklist with artifact label, canonical path, per-artifact status, and the exact `handbook author ...` command for each remaining baseline action.
+- **Canonical inputs live in repo-local `.handbook/`**.
   - Baseline set:
-    - `.system/charter/CHARTER.md`
-    - `.system/project_context/PROJECT_CONTEXT.md`
-    - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+    - `.handbook/charter/CHARTER.md`
+    - `.handbook/project_context/PROJECT_CONTEXT.md`
+    - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
   - `FEATURE_SPEC.md` is not part of setup bootstrap or baseline `doctor`. It remains on the packet path.
-  - Non-canonical runtime state may also live under `.system/`, but it is not part of the canonical input set.
+  - Non-canonical runtime state may also live under `.handbook/`, but it is not part of the canonical input set.
 - **Authoring method**
   - The repo-owned charter authoring method artifact is `core/library/authoring/charter_authoring_method.md`.
 - **Baseline authoring**
-  - `system author charter` writes canonical charter truth.
-  - `system author charter --validate --from-inputs <path|->` validates the same structured-input contract and repo write preconditions without mutation.
-  - `system author charter --from-inputs <path|->` is the deterministic charter write path for agents and automation.
-  - `system author project-context` writes canonical project-context truth.
-  - `system author environment-inventory` writes canonical environment-inventory truth.
+  - `handbook author charter` writes canonical charter truth.
+  - `handbook author charter --validate --from-inputs <path|->` validates the same structured-input contract and repo write preconditions without mutation.
+  - `handbook author charter --from-inputs <path|->` is the deterministic charter write path for agents and automation.
+  - `handbook author project-context` writes canonical project-context truth.
+  - `handbook author environment-inventory` writes canonical environment-inventory truth.
 - **Installed Codex charter intake**
-  - `system doctor --json` is the only machine-readable readiness surface the installed skill may parse.
-  - Codex packaging authored skill inputs live under `install/system-home/`.
+  - `handbook doctor --json` is the only machine-readable readiness surface the installed skill may parse.
+  - Codex packaging authored skill inputs live under `install/handbook-home/`.
   - Repo-local `.agents/skills/*` trees are thin generated projections only.
-  - `~/system/` is the installed home.
-  - `~/system/bin/system` is the only installed executable for this Codex surface.
-  - `~/system/runtime-manifest.json` remains part of the runtime contract.
-  - Installed static guidance lives under `~/system/resources/**`.
-  - Installed thin projections live under `~/system/.agents/skills/*`.
-  - `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`.
-  - Tagged GitHub Releases publish curated `~/system/` bundles for `macOS arm64` and `Linux x86_64`, together with `SHA256SUMS`.
-  - `scripts/system/install.sh` is the public release installer wrapper. It downloads the matching release bundle, verifies checksums, installs `~/system/`, and refreshes the Codex discovery glue without requiring a preinstalled `system` binary.
-  - `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue.
+  - `~/handbook/` is the installed home.
+  - `~/handbook/bin/handbook` is the only installed executable for this Codex surface.
+  - `~/handbook/runtime-manifest.json` remains part of the runtime contract.
+  - Installed static guidance lives under `~/handbook/resources/**`.
+  - Installed thin projections live under `~/handbook/.agents/skills/*`.
+  - `~/.codex/skills/handbook*` is discovery glue only and points into `~/handbook/.agents/skills/*`.
+  - Tagged GitHub Releases publish curated `~/handbook/` bundles for `macOS arm64` and `Linux x86_64`, together with `SHA256SUMS`.
+  - `scripts/handbook/install.sh` is the public release installer wrapper. It downloads the matching release bundle, verifies checksums, installs `~/handbook/`, and refreshes the Codex discovery glue without requiring a preinstalled `handbook` binary.
+  - `tools/codex/install.sh` owns the installed `~/handbook/` home and refreshes the Codex discovery glue.
   - `tools/codex/dev-setup.sh` is the dev-only symlink path.
-  - There is no installed `~/system/bin/system-charter-intake` or `~/system/share/**`.
+  - There is no installed `~/handbook/bin/handbook-charter-intake` or `~/handbook/share/**`.
   - The installed runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when run outside a real git repo.
-- **Planning packet generation** is supported from canonical repo-local `.system/`.
+- **Planning packet generation** is supported from canonical repo-local `.handbook/`.
 - **The reviewed command surface adds `pipeline`** for `list`, `show`, `resolve`, `compile`, `capture`, `handoff emit`, and `state set` over route truth, one explicit stage compilation wedge, one explicit writer wedge, one explicit downstream handoff-emission wedge, and narrow route-state mutation.
   - The operator-surface contract baseline is [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md).
 - **`pipeline compile --id <pipeline-id> --stage <stage-id>`** is the supported M2 compile entrypoint for the first bounded target.
@@ -78,13 +78,13 @@ The legacy Python harness still exists in this repo as **frozen reference materi
   - It reports exactly `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
   - When more than one baseline artifact still needs work, the checklist is ordered and item `1` is the next safe action.
   - Each checklist line includes the artifact label, canonical path, status, and exact author command.
-  - `system doctor --json` is the machine-readable variant and its top-level fields are locked by contract.
+  - `handbook doctor --json` is the machine-readable variant and its top-level fields are locked by contract.
 - **Missing-root, invalid-root, and missing-artifact recovery** should route the operator back to the setup family rather than to ad hoc file-creation instructions.
 
 Fixture orientation for operators:
 
 - `tests/fixtures/foundation_flow_demo/` is the dedicated `pipeline.foundation_inputs` journey-proof corpus only.
-- Planning packet success examples need a canonical repo fixture with repo-local `.system/` inputs; do not substitute the journey-proof corpus for that command family.
+- Planning packet success examples need a canonical repo fixture with repo-local `.handbook/` inputs; do not substitute the journey-proof corpus for that command family.
 - For manual nested-directory QA against either fixture family, prepare a temp checkout with `tools/qa/prepare_fixture_checkout.sh` instead of ad hoc `cp -R`.
 
 ## Documented `foundation_inputs` operator path
@@ -92,44 +92,44 @@ Fixture orientation for operators:
 The first complete supported `pipeline.foundation_inputs` path is:
 
 ```bash
-system pipeline resolve --id pipeline.foundation_inputs
+handbook pipeline resolve --id pipeline.foundation_inputs
 
 cat /tmp/CHARTER_INPUTS.yaml \
-  | system pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
+  | handbook pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
 
 cat /tmp/CHARTER.md \
-  | system pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
+  | handbook pipeline capture --id pipeline.foundation_inputs --stage stage.05_charter_synthesize
 
-system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>
-system pipeline resolve --id pipeline.foundation_inputs
+handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>
+handbook pipeline resolve --id pipeline.foundation_inputs
 
 # Only when resolve marks stage.06_project_context_interview active:
 cat /tmp/PROJECT_CONTEXT.md \
-  | system pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
+  | handbook pipeline capture --id pipeline.foundation_inputs --stage stage.06_project_context_interview
 
-system pipeline resolve --id pipeline.foundation_inputs
+handbook pipeline resolve --id pipeline.foundation_inputs
 
 cat /tmp/FOUNDATION_PACK.blocks.txt \
-  | system pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack
+  | handbook pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack
 
-system pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
+handbook pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec
 
-# External step outside `system`: use the compile payload to produce /tmp/FEATURE_SPEC.md
+# External step outside `handbook`: use the compile payload to produce /tmp/FEATURE_SPEC.md
 cat /tmp/FEATURE_SPEC.md \
-  | system pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
+  | handbook pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec
 
-system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
+handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer
 ```
 
 Important boundaries:
 
 - `needs_project_context` stays manual and exact. Capture does not auto-set it.
 - `pipeline capture` remains the only stage-output writer surface.
-- Stage `10` capture writes `artifacts/feature_spec/FEATURE_SPEC.md`; it does not promote into canonical `.system/feature_spec/FEATURE_SPEC.md`.
+- Stage `10` capture writes `artifacts/feature_spec/FEATURE_SPEC.md`; it does not promote into canonical `.handbook/feature_spec/FEATURE_SPEC.md`.
 - `pipeline handoff emit` writes a derived downstream bundle; it does not promote bundle contents into canonical truth.
 - The named downstream consumer is expected to read only the emitted bundle on the happy path.
-- Transactional apply remains scoped to `system`-coordinated single-writer flows.
-- If canonical `.system/` truth is absent, invalid, or missing setup-owned starter files, route back to `system setup` or `system setup refresh` before retrying packet work.
+- Transactional apply remains scoped to `handbook`-coordinated single-writer flows.
+- If canonical `.handbook/` truth is absent, invalid, or missing setup-owned starter files, route back to `handbook setup` or `handbook setup refresh` before retrying packet work.
 
 ## How to navigate this repo
 
@@ -143,7 +143,7 @@ Important boundaries:
 - Contracts (the authoritative truth): [`docs/contracts/`](contracts/)
 - CLI command surface and wording: [`C-02`](contracts/C-02-rust-workspace-and-cli-command-surface.md)
 - Pipeline operator surface and ID resolution: [`C-09`](contracts/pipeline-operator-surface-and-id-resolution.md)
-- Canonical `.system/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
+- Canonical `.handbook/` manifest + freshness: [`C-03`](contracts/C-03-canonical-artifact-manifest-contract.md)
 - Downstream handoff bundle + trust model: [`C-13`](contracts/C-13-pipeline-handoff-and-downstream-trust.md)
 - Doctor baseline readiness + blockers taxonomy: [`C-04`](contracts/C-04-resolver-result-and-doctor-blockers.md)
 - Proof surfaces (markdown/json/inspect ordering): [`C-05`](contracts/C-05-renderer-and-proof-surfaces.md)

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use system_compiler::{
+use handbook_compiler::{
     load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
     StageFileValidationError,
 };
@@ -1501,7 +1501,7 @@ stages:
                 PipelineValidationError::InvalidActivation {
                     stage_id,
                     reason:
-                        system_compiler::ActivationValidationError::EmptyConditionList {
+                        handbook_compiler::ActivationValidationError::EmptyConditionList {
                             operator: ActivationOperator::Any,
                         },
                 },

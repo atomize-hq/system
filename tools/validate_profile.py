@@ -2,7 +2,7 @@
 """
 validate_profile.py
 
-Validates profile directories under system/profiles/.
+Validates profile directories under core/profiles/.
 
 A "profile" is a stack pack: commands + conventions + metadata that stages can
 reference without hardcoding language/tool commands in core prompts.

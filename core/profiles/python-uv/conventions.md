@@ -1,7 +1,7 @@
 # Profile conventions: Python (uv)
 
 These are **project/tooling conventions** for Python projects managed with **uv**.
-Core system prompts should not hardcode any of the commands below; they should reference
+Core handbook prompts should not hardcode any of the commands below; they should reference
 **command keys** from `commands.yaml` (e.g., `commands.tests`).
 
 ## Layout assumptions

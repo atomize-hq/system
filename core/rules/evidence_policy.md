@@ -1,6 +1,6 @@
 # Evidence Policy
 
-This system treats “it passed” as a claim that must be backed by evidence.
+This handbook treats “it passed” as a claim that must be backed by evidence.
 
 ## Evidence requirements
 When you claim a gate passed, include an evidence record with:

@@ -65,4 +65,4 @@ jobs:
           PUSH_BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
           IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-          SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL: gpt-5.4-mini
+          HANDBOOK_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL: gpt-5.4-mini

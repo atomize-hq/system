@@ -11,7 +11,7 @@ M4 happy and skip journeys.
 ## Normalization Contract
 
 - Stage-10 compile evidence is pinned with
-  `SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z`.
+  `HANDBOOK_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z`.
 - Any preview or apply output that contains a generated capture id must normalize that value to
   `{{CAPTURE_ID}}`.
 - Temp repo roots must normalize to `{{REPO_ROOT}}`.

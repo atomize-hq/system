@@ -1,4 +1,4 @@
-use system_compiler::{
+use handbook_compiler::{
     packet_result::PacketSectionMode, render_next_safe_action_value, resolve,
     setup_starter_template_bytes, BlockerCategory, BudgetDisposition, BudgetPolicy,
     PacketSelectionStatus, ResolveRequest,
@@ -12,7 +12,7 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 }
 
 fn valid_charter_markdown() -> &'static str {
-    "# Engineering Charter — System
+    "# Engineering Charter — Handbook
 
 ## What this is
 Body.
@@ -61,14 +61,14 @@ Review monthly.
 }
 
 fn valid_project_context_markdown() -> &'static str {
-    "# Project Context — System
+    "# Project Context — Handbook
 
 > **File:** `PROJECT_CONTEXT.md`
 > **Created (UTC):** 2026-04-21T00:00:00Z
 > **Owner:** project-owner
-> **Team:** system-team
-> **Repo / Project:** /tmp/system
-> **Charter Ref:** .system/charter/CHARTER.md
+> **Team:** handbook-team
+> **Repo / Project:** /tmp/handbook
+> **Charter Ref:** .handbook/charter/CHARTER.md
 
 ## What this is
 Project reality.
@@ -87,7 +87,7 @@ Use this document to ground planning in reality.
 
 ## 3) System Boundaries (what we own vs integrate with)
 ### What we own
-- Canonical `.system/` truth.
+- Canonical `.handbook/` truth.
 ### What we do NOT own (but may depend on)
 - External delivery systems.
 
@@ -117,8 +117,8 @@ Use this document to ground planning in reality.
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -148,7 +148,7 @@ Canonical environment and runtime inventory.
 - None yet.
 
 ## 8) Update Contract (non-negotiable)
-- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
 
 ## 9) Known Unknowns
 - None yet.
@@ -170,7 +170,7 @@ fn oversized_valid_environment_inventory_markdown() -> String {
 fn invalid_optional_project_context_markdown() -> String {
     valid_project_context_markdown()
         .replace("> **Owner:** project-owner", "> **Owner:** unknown-owner")
-        .replace("> **Team:** system-team", "> **Team:** project-team")
+        .replace("> **Team:** handbook-team", "> **Team:** project-team")
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -209,14 +209,14 @@ fn optional_artifact_read_error_blocks_without_refusal() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
-    std::fs::create_dir_all(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
+    std::fs::create_dir_all(repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context dir");
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
@@ -226,7 +226,7 @@ fn optional_artifact_read_error_blocks_without_refusal() {
     assert!(result.packet_result.sections.is_empty());
     assert!(
         !result.packet_result.notes.iter().any(|note| {
-            note.text == "optional source omitted: .system/project_context/PROJECT_CONTEXT.md"
+            note.text == "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md"
         }),
         "read errors must not be mislabeled as benign omissions: {:?}",
         result.packet_result.notes
@@ -240,13 +240,13 @@ fn optional_artifact_read_error_blocks_without_refusal() {
         == BlockerCategory::ArtifactReadError
         && matches!(
             blocker.subject,
-            system_compiler::SubjectRef::CanonicalArtifact {
-                canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
+            handbook_compiler::SubjectRef::CanonicalArtifact {
+                canonical_repo_relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
                 ..
             }
         )
         && render_next_safe_action_value(&blocker.next_safe_action)
-            == "run `system setup refresh`"));
+            == "run `handbook setup refresh`"));
 }
 
 #[test]
@@ -255,11 +255,11 @@ fn missing_optional_project_context_emits_omission_note() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -267,7 +267,7 @@ fn missing_optional_project_context_emits_omission_note() {
 
     assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
     assert!(result.packet_result.notes.iter().any(|note| {
-        note.text == "optional source omitted: .system/project_context/PROJECT_CONTEXT.md"
+        note.text == "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md"
     }));
 }
 
@@ -277,11 +277,11 @@ fn missing_optional_environment_inventory_emits_omission_note() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -290,7 +290,7 @@ fn missing_optional_environment_inventory_emits_omission_note() {
     assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
-            == "optional source omitted: .system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            == "optional source omitted: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
     }));
 }
 
@@ -300,15 +300,15 @@ fn semantically_invalid_optional_project_context_is_omitted_from_ready_packet() 
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         invalid_optional_project_context_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -321,17 +321,17 @@ fn semantically_invalid_optional_project_context_is_omitted_from_ready_packet() 
         .included_sources
         .iter()
         .all(|source| source.canonical_repo_relative_path
-            != ".system/project_context/PROJECT_CONTEXT.md"));
+            != ".handbook/project_context/PROJECT_CONTEXT.md"));
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
-            == "optional source omitted: .system/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
+            == "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
     }));
     assert!(result
         .decision_log
         .entries
         .iter()
         .any(|entry| entry.contains(
-            "packet.optional.invalid_omitted path=.system/project_context/PROJECT_CONTEXT.md"
+            "packet.optional.invalid_omitted path=.handbook/project_context/PROJECT_CONTEXT.md"
         )));
 }
 
@@ -340,9 +340,9 @@ fn semantically_invalid_required_charter_blocks_with_required_artifact_invalid()
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&repo_root.join(".handbook/charter/CHARTER.md"), b"charter");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -352,7 +352,7 @@ fn semantically_invalid_required_charter_blocks_with_required_artifact_invalid()
     let refusal = result.refusal.expect("refusal");
     assert_eq!(
         refusal.category,
-        system_compiler::RefusalCategory::RequiredArtifactInvalid
+        handbook_compiler::RefusalCategory::RequiredArtifactInvalid
     );
     assert!(result
         .blockers
@@ -366,16 +366,16 @@ fn required_starter_template_blocks_without_ready_packet() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
-        setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::Charter),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
+        setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::Charter),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
-        setup_starter_template_bytes(system_compiler::CanonicalArtifactKind::ProjectContext),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::ProjectContext),
     );
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
@@ -384,16 +384,16 @@ fn required_starter_template_blocks_without_ready_packet() {
     let refusal = result.refusal.expect("refusal");
     assert_eq!(
         refusal.category,
-        system_compiler::RefusalCategory::RequiredArtifactStarterTemplate
+        handbook_compiler::RefusalCategory::RequiredArtifactStarterTemplate
     );
     assert_eq!(
         render_next_safe_action_value(&refusal.next_safe_action),
-        "run `system author charter`"
+        "run `handbook author charter`"
     );
     assert!(result.blockers.iter().any(|blocker| blocker.category
         == BlockerCategory::RequiredArtifactStarterTemplate
         && render_next_safe_action_value(&blocker.next_safe_action)
-            == "run `system author charter`"));
+            == "run `handbook author charter`"));
     assert!(result.packet_result.sections.is_empty());
 }
 
@@ -403,11 +403,11 @@ fn resolver_is_deterministic_for_identical_inputs() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"f",
     );
 
@@ -424,15 +424,15 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"f",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         oversized_valid_project_context_markdown().as_bytes(),
     );
 
@@ -485,15 +485,15 @@ fn budget_summarize_replaces_optional_body_with_summary() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         oversized_valid_project_context_markdown().as_bytes(),
     );
 
@@ -540,15 +540,15 @@ fn budget_summarize_replaces_environment_inventory_body_with_summary() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         oversized_valid_environment_inventory_markdown().as_bytes(),
     );
 
@@ -581,7 +581,7 @@ fn budget_summarize_replaces_environment_inventory_body_with_summary() {
     );
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
-            == "optional source summarized due to budget: .system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            == "optional source summarized due to budget: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
     }));
 }
 
@@ -591,15 +591,15 @@ fn budget_exclude_removes_optional_body_from_packet() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         oversized_valid_project_context_markdown().as_bytes(),
     );
 
@@ -623,7 +623,7 @@ fn budget_exclude_removes_optional_body_from_packet() {
             .included_sources
             .iter()
             .all(|source| source.canonical_repo_relative_path
-                != ".system/project_context/PROJECT_CONTEXT.md"),
+                != ".handbook/project_context/PROJECT_CONTEXT.md"),
         "excluded sources should not be listed as included: {:?}",
         result.packet_result.included_sources
     );
@@ -645,15 +645,15 @@ fn budget_exclude_removes_environment_inventory_from_packet() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         oversized_valid_environment_inventory_markdown().as_bytes(),
     );
 
@@ -676,7 +676,7 @@ fn budget_exclude_removes_environment_inventory_from_packet() {
             .included_sources
             .iter()
             .all(|source| source.canonical_repo_relative_path
-                != ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+                != ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "excluded sources should not be listed as included: {:?}",
         result.packet_result.included_sources
     );
@@ -691,7 +691,7 @@ fn budget_exclude_removes_environment_inventory_from_packet() {
     );
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
-            == "optional source excluded due to budget: .system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            == "optional source excluded due to budget: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
     }));
 }
 
@@ -701,15 +701,15 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature spec body",
     );
 
@@ -718,7 +718,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     assert!(result.packet_result.is_ready());
     assert_eq!(
         result.packet_result.variant,
-        system_compiler::packet_result::PacketVariant::Planning
+        handbook_compiler::packet_result::PacketVariant::Planning
     );
     assert!(result.packet_result.fixture_context.is_none());
     assert_eq!(result.packet_result.included_sources.len(), 3);
@@ -736,7 +736,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `system inspect --packet planning.packet` for proof"
+        "run `handbook inspect --packet planning.packet` for proof"
     );
     assert!(
         result
@@ -755,19 +755,19 @@ fn resolver_includes_environment_inventory_in_ready_planning_packets() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature spec body",
     );
 
@@ -792,15 +792,15 @@ fn ready_packet_sections_match_included_source_metadata() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature spec body",
     );
 
@@ -836,19 +836,19 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     let root = dir.path().join("tests/fixtures/execution_demo/basic");
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"demo feature body",
     );
 
@@ -862,7 +862,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     assert!(result.packet_result.is_ready());
     assert_eq!(
         result.packet_result.variant,
-        system_compiler::packet_result::PacketVariant::ExecutionDemo
+        handbook_compiler::packet_result::PacketVariant::ExecutionDemo
     );
     let fixture_context = result
         .packet_result
@@ -872,28 +872,28 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     assert_eq!(fixture_context.fixture_set_id, "basic");
     assert_eq!(
         fixture_context.fixture_basis_root,
-        "tests/fixtures/execution_demo/basic/.system/"
+        "tests/fixtures/execution_demo/basic/.handbook/"
     );
     assert_eq!(fixture_context.fixture_lineage.len(), 4);
     assert_eq!(
         fixture_context.fixture_lineage[0].canonical_repo_relative_path,
-        ".system/charter/CHARTER.md"
+        ".handbook/charter/CHARTER.md"
     );
     assert_eq!(
         fixture_context.fixture_lineage[1].canonical_repo_relative_path,
-        ".system/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project_context/PROJECT_CONTEXT.md"
     );
     assert_eq!(
         fixture_context.fixture_lineage[2].canonical_repo_relative_path,
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
     );
     assert_eq!(
         fixture_context.fixture_lineage[3].canonical_repo_relative_path,
-        ".system/feature_spec/FEATURE_SPEC.md"
+        ".handbook/feature_spec/FEATURE_SPEC.md"
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `system inspect --packet execution.demo.packet --fixture-set basic` for proof"
+        "run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof"
     );
 }
 
@@ -903,11 +903,11 @@ fn resolver_redacts_packet_body_for_unsupported_live_execution_requests() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature body",
     );
 

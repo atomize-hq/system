@@ -259,7 +259,7 @@ pub fn render_pipeline_capture_preview(preview: &PipelineCapturePreview) -> Stri
     out.push_str("POST-CAPTURE STATE UPDATES:\n");
     render_state_updates(&mut out, &preview.plan.state_updates);
     out.push_str(&format!(
-        "NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {}`",
+        "NEXT SAFE ACTION: run `handbook pipeline capture apply --capture-id {}`",
         preview.plan.capture_id
     ));
     out
@@ -414,7 +414,7 @@ fn build_capture_plan(
             pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_id.clone()),
             recovery: format!(
-                "run `system pipeline resolve --id {}` and retry `system pipeline capture`",
+                "run `handbook pipeline resolve --id {}` and retry `handbook pipeline capture`",
                 pipeline.header.id
             ),
         })?;
@@ -442,7 +442,7 @@ fn build_capture_plan(
             pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_id.clone()),
             recovery: format!(
-                "run `system pipeline resolve --id {}` and retry `system pipeline capture`",
+                "run `handbook pipeline resolve --id {}` and retry `handbook pipeline capture`",
                 pipeline.header.id
             ),
         })?;
@@ -458,7 +458,7 @@ fn build_capture_plan(
             pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(stage_id.clone()),
             recovery: format!(
-                "run `system pipeline resolve --id {}`, adjust route state if needed, and retry `system pipeline capture --id {} --stage {stage_id}`",
+                "run `handbook pipeline resolve --id {}`, adjust route state if needed, and retry `handbook pipeline capture --id {} --stage {stage_id}`",
                 pipeline.header.id, pipeline.header.id
             ),
         });
@@ -600,7 +600,7 @@ fn apply_capture_plan(
             pipeline_id: Some(plan.target.pipeline_id.clone()),
             stage_id: Some(plan.target.stage_id.clone()),
             recovery: format!(
-                "run `system pipeline resolve --id {}` and retry `system pipeline capture`",
+                "run `handbook pipeline resolve --id {}` and retry `handbook pipeline capture`",
                 plan.target.pipeline_id
             ),
         })?;
@@ -626,7 +626,7 @@ fn apply_capture_plan(
             pipeline_id: Some(plan.target.pipeline_id.clone()),
             stage_id: Some(plan.target.stage_id.clone()),
             recovery: format!(
-                "run `system pipeline resolve --id {}` and rebuild the capture preview before retrying apply",
+                "run `handbook pipeline resolve --id {}` and rebuild the capture preview before retrying apply",
                 plan.target.pipeline_id
             ),
         });
@@ -640,7 +640,7 @@ fn apply_capture_plan(
             pipeline_id: Some(plan.target.pipeline_id.clone()),
             stage_id: Some(plan.target.stage_id.clone()),
             recovery: format!(
-                "run `system pipeline resolve --id {}` and rebuild the capture preview before retrying apply",
+                "run `handbook pipeline resolve --id {}` and rebuild the capture preview before retrying apply",
                 plan.target.pipeline_id
             ),
         });
@@ -841,7 +841,7 @@ fn canonicalize_capture_plan_for_apply(
                 pipeline_id: Some(plan.target.pipeline_id.clone()),
                 stage_id: Some(plan.target.stage_id.clone()),
                 recovery:
-                    "re-run `system pipeline capture --preview` to rebuild the cached capture"
+                    "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
                         .to_string(),
             }
         })?;
@@ -990,7 +990,7 @@ fn load_capture_cache(
             summary: format!("cached preview `{capture_id}` is malformed: {err}"),
             pipeline_id: None,
             stage_id: None,
-            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+            recovery: "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
                 .to_string(),
         })?;
     if cache_entry.schema_version != CAPTURE_CACHE_SCHEMA_VERSION {
@@ -1002,7 +1002,7 @@ fn load_capture_cache(
             ),
             pipeline_id: Some(cache_entry.plan.target.pipeline_id.clone()),
             stage_id: Some(cache_entry.plan.target.stage_id.clone()),
-            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+            recovery: "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
                 .to_string(),
         });
     }
@@ -1012,7 +1012,7 @@ fn load_capture_cache(
             summary: reason,
             pipeline_id: Some(cache_entry.plan.target.pipeline_id.clone()),
             stage_id: Some(cache_entry.plan.target.stage_id.clone()),
-            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+            recovery: "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
                 .to_string(),
         })?;
     if expected_capture_id != capture_id || cache_entry.capture_id != capture_id {
@@ -1023,7 +1023,7 @@ fn load_capture_cache(
             ),
             pipeline_id: Some(cache_entry.plan.target.pipeline_id.clone()),
             stage_id: Some(cache_entry.plan.target.stage_id.clone()),
-            recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+            recovery: "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
                 .to_string(),
         });
     }
@@ -1039,7 +1039,7 @@ fn classify_capture_cache_path_failure(
         | RepoRelativeWritePathError::NotRegularFile(_)
         | RepoRelativeWritePathError::SymlinkNotAllowed(_) => (
             PipelineCaptureRefusalClassification::TamperedCaptureCache,
-            "re-run `system pipeline capture --preview` to rebuild the cached capture".to_string(),
+            "re-run `handbook pipeline capture --preview` to rebuild the cached capture".to_string(),
         ),
         RepoRelativeWritePathError::InvalidPath(_)
         | RepoRelativeWritePathError::ReadFailure { .. } => (
@@ -1068,7 +1068,7 @@ fn classify_capture_cache_read_failure(
         summary: format!("cached preview `{capture_id}` was not found"),
         pipeline_id: None,
         stage_id: None,
-        recovery: "re-run `system pipeline capture --preview` to generate a fresh capture id"
+        recovery: "re-run `handbook pipeline capture --preview` to generate a fresh capture id"
             .to_string(),
     };
 
@@ -1086,7 +1086,7 @@ fn classify_capture_cache_read_failure(
                 pipeline_id: None,
                 stage_id: None,
                 recovery:
-                    "re-run `system pipeline capture --preview` to rebuild the cached capture"
+                    "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
                         .to_string(),
             }
         }
@@ -1138,7 +1138,9 @@ fn capture_cache_path(repo_root: &Path, capture_id: &str) -> Result<PathBuf, Str
 
 fn capture_cache_repo_relative_path(capture_id: &str) -> Result<String, String> {
     validate_capture_id(capture_id)?;
-    Ok(format!(".system/state/pipeline/capture/{capture_id}.yaml"))
+    Ok(format!(
+        ".handbook/state/pipeline/capture/{capture_id}.yaml"
+    ))
 }
 
 fn validate_capture_id(capture_id: &str) -> Result<(), String> {
@@ -1602,12 +1604,12 @@ fn build_post_apply_next_safe_action(
             .into_iter()
             .map(|variable| {
                 format!(
-                    "run `system pipeline state set --id {pipeline_id} --var {variable}=<true|false>`"
+                    "run `handbook pipeline state set --id {pipeline_id} --var {variable}=<true|false>`"
                 )
             })
             .collect::<Vec<_>>();
         action_steps.push(format!(
-            "run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
+            "run `handbook pipeline resolve --id {pipeline_id}` before the next compile or capture"
         ));
         return Some(action_steps.join(", then "));
     }
@@ -1616,7 +1618,7 @@ fn build_post_apply_next_safe_action(
         None
     } else {
         Some(format!(
-            "run `system pipeline resolve --id {pipeline_id}` before the next compile or capture"
+            "run `handbook pipeline resolve --id {pipeline_id}` before the next compile or capture"
         ))
     }
 }
@@ -1906,7 +1908,7 @@ fn tampered_capture_cache_refusal(
         summary: summary.into(),
         pipeline_id: Some(plan.target.pipeline_id.clone()),
         stage_id: Some(plan.target.stage_id.clone()),
-        recovery: "re-run `system pipeline capture --preview` to rebuild the cached capture"
+        recovery: "re-run `handbook pipeline capture --preview` to rebuild the cached capture"
             .to_string(),
     }
 }
@@ -1938,7 +1940,7 @@ fn classify_state_read_refusal(
                 pipeline_id: Some(pipeline_id.to_string()),
                 stage_id: Some(stage_id.to_string()),
                 recovery: format!(
-                    "run `system pipeline resolve --id {pipeline_id}` and retry `system pipeline capture --id {pipeline_id} --stage {stage_id}`"
+                    "run `handbook pipeline resolve --id {pipeline_id}` and retry `handbook pipeline capture --id {pipeline_id} --stage {stage_id}`"
                 ),
             }
         }
@@ -2085,7 +2087,7 @@ fn stale_basis_refusal(
         pipeline_id: Some(pipeline_id.to_string()),
         stage_id: Some(stage_id.to_string()),
         recovery: format!(
-            "run `system pipeline resolve --id {pipeline_id}` and retry `system pipeline capture --id {pipeline_id} --stage {stage_id}`"
+            "run `handbook pipeline resolve --id {pipeline_id}` and retry `handbook pipeline capture --id {pipeline_id} --stage {stage_id}`"
         ),
     }
 }
@@ -2433,7 +2435,7 @@ mod tests {
         assert_eq!(
             action.as_deref(),
             Some(
-                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+                "run `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
             )
         );
     }
@@ -2455,7 +2457,7 @@ mod tests {
         assert_eq!(
             action.as_deref(),
             Some(
-                "run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+                "run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
             )
         );
     }
@@ -2470,7 +2472,7 @@ mod tests {
         assert_eq!(
             action.as_deref(),
             Some(
-                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+                "run `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
             )
         );
     }
@@ -2486,7 +2488,7 @@ mod tests {
         assert_eq!(
             action.as_deref(),
             Some(
-                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `system pipeline state set --id pipeline.foundation_inputs --var needs_repo_scan=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+                "run `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=<true|false>`, then run `handbook pipeline state set --id pipeline.foundation_inputs --var needs_repo_scan=<true|false>`, then run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
             )
         );
     }
@@ -2509,7 +2511,7 @@ mod tests {
         assert_eq!(
             action.as_deref(),
             Some(
-                "run `system pipeline state set --id pipeline.foundation_inputs --var needs_repo_scan=<true|false>`, then run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
+                "run `handbook pipeline state set --id pipeline.foundation_inputs --var needs_repo_scan=<true|false>`, then run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture"
             )
         );
     }
@@ -2535,7 +2537,7 @@ mod tests {
             path,
             repo_root
                 .path()
-                .join(".system")
+                .join(".handbook")
                 .join("state")
                 .join("pipeline")
                 .join("capture")
@@ -2548,10 +2550,10 @@ mod tests {
     fn capture_cache_path_rejects_symlinked_parent_chain() {
         let repo_root = tempfile::tempdir().expect("tempdir");
         let external_root = tempfile::tempdir().expect("external tempdir");
-        let system_root = repo_root.path().join(".system");
+        let system_root = repo_root.path().join(".handbook");
         let target_root = external_root.path().join("redirected-system");
         fs::create_dir_all(&target_root).expect("external target root");
-        std::os::unix::fs::symlink(&target_root, &system_root).expect("symlink .system");
+        std::os::unix::fs::symlink(&target_root, &system_root).expect("symlink .handbook");
 
         let capture_id = "1111111111111111111111111111111111111111111111111111111111111111";
         let err = capture_cache_path(repo_root.path(), capture_id).expect_err("symlink refusal");

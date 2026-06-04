@@ -6,21 +6,21 @@ version: reduced-v1-m8
 currentness: current
 status: published
 revalidation_triggers:
-  - Any change to the canonical `.system/` artifact set, paths, baseline/setup/later-phase semantics, or canonical-path ownership.
+  - Any change to the canonical `.handbook/` artifact set, paths, baseline/setup/later-phase semantics, or canonical-path ownership.
   - Any change to the definition of `missing` vs `present_empty` vs `present_non_empty`.
   - Any change to artifact identity rules (including the content hashing algorithm or inputs).
   - Any change to freshness fields, field meanings, or deterministic ordering rules.
   - Any change to schema vs manifest-generation versioning policy.
   - Any change to inherited posture dependency identity or how it influences freshness truth.
   - Any change to override-with-rationale rules or any new override capability that could expand inputs.
-  - Any change to the rule that repo-local `.system/` is the only canonical project-truth input surface.
+  - Any change to the rule that repo-local `.handbook/` is the only canonical project-truth input surface.
 ---
 
 # C-03 Canonical Artifact Manifest Contract
 
 ## Purpose
 
-This contract defines the reduced-v1 canonical artifact inventory and the manifest/freshness truth model produced from repo-local `.system/` artifacts.
+This contract defines the reduced-v1 canonical artifact inventory and the manifest/freshness truth model produced from repo-local `.handbook/` artifacts.
 
 It exists so downstream seams (notably `SEAM-4` and `SEAM-7`) can treat canonical inputs and freshness semantics as one explicit, versioned truth without guessing or reading non-canonical derived sources.
 
@@ -34,16 +34,16 @@ It exists so downstream seams (notably `SEAM-4` and `SEAM-7`) can treat canonica
 
 ### Canonical inputs (repo-local)
 
-The canonical project-truth inputs for reduced-v1 `M8` are repo-local files under `.system/` only.
+The canonical project-truth inputs for reduced-v1 `M8` are repo-local files under `.handbook/` only.
 
 The canonical artifact registry MUST model exactly four canonical artifacts:
 
 - baseline artifacts:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - `.handbook/charter/CHARTER.md`
+  - `.handbook/project_context/PROJECT_CONTEXT.md`
+  - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 - later-phase artifact:
-  - `.system/feature_spec/FEATURE_SPEC.md`
+  - `.handbook/feature_spec/FEATURE_SPEC.md`
 
 No other file path is a direct canonical input under this contract.
 
@@ -54,25 +54,25 @@ The registry MUST distinguish:
 - later feature-phase participation
 - canonical path ownership
 
-### Runtime zones under `.system/`
+### Runtime zones under `.handbook/`
 
-This contract allows explicitly non-canonical runtime zones under `.system/`, provided they are documented as runtime-only and never treated as canonical inputs.
+This contract allows explicitly non-canonical runtime zones under `.handbook/`, provided they are documented as runtime-only and never treated as canonical inputs.
 
 Reduced-v1 runtime-zone rule:
 
-- `.system/state/**` is a runtime zone, not a canonical artifact zone.
+- `.handbook/state/**` is a runtime zone, not a canonical artifact zone.
 - Runtime-zone contents MAY support orchestration or proof, but MUST NOT be treated as project-truth inputs under this contract.
-- Future additions under `.system/` MUST declare whether they are canonical artifact zones or runtime zones.
+- Future additions under `.handbook/` MUST declare whether they are canonical artifact zones or runtime zones.
 
 ### Canonical-truth rule (no derived inputs)
 
-- Repo-local `.system/` inputs are authoritative.
-- Runtime-zone contents under `.system/` are not authoritative unless a later contract revision explicitly moves them into the canonical input set.
+- Repo-local `.handbook/` inputs are authoritative.
+- Runtime-zone contents under `.handbook/` are not authoritative unless a later contract revision explicitly moves them into the canonical input set.
 - Derived views MUST NOT be treated as runtime inputs, including (non-exhaustive):
   - `README.md`, `PLAN.md`, `docs/README.md`
   - any renderer output (`inspect`, markdown, JSON) or generated artifacts under `dist/` or `artifacts/`
   - emitted downstream handoff bundles under `artifacts/handoff/**`, including any `handoff_manifest.json`, `trust_matrix.md`, `read_allowlist.json`, or `scorecard/*` contents
-  - runtime-zone files such as `.system/state/**`
+  - runtime-zone files such as `.handbook/state/**`
   - any prompt packs, stage outputs, or other derived documentation
 
 Downstream seams MAY reference derived views for operator guidance, but MUST NOT read them as canonical packet inputs.
@@ -113,10 +113,10 @@ Ordering:
 
 - Artifact identity records MUST be emitted in a deterministic, contract-defined order independent of filesystem iteration.
 - The required ordering for reduced-v1 MUST be:
-  1. `charter` (`.system/charter/CHARTER.md`)
-  2. `project_context` (`.system/project_context/PROJECT_CONTEXT.md`)
-  3. `environment_inventory` (`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`)
-  4. `feature_spec` (`.system/feature_spec/FEATURE_SPEC.md`)
+  1. `charter` (`.handbook/charter/CHARTER.md`)
+  2. `project_context` (`.handbook/project_context/PROJECT_CONTEXT.md`)
+  3. `environment_inventory` (`.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`)
+  4. `feature_spec` (`.handbook/feature_spec/FEATURE_SPEC.md`)
 
 ### Freshness truth (contract-level shape)
 
@@ -144,12 +144,12 @@ This contract does not require persistence. The manifest MAY be request-scoped a
 
 ### Inherited posture dependencies (affect freshness, not canonical inputs)
 
-The system MAY accept a declared set of inherited posture dependencies that influence freshness deterministically without becoming additional canonical file inputs.
+The handbook MAY accept a declared set of inherited posture dependencies that influence freshness deterministically without becoming additional canonical file inputs.
 
 Rules:
 
 - Inherited dependencies MUST be explicitly declared (e.g., by setup posture or repo configuration); they MUST NOT be inferred from ambient environment state.
-- Declared dependencies MUST NOT expand the canonical input surface beyond the `.system/` paths listed above.
+- Declared dependencies MUST NOT expand the canonical input surface beyond the `.handbook/` paths listed above.
 - Each dependency MUST have a stable identity, at minimum:
   - `dependency_id` (stable string identifier)
   - `version` (stable string or numeric)
@@ -175,7 +175,7 @@ Rules:
   - `target` (what is being overridden)
   - `rationale` (human-readable, non-empty)
   - `scope` (what the override affects)
-- Overrides MUST NOT introduce new canonical input paths under `.system/`.
+- Overrides MUST NOT introduce new canonical input paths under `.handbook/`.
 - Overrides MUST NOT hide or falsify freshness truth fields or artifact identity.
 - Overrides MUST NOT change the definition of presence semantics (`missing`, `present_empty`, `present_non_empty`).
 
@@ -205,7 +205,7 @@ Allowed issue categories include (non-exhaustive):
 
 ## Verification Checklist
 
-- [ ] This contract is the only source of truth for canonical `.system/` inputs in reduced-v1.
+- [ ] This contract is the only source of truth for canonical `.handbook/` inputs in reduced-v1.
 - [ ] The canonical input set and repo-relative paths are explicit and exhaustive.
 - [ ] The canonical artifact registry models `CHARTER`, `PROJECT_CONTEXT`, `ENVIRONMENT_INVENTORY`, and `FEATURE_SPEC`.
 - [ ] Baseline readiness is defined only by `CHARTER`, `PROJECT_CONTEXT`, and `ENVIRONMENT_INVENTORY`.

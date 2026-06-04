@@ -1,4 +1,4 @@
-use system_compiler::{
+use handbook_compiler::{
     doctor, setup_starter_template_bytes, BlockerCategory, CanonicalArtifactKind,
     DoctorArtifactStatus, DoctorBaselineStatus, NextSafeAction, SubjectRef, C03_SCHEMA_VERSION,
     C04_RESULT_VERSION, MANIFEST_GENERATION_VERSION,
@@ -19,7 +19,9 @@ fn assert_json_object_keys(
     object.clone()
 }
 
-fn assert_doctor_report_json_contract(report: &system_compiler::DoctorReport) -> serde_json::Value {
+fn assert_doctor_report_json_contract(
+    report: &handbook_compiler::DoctorReport,
+) -> serde_json::Value {
     let value = serde_json::to_value(report).expect("serialize doctor report");
     assert_json_object_keys(
         &value,
@@ -46,7 +48,7 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 }
 
 fn valid_charter_markdown() -> &'static str {
-    "# Engineering Charter — System
+    "# Engineering Charter — Handbook
 
 ## What this is
 Body.
@@ -95,14 +97,14 @@ Review monthly.
 }
 
 fn valid_project_context_markdown() -> &'static str {
-    "# Project Context — System
+    "# Project Context — Handbook
 
 > **File:** `PROJECT_CONTEXT.md`
 > **Created (UTC):** 2026-04-21T00:00:00Z
 > **Owner:** project-owner
-> **Team:** system-team
-> **Repo / Project:** /tmp/system
-> **Charter Ref:** .system/charter/CHARTER.md
+> **Team:** handbook-team
+> **Repo / Project:** /tmp/handbook
+> **Charter Ref:** .handbook/charter/CHARTER.md
 
 ## What this is
 Project reality.
@@ -121,7 +123,7 @@ Use this document to ground planning in reality.
 
 ## 3) System Boundaries (what we own vs integrate with)
 ### What we own
-- Canonical `.system/` truth.
+- Canonical `.handbook/` truth.
 ### What we do NOT own (but may depend on)
 - External delivery systems.
 
@@ -151,8 +153,8 @@ Use this document to ground planning in reality.
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -182,7 +184,7 @@ Canonical environment and runtime inventory.
 - None yet.
 
 ## 8) Update Contract (non-negotiable)
-- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
 
 ## 9) Known Unknowns
 - None yet.
@@ -200,17 +202,19 @@ fn expected_artifact_label(kind: CanonicalArtifactKind) -> &'static str {
 
 fn expected_author_command(kind: CanonicalArtifactKind) -> &'static str {
     match kind {
-        CanonicalArtifactKind::Charter => "run `system author charter`",
-        CanonicalArtifactKind::ProjectContext => "run `system author project-context`",
-        CanonicalArtifactKind::EnvironmentInventory => "run `system author environment-inventory`",
+        CanonicalArtifactKind::Charter => "run `handbook author charter`",
+        CanonicalArtifactKind::ProjectContext => "run `handbook author project-context`",
+        CanonicalArtifactKind::EnvironmentInventory => {
+            "run `handbook author environment-inventory`"
+        }
         CanonicalArtifactKind::FeatureSpec => {
-            "fill canonical artifact at .system/feature_spec/FEATURE_SPEC.md"
+            "fill canonical artifact at .handbook/feature_spec/FEATURE_SPEC.md"
         }
     }
 }
 
 fn assert_checklist_contract_fields(
-    item: &system_compiler::DoctorChecklistItem,
+    item: &handbook_compiler::DoctorChecklistItem,
     kind: CanonicalArtifactKind,
     canonical_repo_relative_path: &str,
 ) {
@@ -237,15 +241,15 @@ fn assert_empty_baseline_invalid(
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(&repo_root.join(empty_path), b"");
@@ -292,13 +296,13 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
-    std::fs::create_dir_all(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
+    std::fs::create_dir_all(repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context dir");
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
 
@@ -315,7 +319,7 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     assert_checklist_contract_fields(
         &report.checklist[0],
         CanonicalArtifactKind::Charter,
-        ".system/charter/CHARTER.md",
+        ".handbook/charter/CHARTER.md",
     );
     assert_eq!(
         report.checklist[0].status,
@@ -330,7 +334,7 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     assert_checklist_contract_fields(
         &report.checklist[1],
         CanonicalArtifactKind::ProjectContext,
-        ".system/project_context/PROJECT_CONTEXT.md",
+        ".handbook/project_context/PROJECT_CONTEXT.md",
     );
     assert_eq!(report.checklist[1].status, DoctorArtifactStatus::Invalid);
     assert_eq!(
@@ -345,7 +349,7 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
     assert_checklist_contract_fields(
         &report.checklist[2],
         CanonicalArtifactKind::EnvironmentInventory,
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
     );
     assert_eq!(
         report.checklist[2].status,
@@ -361,7 +365,7 @@ fn doctor_marks_only_project_context_invalid_for_matching_directory_ingest_issue
         report.blockers[0].subject,
         SubjectRef::CanonicalArtifact {
             kind: CanonicalArtifactKind::ProjectContext,
-            canonical_repo_relative_path: ".system/project_context/PROJECT_CONTEXT.md",
+            canonical_repo_relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
         }
     );
     assert_eq!(
@@ -379,14 +383,14 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
-    std::fs::create_dir_all(repo_root.join(".system/environment_inventory")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/environment_inventory")).expect("mkdirs");
     let redirected = repo_root.join("redirected_environment_inventory.md");
     write_file(
         &redirected,
@@ -394,7 +398,7 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
     );
     symlink(
         &redirected,
-        repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
     )
     .expect("symlink environment inventory");
 
@@ -423,7 +427,7 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
     assert_checklist_contract_fields(
         environment_inventory,
         CanonicalArtifactKind::EnvironmentInventory,
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
     );
     assert_eq!(environment_inventory.status, DoctorArtifactStatus::Invalid);
     assert_eq!(
@@ -440,7 +444,7 @@ fn doctor_marks_only_environment_inventory_invalid_for_matching_symlink_ingest_i
 #[test]
 fn doctor_treats_empty_charter_as_invalid_baseline() {
     assert_empty_baseline_invalid(
-        ".system/charter/CHARTER.md",
+        ".handbook/charter/CHARTER.md",
         CanonicalArtifactKind::Charter,
         NextSafeAction::RunAuthorCharter,
     );
@@ -449,7 +453,7 @@ fn doctor_treats_empty_charter_as_invalid_baseline() {
 #[test]
 fn doctor_treats_empty_project_context_as_invalid_baseline() {
     assert_empty_baseline_invalid(
-        ".system/project_context/PROJECT_CONTEXT.md",
+        ".handbook/project_context/PROJECT_CONTEXT.md",
         CanonicalArtifactKind::ProjectContext,
         NextSafeAction::RunAuthorProjectContext,
     );
@@ -458,7 +462,7 @@ fn doctor_treats_empty_project_context_as_invalid_baseline() {
 #[test]
 fn doctor_treats_empty_environment_inventory_as_invalid_baseline() {
     assert_empty_baseline_invalid(
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
         CanonicalArtifactKind::EnvironmentInventory,
         NextSafeAction::RunAuthorEnvironmentInventory,
     );
@@ -470,15 +474,15 @@ fn doctor_keeps_all_starter_owned_baseline_in_scaffolded() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::Charter),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext),
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::EnvironmentInventory),
     );
 
@@ -586,7 +590,7 @@ fn doctor_json_contract_serializes_exact_top_level_fields_for_missing_root() {
         checklist_item["subject"],
         serde_json::json!({
             "kind": "charter",
-            "canonical_repo_relative_path": ".system/charter/CHARTER.md"
+            "canonical_repo_relative_path": ".handbook/charter/CHARTER.md"
         })
     );
     assert_eq!(
@@ -601,15 +605,15 @@ fn doctor_reports_complete_baseline_with_empty_blockers() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
 
@@ -636,15 +640,15 @@ fn doctor_json_contract_preserves_non_ready_canonical_artifact_semantics() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::Charter),
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext),
     );
     write_file(
-        &repo_root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::EnvironmentInventory),
     );
 
@@ -669,7 +673,7 @@ fn doctor_json_contract_preserves_non_ready_canonical_artifact_semantics() {
         checklist_item["subject"],
         serde_json::json!({
             "kind": "charter",
-            "canonical_repo_relative_path": ".system/charter/CHARTER.md"
+            "canonical_repo_relative_path": ".handbook/charter/CHARTER.md"
         })
     );
     assert_eq!(
@@ -687,7 +691,7 @@ fn doctor_json_contract_preserves_non_ready_canonical_artifact_semantics() {
         blocker["subject"],
         serde_json::json!({
             "kind": "charter",
-            "canonical_repo_relative_path": ".system/charter/CHARTER.md"
+            "canonical_repo_relative_path": ".handbook/charter/CHARTER.md"
         })
     );
     assert_eq!(

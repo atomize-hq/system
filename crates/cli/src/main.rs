@@ -8,7 +8,7 @@ use std::process::ExitCode;
 const PACKET_PLANNING_ID: &str = "planning.packet";
 const PACKET_EXECUTION_DEMO_ID: &str = "execution.demo.packet";
 const PACKET_EXECUTION_LIVE_ID: &str = "execution.live.packet";
-const RELEASE_VERSION: &str = env!("SYSTEM_RELEASE_VERSION");
+const RELEASE_VERSION: &str = env!("HANDBOOK_RELEASE_VERSION");
 
 struct GuidedPromptContext {
     object: &'static str,
@@ -22,18 +22,18 @@ const CHARTER_PROMPT_CONTEXT: GuidedPromptContext = GuidedPromptContext {
     object: "author charter",
     interview_name: "guided charter interview",
     broken_subject: "structured charter input",
-    retry_command: "repair the interactive terminal and retry `system author charter`",
+    retry_command: "repair the interactive terminal and retry `handbook author charter`",
     restart_or_from_inputs:
-        "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+        "restart `handbook author charter` or use `handbook author charter --from-inputs <path|->`",
 };
 
 const PROJECT_CONTEXT_PROMPT_CONTEXT: GuidedPromptContext = GuidedPromptContext {
     object: "author project-context",
     interview_name: "guided project-context interview",
     broken_subject: "structured project-context input",
-    retry_command: "repair the interactive terminal and retry `system author project-context`",
+    retry_command: "repair the interactive terminal and retry `handbook author project-context`",
     restart_or_from_inputs:
-        "restart `system author project-context` or use `system author project-context --from-inputs <path|->`",
+        "restart `handbook author project-context` or use `handbook author project-context --from-inputs <path|->`",
 };
 
 thread_local! {
@@ -84,11 +84,11 @@ fn main() -> ExitCode {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "system",
+    name = "handbook",
     version = RELEASE_VERSION,
     disable_help_subcommand = true,
-    about = "Rust CLI for the reduced v1 system: `setup` initializes or refreshes canonical repo-local `.system/` inputs, `author` is the baseline authoring surface for charter, project context, and environment inventory, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.system/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
-    long_about = "Rust CLI for the reduced v1 system. `setup` initializes or refreshes canonical repo-local `.system/` inputs. `author` is the baseline authoring surface for charter, project context, and environment inventory. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.system/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
+    about = "Rust CLI for the reduced v1 handbook: `setup` initializes or refreshes canonical repo-local `.handbook/` inputs, `author` is the baseline authoring surface for charter, project context, and environment inventory, `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations, planning packet generation uses canonical repo-local `.handbook/` inputs, fixture-backed execution demo flows through `execution.demo.packet`, live execution is explicitly refused, `inspect` is the packet proof surface, and `doctor` is the recovery surface.",
+    long_about = "Rust CLI for the reduced v1 handbook. `setup` initializes or refreshes canonical repo-local `.handbook/` inputs. `author` is the baseline authoring surface for charter, project context, and environment inventory. `pipeline` is the orchestration surface for route resolution, explicit stage compilation, explicit stage-output capture, and route-state operations. planning packet generation uses canonical repo-local `.handbook/` inputs. fixture-backed execution demo flows through `execution.demo.packet`. live execution is explicitly refused. `inspect` is the packet proof surface. `doctor` is the recovery surface."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -97,7 +97,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Initialize or refresh canonical repo-local `.system/` inputs.
+    /// Initialize or refresh canonical repo-local `.handbook/` inputs.
     Setup(SetupArgs),
     /// Human-guided and deterministic baseline authoring surfaces.
     Author(AuthorArgs),
@@ -132,9 +132,9 @@ struct SetupArgs {
 
 #[derive(Subcommand, Debug)]
 enum SetupCommand {
-    /// Create canonical `.system/` scaffold and starter files for first-run setup.
+    /// Create canonical `.handbook/` scaffold and starter files for first-run setup.
     Init,
-    /// Preserve canonical files by default and optionally rewrite starter files or reset `.system/state/**`.
+    /// Preserve canonical files by default and optionally rewrite starter files or reset `.handbook/state/**`.
     Refresh(SetupRefreshArgs),
 }
 
@@ -143,7 +143,7 @@ struct SetupRefreshArgs {
     /// Rewrite setup-owned starter files in place.
     #[arg(long)]
     rewrite: bool,
-    /// Reset only `.system/state/**`.
+    /// Reset only `.handbook/state/**`.
     #[arg(long = "reset-state")]
     reset_state: bool,
 }
@@ -156,11 +156,11 @@ struct AuthorArgs {
 
 #[derive(Subcommand, Debug)]
 enum AuthorCommand {
-    /// Author canonical `.system/charter/CHARTER.md`.
+    /// Author canonical `.handbook/charter/CHARTER.md`.
     Charter(AuthorCharterArgs),
-    /// Author canonical `.system/project_context/PROJECT_CONTEXT.md`.
+    /// Author canonical `.handbook/project_context/PROJECT_CONTEXT.md`.
     ProjectContext(AuthorProjectContextArgs),
-    /// Author canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+    /// Author canonical `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
     EnvironmentInventory,
 }
 
@@ -406,7 +406,7 @@ fn discover_enclosing_git_root(start: &Path) -> Option<PathBuf> {
 
 fn discover_nearest_managed_root(start: &Path) -> Option<PathBuf> {
     for candidate in start.ancestors() {
-        if std::fs::symlink_metadata(candidate.join(".system")).is_ok() {
+        if std::fs::symlink_metadata(candidate.join(".handbook")).is_ok() {
             return Some(candidate.to_path_buf());
         }
     }
@@ -427,21 +427,21 @@ fn discover_managed_repo_root(start: &Path) -> PathBuf {
 }
 
 fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
-    let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id).join(".system");
+    let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id).join(".handbook");
 
     let project_context = base.join("project_context/PROJECT_CONTEXT.md");
 
     let mut out = Vec::new();
     out.push(format!(
-        "tests/fixtures/execution_demo/{fixture_set_id}/.system/charter/CHARTER.md"
+        "tests/fixtures/execution_demo/{fixture_set_id}/.handbook/charter/CHARTER.md"
     ));
     if project_context.is_file() {
         out.push(format!(
-            "tests/fixtures/execution_demo/{fixture_set_id}/.system/project_context/PROJECT_CONTEXT.md"
+            "tests/fixtures/execution_demo/{fixture_set_id}/.handbook/project_context/PROJECT_CONTEXT.md"
         ));
     }
     out.push(format!(
-        "tests/fixtures/execution_demo/{fixture_set_id}/.system/feature_spec/FEATURE_SPEC.md"
+        "tests/fixtures/execution_demo/{fixture_set_id}/.handbook/feature_spec/FEATURE_SPEC.md"
     ));
     out
 }
@@ -452,7 +452,7 @@ fn fixture_section_for_demo(repo_root: &Path, fixture_set_id: &str) -> String {
     out.push_str("## FIXTURE DEMO\n");
     out.push_str(&format!("FIXTURE SET: {fixture_set_id}\n"));
     out.push_str(&format!(
-        "FIXTURE BASIS ROOT: tests/fixtures/execution_demo/{fixture_set_id}/.system/\n"
+        "FIXTURE BASIS ROOT: tests/fixtures/execution_demo/{fixture_set_id}/.handbook/\n"
     ));
     out.push_str("FIXTURE LINEAGE:\n");
     for (index, item) in fixture_lineage_for_demo(repo_root, fixture_set_id)
@@ -510,7 +510,7 @@ fn generate(args: RequestArgs) -> ExitCode {
                 println!("REFUSED: {err}");
                 return ExitCode::from(1);
             }
-            let basis_root = fixture_set_dir.join(".system");
+            let basis_root = fixture_set_dir.join(".handbook");
             if let Err(err) = ensure_dir(&basis_root, "fixture basis root") {
                 println!("REFUSED: {err}");
                 return ExitCode::from(1);
@@ -519,11 +519,11 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let result = match system_compiler::resolve(
+    let result = match handbook_compiler::resolve(
         &compiler_root,
-        system_compiler::ResolveRequest {
+        handbook_compiler::ResolveRequest {
             packet_id: packet_id.as_str(),
-            ..system_compiler::ResolveRequest::default()
+            ..handbook_compiler::ResolveRequest::default()
         },
     ) {
         Ok(result) => result,
@@ -533,7 +533,7 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let model = match system_compiler::build_output_model(&result) {
+    let model = match handbook_compiler::build_output_model(&result) {
         Ok(model) => model,
         Err(err) => {
             println!("PRESENTATION FAILURE: {err}");
@@ -541,11 +541,11 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+    let ready = model.packet_status == handbook_compiler::PacketSelectionStatus::Selected
         && model.refusal.is_none()
         && model.blockers.is_empty();
 
-    println!("{}", system_compiler::render_markdown(&model));
+    println!("{}", handbook_compiler::render_markdown(&model));
     if ready {
         ExitCode::SUCCESS
     } else {
@@ -572,11 +572,11 @@ fn author_charter_command(args: AuthorCharterArgs) -> ExitCode {
         args,
         std::env::current_dir,
         interactive_authoring_is_allowed,
-        |repo_root| system_compiler::preflight_author_charter(repo_root),
-        |repo_root, input| system_compiler::preflight_author_charter_from_input(repo_root, input),
+        |repo_root| handbook_compiler::preflight_author_charter(repo_root),
+        |repo_root, input| handbook_compiler::preflight_author_charter_from_input(repo_root, input),
         collect_guided_charter_input,
-        |repo_root, input| system_compiler::author_charter_guided(repo_root, input),
-        |repo_root, input| system_compiler::author_charter(repo_root, input),
+        |repo_root, input| handbook_compiler::author_charter_guided(repo_root, input),
+        |repo_root, input| handbook_compiler::author_charter(repo_root, input),
     );
     println!("{}", rendered.output);
     rendered.exit_code
@@ -587,9 +587,9 @@ fn author_project_context_command(args: AuthorProjectContextArgs) -> ExitCode {
         args,
         std::env::current_dir,
         interactive_authoring_is_allowed,
-        |repo_root| system_compiler::preflight_author_project_context(repo_root),
+        |repo_root| handbook_compiler::preflight_author_project_context(repo_root),
         collect_guided_project_context_input,
-        |repo_root, input| system_compiler::author_project_context_from_input(repo_root, input),
+        |repo_root, input| handbook_compiler::author_project_context_from_input(repo_root, input),
     );
     println!("{}", rendered.output);
     rendered.exit_code
@@ -607,18 +607,18 @@ fn author_environment_inventory_command() -> ExitCode {
                     "WorkingDirectoryUnavailable",
                     &format!("failed to determine repo root: {err}"),
                     "current working directory",
-                    "repair the current working directory and retry `system author environment-inventory`",
+                    "repair the current working directory and retry `handbook author environment-inventory`",
                 )
             );
             return ExitCode::from(1);
         }
     };
     let repo_root = discover_managed_repo_root(&cwd);
-    if let Err(refusal) = system_compiler::preflight_author_environment_inventory(&repo_root) {
+    if let Err(refusal) = handbook_compiler::preflight_author_environment_inventory(&repo_root) {
         println!("{}", render_environment_inventory_refusal(&refusal));
         return ExitCode::from(1);
     }
-    match system_compiler::author_environment_inventory(&repo_root) {
+    match handbook_compiler::author_environment_inventory(&repo_root) {
         Ok(result) => {
             println!(
                 "{}",
@@ -626,7 +626,7 @@ fn author_environment_inventory_command() -> ExitCode {
                     "author environment-inventory",
                     result.canonical_repo_relative_path,
                     result.bytes_written,
-                    "Wrote canonical environment inventory to .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                    "Wrote canonical environment inventory to .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
                 )
             );
             ExitCode::SUCCESS
@@ -660,24 +660,26 @@ fn execute_author_charter_command<
 where
     GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
     InteractiveAllowed: Fn() -> bool,
-    PreflightGuided: Fn(&Path) -> Result<(), system_compiler::AuthorCharterRefusal>,
+    PreflightGuided: Fn(&Path) -> Result<(), handbook_compiler::AuthorCharterRefusal>,
     PreflightFromInput: Fn(
         &Path,
-        &system_compiler::CharterStructuredInput,
-    ) -> Result<(), system_compiler::AuthorCharterRefusal>,
-    CollectGuidedInput: Fn() -> Result<system_compiler::CharterStructuredInput, String>,
-    RunGuidedAuthor:
-        Fn(
-            &Path,
-            &system_compiler::CharterStructuredInput,
-        )
-            -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal>,
-    RunDeterministicAuthor:
-        Fn(
-            &Path,
-            &system_compiler::CharterStructuredInput,
-        )
-            -> Result<system_compiler::AuthorCharterResult, system_compiler::AuthorCharterRefusal>,
+        &handbook_compiler::CharterStructuredInput,
+    ) -> Result<(), handbook_compiler::AuthorCharterRefusal>,
+    CollectGuidedInput: Fn() -> Result<handbook_compiler::CharterStructuredInput, String>,
+    RunGuidedAuthor: Fn(
+        &Path,
+        &handbook_compiler::CharterStructuredInput,
+    ) -> Result<
+        handbook_compiler::AuthorCharterResult,
+        handbook_compiler::AuthorCharterRefusal,
+    >,
+    RunDeterministicAuthor: Fn(
+        &Path,
+        &handbook_compiler::CharterStructuredInput,
+    ) -> Result<
+        handbook_compiler::AuthorCharterResult,
+        handbook_compiler::AuthorCharterRefusal,
+    >,
 {
     let cwd = match get_current_dir() {
         Ok(dir) => dir,
@@ -689,7 +691,7 @@ where
                     "WorkingDirectoryUnavailable",
                     &format!("failed to determine repo root: {err}"),
                     "current working directory",
-                    "repair the current working directory and retry `system author charter`",
+                    "repair the current working directory and retry `handbook author charter`",
                 ),
                 exit_code: ExitCode::from(1),
             };
@@ -703,9 +705,9 @@ where
                 "author charter",
                 "REFUSED",
                 "InvalidRequest",
-                "`system author charter --validate` requires `--from-inputs <path|->`",
+                "`handbook author charter --validate` requires `--from-inputs <path|->`",
                 "command arguments",
-                "retry `system author charter --validate --from-inputs <path|->`",
+                "retry `handbook author charter --validate --from-inputs <path|->`",
             ),
             exit_code: ExitCode::from(1),
         };
@@ -717,9 +719,9 @@ where
                 "author charter",
                 "REFUSED",
                 "NonInteractiveRefusal",
-                "`system author charter` is a TTY-only guided interview",
+                "`handbook author charter` is a TTY-only guided interview",
                 "interactive terminal",
-                "run `system author charter --from-inputs <path|->`",
+                "run `handbook author charter --from-inputs <path|->`",
             ),
             exit_code: ExitCode::from(1),
         };
@@ -738,7 +740,7 @@ where
         Some(path_or_dash) => {
             let yaml = match read_author_inputs_source(
                 "author charter",
-                "system author charter --from-inputs",
+                "handbook author charter --from-inputs",
                 path_or_dash,
             ) {
                 Ok(yaml) => yaml,
@@ -749,7 +751,7 @@ where
                     };
                 }
             };
-            let input = match system_compiler::parse_charter_structured_input_yaml(&yaml) {
+            let input = match handbook_compiler::parse_charter_structured_input_yaml(&yaml) {
                 Ok(input) => input,
                 Err(refusal) => {
                     return RenderedCommand {
@@ -834,14 +836,15 @@ fn execute_author_project_context_command<
 where
     GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
     InteractiveAllowed: Fn() -> bool,
-    PreflightAuthoring: Fn(&Path) -> Result<(), system_compiler::AuthorProjectContextRefusal>,
-    CollectGuidedInput: Fn(&Path) -> Result<system_compiler::ProjectContextStructuredInput, String>,
+    PreflightAuthoring: Fn(&Path) -> Result<(), handbook_compiler::AuthorProjectContextRefusal>,
+    CollectGuidedInput:
+        Fn(&Path) -> Result<handbook_compiler::ProjectContextStructuredInput, String>,
     RunAuthor: Fn(
         &Path,
-        &system_compiler::ProjectContextStructuredInput,
+        &handbook_compiler::ProjectContextStructuredInput,
     ) -> Result<
-        system_compiler::AuthorProjectContextResult,
-        system_compiler::AuthorProjectContextRefusal,
+        handbook_compiler::AuthorProjectContextResult,
+        handbook_compiler::AuthorProjectContextRefusal,
     >,
 {
     let cwd = match get_current_dir() {
@@ -854,7 +857,7 @@ where
                     "WorkingDirectoryUnavailable",
                     &format!("failed to determine repo root: {err}"),
                     "current working directory",
-                    "repair the current working directory and retry `system author project-context`",
+                    "repair the current working directory and retry `handbook author project-context`",
                 ),
                 exit_code: ExitCode::from(1),
             };
@@ -868,9 +871,9 @@ where
                 "author project-context",
                 "REFUSED",
                 "NonInteractiveRefusal",
-                "`system author project-context` is a TTY-only guided interview",
+                "`handbook author project-context` is a TTY-only guided interview",
                 "interactive terminal",
-                "run `system author project-context --from-inputs <path|->`",
+                "run `handbook author project-context --from-inputs <path|->`",
             ),
             exit_code: ExitCode::from(1),
         };
@@ -887,7 +890,7 @@ where
         Some(path_or_dash) => {
             let yaml = match read_author_inputs_source(
                 "author project-context",
-                "system author project-context --from-inputs",
+                "handbook author project-context --from-inputs",
                 path_or_dash,
             ) {
                 Ok(yaml) => yaml,
@@ -898,7 +901,8 @@ where
                     };
                 }
             };
-            let input = match system_compiler::parse_project_context_structured_input_yaml(&yaml) {
+            let input = match handbook_compiler::parse_project_context_structured_input_yaml(&yaml)
+            {
                 Ok(input) => input,
                 Err(refusal) => {
                     return RenderedCommand {
@@ -949,14 +953,14 @@ fn interactive_authoring_is_allowed() -> bool {
 }
 
 fn render_author_charter_success(
-    result: &system_compiler::AuthorCharterResult,
+    result: &handbook_compiler::AuthorCharterResult,
     input_mode: &str,
     input_source: &str,
 ) -> String {
     let mut out = String::new();
     out.push_str("OUTCOME: AUTHORED\n");
     out.push_str("OBJECT: author charter\n");
-    out.push_str("NEXT SAFE ACTION: run `system doctor`\n");
+    out.push_str("NEXT SAFE ACTION: run `handbook doctor`\n");
     out.push_str("## CANONICAL ARTIFACT\n");
     out.push_str(&format!("PATH: {}\n", result.canonical_repo_relative_path));
     out.push_str(&format!("BYTES WRITTEN: {}\n", result.bytes_written));
@@ -970,7 +974,7 @@ fn render_author_charter_validation_success(input_mode: &str, input_source: &str
     let mut out = String::new();
     out.push_str("OUTCOME: VALIDATED\n");
     out.push_str("OBJECT: author charter\n");
-    out.push_str("NEXT SAFE ACTION: run `system author charter --from-inputs <path|->`\n");
+    out.push_str("NEXT SAFE ACTION: run `handbook author charter --from-inputs <path|->`\n");
     out.push_str("## INPUT MODE\n");
     out.push_str(&format!("MODE: {input_mode}\n"));
     out.push_str(&format!("SOURCE: {input_source}\n"));
@@ -981,7 +985,7 @@ fn render_author_charter_validation_success(input_mode: &str, input_source: &str
     out.trim_end().to_string()
 }
 
-fn render_author_charter_refusal(refusal: &system_compiler::AuthorCharterRefusal) -> String {
+fn render_author_charter_refusal(refusal: &handbook_compiler::AuthorCharterRefusal) -> String {
     render_author_custom_refusal(
         "author charter",
         author_refusal_outcome_name(refusal.kind),
@@ -993,14 +997,14 @@ fn render_author_charter_refusal(refusal: &system_compiler::AuthorCharterRefusal
 }
 
 fn render_author_project_context_success(
-    result: &system_compiler::AuthorProjectContextResult,
+    result: &handbook_compiler::AuthorProjectContextResult,
     input_mode: &str,
     input_source: &str,
 ) -> String {
     let mut out = String::new();
     out.push_str("OUTCOME: AUTHORED\n");
     out.push_str("OBJECT: author project-context\n");
-    out.push_str("NEXT SAFE ACTION: run `system doctor`\n");
+    out.push_str("NEXT SAFE ACTION: run `handbook doctor`\n");
     out.push_str("## CANONICAL ARTIFACT\n");
     out.push_str(&format!("PATH: {}\n", result.canonical_repo_relative_path));
     out.push_str(&format!("BYTES WRITTEN: {}\n", result.bytes_written));
@@ -1039,7 +1043,7 @@ fn render_author_simple_success(
     let mut out = String::new();
     out.push_str("OUTCOME: AUTHORED\n");
     out.push_str(&format!("OBJECT: {object}\n"));
-    out.push_str("NEXT SAFE ACTION: run `system doctor`\n");
+    out.push_str("NEXT SAFE ACTION: run `handbook doctor`\n");
     out.push_str("## CANONICAL ARTIFACT\n");
     out.push_str(&format!("PATH: {canonical_repo_relative_path}\n"));
     out.push_str(&format!("BYTES WRITTEN: {bytes_written}\n"));
@@ -1067,7 +1071,7 @@ fn render_author_simple_refusal(
 }
 
 fn render_project_context_refusal(
-    refusal: &system_compiler::AuthorProjectContextRefusal,
+    refusal: &handbook_compiler::AuthorProjectContextRefusal,
 ) -> String {
     render_author_simple_refusal(
         "author project-context",
@@ -1080,7 +1084,7 @@ fn render_project_context_refusal(
 }
 
 fn render_environment_inventory_refusal(
-    refusal: &system_compiler::AuthorEnvironmentInventoryRefusal,
+    refusal: &handbook_compiler::AuthorEnvironmentInventoryRefusal,
 ) -> String {
     render_author_simple_refusal(
         "author environment-inventory",
@@ -1092,33 +1096,33 @@ fn render_environment_inventory_refusal(
     )
 }
 
-fn author_refusal_outcome_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
+fn author_refusal_outcome_name(kind: handbook_compiler::AuthorCharterRefusalKind) -> &'static str {
     match kind {
-        system_compiler::AuthorCharterRefusalKind::MissingSystemRoot
-        | system_compiler::AuthorCharterRefusalKind::InvalidSystemRoot
-        | system_compiler::AuthorCharterRefusalKind::MutationRefused
-        | system_compiler::AuthorCharterRefusalKind::SynthesisFailed => "BLOCKED",
-        system_compiler::AuthorCharterRefusalKind::MalformedStructuredInput
-        | system_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput
-        | system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => "REFUSED",
+        handbook_compiler::AuthorCharterRefusalKind::MissingSystemRoot
+        | handbook_compiler::AuthorCharterRefusalKind::InvalidSystemRoot
+        | handbook_compiler::AuthorCharterRefusalKind::MutationRefused
+        | handbook_compiler::AuthorCharterRefusalKind::SynthesisFailed => "BLOCKED",
+        handbook_compiler::AuthorCharterRefusalKind::MalformedStructuredInput
+        | handbook_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput
+        | handbook_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => "REFUSED",
     }
 }
 
-fn author_refusal_kind_name(kind: system_compiler::AuthorCharterRefusalKind) -> &'static str {
+fn author_refusal_kind_name(kind: handbook_compiler::AuthorCharterRefusalKind) -> &'static str {
     match kind {
-        system_compiler::AuthorCharterRefusalKind::MissingSystemRoot => "MissingSystemRoot",
-        system_compiler::AuthorCharterRefusalKind::InvalidSystemRoot => "InvalidSystemRoot",
-        system_compiler::AuthorCharterRefusalKind::MalformedStructuredInput => {
+        handbook_compiler::AuthorCharterRefusalKind::MissingSystemRoot => "MissingSystemRoot",
+        handbook_compiler::AuthorCharterRefusalKind::InvalidSystemRoot => "InvalidSystemRoot",
+        handbook_compiler::AuthorCharterRefusalKind::MalformedStructuredInput => {
             "MalformedStructuredInput"
         }
-        system_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput => {
+        handbook_compiler::AuthorCharterRefusalKind::IncompleteStructuredInput => {
             "IncompleteStructuredInput"
         }
-        system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => {
+        handbook_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth => {
             "ExistingCanonicalTruth"
         }
-        system_compiler::AuthorCharterRefusalKind::MutationRefused => "MutationRefused",
-        system_compiler::AuthorCharterRefusalKind::SynthesisFailed => "SynthesisFailed",
+        handbook_compiler::AuthorCharterRefusalKind::MutationRefused => "MutationRefused",
+        handbook_compiler::AuthorCharterRefusalKind::SynthesisFailed => "SynthesisFailed",
     }
 }
 
@@ -1152,13 +1156,13 @@ fn read_author_inputs_source(
     })
 }
 
-fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredInput, String> {
+fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructuredInput, String> {
     println!("Guided charter interview");
     println!("Answer with the documented value form. Comma-separated prompts accept `a, b, c`.");
 
     let project_name = prompt_required_concrete(
         "Project name",
-        "Project name needs a concrete system name, not a placeholder",
+        "Project name needs a concrete handbook name, not a placeholder",
         "project name",
     )?;
     let classification = prompt_choice(
@@ -1230,7 +1234,7 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
         let touches = prompt_csv_optional("Primary domain touches (comma-separated, optional)")?;
         let constraints =
             prompt_csv_optional("Primary domain constraints (comma-separated, optional)")?;
-        vec![system_compiler::CharterDomainInput {
+        vec![handbook_compiler::CharterDomainInput {
             name: primary_domain_name,
             blast_radius,
             touches,
@@ -1245,7 +1249,7 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
     )?;
     let record_location = prompt_with_default(
         "Exception record location",
-        system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION,
+        handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION,
     )?;
     let minimum_fields_input = prompt_optional(
         "Exception minimum fields (comma-separated; press enter for standard fields)",
@@ -1257,7 +1261,7 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
     };
     let debt_tracking_system = prompt_required_concrete(
         "Debt tracking system",
-        "Debt tracking system needs a concrete tracker or repository location",
+        "Debt tracking handbook needs a concrete tracker or repository location",
         "debt tracking system",
     )?;
     let debt_tracking_labels =
@@ -1285,9 +1289,9 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
         (String::new(), String::new())
     };
 
-    Ok(system_compiler::CharterStructuredInput {
+    Ok(handbook_compiler::CharterStructuredInput {
         schema_version: "0.1.0".to_string(),
-        project: system_compiler::CharterProjectInput {
+        project: handbook_compiler::CharterProjectInput {
             name: project_name.clone(),
             classification,
             team_size,
@@ -1295,19 +1299,19 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
             expected_lifetime,
             surfaces,
             runtime_environments,
-            constraints: system_compiler::CharterProjectConstraintsInput {
+            constraints: handbook_compiler::CharterProjectConstraintsInput {
                 deadline,
                 budget,
                 experience_notes: experience_notes.clone(),
                 must_use_tech,
             },
-            operational_reality: system_compiler::CharterOperationalRealityInput {
+            operational_reality: handbook_compiler::CharterOperationalRealityInput {
                 in_production_today,
                 prod_users_or_data,
                 external_contracts_to_preserve,
                 uptime_expectations,
             },
-            default_implications: system_compiler::CharterDefaultImplicationsInput {
+            default_implications: handbook_compiler::CharterDefaultImplicationsInput {
                 backward_compatibility,
                 migration_planning,
                 rollout_controls,
@@ -1315,24 +1319,24 @@ fn collect_guided_charter_input() -> Result<system_compiler::CharterStructuredIn
                 observability_threshold,
             },
         },
-        posture: system_compiler::CharterPostureInput {
+        posture: handbook_compiler::CharterPostureInput {
             rubric_scale: "1-5".to_string(),
             baseline_level,
             baseline_rationale,
         },
         domains,
         dimensions,
-        exceptions: system_compiler::CharterExceptionsInput {
+        exceptions: handbook_compiler::CharterExceptionsInput {
             approvers,
             record_location,
             minimum_fields,
         },
-        debt_tracking: system_compiler::CharterDebtTrackingInput {
+        debt_tracking: handbook_compiler::CharterDebtTrackingInput {
             system: debt_tracking_system,
             labels: debt_tracking_labels,
             review_cadence: debt_tracking_review_cadence,
         },
-        decision_records: system_compiler::CharterDecisionRecordsInput {
+        decision_records: handbook_compiler::CharterDecisionRecordsInput {
             enabled: decision_records_enabled,
             path: decision_records_path,
             format: decision_records_format,
@@ -1348,7 +1352,7 @@ struct ProjectContextGuidedDefaults {
 
 fn collect_guided_project_context_input(
     repo_root: &Path,
-) -> Result<system_compiler::ProjectContextStructuredInput, String> {
+) -> Result<handbook_compiler::ProjectContextStructuredInput, String> {
     let _prompt_context = GuidedPromptContextGuard::push(&PROJECT_CONTEXT_PROMPT_CONTEXT);
     let defaults = project_context_guided_defaults(repo_root);
 
@@ -1522,7 +1526,7 @@ fn collect_guided_project_context_input(
             "Failure mode expectations need a concrete value",
             &format!("integration {label} failure modes"),
         )?;
-        integrations.push(system_compiler::ProjectContextIntegrationInput {
+        integrations.push(handbook_compiler::ProjectContextIntegrationInput {
             name,
             integration_type,
             contract_surface,
@@ -1653,28 +1657,28 @@ fn collect_guided_project_context_input(
             "Known unknown revisit trigger needs a concrete milestone or condition",
             &format!("known unknown {label} revisit trigger"),
         )?;
-        known_unknowns.push(system_compiler::ProjectContextKnownUnknownInput {
+        known_unknowns.push(handbook_compiler::ProjectContextKnownUnknownInput {
             item,
             owner: unknown_owner,
             revisit_trigger,
         });
     }
 
-    Ok(system_compiler::ProjectContextStructuredInput {
+    Ok(handbook_compiler::ProjectContextStructuredInput {
         schema_version: "0.1.0".to_string(),
         project_name,
         owner,
         team,
         repo_or_project_ref,
         charter_ref,
-        project_summary: system_compiler::ProjectContextSummaryInput {
+        project_summary: handbook_compiler::ProjectContextSummaryInput {
             what_this_project_is,
             primary_surface,
             primary_users,
             key_workflows,
             non_goals,
         },
-        operational_reality: system_compiler::ProjectContextOperationalRealityInput {
+        operational_reality: handbook_compiler::ProjectContextOperationalRealityInput {
             is_live_in_production_today,
             users,
             data_in_production,
@@ -1683,7 +1687,7 @@ fn collect_guided_project_context_input(
             primary_risk_flags_present,
         },
         classification_implications:
-            system_compiler::ProjectContextClassificationImplicationsInput {
+            handbook_compiler::ProjectContextClassificationImplicationsInput {
                 project_type,
                 backward_compatibility_required,
                 backward_compatibility_notes,
@@ -1694,12 +1698,12 @@ fn collect_guided_project_context_input(
                 rollout_controls_required,
                 rollout_controls_notes,
             },
-        system_boundaries: system_compiler::ProjectContextSystemBoundariesInput {
+        system_boundaries: handbook_compiler::ProjectContextSystemBoundariesInput {
             owned_areas,
             external_dependencies,
         },
         integrations,
-        environments_and_delivery: system_compiler::ProjectContextEnvironmentsAndDeliveryInput {
+        environments_and_delivery: handbook_compiler::ProjectContextEnvironmentsAndDeliveryInput {
             environments_that_exist,
             deployment_model,
             ci_cd_reality,
@@ -1707,20 +1711,20 @@ fn collect_guided_project_context_input(
             config_and_secrets,
             observability_stack,
         },
-        data_reality: system_compiler::ProjectContextDataRealityInput {
+        data_reality: handbook_compiler::ProjectContextDataRealityInput {
             primary_data_stores,
             data_classification,
             retention_requirements,
             backups_disaster_recovery,
             existing_migrations_history,
         },
-        repo_codebase_reality: system_compiler::ProjectContextRepoCodebaseRealityInput {
+        repo_codebase_reality: handbook_compiler::ProjectContextRepoCodebaseRealityInput {
             codebase_exists_today,
             current_maturity,
             key_modules_or_areas,
             known_constraints_from_existing_code,
         },
-        constraints: system_compiler::ProjectContextConstraintsInput {
+        constraints: handbook_compiler::ProjectContextConstraintsInput {
             deadline_time_constraints,
             budget_constraints,
             must_use_or_prohibited_tech,
@@ -1743,7 +1747,7 @@ fn project_context_guided_defaults(repo_root: &Path) -> ProjectContextGuidedDefa
     ProjectContextGuidedDefaults {
         project_name,
         repo_or_project_ref: repo_root.display().to_string(),
-        charter_ref: ".system/charter/CHARTER.md".to_string(),
+        charter_ref: ".handbook/charter/CHARTER.md".to_string(),
     }
 }
 
@@ -2124,7 +2128,7 @@ fn normalize_required_csv(value: &str) -> Option<Vec<String>> {
 }
 
 fn normalize_free_text_answer(value: &str) -> String {
-    system_compiler::normalize_charter_free_text(value)
+    handbook_compiler::normalize_charter_free_text(value)
 }
 
 fn join_csv_default(items: &[String]) -> String {
@@ -2136,7 +2140,7 @@ fn join_csv_default(items: &[String]) -> String {
 }
 
 fn is_unusably_vague_text(value: &str) -> bool {
-    system_compiler::is_unusably_vague_charter_text(value)
+    handbook_compiler::is_unusably_vague_charter_text(value)
 }
 
 fn render_interview_incomplete_refusal(summary: &str) -> String {
@@ -2146,7 +2150,7 @@ fn render_interview_incomplete_refusal(summary: &str) -> String {
         "InterviewIncomplete",
         summary,
         "structured charter input",
-        "restart `system author charter` or use `system author charter --from-inputs <path|->`",
+        "restart `handbook author charter` or use `handbook author charter --from-inputs <path|->`",
     )
 }
 
@@ -2157,19 +2161,19 @@ fn render_project_context_interview_incomplete_refusal(summary: &str) -> String 
         "InterviewIncomplete",
         summary,
         "structured project-context input",
-        "restart `system author project-context` or use `system author project-context --from-inputs <path|->`",
+        "restart `handbook author project-context` or use `handbook author project-context --from-inputs <path|->`",
     )
 }
 
 fn parse_project_classification(
     value: &str,
-) -> Result<system_compiler::CharterProjectClassification, String> {
+) -> Result<handbook_compiler::CharterProjectClassification, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "greenfield" => Ok(system_compiler::CharterProjectClassification::Greenfield),
-        "brownfield" => Ok(system_compiler::CharterProjectClassification::Brownfield),
-        "integration" => Ok(system_compiler::CharterProjectClassification::Integration),
-        "modernization" => Ok(system_compiler::CharterProjectClassification::Modernization),
-        "hardening" => Ok(system_compiler::CharterProjectClassification::Hardening),
+        "greenfield" => Ok(handbook_compiler::CharterProjectClassification::Greenfield),
+        "brownfield" => Ok(handbook_compiler::CharterProjectClassification::Brownfield),
+        "integration" => Ok(handbook_compiler::CharterProjectClassification::Integration),
+        "modernization" => Ok(handbook_compiler::CharterProjectClassification::Modernization),
+        "hardening" => Ok(handbook_compiler::CharterProjectClassification::Hardening),
         _ => Err(
             "Expected one of greenfield, brownfield, integration, modernization, or hardening."
                 .to_string(),
@@ -2177,98 +2181,100 @@ fn parse_project_classification(
     }
 }
 
-fn parse_audience(value: &str) -> Result<system_compiler::CharterAudience, String> {
+fn parse_audience(value: &str) -> Result<handbook_compiler::CharterAudience, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "internal" => Ok(system_compiler::CharterAudience::Internal),
-        "external" => Ok(system_compiler::CharterAudience::External),
-        "mixed" => Ok(system_compiler::CharterAudience::Mixed),
+        "internal" => Ok(handbook_compiler::CharterAudience::Internal),
+        "external" => Ok(handbook_compiler::CharterAudience::External),
+        "mixed" => Ok(handbook_compiler::CharterAudience::Mixed),
         _ => Err("Expected one of internal, external, or mixed.".to_string()),
     }
 }
 
 fn parse_expected_lifetime(
     value: &str,
-) -> Result<system_compiler::CharterExpectedLifetime, String> {
+) -> Result<handbook_compiler::CharterExpectedLifetime, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "days" => Ok(system_compiler::CharterExpectedLifetime::Days),
-        "weeks" => Ok(system_compiler::CharterExpectedLifetime::Weeks),
-        "months" => Ok(system_compiler::CharterExpectedLifetime::Months),
-        "years" => Ok(system_compiler::CharterExpectedLifetime::Years),
+        "days" => Ok(handbook_compiler::CharterExpectedLifetime::Days),
+        "weeks" => Ok(handbook_compiler::CharterExpectedLifetime::Weeks),
+        "months" => Ok(handbook_compiler::CharterExpectedLifetime::Months),
+        "years" => Ok(handbook_compiler::CharterExpectedLifetime::Years),
         _ => Err("Expected one of days, weeks, months, or years.".to_string()),
     }
 }
 
-fn parse_surface(value: &str) -> Result<system_compiler::CharterSurface, String> {
+fn parse_surface(value: &str) -> Result<handbook_compiler::CharterSurface, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "web_app" => Ok(system_compiler::CharterSurface::WebApp),
-        "api" => Ok(system_compiler::CharterSurface::Api),
-        "cli" => Ok(system_compiler::CharterSurface::Cli),
-        "lib" => Ok(system_compiler::CharterSurface::Lib),
-        "infra" => Ok(system_compiler::CharterSurface::Infra),
-        "ml" => Ok(system_compiler::CharterSurface::Ml),
+        "web_app" => Ok(handbook_compiler::CharterSurface::WebApp),
+        "api" => Ok(handbook_compiler::CharterSurface::Api),
+        "cli" => Ok(handbook_compiler::CharterSurface::Cli),
+        "lib" => Ok(handbook_compiler::CharterSurface::Lib),
+        "infra" => Ok(handbook_compiler::CharterSurface::Infra),
+        "ml" => Ok(handbook_compiler::CharterSurface::Ml),
         _ => Err("Expected one of web_app, api, cli, lib, infra, or ml.".to_string()),
     }
 }
 
 fn parse_runtime_environment(
     value: &str,
-) -> Result<system_compiler::CharterRuntimeEnvironment, String> {
+) -> Result<handbook_compiler::CharterRuntimeEnvironment, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "browser" => Ok(system_compiler::CharterRuntimeEnvironment::Browser),
-        "server" => Ok(system_compiler::CharterRuntimeEnvironment::Server),
-        "cloud" => Ok(system_compiler::CharterRuntimeEnvironment::Cloud),
-        "on_prem" => Ok(system_compiler::CharterRuntimeEnvironment::OnPrem),
-        "edge" => Ok(system_compiler::CharterRuntimeEnvironment::Edge),
+        "browser" => Ok(handbook_compiler::CharterRuntimeEnvironment::Browser),
+        "server" => Ok(handbook_compiler::CharterRuntimeEnvironment::Server),
+        "cloud" => Ok(handbook_compiler::CharterRuntimeEnvironment::Cloud),
+        "on_prem" => Ok(handbook_compiler::CharterRuntimeEnvironment::OnPrem),
+        "edge" => Ok(handbook_compiler::CharterRuntimeEnvironment::Edge),
         _ => Err("Expected one of browser, server, cloud, on_prem, or edge.".to_string()),
     }
 }
 
 fn parse_backward_compatibility(
     value: &str,
-) -> Result<system_compiler::CharterBackwardCompatibility, String> {
+) -> Result<handbook_compiler::CharterBackwardCompatibility, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "required" => Ok(system_compiler::CharterBackwardCompatibility::Required),
-        "not_required" => Ok(system_compiler::CharterBackwardCompatibility::NotRequired),
-        "boundary_only" => Ok(system_compiler::CharterBackwardCompatibility::BoundaryOnly),
+        "required" => Ok(handbook_compiler::CharterBackwardCompatibility::Required),
+        "not_required" => Ok(handbook_compiler::CharterBackwardCompatibility::NotRequired),
+        "boundary_only" => Ok(handbook_compiler::CharterBackwardCompatibility::BoundaryOnly),
         _ => Err("Expected one of required, not_required, or boundary_only.".to_string()),
     }
 }
 
-fn parse_requiredness(value: &str) -> Result<system_compiler::CharterRequiredness, String> {
+fn parse_requiredness(value: &str) -> Result<handbook_compiler::CharterRequiredness, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "required" => Ok(system_compiler::CharterRequiredness::Required),
-        "not_required" => Ok(system_compiler::CharterRequiredness::NotRequired),
+        "required" => Ok(handbook_compiler::CharterRequiredness::Required),
+        "not_required" => Ok(handbook_compiler::CharterRequiredness::NotRequired),
         _ => Err("Expected one of required or not_required.".to_string()),
     }
 }
 
-fn parse_rollout_controls(value: &str) -> Result<system_compiler::CharterRolloutControls, String> {
+fn parse_rollout_controls(
+    value: &str,
+) -> Result<handbook_compiler::CharterRolloutControls, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "none" => Ok(system_compiler::CharterRolloutControls::None),
-        "lightweight" => Ok(system_compiler::CharterRolloutControls::Lightweight),
-        "required" => Ok(system_compiler::CharterRolloutControls::Required),
+        "none" => Ok(handbook_compiler::CharterRolloutControls::None),
+        "lightweight" => Ok(handbook_compiler::CharterRolloutControls::Lightweight),
+        "required" => Ok(handbook_compiler::CharterRolloutControls::Required),
         _ => Err("Expected one of none, lightweight, or required.".to_string()),
     }
 }
 
 fn parse_deprecation_policy(
     value: &str,
-) -> Result<system_compiler::CharterDeprecationPolicy, String> {
+) -> Result<handbook_compiler::CharterDeprecationPolicy, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "required" => Ok(system_compiler::CharterDeprecationPolicy::Required),
-        "not_required_yet" => Ok(system_compiler::CharterDeprecationPolicy::NotRequiredYet),
+        "required" => Ok(handbook_compiler::CharterDeprecationPolicy::Required),
+        "not_required_yet" => Ok(handbook_compiler::CharterDeprecationPolicy::NotRequiredYet),
         _ => Err("Expected one of required or not_required_yet.".to_string()),
     }
 }
 
 fn parse_observability_threshold(
     value: &str,
-) -> Result<system_compiler::CharterObservabilityThreshold, String> {
+) -> Result<handbook_compiler::CharterObservabilityThreshold, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "minimal" => Ok(system_compiler::CharterObservabilityThreshold::Minimal),
-        "standard" => Ok(system_compiler::CharterObservabilityThreshold::Standard),
-        "high" => Ok(system_compiler::CharterObservabilityThreshold::High),
-        "regulated" => Ok(system_compiler::CharterObservabilityThreshold::Regulated),
+        "minimal" => Ok(handbook_compiler::CharterObservabilityThreshold::Minimal),
+        "standard" => Ok(handbook_compiler::CharterObservabilityThreshold::Standard),
+        "high" => Ok(handbook_compiler::CharterObservabilityThreshold::High),
+        "regulated" => Ok(handbook_compiler::CharterObservabilityThreshold::Regulated),
         _ => Err("Expected one of minimal, standard, high, or regulated.".to_string()),
     }
 }
@@ -2291,7 +2297,7 @@ fn collect_dimension_inputs(
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> Result<Vec<system_compiler::CharterDimensionInput>, String> {
+) -> Result<Vec<handbook_compiler::CharterDimensionInput>, String> {
     let mut dimensions = Vec::with_capacity(all_dimension_names().len());
     for name in all_dimension_names() {
         let baseline =
@@ -2335,7 +2341,7 @@ fn collect_dimension_inputs(
             &baseline.domain_overrides,
         )?;
 
-        dimensions.push(system_compiler::CharterDimensionInput {
+        dimensions.push(handbook_compiler::CharterDimensionInput {
             name,
             level,
             default_stance,
@@ -2348,26 +2354,26 @@ fn collect_dimension_inputs(
     Ok(dimensions)
 }
 
-fn all_dimension_names() -> [system_compiler::CharterDimensionName; 9] {
+fn all_dimension_names() -> [handbook_compiler::CharterDimensionName; 9] {
     [
-        system_compiler::CharterDimensionName::SpeedVsQuality,
-        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
-        system_compiler::CharterDimensionName::TestingRigor,
-        system_compiler::CharterDimensionName::ScalabilityPerformance,
-        system_compiler::CharterDimensionName::ReliabilityOperability,
-        system_compiler::CharterDimensionName::SecurityPrivacy,
-        system_compiler::CharterDimensionName::Observability,
-        system_compiler::CharterDimensionName::DxToolingAutomation,
-        system_compiler::CharterDimensionName::UxPolishApiUsability,
+        handbook_compiler::CharterDimensionName::SpeedVsQuality,
+        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
+        handbook_compiler::CharterDimensionName::TestingRigor,
+        handbook_compiler::CharterDimensionName::ScalabilityPerformance,
+        handbook_compiler::CharterDimensionName::ReliabilityOperability,
+        handbook_compiler::CharterDimensionName::SecurityPrivacy,
+        handbook_compiler::CharterDimensionName::Observability,
+        handbook_compiler::CharterDimensionName::DxToolingAutomation,
+        handbook_compiler::CharterDimensionName::UxPolishApiUsability,
     ]
 }
 
 fn default_dimension_input(
-    name: system_compiler::CharterDimensionName,
+    name: handbook_compiler::CharterDimensionName,
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> system_compiler::CharterDimensionInput {
+) -> handbook_compiler::CharterDimensionInput {
     let dimension_label = dimension_label(name);
     let production_trigger = if in_production_today {
         "changes touching live users, data, or uptime"
@@ -2375,7 +2381,7 @@ fn default_dimension_input(
         "changes that create irreversible migration or trust-boundary cost"
     };
 
-    system_compiler::CharterDimensionInput {
+    handbook_compiler::CharterDimensionInput {
         name,
         level: Some(baseline_level),
         default_stance: format!(
@@ -2397,25 +2403,25 @@ fn default_dimension_input(
     }
 }
 
-fn dimension_label(name: system_compiler::CharterDimensionName) -> &'static str {
+fn dimension_label(name: handbook_compiler::CharterDimensionName) -> &'static str {
     match name {
-        system_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
-        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
+        handbook_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
+        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
             "type safety and static analysis"
         }
-        system_compiler::CharterDimensionName::TestingRigor => "testing rigor",
-        system_compiler::CharterDimensionName::ScalabilityPerformance => {
+        handbook_compiler::CharterDimensionName::TestingRigor => "testing rigor",
+        handbook_compiler::CharterDimensionName::ScalabilityPerformance => {
             "scalability and performance"
         }
-        system_compiler::CharterDimensionName::ReliabilityOperability => {
+        handbook_compiler::CharterDimensionName::ReliabilityOperability => {
             "reliability and operability"
         }
-        system_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
-        system_compiler::CharterDimensionName::Observability => "observability",
-        system_compiler::CharterDimensionName::DxToolingAutomation => {
+        handbook_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
+        handbook_compiler::CharterDimensionName::Observability => "observability",
+        handbook_compiler::CharterDimensionName::DxToolingAutomation => {
             "developer tooling and automation"
         }
-        system_compiler::CharterDimensionName::UxPolishApiUsability => {
+        handbook_compiler::CharterDimensionName::UxPolishApiUsability => {
             "ux polish and api usability"
         }
     }
@@ -2446,22 +2452,22 @@ fn setup(args: SetupArgs) -> ExitCode {
 
     let (request, routed_from_auto) = match args.command {
         None => (
-            system_compiler::SetupRequest {
-                mode: system_compiler::SetupMode::Auto,
-                ..system_compiler::SetupRequest::default()
+            handbook_compiler::SetupRequest {
+                mode: handbook_compiler::SetupMode::Auto,
+                ..handbook_compiler::SetupRequest::default()
             },
             true,
         ),
         Some(SetupCommand::Init) => (
-            system_compiler::SetupRequest {
-                mode: system_compiler::SetupMode::Init,
-                ..system_compiler::SetupRequest::default()
+            handbook_compiler::SetupRequest {
+                mode: handbook_compiler::SetupMode::Init,
+                ..handbook_compiler::SetupRequest::default()
             },
             false,
         ),
         Some(SetupCommand::Refresh(refresh)) => (
-            system_compiler::SetupRequest {
-                mode: system_compiler::SetupMode::Refresh,
+            handbook_compiler::SetupRequest {
+                mode: handbook_compiler::SetupMode::Refresh,
                 rewrite: refresh.rewrite,
                 reset_state: refresh.reset_state,
             },
@@ -2469,7 +2475,7 @@ fn setup(args: SetupArgs) -> ExitCode {
         ),
     };
 
-    match system_compiler::run_setup(&repo_root, &request) {
+    match handbook_compiler::run_setup(&repo_root, &request) {
         Ok(outcome) => {
             println!("{}", render_setup_success(&outcome, routed_from_auto));
             ExitCode::SUCCESS
@@ -2481,19 +2487,22 @@ fn setup(args: SetupArgs) -> ExitCode {
     }
 }
 
-fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_auto: bool) -> String {
+fn render_setup_success(
+    outcome: &handbook_compiler::SetupOutcome,
+    routed_from_auto: bool,
+) -> String {
     let mut out = String::new();
     let starter_actions = outcome
         .plan
         .actions
         .iter()
-        .filter(|action| action.label != system_compiler::SetupActionLabel::Reset)
+        .filter(|action| action.label != handbook_compiler::SetupActionLabel::Reset)
         .collect::<Vec<_>>();
     let state_updates = outcome
         .plan
         .actions
         .iter()
-        .filter(|action| action.label == system_compiler::SetupActionLabel::Reset)
+        .filter(|action| action.label == handbook_compiler::SetupActionLabel::Reset)
         .collect::<Vec<_>>();
     out.push_str(&format!(
         "OUTCOME: {}\n",
@@ -2506,9 +2515,11 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
     out.push_str(&format!("NEXT SAFE ACTION: {}\n", outcome.next_safe_action));
     out.push_str("## CANONICAL ROOT\n");
     out.push_str(match outcome.plan.resolved_mode {
-        system_compiler::SetupMode::Init => "STATUS: established canonical `.system/` root\n",
-        system_compiler::SetupMode::Refresh => "STATUS: reused canonical `.system/` root\n",
-        system_compiler::SetupMode::Auto => unreachable!("setup mode should resolve before render"),
+        handbook_compiler::SetupMode::Init => "STATUS: established canonical `.handbook/` root\n",
+        handbook_compiler::SetupMode::Refresh => "STATUS: reused canonical `.handbook/` root\n",
+        handbook_compiler::SetupMode::Auto => {
+            unreachable!("setup mode should resolve before render")
+        }
     });
     out.push_str("## STARTER FILES\n");
     for action in starter_actions {
@@ -2532,27 +2543,27 @@ fn render_setup_success(outcome: &system_compiler::SetupOutcome, routed_from_aut
     }
     out.push_str("## MODE NOTES\n");
     if routed_from_auto {
-        out.push_str("ROUTED FROM: system setup -> ");
+        out.push_str("ROUTED FROM: handbook setup -> ");
         out.push_str(setup_command_name(outcome.plan.resolved_mode));
         out.push('\n');
     }
-    if outcome.disposition == system_compiler::SetupDisposition::Scaffolded {
+    if outcome.disposition == handbook_compiler::SetupDisposition::Scaffolded {
         out.push_str(
-            "Required starter files still contain shipped scaffold text; replace canonical truth before running `system doctor` or packet work.\n",
+            "Required starter files still contain shipped scaffold text; replace canonical truth before running `handbook doctor` or packet work.\n",
         );
     }
 
     out.trim_end().to_string()
 }
 
-fn setup_success_outcome_name(disposition: system_compiler::SetupDisposition) -> &'static str {
+fn setup_success_outcome_name(disposition: handbook_compiler::SetupDisposition) -> &'static str {
     match disposition {
-        system_compiler::SetupDisposition::Ready => "READY",
-        system_compiler::SetupDisposition::Scaffolded => "SCAFFOLDED",
+        handbook_compiler::SetupDisposition::Ready => "READY",
+        handbook_compiler::SetupDisposition::Scaffolded => "SCAFFOLDED",
     }
 }
 
-fn render_setup_refusal(refusal: &system_compiler::SetupRefusal) -> String {
+fn render_setup_refusal(refusal: &handbook_compiler::SetupRefusal) -> String {
     let mut out = String::new();
     let next_safe_action = refusal.next_safe_action.trim();
     out.push_str(&format!(
@@ -2575,56 +2586,56 @@ fn render_setup_refusal(refusal: &system_compiler::SetupRefusal) -> String {
     out.trim_end().to_string()
 }
 
-fn setup_command_name(mode: system_compiler::SetupMode) -> &'static str {
+fn setup_command_name(mode: handbook_compiler::SetupMode) -> &'static str {
     match mode {
-        system_compiler::SetupMode::Auto => "system setup",
-        system_compiler::SetupMode::Init => "system setup init",
-        system_compiler::SetupMode::Refresh => "system setup refresh",
+        handbook_compiler::SetupMode::Auto => "handbook setup",
+        handbook_compiler::SetupMode::Init => "handbook setup init",
+        handbook_compiler::SetupMode::Refresh => "handbook setup refresh",
     }
 }
 
-fn setup_object_name(mode: system_compiler::SetupMode) -> &'static str {
+fn setup_object_name(mode: handbook_compiler::SetupMode) -> &'static str {
     match mode {
-        system_compiler::SetupMode::Auto => "setup",
-        system_compiler::SetupMode::Init => "setup init",
-        system_compiler::SetupMode::Refresh => "setup refresh",
+        handbook_compiler::SetupMode::Auto => "setup",
+        handbook_compiler::SetupMode::Init => "setup init",
+        handbook_compiler::SetupMode::Refresh => "setup refresh",
     }
 }
 
-fn setup_action_label_name(label: system_compiler::SetupActionLabel) -> &'static str {
+fn setup_action_label_name(label: handbook_compiler::SetupActionLabel) -> &'static str {
     match label {
-        system_compiler::SetupActionLabel::Created => "created",
-        system_compiler::SetupActionLabel::Preserved => "preserved",
-        system_compiler::SetupActionLabel::Rewritten => "rewritten",
-        system_compiler::SetupActionLabel::Reset => "reset",
+        handbook_compiler::SetupActionLabel::Created => "created",
+        handbook_compiler::SetupActionLabel::Preserved => "preserved",
+        handbook_compiler::SetupActionLabel::Rewritten => "rewritten",
+        handbook_compiler::SetupActionLabel::Reset => "reset",
     }
 }
 
-fn setup_action_path(action: &system_compiler::SetupAction) -> String {
+fn setup_action_path(action: &handbook_compiler::SetupAction) -> String {
     action.path.clone()
 }
 
-fn setup_refusal_outcome_name(kind: system_compiler::SetupRefusalKind) -> &'static str {
+fn setup_refusal_outcome_name(kind: handbook_compiler::SetupRefusalKind) -> &'static str {
     match kind {
-        system_compiler::SetupRefusalKind::AlreadyInitialized
-        | system_compiler::SetupRefusalKind::InvalidRequest => "REFUSED",
-        system_compiler::SetupRefusalKind::MissingCanonicalRoot
-        | system_compiler::SetupRefusalKind::InvalidCanonicalRoot
-        | system_compiler::SetupRefusalKind::MutationRefused => "BLOCKED",
+        handbook_compiler::SetupRefusalKind::AlreadyInitialized
+        | handbook_compiler::SetupRefusalKind::InvalidRequest => "REFUSED",
+        handbook_compiler::SetupRefusalKind::MissingCanonicalRoot
+        | handbook_compiler::SetupRefusalKind::InvalidCanonicalRoot
+        | handbook_compiler::SetupRefusalKind::MutationRefused => "BLOCKED",
     }
 }
 
-fn setup_refusal_kind_name(kind: system_compiler::SetupRefusalKind) -> &'static str {
+fn setup_refusal_kind_name(kind: handbook_compiler::SetupRefusalKind) -> &'static str {
     match kind {
-        system_compiler::SetupRefusalKind::AlreadyInitialized => "AlreadyInitialized",
-        system_compiler::SetupRefusalKind::MissingCanonicalRoot => "MissingCanonicalRoot",
-        system_compiler::SetupRefusalKind::InvalidCanonicalRoot => "InvalidCanonicalRoot",
-        system_compiler::SetupRefusalKind::InvalidRequest => "InvalidRequest",
-        system_compiler::SetupRefusalKind::MutationRefused => "MutationRefused",
+        handbook_compiler::SetupRefusalKind::AlreadyInitialized => "AlreadyInitialized",
+        handbook_compiler::SetupRefusalKind::MissingCanonicalRoot => "MissingCanonicalRoot",
+        handbook_compiler::SetupRefusalKind::InvalidCanonicalRoot => "InvalidCanonicalRoot",
+        handbook_compiler::SetupRefusalKind::InvalidRequest => "InvalidRequest",
+        handbook_compiler::SetupRefusalKind::MutationRefused => "MutationRefused",
     }
 }
 
-fn render_doctor_json(report: &system_compiler::DoctorReport) -> Result<String, String> {
+fn render_doctor_json(report: &handbook_compiler::DoctorReport) -> Result<String, String> {
     serde_json::to_string_pretty(report)
         .map(|mut output| {
             output.push('\n');
@@ -2643,7 +2654,7 @@ fn doctor(args: DoctorArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let report = match system_compiler::doctor(&repo_root) {
+    let report = match handbook_compiler::doctor(&repo_root) {
         Ok(report) => report,
         Err(err) => {
             println!("INVALID_BASELINE");
@@ -2670,7 +2681,7 @@ fn doctor(args: DoctorArgs) -> ExitCode {
         if let Some(next_safe_action) = &report.next_safe_action {
             println!(
                 "NEXT SAFE ACTION: {}",
-                system_compiler::render_next_safe_action_value(next_safe_action)
+                handbook_compiler::render_next_safe_action_value(next_safe_action)
             );
         } else {
             println!("NEXT SAFE ACTION: <none>");
@@ -2678,7 +2689,7 @@ fn doctor(args: DoctorArgs) -> ExitCode {
         println!("## BASELINE CHECKLIST");
         for item in report.checklist.iter() {
             let subject_path = match &item.subject {
-                system_compiler::SubjectRef::CanonicalArtifact {
+                handbook_compiler::SubjectRef::CanonicalArtifact {
                     canonical_repo_relative_path,
                     ..
                 } => *canonical_repo_relative_path,
@@ -2694,7 +2705,7 @@ fn doctor(args: DoctorArgs) -> ExitCode {
         }
     }
 
-    if report.status == system_compiler::DoctorBaselineStatus::BaselineComplete {
+    if report.status == handbook_compiler::DoctorBaselineStatus::BaselineComplete {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)
@@ -2702,106 +2713,110 @@ fn doctor(args: DoctorArgs) -> ExitCode {
 }
 
 fn author_project_context_refusal_outcome_name(
-    kind: system_compiler::AuthorProjectContextRefusalKind,
+    kind: handbook_compiler::AuthorProjectContextRefusalKind,
 ) -> &'static str {
     match kind {
-        system_compiler::AuthorProjectContextRefusalKind::MissingSystemRoot
-        | system_compiler::AuthorProjectContextRefusalKind::InvalidSystemRoot
-        | system_compiler::AuthorProjectContextRefusalKind::MutationRefused => "BLOCKED",
-        system_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput
-        | system_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput
-        | system_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => "REFUSED",
+        handbook_compiler::AuthorProjectContextRefusalKind::MissingSystemRoot
+        | handbook_compiler::AuthorProjectContextRefusalKind::InvalidSystemRoot
+        | handbook_compiler::AuthorProjectContextRefusalKind::MutationRefused => "BLOCKED",
+        handbook_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput
+        | handbook_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput
+        | handbook_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => "REFUSED",
     }
 }
 
 fn author_project_context_refusal_kind_name(
-    kind: system_compiler::AuthorProjectContextRefusalKind,
+    kind: handbook_compiler::AuthorProjectContextRefusalKind,
 ) -> &'static str {
     match kind {
-        system_compiler::AuthorProjectContextRefusalKind::MissingSystemRoot => "MissingSystemRoot",
-        system_compiler::AuthorProjectContextRefusalKind::InvalidSystemRoot => "InvalidSystemRoot",
-        system_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput => {
+        handbook_compiler::AuthorProjectContextRefusalKind::MissingSystemRoot => {
+            "MissingSystemRoot"
+        }
+        handbook_compiler::AuthorProjectContextRefusalKind::InvalidSystemRoot => {
+            "InvalidSystemRoot"
+        }
+        handbook_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput => {
             "MalformedStructuredInput"
         }
-        system_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput => {
+        handbook_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput => {
             "IncompleteStructuredInput"
         }
-        system_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => {
+        handbook_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => {
             "ExistingCanonicalTruth"
         }
-        system_compiler::AuthorProjectContextRefusalKind::MutationRefused => "MutationRefused",
+        handbook_compiler::AuthorProjectContextRefusalKind::MutationRefused => "MutationRefused",
     }
 }
 
 fn author_environment_inventory_refusal_outcome_name(
-    kind: system_compiler::AuthorEnvironmentInventoryRefusalKind,
+    kind: handbook_compiler::AuthorEnvironmentInventoryRefusalKind,
 ) -> &'static str {
     match kind {
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot
-        | system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot
-        | system_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused
-        | system_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => "BLOCKED",
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter
-        | system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
-        | system_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => "BLOCKED",
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
             "REFUSED"
         }
     }
 }
 
 fn author_environment_inventory_refusal_kind_name(
-    kind: system_compiler::AuthorEnvironmentInventoryRefusalKind,
+    kind: handbook_compiler::AuthorEnvironmentInventoryRefusalKind,
 ) -> &'static str {
     match kind {
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot => {
             "MissingSystemRoot"
         }
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot => {
             "InvalidSystemRoot"
         }
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter => {
             "MissingRequiredCharter"
         }
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth => {
             "InvalidUpstreamCanonicalTruth"
         }
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
             "ExistingCanonicalTruth"
         }
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused => {
             "MutationRefused"
         }
-        system_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => {
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => {
             "SynthesisFailed"
         }
     }
 }
 
-fn doctor_status_name(status: system_compiler::DoctorBaselineStatus) -> &'static str {
+fn doctor_status_name(status: handbook_compiler::DoctorBaselineStatus) -> &'static str {
     match status {
-        system_compiler::DoctorBaselineStatus::Scaffolded => "SCAFFOLDED",
-        system_compiler::DoctorBaselineStatus::PartialBaseline => "PARTIAL_BASELINE",
-        system_compiler::DoctorBaselineStatus::InvalidBaseline => "INVALID_BASELINE",
-        system_compiler::DoctorBaselineStatus::BaselineComplete => "BASELINE_COMPLETE",
+        handbook_compiler::DoctorBaselineStatus::Scaffolded => "SCAFFOLDED",
+        handbook_compiler::DoctorBaselineStatus::PartialBaseline => "PARTIAL_BASELINE",
+        handbook_compiler::DoctorBaselineStatus::InvalidBaseline => "INVALID_BASELINE",
+        handbook_compiler::DoctorBaselineStatus::BaselineComplete => "BASELINE_COMPLETE",
     }
 }
 
-fn doctor_root_status_name(status: system_compiler::SystemRootStatus) -> &'static str {
+fn doctor_root_status_name(status: handbook_compiler::SystemRootStatus) -> &'static str {
     match status {
-        system_compiler::SystemRootStatus::Ok => "OK",
-        system_compiler::SystemRootStatus::Missing => "MISSING",
-        system_compiler::SystemRootStatus::NotDir => "NOT_DIR",
-        system_compiler::SystemRootStatus::SymlinkNotAllowed => "SYMLINK_NOT_ALLOWED",
+        handbook_compiler::SystemRootStatus::Ok => "OK",
+        handbook_compiler::SystemRootStatus::Missing => "MISSING",
+        handbook_compiler::SystemRootStatus::NotDir => "NOT_DIR",
+        handbook_compiler::SystemRootStatus::SymlinkNotAllowed => "SYMLINK_NOT_ALLOWED",
     }
 }
 
-fn doctor_artifact_status_name(status: system_compiler::DoctorArtifactStatus) -> &'static str {
+fn doctor_artifact_status_name(status: handbook_compiler::DoctorArtifactStatus) -> &'static str {
     match status {
-        system_compiler::DoctorArtifactStatus::Missing => "MISSING",
-        system_compiler::DoctorArtifactStatus::Empty => "EMPTY",
-        system_compiler::DoctorArtifactStatus::StarterOwned => "STARTER_OWNED",
-        system_compiler::DoctorArtifactStatus::Invalid => "INVALID",
-        system_compiler::DoctorArtifactStatus::ValidCanonicalTruth => "VALID_CANONICAL_TRUTH",
+        handbook_compiler::DoctorArtifactStatus::Missing => "MISSING",
+        handbook_compiler::DoctorArtifactStatus::Empty => "EMPTY",
+        handbook_compiler::DoctorArtifactStatus::StarterOwned => "STARTER_OWNED",
+        handbook_compiler::DoctorArtifactStatus::Invalid => "INVALID",
+        handbook_compiler::DoctorArtifactStatus::ValidCanonicalTruth => "VALID_CANONICAL_TRUTH",
     }
 }
 
@@ -2829,7 +2844,7 @@ fn pipeline_list() -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match system_compiler::load_pipeline_catalog_metadata(&repo_root) {
+    let catalog = match handbook_compiler::load_pipeline_catalog_metadata(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -2837,7 +2852,7 @@ fn pipeline_list() -> ExitCode {
         }
     };
 
-    println!("{}", system_compiler::render_pipeline_list(&catalog));
+    println!("{}", handbook_compiler::render_pipeline_list(&catalog));
     ExitCode::SUCCESS
 }
 
@@ -2851,19 +2866,20 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let selection = match system_compiler::load_pipeline_selection_metadata(&repo_root, &args.id) {
+    let selection = match handbook_compiler::load_pipeline_selection_metadata(&repo_root, &args.id)
+    {
         Ok(selection) => selection,
-        Err(system_compiler::PipelineMetadataSelectionError::Catalog(err)) => {
+        Err(handbook_compiler::PipelineMetadataSelectionError::Catalog(err)) => {
             println!("REFUSED: pipeline catalog error: {err}");
             return ExitCode::from(1);
         }
-        Err(system_compiler::PipelineMetadataSelectionError::Lookup(err)) => {
+        Err(handbook_compiler::PipelineMetadataSelectionError::Lookup(err)) => {
             println!("{}", render_pipeline_selector_refusal(err));
             return ExitCode::from(1);
         }
     };
 
-    println!("{}", system_compiler::render_pipeline_show(&selection));
+    println!("{}", handbook_compiler::render_pipeline_show(&selection));
     ExitCode::SUCCESS
 }
 
@@ -2877,7 +2893,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+    let catalog = match handbook_compiler::load_pipeline_catalog(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -2885,7 +2901,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let pipeline = match system_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
+    let pipeline = match handbook_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
         Ok(pipeline) => pipeline,
         Err(err) => {
             println!("{}", render_pipeline_selector_refusal(err));
@@ -2894,8 +2910,8 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
 
     let supported_variables =
-        system_compiler::supported_route_state_variables(&pipeline.definition);
-    let state = match system_compiler::load_route_state_with_supported_variables(
+        handbook_compiler::supported_route_state_variables(&pipeline.definition);
+    let state = match handbook_compiler::load_route_state_with_supported_variables(
         &repo_root,
         &pipeline.definition.header.id,
         &supported_variables,
@@ -2907,7 +2923,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let route_variables = match system_compiler::RouteVariables::new(state.routing.clone()) {
+    let route_variables = match handbook_compiler::RouteVariables::new(state.routing.clone()) {
         Ok(variables) => variables,
         Err(err) => {
             println!("REFUSED: malformed route state variables: {err}");
@@ -2916,7 +2932,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
 
     let route =
-        match system_compiler::resolve_pipeline_route(&pipeline.definition, &route_variables) {
+        match handbook_compiler::resolve_pipeline_route(&pipeline.definition, &route_variables) {
             Ok(route) => route,
             Err(err) => {
                 println!("REFUSED: route resolution error: {err}");
@@ -2924,7 +2940,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
             }
         };
 
-    let route_basis = match system_compiler::build_route_basis(
+    let route_basis = match handbook_compiler::build_route_basis(
         &repo_root,
         &pipeline.definition,
         &state,
@@ -2937,13 +2953,13 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    match system_compiler::persist_route_basis(
+    match handbook_compiler::persist_route_basis(
         &repo_root,
         &pipeline.definition.header.id,
         route_basis,
     ) {
-        Ok(system_compiler::RouteBasisPersistOutcome::Applied(_)) => {}
-        Ok(system_compiler::RouteBasisPersistOutcome::Refused(refusal)) => {
+        Ok(handbook_compiler::RouteBasisPersistOutcome::Applied(_)) => {}
+        Ok(handbook_compiler::RouteBasisPersistOutcome::Refused(refusal)) => {
             println!("REFUSED: route basis persistence refused: {refusal}");
             return ExitCode::from(1);
         }
@@ -2958,7 +2974,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         render_pipeline_resolve_output(
             &pipeline.definition.header.id,
             &state,
-            &system_compiler::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
+            &handbook_compiler::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
             &route,
         )
     );
@@ -2975,17 +2991,17 @@ fn pipeline_compile(args: PipelineCompileArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    match system_compiler::compile_pipeline_stage(&repo_root, &args.id, &args.stage) {
+    match handbook_compiler::compile_pipeline_stage(&repo_root, &args.id, &args.stage) {
         Ok(result) => {
             if args.explain {
                 println!(
                     "{}",
-                    system_compiler::render_pipeline_compile_explain(&result)
+                    handbook_compiler::render_pipeline_compile_explain(&result)
                 );
             } else {
                 println!(
                     "{}",
-                    system_compiler::render_pipeline_compile_payload(&result)
+                    handbook_compiler::render_pipeline_compile_payload(&result)
                 );
             }
             ExitCode::SUCCESS
@@ -3012,18 +3028,18 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
 
     match args.command {
         Some(PipelineCaptureCommand::Apply(apply_args)) => {
-            match system_compiler::apply_pipeline_capture(&repo_root, &apply_args.capture_id) {
+            match handbook_compiler::apply_pipeline_capture(&repo_root, &apply_args.capture_id) {
                 Ok(result) => {
                     println!(
                         "{}",
-                        system_compiler::render_pipeline_capture_apply_result(&result)
+                        handbook_compiler::render_pipeline_capture_apply_result(&result)
                     );
                     ExitCode::SUCCESS
                 }
                 Err(refusal) => {
                     println!(
                         "{}",
-                        system_compiler::render_pipeline_capture_refusal(&refusal, None, None)
+                        handbook_compiler::render_pipeline_capture_refusal(&refusal, None, None)
                     );
                     ExitCode::from(1)
                 }
@@ -3045,25 +3061,25 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                     return ExitCode::from(1);
                 }
             };
-            let request = system_compiler::PipelineCaptureRequest {
+            let request = handbook_compiler::PipelineCaptureRequest {
                 pipeline_selector: pipeline_id.to_string(),
                 stage_selector: stage_id.to_string(),
                 input: stdin,
             };
 
             if args.preview {
-                match system_compiler::preview_pipeline_capture(&repo_root, &request) {
+                match handbook_compiler::preview_pipeline_capture(&repo_root, &request) {
                     Ok(preview) => {
                         println!(
                             "{}",
-                            system_compiler::render_pipeline_capture_preview(&preview)
+                            handbook_compiler::render_pipeline_capture_preview(&preview)
                         );
                         ExitCode::SUCCESS
                     }
                     Err(refusal) => {
                         println!(
                             "{}",
-                            system_compiler::render_pipeline_capture_refusal(
+                            handbook_compiler::render_pipeline_capture_refusal(
                                 &refusal,
                                 Some(pipeline_id),
                                 Some(stage_id),
@@ -3073,18 +3089,18 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                     }
                 }
             } else {
-                match system_compiler::capture_pipeline_output(&repo_root, &request) {
+                match handbook_compiler::capture_pipeline_output(&repo_root, &request) {
                     Ok(result) => {
                         println!(
                             "{}",
-                            system_compiler::render_pipeline_capture_apply_result(&result)
+                            handbook_compiler::render_pipeline_capture_apply_result(&result)
                         );
                         ExitCode::SUCCESS
                     }
                     Err(refusal) => {
                         println!(
                             "{}",
-                            system_compiler::render_pipeline_capture_refusal(
+                            handbook_compiler::render_pipeline_capture_refusal(
                                 &refusal,
                                 Some(pipeline_id),
                                 Some(stage_id),
@@ -3110,24 +3126,24 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
 
     match args.command {
         PipelineHandoffCommand::Emit(emit_args) => {
-            let request = system_compiler::PipelineHandoffEmitRequest {
+            let request = handbook_compiler::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
-                producer_command: "system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer".to_string(),
+                producer_command: "handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer".to_string(),
                 producer_version: RELEASE_VERSION.to_string(),
             };
-            match system_compiler::emit_pipeline_handoff_bundle(&repo_root, &request) {
+            match handbook_compiler::emit_pipeline_handoff_bundle(&repo_root, &request) {
                 Ok(result) => {
                     println!(
                         "{}",
-                        system_compiler::render_pipeline_handoff_emit_result(&result)
+                        handbook_compiler::render_pipeline_handoff_emit_result(&result)
                     );
                     ExitCode::SUCCESS
                 }
                 Err(refusal) => {
                     println!(
                         "{}",
-                        system_compiler::render_pipeline_handoff_refusal(&refusal)
+                        handbook_compiler::render_pipeline_handoff_refusal(&refusal)
                     );
                     ExitCode::from(1)
                 }
@@ -3146,7 +3162,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match system_compiler::load_pipeline_catalog(&repo_root) {
+    let catalog = match handbook_compiler::load_pipeline_catalog(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -3154,7 +3170,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
         }
     };
 
-    let pipeline = match system_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
+    let pipeline = match handbook_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
         Ok(pipeline) => pipeline,
         Err(err) => {
             println!("{}", render_pipeline_selector_refusal(err));
@@ -3163,8 +3179,8 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     let supported_variables =
-        system_compiler::supported_route_state_variables(&pipeline.definition);
-    let current_state = match system_compiler::load_route_state_with_supported_variables(
+        handbook_compiler::supported_route_state_variables(&pipeline.definition);
+    let current_state = match handbook_compiler::load_route_state_with_supported_variables(
         &repo_root,
         &pipeline.definition.header.id,
         &supported_variables,
@@ -3185,7 +3201,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     let expected_revision = args.expected_revision.unwrap_or(current_state.revision);
-    let outcome = match system_compiler::set_route_state(
+    let outcome = match handbook_compiler::set_route_state(
         &repo_root,
         &pipeline.definition.header.id,
         supported_variables,
@@ -3200,22 +3216,22 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     match outcome {
-        system_compiler::RouteStateMutationOutcome::Applied(state) => {
+        handbook_compiler::RouteStateMutationOutcome::Applied(state) => {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
                     &pipeline.definition.header.id,
-                    system_compiler::RouteStateMutationOutcome::Applied(state),
+                    handbook_compiler::RouteStateMutationOutcome::Applied(state),
                 )
             );
             ExitCode::SUCCESS
         }
-        system_compiler::RouteStateMutationOutcome::Refused(refusal) => {
+        handbook_compiler::RouteStateMutationOutcome::Refused(refusal) => {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
                     &pipeline.definition.header.id,
-                    system_compiler::RouteStateMutationOutcome::Refused(refusal),
+                    handbook_compiler::RouteStateMutationOutcome::Refused(refusal),
                 )
             );
             ExitCode::from(1)
@@ -3223,18 +3239,18 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     }
 }
 
-fn render_pipeline_selector_refusal(err: system_compiler::PipelineLookupError) -> String {
+fn render_pipeline_selector_refusal(err: handbook_compiler::PipelineLookupError) -> String {
     match err {
-        system_compiler::PipelineLookupError::AmbiguousSelector { selector, matches } => {
+        handbook_compiler::PipelineLookupError::AmbiguousSelector { selector, matches } => {
             format!(
                 "REFUSED: ambiguous selector `{selector}` matched multiple canonical ids: {}\nNEXT SAFE ACTION: use the full canonical id or rename the conflicting ids",
                 matches.join(", ")
             )
         }
-        system_compiler::PipelineLookupError::UnknownSelector { selector } => format!(
+        handbook_compiler::PipelineLookupError::UnknownSelector { selector } => format!(
             "REFUSED: unknown pipeline selector `{selector}`; use a canonical id or `pipeline list` to inspect available inventory\nNEXT SAFE ACTION: run `pipeline list` and retry with the full canonical id"
         ),
-        system_compiler::PipelineLookupError::UnsupportedSelector { selector, reason } => {
+        handbook_compiler::PipelineLookupError::UnsupportedSelector { selector, reason } => {
             let next_safe_action = if reason.contains("raw file paths are evidence only") {
                 "use `pipeline list` to inspect available inventory and retry with a canonical pipeline or stage id"
             } else {
@@ -3249,7 +3265,7 @@ fn render_pipeline_selector_refusal(err: system_compiler::PipelineLookupError) -
 }
 
 fn render_pipeline_compile_refusal(
-    refusal: system_compiler::PipelineCompileRefusal,
+    refusal: handbook_compiler::PipelineCompileRefusal,
     requested_pipeline_id: &str,
     requested_stage_id: &str,
 ) -> String {
@@ -3281,64 +3297,64 @@ fn render_pipeline_compile_refusal(
 }
 
 fn render_pipeline_compile_refusal_classification(
-    classification: system_compiler::PipelineCompileRefusalClassification,
+    classification: handbook_compiler::PipelineCompileRefusalClassification,
 ) -> &'static str {
     match classification {
-        system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
+        handbook_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
             "unsupported_target"
         }
-        system_compiler::PipelineCompileRefusalClassification::InvalidDefinition => {
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidDefinition => {
             "invalid_definition"
         }
-        system_compiler::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
-        system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis => {
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
+        handbook_compiler::PipelineCompileRefusalClassification::MissingRouteBasis => {
             "missing_route_basis"
         }
-        system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis => {
+        handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis => {
             "malformed_route_basis"
         }
-        system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => {
+        handbook_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => {
             "stale_route_basis"
         }
-        system_compiler::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
-        system_compiler::PipelineCompileRefusalClassification::MissingRequiredInput => {
+        handbook_compiler::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
+        handbook_compiler::PipelineCompileRefusalClassification::MissingRequiredInput => {
             "missing_required_input"
         }
-        system_compiler::PipelineCompileRefusalClassification::EmptyRequiredInput => {
+        handbook_compiler::PipelineCompileRefusalClassification::EmptyRequiredInput => {
             "empty_required_input"
         }
     }
 }
 
 fn render_pipeline_compile_next_safe_action(
-    refusal: &system_compiler::PipelineCompileRefusal,
+    refusal: &handbook_compiler::PipelineCompileRefusal,
     pipeline_id: &str,
     stage_id: &str,
 ) -> String {
     match refusal.classification {
-        system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
+        handbook_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
             if refusal
                 .recovery
                 .trim()
                 .contains("confirm the selected stage is declared in the pipeline")
             {
                 format!(
-                    "run `system pipeline resolve --id {pipeline_id}` and confirm `{stage_id}` is declared in pipeline `{pipeline_id}` before retrying `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+                    "run `handbook pipeline resolve --id {pipeline_id}` and confirm `{stage_id}` is declared in pipeline `{pipeline_id}` before retrying `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
                 )
             } else {
                 refusal.recovery.trim().to_string()
             }
         }
-        system_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
-        | system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
-        | system_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
-            "run `system pipeline resolve --id {pipeline_id}` and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+        handbook_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
+        | handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+        | handbook_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
+            "run `handbook pipeline resolve --id {pipeline_id}` and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
-        system_compiler::PipelineCompileRefusalClassification::InactiveStage => format!(
-            "run `system pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`"
+        handbook_compiler::PipelineCompileRefusalClassification::InactiveStage => format!(
+            "run `handbook pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
         _ => format!(
-            "{}; then retry `system pipeline compile --id {pipeline_id} --stage {stage_id}`",
+            "{}; then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`",
             refusal.recovery.trim()
         ),
     }
@@ -3346,7 +3362,7 @@ fn render_pipeline_compile_next_safe_action(
 
 fn parse_route_state_mutation(
     args: &PipelineStateSetArgs,
-) -> Result<system_compiler::RouteStateMutation, String> {
+) -> Result<handbook_compiler::RouteStateMutation, String> {
     match (&args.var, &args.field) {
         (Some(value), None) => parse_route_state_var_assignment(value),
         (None, Some(value)) => parse_route_state_field_assignment(value),
@@ -3363,7 +3379,7 @@ fn read_stdin() -> Result<String, std::io::Error> {
 
 fn parse_route_state_var_assignment(
     value: &str,
-) -> Result<system_compiler::RouteStateMutation, String> {
+) -> Result<handbook_compiler::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((name, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --var in name=value form".to_string());
@@ -3385,7 +3401,7 @@ fn parse_route_state_var_assignment(
         }
     };
 
-    Ok(system_compiler::RouteStateMutation::RoutingVariable {
+    Ok(handbook_compiler::RouteStateMutation::RoutingVariable {
         variable: name.to_string(),
         value: parsed_value,
     })
@@ -3393,7 +3409,7 @@ fn parse_route_state_var_assignment(
 
 fn parse_route_state_field_assignment(
     value: &str,
-) -> Result<system_compiler::RouteStateMutation, String> {
+) -> Result<handbook_compiler::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((field_path, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --field in field.path=value form".to_string());
@@ -3409,17 +3425,17 @@ fn parse_route_state_field_assignment(
     }
 
     match field_path {
-        "run.runner" => Ok(system_compiler::RouteStateMutation::RunRunner {
+        "run.runner" => Ok(handbook_compiler::RouteStateMutation::RunRunner {
             value: raw_value.to_string(),
         }),
-        "run.profile" => Ok(system_compiler::RouteStateMutation::RunProfile {
+        "run.profile" => Ok(handbook_compiler::RouteStateMutation::RunProfile {
             value: raw_value.to_string(),
         }),
-        "refs.charter_ref" => Ok(system_compiler::RouteStateMutation::RefCharterRef {
+        "refs.charter_ref" => Ok(handbook_compiler::RouteStateMutation::RefCharterRef {
             value: raw_value.to_string(),
         }),
         "refs.project_context_ref" => {
-            Ok(system_compiler::RouteStateMutation::RefProjectContextRef {
+            Ok(handbook_compiler::RouteStateMutation::RefProjectContextRef {
                 value: raw_value.to_string(),
             })
         }
@@ -3431,9 +3447,9 @@ fn parse_route_state_field_assignment(
 
 fn render_pipeline_resolve_output(
     pipeline_id: &str,
-    state: &system_compiler::RouteState,
-    effective_run: &system_compiler::RouteStateRun,
-    route: &system_compiler::ResolvedPipelineRoute,
+    state: &handbook_compiler::RouteState,
+    effective_run: &handbook_compiler::RouteStateRun,
+    route: &handbook_compiler::ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
     out.push_str("OUTCOME: RESOLVED\n");
@@ -3486,19 +3502,20 @@ fn render_optional_route_basis_field(out: &mut String, name: &str, value: Option
     }
 }
 
-fn render_route_stage_reason(reason: &system_compiler::RouteStageReason) -> String {
+fn render_route_stage_reason(reason: &handbook_compiler::RouteStageReason) -> String {
     match reason {
-        system_compiler::RouteStageReason::SkippedActivationFalse {
+        handbook_compiler::RouteStageReason::SkippedActivationFalse {
             unsatisfied_variables,
             ..
         } => format!(
             "activation evaluated false for variables: {}",
             unsatisfied_variables.join(", ")
         ),
-        system_compiler::RouteStageReason::NextMissingRouteVariables {
-            missing_variables, ..
+        handbook_compiler::RouteStageReason::NextMissingRouteVariables {
+            missing_variables,
+            ..
         } => format!("missing route variables: {}", missing_variables.join(", ")),
-        system_compiler::RouteStageReason::BlockedByUnresolvedStage {
+        handbook_compiler::RouteStageReason::BlockedByUnresolvedStage {
             upstream_stage_id,
             upstream_status,
         } => format!(
@@ -3511,11 +3528,11 @@ fn render_route_stage_reason(reason: &system_compiler::RouteStageReason) -> Stri
 
 fn render_pipeline_state_set_output(
     pipeline_id: &str,
-    outcome: system_compiler::RouteStateMutationOutcome,
+    outcome: handbook_compiler::RouteStateMutationOutcome,
 ) -> String {
     let mut out = String::new();
     match outcome {
-        system_compiler::RouteStateMutationOutcome::Applied(state) => {
+        handbook_compiler::RouteStateMutationOutcome::Applied(state) => {
             let state = *state;
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
@@ -3540,7 +3557,7 @@ fn render_pipeline_state_set_output(
             render_optional_state_field(&mut out, "profile", state.run.profile.as_deref());
             render_optional_state_field(&mut out, "repo_root", state.run.repo_root.as_deref());
         }
-        system_compiler::RouteStateMutationOutcome::Refused(refusal) => {
+        handbook_compiler::RouteStateMutationOutcome::Refused(refusal) => {
             out.push_str("OUTCOME: REFUSED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REASON: {}\n", refusal));
@@ -3598,7 +3615,7 @@ fn inspect(args: RequestArgs) -> ExitCode {
                 println!("BLOCKED: {err}");
                 return ExitCode::from(1);
             }
-            let basis_root = fixture_set_dir.join(".system");
+            let basis_root = fixture_set_dir.join(".handbook");
             if let Err(err) = ensure_dir(&basis_root, "fixture basis root") {
                 println!("BLOCKED: {err}");
                 return ExitCode::from(1);
@@ -3607,11 +3624,11 @@ fn inspect(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let result = match system_compiler::resolve(
+    let result = match handbook_compiler::resolve(
         &compiler_root,
-        system_compiler::ResolveRequest {
+        handbook_compiler::ResolveRequest {
             packet_id: packet_id.as_str(),
-            ..system_compiler::ResolveRequest::default()
+            ..handbook_compiler::ResolveRequest::default()
         },
     ) {
         Ok(result) => result,
@@ -3621,7 +3638,7 @@ fn inspect(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let model = match system_compiler::build_output_model(&result) {
+    let model = match handbook_compiler::build_output_model(&result) {
         Ok(model) => model,
         Err(err) => {
             println!("PRESENTATION FAILURE: {err}");
@@ -3629,14 +3646,14 @@ fn inspect(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let ready = model.packet_status == system_compiler::PacketSelectionStatus::Selected
+    let ready = model.packet_status == handbook_compiler::PacketSelectionStatus::Selected
         && model.refusal.is_none()
         && model.blockers.is_empty();
 
     if ready {
-        println!("{}", system_compiler::render_inspect(&model));
+        println!("{}", handbook_compiler::render_inspect(&model));
     } else {
-        let rendered = system_compiler::render_inspect(&model);
+        let rendered = handbook_compiler::render_inspect(&model);
         if let Some(fixture_set_id) = demo_fixture_set_id.as_deref() {
             let section = fixture_section_for_demo(&repo_root, fixture_set_id);
             println!("{}", inject_after_first_three_lines(&rendered, &section));
@@ -3654,10 +3671,10 @@ fn inspect(args: RequestArgs) -> ExitCode {
 
 const _: () = {
     let _ = (
-        std::mem::size_of::<system_compiler::DecisionLog>(),
-        std::mem::size_of::<system_compiler::PacketResult>(),
-        std::mem::size_of::<system_compiler::CompilerError>(),
-        std::mem::size_of::<system_compiler::Refusal>(),
+        std::mem::size_of::<handbook_compiler::DecisionLog>(),
+        std::mem::size_of::<handbook_compiler::PacketResult>(),
+        std::mem::size_of::<handbook_compiler::CompilerError>(),
+        std::mem::size_of::<handbook_compiler::Refusal>(),
     );
 };
 
@@ -3669,7 +3686,7 @@ mod tests {
     fn valid_structured_inputs_yaml() -> &'static str {
         r#"schema_version: "0.1.0"
 project:
-  name: "System"
+  name: "Handbook"
   classification: greenfield
   team_size: 2
   users: internal
@@ -3776,7 +3793,7 @@ dimensions:
 exceptions:
   approvers:
     - project_owner
-  record_location: ".system/charter/CHARTER.md#exceptions"
+  record_location: ".handbook/charter/CHARTER.md#exceptions"
   minimum_fields:
     - what
     - why
@@ -3813,15 +3830,17 @@ decision_records:
             |_, _| panic!("guided mode should not run from-input preflight"),
             || {
                 collect_called.set(true);
-                system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
-                    .map_err(|refusal| render_author_charter_refusal(&refusal))
+                handbook_compiler::parse_charter_structured_input_yaml(
+                    valid_structured_inputs_yaml(),
+                )
+                .map_err(|refusal| render_author_charter_refusal(&refusal))
             },
             |repo_root, input| {
                 author_called.set(true);
                 assert_eq!(repo_root, dir.path());
-                assert_eq!(input.project.name, "System");
-                Ok(system_compiler::AuthorCharterResult {
-                    canonical_repo_relative_path: ".system/charter/CHARTER.md",
+                assert_eq!(input.project.name, "Handbook");
+                Ok(handbook_compiler::AuthorCharterResult {
+                    canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
                     bytes_written: 42,
                 })
             },
@@ -3857,9 +3876,9 @@ decision_records:
             |repo_root, input| {
                 author_called.set(true);
                 assert_eq!(repo_root, dir.path());
-                assert_eq!(input.project.name, "System");
-                Ok(system_compiler::AuthorCharterResult {
-                    canonical_repo_relative_path: ".system/charter/CHARTER.md",
+                assert_eq!(input.project.name, "Handbook");
+                Ok(handbook_compiler::AuthorCharterResult {
+                    canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
                     bytes_written: 24,
                 })
             },
@@ -3896,7 +3915,7 @@ decision_records:
         assert!(rendered.output.contains("CATEGORY: NonInteractiveRefusal"));
         assert!(rendered
             .output
-            .contains("run `system author charter --from-inputs <path|->`"));
+            .contains("run `handbook author charter --from-inputs <path|->`"));
     }
 
     #[test]
@@ -3912,12 +3931,12 @@ decision_records:
             || Ok(dir.path().to_path_buf()),
             || true,
             |_| {
-                Err(system_compiler::AuthorCharterRefusal {
-                    kind: system_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth,
+                Err(handbook_compiler::AuthorCharterRefusal {
+                    kind: handbook_compiler::AuthorCharterRefusalKind::ExistingCanonicalTruth,
                     summary: "canonical charter truth already exists".to_string(),
-                    broken_subject: ".system/charter/CHARTER.md".to_string(),
+                    broken_subject: ".handbook/charter/CHARTER.md".to_string(),
                     next_safe_action:
-                        "inspect `.system/charter/CHARTER.md` instead of rerunning `system author charter`"
+                        "inspect `.handbook/charter/CHARTER.md` instead of rerunning `handbook author charter`"
                             .to_string(),
                 })
             },

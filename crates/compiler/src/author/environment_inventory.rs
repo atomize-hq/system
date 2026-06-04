@@ -12,14 +12,14 @@ use std::process::{Command, Output, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH: &str =
-    ".system/environment_inventory/ENVIRONMENT_INVENTORY.md";
+    ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md";
 
 const ENVIRONMENT_INVENTORY_AUTHORING_LOCK_REPO_PATH: &str =
-    ".system/state/authoring/environment_inventory.lock";
+    ".handbook/state/authoring/environment_inventory.lock";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
-    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
+    "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
-    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
+    "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
 const ENVIRONMENT_INVENTORY_SYNTHESIZE_DIRECTIVE_MARKDOWN: &str = include_str!(
     "../../../../core/library/environment_inventory/environment_inventory_directive.md"
 );
@@ -113,7 +113,7 @@ pub fn author_environment_inventory(
         summary: format_repo_mutation_error(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, err),
         broken_subject: "canonical environment inventory write target".to_string(),
         next_safe_action:
-            "repair the blocked canonical environment inventory path and retry `system author environment-inventory`"
+            "repair the blocked canonical environment inventory path and retry `handbook author environment-inventory`"
                 .to_string(),
     })?;
 
@@ -150,9 +150,9 @@ pub fn validate_environment_inventory_markdown(
             "synthesized environment inventory markdown still contains legacy non-canonical path claims",
         ));
     }
-    if !normalized.contains("`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`") {
+    if !normalized.contains("`.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`") {
         return Err(synthesis_refusal(
-            "synthesized environment inventory markdown must reference `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` as the canonical file",
+            "synthesized environment inventory markdown must reference `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` as the canonical file",
         ));
     }
     validate_required_heading_order_result(normalized, &REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS)
@@ -205,9 +205,9 @@ fn prepare_environment_inventory_authoring_inputs(
     let artifacts =
         CanonicalArtifacts::load(repo_root).map_err(|err| AuthorEnvironmentInventoryRefusal {
             kind: AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot,
-            summary: format!("failed to inspect canonical `.system` root: {err}"),
-            broken_subject: "canonical `.system` root".to_string(),
-            next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
+            summary: format!("failed to inspect canonical `.handbook` root: {err}"),
+            broken_subject: "canonical `.handbook` root".to_string(),
+            next_safe_action: "repair the canonical `.handbook` root and rerun `handbook setup`"
                 .to_string(),
         })?;
 
@@ -232,27 +232,27 @@ fn validate_environment_inventory_authoring_preconditions(
             return Err(AuthorEnvironmentInventoryRefusal {
                 kind: AuthorEnvironmentInventoryRefusalKind::MissingSystemRoot,
                 summary:
-                    "canonical `.system` root is missing; environment inventory authoring requires setup first"
+                    "canonical `.handbook` root is missing; environment inventory authoring requires setup first"
                         .to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "run `system setup`".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action: "run `handbook setup`".to_string(),
             });
         }
         SystemRootStatus::NotDir => {
             return Err(AuthorEnvironmentInventoryRefusal {
                 kind: AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot,
-                summary: "canonical `.system` root exists but is not a directory".to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
-                    .to_string(),
+                summary: "canonical `.handbook` root exists but is not a directory".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action:
+                    "repair the canonical `.handbook` root and rerun `handbook setup`".to_string(),
             });
         }
         SystemRootStatus::SymlinkNotAllowed => {
             return Err(AuthorEnvironmentInventoryRefusal {
                 kind: AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot,
-                summary: "canonical `.system` root cannot be a symlink".to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "remove the `.system` symlink and rerun `system setup`"
+                summary: "canonical `.handbook` root cannot be a symlink".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action: "remove the `.handbook` symlink and rerun `handbook setup`"
                     .to_string(),
             });
         }
@@ -266,7 +266,7 @@ fn validate_environment_inventory_authoring_preconditions(
                 .to_string(),
             broken_subject: "canonical environment inventory truth".to_string(),
             next_safe_action:
-                "inspect canonical artifact metadata and retry `system author environment-inventory`"
+                "inspect canonical artifact metadata and retry `handbook author environment-inventory`"
                     .to_string(),
         });
     }
@@ -277,11 +277,11 @@ fn validate_environment_inventory_authoring_preconditions(
             return Err(AuthorEnvironmentInventoryRefusal {
                 kind: AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth,
                 summary:
-                    "canonical environment inventory truth already exists as valid non-starter truth; `system author environment-inventory` refuses to overwrite authored canonical truth"
+                    "canonical environment inventory truth already exists as valid non-starter truth; `handbook author environment-inventory` refuses to overwrite authored canonical truth"
                         .to_string(),
                 broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
                 next_safe_action: format!(
-                    "inspect `{}` instead of rerunning `system author environment-inventory`",
+                    "inspect `{}` instead of rerunning `handbook author environment-inventory`",
                     CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
                 ),
             });
@@ -290,10 +290,10 @@ fn validate_environment_inventory_authoring_preconditions(
             return Err(AuthorEnvironmentInventoryRefusal {
                 kind: AuthorEnvironmentInventoryRefusalKind::MutationRefused,
                 summary:
-                    "canonical environment inventory truth is unreadable or path-invalid; repair it with `system setup refresh` before rerunning `system author environment-inventory`"
+                    "canonical environment inventory truth is unreadable or path-invalid; repair it with `handbook setup refresh` before rerunning `handbook author environment-inventory`"
                         .to_string(),
                 broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
-                next_safe_action: "run `system setup refresh`".to_string(),
+                next_safe_action: "run `handbook setup refresh`".to_string(),
             });
         }
     }
@@ -304,7 +304,7 @@ fn validate_environment_inventory_authoring_preconditions(
             summary: format_repo_write_path_error(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, err),
             broken_subject: "canonical environment inventory write target".to_string(),
             next_safe_action:
-                "repair the blocked canonical environment inventory path and retry `system author environment-inventory`"
+                "repair the blocked canonical environment inventory path and retry `handbook author environment-inventory`"
                     .to_string(),
         })?;
 
@@ -323,35 +323,35 @@ fn required_charter_markdown(
             summary:
                 "canonical charter truth is missing; environment inventory authoring requires a completed charter first"
                     .to_string(),
-            broken_subject: ".system/charter/CHARTER.md".to_string(),
-            next_safe_action: "run `system author charter`".to_string(),
+            broken_subject: ".handbook/charter/CHARTER.md".to_string(),
+            next_safe_action: "run `handbook author charter`".to_string(),
         }),
         BaselineArtifactVerdict::Empty => Err(AuthorEnvironmentInventoryRefusal {
             kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
             summary:
                 "canonical charter truth is empty; environment inventory authoring requires a completed charter first"
                     .to_string(),
-            broken_subject: ".system/charter/CHARTER.md".to_string(),
-            next_safe_action: "run `system author charter`".to_string(),
+            broken_subject: ".handbook/charter/CHARTER.md".to_string(),
+            next_safe_action: "run `handbook author charter`".to_string(),
         }),
         BaselineArtifactVerdict::StarterOwned => Err(AuthorEnvironmentInventoryRefusal {
             kind: AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter,
             summary:
                 "canonical charter truth still contains the shipped starter template; environment inventory authoring requires a completed charter first"
                     .to_string(),
-            broken_subject: ".system/charter/CHARTER.md".to_string(),
-            next_safe_action: "run `system author charter`".to_string(),
+            broken_subject: ".handbook/charter/CHARTER.md".to_string(),
+            next_safe_action: "run `handbook author charter`".to_string(),
         }),
         BaselineArtifactVerdict::IngestInvalid => Err(invalid_upstream_canonical_truth_refusal(
-            ".system/charter/CHARTER.md",
+            ".handbook/charter/CHARTER.md",
             "canonical charter truth is unreadable or non-canonical; environment inventory authoring requires valid charter truth".to_string(),
-            "run `system setup refresh`".to_string(),
+            "run `handbook setup refresh`".to_string(),
         )),
         BaselineArtifactVerdict::SemanticallyInvalid { summary } => Err(
             invalid_upstream_canonical_truth_refusal(
-                ".system/charter/CHARTER.md",
+                ".handbook/charter/CHARTER.md",
                 format!("canonical charter truth is invalid: {summary}"),
-                "run `system author charter`".to_string(),
+                "run `handbook author charter`".to_string(),
             ),
         ),
         BaselineArtifactVerdict::ValidCanonicalTruth { markdown } => Ok(markdown),
@@ -369,16 +369,16 @@ fn optional_project_context_markdown(
         | BaselineArtifactVerdict::Empty
         | BaselineArtifactVerdict::StarterOwned => Ok(None),
         BaselineArtifactVerdict::IngestInvalid => Err(invalid_upstream_canonical_truth_refusal(
-            ".system/project_context/PROJECT_CONTEXT.md",
+            ".handbook/project_context/PROJECT_CONTEXT.md",
             "canonical project context truth is unreadable or non-canonical; repair it or remove it before environment inventory authoring"
                 .to_string(),
-            "run `system setup refresh`".to_string(),
+            "run `handbook setup refresh`".to_string(),
         )),
         BaselineArtifactVerdict::SemanticallyInvalid { summary } => Err(
             invalid_upstream_canonical_truth_refusal(
-                ".system/project_context/PROJECT_CONTEXT.md",
+                ".handbook/project_context/PROJECT_CONTEXT.md",
                 format!("canonical project context truth is invalid: {summary}"),
-                "run `system author project-context`".to_string(),
+                "run `handbook author project-context`".to_string(),
             ),
         ),
         BaselineArtifactVerdict::ValidCanonicalTruth { markdown } => {
@@ -483,7 +483,7 @@ fn build_environment_inventory_synthesis_prompt(
     inputs: &EnvironmentInventorySynthesisInputs,
 ) -> String {
     let project_context_ref = if inputs.project_context_markdown.is_some() {
-        ".system/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project_context/PROJECT_CONTEXT.md"
     } else {
         "None"
     };
@@ -492,7 +492,7 @@ fn build_environment_inventory_synthesis_prompt(
     prompt.push_str("# Environment Inventory Synthesis Directive\n\n");
     prompt.push_str(ENVIRONMENT_INVENTORY_SYNTHESIZE_DIRECTIVE_MARKDOWN);
     prompt.push_str("\n\n# Canonical Write Contract\n\n");
-    prompt.push_str("- Write only the canonical `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` content.\n");
+    prompt.push_str("- Write only the canonical `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` content.\n");
     prompt.push_str(
         "- Do not describe any repo-root `ENVIRONMENT_INVENTORY.md` file as canonical.\n",
     );
@@ -503,7 +503,7 @@ fn build_environment_inventory_synthesis_prompt(
     prompt.push_str("\n```\n\n");
     prompt.push_str("# Exact references that must be preserved verbatim\n\n");
     prompt.push_str(
-        "- Canonical file reference: `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n",
+        "- Canonical file reference: `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n",
     );
     prompt.push_str(&format!(
         "- Project context reference line: `{project_context_ref}`\n"
@@ -535,7 +535,7 @@ fn validate_synthesized_environment_inventory_markdown(
     validate_environment_inventory_markdown(markdown)?;
 
     let expected_project_context_ref = if inputs.project_context_markdown.is_some() {
-        "> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`"
+        "> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`"
     } else {
         "> **Project Context Ref:** None"
     };
@@ -561,7 +561,7 @@ fn acquire_environment_inventory_authoring_lock(
                 ),
                 broken_subject: "environment inventory authoring lock".to_string(),
                 next_safe_action:
-                    "repair the blocked environment inventory authoring lock path and retry `system author environment-inventory`"
+                    "repair the blocked environment inventory authoring lock path and retry `handbook author environment-inventory`"
                         .to_string(),
             })?;
 
@@ -596,7 +596,7 @@ fn environment_inventory_authoring_lock_refusal(
         ),
         broken_subject: "environment inventory authoring lock".to_string(),
         next_safe_action:
-            "wait for any in-progress `system author environment-inventory` run to finish or repair the lock path, then retry `system author environment-inventory`"
+            "wait for any in-progress `handbook author environment-inventory` run to finish or repair the lock path, then retry `handbook author environment-inventory`"
                 .to_string(),
     }
 }
@@ -669,7 +669,7 @@ fn synthesize_output_path() -> PathBuf {
         .unwrap_or_default()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "system-author-environment-inventory-{}-{timestamp}.md",
+        "handbook-author-environment-inventory-{}-{timestamp}.md",
         std::process::id()
     ))
 }
@@ -693,7 +693,7 @@ fn synthesis_refusal(summary: impl Into<String>) -> AuthorEnvironmentInventoryRe
         summary: summary.into(),
         broken_subject: "environment inventory synthesis runtime".to_string(),
         next_safe_action:
-            "repair the environment inventory synthesis runtime or prompt inputs and retry `system author environment-inventory`"
+            "repair the environment inventory synthesis runtime or prompt inputs and retry `handbook author environment-inventory`"
                 .to_string(),
     }
 }
@@ -886,7 +886,7 @@ mod tests {
     use tempfile::tempdir;
 
     fn valid_charter_markdown() -> &'static str {
-        "# Engineering Charter — System
+        "# Engineering Charter — Handbook
 
 ## What this is
 Body.
@@ -935,14 +935,14 @@ Review monthly.
     }
 
     fn valid_project_context_markdown() -> &'static str {
-        "# Project Context — System
+        "# Project Context — Handbook
 
 > **File:** `PROJECT_CONTEXT.md`
 > **Created (UTC):** 2026-04-21T00:00:00Z
 > **Owner:** project-owner
-> **Team:** system-team
-> **Repo / Project:** /tmp/system
-> **Charter Ref:** .system/charter/CHARTER.md
+> **Team:** handbook-team
+> **Repo / Project:** /tmp/handbook
+> **Charter Ref:** .handbook/charter/CHARTER.md
 
 ## What this is
 Project reality.
@@ -961,7 +961,7 @@ Use this document to ground planning in reality.
 
 ## 3) System Boundaries (what we own vs integrate with)
 ### What we own
-- Canonical `.system/` truth.
+- Canonical `.handbook/` truth.
 ### What we do NOT own (but may depend on)
 - External delivery systems.
 
@@ -1012,8 +1012,8 @@ Use this document to ground planning in reality.
         let fake_codex = write_fake_codex(repo.path());
         let canonical_markdown = r#"# Environment Inventory - Example
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
 
 ## What this is
 The canonical store of record for this project's environment and runtime requirements.
@@ -1043,19 +1043,22 @@ The canonical store of record for this project's environment and runtime require
 - None yet.
 
 ## 8) Update Contract (non-negotiable)
-- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
 
 ## 9) Known Unknowns
 - None yet.
 "#;
 
-        std::env::set_var("SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN", &fake_codex);
         std::env::set_var(
-            "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_TEST_OUTPUT",
+            "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN",
+            &fake_codex,
+        );
+        std::env::set_var(
+            "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_TEST_OUTPUT",
             canonical_markdown,
         );
         std::env::set_var(
-            "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_TEST_PROMPT_LOG",
+            "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_TEST_PROMPT_LOG",
             &prompt_log,
         );
 
@@ -1072,12 +1075,12 @@ The canonical store of record for this project's environment and runtime require
         );
 
         let prompt = fs::read_to_string(&prompt_log).expect("prompt log");
-        assert!(prompt.contains(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"));
+        assert!(prompt.contains(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"));
         assert!(prompt.contains("Runs on macOS and Linux."));
 
-        std::env::remove_var("SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN");
-        std::env::remove_var("SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_TEST_OUTPUT");
-        std::env::remove_var("SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_TEST_PROMPT_LOG");
+        std::env::remove_var("HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN");
+        std::env::remove_var("HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_TEST_OUTPUT");
+        std::env::remove_var("HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_TEST_PROMPT_LOG");
     }
 
     #[test]
@@ -1099,8 +1102,8 @@ The canonical store of record for this project's environment and runtime require
     }
 
     fn scaffold_environment_inventory_target(repo_root: &Path) {
-        fs::create_dir_all(repo_root.join(".system/environment_inventory")).expect("mkdir");
-        fs::create_dir_all(repo_root.join(".system/charter")).expect("mkdir");
+        fs::create_dir_all(repo_root.join(".handbook/environment_inventory")).expect("mkdir");
+        fs::create_dir_all(repo_root.join(".handbook/charter")).expect("mkdir");
         fs::write(
             repo_root.join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
             setup_starter_template(CanonicalArtifactKind::EnvironmentInventory),
@@ -1109,13 +1112,13 @@ The canonical store of record for this project's environment and runtime require
     }
 
     fn write_charter(repo_root: &Path, content: &str) {
-        fs::write(repo_root.join(".system/charter/CHARTER.md"), content).expect("write charter");
+        fs::write(repo_root.join(".handbook/charter/CHARTER.md"), content).expect("write charter");
     }
 
     fn write_project_context(repo_root: &Path, content: &str) {
-        fs::create_dir_all(repo_root.join(".system/project_context")).expect("mkdir");
+        fs::create_dir_all(repo_root.join(".handbook/project_context")).expect("mkdir");
         fs::write(
-            repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+            repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
             content,
         )
         .expect("write project context");
@@ -1124,7 +1127,7 @@ The canonical store of record for this project's environment and runtime require
     fn valid_environment_inventory_markdown() -> &'static str {
         r#"# Environment Inventory - Example
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 > **Project Context Ref:** None
 
 ## What this is
@@ -1155,7 +1158,7 @@ The canonical store of record for this project's environment and runtime require
 - None yet.
 
 ## 8) Update Contract (non-negotiable)
-- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
 
 ## 9) Known Unknowns
 - None yet.
@@ -1173,8 +1176,8 @@ while [ "$#" -gt 0 ]; do
   fi
   shift
 done
-cat > "${SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_TEST_PROMPT_LOG}"
-printf '%s' "${SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_TEST_OUTPUT}" > "$output_path"
+cat > "${HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_TEST_PROMPT_LOG}"
+printf '%s' "${HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_TEST_OUTPUT}" > "$output_path"
 "#;
         fs::write(&script_path, script).expect("write fake codex");
         let mut perms = fs::metadata(&script_path).expect("metadata").permissions();

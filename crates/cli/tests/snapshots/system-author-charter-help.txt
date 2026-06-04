@@ -1,8 +1,0 @@
-Author canonical `.system/charter/CHARTER.md`
-
-Usage: system author charter [OPTIONS]
-
-Options:
-      --from-inputs <path|->  Read normalized structured inputs from a YAML file or `-` for stdin
-      --validate              Validate normalized structured inputs and repo write preconditions without mutation
-  -h, --help                  Print help

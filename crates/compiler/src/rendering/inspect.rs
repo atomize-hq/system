@@ -176,16 +176,16 @@ fn inspect_ready_next_safe_action(model: &RenderOutputModel) -> String {
     match model.packet_result.variant {
         crate::packet_result::PacketVariant::Planning
         | crate::packet_result::PacketVariant::ExecutionLive => {
-            format!("run `system generate --packet {}`", model.packet_id)
+            format!("run `handbook generate --packet {}`", model.packet_id)
         }
         crate::packet_result::PacketVariant::ExecutionDemo => {
             if let Some(context) = model.packet_result.fixture_context.as_ref() {
                 format!(
-                    "run `system generate --packet {} --fixture-set {}`",
+                    "run `handbook generate --packet {} --fixture-set {}`",
                     model.packet_id, context.fixture_set_id
                 )
             } else {
-                format!("run `system generate --packet {}`", model.packet_id)
+                format!("run `handbook generate --packet {}`", model.packet_id)
             }
         }
     }

@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
 fn binary() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_system"))
+    Command::new(env!("CARGO_BIN_EXE_handbook"))
 }
 
 fn binary_in(dir: &Path) -> Command {
@@ -127,16 +127,16 @@ fn prepare_foundation_inputs_full_context_route_basis(root: &Path) {
 
 fn install_canonical_inputs(root: &Path) {
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         &std::fs::read(root.join("artifacts/charter/CHARTER.md")).expect("read charter fixture"),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         &std::fs::read(root.join("artifacts/project_context/PROJECT_CONTEXT.md"))
             .expect("read project context fixture"),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md")
             .as_bytes(),
     );
@@ -278,14 +278,14 @@ fn generate_ignores_non_system_handoff_and_derived_files() {
     let output = run_in(root.as_path(), &["generate"]);
     assert!(
         output.status.success(),
-        "generate should ignore non-.system noise"
+        "generate should ignore non-.handbook noise"
     );
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
 
     assert_eq!(stdout, baseline_stdout);
-    assert!(stdout.contains(".system/charter/CHARTER.md"), "{stdout}");
+    assert!(stdout.contains(".handbook/charter/CHARTER.md"), "{stdout}");
     assert!(
-        stdout.contains(".system/feature_spec/FEATURE_SPEC.md"),
+        stdout.contains(".handbook/feature_spec/FEATURE_SPEC.md"),
         "{stdout}"
     );
     assert!(
@@ -312,14 +312,14 @@ fn inspect_ignores_non_system_handoff_and_derived_files() {
     let output = run_in(root.as_path(), &["inspect"]);
     assert!(
         output.status.success(),
-        "inspect should ignore non-.system noise"
+        "inspect should ignore non-.handbook noise"
     );
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
 
     assert_eq!(stdout, baseline_stdout);
-    assert!(stdout.contains(".system/charter/CHARTER.md"), "{stdout}");
+    assert!(stdout.contains(".handbook/charter/CHARTER.md"), "{stdout}");
     assert!(
-        stdout.contains(".system/feature_spec/FEATURE_SPEC.md"),
+        stdout.contains(".handbook/feature_spec/FEATURE_SPEC.md"),
         "{stdout}"
     );
     assert!(

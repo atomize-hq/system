@@ -1,6 +1,6 @@
 schema_version: "0.1.0"
 project:
-  name: "System Runtime Smoke"
+  name: "Handbook Runtime Smoke"
   classification: greenfield
   team_size: 2
   users: internal
@@ -107,7 +107,7 @@ dimensions:
 exceptions:
   approvers:
     - project_owner
-  record_location: ".system/charter/CHARTER.md#exceptions"
+  record_location: ".handbook/charter/CHARTER.md#exceptions"
   minimum_fields:
     - what
     - why

@@ -8,4 +8,4 @@ WRITE PLAN:
   - repo_file: PROJECT_CONTEXT.md
 POST-CAPTURE STATE UPDATES:
   - refs.project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
-NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`
+NEXT SAFE ACTION: run `handbook pipeline capture apply --capture-id {{CAPTURE_ID}}`

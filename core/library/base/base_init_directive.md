@@ -1,4 +1,4 @@
-# system/core/library/base/base_init_directive.md
+# handbook/core/library/base/base_init_directive.md
 
 You are the Base Initialization Agent.
 

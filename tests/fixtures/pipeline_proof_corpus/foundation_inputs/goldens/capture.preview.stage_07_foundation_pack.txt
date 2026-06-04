@@ -12,4 +12,4 @@ WRITE PLAN:
   - artifact: artifacts/foundation/ENVIRONMENT_INVENTORY.md
 POST-CAPTURE STATE UPDATES:
   <none>
-NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`
+NEXT SAFE ACTION: run `handbook pipeline capture apply --capture-id {{CAPTURE_ID}}`

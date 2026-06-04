@@ -41,8 +41,8 @@ documents can compare against a stable baseline.
 - gstack is best understood as a compiled artifact-first workflow runtime, not a bag of prompts.
 - Its strongest abstraction is the separation between methodology, runtime metadata, and persisted artifacts.
 - A “complete” plan in gstack is not a filled template; it is a plan that has passed the required review axes for its task class, under an explicit mode, with mandatory Step 0 outputs and no unresolved critical gaps.
-- Its durable memory system is layered: session awareness, project-local ledgers, checkpoints, review memory, behavioral profile memory, and global retro/meta-memory.
-- Compounding happens because the right slice of prior artifacts is retrieved before the next skill runs, and because the system makes that compounding visible.
+- Its durable memory handbook is layered: session awareness, project-local ledgers, checkpoints, review memory, behavioral profile memory, and global retro/meta-memory.
+- Compounding happens because the right slice of prior artifacts is retrieved before the next skill runs, and because the handbook makes that compounding visible.
 - The repo’s append-only, local-first persistence model is a major strength for auditability and hackability, but it also reveals where substrate should add stronger typing and validation.
 - The repo is currently in a mild migration state around builder-profile versus developer-profile, which is itself a useful pattern study for backward-compatible evolution.
 - The main ceiling in gstack is not planning taste; it is deterministic verification of machine-checkable claims.
@@ -181,14 +181,14 @@ the repo. Refs: [G01], [G02], [G07], [G09], [G10], [G18], [G20]
 
 **Refs:** [G03]
 
-#### P08 — Pre-review system audit before planning judgments
+#### P08 — Pre-review handbook audit before planning judgments
 **Confidence:** High
 
 **Observed in gstack:** CEO review begins with recent git history, diff stats, stash inspection, TODO/FIXME/HACK scans, and recently touched files before evaluating scope or architecture.
 
 **Why it matters:** This grounds the review in the actual working state and avoids plan review in a vacuum.
 
-**Carry-forward extraction:** Before deep review, run a cheap system audit: branch context, diff shape, deferred backlog, pending hacks, and surrounding recent work.
+**Carry-forward extraction:** Before deep review, run a cheap handbook audit: branch context, diff shape, deferred backlog, pending hacks, and surrounding recent work.
 
 **Refs:** [G03]
 
@@ -484,7 +484,7 @@ the repo. Refs: [G01], [G02], [G07], [G09], [G10], [G18], [G20]
 
 **Observed in gstack:** Review log scripts store branch-scoped JSONL facts that later phases and `/ship` can use to know which gates ran, on what commit, and with what unresolved risk.
 
-**Why it matters:** Knowing that “a review happened once” is not enough; the system needs commit-aware review freshness.
+**Why it matters:** Knowing that “a review happened once” is not enough; the handbook needs commit-aware review freshness.
 
 **Carry-forward extraction:** Persist review facts as their own memory class with branch, commit, status, unresolved counts, and source phase.
 
@@ -528,7 +528,7 @@ the repo. Refs: [G01], [G02], [G07], [G09], [G10], [G18], [G20]
 #### P38 — Prompt-only structure has a ceiling
 **Confidence:** High
 
-**Observed in gstack:** Issue reports show that even a strong review structure can miss wrong file paths, math, CLI flags, and other machine-verifiable claims when the system relies only on narrative review.
+**Observed in gstack:** Issue reports show that even a strong review structure can miss wrong file paths, math, CLI flags, and other machine-verifiable claims when the handbook relies only on narrative review.
 
 **Why it matters:** A plan can sound complete while still being concretely wrong.
 
@@ -676,7 +676,7 @@ enough in gstack to justify preserving them as explicit design constraints in su
 - Can it express completeness as required review axes rather than a single generic score?
 - Does it support append-only lineage and read-time or synthesis-time consolidation?
 - Does memory have distinct scopes or planes (session, project, builder/operator, global) with explicit trust and portability?
-- Can the system recover context after compaction or session loss via checkpoints, timeline, and recent artifact injection?
+- Can the handbook recover context after compaction or session loss via checkpoints, timeline, and recent artifact injection?
 - Does it persist review/gate state with commit awareness so later phases can reason about freshness?
 - Can it expose which memories were applied so compounding is visible to operators?
 - Does it distinguish telemetry/product analytics from operational memory and planning artifacts?
@@ -775,7 +775,7 @@ families.
 - **[G02]** gstack/office-hours/SKILL.md.tmpl — <https://github.com/garrytan/gstack/blob/main/office-hours/SKILL.md.tmpl>
   - Six forcing questions, related-design discovery, landscape awareness, builder profile append, design doc path, Supersedes chain, distribution plan in design template.
 - **[G03]** gstack/plan-ceo-review/SKILL.md — <https://github.com/garrytan/gstack/blob/main/plan-ceo-review/SKILL.md>
-  - Mode selection, pre-review system audit, mandatory diagrams, outside voice rules, completion summary, scope proposal handling.
+  - Mode selection, pre-review handbook audit, mandatory diagrams, outside voice rules, completion summary, scope proposal handling.
 - **[G04]** gstack/plan-eng-review/SKILL.md — <https://github.com/garrytan/gstack/blob/main/plan-eng-review/SKILL.md>
   - Step 0 scope challenge, boil-the-lake completeness, distribution check, failure modes, worktree parallelization, completion summary.
 - **[G05]** gstack/plan-design-review/SKILL.md — <https://github.com/garrytan/gstack/blob/main/plan-design-review/SKILL.md>
