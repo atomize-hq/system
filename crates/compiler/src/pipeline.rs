@@ -1998,24 +1998,20 @@ fn validate_stage_file(
 
     match workspace.trusted_read(&file_path) {
         Ok(_) => Ok(()),
-        Err(RepoRelativeFileAccessError::Missing(_)) => {
-            return Err(invalid_stage_file_error(
-                path,
-                stage,
-                StageFileValidationError::Missing,
-            ));
-        }
+        Err(RepoRelativeFileAccessError::Missing(_)) => Err(invalid_stage_file_error(
+            path,
+            stage,
+            StageFileValidationError::Missing,
+        )),
         Err(
             RepoRelativeFileAccessError::SymlinkNotAllowed(_)
             | RepoRelativeFileAccessError::NotRegularFile(_)
             | RepoRelativeFileAccessError::ReadFailure { .. },
-        ) => {
-            return Err(invalid_stage_file_error(
-                path,
-                stage,
-                StageFileValidationError::NotRegularFile,
-            ));
-        }
+        ) => Err(invalid_stage_file_error(
+            path,
+            stage,
+            StageFileValidationError::NotRegularFile,
+        )),
         Err(RepoRelativeFileAccessError::InvalidPath(_)) => {
             unreachable!("stage file path was already normalized successfully")
         }

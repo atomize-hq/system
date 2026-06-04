@@ -89,8 +89,8 @@ Output:
 
 After all migrations:
 
-- decide whether the seam should be exported publicly now or remain compiler-internal
-- refresh docs/spec references if implementation naming or scope changed
+- keep the seam compiler-internal in `crates/compiler/src/lib.rs` for this packet because the landed callers only prove internal reuse, not a reviewed downstream API contract
+- refresh docs/spec references so the export decision and future trigger are explicit
 
 ## Risks And Mitigations
 
@@ -128,7 +128,7 @@ The eventual `substrate` consumer matters, but a public export too early could f
 Mitigation:
 
 - land the deep implementation seam first
-- choose public export posture only after all migrated callers read cleanly
+- keep the seam internal after the migrations because the current surface is still compiler-shaped and no downstream call site has proven the minimal stable export
 
 ## Parallel Vs Sequential
 

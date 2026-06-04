@@ -17,6 +17,8 @@ pub mod pipeline_handoff;
 pub mod pipeline_route;
 pub mod refusal;
 pub mod rendering;
+// Keep the workspace seam compiler-internal until a downstream crate proves
+// the minimal reviewed API surface we actually want to freeze.
 mod repo_file_access;
 pub mod resolver;
 pub mod route_state;

@@ -211,11 +211,6 @@ pub(crate) struct TrustedRepoDirectory {
 }
 
 impl TrustedRepoDirectory {
-    #[cfg(test)]
-    pub(crate) fn repo_relative(&self) -> &NormalizedRepoRelativePath {
-        &self.repo_relative
-    }
-
     pub(crate) fn absolute_path(&self) -> &Path {
         &self.absolute_path
     }
@@ -447,9 +442,8 @@ fn resolve_repo_relative_directory_path(
     relative_path: &Path,
 ) -> Result<PathBuf, RepoRelativeDirectoryAccessError> {
     let mut current = repo_root.to_path_buf();
-    let mut components = relative_path.components().peekable();
 
-    while let Some(component) = components.next() {
+    for component in relative_path.components() {
         let Component::Normal(part) = component else {
             continue;
         };

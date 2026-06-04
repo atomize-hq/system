@@ -143,6 +143,7 @@ Conventions:
 - One compiler-owned workspace seam owns repo-relative validation, normalization, no-follow reads, trusted writes, and canonical `.handbook/` discovery primitives.
 - `canonical_artifacts.rs`, `pipeline.rs`, and the remaining filesystem-owning parts of `route_state.rs` consume that seam instead of keeping independent path/file helpers.
 - The implementation reads as a deeper library module suitable for future `substrate` consumption without forcing the consumer to learn multiple path-trust rules.
+- Packet 5 keeps the seam internal for now: `crates/compiler/src/lib.rs` continues to hide `repo_file_access` because the landed callers only need compiler-internal reuse and no reviewed downstream library contract exists yet.
 - Existing reduced-v1 contracts and public CLI behavior remain stable unless an explicit reviewed doc update says otherwise.
 - Targeted compiler and CLI regression coverage passes after the migration.
 
@@ -150,4 +151,17 @@ Conventions:
 
 - Should the deep seam remain in `repo_file_access.rs`, or should it become a renamed workspace-focused module once it owns more than raw file access?
 - Should directory traversal concerns such as runtime-state reset and inventory enumeration move fully under the same seam in this packet, or only the parts that directly overlap existing repo-relative rules?
-- Should the first public library export for downstream consumers expose a workspace object, or should the deep seam remain internal until a real `substrate` call site needs it?
+
+## Packet 5 Decision
+
+Keep the workspace seam internal in this packet.
+
+Why this matches the landed code:
+
+- `canonical_artifacts.rs`, `pipeline.rs`, and `route_state.rs` already consume `CompilerWorkspace` as an implementation seam inside `handbook-compiler`, so Packet 1-4 achieved the architectural deepening without requiring a new public crate contract.
+- The seam still exposes low-level file and directory trust primitives shaped around current compiler internals, not a reviewed downstream workflow-oriented API.
+- Freezing a public export now would make `substrate` inherit provisional names and responsibilities before a real consumer proves the minimal stable surface.
+
+Future export trigger:
+
+- Revisit the export posture when a concrete downstream crate call site can demonstrate the smallest stable surface worth exposing, likely as a narrower workflow-oriented wrapper instead of re-exporting the full internal seam verbatim.
