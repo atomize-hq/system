@@ -3996,7 +3996,10 @@ fn pipeline_compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_stat
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
     assert!(stdout.contains("REASON: invalid_state:"), "{stdout}");
-    assert!(stdout.contains("trusted pipeline session state at "), "{stdout}");
+    assert!(
+        stdout.contains("trusted pipeline session state at "),
+        "{stdout}"
+    );
     assert!(stdout.contains("unknown field"), "{stdout}");
     assert!(stdout.contains("route_basis_extra"), "{stdout}");
     assert!(
