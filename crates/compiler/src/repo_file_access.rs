@@ -71,6 +71,12 @@ impl NormalizedRepoRelativePath {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct RepoRelativeMetadataReadError {
+    pub(crate) path: PathBuf,
+    pub(crate) source: std::io::Error,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CompilerWorkspace<'a> {
     repo_root: &'a Path,
@@ -93,6 +99,21 @@ impl<'a> CompilerWorkspace<'a> {
         path: &Path,
     ) -> Result<NormalizedRepoRelativePath, String> {
         NormalizedRepoRelativePath::parse_path(path)
+    }
+
+    pub(crate) fn metadata_no_follow(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<Option<fs::Metadata>, RepoRelativeMetadataReadError> {
+        let absolute_path = self.absolute_path(relative_path);
+        match fs::symlink_metadata(&absolute_path) {
+            Ok(metadata) => Ok(Some(metadata)),
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(source) => Err(RepoRelativeMetadataReadError {
+                path: absolute_path,
+                source,
+            }),
+        }
     }
 
     pub(crate) fn trusted_read(
@@ -153,6 +174,10 @@ impl<'a> CompilerWorkspace<'a> {
         relative_path: &NormalizedRepoRelativePath,
     ) -> Result<(), RepoRelativeMutationError> {
         delete_repo_relative_file_from_validated(self.repo_root, relative_path.as_path())
+    }
+
+    fn absolute_path(&self, relative_path: &NormalizedRepoRelativePath) -> PathBuf {
+        self.repo_root.join(relative_path.as_path())
     }
 }
 
