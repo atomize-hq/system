@@ -582,7 +582,7 @@ pub fn load_trusted_pipeline_session(
         &pipeline.header.id,
         &supported_variables,
     )
-    .map_err(classify_trusted_pipeline_session_read_error)?;
+    .map_err(|err| classify_trusted_pipeline_session_read_error(&pipeline.header.id, err))?;
     let route_basis = state.route_basis.clone().ok_or_else(|| {
         TrustedPipelineSessionRefusal::MissingRouteBasis {
             pipeline_id: pipeline.header.id.clone(),
@@ -878,6 +878,7 @@ pub(crate) fn route_basis_mismatch_reason(
 }
 
 fn classify_trusted_pipeline_session_read_error(
+    pipeline_id: &str,
     err: RouteStateReadError,
 ) -> TrustedPipelineSessionRefusal {
     match err {
@@ -895,9 +896,20 @@ fn classify_trusted_pipeline_session_read_error(
             }
         }
         RouteStateReadError::MalformedState { path, reason } => {
-            TrustedPipelineSessionRefusal::InvalidState { path, reason }
+            if malformed_state_targets_route_basis(&reason) {
+                TrustedPipelineSessionRefusal::MalformedRouteBasis {
+                    pipeline_id: pipeline_id.to_string(),
+                    reason,
+                }
+            } else {
+                TrustedPipelineSessionRefusal::InvalidState { path, reason }
+            }
         }
     }
+}
+
+fn malformed_state_targets_route_basis(reason: &str) -> bool {
+    reason.contains("route_basis")
 }
 
 fn trusted_pipeline_session_stale_reason(

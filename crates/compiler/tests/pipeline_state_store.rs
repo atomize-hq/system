@@ -8,12 +8,13 @@ use std::time::Duration;
 
 use handbook_compiler::{
     build_route_basis, effective_route_basis_run, load_pipeline_definition, load_route_state,
-    load_route_state_with_supported_variables, load_trusted_pipeline_session, persist_route_basis,
-    resolve_pipeline_route, set_route_state, supported_route_state_variables,
-    RouteBasisPersistOutcome, RouteBasisPersistRefusal, RouteBasisStageStatus, RouteState,
-    RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateStoreError, RouteStateValue, RouteVariables, TrustedPipelineSessionRefusal,
-    ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    load_route_state_with_supported_variables, persist_route_basis, resolve_pipeline_route,
+    route_state::{load_trusted_pipeline_session, TrustedPipelineSessionRefusal},
+    set_route_state, supported_route_state_variables, RouteBasisPersistOutcome,
+    RouteBasisPersistRefusal, RouteBasisStageStatus, RouteState, RouteStateMutation,
+    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
+    RouteStateStoreError, RouteStateValue, RouteVariables, ROUTE_STATE_AUDIT_LIMIT,
+    ROUTE_STATE_SCHEMA_VERSION,
 };
 
 fn write_file(path: &Path, contents: &str) {
@@ -319,6 +320,46 @@ fn trusted_pipeline_session_refuses_malformed_route_basis() {
             assert!(reason.contains("stage.10_feature_spec"), "{reason}");
             assert!(reason.contains("status `active`"), "{reason}");
             assert!(reason.contains("canonical `blocked`"), "{reason}");
+        }
+        other => panic!("expected malformed-route-basis refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn trusted_pipeline_session_classifies_load_time_malformed_route_basis() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let (definition, _) =
+        pipeline_proof_corpus_support::load_foundation_inputs_definition(&repo_root);
+    let _ = pipeline_proof_corpus_support::persist_foundation_inputs_route_basis(&repo_root);
+    let path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let mut state: RouteState =
+        serde_yaml_bw::from_str(&std::fs::read_to_string(&path).expect("read state"))
+            .expect("deserialize state");
+    state
+        .route_basis
+        .as_mut()
+        .expect("route_basis")
+        .schema_version = "route_basis.invalid".to_string();
+    std::fs::write(
+        &path,
+        serde_yaml_bw::to_string(&state).expect("serialize state"),
+    )
+    .expect("write malformed route_basis state");
+
+    let err = load_trusted_pipeline_session(&repo_root, &definition)
+        .expect_err("load-time malformed route_basis should refuse");
+
+    match err {
+        TrustedPipelineSessionRefusal::MalformedRouteBasis {
+            pipeline_id,
+            reason,
+        } => {
+            assert_eq!(
+                pipeline_id,
+                pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID
+            );
+            assert!(reason.contains("route_basis schema_version"), "{reason}");
+            assert!(reason.contains("route_basis.invalid"), "{reason}");
         }
         other => panic!("expected malformed-route-basis refusal, got {other:?}"),
     }
