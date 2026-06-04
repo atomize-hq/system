@@ -86,6 +86,16 @@ Fixture orientation for operators:
 - `tests/fixtures/foundation_flow_demo/` is the dedicated `pipeline.foundation_inputs` journey-proof corpus only.
 - Planning packet success examples need a canonical repo fixture with repo-local `.handbook/` inputs; do not substitute the journey-proof corpus for that command family.
 - For manual nested-directory QA against either fixture family, prepare a temp checkout with `tools/qa/prepare_fixture_checkout.sh` instead of ad hoc `cp -R`.
+  - The helper keeps repo-shaped fixture contents at checkout root and also preserves any original `tests/fixtures/**` ancestry inside the temp checkout.
+  - Execution-demo-safe example:
+    ```bash
+    eval "$(tools/qa/prepare_fixture_checkout.sh --fixture-root tests/fixtures/execution_demo/basic --nested-cwd work/nested)"
+    (
+      cd "$EFFECTIVE_CWD"
+      handbook generate --packet execution.demo.packet --fixture-set basic
+      handbook inspect --packet execution.demo.packet --fixture-set basic
+    )
+    ```
 
 ## Documented `foundation_inputs` operator path
 

@@ -160,6 +160,16 @@ bash tools/ci/codex-skill-live-smoke.sh
   - `tests/fixtures/foundation_flow_demo/` is only for the `pipeline.foundation_inputs` journey-proof flow.
   - Planning packet success examples require a canonical repo fixture with top-level `.handbook/` inputs; the journey-proof corpus is not that fixture family.
   - If you need to invoke from a nested directory during manual QA, use `tools/qa/prepare_fixture_checkout.sh --fixture-root <path> [--nested-cwd <relative-path>]` instead of ad hoc `cp -R`.
+  - The helper keeps repo-shaped fixture contents at checkout root and preserves any original `tests/fixtures/**` ancestry inside the temp checkout for fixture-backed lookups.
+  - Execution-demo-safe nested example:
+    ```bash
+    eval "$(tools/qa/prepare_fixture_checkout.sh --fixture-root tests/fixtures/execution_demo/basic --nested-cwd work/nested)"
+    (
+      cd "$EFFECTIVE_CWD"
+      handbook generate --packet execution.demo.packet --fixture-set basic
+      handbook inspect --packet execution.demo.packet --fixture-set basic
+    )
+    ```
 - Execution packets are only supported as fixture-backed demos via `execution.demo.packet`, and live execution is explicitly refused.
 
 ## Exact `foundation_inputs` path
