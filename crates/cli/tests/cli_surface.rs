@@ -3964,6 +3964,50 @@ fn pipeline_compile_refuses_malformed_route_basis() {
 }
 
 #[test]
+fn pipeline_compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let state_path = root
+        .join(".handbook")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.foundation_inputs.yaml");
+    let state = std::fs::read_to_string(&state_path).expect("state file");
+    std::fs::write(&state_path, format!("{state}\nroute_basis_extra: true\n"))
+        .expect("write malformed state");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "unknown top-level key should refuse as invalid state"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(stdout.contains("REASON: invalid_state:"), "{stdout}");
+    assert!(stdout.contains("trusted pipeline session state at "), "{stdout}");
+    assert!(stdout.contains("unknown field"), "{stdout}");
+    assert!(stdout.contains("route_basis_extra"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "NEXT SAFE ACTION: fix the persisted route state and retry `pipeline compile`; then retry `handbook pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn pipeline_compile_refuses_forged_route_basis_status() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
 

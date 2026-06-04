@@ -658,6 +658,32 @@ fn compile_refuses_malformed_route_basis() {
 }
 
 #[test]
+fn compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let state_path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let state = fs::read_to_string(&state_path).expect("state file");
+    fs::write(&state_path, format!("{state}\nroute_basis_extra: true\n"))
+        .expect("write malformed state");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidState
+    );
+    assert_eq!(err.pipeline_id.as_deref(), Some(PIPELINE_ID));
+    assert_eq!(err.stage_id.as_deref(), Some(STAGE_ID));
+    assert!(err.summary.contains("trusted pipeline session state at"));
+    assert!(err.summary.contains("unknown field"), "{err:?}");
+    assert!(err.summary.contains("route_basis_extra"), "{err:?}");
+    assert_eq!(
+        err.recovery,
+        "fix the persisted route state and retry `pipeline compile`"
+    );
+}
+
+#[test]
 fn compile_refuses_forged_route_basis_status() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
     persist_route_basis_for_current_state(&repo_root);
