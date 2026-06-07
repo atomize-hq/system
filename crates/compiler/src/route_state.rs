@@ -2,12 +2,18 @@ use crate::declarative_roots::{
     profile_file as profile_repo_file, profile_root, runner_file as runner_repo_file, runner_root,
     PROFILES_ROOT_DISPLAY, RUNNERS_ROOT_DISPLAY,
 };
-use crate::pipeline::{load_selected_pipeline_definition, PipelineDefinition};
+use crate::pipeline::{
+    load_selected_pipeline_definition, supported_route_state_variables, PipelineDefinition,
+};
 use crate::pipeline_route::{
     resolve_pipeline_route, ResolvedPipelineRoute, RouteStageReason, RouteStageStatus,
     RouteVariables,
 };
-use crate::repo_file_access::{sha256_repo_relative_file, RepoRelativeFileAccessError};
+use crate::repo_file_access::{
+    sha256_repo_relative_file, CompilerWorkspace, NormalizedRepoRelativePath,
+    RepoRelativeDirectoryAccessError, RepoRelativeFileAccessError, RepoRelativeMetadataReadError,
+    TrustedRepoDirectory,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -347,6 +353,81 @@ pub enum RouteBasisPersistRefusal {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrustedPipelineSession {
+    pub pipeline_id: String,
+    pub route_state: RouteState,
+    pub route_basis: RouteBasis,
+}
+
+impl TrustedPipelineSession {
+    pub fn require_active_stage(
+        &self,
+        stage_id: impl AsRef<str>,
+    ) -> Result<&RouteBasisResolvedStage, TrustedPipelineSessionRefusal> {
+        let stage_id = stage_id.as_ref();
+        let Some(stage) = self
+            .route_basis
+            .route
+            .iter()
+            .find(|stage| stage.stage_id == stage_id)
+        else {
+            return Err(TrustedPipelineSessionRefusal::MissingStage {
+                pipeline_id: self.pipeline_id.clone(),
+                stage_id: stage_id.to_string(),
+            });
+        };
+
+        if stage.status != RouteBasisStageStatus::Active {
+            return Err(TrustedPipelineSessionRefusal::InactiveStage {
+                pipeline_id: self.pipeline_id.clone(),
+                stage_id: stage_id.to_string(),
+                status: stage.status,
+                reason: stage.reason.clone(),
+            });
+        }
+
+        Ok(stage)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TrustedPipelineSessionRefusal {
+    InvalidPipelineId {
+        pipeline_id: String,
+        reason: &'static str,
+    },
+    ReadFailure {
+        path: PathBuf,
+        reason: String,
+    },
+    InvalidState {
+        path: PathBuf,
+        reason: String,
+    },
+    MissingRouteBasis {
+        pipeline_id: String,
+    },
+    StaleRouteBasis {
+        pipeline_id: String,
+        reason: String,
+    },
+    MalformedRouteBasis {
+        pipeline_id: String,
+        reason: String,
+    },
+    MissingStage {
+        pipeline_id: String,
+        stage_id: String,
+    },
+    InactiveStage {
+        pipeline_id: String,
+        stage_id: String,
+        status: RouteBasisStageStatus,
+        reason: Option<RouteBasisStageReason>,
+    },
+}
+
 #[derive(Debug)]
 struct RouteStateInventoryLoadError {
     path: PathBuf,
@@ -492,6 +573,59 @@ pub fn set_route_state(
     persist_route_state(&state_path, &state)?;
 
     Ok(RouteStateMutationOutcome::Applied(Box::new(state)))
+}
+
+pub fn load_trusted_pipeline_session(
+    repo_root: impl AsRef<Path>,
+    pipeline: &PipelineDefinition,
+) -> Result<TrustedPipelineSession, TrustedPipelineSessionRefusal> {
+    let repo_root = repo_root.as_ref();
+    let supported_variables = supported_route_state_variables(pipeline);
+    let state = load_route_state_with_supported_variables(
+        repo_root,
+        &pipeline.header.id,
+        &supported_variables,
+    )
+    .map_err(|err| classify_trusted_pipeline_session_read_error(&pipeline.header.id, err))?;
+    let route_basis = state.route_basis.clone().ok_or_else(|| {
+        TrustedPipelineSessionRefusal::MissingRouteBasis {
+            pipeline_id: pipeline.header.id.clone(),
+        }
+    })?;
+    let canonical_route_basis = rebuild_canonical_route_basis(repo_root, pipeline, &state)
+        .map_err(|reason| TrustedPipelineSessionRefusal::StaleRouteBasis {
+            pipeline_id: pipeline.header.id.clone(),
+            reason: format!("failed to rebuild canonical route_basis: {reason}"),
+        })?;
+
+    if let Some(reason) = trusted_pipeline_session_stale_reason(
+        repo_root,
+        pipeline,
+        &state,
+        &route_basis,
+        &canonical_route_basis,
+    ) {
+        return Err(TrustedPipelineSessionRefusal::StaleRouteBasis {
+            pipeline_id: pipeline.header.id.clone(),
+            reason,
+        });
+    }
+
+    if let Some(reason) = route_basis_mismatch_reason(&route_basis, &canonical_route_basis) {
+        return Err(TrustedPipelineSessionRefusal::MalformedRouteBasis {
+            pipeline_id: pipeline.header.id.clone(),
+            reason,
+        });
+    }
+
+    let mut route_state = normalized_state_for_route_basis(&state, repo_root);
+    route_state.route_basis = Some(canonical_route_basis.clone());
+
+    Ok(TrustedPipelineSession {
+        pipeline_id: pipeline.header.id.clone(),
+        route_state,
+        route_basis: canonical_route_basis,
+    })
 }
 
 pub fn build_route_basis(
@@ -741,6 +875,106 @@ pub(crate) fn route_basis_mismatch_reason(
                 "route_basis stage `{}` file_sha256 does not match canonical fingerprint",
                 canonical_stage.stage_id
             ));
+        }
+    }
+
+    None
+}
+
+fn classify_trusted_pipeline_session_read_error(
+    pipeline_id: &str,
+    err: RouteStateReadError,
+) -> TrustedPipelineSessionRefusal {
+    match err {
+        RouteStateReadError::InvalidPipelineId {
+            pipeline_id,
+            reason,
+        } => TrustedPipelineSessionRefusal::InvalidPipelineId {
+            pipeline_id,
+            reason,
+        },
+        RouteStateReadError::ReadFailure { path, source } => {
+            TrustedPipelineSessionRefusal::ReadFailure {
+                path,
+                reason: source.to_string(),
+            }
+        }
+        RouteStateReadError::MalformedState { path, reason } => {
+            if malformed_state_targets_route_basis(&reason) {
+                TrustedPipelineSessionRefusal::MalformedRouteBasis {
+                    pipeline_id: pipeline_id.to_string(),
+                    reason,
+                }
+            } else {
+                TrustedPipelineSessionRefusal::InvalidState { path, reason }
+            }
+        }
+    }
+}
+
+fn malformed_state_targets_route_basis(reason: &str) -> bool {
+    let trimmed = reason.trim_start();
+    trimmed.starts_with("route_basis ")
+        || trimmed.starts_with("route_basis.")
+        || trimmed.starts_with("route_basis:")
+        || trimmed.starts_with("unsupported route_basis ")
+}
+
+fn trusted_pipeline_session_stale_reason(
+    repo_root: &Path,
+    pipeline: &PipelineDefinition,
+    state: &RouteState,
+    basis: &RouteBasis,
+    canonical_basis: &RouteBasis,
+) -> Option<String> {
+    if state.revision != basis.state_revision {
+        return Some(format!(
+            "route state revision {} does not match persisted route_basis revision {}",
+            state.revision, basis.state_revision
+        ));
+    }
+
+    let effective_run = effective_route_basis_run(repo_root, pipeline, state);
+    if state.routing != basis.routing
+        || state.refs != basis.refs
+        || effective_run != normalize_route_basis_run(&basis.run)
+    {
+        return Some(
+            "route_state routing/refs/run no longer match the persisted route_basis".to_string(),
+        );
+    }
+
+    if basis.pipeline_file_sha256 != canonical_basis.pipeline_file_sha256 {
+        return Some(
+            "pipeline definition fingerprint drifted after the last `pipeline resolve`".to_string(),
+        );
+    }
+
+    if basis.runner.file_sha256 != canonical_basis.runner.file_sha256 {
+        return Some(format!(
+            "runner document `{}` changed after the last `pipeline resolve`",
+            basis.runner.file
+        ));
+    }
+
+    if basis.profile.profile_yaml_sha256 != canonical_basis.profile.profile_yaml_sha256
+        || basis.profile.commands_yaml_sha256 != canonical_basis.profile.commands_yaml_sha256
+        || basis.profile.conventions_md_sha256 != canonical_basis.profile.conventions_md_sha256
+    {
+        return Some("selected profile pack changed after the last `pipeline resolve`".to_string());
+    }
+
+    if basis.route.len() == canonical_basis.route.len() {
+        for (basis_stage, canonical_stage) in basis.route.iter().zip(canonical_basis.route.iter()) {
+            if basis_stage.stage_id == canonical_stage.stage_id
+                && basis_stage.file == canonical_stage.file
+                && basis_stage.file_sha256 != canonical_stage.file_sha256
+            {
+                return Some(format!(
+                    "stage file `{}` changed after the last `pipeline resolve`",
+                    basis_stage.file
+                ));
+            }
         }
     }
 
@@ -1531,24 +1765,17 @@ fn load_run_inventory(
 fn load_runner_inventory(
     repo_root: &Path,
 ) -> Result<BTreeSet<String>, RouteStateInventoryLoadError> {
-    let inventory_dir = repo_root.join(runner_root());
-    let entries = match fs::read_dir(&inventory_dir) {
-        Ok(entries) => entries,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
-        Err(source) => {
-            return Err(RouteStateInventoryLoadError {
-                path: inventory_dir,
-                source,
-            });
-        }
+    let workspace = CompilerWorkspace::new(repo_root);
+    let inventory_root = inventory_root_path(&workspace, runner_root());
+    let inventory_dir = match workspace.trusted_directory(&inventory_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => return Ok(BTreeSet::new()),
+        Err(err) => return Err(map_inventory_directory_error(err)),
     };
+    let entries = read_inventory_dir_entries(&inventory_dir)?;
 
     let mut ids = BTreeSet::new();
     for entry in entries {
-        let entry = entry.map_err(|source| RouteStateInventoryLoadError {
-            path: inventory_dir.clone(),
-            source,
-        })?;
         let entry_path = entry.path();
         let file_type = entry
             .file_type()
@@ -1579,26 +1806,19 @@ fn load_runner_inventory(
 fn load_profile_inventory(
     repo_root: &Path,
 ) -> Result<ProfilePackInventory, RouteStateInventoryLoadError> {
-    let inventory_dir = repo_root.join(profile_root());
-    let entries = match fs::read_dir(&inventory_dir) {
-        Ok(entries) => entries,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let inventory_root = inventory_root_path(&workspace, profile_root());
+    let inventory_dir = match workspace.trusted_directory(&inventory_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => {
             return Ok(ProfilePackInventory::default());
         }
-        Err(source) => {
-            return Err(RouteStateInventoryLoadError {
-                path: inventory_dir,
-                source,
-            });
-        }
+        Err(err) => return Err(map_inventory_directory_error(err)),
     };
+    let entries = read_inventory_dir_entries(&inventory_dir)?;
 
     let mut profiles = ProfilePackInventory::default();
     for entry in entries {
-        let entry = entry.map_err(|source| RouteStateInventoryLoadError {
-            path: inventory_dir.clone(),
-            source,
-        })?;
         let entry_path = entry.path();
         let file_type = entry
             .file_type()
@@ -1617,27 +1837,18 @@ fn load_profile_inventory(
             continue;
         }
 
-        let profile_yaml = entry_path.join("profile.yaml");
-        let metadata = match fs::symlink_metadata(&profile_yaml) {
-            Ok(metadata) => metadata,
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(source) => {
-                return Err(RouteStateInventoryLoadError {
-                    path: profile_yaml,
-                    source,
-                });
-            }
+        let profile_dir = inventory_entry_path(&workspace, &inventory_root, &id);
+        let profile_yaml = inventory_entry_path(&workspace, &profile_dir, "profile.yaml");
+        let metadata = match workspace.metadata_no_follow(&profile_yaml) {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => continue,
+            Err(err) => return Err(map_inventory_metadata_error(err)),
         };
         if !metadata.is_file() {
             continue;
         }
 
-        let missing_files = missing_profile_pack_files(&entry_path).map_err(|source| {
-            RouteStateInventoryLoadError {
-                path: entry_path.clone(),
-                source,
-            }
-        })?;
+        let missing_files = missing_profile_pack_files(&workspace, &profile_dir)?;
         if missing_files.is_empty() {
             profiles.complete_ids.insert(id);
         } else {
@@ -1648,16 +1859,20 @@ fn load_profile_inventory(
     Ok(profiles)
 }
 
-fn missing_profile_pack_files(path: &Path) -> Result<Vec<&'static str>, std::io::Error> {
+fn missing_profile_pack_files(
+    workspace: &CompilerWorkspace<'_>,
+    profile_dir: &NormalizedRepoRelativePath,
+) -> Result<Vec<&'static str>, RouteStateInventoryLoadError> {
     let mut missing_files = Vec::new();
     for required_file in PROFILE_PACK_REQUIRED_FILES {
-        let metadata = match fs::symlink_metadata(path.join(required_file)) {
-            Ok(metadata) => metadata,
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+        let required_path = inventory_entry_path(workspace, profile_dir, required_file);
+        let metadata = match workspace.metadata_no_follow(&required_path) {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => {
                 missing_files.push(required_file);
                 continue;
             }
-            Err(source) => return Err(source),
+            Err(err) => return Err(map_inventory_metadata_error(err)),
         };
         if !metadata.is_file() {
             missing_files.push(required_file);
@@ -1757,7 +1972,7 @@ pub(crate) fn route_state_path(
     validate_pipeline_id(pipeline_id)?;
 
     Ok(repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join(format!("{pipeline_id}.yaml")))
@@ -1802,56 +2017,62 @@ enum RuntimeStateResetEntryKind {
 }
 
 pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
-    let state_root = repo_root.join(".system").join("state");
-    let root_metadata = match fs::symlink_metadata(&state_root) {
-        Ok(metadata) => metadata,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let state_root = inventory_root_path(&workspace, Path::new(".handbook/state"));
+    let state_root_dir = match workspace.trusted_directory(&state_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => {
             return Ok(RuntimeStateResetPlan {
                 entries: Vec::new(),
                 paths: Vec::new(),
             });
         }
-        Err(source) => {
+        Err(RepoRelativeDirectoryAccessError::SymlinkNotAllowed(path)) => {
             return Err(format!(
-                "failed to inspect runtime state root `.system/state` at {}: {source}",
-                state_root.display()
+                "runtime state root `.handbook/state` cannot be reset through symlink {}",
+                path.display()
+            ));
+        }
+        Err(RepoRelativeDirectoryAccessError::NotDirectory(path)) => {
+            return Err(format!(
+                "runtime state root `.handbook/state` is not a directory at {}",
+                path.display()
+            ));
+        }
+        Err(RepoRelativeDirectoryAccessError::ReadFailure { path, source }) => {
+            return Err(format!(
+                "failed to inspect runtime state root `.handbook/state` at {}: {source}",
+                path.display()
             ));
         }
     };
-
-    if root_metadata.file_type().is_symlink() {
-        return Err(format!(
-            "runtime state root `.system/state` cannot be reset through symlink {}",
-            state_root.display()
-        ));
-    }
-    if !root_metadata.is_dir() {
-        return Err(format!(
-            "runtime state root `.system/state` is not a directory at {}",
-            state_root.display()
-        ));
-    }
-
-    let mut entries = fs::read_dir(&state_root)
+    let mut entries = fs::read_dir(state_root_dir.absolute_path())
         .map_err(|source| {
             format!(
-                "failed to read runtime state root `.system/state` at {}: {source}",
-                state_root.display()
+                "failed to read runtime state root `.handbook/state` at {}: {source}",
+                state_root_dir.absolute_path().display()
             )
         })?
-        .map(|entry| entry.map(|entry| entry.path()))
+        .map(|entry| {
+            entry.and_then(|entry| {
+                let relative_path = Path::new(state_root.as_str()).join(entry.file_name());
+                workspace
+                    .normalize_repo_relative_path(&relative_path)
+                    .map_err(std::io::Error::other)
+            })
+        })
         .collect::<Result<Vec<_>, _>>()
         .map_err(|source| {
             format!(
-                "failed to enumerate runtime state root `.system/state` at {}: {source}",
-                state_root.display()
+                "failed to enumerate runtime state root `.handbook/state` at {}: {source}",
+                state_root_dir.absolute_path().display()
             )
         })?;
-    entries.sort();
+    entries.sort_by(|left, right| left.as_str().cmp(right.as_str()));
 
     let mut reset_entries = Vec::new();
     for entry in entries {
-        collect_runtime_state_reset_entry(repo_root, &entry, &mut reset_entries)?;
+        collect_runtime_state_reset_entry(&workspace, &entry, &mut reset_entries)?;
     }
 
     let mut reset_paths = reset_entries
@@ -1893,79 +2114,156 @@ pub(crate) fn apply_runtime_state_reset(plan: &RuntimeStateResetPlan) -> Result<
 }
 
 fn collect_runtime_state_reset_entry(
-    repo_root: &Path,
-    path: &Path,
+    workspace: &CompilerWorkspace<'_>,
+    path: &NormalizedRepoRelativePath,
     reset_entries: &mut Vec<RuntimeStateResetEntry>,
 ) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(path).map_err(|source| {
-        format!(
-            "failed to inspect runtime state path `{}` at {}: {source}",
-            repo_relative_display(repo_root, path),
-            path.display()
-        )
-    })?;
-
-    if metadata.file_type().is_symlink() {
-        return Err(format!(
-            "runtime state path `{}` cannot be reset through symlink {}",
-            repo_relative_display(repo_root, path),
-            path.display()
-        ));
-    }
-
-    if metadata.is_dir() {
-        let mut children = fs::read_dir(path)
+    if let Ok(directory) = workspace.trusted_directory(path) {
+        let mut children = fs::read_dir(directory.absolute_path())
             .map_err(|source| {
                 format!(
                     "failed to read runtime state directory `{}` at {}: {source}",
-                    repo_relative_display(repo_root, path),
-                    path.display()
+                    path.as_str(),
+                    directory.absolute_path().display()
                 )
             })?
-            .map(|entry| entry.map(|entry| entry.path()))
+            .map(|entry| {
+                entry.and_then(|entry| {
+                    let relative_path = Path::new(path.as_str()).join(entry.file_name());
+                    workspace
+                        .normalize_repo_relative_path(&relative_path)
+                        .map_err(std::io::Error::other)
+                })
+            })
             .collect::<Result<Vec<_>, _>>()
             .map_err(|source| {
                 format!(
                     "failed to enumerate runtime state directory `{}` at {}: {source}",
-                    repo_relative_display(repo_root, path),
-                    path.display()
+                    path.as_str(),
+                    directory.absolute_path().display()
                 )
             })?;
-        children.sort();
+        children.sort_by(|left, right| left.as_str().cmp(right.as_str()));
 
         for child in children {
-            collect_runtime_state_reset_entry(repo_root, &child, reset_entries)?;
+            collect_runtime_state_reset_entry(workspace, &child, reset_entries)?;
         }
 
         reset_entries.push(RuntimeStateResetEntry {
-            path: path.to_path_buf(),
-            display_path: repo_relative_display(repo_root, path),
+            path: directory.absolute_path().to_path_buf(),
+            display_path: path.as_str().to_string(),
             kind: RuntimeStateResetEntryKind::Dir,
         });
         return Ok(());
     }
 
-    if metadata.is_file() {
-        reset_entries.push(RuntimeStateResetEntry {
-            path: path.to_path_buf(),
-            display_path: repo_relative_display(repo_root, path),
-            kind: RuntimeStateResetEntryKind::File,
-        });
-        return Ok(());
+    match workspace.trusted_read(path) {
+        Ok(file) => {
+            reset_entries.push(RuntimeStateResetEntry {
+                path: file.absolute_path().to_path_buf(),
+                display_path: path.as_str().to_string(),
+                kind: RuntimeStateResetEntryKind::File,
+            });
+            Ok(())
+        }
+        Err(RepoRelativeFileAccessError::SymlinkNotAllowed(path_buf)) => Err(format!(
+            "runtime state path `{}` cannot be reset through symlink {}",
+            path.as_str(),
+            path_buf.display()
+        )),
+        Err(RepoRelativeFileAccessError::ReadFailure {
+            path: path_buf,
+            source,
+        }) => Err(format!(
+            "failed to inspect runtime state path `{}` at {}: {source}",
+            path.as_str(),
+            path_buf.display()
+        )),
+        Err(RepoRelativeFileAccessError::NotRegularFile(_))
+        | Err(RepoRelativeFileAccessError::Missing(_))
+        | Err(RepoRelativeFileAccessError::InvalidPath(_)) => Err(format!(
+            "runtime state path `{}` is not a regular file or directory",
+            path.as_str()
+        )),
     }
-
-    Err(format!(
-        "runtime state path `{}` is not a regular file or directory",
-        repo_relative_display(repo_root, path)
-    ))
 }
 
-fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
-    path.strip_prefix(repo_root)
-        .ok()
-        .and_then(|relative| relative.to_str())
-        .map(|relative| relative.replace('\\', "/"))
-        .unwrap_or_else(|| path.display().to_string())
+fn inventory_root_path(
+    workspace: &CompilerWorkspace<'_>,
+    root: &Path,
+) -> NormalizedRepoRelativePath {
+    workspace
+        .normalize_repo_relative_path(root)
+        .expect("route-state inventory roots must stay valid repo-relative paths")
+}
+
+fn inventory_entry_path(
+    workspace: &CompilerWorkspace<'_>,
+    parent: &NormalizedRepoRelativePath,
+    child: &str,
+) -> NormalizedRepoRelativePath {
+    let path = Path::new(parent.as_str()).join(child);
+    workspace
+        .normalize_repo_relative_path(&path)
+        .expect("route-state inventory entries must stay valid repo-relative paths")
+}
+
+fn read_inventory_dir_entries(
+    directory: &TrustedRepoDirectory,
+) -> Result<Vec<fs::DirEntry>, RouteStateInventoryLoadError> {
+    fs::read_dir(directory.absolute_path())
+        .map_err(|source| RouteStateInventoryLoadError {
+            path: directory.absolute_path().to_path_buf(),
+            source,
+        })?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| RouteStateInventoryLoadError {
+            path: directory.absolute_path().to_path_buf(),
+            source,
+        })
+}
+
+fn map_inventory_directory_error(
+    err: RepoRelativeDirectoryAccessError,
+) -> RouteStateInventoryLoadError {
+    match err {
+        RepoRelativeDirectoryAccessError::Missing(path) => RouteStateInventoryLoadError {
+            path,
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        },
+        RepoRelativeDirectoryAccessError::SymlinkNotAllowed(path) => RouteStateInventoryLoadError {
+            path: path.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "repo-relative directory cannot be traversed through symlink {}",
+                    path.display()
+                ),
+            ),
+        },
+        RepoRelativeDirectoryAccessError::NotDirectory(path) => RouteStateInventoryLoadError {
+            path: path.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "repo-relative directory is not a directory at {}",
+                    path.display()
+                ),
+            ),
+        },
+        RepoRelativeDirectoryAccessError::ReadFailure { path, source } => {
+            RouteStateInventoryLoadError { path, source }
+        }
+    }
+}
+
+fn map_inventory_metadata_error(
+    err: RepoRelativeMetadataReadError,
+) -> RouteStateInventoryLoadError {
+    RouteStateInventoryLoadError {
+        path: err.path,
+        source: err.source,
+    }
 }
 
 pub(crate) fn ensure_state_parent_dir(state_path: &Path) -> Result<(), std::io::Error> {
@@ -2443,6 +2741,73 @@ impl fmt::Display for RouteBasisPersistRefusal {
     }
 }
 
+impl fmt::Display for TrustedPipelineSessionRefusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TrustedPipelineSessionRefusal::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "trusted pipeline session pipeline id `{pipeline_id}` is invalid: {reason}"
+                )
+            }
+            TrustedPipelineSessionRefusal::ReadFailure { path, reason } => {
+                write!(
+                    f,
+                    "failed to read trusted pipeline session state at {}: {reason}",
+                    path.display()
+                )
+            }
+            TrustedPipelineSessionRefusal::InvalidState { path, reason } => {
+                write!(
+                    f,
+                    "trusted pipeline session state at {} is invalid: {reason}",
+                    path.display()
+                )
+            }
+            TrustedPipelineSessionRefusal::MissingRouteBasis { pipeline_id } => {
+                write!(
+                    f,
+                    "persisted route_basis is missing for trusted pipeline `{pipeline_id}`"
+                )
+            }
+            TrustedPipelineSessionRefusal::StaleRouteBasis {
+                pipeline_id,
+                reason,
+            } => write!(
+                f,
+                "persisted route_basis for trusted pipeline `{pipeline_id}` is stale: {reason}"
+            ),
+            TrustedPipelineSessionRefusal::MalformedRouteBasis {
+                pipeline_id,
+                reason,
+            } => write!(
+                f,
+                "persisted route_basis for trusted pipeline `{pipeline_id}` is malformed: {reason}"
+            ),
+            TrustedPipelineSessionRefusal::MissingStage {
+                pipeline_id,
+                stage_id,
+            } => write!(
+                f,
+                "trusted pipeline `{pipeline_id}` route_basis does not include stage `{stage_id}`"
+            ),
+            TrustedPipelineSessionRefusal::InactiveStage {
+                pipeline_id,
+                stage_id,
+                status,
+                ..
+            } => write!(
+                f,
+                "trusted pipeline `{pipeline_id}` stage `{stage_id}` is not active (current status: {})",
+                route_basis_stage_status_label(*status)
+            ),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{preview_runtime_state_reset, reset_runtime_state_tree};
@@ -2464,14 +2829,14 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let repo_root = dir.path();
 
-        write_file(&repo_root.join(".system/state/a.yaml"), b"a: 1\n");
+        write_file(&repo_root.join(".handbook/state/a.yaml"), b"a: 1\n");
         let external = tempfile::tempdir().expect("external tempdir");
-        symlink(external.path(), repo_root.join(".system/state/z_symlink")).expect("symlink");
+        symlink(external.path(), repo_root.join(".handbook/state/z_symlink")).expect("symlink");
 
         let err = reset_runtime_state_tree(repo_root).expect_err("reset should refuse");
         assert!(err.contains("symlink"), "{err}");
         assert!(
-            repo_root.join(".system/state/a.yaml").is_file(),
+            repo_root.join(".handbook/state/a.yaml").is_file(),
             "preflight refusal must not partially delete state"
         );
     }
@@ -2482,13 +2847,13 @@ mod tests {
         write_file(
             &preview_root
                 .path()
-                .join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+                .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
             b"pipeline state\n",
         );
         write_file(
             &preview_root
                 .path()
-                .join(".system/state/pipeline/capture/cache.yaml"),
+                .join(".handbook/state/pipeline/capture/cache.yaml"),
             b"cache state\n",
         );
 
@@ -2499,13 +2864,13 @@ mod tests {
         write_file(
             &apply_root
                 .path()
-                .join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+                .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
             b"pipeline state\n",
         );
         write_file(
             &apply_root
                 .path()
-                .join(".system/state/pipeline/capture/cache.yaml"),
+                .join(".handbook/state/pipeline/capture/cache.yaml"),
             b"cache state\n",
         );
 
@@ -2515,11 +2880,11 @@ mod tests {
         assert_eq!(preview_paths, reset_paths);
         assert!(!apply_root
             .path()
-            .join(".system/state/pipeline/pipeline.foundation_inputs.yaml")
+            .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml")
             .exists());
         assert!(!apply_root
             .path()
-            .join(".system/state/pipeline/capture/cache.yaml")
+            .join(".handbook/state/pipeline/capture/cache.yaml")
             .exists());
     }
 }

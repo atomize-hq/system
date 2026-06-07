@@ -9,11 +9,11 @@ export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 mkdir -p "$EVIDENCE_DIR"
 exec > >(tee "$LOG_PATH") 2>&1
 
-SYSTEM_HOME="$HOME/system"
-INSTALLED_ROOT_SKILL="$SYSTEM_HOME/.agents/skills/system"
-INSTALLED_DISCOVERY_SKILL="$SYSTEM_HOME/.agents/skills/system-charter-intake"
-CODEX_ROOT_SKILL="$HOME/.codex/skills/system"
-CODEX_DISCOVERY_SKILL="$HOME/.codex/skills/system-charter-intake"
+HANDBOOK_HOME="$HOME/handbook"
+INSTALLED_ROOT_SKILL="$HANDBOOK_HOME/.agents/skills/handbook"
+INSTALLED_DISCOVERY_SKILL="$HANDBOOK_HOME/.agents/skills/handbook-charter-intake"
+CODEX_ROOT_SKILL="$HOME/.codex/skills/handbook"
+CODEX_DISCOVERY_SKILL="$HOME/.codex/skills/handbook-charter-intake"
 
 assert_exact_file_set() {
   local root="$1"
@@ -55,25 +55,25 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 
 required = {
     "skill_name",
-    "system_release_version",
+    "handbook_release_version",
     "manifest_version",
     "generated_at_utc",
 }
 missing = sorted(required.difference(data))
 if missing:
     raise SystemExit(f"missing manifest fields: {missing}")
-if data["skill_name"] != "system-charter-intake":
+if data["skill_name"] != "handbook-charter-intake":
     raise SystemExit(f"unexpected manifest skill_name: {data['skill_name']}")
 PY
 }
 
 assert_repo_projection_thin() {
-  assert_exact_file_set "$ROOT_DIR/.agents/skills/system" "$(cat <<'EOF'
+  assert_exact_file_set "$ROOT_DIR/.agents/skills/handbook" "$(cat <<'EOF'
 SKILL.md
 agents/openai.yaml
 EOF
 )"
-  assert_exact_file_set "$ROOT_DIR/.agents/skills/system-charter-intake" "$(cat <<'EOF'
+  assert_exact_file_set "$ROOT_DIR/.agents/skills/handbook-charter-intake" "$(cat <<'EOF'
 SKILL.md
 agents/openai.yaml
 EOF
@@ -88,15 +88,15 @@ assert_repo_root_install_sources_absent() {
 }
 
 assert_installed_home_file_set() {
-  assert_exact_file_set "$SYSTEM_HOME" "$(cat <<'EOF'
-.agents/skills/system-charter-intake/SKILL.md
-.agents/skills/system-charter-intake/agents/openai.yaml
-.agents/skills/system/SKILL.md
-.agents/skills/system/agents/openai.yaml
+  assert_exact_file_set "$HANDBOOK_HOME" "$(cat <<'EOF'
+.agents/skills/handbook-charter-intake/SKILL.md
+.agents/skills/handbook-charter-intake/agents/openai.yaml
+.agents/skills/handbook/SKILL.md
+.agents/skills/handbook/agents/openai.yaml
 SKILL.md
 SKILL.md.tmpl
 agents/openai.yaml
-bin/system
+bin/handbook
 charter-intake/SKILL.md
 charter-intake/SKILL.md.tmpl
 resources/authoring/charter_authoring_method.md
@@ -108,14 +108,14 @@ EOF
 }
 
 assert_installed_runtime_contract() {
-  test -x "$SYSTEM_HOME/bin/system"
-  test -d "$SYSTEM_HOME/resources/authoring"
-  test -d "$SYSTEM_HOME/resources/charter"
-  assert_path_absent "$SYSTEM_HOME/bin/system-charter-intake"
-  assert_path_absent "$SYSTEM_HOME/share"
+  test -x "$HANDBOOK_HOME/bin/handbook"
+  test -d "$HANDBOOK_HOME/resources/authoring"
+  test -d "$HANDBOOK_HOME/resources/charter"
+  assert_path_absent "$HANDBOOK_HOME/bin/handbook-charter-intake"
+  assert_path_absent "$HANDBOOK_HOME/share"
 }
 
-assert_discovery_links_to_system_home() {
+assert_discovery_links_to_handbook_home() {
   [[ "$(readlink "$CODEX_ROOT_SKILL")" == "$INSTALLED_ROOT_SKILL" ]] || {
     echo "unexpected root discovery link target"
     readlink "$CODEX_ROOT_SKILL" || true
@@ -129,12 +129,12 @@ assert_discovery_links_to_system_home() {
 }
 
 assert_dev_setup_links_to_repo() {
-  [[ "$(readlink "$CODEX_ROOT_SKILL")" == "$ROOT_DIR/.agents/skills/system" ]] || {
+  [[ "$(readlink "$CODEX_ROOT_SKILL")" == "$ROOT_DIR/.agents/skills/handbook" ]] || {
     echo "unexpected dev root discovery link target"
     readlink "$CODEX_ROOT_SKILL" || true
     exit 1
   }
-  [[ "$(readlink "$CODEX_DISCOVERY_SKILL")" == "$ROOT_DIR/.agents/skills/system-charter-intake" ]] || {
+  [[ "$(readlink "$CODEX_DISCOVERY_SKILL")" == "$ROOT_DIR/.agents/skills/handbook-charter-intake" ]] || {
     echo "unexpected dev leaf discovery link target"
     readlink "$CODEX_DISCOVERY_SKILL" || true
     exit 1
@@ -146,9 +146,9 @@ cd "$ROOT_DIR"
 cargo install --locked --force --path crates/cli
 
 echo "==> help smoke"
-system --help >/dev/null
-system doctor --help >/dev/null
-system author charter --help >/dev/null
+handbook --help >/dev/null
+handbook doctor --help >/dev/null
+handbook author charter --help >/dev/null
 
 echo "==> generator/install smoke"
 bash tools/codex/generate.sh
@@ -157,20 +157,20 @@ assert_repo_root_install_sources_absent
 bash tools/codex/install.sh
 assert_installed_home_file_set
 assert_installed_runtime_contract
-assert_discovery_links_to_system_home
-assert_manifest_fields "$SYSTEM_HOME/runtime-manifest.json"
+assert_discovery_links_to_handbook_home
+assert_manifest_fields "$HANDBOOK_HOME/runtime-manifest.json"
 
 echo "==> reinstall smoke"
-before_listing="$(find "$SYSTEM_HOME" -type f -print | sort)"
+before_listing="$(find "$HANDBOOK_HOME" -type f -print | sort)"
 bash tools/codex/install.sh
-after_listing="$(find "$SYSTEM_HOME" -type f -print | sort)"
+after_listing="$(find "$HANDBOOK_HOME" -type f -print | sort)"
 [[ "$before_listing" == "$after_listing" ]] || {
   echo "reinstall changed installed file set"
   exit 1
 }
 assert_installed_home_file_set
 assert_installed_runtime_contract
-assert_discovery_links_to_system_home
+assert_discovery_links_to_handbook_home
 
 echo "==> dev-setup symlink smoke"
 bash tools/codex/dev-setup.sh
@@ -182,7 +182,7 @@ echo "==> install-mode crossover smoke"
 bash tools/codex/install.sh
 test -L "$CODEX_ROOT_SKILL"
 test -L "$CODEX_DISCOVERY_SKILL"
-assert_discovery_links_to_system_home
+assert_discovery_links_to_handbook_home
 assert_installed_home_file_set
 assert_installed_runtime_contract
 

@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-SMOKE_MODEL_ENV_VAR="SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL"
-RUNTIME_MODEL_ENV_VAR="SYSTEM_AUTHOR_CHARTER_CODEX_MODEL"
+SMOKE_MODEL_ENV_VAR="HANDBOOK_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL"
+RUNTIME_MODEL_ENV_VAR="HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL"
 
 is_relevant_change() {
   local path="$1"
@@ -75,16 +75,16 @@ npm install -g @openai/codex
 echo "==> codex version"
 codex --version
 
-selected_model="${SYSTEM_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL:-gpt-5.4-mini}"
-export SYSTEM_AUTHOR_CHARTER_CODEX_MODEL="$selected_model"
+selected_model="${HANDBOOK_LIVE_AUTHOR_CHARTER_SMOKE_CODEX_MODEL:-gpt-5.4-mini}"
+export HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL="$selected_model"
 
 echo "==> live author smoke model"
-echo "${RUNTIME_MODEL_ENV_VAR}=${SYSTEM_AUTHOR_CHARTER_CODEX_MODEL}"
+echo "${RUNTIME_MODEL_ENV_VAR}=${HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL}"
 echo "Local fast example: ${SMOKE_MODEL_ENV_VAR}=gpt-5.3-codex-spark"
 echo "CI-like example: ${SMOKE_MODEL_ENV_VAR}=gpt-5.4-mini"
 
 echo "==> run live author smoke"
-SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1 \
-  cargo test -p system-cli --test author_cli \
+HANDBOOK_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1 \
+  cargo test -p handbook-cli --test author_cli \
   structured_inputs_author_charter_succeeds_with_live_codex_transport \
   -- --exact

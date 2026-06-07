@@ -1,8 +1,8 @@
 # Base Context
 
 ## Project
-- Name: System
-- Repo / Project Ref: `system`
+- Name: Handbook
+- Repo / Project Ref: `handbook`
 - Owner: Platform Foundations
 - Team: Build Systems
 

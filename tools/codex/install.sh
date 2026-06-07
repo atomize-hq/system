@@ -5,13 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 GENERATE_SCRIPT="$SCRIPT_DIR/generate.sh"
 RUNTIME_TEMPLATE_ROOT="$SCRIPT_DIR/runtime"
-INSTALL_SOURCE_ROOT="$ROOT_DIR/install/system-home"
+INSTALL_SOURCE_ROOT="$ROOT_DIR/install/handbook-home"
 GENERATED_ROOT="$ROOT_DIR/.agents/skills"
-SYSTEM_HOME="$HOME/system"
-SYSTEM_DISCOVERY_ROOT="$SYSTEM_HOME/.agents/skills"
+HANDBOOK_HOME="$HOME/handbook"
+HANDBOOK_DISCOVERY_ROOT="$HANDBOOK_HOME/.agents/skills"
 CODEX_DISCOVERY_ROOT="$HOME/.codex/skills"
-DISCOVERY_NAME="system-charter-intake"
-ROOT_SKILL_NAME="system"
+DISCOVERY_NAME="handbook-charter-intake"
+ROOT_SKILL_NAME="handbook"
 MANIFEST_VERSION="1"
 
 require_file() {
@@ -55,7 +55,7 @@ destination_path = pathlib.Path(sys.argv[2])
 text = template_path.read_text(encoding="utf-8")
 replacements = {
     "__SKILL_NAME__": os.environ["SKILL_NAME"],
-    "__SYSTEM_RELEASE_VERSION__": os.environ["SYSTEM_RELEASE_VERSION"],
+    "__HANDBOOK_RELEASE_VERSION__": os.environ["HANDBOOK_RELEASE_VERSION"],
     "__MANIFEST_VERSION__": os.environ["MANIFEST_VERSION"],
     "__GENERATED_AT_UTC__": os.environ["GENERATED_AT_UTC"],
 }
@@ -115,15 +115,15 @@ else
   GENERATED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 fi
 
-SYSTEM_RELEASE_VERSION="$(tr -d '[:space:]' <"$ROOT_DIR/VERSION")"
-SYSTEM_BIN_ON_PATH="$(command -v system 2>/dev/null || true)"
+HANDBOOK_RELEASE_VERSION="$(tr -d '[:space:]' <"$ROOT_DIR/VERSION")"
+HANDBOOK_BIN_ON_PATH="$(command -v handbook 2>/dev/null || true)"
 
 require_file "$GENERATE_SCRIPT"
 require_file "$RUNTIME_TEMPLATE_ROOT/runtime-manifest.json.tmpl"
 require_file "$INSTALL_SOURCE_ROOT/SKILL.md.tmpl"
 require_file "$INSTALL_SOURCE_ROOT/agents/openai.yaml"
 require_file "$INSTALL_SOURCE_ROOT/charter-intake/SKILL.md.tmpl"
-require_command system
+require_command handbook
 bash "$GENERATE_SCRIPT"
 
 ROOT_SKILL_SOURCE="$GENERATED_ROOT/$ROOT_SKILL_NAME"
@@ -132,17 +132,17 @@ DISCOVERY_SOURCE="$GENERATED_ROOT/$DISCOVERY_NAME"
 require_directory "$ROOT_SKILL_SOURCE"
 require_directory "$DISCOVERY_SOURCE"
 
-binary_version="$(system --version | awk '{print $NF}')"
-[[ "$binary_version" == "$SYSTEM_RELEASE_VERSION" ]] || {
-  printf 'system binary version mismatch: repo=%s found=%s\n' "$SYSTEM_RELEASE_VERSION" "$binary_version" >&2
+binary_version="$(handbook --version | awk '{print $NF}')"
+[[ "$binary_version" == "$HANDBOOK_RELEASE_VERSION" ]] || {
+  printf 'handbook binary version mismatch: repo=%s found=%s\n' "$HANDBOOK_RELEASE_VERSION" "$binary_version" >&2
   exit 1
 }
-[[ -n "$SYSTEM_BIN_ON_PATH" && -x "$SYSTEM_BIN_ON_PATH" ]] || {
-  printf 'resolved system binary is not executable: %s\n' "$SYSTEM_BIN_ON_PATH" >&2
+[[ -n "$HANDBOOK_BIN_ON_PATH" && -x "$HANDBOOK_BIN_ON_PATH" ]] || {
+  printf 'resolved handbook binary is not executable: %s\n' "$HANDBOOK_BIN_ON_PATH" >&2
   exit 1
 }
 
-stage_root="$(mktemp -d "$HOME/system.install.XXXXXX")"
+stage_root="$(mktemp -d "$HOME/handbook.install.XXXXXX")"
 cleanup() {
   rm -rf "$stage_root"
 }
@@ -159,25 +159,25 @@ mkdir -p \
 install_copy "$INSTALL_SOURCE_ROOT/SKILL.md.tmpl" "$stage_root/SKILL.md.tmpl"
 install_copy "$INSTALL_SOURCE_ROOT/agents/openai.yaml" "$stage_root/agents/openai.yaml"
 install_copy "$INSTALL_SOURCE_ROOT/charter-intake/SKILL.md.tmpl" "$stage_root/charter-intake/SKILL.md.tmpl"
-install_copy "$SYSTEM_BIN_ON_PATH" "$stage_root/bin/system"
+install_copy "$HANDBOOK_BIN_ON_PATH" "$stage_root/bin/handbook"
 install_copy "$ROOT_SKILL_SOURCE" "$stage_root/.agents/skills/$ROOT_SKILL_NAME"
 install_copy "$DISCOVERY_SOURCE" "$stage_root/.agents/skills/$DISCOVERY_NAME"
 install_copy "$ROOT_DIR/core/library/authoring/charter_authoring_method.md" "$stage_root/resources/authoring/charter_authoring_method.md"
 install_copy "$ROOT_DIR/core/library/charter/CHARTER_INPUTS.yaml.tmpl" "$stage_root/resources/charter/CHARTER_INPUTS.yaml.tmpl"
 install_copy "$ROOT_DIR/core/library/charter/charter_inputs_directive.md" "$stage_root/resources/charter/charter_inputs_directive.md"
 
-export GENERATED_AT_UTC MANIFEST_VERSION SYSTEM_RELEASE_VERSION
+export GENERATED_AT_UTC MANIFEST_VERSION HANDBOOK_RELEASE_VERSION
 export SKILL_NAME="$ROOT_SKILL_NAME"
 render_template "$INSTALL_SOURCE_ROOT/SKILL.md.tmpl" "$stage_root/SKILL.md"
 export SKILL_NAME="$DISCOVERY_NAME"
 render_template "$INSTALL_SOURCE_ROOT/charter-intake/SKILL.md.tmpl" "$stage_root/charter-intake/SKILL.md"
 render_template "$RUNTIME_TEMPLATE_ROOT/runtime-manifest.json.tmpl" "$stage_root/runtime-manifest.json"
-chmod 0755 "$stage_root/bin/system"
+chmod 0755 "$stage_root/bin/handbook"
 
-rm -rf "$SYSTEM_HOME"
-mv "$stage_root" "$SYSTEM_HOME"
+rm -rf "$HANDBOOK_HOME"
+mv "$stage_root" "$HANDBOOK_HOME"
 trap - EXIT
 
 mkdir -p "$CODEX_DISCOVERY_ROOT"
-install_discovery_entry "$SYSTEM_DISCOVERY_ROOT/$ROOT_SKILL_NAME" "$CODEX_DISCOVERY_ROOT/$ROOT_SKILL_NAME"
-install_discovery_entry "$SYSTEM_DISCOVERY_ROOT/$DISCOVERY_NAME" "$CODEX_DISCOVERY_ROOT/$DISCOVERY_NAME"
+install_discovery_entry "$HANDBOOK_DISCOVERY_ROOT/$ROOT_SKILL_NAME" "$CODEX_DISCOVERY_ROOT/$ROOT_SKILL_NAME"
+install_discovery_entry "$HANDBOOK_DISCOVERY_ROOT/$DISCOVERY_NAME" "$CODEX_DISCOVERY_ROOT/$DISCOVERY_NAME"

@@ -1,15 +1,13 @@
 use crate::declarative_roots::{is_profile_file, profile_file};
 use crate::pipeline::{
-    load_selected_pipeline_definition, load_stage_compile_definition,
-    supported_route_state_variables, CompileStageDefinition, CompileStageInput,
-    CompileStageLoadError, CompileStageVariable, PipelineDefinition, SelectedPipelineLoadError,
+    load_selected_pipeline_definition, load_stage_compile_definition, CompileStageDefinition,
+    CompileStageInput, CompileStageLoadError, CompileStageVariable, PipelineDefinition,
+    SelectedPipelineLoadError,
 };
 use crate::repo_file_access::{read_repo_relative_string, RepoRelativeFileAccessError};
 use crate::route_state::{
-    effective_route_basis_run, load_route_state_with_supported_variables,
-    normalize_route_basis_run, rebuild_canonical_route_basis, route_basis_mismatch_reason,
-    RouteBasis, RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateReadError,
-    ROUTE_BASIS_REPO_ROOT_SENTINEL,
+    load_trusted_pipeline_session, normalize_route_basis_run, RouteBasis, RouteBasisStageReason,
+    RouteBasisStageStatus, TrustedPipelineSessionRefusal, ROUTE_BASIS_REPO_ROOT_SENTINEL,
 };
 use std::collections::BTreeMap;
 use std::fmt;
@@ -19,7 +17,7 @@ use time::OffsetDateTime;
 
 const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
-pub const PIPELINE_COMPILE_NOW_UTC_ENV_VAR: &str = "SYSTEM_PIPELINE_COMPILE_NOW_UTC";
+pub const PIPELINE_COMPILE_NOW_UTC_ENV_VAR: &str = "HANDBOOK_PIPELINE_COMPILE_NOW_UTC";
 const NOW_UTC_FORMAT: &[time::format_description::FormatItem<'static>] =
     format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
 
@@ -204,79 +202,15 @@ pub fn compile_pipeline_stage_with_runtime(
     }
 
     let stage_id = SUPPORTED_STAGE_ID.to_string();
-    let supported_variables = supported_route_state_variables(&pipeline);
-    let state = load_route_state_with_supported_variables(
-        repo_root,
-        &pipeline.header.id,
-        &supported_variables,
-    )
-    .map_err(|err| classify_state_read_refusal(err, &pipeline.header.id, &stage_id))?;
-    let route_basis = state
-        .route_basis
-        .clone()
-        .ok_or_else(|| PipelineCompileRefusal {
-            classification: PipelineCompileRefusalClassification::MissingRouteBasis,
-            summary: "persisted route_basis is missing for the selected pipeline".to_string(),
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(stage_id.clone()),
-            recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
+    let trusted_session = load_trusted_pipeline_session(repo_root, &pipeline).map_err(|err| {
+        classify_trusted_pipeline_session_refusal(err, &pipeline.header.id, &stage_id)
+    })?;
+    trusted_session
+        .require_active_stage(&stage_id)
+        .map_err(|err| {
+            classify_trusted_pipeline_session_refusal(err, &pipeline.header.id, &stage_id)
         })?;
-
-    let canonical_route_basis = rebuild_canonical_route_basis(repo_root, &pipeline, &state)
-        .map_err(|reason| {
-            stale_basis_refusal(
-                &pipeline.header.id,
-                &stage_id,
-                format!("failed to rebuild canonical route_basis: {reason}"),
-            )
-        })?;
-    check_route_basis_freshness(
-        repo_root,
-        &pipeline,
-        &state,
-        &route_basis,
-        &canonical_route_basis,
-        &stage_id,
-    )?;
-    let route_basis =
-        if let Some(reason) = route_basis_mismatch_reason(&route_basis, &canonical_route_basis) {
-            return Err(PipelineCompileRefusal {
-                classification: PipelineCompileRefusalClassification::MalformedRouteBasis,
-                summary: format!("persisted route_basis is malformed: {reason}"),
-                pipeline_id: Some(pipeline.header.id.clone()),
-                stage_id: Some(stage_id.clone()),
-                recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
-            });
-        } else {
-            canonical_route_basis
-        };
-
-    let basis_stage = route_basis
-        .route
-        .iter()
-        .find(|stage| stage.stage_id == stage_id)
-        .ok_or_else(|| PipelineCompileRefusal {
-            classification: PipelineCompileRefusalClassification::UnsupportedTarget,
-            summary: format!(
-                "selected stage `{stage_id}` is absent from the persisted resolved route"
-            ),
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(stage_id.clone()),
-            recovery: "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline".to_string(),
-        })?;
-
-    if basis_stage.status != RouteBasisStageStatus::Active {
-        return Err(PipelineCompileRefusal {
-            classification: PipelineCompileRefusalClassification::InactiveStage,
-            summary: format!(
-                "selected stage `{stage_id}` is not active in the persisted route: {}",
-                render_route_basis_reason(basis_stage.reason.as_ref())
-            ),
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(stage_id.clone()),
-            recovery: "re-run `pipeline resolve`, adjust route state if needed, and retry `pipeline compile`".to_string(),
-        });
-    }
+    let route_basis = trusted_session.route_basis;
 
     let stage_definition = load_stage_compile_definition(repo_root, &pipeline, &stage_id)
         .map_err(|err| classify_compile_stage_error(err, &pipeline.header.id, &stage_id))?;
@@ -588,13 +522,23 @@ pub fn render_pipeline_compile_explain(result: &PipelineCompileResult) -> String
     normalize_rendered_output(&out)
 }
 
-fn classify_state_read_refusal(
-    err: RouteStateReadError,
+fn classify_trusted_pipeline_session_refusal(
+    err: TrustedPipelineSessionRefusal,
     pipeline_id: &str,
     stage_id: &str,
 ) -> PipelineCompileRefusal {
     match err {
-        RouteStateReadError::MalformedState { reason, .. } if reason.contains("route_basis") => {
+        TrustedPipelineSessionRefusal::MissingRouteBasis { .. } => PipelineCompileRefusal {
+            classification: PipelineCompileRefusalClassification::MissingRouteBasis,
+            summary: "persisted route_basis is missing for the selected pipeline".to_string(),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
+        },
+        TrustedPipelineSessionRefusal::StaleRouteBasis { reason, .. } => {
+            stale_basis_refusal(pipeline_id, stage_id, reason)
+        }
+        TrustedPipelineSessionRefusal::MalformedRouteBasis { reason, .. } => {
             PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::MalformedRouteBasis,
                 summary: format!("persisted route_basis is malformed: {reason}"),
@@ -603,6 +547,25 @@ fn classify_state_read_refusal(
                 recovery: "re-run `pipeline resolve` and retry `pipeline compile`".to_string(),
             }
         }
+        TrustedPipelineSessionRefusal::MissingStage { .. } => PipelineCompileRefusal {
+            classification: PipelineCompileRefusalClassification::UnsupportedTarget,
+            summary: format!(
+                "selected stage `{stage_id}` is absent from the persisted resolved route"
+            ),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline".to_string(),
+        },
+        TrustedPipelineSessionRefusal::InactiveStage { reason, .. } => PipelineCompileRefusal {
+            classification: PipelineCompileRefusalClassification::InactiveStage,
+            summary: format!(
+                "selected stage `{stage_id}` is not active in the persisted route: {}",
+                render_route_basis_reason(reason.as_ref())
+            ),
+            pipeline_id: Some(pipeline_id.to_string()),
+            stage_id: Some(stage_id.to_string()),
+            recovery: "re-run `pipeline resolve`, adjust route state if needed, and retry `pipeline compile`".to_string(),
+        },
         other => PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::InvalidState,
             summary: other.to_string(),
@@ -680,84 +643,6 @@ fn selector_is_path_like(selector: &str) -> bool {
             .components()
             .any(|component| !matches!(component, Component::Normal(_)))
         || selector.contains('/')
-}
-
-fn check_route_basis_freshness(
-    repo_root: &Path,
-    pipeline: &PipelineDefinition,
-    state: &RouteState,
-    basis: &RouteBasis,
-    canonical_basis: &RouteBasis,
-    stage_id: &str,
-) -> Result<(), PipelineCompileRefusal> {
-    if state.revision != basis.state_revision {
-        return Err(stale_basis_refusal(
-            &pipeline.header.id,
-            stage_id,
-            format!(
-                "route state revision {} does not match persisted route_basis revision {}",
-                state.revision, basis.state_revision
-            ),
-        ));
-    }
-    let effective_run = effective_route_basis_run(repo_root, pipeline, state);
-    if state.routing != basis.routing
-        || state.refs != basis.refs
-        || effective_run != normalize_route_basis_run(&basis.run)
-    {
-        return Err(stale_basis_refusal(
-            &pipeline.header.id,
-            stage_id,
-            "route_state routing/refs/run no longer match the persisted route_basis".to_string(),
-        ));
-    }
-    if basis.pipeline_file_sha256 != canonical_basis.pipeline_file_sha256 {
-        return Err(stale_basis_refusal(
-            &pipeline.header.id,
-            stage_id,
-            "pipeline definition fingerprint drifted after the last `pipeline resolve`".to_string(),
-        ));
-    }
-    if basis.runner.file_sha256 != canonical_basis.runner.file_sha256 {
-        return Err(stale_basis_refusal(
-            &pipeline.header.id,
-            stage_id,
-            format!(
-                "runner document `{}` changed after the last `pipeline resolve`",
-                basis.runner.file
-            ),
-        ));
-    }
-    if basis.profile.profile_yaml_sha256 != canonical_basis.profile.profile_yaml_sha256
-        || basis.profile.commands_yaml_sha256 != canonical_basis.profile.commands_yaml_sha256
-        || basis.profile.conventions_md_sha256 != canonical_basis.profile.conventions_md_sha256
-    {
-        return Err(stale_basis_refusal(
-            &pipeline.header.id,
-            stage_id,
-            "selected profile pack changed after the last `pipeline resolve`".to_string(),
-        ));
-    }
-
-    if basis.route.len() == canonical_basis.route.len() {
-        for (basis_stage, canonical_stage) in basis.route.iter().zip(canonical_basis.route.iter()) {
-            if basis_stage.stage_id == canonical_stage.stage_id
-                && basis_stage.file == canonical_stage.file
-                && basis_stage.file_sha256 != canonical_stage.file_sha256
-            {
-                return Err(stale_basis_refusal(
-                    &pipeline.header.id,
-                    stage_id,
-                    format!(
-                        "stage file `{}` changed after the last `pipeline resolve`",
-                        basis_stage.file
-                    ),
-                ));
-            }
-        }
-    }
-
-    Ok(())
 }
 
 fn stale_basis_refusal(

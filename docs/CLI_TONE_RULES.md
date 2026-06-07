@@ -4,7 +4,7 @@
 
 This document defines the operator-facing tone rules for reduced-v1 docs, help text, and runtime output.
 
-It exists so the product sounds like one system instead of three different authors. A trust product should feel precise, calm, and concrete under both success and failure.
+It exists so the product sounds like one handbook instead of three different authors. A trust product should feel precise, calm, and concrete under both success and failure.
 
 This document depends on:
 
@@ -22,7 +22,7 @@ That means:
 - concise without becoming cryptic
 - direct without becoming hostile
 
-The operator should never wonder whether the system knows what is wrong.
+The operator should never wonder whether the handbook knows what is wrong.
 
 The operator should also never feel like the product is scolding them for hitting an expected boundary.
 
@@ -170,10 +170,10 @@ Use:
 
 - `OUTCOME: REFUSED`
 - `OBJECT: planning.packet`
-- `NEXT SAFE ACTION: run \`system author environment-inventory\``
+- `NEXT SAFE ACTION: run \`handbook author environment-inventory\``
 - `SUMMARY: baseline environment inventory is still setup-owned scaffolding`
-- `BROKEN SUBJECT: canonical baseline artifact ENVIRONMENT_INVENTORY at .system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-- `1. ENVIRONMENT_INVENTORY | .system/environment_inventory/ENVIRONMENT_INVENTORY.md | starter-owned | run \`system author environment-inventory\``
+- `BROKEN SUBJECT: canonical baseline artifact ENVIRONMENT_INVENTORY at .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `1. ENVIRONMENT_INVENTORY | .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md | starter-owned | run \`handbook author environment-inventory\``
 
 Do not use:
 

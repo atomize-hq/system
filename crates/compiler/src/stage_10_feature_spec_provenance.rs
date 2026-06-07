@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub(crate) const FEATURE_SPEC_ARTIFACT_PATH: &str = "artifacts/feature_spec/FEATURE_SPEC.md";
 pub(crate) const STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH: &str =
-    ".system/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
+    ".handbook/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 pub(crate) const STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION: &str =
     "m5-stage-10-feature-spec-capture-provenance-v1";
 

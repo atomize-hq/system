@@ -6,4 +6,4 @@ WRITTEN FILES:
   - PROJECT_CONTEXT.md
 STATE UPDATES:
   - refs.project_context_ref = artifacts/project_context/PROJECT_CONTEXT.md
-NEXT SAFE ACTION: run `system pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture
+NEXT SAFE ACTION: run `handbook pipeline resolve --id pipeline.foundation_inputs` before the next compile or capture

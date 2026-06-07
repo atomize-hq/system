@@ -68,7 +68,7 @@ That leaves the operator with two mental models for one compiler surface. That i
 ## Premises
 
 1. Declarative compiler inputs should live under one repo-owned root, `core/`, not a mix of repo root and `core/`.
-2. Runtime state, generated artifacts, install surfaces, and `.system/**` are outside this change.
+2. Runtime state, generated artifacts, install surfaces, and `.handbook/**` are outside this change.
 3. The repo is still early enough that an atomic cutover is cheaper and clearer than a long-lived compatibility shim.
 4. Keeping the loader, stage includes, or proof surfaces compatible with old roots would preserve the exact ambiguity this milestone exists to remove.
 
@@ -315,7 +315,7 @@ Why this is the right level:
 ### Dependency graph
 
 ```text
-system CLI / tests
+handbook CLI / tests
       |
       v
 crates/compiler/src/pipeline.rs
@@ -476,12 +476,12 @@ Primary proof rails:
 Run these exact rails before calling the milestone done:
 
 ```bash
-cargo test -p system-compiler --test pipeline_loader
-cargo test -p system-compiler --test pipeline_catalog
-cargo test -p system-compiler --test pipeline_route_resolution
-cargo test -p system-compiler --test pipeline_state_store
-cargo test -p system-cli --test cli_surface
-cargo test -p system-cli --test pipeline_handoff_refusals
+cargo test -p handbook-compiler --test pipeline_loader
+cargo test -p handbook-compiler --test pipeline_catalog
+cargo test -p handbook-compiler --test pipeline_route_resolution
+cargo test -p handbook-compiler --test pipeline_state_store
+cargo test -p handbook-cli --test cli_surface
+cargo test -p handbook-cli --test pipeline_handoff_refusals
 rg -n '(^|[^a-zA-Z])pipelines/|(^|[^a-zA-Z])profiles/|(^|[^a-zA-Z])runners/|pipeline\\.yaml' README.md docs crates tests core
 ```
 
@@ -526,12 +526,12 @@ CODE PATH COVERAGE
 ```text
 USER FLOW COVERAGE
 ===========================
-[+] Operator runs `system pipeline list`
+[+] Operator runs `handbook pipeline list`
     │
     ├── [GAP] list output shows only core/pipelines/... sources
     └── [GAP] no supported docs/help still suggest top-level pipelines/ at repo root
 
-[+] Operator runs `system pipeline show --id ...`
+[+] Operator runs `handbook pipeline show --id ...`
     │
     ├── [GAP] show output points at core/pipelines/... and core/stages/...
     └── [GAP] shorthand and selector handling stays deterministic after the move
@@ -632,8 +632,8 @@ TTHW impact should be neutral to positive. The repo becomes easier to navigate, 
 ## NOT In Scope
 
 - changing pipeline schema shape
-- broadening the activation evaluator
-- changing runtime `.system/state/**` storage rules beyond path normalization already implied by the move
+- broadening the activation evaluator beyond the shipped boolean-only `variables.<name> == true|false` clause shape
+- changing runtime `.handbook/state/**` storage rules beyond path normalization already implied by the move
 - changing install or release behavior
 - adding a migration command for external repos
 - adding dynamic config for declarative roots
@@ -680,7 +680,7 @@ Final step: run the focused validation rails and stale-root sweep on the integra
 | 2 | CEO | Do an atomic cutover, not a compatibility shim | mechanical | explicit over clever | dual-root support preserves ambiguity | alias old roots |
 | 3 | Eng | Treat live stage and library references as in-scope migration work | mechanical | completeness | live declarative inputs are part of the compiler contract | move files only |
 | 4 | Eng | Retire top-level `pipeline.yaml` as supported input | mechanical | boring by default | current loader already refuses it; keeping it visible as truth would contradict the compiler | silent limbo |
-| 5 | Eng | Add one tiny root-helper surface, not a config system | mechanical | DRY | repeated root strings already drift across modules | copy strings everywhere |
+| 5 | Eng | Add one tiny root-helper surface, not a config handbook | mechanical | DRY | repeated root strings already drift across modules | copy strings everywhere |
 | 6 | Eng | Update docs and contracts in the same PR | mechanical | completeness | proof and docs are part of the contract here | docs later |
 | 7 | Eng | Treat every changed path string as regression-test required | mechanical | tests non-negotiable | this milestone is mostly path-contract churn | spot-check only |
 | 8 | DX | Keep the command surface unchanged; only fix namespace wording | mechanical | minimal diff | the milestone is repo-root truth cleanup, not product-surface expansion | add migration commands |

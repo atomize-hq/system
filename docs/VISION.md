@@ -1,4 +1,4 @@
-# North Star Vision for System
+# North Star Vision for Handbook
 
 ## Review Status
 
@@ -11,7 +11,7 @@ This file is a broad vision statement.
 
 Build a **modular, deterministic context + posture generation system** that enables AI agents to plan and execute work with **minimal human involvement** after initial project setup.
 
-This system exists to make AI-driven delivery safe and repeatable by ensuring agents always have:
+This handbook exists to make AI-driven delivery safe and repeatable by ensuring agents always have:
 
 * the right constraints (posture, guardrails)
 * the right reality (what exists, what's live)
@@ -42,7 +42,7 @@ Human involvement should be **front-loaded** and then **release-scoped**:
 
 ## Core architectural principle
 
-**The system is fundamentally context generation for planning + execution.**
+**The handbook is fundamentally context generation for planning + execution.**
 It is not the product backlog system, but it enables backlog-driven automation by producing the artifacts that keep planning grounded and execution disciplined.
 
 ## Key artifacts and their roles
@@ -56,7 +56,7 @@ It is not the product backlog system, but it enables backlog-driven automation b
 * raise-the-bar triggers, allowed shortcuts, red lines
 * exceptions process / debt tracking expectations
 
-This prevents the system from having to rediscover how strict to be for every feature.
+This prevents the handbook from having to rediscover how strict to be for every feature.
 
 ### 2) Project Context (reality snapshot)
 
@@ -71,14 +71,14 @@ In the reduced-v1 `M8` baseline tier it is part of the baseline canonical truth 
 
 ### 3) Environment Inventory (runtime/env truth)
 
-**`.system/environment_inventory/ENVIRONMENT_INVENTORY.md`** is the canonical baseline store of record for:
+**`.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`** is the canonical baseline store of record for:
 
 * environment variables
 * runtime dependencies and external services
 * local dev / CI / prod assumptions
 * the update contract for env/runtime changes
 
-In the reduced-v1 `M8` baseline tier its canonical home is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+In the reduced-v1 `M8` baseline tier its canonical home is `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 
 ### 4) Foundation Pack (project-specific defaults derived from Charter + Context)
 
@@ -89,7 +89,7 @@ Foundation Pack outputs concretize posture into reusable defaults:
 * `TEST_STRATEGY_BRIEF.md` (testing approach aligned to posture)
 * `QUALITY_GATES_SPEC.md` (exhaustive, explicit gate policy)
 * `quality_gates.yaml` (machine-readable gates definition)
-* environment-inventory content may still inform foundation outputs, but the baseline canonical environment inventory now lives in `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+* environment-inventory content may still inform foundation outputs, but the baseline canonical environment inventory now lives in `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 
 Foundation Pack is what makes downstream planning deterministic and reduces repeated questioning.
 
@@ -105,7 +105,7 @@ It must not re-decide posture; it inherits posture and only declares deltas.
 
 In the reduced-v1 `M8` product story, `FEATURE_SPEC.md` is not a baseline setup artifact. It remains on the packet/stage path.
 
-## Modularity mechanisms (why the system stays flexible)
+## Modularity mechanisms (why the handbook stays flexible)
 
 ### Profiles (stack packs)
 
@@ -115,7 +115,7 @@ Profiles store stack/tooling assumptions **outside** core prompts:
 * conventions (`conventions.md`)
 * default dirs/tools (`profile.yaml`)
 
-This stops the core system from hardcoding Poetry/uv/cargo/pnpm and reduces ambiguity.
+This stops the core handbook from hardcoding Poetry/uv/cargo/pnpm and reduces ambiguity.
 
 ### Overlays (layered enhancements)
 
@@ -130,7 +130,7 @@ Overlays should be organized by purpose (e.g., `task/`, `sprint/`, `release/`, `
 
 ### Work-level hierarchy (scoping and concision)
 
-Introduce a level system (`L0`-`L3`) to scope strict rules and keep context packs small:
+Introduce a level handbook (`L0`-`L3`) to scope strict rules and keep context packs small:
 
 * L0 Program (big picture)
 * L1 Planning (charter/context/foundation/specs)
@@ -145,7 +145,7 @@ This allows parallel workstreams in planning while enforcing discipline at execu
 * The LLM produces outputs that follow strict output contracts.
 * The harness writes artifacts and maintains lightweight state.
 
-## Release and sprint planning direction (where the system is going next)
+## Release and sprint planning direction (where the handbook is going next)
 
 * **Features/backlog** are created outside the main pipelines (discovery/brainstorming).
 * **Release planning** is the primary human check-in:
@@ -160,4 +160,4 @@ This allows parallel workstreams in planning while enforcing discipline at execu
   * feature plans/specs
 * Gates are represented as **typed tasks** inside sprints, which block sprint close.
 
-This keeps the system continuously operational with minimal human involvement beyond release-level steering.
+This keeps the handbook continuously operational with minimal human involvement beyond release-level steering.

@@ -5,13 +5,13 @@ All notable changes to this project are documented in this file.
 ## [0.7.1.0] - 2026-04-29
 
 ### Added
-- Added `system doctor --json` as the machine-readable readiness surface for the installed charter-intake runtime, with serialized blocker, checklist, and next-safe-action contracts locked by compiler and CLI tests.
+- Added `handbook doctor --json` as the machine-readable readiness surface for the installed charter-intake runtime, with serialized blocker, checklist, and next-safe-action contracts locked by compiler and CLI tests.
 - Added the Codex packaging/install surface under `tools/codex/`, including generated `.agents/skills/` assets, install and dev-setup flows, and install/live-smoke coverage for the shipped charter-intake path.
-- Added `system author charter --validate --from-inputs <path|->` as a mutation-free preflight that validates structured inputs and repo write preconditions without touching canonical truth.
+- Added `handbook author charter --validate --from-inputs <path|->` as a mutation-free preflight that validates structured inputs and repo write preconditions without touching canonical truth.
 
 ### Changed
-- Changed `system author charter --from-inputs <path|->` to a compiler-owned deterministic write path, while keeping guided `system author charter` as the Codex-backed interview surface.
-- Updated docs, contracts, help snapshots, and smoke rails so the shipped runtime story matches the installed `system` and `system-charter-intake` skill surfaces and the deterministic charter-authoring contract.
+- Changed `handbook author charter --from-inputs <path|->` to a compiler-owned deterministic write path, while keeping guided `handbook author charter` as the Codex-backed interview surface.
+- Updated docs, contracts, help snapshots, and smoke rails so the shipped runtime story matches the installed `handbook` and `handbook-charter-intake` skill surfaces and the deterministic charter-authoring contract.
 
 ### Fixed
 - Fixed charter authoring so malformed structured-input refusals win before existing-truth checks on the deterministic path, preserving the real input error instead of masking it behind repo state.
@@ -20,13 +20,13 @@ All notable changes to this project are documented in this file.
 ## [0.7.0.0] - 2026-04-22
 
 ### Added
-- Added the shipped M8 baseline-authoring surfaces `system author project-context` and `system author environment-inventory`, including guided and structured-input project-context flows, environment-inventory synthesis, canonical-write safety, and validation/refusal coverage for invalid or already-authored truth.
+- Added the shipped M8 baseline-authoring surfaces `handbook author project-context` and `handbook author environment-inventory`, including guided and structured-input project-context flows, environment-inventory synthesis, canonical-write safety, and validation/refusal coverage for invalid or already-authored truth.
 - Added a compiler-owned baseline validation and doctor model that classifies `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, and `BASELINE_COMPLETE`, with ordered checklist output and concrete next-safe-action commands for each baseline artifact.
 
 ### Changed
-- Cut the setup/bootstrap contract over to the M8 baseline tier so setup now scaffolds only the real baseline set, hands operators to `system doctor`, and no longer treats `FEATURE_SPEC` as part of baseline readiness.
+- Cut the setup/bootstrap contract over to the M8 baseline tier so setup now scaffolds only the real baseline set, hands operators to `handbook doctor`, and no longer treats `FEATURE_SPEC` as part of baseline readiness.
 - Split compiler authoring into explicit `charter`, `project_context`, and `environment_inventory` modules, and made the canonical artifact registry the single source of truth for baseline participation, setup scaffolding, and downstream rendering semantics.
-- Realigned README, supported-command docs, contracts, glossary, tone/output guides, fixtures, and help snapshots around the new baseline truth story where `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` is the sole canonical environment-inventory path.
+- Realigned README, supported-command docs, contracts, glossary, tone/output guides, fixtures, and help snapshots around the new baseline truth story where `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` is the sole canonical environment-inventory path.
 
 ### Fixed
 - Fixed M8 canonical-truth regressions so empty baseline files classify as `INVALID_BASELINE`, doctor repair guidance points at the concrete authoring commands, and invalid baseline truth no longer slips through as a scaffolded or partial state.
@@ -35,11 +35,11 @@ All notable changes to this project are documented in this file.
 ## [0.6.0.0] - 2026-04-20
 
 ### Added
-- Added the shipped M7 top-level `author` family with `system author charter` and `system author charter --from-inputs <path|->` as the public charter-authoring surfaces for scaffolded repos.
+- Added the shipped M7 top-level `author` family with `handbook author charter` and `handbook author charter --from-inputs <path|->` as the public charter-authoring surfaces for scaffolded repos.
 - Added a change-scoped live Codex authoring smoke in CI so transport or prompt-contract drift on the shipped charter-authoring path gets caught before merge.
 
 ### Changed
-- Cut the setup/readiness story over to authored charter truth so scaffolded setup routes operators to `system author charter`, and successful charter authoring is what clears `doctor` and planning `generate`.
+- Cut the setup/readiness story over to authored charter truth so scaffolded setup routes operators to `handbook author charter`, and successful charter authoring is what clears `doctor` and planning `generate`.
 - Wired both M7 charter-authoring paths through one shared final synthesis engine in the compiler seam using direct `codex exec`, with the repo-owned authoring method, synthesis directive, and charter template now driving runtime behavior.
 - Realigned CLI help, docs, contracts, fixtures, and local smoke commands around the new authoring surface and the runtime model-selection contract used by shipped charter synthesis.
 
@@ -50,7 +50,7 @@ All notable changes to this project are documented in this file.
 ## [0.5.2.0] - 2026-04-18
 
 ### Added
-- Added the shipped M6 setup family with `system setup`, `system setup init`, and `system setup refresh`, including safe canonical `.system/` scaffold creation, preserve-by-default refresh behavior, explicit `--rewrite` and `--reset-state` flags, and routed success/refusal output for new and initialized repos.
+- Added the shipped M6 setup family with `handbook setup`, `handbook setup init`, and `handbook setup refresh`, including safe canonical `.handbook/` scaffold creation, preserve-by-default refresh behavior, explicit `--rewrite` and `--reset-state` flags, and routed success/refusal output for new and initialized repos.
 - Added compiler and CLI regression coverage for setup-family help, first-run bootstrap, refresh preservation and rewrite behavior, runtime-state reset behavior, nested-repo routing, and the new starter-template readiness boundary.
 
 ### Changed
@@ -58,7 +58,7 @@ All notable changes to this project are documented in this file.
 - Updated canonical-artifact and blocker handling so shipped starter templates are explicit setup-owned scaffolds, required-starter-template blockers have their own category, and recovery guidance consistently routes missing or invalid canonical truth back through the setup family.
 
 ### Fixed
-- Fixed setup recovery for invalid `.system` roots and unsafe `.system/state` reset targets so file-backed roots, symlinked roots, and reset failures repair or refuse without partial mutation.
+- Fixed setup recovery for invalid `.handbook` roots and unsafe `.handbook/state` reset targets so file-backed roots, symlinked roots, and reset failures repair or refuse without partial mutation.
 - Fixed planning readiness so `doctor` and `generate` no longer treat shipped starter templates as completed canonical truth, and removed the repo-root setup scaffolds that previously masked that gap.
 
 ## [0.5.1.0] - 2026-04-17
@@ -139,12 +139,12 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - Tightened reduced-v1 activation handling to boolean equality only, matching the narrow contract the current Rust proof corpus actually uses.
-- Clarified glossary and legacy-system docs so the supported Rust loader contract no longer implies broader legacy activation semantics than the compiler ships today.
+- Clarified glossary and legacy handbook-model docs so the supported Rust loader contract no longer implies broader legacy activation semantics than the compiler ships today.
 
 ## [0.0.1.0] - 2026-04-07
 
 ### Added
-- Introduced the Rust workspace, `system` CLI, and `system-compiler` library as the reduced-v1 product path for planning packet generation, inspect proof surfaces, doctor recovery output, and explicit live-execution refusal.
+- Introduced the Rust workspace, `handbook` CLI, and `handbook-compiler` library as the reduced-v1 product path for planning packet generation, inspect proof surfaces, doctor recovery output, and explicit live-execution refusal.
 - Added typed canonical artifact ingestion, manifest/freshness computation, resolver contracts, packet rendering surfaces, and fixture-backed execution demo support with broad Rust test coverage.
 - Added CI rails for `rustfmt`, `clippy`, workspace tests, archive-boundary enforcement, and cross-platform install smoke checks on Linux and macOS.
 - Added reduced-v1 contracts and Rust-first docs entrypoints covering approved repo surface, command surface, manifest/freshness truth, resolver/blocker behavior, renderer surfaces, fixture-demo boundaries, and conformance rails.

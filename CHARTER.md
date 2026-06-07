@@ -74,7 +74,7 @@
           - Brownfield — existing live system/users/data; compatibility and safe rollout often required.
           - Integration — new component that must plug into existing systems/contracts; compatibility applies at
             boundaries.
-          - Modernization — reshaping/replacing an existing system (refactor/replatform/strangler); migration plan
+          - Modernization — reshaping/replacing an existing handbook (refactor/replatform/strangler); migration plan
             usually required.
           - Hardening — stability/security/perf/ops work only; minimal new features; tighten gates.
   - Operational reality: Not in production yet; staging-only; no legacy clients; no external API contracts; best-effort

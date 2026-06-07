@@ -33,7 +33,7 @@ struct PlanningInputs {
 }
 
 fn binary() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_system"))
+    Command::new(env!("CARGO_BIN_EXE_handbook"))
 }
 
 fn binary_in(dir: &std::path::Path) -> Command {
@@ -288,19 +288,19 @@ fn committed_execution_demo_fixture_dir() -> std::path::PathBuf {
 
 fn repair_to_ready(root: &std::path::Path) {
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 }
@@ -314,15 +314,15 @@ fn assert_doctor_empty_baseline_invalid(
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(&root.join(empty_path), b"");
@@ -341,17 +341,17 @@ fn assert_doctor_empty_baseline_invalid(
 
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
     match path {
-        ".system/charter/CHARTER.md" => system_compiler::setup_starter_template_bytes(
-            system_compiler::CanonicalArtifactKind::Charter,
+        ".handbook/charter/CHARTER.md" => handbook_compiler::setup_starter_template_bytes(
+            handbook_compiler::CanonicalArtifactKind::Charter,
         ),
-        ".system/project_context/PROJECT_CONTEXT.md" => {
-            system_compiler::setup_starter_template_bytes(
-                system_compiler::CanonicalArtifactKind::ProjectContext,
+        ".handbook/project_context/PROJECT_CONTEXT.md" => {
+            handbook_compiler::setup_starter_template_bytes(
+                handbook_compiler::CanonicalArtifactKind::ProjectContext,
             )
         }
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
-            system_compiler::setup_starter_template_bytes(
-                system_compiler::CanonicalArtifactKind::EnvironmentInventory,
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
+            handbook_compiler::setup_starter_template_bytes(
+                handbook_compiler::CanonicalArtifactKind::EnvironmentInventory,
             )
         }
         _ => panic!("unexpected starter path: {path}"),
@@ -361,18 +361,18 @@ fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
 fn partial_system_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     write_file(
-        dir.path().join(".system/charter/CHARTER.md").as_path(),
+        dir.path().join(".handbook/charter/CHARTER.md").as_path(),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
         dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md")
+            .join(".handbook/project_context/PROJECT_CONTEXT.md")
             .as_path(),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
         dir.path()
-            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+            .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
             .as_path(),
         valid_environment_inventory_markdown().as_bytes(),
     );
@@ -380,7 +380,7 @@ fn partial_system_repo() -> tempfile::TempDir {
 }
 
 fn valid_charter_markdown() -> &'static str {
-    "# Engineering Charter — System
+    "# Engineering Charter — Handbook
 
 ## What this is
 Body.
@@ -429,14 +429,14 @@ Review monthly.
 }
 
 fn valid_project_context_markdown() -> &'static str {
-    "# Project Context — System
+    "# Project Context — Handbook
 
 > **File:** `PROJECT_CONTEXT.md`
 > **Created (UTC):** 2026-04-21T00:00:00Z
 > **Owner:** project-owner
-> **Team:** system-team
-> **Repo / Project:** /tmp/system
-> **Charter Ref:** .system/charter/CHARTER.md
+> **Team:** handbook-team
+> **Repo / Project:** /tmp/handbook
+> **Charter Ref:** .handbook/charter/CHARTER.md
 
 ## What this is
 Project reality.
@@ -455,7 +455,7 @@ Use this document to ground planning in reality.
 
 ## 3) System Boundaries (what we own vs integrate with)
 ### What we own
-- Canonical `.system/` truth.
+- Canonical `.handbook/` truth.
 ### What we do NOT own (but may depend on)
 - External delivery systems.
 
@@ -485,7 +485,7 @@ Use this document to ground planning in reality.
 fn legacy_placeholder_project_context_markdown() -> String {
     valid_project_context_markdown()
         .replace("> **Owner:** project-owner", "> **Owner:** unknown-owner")
-        .replace("> **Team:** system-team", "> **Team:** project-team")
+        .replace("> **Team:** handbook-team", "> **Team:** project-team")
         .replace(
             "- Operations.",
             "- Unknown from local repo inspection; confirm before planning live changes.",
@@ -495,8 +495,8 @@ fn legacy_placeholder_project_context_markdown() -> String {
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -526,7 +526,7 @@ Canonical environment and runtime inventory.
 - None yet.
 
 ## 8) Update Contract (non-negotiable)
-- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
 
 ## 9) Known Unknowns
 - None yet.
@@ -538,9 +538,9 @@ fn malformed_optional_project_context_repo() -> tempfile::TempDir {
     let root = dir.path();
 
     repair_to_ready(root);
-    std::fs::remove_file(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+    std::fs::remove_file(root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("remove project_context file");
-    std::fs::create_dir_all(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+    std::fs::create_dir_all(root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context directory");
 
     dir
@@ -554,11 +554,11 @@ fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir
     let nested = child.join("work/nested");
 
     write_file(
-        &parent.join(".system/charter/CHARTER.md"),
+        &parent.join(".handbook/charter/CHARTER.md"),
         b"parent charter",
     );
     write_file(
-        &parent.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &parent.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"parent feature",
     );
     std::fs::create_dir_all(child.join(".git")).expect("child git root");
@@ -893,7 +893,7 @@ fn stage_10_compile_payload(root: &std::path::Path) -> String {
             "stage.10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -917,10 +917,10 @@ fn normalize_capture_id(output: &str) -> String {
             if line.starts_with("CAPTURE ID: ") {
                 "CAPTURE ID: {{CAPTURE_ID}}".to_string()
             } else if let Some(prefix) = line
-                .strip_prefix("NEXT SAFE ACTION: run `system pipeline capture apply --capture-id ")
+                .strip_prefix("NEXT SAFE ACTION: run `handbook pipeline capture apply --capture-id ")
             {
                 let _ = prefix;
-                "NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`"
+                "NEXT SAFE ACTION: run `handbook pipeline capture apply --capture-id {{CAPTURE_ID}}`"
                     .to_string()
             } else {
                 line.to_string()
@@ -986,8 +986,8 @@ fn record_virtual_evidence_step(transcript: &mut String, command: &str, stdout: 
 fn read_bundle_manifest_from_disk(
     repo_root: &std::path::Path,
     bundle_root: &str,
-) -> system_compiler::PipelineHandoffManifest {
-    system_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+) -> handbook_compiler::PipelineHandoffManifest {
+    handbook_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
         .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
         .manifest
 }
@@ -995,8 +995,8 @@ fn read_bundle_manifest_from_disk(
 fn read_bundle_allowlist_from_disk(
     repo_root: &std::path::Path,
     bundle_root: &str,
-) -> system_compiler::PipelineHandoffReadAllowlist {
-    system_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+) -> handbook_compiler::PipelineHandoffReadAllowlist {
+    handbook_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
         .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
         .read_allowlist
 }
@@ -1032,7 +1032,7 @@ fn read_repo_text(
 }
 
 fn bundle_path_for_source_path(
-    manifest: &system_compiler::PipelineHandoffManifest,
+    manifest: &handbook_compiler::PipelineHandoffManifest,
     source_path: &str,
 ) -> String {
     manifest
@@ -1176,7 +1176,7 @@ fn collect_repo_reread_planning_inputs(
 }
 
 fn build_planning_inputs(
-    manifest: &system_compiler::PipelineHandoffManifest,
+    manifest: &handbook_compiler::PipelineHandoffManifest,
     feature_spec: &str,
     foundation_strategy: &str,
     tech_arch_brief: &str,
@@ -1457,7 +1457,7 @@ fn run_repo_reread_feature_slice_consumer_baseline(
 }
 
 fn render_handoff_validation_output(
-    validated: &system_compiler::PipelineHandoffValidatedBundle,
+    validated: &handbook_compiler::PipelineHandoffValidatedBundle,
 ) -> String {
     format!(
         "\
@@ -1588,7 +1588,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline resolve --id foundation_inputs",
+        "handbook pipeline resolve --id foundation_inputs",
         run_in(
             root.as_path(),
             &["pipeline", "resolve", "--id", "foundation_inputs"],
@@ -1597,7 +1597,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_04_charter_inputs.txt",
+        "handbook pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_04_charter_inputs.txt",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1614,7 +1614,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_05_charter_synthesize.md",
+        "handbook pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_05_charter_synthesize.md",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1631,7 +1631,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline state set --id foundation_inputs --var needs_project_context=true",
+        "handbook pipeline state set --id foundation_inputs --var needs_project_context=true",
         run_in(
             root.as_path(),
             &[
@@ -1648,7 +1648,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline resolve --id foundation_inputs",
+        "handbook pipeline resolve --id foundation_inputs",
         run_in(
             root.as_path(),
             &["pipeline", "resolve", "--id", "foundation_inputs"],
@@ -1657,7 +1657,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.06_project_context_interview < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_06_project_context_interview.md",
+        "handbook pipeline capture --id foundation_inputs --stage stage.06_project_context_interview < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_06_project_context_interview.md",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1677,7 +1677,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline resolve --id foundation_inputs",
+        "handbook pipeline resolve --id foundation_inputs",
         run_in(
             root.as_path(),
             &["pipeline", "resolve", "--id", "foundation_inputs"],
@@ -1686,7 +1686,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_07_foundation_pack.txt",
+        "handbook pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_07_foundation_pack.txt",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1703,7 +1703,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z system pipeline compile --id foundation_inputs --stage stage.10_feature_spec",
+        "HANDBOOK_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z handbook pipeline compile --id foundation_inputs --stage stage.10_feature_spec",
         run_in_with_env(
             root.as_path(),
             &[
@@ -1715,7 +1715,7 @@ fn happy_path_evidence_transcript() -> String {
                 "stage.10_feature_spec",
             ],
             &[(
-                system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
                 FIXED_NOW_UTC,
             )],
         ),
@@ -1723,7 +1723,7 @@ fn happy_path_evidence_transcript() -> String {
     record_refused_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>",
+        "handbook pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1740,7 +1740,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_10_feature_spec.md",
+        "handbook pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/happy_path/stage_10_feature_spec.md",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1757,7 +1757,7 @@ fn happy_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline handoff emit --id foundation_inputs --consumer feature-slice-decomposer",
+        "handbook pipeline handoff emit --id foundation_inputs --consumer feature-slice-decomposer",
         run_in(
             root.as_path(),
             &[
@@ -1772,7 +1772,7 @@ fn happy_path_evidence_transcript() -> String {
         ),
     );
 
-    let validated = system_compiler::validate_pipeline_handoff_bundle(
+    let validated = handbook_compiler::validate_pipeline_handoff_bundle(
         root.as_path(),
         &foundation_flow_demo_happy_path_bundle_root(),
     )
@@ -1803,7 +1803,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline resolve --id foundation_inputs",
+        "handbook pipeline resolve --id foundation_inputs",
         run_in(
             root.as_path(),
             &["pipeline", "resolve", "--id", "foundation_inputs"],
@@ -1812,7 +1812,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_04_charter_inputs.txt",
+        "handbook pipeline capture --id foundation_inputs --stage stage.04_charter_inputs < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_04_charter_inputs.txt",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1829,7 +1829,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_05_charter_synthesize.md",
+        "handbook pipeline capture --id foundation_inputs --stage stage.05_charter_synthesize < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_05_charter_synthesize.md",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1846,7 +1846,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline state set --id foundation_inputs --var needs_project_context=false",
+        "handbook pipeline state set --id foundation_inputs --var needs_project_context=false",
         run_in(
             root.as_path(),
             &[
@@ -1863,7 +1863,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline resolve --id foundation_inputs",
+        "handbook pipeline resolve --id foundation_inputs",
         run_in(
             root.as_path(),
             &["pipeline", "resolve", "--id", "foundation_inputs"],
@@ -1872,7 +1872,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_07_foundation_pack.txt",
+        "handbook pipeline capture --id foundation_inputs --stage stage.07_foundation_pack < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_07_foundation_pack.txt",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1889,7 +1889,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z system pipeline compile --id foundation_inputs --stage stage.10_feature_spec",
+        "HANDBOOK_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z handbook pipeline compile --id foundation_inputs --stage stage.10_feature_spec",
         run_in_with_env(
             root.as_path(),
             &[
@@ -1901,7 +1901,7 @@ fn skip_path_evidence_transcript() -> String {
                 "stage.10_feature_spec",
             ],
             &[(
-                system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
                 FIXED_NOW_UTC,
             )],
         ),
@@ -1909,7 +1909,7 @@ fn skip_path_evidence_transcript() -> String {
     record_refused_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>",
+        "handbook pipeline capture --id foundation_inputs --stage stage.10_feature_spec < <compile-payload>",
         run_in_with_input(
             root.as_path(),
             &[
@@ -1926,7 +1926,7 @@ fn skip_path_evidence_transcript() -> String {
     record_evidence_step(
         &mut transcript,
         root.as_path(),
-        "system pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_10_feature_spec.md",
+        "handbook pipeline capture --id foundation_inputs --stage stage.10_feature_spec < tests/fixtures/foundation_flow_demo/model_outputs/skip_path/stage_10_feature_spec.md",
         run_in_with_input(
             root.as_path(),
             &[
@@ -2009,7 +2009,7 @@ fn version_matches_release_metadata() {
     let stdout = String::from_utf8(output.stdout).expect("version stdout is utf-8");
     let expected_version =
         std::fs::read_to_string(root.join("VERSION")).expect("read workspace VERSION");
-    let expected = format!("system {}\n", expected_version.trim());
+    let expected = format!("handbook {}\n", expected_version.trim());
 
     assert_eq!(
         stdout, expected,
@@ -3012,7 +3012,7 @@ fn pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slic
         "emit output should keep the stable bundle root: {emit_stdout}"
     );
 
-    let validated = system_compiler::validate_pipeline_handoff_bundle(
+    let validated = handbook_compiler::validate_pipeline_handoff_bundle(
         root.as_path(),
         &foundation_flow_demo_happy_path_bundle_root(),
     )
@@ -3250,7 +3250,7 @@ fn pipeline_foundation_inputs_m4_evidence_bundle_manifest_declares_normalization
     let manifest = read_foundation_flow_demo_evidence("README.md");
 
     for phrase in [
-        "SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z",
+        "HANDBOOK_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z",
         "`{{CAPTURE_ID}}`",
         "`{{REPO_ROOT}}`",
         "`{{STATE_PATH}}`",
@@ -3626,7 +3626,7 @@ fn pipeline_compile_feature_spec_payload_matches_shared_golden() {
             "10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3682,7 +3682,7 @@ description: malformed and unrelated
             "10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3717,7 +3717,7 @@ fn pipeline_compile_feature_spec_explain_matches_shared_golden() {
             "--explain",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3767,7 +3767,7 @@ fn pipeline_compile_refuses_when_required_variable_is_missing() {
             "10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3812,7 +3812,7 @@ fn pipeline_compile_refuses_symlinked_required_artifact_input() {
             "10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3964,6 +3964,53 @@ fn pipeline_compile_refuses_malformed_route_basis() {
 }
 
 #[test]
+fn pipeline_compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
+    let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    prepare_foundation_inputs_compile_ready_route_basis(root.as_path());
+
+    let state_path = root
+        .join(".handbook")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.foundation_inputs.yaml");
+    let state = std::fs::read_to_string(&state_path).expect("state file");
+    std::fs::write(&state_path, format!("{state}\nroute_basis_extra: true\n"))
+        .expect("write malformed state");
+
+    let output = run_in(
+        root.as_path(),
+        &[
+            "pipeline",
+            "compile",
+            "--id",
+            "pipeline.foundation_inputs",
+            "--stage",
+            "stage.10_feature_spec",
+        ],
+    );
+    assert!(
+        !output.status.success(),
+        "unknown top-level key should refuse as invalid state"
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    assert!(stdout.contains("OUTCOME: REFUSED"), "{stdout}");
+    assert!(stdout.contains("REASON: invalid_state:"), "{stdout}");
+    assert!(
+        stdout.contains("trusted pipeline session state at "),
+        "{stdout}"
+    );
+    assert!(stdout.contains("unknown field"), "{stdout}");
+    assert!(stdout.contains("route_basis_extra"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "NEXT SAFE ACTION: fix the persisted route state and retry `pipeline compile`; then retry `handbook pipeline compile --id pipeline.foundation_inputs --stage stage.10_feature_spec`"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn pipeline_compile_refuses_forged_route_basis_status() {
     let (_dir, root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
 
@@ -3974,7 +4021,7 @@ fn pipeline_compile_refuses_forged_route_basis_status() {
     assert!(resolve.status.success(), "pipeline resolve should succeed");
 
     let state_path = root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join("pipeline.foundation_inputs.yaml");
@@ -4071,7 +4118,7 @@ fn pipeline_compile_refuses_missing_required_artifact() {
             "stage.10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4102,15 +4149,15 @@ fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
     }
 
     let canonical_root = canonical_repo_root(root.as_path());
-    let expected = system_compiler::compile_pipeline_stage_with_runtime(
+    let expected = handbook_compiler::compile_pipeline_stage_with_runtime(
         canonical_root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
-        &system_compiler::PipelineCompileRuntimeContext {
+        &handbook_compiler::PipelineCompileRuntimeContext {
             now_utc_override: Some(FIXED_NOW_UTC.to_string()),
         },
     )
-    .map(|result| system_compiler::render_pipeline_compile_payload(&result))
+    .map(|result| handbook_compiler::render_pipeline_compile_payload(&result))
     .expect("compile should succeed");
 
     let output = run_in_with_env(
@@ -4124,7 +4171,7 @@ fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
             "stage.10_feature_spec",
         ],
         &[(
-            system_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4494,19 +4541,19 @@ fn pipeline_state_set_preserves_distinct_refusals() {
 
 #[test]
 fn setup_help_matches_snapshot() {
-    assert_help_snapshot(&["setup", "--help"], "system-setup-help.txt");
+    assert_help_snapshot(&["setup", "--help"], "handbook-setup-help.txt");
 }
 
 #[test]
 fn setup_init_help_matches_snapshot() {
-    assert_help_snapshot(&["setup", "init", "--help"], "system-setup-init-help.txt");
+    assert_help_snapshot(&["setup", "init", "--help"], "handbook-setup-init-help.txt");
 }
 
 #[test]
 fn setup_refresh_help_matches_snapshot() {
     assert_help_snapshot(
         &["setup", "refresh", "--help"],
-        "system-setup-refresh-help.txt",
+        "handbook-setup-refresh-help.txt",
     );
 }
 
@@ -4524,37 +4571,37 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: established canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: established canonical `.handbook/` root",
             starter_actions: &[
-                "created .system/charter/CHARTER.md",
-                "created .system/project_context/PROJECT_CONTEXT.md",
-                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "created .handbook/charter/CHARTER.md",
+                "created .handbook/project_context/PROJECT_CONTEXT.md",
+                "created .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
-            routed_command: Some("system setup init"),
+            routed_command: Some("handbook setup init"),
         },
     );
 
     for path in [
-        ".system/charter/CHARTER.md",
-        ".system/project_context/PROJECT_CONTEXT.md",
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".handbook/charter/CHARTER.md",
+        ".handbook/project_context/PROJECT_CONTEXT.md",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ] {
         assert_eq!(
             std::fs::read(root.join(path)).expect("starter bytes"),
             starter_template_bytes_for_path(path),
         );
     }
-    assert!(!root.join(".system/feature_spec/FEATURE_SPEC.md").exists());
+    assert!(!root.join(".handbook/feature_spec/FEATURE_SPEC.md").exists());
 }
 
 #[test]
 fn bare_setup_repairs_file_backed_invalid_system_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
-    write_file(&root.join(".system"), b"not a directory\n");
+    write_file(&root.join(".handbook"), b"not a directory\n");
 
     let output = run_in(root, &["setup"]);
     assert!(output.status.success(), "setup should repair invalid root");
@@ -4565,19 +4612,19 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: established canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: established canonical `.handbook/` root",
             starter_actions: &[
-                "created .system/charter/CHARTER.md",
-                "created .system/project_context/PROJECT_CONTEXT.md",
-                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "created .handbook/charter/CHARTER.md",
+                "created .handbook/project_context/PROJECT_CONTEXT.md",
+                "created .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
-            routed_command: Some("system setup init"),
+            routed_command: Some("handbook setup init"),
         },
     );
-    assert!(root.join(".system/charter/CHARTER.md").is_file());
+    assert!(root.join(".handbook/charter/CHARTER.md").is_file());
 }
 
 #[cfg(unix)]
@@ -4588,7 +4635,7 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let external = tempfile::tempdir().expect("external tempdir");
     let root = dir.path();
-    symlink(external.path(), root.join(".system")).expect("system symlink");
+    symlink(external.path(), root.join(".handbook")).expect("system symlink");
 
     let output = run_in(root, &["setup"]);
     assert!(
@@ -4602,16 +4649,16 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: established canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: established canonical `.handbook/` root",
             starter_actions: &[
-                "created .system/charter/CHARTER.md",
-                "created .system/project_context/PROJECT_CONTEXT.md",
-                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "created .handbook/charter/CHARTER.md",
+                "created .handbook/project_context/PROJECT_CONTEXT.md",
+                "created .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
-            routed_command: Some("system setup init"),
+            routed_command: Some("handbook setup init"),
         },
     );
     assert!(
@@ -4623,7 +4670,7 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
             .is_none(),
         "repair must unlink the blocking symlink without touching the target"
     );
-    assert!(root.join(".system/charter/CHARTER.md").is_file());
+    assert!(root.join(".handbook/charter/CHARTER.md").is_file());
 }
 
 #[test]
@@ -4632,19 +4679,19 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         b"custom charter\n",
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"custom feature\n",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"custom inventory\n",
     );
 
@@ -4657,33 +4704,33 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: READY",
             object: "setup refresh",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: reused canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: reused canonical `.handbook/` root",
             starter_actions: &[
-                "preserved .system/charter/CHARTER.md",
-                "preserved .system/project_context/PROJECT_CONTEXT.md",
-                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "preserved .handbook/charter/CHARTER.md",
+                "preserved .handbook/project_context/PROJECT_CONTEXT.md",
+                "preserved .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: false,
-            routed_command: Some("system setup refresh"),
+            routed_command: Some("handbook setup refresh"),
         },
     );
 
     assert_eq!(
-        fs::read(root.join(".system/charter/CHARTER.md")).expect("charter"),
+        fs::read(root.join(".handbook/charter/CHARTER.md")).expect("charter"),
         b"custom charter\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature"),
+        fs::read(root.join(".handbook/feature_spec/FEATURE_SPEC.md")).expect("feature"),
         b"custom feature\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
+        fs::read(root.join(".handbook/project_context/PROJECT_CONTEXT.md")).expect("context"),
         b"custom context\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+        fs::read(root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"))
             .expect("inventory"),
         b"custom inventory\n"
     );
@@ -4702,12 +4749,12 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: established canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: established canonical `.handbook/` root",
             starter_actions: &[
-                "created .system/charter/CHARTER.md",
-                "created .system/project_context/PROJECT_CONTEXT.md",
-                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "created .handbook/charter/CHARTER.md",
+                "created .handbook/project_context/PROJECT_CONTEXT.md",
+                "created .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4720,9 +4767,9 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
 fn setup_init_refuses_when_canonical_system_already_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(&root.join(".handbook/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature\n",
     );
 
@@ -4735,19 +4782,19 @@ fn setup_init_refuses_when_canonical_system_already_exists() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: setup",
-            "NEXT SAFE ACTION: run `system setup refresh`",
+            "NEXT SAFE ACTION: run `handbook setup refresh`",
         ],
     );
     assert!(stdout.contains("## REFUSAL"), "{stdout}");
     assert!(stdout.contains("CATEGORY: AlreadyInitialized"), "{stdout}");
     assert!(
         stdout.contains(
-            "SUMMARY: canonical .system root already exists; use `system setup refresh` instead"
+            "SUMMARY: canonical .handbook root already exists; use `handbook setup refresh` instead"
         ),
         "{stdout}"
     );
     assert!(
-        stdout.contains("BROKEN SUBJECT: canonical `.system` root"),
+        stdout.contains("BROKEN SUBJECT: canonical `.handbook` root"),
         "{stdout}"
     );
 }
@@ -4757,17 +4804,20 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"keep charter\n");
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
+        b"keep charter\n",
+    );
+    write_file(
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"keep feature\n",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"keep context\n",
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"keep inventory\n",
     );
 
@@ -4780,12 +4830,12 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: READY",
             object: "setup refresh",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: reused canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: reused canonical `.handbook/` root",
             starter_actions: &[
-                "preserved .system/charter/CHARTER.md",
-                "preserved .system/project_context/PROJECT_CONTEXT.md",
-                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "preserved .handbook/charter/CHARTER.md",
+                "preserved .handbook/project_context/PROJECT_CONTEXT.md",
+                "preserved .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: false,
@@ -4800,31 +4850,31 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         b"custom charter\n",
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"custom feature\n",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"custom context\n",
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"custom inventory\n",
     );
     write_file(
-        &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"state: keep\n",
     );
-    write_file(&root.join(".system/custom/KEEP.md"), b"keep me\n");
+    write_file(&root.join(".handbook/custom/KEEP.md"), b"keep me\n");
 
     let state_before =
-        fs::read(root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
+        fs::read(root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"))
             .expect("state before");
-    let custom_before = fs::read(root.join(".system/custom/KEEP.md")).expect("custom before");
+    let custom_before = fs::read(root.join(".handbook/custom/KEEP.md")).expect("custom before");
 
     let output = run_in(root, &["setup", "refresh", "--rewrite"]);
     assert!(
@@ -4838,12 +4888,12 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup refresh",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: reused canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: reused canonical `.handbook/` root",
             starter_actions: &[
-                "rewritten .system/charter/CHARTER.md",
-                "rewritten .system/project_context/PROJECT_CONTEXT.md",
-                "rewritten .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "rewritten .handbook/charter/CHARTER.md",
+                "rewritten .handbook/project_context/PROJECT_CONTEXT.md",
+                "rewritten .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
@@ -4852,29 +4902,29 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     );
 
     assert_ne!(
-        fs::read(root.join(".system/charter/CHARTER.md")).expect("charter after"),
+        fs::read(root.join(".handbook/charter/CHARTER.md")).expect("charter after"),
         b"custom charter\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature after"),
+        fs::read(root.join(".handbook/feature_spec/FEATURE_SPEC.md")).expect("feature after"),
         b"custom feature\n"
     );
     assert_ne!(
-        fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context after"),
+        fs::read(root.join(".handbook/project_context/PROJECT_CONTEXT.md")).expect("context after"),
         b"custom context\n"
     );
     assert_ne!(
-        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+        fs::read(root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"))
             .expect("inventory after"),
         b"custom inventory\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"))
+        fs::read(root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"))
             .expect("state after"),
         state_before
     );
     assert_eq!(
-        fs::read(root.join(".system/custom/KEEP.md")).expect("custom after"),
+        fs::read(root.join(".handbook/custom/KEEP.md")).expect("custom after"),
         custom_before
     );
 }
@@ -4884,28 +4934,28 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(&root.join(".handbook/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature\n",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"inventory\n",
     );
     write_file(
-        &root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline state\n",
     );
     write_file(
-        &root.join(".system/state/pipeline/capture/cache.yaml"),
+        &root.join(".handbook/state/pipeline/capture/cache.yaml"),
         b"capture state\n",
     );
-    write_file(&root.join(".system/custom/KEEP.md"), b"keep me\n");
+    write_file(&root.join(".handbook/custom/KEEP.md"), b"keep me\n");
 
     let output = run_in(root, &["setup", "refresh", "--reset-state"]);
     assert!(
@@ -4919,18 +4969,18 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: READY",
             object: "setup refresh",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: reused canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: reused canonical `.handbook/` root",
             starter_actions: &[
-                "preserved .system/charter/CHARTER.md",
-                "preserved .system/project_context/PROJECT_CONTEXT.md",
-                "preserved .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "preserved .handbook/charter/CHARTER.md",
+                "preserved .handbook/project_context/PROJECT_CONTEXT.md",
+                "preserved .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[
-                "reset .system/state/pipeline",
-                "reset .system/state/pipeline/capture",
-                "reset .system/state/pipeline/capture/cache.yaml",
-                "reset .system/state/pipeline/pipeline.foundation_inputs.yaml",
+                "reset .handbook/state/pipeline",
+                "reset .handbook/state/pipeline/capture",
+                "reset .handbook/state/pipeline/capture/cache.yaml",
+                "reset .handbook/state/pipeline/pipeline.foundation_inputs.yaml",
             ],
             scaffold_guidance: false,
             routed_command: None,
@@ -4938,31 +4988,31 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
     );
 
     assert_eq!(
-        fs::read(root.join(".system/charter/CHARTER.md")).expect("charter"),
+        fs::read(root.join(".handbook/charter/CHARTER.md")).expect("charter"),
         b"charter\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/feature_spec/FEATURE_SPEC.md")).expect("feature"),
+        fs::read(root.join(".handbook/feature_spec/FEATURE_SPEC.md")).expect("feature"),
         b"feature\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/project_context/PROJECT_CONTEXT.md")).expect("context"),
+        fs::read(root.join(".handbook/project_context/PROJECT_CONTEXT.md")).expect("context"),
         b"context\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"))
+        fs::read(root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"))
             .expect("inventory"),
         b"inventory\n"
     );
     assert_eq!(
-        fs::read(root.join(".system/custom/KEEP.md")).expect("custom"),
+        fs::read(root.join(".handbook/custom/KEEP.md")).expect("custom"),
         b"keep me\n"
     );
     assert!(!root
-        .join(".system/state/pipeline/pipeline.foundation_inputs.yaml")
+        .join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml")
         .exists());
     assert!(!root
-        .join(".system/state/pipeline/capture/cache.yaml")
+        .join(".handbook/state/pipeline/capture/cache.yaml")
         .exists());
 }
 
@@ -4974,22 +5024,22 @@ fn setup_refresh_reset_state_refusal_is_fail_safe() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter\n");
+    write_file(&root.join(".handbook/charter/CHARTER.md"), b"charter\n");
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature\n",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"context\n",
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"inventory\n",
     );
-    write_file(&root.join(".system/state/a.yaml"), b"a: 1\n");
+    write_file(&root.join(".handbook/state/a.yaml"), b"a: 1\n");
     let external = tempfile::tempdir().expect("external tempdir");
-    symlink(external.path(), root.join(".system/state/z_symlink")).expect("state symlink");
+    symlink(external.path(), root.join(".handbook/state/z_symlink")).expect("state symlink");
 
     let output = run_in(root, &["setup", "refresh", "--reset-state"]);
     assert!(
@@ -5003,18 +5053,18 @@ fn setup_refresh_reset_state_refusal_is_fail_safe() {
         [
             "OUTCOME: BLOCKED",
             "OBJECT: setup",
-            "NEXT SAFE ACTION: repair the blocked target and rerun `system setup refresh`",
+            "NEXT SAFE ACTION: repair the blocked target and rerun `handbook setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: MutationRefused"), "{stdout}");
     assert!(
         stdout.contains(
-            "SUMMARY: runtime state path `.system/state/z_symlink` cannot be reset through symlink"
+            "SUMMARY: runtime state path `.handbook/state/z_symlink` cannot be reset through symlink"
         ),
         "{stdout}"
     );
     assert!(
-        root.join(".system/state/a.yaml").is_file(),
+        root.join(".handbook/state/a.yaml").is_file(),
         "preflight refusal must leave earlier files intact"
     );
 }
@@ -5037,28 +5087,28 @@ fn bare_setup_respects_nested_git_root_boundary() {
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: established canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: established canonical `.handbook/` root",
             starter_actions: &[
-                "created .system/charter/CHARTER.md",
-                "created .system/project_context/PROJECT_CONTEXT.md",
-                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "created .handbook/charter/CHARTER.md",
+                "created .handbook/project_context/PROJECT_CONTEXT.md",
+                "created .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
-            routed_command: Some("system setup init"),
+            routed_command: Some("handbook setup init"),
         },
     );
 
-    assert!(child_root.join(".system/charter/CHARTER.md").is_file());
+    assert!(child_root.join(".handbook/charter/CHARTER.md").is_file());
     assert!(child_root
-        .join(".system/project_context/PROJECT_CONTEXT.md")
+        .join(".handbook/project_context/PROJECT_CONTEXT.md")
         .is_file());
     assert!(child_root
-        .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+        .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
         .is_file());
     assert!(!child_root
-        .join(".system/feature_spec/FEATURE_SPEC.md")
+        .join(".handbook/feature_spec/FEATURE_SPEC.md")
         .exists());
 }
 
@@ -5075,7 +5125,7 @@ fn generate_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
 
@@ -5092,7 +5142,7 @@ fn generate_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
         ],
     );
     assert!(second_stdout.contains("## PACKET BODY"));
@@ -5113,7 +5163,7 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
 
@@ -5130,12 +5180,12 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(second_stdout.contains("## JSON FALLBACK"));
     assert!(
-        !second_stdout.contains("run `system inspect --packet planning.packet` for proof"),
+        !second_stdout.contains("run `handbook inspect --packet planning.packet` for proof"),
         "inspect ready path should not loop back into inspect: {second_stdout}"
     );
     assert!(second_stdout.contains("## PACKET BODY"));
@@ -5153,7 +5203,7 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     let first_stdout = String::from_utf8(first.stdout).expect("stdout is utf-8");
     assert!(first_stdout.contains("SCAFFOLDED"));
     assert!(first_stdout.contains("ROOT STATUS: MISSING"));
-    assert!(first_stdout.contains("NEXT SAFE ACTION: run `system setup`"));
+    assert!(first_stdout.contains("NEXT SAFE ACTION: run `handbook setup`"));
 
     repair_to_ready(root);
 
@@ -5178,19 +5228,19 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
     );
     assert!(
         second_stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
+            "CHARTER [.handbook/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `handbook author charter`"
         ),
         "{second_stdout}"
     );
     assert!(
         second_stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author project-context`"
+            "PROJECT_CONTEXT [.handbook/project_context/PROJECT_CONTEXT.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `handbook author project-context`"
         ),
         "{second_stdout}"
     );
     assert!(
         second_stdout.contains(
-            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author environment-inventory`"
+            "ENVIRONMENT_INVENTORY [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `handbook author environment-inventory`"
         ),
         "{second_stdout}"
     );
@@ -5202,15 +5252,15 @@ fn doctor_rejects_legacy_placeholder_project_context_truth() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
 
@@ -5224,7 +5274,7 @@ fn doctor_rejects_legacy_placeholder_project_context_truth() {
     assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
     assert!(
         stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
+            "PROJECT_CONTEXT [.handbook/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `handbook author project-context`"
         ),
         "{stdout}"
     );
@@ -5233,27 +5283,27 @@ fn doctor_rejects_legacy_placeholder_project_context_truth() {
 #[test]
 fn doctor_marks_empty_charter_as_invalid_baseline() {
     assert_doctor_empty_baseline_invalid(
-        ".system/charter/CHARTER.md",
-        "NEXT SAFE ACTION: run `system author charter`",
-        "CHARTER [.system/charter/CHARTER.md] STATUS: EMPTY ACTION: run `system author charter`",
+        ".handbook/charter/CHARTER.md",
+        "NEXT SAFE ACTION: run `handbook author charter`",
+        "CHARTER [.handbook/charter/CHARTER.md] STATUS: EMPTY ACTION: run `handbook author charter`",
     );
 }
 
 #[test]
 fn doctor_marks_empty_project_context_as_invalid_baseline() {
     assert_doctor_empty_baseline_invalid(
-        ".system/project_context/PROJECT_CONTEXT.md",
-        "NEXT SAFE ACTION: run `system author project-context`",
-        "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: EMPTY ACTION: run `system author project-context`",
+        ".handbook/project_context/PROJECT_CONTEXT.md",
+        "NEXT SAFE ACTION: run `handbook author project-context`",
+        "PROJECT_CONTEXT [.handbook/project_context/PROJECT_CONTEXT.md] STATUS: EMPTY ACTION: run `handbook author project-context`",
     );
 }
 
 #[test]
 fn doctor_marks_empty_environment_inventory_as_invalid_baseline() {
     assert_doctor_empty_baseline_invalid(
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
-        "NEXT SAFE ACTION: run `system author environment-inventory`",
-        "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: EMPTY ACTION: run `system author environment-inventory`",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        "NEXT SAFE ACTION: run `handbook author environment-inventory`",
+        "ENVIRONMENT_INVENTORY [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: EMPTY ACTION: run `handbook author environment-inventory`",
     );
 }
 
@@ -5263,15 +5313,15 @@ fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready(
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
 
@@ -5284,14 +5334,14 @@ fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready(
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
         ],
     );
     assert!(stdout.contains(
-        "optional source omitted: .system/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
+        "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
     ));
     assert!(!stdout.contains("### PROJECT_CONTEXT"));
-    assert!(!stdout.contains("ProjectContext [.system/project_context/PROJECT_CONTEXT.md]"));
+    assert!(!stdout.contains("ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]"));
 }
 
 #[test]
@@ -5300,15 +5350,15 @@ fn inspect_omits_semantically_invalid_optional_environment_inventory_but_stays_r
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"# Environment Inventory\n\nlegacy repo/project root claim\n",
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
 
@@ -5321,15 +5371,16 @@ fn inspect_omits_semantically_invalid_optional_environment_inventory_but_stays_r
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(stdout.contains(
-        "optional source omitted: .system/environment_inventory/ENVIRONMENT_INVENTORY.md (invalid canonical truth)"
+        "optional source omitted: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md (invalid canonical truth)"
     ));
     assert!(!stdout.contains("### ENVIRONMENT_INVENTORY"));
-    assert!(!stdout
-        .contains("EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]"));
+    assert!(!stdout.contains(
+        "EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]"
+    ));
 }
 
 #[test]
@@ -5337,9 +5388,9 @@ fn generate_blocks_invalid_required_charter_with_required_artifact_invalid() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
-    write_file(&root.join(".system/charter/CHARTER.md"), b"charter-body");
+    write_file(&root.join(".handbook/charter/CHARTER.md"), b"charter-body");
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
 
@@ -5352,7 +5403,7 @@ fn generate_blocks_invalid_required_charter_with_required_artifact_invalid() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system author charter`",
+            "NEXT SAFE ACTION: run `handbook author charter`",
         ],
     );
     assert!(stdout.contains("CATEGORY: RequiredArtifactInvalid"));
@@ -5364,9 +5415,9 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
     let (_dir, root) = tracked_workspace_checkout();
 
     for path in [
-        ".system/charter/CHARTER.md",
-        ".system/project_context/PROJECT_CONTEXT.md",
-        ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".handbook/charter/CHARTER.md",
+        ".handbook/project_context/PROJECT_CONTEXT.md",
+        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
     ] {
         assert!(
             !root.join(path).exists(),
@@ -5383,7 +5434,7 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
     assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
     assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
-        stdout.contains("NEXT SAFE ACTION: run `system setup`"),
+        stdout.contains("NEXT SAFE ACTION: run `handbook setup`"),
         "{stdout}"
     );
 }
@@ -5401,16 +5452,16 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         SetupSuccessExpectation {
             outcome: "OUTCOME: SCAFFOLDED",
             object: "setup init",
-            next_safe_action: "NEXT SAFE ACTION: run `system doctor`",
-            root_status: "STATUS: established canonical `.system/` root",
+            next_safe_action: "NEXT SAFE ACTION: run `handbook doctor`",
+            root_status: "STATUS: established canonical `.handbook/` root",
             starter_actions: &[
-                "created .system/charter/CHARTER.md",
-                "created .system/project_context/PROJECT_CONTEXT.md",
-                "created .system/environment_inventory/ENVIRONMENT_INVENTORY.md",
+                "created .handbook/charter/CHARTER.md",
+                "created .handbook/project_context/PROJECT_CONTEXT.md",
+                "created .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
             ],
             state_updates: &[],
             scaffold_guidance: true,
-            routed_command: Some("system setup init"),
+            routed_command: Some("handbook setup init"),
         },
     );
 
@@ -5428,19 +5479,19 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
     assert!(doctor_stdout.contains("ROOT STATUS: OK"), "{doctor_stdout}");
     assert!(
         doctor_stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: STARTER_OWNED ACTION: run `system author charter`"
+            "CHARTER [.handbook/charter/CHARTER.md] STATUS: STARTER_OWNED ACTION: run `handbook author charter`"
         ),
         "{doctor_stdout}"
     );
     assert!(
         doctor_stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `system author project-context`"
+            "PROJECT_CONTEXT [.handbook/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `handbook author project-context`"
         ),
         "{doctor_stdout}"
     );
     assert!(
         doctor_stdout.contains(
-            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `system author environment-inventory`"
+            "ENVIRONMENT_INVENTORY [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `handbook author environment-inventory`"
         ),
         "{doctor_stdout}"
     );
@@ -5456,7 +5507,7 @@ fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_re
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system author charter`",
+            "NEXT SAFE ACTION: run `handbook author charter`",
         ],
     );
     assert!(generate_stdout.contains("CATEGORY: RequiredArtifactStarterTemplate"));
@@ -5495,7 +5546,7 @@ fn generate_refuses_when_system_root_missing() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
     assert!(
@@ -5525,12 +5576,12 @@ fn generate_succeeds_when_feature_spec_is_missing_in_partial_system_tree() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
         ],
     );
-    assert!(stdout.contains("### CHARTER (.system/charter/CHARTER.md)"));
-    assert!(!stdout.contains("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)"));
-    assert!(stdout.contains("optional source omitted: .system/feature_spec/FEATURE_SPEC.md"));
+    assert!(stdout.contains("### CHARTER (.handbook/charter/CHARTER.md)"));
+    assert!(!stdout.contains("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)"));
+    assert!(stdout.contains("optional source omitted: .handbook/feature_spec/FEATURE_SPEC.md"));
 }
 
 #[test]
@@ -5549,7 +5600,7 @@ fn inspect_refuses_when_system_root_missing() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
     assert!(
@@ -5571,11 +5622,11 @@ fn inspect_succeeds_when_feature_spec_is_missing_in_partial_system_tree() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(stdout.contains("## JSON FALLBACK"));
-    assert!(stdout.contains("optional source omitted: .system/feature_spec/FEATURE_SPEC.md"));
+    assert!(stdout.contains("optional source omitted: .handbook/feature_spec/FEATURE_SPEC.md"));
 }
 
 #[test]
@@ -5598,7 +5649,7 @@ fn doctor_blocks_when_system_root_missing() {
     );
     assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
-        stdout.contains("NEXT SAFE ACTION: run `system setup`"),
+        stdout.contains("NEXT SAFE ACTION: run `handbook setup`"),
         "expected human-facing next action: {stdout}"
     );
     assert!(
@@ -5621,7 +5672,7 @@ fn doctor_reports_ready_when_feature_spec_is_missing_in_partial_system_tree() {
 #[test]
 fn generate_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
     let (_dir, nested) = nested_git_repo_with_nested_cwd();
-    write_file(&nested.join("../../.system"), b"not a directory");
+    write_file(&nested.join("../../.handbook"), b"not a directory");
 
     let output = binary_in(&nested)
         .arg("generate")
@@ -5636,7 +5687,7 @@ fn generate_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_ro
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
     assert!(
@@ -5648,7 +5699,7 @@ fn generate_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_ro
 #[test]
 fn inspect_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
     let (_dir, nested) = nested_git_repo_with_nested_cwd();
-    write_file(&nested.join("../../.system"), b"not a directory");
+    write_file(&nested.join("../../.handbook"), b"not a directory");
 
     let output = binary_in(&nested)
         .arg("inspect")
@@ -5663,7 +5714,7 @@ fn inspect_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_roo
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
     assert!(
@@ -5675,7 +5726,7 @@ fn inspect_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_roo
 #[test]
 fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
     let (_dir, nested) = nested_git_repo_with_nested_cwd();
-    write_file(&nested.join("../../.system"), b"not a directory");
+    write_file(&nested.join("../../.handbook"), b"not a directory");
 
     let output = binary_in(&nested)
         .arg("doctor")
@@ -5715,7 +5766,7 @@ fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
 fn generate_emits_real_packet_body_when_ready() {
     let (_dir, root) = planning_ready_repo();
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
 
@@ -5732,7 +5783,7 @@ fn generate_emits_real_packet_body_when_ready() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
         ],
     );
     assert!(
@@ -5806,7 +5857,7 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
         ],
     );
     assert!(
@@ -5882,11 +5933,11 @@ fn inspect_reports_ready_when_required_artifacts_present() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(
-        !stdout.contains("run `system inspect --packet planning.packet` for proof"),
+        !stdout.contains("run `handbook inspect --packet planning.packet` for proof"),
         "inspect ready path should not loop back into inspect: {stdout}"
     );
     assert!(
@@ -5940,7 +5991,7 @@ fn inspect_succeeds_from_nested_directory_inside_ready_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(
@@ -5999,12 +6050,12 @@ fn inspect_blocks_when_demo_packet_selected_without_fixture_set() {
 fn generate_resolves_execution_demo_packet_from_fixture_set() {
     let root = workspace_root();
     assert!(
-        root.join("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md")
+        root.join("tests/fixtures/execution_demo/basic/.handbook/charter/CHARTER.md")
             .is_file(),
         "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
     assert!(
-        root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+        root.join("tests/fixtures/execution_demo/basic/.handbook/feature_spec/FEATURE_SPEC.md")
             .is_file(),
         "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
@@ -6028,7 +6079,7 @@ fn generate_resolves_execution_demo_packet_from_fixture_set() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof",
         ],
     );
     assert!(
@@ -6104,7 +6155,7 @@ fn generate_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof",
         ],
     );
     assert!(
@@ -6141,12 +6192,12 @@ fn generate_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
 fn inspect_includes_fixture_section_for_execution_demo_packet() {
     let root = workspace_root();
     assert!(
-        root.join("tests/fixtures/execution_demo/basic/.system/charter/CHARTER.md")
+        root.join("tests/fixtures/execution_demo/basic/.handbook/charter/CHARTER.md")
             .is_file(),
         "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
     assert!(
-        root.join("tests/fixtures/execution_demo/basic/.system/feature_spec/FEATURE_SPEC.md")
+        root.join("tests/fixtures/execution_demo/basic/.handbook/feature_spec/FEATURE_SPEC.md")
             .is_file(),
         "expected committed execution demo fixtures to exist under tests/fixtures/execution_demo/basic"
     );
@@ -6170,12 +6221,12 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
+            "NEXT SAFE ACTION: run `handbook generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(
         !stdout.contains(
-            "run `system inspect --packet execution.demo.packet --fixture-set basic` for proof"
+            "run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof"
         ),
         "inspect ready path should not loop back into inspect: {stdout}"
     );
@@ -6236,10 +6287,10 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
         "expected ready summary line: {stdout}"
     );
     let pos_charter = stdout
-        .find("Charter [.system/charter/CHARTER.md]")
+        .find("Charter [.handbook/charter/CHARTER.md]")
         .expect("charter should be listed");
     let pos_feature = stdout
-        .find("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]")
+        .find("FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]")
         .expect("feature spec should be listed");
     assert!(
         pos_charter < pos_feature,
@@ -6251,7 +6302,7 @@ fn inspect_includes_fixture_section_for_execution_demo_packet() {
 fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
-    let fixture_root = root.join("tests/fixtures/execution_demo/full-lineage/.system");
+    let fixture_root = root.join("tests/fixtures/execution_demo/full-lineage/.handbook");
 
     write_file(
         &fixture_root.join("charter/CHARTER.md"),
@@ -6290,10 +6341,10 @@ fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
     assert_in_order(
         fixture_section,
         &[
-            "1. Charter [.system/charter/CHARTER.md]",
-            "2. ProjectContext [.system/project_context/PROJECT_CONTEXT.md]",
-            "3. EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]",
-            "4. FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]",
+            "1. Charter [.handbook/charter/CHARTER.md]",
+            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+            "4. FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]",
         ],
     );
 
@@ -6301,10 +6352,10 @@ fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
     assert_in_order(
         json_section,
         &[
-            "\"canonical_repo_relative_path\": \".system/charter/CHARTER.md\"",
-            "\"canonical_repo_relative_path\": \".system/project_context/PROJECT_CONTEXT.md\"",
-            "\"canonical_repo_relative_path\": \".system/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
-            "\"canonical_repo_relative_path\": \".system/feature_spec/FEATURE_SPEC.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/charter/CHARTER.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/feature_spec/FEATURE_SPEC.md\"",
         ],
     );
 }
@@ -6332,7 +6383,7 @@ fn inspect_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
+            "NEXT SAFE ACTION: run `handbook generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(
@@ -6386,7 +6437,7 @@ fn generate_from_committed_fixture_dir_refuses_against_workspace_git_root() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
     assert!(
@@ -6395,7 +6446,7 @@ fn generate_from_committed_fixture_dir_refuses_against_workspace_git_root() {
     );
     assert!(
         stdout.contains("BROKEN SUBJECT: policy system_root"),
-        "expected system root refusal subject: {stdout}"
+        "expected handbook root refusal subject: {stdout}"
     );
 }
 
@@ -6416,7 +6467,7 @@ fn inspect_from_committed_fixture_dir_refuses_against_workspace_git_root() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ],
     );
     assert!(
@@ -6447,7 +6498,7 @@ fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
     assert!(stdout.contains("SCAFFOLDED"), "{stdout}");
     assert!(stdout.contains("ROOT STATUS: MISSING"), "{stdout}");
     assert!(
-        stdout.contains("NEXT SAFE ACTION: run `system setup`"),
+        stdout.contains("NEXT SAFE ACTION: run `handbook setup`"),
         "expected setup-family guidance: {stdout}"
     );
 }
@@ -6475,7 +6526,7 @@ fn generate_resolves_execution_demo_packet_from_committed_fixture_dir() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof",
         ],
     );
     assert!(
@@ -6483,7 +6534,7 @@ fn generate_resolves_execution_demo_packet_from_committed_fixture_dir() {
         "expected fixture demo section: {stdout}"
     );
     assert!(
-        stdout.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.system/"),
+        stdout.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.handbook/"),
         "expected fixture basis root to resolve exactly once: {stdout}"
     );
 }
@@ -6511,7 +6562,7 @@ fn inspect_resolves_execution_demo_packet_from_committed_fixture_dir() {
         [
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system generate --packet execution.demo.packet --fixture-set basic`",
+            "NEXT SAFE ACTION: run `handbook generate --packet execution.demo.packet --fixture-set basic`",
         ],
     );
     assert!(
@@ -6519,7 +6570,7 @@ fn inspect_resolves_execution_demo_packet_from_committed_fixture_dir() {
         "expected fixture section: {stdout}"
     );
     assert!(
-        stdout.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.system/"),
+        stdout.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.handbook/"),
         "expected fixture basis root to resolve exactly once: {stdout}"
     );
 }
@@ -6530,11 +6581,11 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -6551,7 +6602,7 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: execution.live.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(
@@ -6570,11 +6621,11 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
 
@@ -6591,7 +6642,7 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: execution.live.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ],
     );
     assert!(stdout.contains("## JSON FALLBACK"));
@@ -6614,7 +6665,7 @@ fn generate_blocks_when_optional_project_context_path_is_malformed() {
         [
             "OUTCOME: BLOCKED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup refresh`",
+            "NEXT SAFE ACTION: run `handbook setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: ArtifactReadError"));
@@ -6634,7 +6685,7 @@ fn inspect_blocks_when_optional_project_context_path_is_malformed() {
         [
             "OUTCOME: BLOCKED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup refresh`",
+            "NEXT SAFE ACTION: run `handbook setup refresh`",
         ],
     );
     assert!(stdout.contains("CATEGORY: ArtifactReadError"));
@@ -6653,24 +6704,24 @@ fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     assert!(stdout.contains("INVALID_BASELINE"), "{stdout}");
     assert!(stdout.contains("ROOT STATUS: OK"), "{stdout}");
     assert!(
-        stdout.contains("NEXT SAFE ACTION: run `system setup refresh`"),
+        stdout.contains("NEXT SAFE ACTION: run `handbook setup refresh`"),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `system author project-context`"
+            "PROJECT_CONTEXT [.handbook/project_context/PROJECT_CONTEXT.md] STATUS: INVALID ACTION: run `handbook author project-context`"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
+            "CHARTER [.handbook/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `handbook author charter`"
         ),
         "{stdout}"
     );
     assert!(
         stdout.contains(
-            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author environment-inventory`"
+            "ENVIRONMENT_INVENTORY [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `handbook author environment-inventory`"
         ),
         "{stdout}"
     );
@@ -6813,7 +6864,7 @@ fn assert_setup_success(stdout: &str, expected: SetupSuccessExpectation<'_>) {
     assert_eq!(lines.get(index).copied(), Some("## MODE NOTES"), "{stdout}");
     index += 1;
     if let Some(routed_command) = expected.routed_command {
-        let expected = format!("ROUTED FROM: system setup -> {routed_command}");
+        let expected = format!("ROUTED FROM: handbook setup -> {routed_command}");
         assert_eq!(
             lines.get(index).copied(),
             Some(expected.as_str()),
@@ -6825,7 +6876,7 @@ fn assert_setup_success(stdout: &str, expected: SetupSuccessExpectation<'_>) {
         assert_eq!(
             lines.get(index).copied(),
             Some(
-                "Required starter files still contain shipped scaffold text; replace canonical truth before running `system doctor` or packet work."
+                "Required starter files still contain shipped scaffold text; replace canonical truth before running `handbook doctor` or packet work."
             ),
             "{stdout}"
         );

@@ -674,7 +674,7 @@ fn validate_supported_consumer(consumer_selector: &str) -> Result<(), PipelineHa
             pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
             consumer_id: Some(consumer_selector.to_string()),
             recovery: format!(
-                "retry with `system pipeline handoff emit --id {SUPPORTED_PIPELINE_ID} --consumer {SUPPORTED_CONSUMER_ID}`"
+                "retry with `handbook pipeline handoff emit --id {SUPPORTED_PIPELINE_ID} --consumer {SUPPORTED_CONSUMER_ID}`"
             ),
         })
     }
@@ -695,7 +695,7 @@ fn validate_supported_compile_target(
             pipeline_id: Some(pipeline_id.to_string()),
             consumer_id: Some(consumer_id.to_string()),
             recovery: format!(
-                "retry with `system pipeline handoff emit --id {SUPPORTED_PIPELINE_ID} --consumer {SUPPORTED_CONSUMER_ID}`"
+                "retry with `handbook pipeline handoff emit --id {SUPPORTED_PIPELINE_ID} --consumer {SUPPORTED_CONSUMER_ID}`"
             ),
         })
     }

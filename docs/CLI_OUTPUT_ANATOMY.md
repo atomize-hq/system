@@ -37,7 +37,7 @@ First three lines:
 
 1. `OUTCOME: READY`
 2. `OBJECT: <packet_id>`
-3. Current shipped behavior: `NEXT SAFE ACTION: run \`system inspect ...\` for proof`
+3. Current shipped behavior: `NEXT SAFE ACTION: run \`handbook inspect ...\` for proof`
 
 Section order after the trust header:
 
@@ -83,7 +83,7 @@ First three lines:
 
 1. `OUTCOME: READY`
 2. `OBJECT: <packet_id>`
-3. `NEXT SAFE ACTION: run \`system inspect ...\` for proof`
+3. `NEXT SAFE ACTION: run \`handbook inspect ...\` for proof`
 
 Section order after the trust header:
 
@@ -147,9 +147,9 @@ Checklist rules:
   - per-artifact status
   - exact author command
 - the checklist covers only:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - `.handbook/charter/CHARTER.md`
+  - `.handbook/project_context/PROJECT_CONTEXT.md`
+  - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 - doctor does not currently emit separate object, blocker, or guidance sections
 - `FEATURE_SPEC.md` does not participate in baseline doctor anatomy
 
@@ -218,7 +218,7 @@ Section order:
 Rules:
 
 - preview does not write declared outputs
-- preview writes only the runtime cache entry under `.system/state/pipeline/capture/`
+- preview writes only the runtime cache entry under `.handbook/state/pipeline/capture/`
 - preview and apply must render from one shared compiler-owned capture plan
 
 ### Apply
@@ -260,7 +260,7 @@ First three lines:
 
 1. `OUTCOME: SCAFFOLDED` or `OUTCOME: READY`
 2. `OBJECT: setup init` or `OBJECT: setup refresh`
-3. `NEXT SAFE ACTION: run \`system doctor\``
+3. `NEXT SAFE ACTION: run \`handbook doctor\``
 
 Section order:
 
@@ -271,17 +271,17 @@ Section order:
 
 Rules:
 
-- bare `system setup` must reveal which routed subcommand it selected
+- bare `handbook setup` must reveal which routed subcommand it selected
 - `setup` remains the durable family term; `init` is only the concrete first-run subcommand name
 - the canonical setup-owned starter files are exactly:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-- the shipped starter templates are scaffolding only; setup success must point to `system doctor` for baseline classification rather than guessing which authoring command comes next
+  - `.handbook/charter/CHARTER.md`
+  - `.handbook/project_context/PROJECT_CONTEXT.md`
+  - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- the shipped starter templates are scaffolding only; setup success must point to `handbook doctor` for baseline classification rather than guessing which authoring command comes next
 - `FEATURE_SPEC.md` stays off the setup anatomy and baseline-doctor anatomy
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` reports only setup-owned starter-file rewrites
-- `setup refresh --reset-state` reports only `.system/state/**` resets
+- `setup refresh --reset-state` reports only `.handbook/state/**` resets
 
 ### Setup-family refusal anatomy
 

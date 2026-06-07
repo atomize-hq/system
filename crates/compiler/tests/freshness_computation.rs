@@ -1,4 +1,4 @@
-use system_compiler::{
+use handbook_compiler::{
     compute_freshness, ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind,
     FreshnessIssueKind, FreshnessStatus, InheritedDependency, OverrideTarget,
     OverrideWithRationale, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
@@ -11,12 +11,12 @@ fn identity(
     byte_len: Option<u64>,
 ) -> CanonicalArtifactIdentity {
     let relative_path = match kind {
-        CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
-        CanonicalArtifactKind::ProjectContext => ".system/project_context/PROJECT_CONTEXT.md",
+        CanonicalArtifactKind::Charter => ".handbook/charter/CHARTER.md",
+        CanonicalArtifactKind::ProjectContext => ".handbook/project_context/PROJECT_CONTEXT.md",
         CanonicalArtifactKind::EnvironmentInventory => {
-            ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
         }
-        CanonicalArtifactKind::FeatureSpec => ".system/feature_spec/FEATURE_SPEC.md",
+        CanonicalArtifactKind::FeatureSpec => ".handbook/feature_spec/FEATURE_SPEC.md",
     };
     let (packet_required, baseline_required, setup_scaffolded) = match kind {
         CanonicalArtifactKind::Charter => (true, true, true),
@@ -258,9 +258,9 @@ fn required_starter_template_is_invalid_and_changes_fingerprint() {
     assert_eq!(starter_truth.status, FreshnessStatus::Invalid);
     assert_eq!(
         starter_truth.issues,
-        vec![system_compiler::FreshnessIssue {
+        vec![handbook_compiler::FreshnessIssue {
             kind: FreshnessIssueKind::RequiredArtifactStarterTemplate,
-            detail: "required canonical artifact still contains the shipped starter template: Charter at .system/charter/CHARTER.md".to_string(),
+            detail: "required canonical artifact still contains the shipped starter template: Charter at .handbook/charter/CHARTER.md".to_string(),
         }]
     );
     assert_ne!(

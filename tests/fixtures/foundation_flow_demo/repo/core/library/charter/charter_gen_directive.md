@@ -58,7 +58,7 @@ Which project classification best fits the project?
 - **Greenfield** — new system; no existing prod users/data; migrations/back-compat usually N/A.
 - **Brownfield** — existing live system/users/data; compatibility and safe rollout often required.
 - **Integration** — new component that must plug into existing systems/contracts; compatibility applies at boundaries.
-- **Modernization** — reshaping/replacing an existing system (refactor/replatform/strangler); migration plan usually required.
+- **Modernization** — reshaping/replacing an existing handbook (refactor/replatform/strangler); migration plan usually required.
 - **Hardening** — stability/security/perf/ops work only; minimal new features; tighten gates.
 
 Answer with one option. If unsure, pick the closest and add one sentence why.

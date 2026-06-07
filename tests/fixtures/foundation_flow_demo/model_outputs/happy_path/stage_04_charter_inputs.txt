@@ -1,8 +1,8 @@
 project:
-  name: System
+  name: Handbook
   owner: Platform Foundations
   team: Build Systems
-  repo_or_project_ref: system
+  repo_or_project_ref: handbook
 
 mission:
   summary: >

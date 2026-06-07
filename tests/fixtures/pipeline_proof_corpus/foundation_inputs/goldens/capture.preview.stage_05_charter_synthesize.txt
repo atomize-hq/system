@@ -9,4 +9,4 @@ WRITE PLAN:
 POST-CAPTURE STATE UPDATES:
   - refs.charter_ref = artifacts/charter/CHARTER.md
   - routing.charter_gaps_detected = false
-NEXT SAFE ACTION: run `system pipeline capture apply --capture-id {{CAPTURE_ID}}`
+NEXT SAFE ACTION: run `handbook pipeline capture apply --capture-id {{CAPTURE_ID}}`

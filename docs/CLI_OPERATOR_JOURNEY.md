@@ -27,14 +27,14 @@ M5 adds:
 
 This M4/M5 journey now sits downstream of the M6 setup family.
 
-- `system setup` is the durable front door.
-- Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
-- `setup refresh` preserves canonical files by default, `--rewrite` rewrites only setup-owned starter files, and `--reset-state` resets only `.system/state/**`.
-- The canonical setup-created starter files are exactly `.system/charter/CHARTER.md`, `.system/project_context/PROJECT_CONTEXT.md`, and `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
-- The shipped starter templates are scaffolding only. This journey starts after baseline truth has been established or classified by `system doctor`; `FEATURE_SPEC.md` remains on the packet path rather than in setup bootstrap.
+- `handbook setup` is the durable front door.
+- Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- `setup refresh` preserves canonical files by default, `--rewrite` rewrites only setup-owned starter files, and `--reset-state` resets only `.handbook/state/**`.
+- The canonical setup-created starter files are exactly `.handbook/charter/CHARTER.md`, `.handbook/project_context/PROJECT_CONTEXT.md`, and `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+- The shipped starter templates are scaffolding only. This journey starts after baseline truth has been established or classified by `handbook doctor`; `FEATURE_SPEC.md` remains on the packet path rather than in setup bootstrap.
 - `doctor` is the baseline-readiness surface and reports `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE` before packet work continues.
 
-This journey starts only after that setup-family work has established or repaired canonical `.system/` truth. Missing-root, invalid-root, and missing-artifact recovery belongs to the setup family rather than to raw file-creation instructions.
+This journey starts only after that setup-family work has established or repaired canonical `.handbook/` truth. Missing-root, invalid-root, and missing-artifact recovery belongs to the setup family rather than to raw file-creation instructions.
 
 ## Evidence Basis
 
@@ -64,7 +64,7 @@ The happy path proves the route where project context is genuinely required.
 2. Stage `04` capture writes the charter-input artifact.
 3. Stage `05` capture writes the charter artifact.
 4. The operator makes the explicit branch decision:
-   `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=true`
+   `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=true`
 5. `pipeline resolve` runs again and shows `stage.06_project_context_interview | active`.
 6. Stage `06` capture writes `PROJECT_CONTEXT.md`.
 7. Stage `07` capture writes the foundation pack.
@@ -87,7 +87,7 @@ reason.
 2. Stage `04` capture writes the charter-input artifact.
 3. Stage `05` capture writes a charter whose content keeps `charter_gaps_detected=false`.
 4. The operator makes the explicit branch decision:
-   `system pipeline state set --id pipeline.foundation_inputs --var needs_project_context=false`
+   `handbook pipeline state set --id pipeline.foundation_inputs --var needs_project_context=false`
 5. `pipeline resolve` runs again and shows:
    - `needs_project_context = false`
    - `charter_gaps_detected = false`
@@ -164,7 +164,7 @@ M5 still does not claim:
 The proof surfaces keep reruns stable in two ways:
 
 - CLI stage-10 compile tests set
-  `SYSTEM_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z`, so the compile payload uses a fixed
+  `HANDBOOK_PIPELINE_COMPILE_NOW_UTC=2026-01-28T18:35:10Z`, so the compile payload uses a fixed
   `now_utc` value.
 - CLI and compiler capture-preview assertions normalize the generated `capture_id` to
   `{{CAPTURE_ID}}`, so deterministic preview/apply evidence does not drift on rerun.

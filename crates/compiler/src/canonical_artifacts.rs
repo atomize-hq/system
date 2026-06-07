@@ -1,7 +1,8 @@
+use crate::repo_file_access::{
+    CompilerWorkspace, RepoRelativeFileAccessError, RepoRelativeMetadataReadError,
+};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-#[cfg(unix)]
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -16,12 +17,12 @@ pub enum CanonicalArtifactKind {
 impl CanonicalArtifactKind {
     pub(crate) fn relative_path(self) -> &'static str {
         match self {
-            CanonicalArtifactKind::Charter => ".system/charter/CHARTER.md",
-            CanonicalArtifactKind::ProjectContext => ".system/project_context/PROJECT_CONTEXT.md",
+            CanonicalArtifactKind::Charter => ".handbook/charter/CHARTER.md",
+            CanonicalArtifactKind::ProjectContext => ".handbook/project_context/PROJECT_CONTEXT.md",
             CanonicalArtifactKind::EnvironmentInventory => {
-                ".system/environment_inventory/ENVIRONMENT_INVENTORY.md"
+                ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
             }
-            CanonicalArtifactKind::FeatureSpec => ".system/feature_spec/FEATURE_SPEC.md",
+            CanonicalArtifactKind::FeatureSpec => ".handbook/feature_spec/FEATURE_SPEC.md",
         }
     }
 }
@@ -32,6 +33,8 @@ pub const CANONICAL_ARTIFACT_ORDER: [CanonicalArtifactKind; 4] = [
     CanonicalArtifactKind::EnvironmentInventory,
     CanonicalArtifactKind::FeatureSpec,
 ];
+
+const SYSTEM_ROOT_RELATIVE: &str = ".handbook";
 
 const CHARTER_TEMPLATE: &str = "\
 # Charter
@@ -115,8 +118,8 @@ pub struct CanonicalArtifactDescriptor {
 const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::Charter,
-        relative_path: ".system/charter/CHARTER.md",
-        namespace_dir: ".system/charter",
+        relative_path: ".handbook/charter/CHARTER.md",
+        namespace_dir: ".handbook/charter",
         packet_required: true,
         baseline_required: true,
         setup_scaffolded: true,
@@ -124,8 +127,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::ProjectContext,
-        relative_path: ".system/project_context/PROJECT_CONTEXT.md",
-        namespace_dir: ".system/project_context",
+        relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
+        namespace_dir: ".handbook/project_context",
         packet_required: false,
         baseline_required: true,
         setup_scaffolded: true,
@@ -133,8 +136,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::EnvironmentInventory,
-        relative_path: ".system/environment_inventory/ENVIRONMENT_INVENTORY.md",
-        namespace_dir: ".system/environment_inventory",
+        relative_path: ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        namespace_dir: ".handbook/environment_inventory",
         packet_required: false,
         baseline_required: true,
         setup_scaffolded: true,
@@ -142,8 +145,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::FeatureSpec,
-        relative_path: ".system/feature_spec/FEATURE_SPEC.md",
-        namespace_dir: ".system/feature_spec",
+        relative_path: ".handbook/feature_spec/FEATURE_SPEC.md",
+        namespace_dir: ".handbook/feature_spec",
         packet_required: false,
         baseline_required: false,
         setup_scaffolded: false,
@@ -215,26 +218,26 @@ pub struct CanonicalArtifacts {
 impl CanonicalArtifacts {
     pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, ArtifactIngestError> {
         let repo_root = repo_root.as_ref();
-        let system_root = repo_root.join(".system");
+        let workspace = CompilerWorkspace::new(repo_root);
+        let system_root = workspace
+            .normalize_repo_relative(SYSTEM_ROOT_RELATIVE)
+            .expect("canonical .handbook root should stay repo-relative");
 
-        let system_root_status = match std::fs::symlink_metadata(&system_root) {
-            Ok(meta) => {
+        let system_root_status = match workspace.metadata_no_follow(&system_root) {
+            Ok(Some(meta)) => {
                 if meta.file_type().is_symlink() {
                     SystemRootStatus::SymlinkNotAllowed
                 } else if !meta.is_dir() {
                     SystemRootStatus::NotDir
-                } else if canonical_root_scaffold_exists(repo_root)? {
+                } else if canonical_root_scaffold_exists(&workspace)? {
                     SystemRootStatus::Ok
                 } else {
                     SystemRootStatus::Missing
                 }
             }
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => SystemRootStatus::Missing,
-            Err(err) => {
-                return Err(ArtifactIngestError::ReadFailure {
-                    path: system_root,
-                    source: err,
-                });
+            Ok(None) => SystemRootStatus::Missing,
+            Err(RepoRelativeMetadataReadError { path, source }) => {
+                return Err(ArtifactIngestError::ReadFailure { path, source });
             }
         };
 
@@ -244,22 +247,22 @@ impl CanonicalArtifacts {
             match system_root_status {
                 SystemRootStatus::Ok => (
                     load_one(
-                        repo_root,
+                        &workspace,
                         CanonicalArtifactKind::Charter,
                         &mut ingest_issues,
                     ),
                     load_one(
-                        repo_root,
+                        &workspace,
                         CanonicalArtifactKind::ProjectContext,
                         &mut ingest_issues,
                     ),
                     load_one(
-                        repo_root,
+                        &workspace,
                         CanonicalArtifactKind::EnvironmentInventory,
                         &mut ingest_issues,
                     ),
                     load_one(
-                        repo_root,
+                        &workspace,
                         CanonicalArtifactKind::FeatureSpec,
                         &mut ingest_issues,
                     ),
@@ -294,31 +297,26 @@ impl CanonicalArtifacts {
     }
 }
 
-fn canonical_root_scaffold_exists(repo_root: &Path) -> Result<bool, ArtifactIngestError> {
+fn canonical_root_scaffold_exists(
+    workspace: &CompilerWorkspace<'_>,
+) -> Result<bool, ArtifactIngestError> {
     for kind in CANONICAL_ARTIFACT_ORDER {
-        let artifact_path = repo_root.join(kind.relative_path());
-        match std::fs::symlink_metadata(&artifact_path) {
-            Ok(_) => return Ok(true),
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-            Err(err) => {
-                return Err(ArtifactIngestError::ReadFailure {
-                    path: artifact_path,
-                    source: err,
-                });
-            }
+        let artifact_path = workspace
+            .normalize_repo_relative(kind.relative_path())
+            .expect("canonical artifact path should stay repo-relative");
+        match workspace.metadata_no_follow(&artifact_path) {
+            Ok(Some(_)) => return Ok(true),
+            Ok(None) => {}
+            Err(err) => return Err(artifact_ingest_read_failure(err)),
         }
 
-        let namespace_dir = repo_root.join(canonical_namespace_dir(kind));
-        match std::fs::symlink_metadata(&namespace_dir) {
-            Ok(meta) if meta.is_dir() => return Ok(true),
-            Ok(_) => {}
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-            Err(err) => {
-                return Err(ArtifactIngestError::ReadFailure {
-                    path: namespace_dir,
-                    source: err,
-                });
-            }
+        let namespace_dir = workspace
+            .normalize_repo_relative(canonical_namespace_dir(kind))
+            .expect("canonical namespace path should stay repo-relative");
+        match workspace.metadata_no_follow(&namespace_dir) {
+            Ok(Some(meta)) if meta.is_dir() => return Ok(true),
+            Ok(Some(_)) | Ok(None) => {}
+            Err(err) => return Err(artifact_ingest_read_failure(err)),
         }
     }
 
@@ -359,18 +357,18 @@ impl std::fmt::Display for ArtifactIngestError {
             ArtifactIngestError::SystemRootMissing { system_root } => {
                 write!(
                     f,
-                    "missing canonical .system root at {}",
+                    "missing canonical .handbook root at {}",
                     system_root.display()
                 )
             }
             ArtifactIngestError::SystemRootNotDir { system_root } => write!(
                 f,
-                "canonical .system root is not a directory: {}",
+                "canonical .handbook root is not a directory: {}",
                 system_root.display()
             ),
             ArtifactIngestError::SystemRootSymlinkNotAllowed { system_root } => write!(
                 f,
-                "canonical .system root must not be a symlink: {}",
+                "canonical .handbook root must not be a symlink: {}",
                 system_root.display()
             ),
             ArtifactIngestError::RequiredArtifactMissing { kind, path } => write!(
@@ -427,18 +425,19 @@ fn record_ingest_issue(
 }
 
 fn load_one(
-    repo_root: &Path,
+    workspace: &CompilerWorkspace<'_>,
     kind: CanonicalArtifactKind,
     issues: &mut Vec<ArtifactIngestIssue>,
 ) -> CanonicalArtifact {
     let relative_path = kind.relative_path();
-    let path = repo_root.join(relative_path);
+    let artifact_path = workspace
+        .normalize_repo_relative(relative_path)
+        .expect("canonical artifact path should stay repo-relative");
 
     let descriptor = descriptor_for(kind);
 
-    let meta = match std::fs::symlink_metadata(&path) {
-        Ok(meta) => Some(meta),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+    let meta = match workspace.metadata_no_follow(&artifact_path) {
+        Ok(meta) => meta,
         Err(_err) => {
             record_ingest_issue(
                 issues,
@@ -474,21 +473,36 @@ fn load_one(
         return missing_one(kind);
     }
 
-    if let Some(parent) = path.parent() {
-        if let Ok(parent_meta) = std::fs::symlink_metadata(parent) {
-            if parent_meta.file_type().is_symlink() {
-                record_ingest_issue(
-                    issues,
-                    ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
-                    kind,
-                    relative_path,
-                );
-                return missing_one(kind);
-            }
+    let trusted_file = match workspace.trusted_read(&artifact_path) {
+        Ok(trusted_file) => trusted_file,
+        Err(RepoRelativeFileAccessError::SymlinkNotAllowed(_)) => {
+            record_ingest_issue(
+                issues,
+                ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
+                kind,
+                relative_path,
+            );
+            return missing_one(kind);
         }
-    }
+        Err(
+            RepoRelativeFileAccessError::Missing(_)
+            | RepoRelativeFileAccessError::NotRegularFile(_)
+            | RepoRelativeFileAccessError::ReadFailure { .. },
+        ) => {
+            record_ingest_issue(
+                issues,
+                ArtifactIngestIssueKind::CanonicalArtifactReadError,
+                kind,
+                relative_path,
+            );
+            return missing_one(kind);
+        }
+        Err(RepoRelativeFileAccessError::InvalidPath(_)) => {
+            unreachable!("canonical artifact paths should stay repo-relative")
+        }
+    };
 
-    let bytes = match read_bytes_no_follow(&path) {
+    let bytes = match trusted_file.read_bytes() {
         Ok(bytes) => bytes,
         Err(_) => {
             record_ingest_issue(
@@ -524,27 +538,6 @@ fn load_one(
             matches_setup_starter_template,
         },
         bytes: Some(bytes),
-    }
-}
-
-fn read_bytes_no_follow(path: &Path) -> std::io::Result<Vec<u8>> {
-    #[cfg(unix)]
-    {
-        use std::fs::OpenOptions;
-        use std::os::unix::fs::OpenOptionsExt;
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(path)?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
-        Ok(bytes)
-    }
-
-    #[cfg(not(unix))]
-    {
-        std::fs::read(path)
     }
 }
 
@@ -585,4 +578,11 @@ fn descriptor_for(kind: CanonicalArtifactKind) -> &'static CanonicalArtifactDesc
         .iter()
         .find(|descriptor| descriptor.kind == kind)
         .expect("canonical artifact descriptor should exist")
+}
+
+fn artifact_ingest_read_failure(err: RepoRelativeMetadataReadError) -> ArtifactIngestError {
+    ArtifactIngestError::ReadFailure {
+        path: err.path,
+        source: err.source,
+    }
 }

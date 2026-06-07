@@ -1,14 +1,14 @@
 #[path = "support/pipeline_proof_corpus_support.rs"]
 mod pipeline_proof_corpus_support;
 
-use std::path::PathBuf;
-use system_compiler::{
+use handbook_compiler::{
     load_pipeline_definition, load_route_state_with_supported_variables, resolve_pipeline_route,
     set_route_state, supported_route_state_variables, ActivationClause, ActivationConditionSet,
     ActivationOperator, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
     PipelineStage, RouteEvaluationError, RouteStageReason, RouteStageStatus, RouteStateMutation,
     RouteStateMutationOutcome, RouteVariables, StageActivation,
 };
+use std::path::PathBuf;
 
 fn fixture(path: &str) -> PipelineDefinition {
     let root = pipeline_proof_corpus_support::committed_repo_root();
@@ -282,7 +282,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &initial_state,
-            &system_compiler::effective_route_basis_run(&root, &definition, &initial_state),
+            &handbook_compiler::effective_route_basis_run(&root, &definition, &initial_state),
             &initial_route,
         ),
         &root,
@@ -350,7 +350,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &activated_state,
-            &system_compiler::effective_route_basis_run(&root, &definition, &activated_state),
+            &handbook_compiler::effective_route_basis_run(&root, &definition, &activated_state),
             &activated_route,
         ),
         &root,
@@ -422,7 +422,7 @@ fn shared_proof_corpus_state_mutation_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &routed_state,
-            &system_compiler::effective_route_basis_run(&root, &definition, &routed_state),
+            &handbook_compiler::effective_route_basis_run(&root, &definition, &routed_state),
             &route,
         ),
         &root,

@@ -4,7 +4,7 @@ mod pipeline_proof_corpus_support;
 use std::fs;
 use std::path::Path;
 
-use system_compiler::{
+use handbook_compiler::{
     build_route_basis, compile_pipeline_stage, compile_pipeline_stage_with_runtime,
     load_pipeline_definition, load_route_state_with_supported_variables, persist_route_basis,
     render_pipeline_compile_explain, render_pipeline_compile_payload, resolve_pipeline_route,
@@ -16,7 +16,7 @@ const PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const STAGE_ID: &str = "stage.10_feature_spec";
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
 
-fn pipeline_definition(repo_root: &Path) -> system_compiler::PipelineDefinition {
+fn pipeline_definition(repo_root: &Path) -> handbook_compiler::PipelineDefinition {
     load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture")
 }
@@ -24,7 +24,7 @@ fn pipeline_definition(repo_root: &Path) -> system_compiler::PipelineDefinition 
 fn supported_variables(
     repo_root: &Path,
 ) -> (
-    system_compiler::PipelineDefinition,
+    handbook_compiler::PipelineDefinition,
     std::collections::BTreeSet<String>,
 ) {
     let definition = pipeline_definition(repo_root);
@@ -321,7 +321,7 @@ fn compile_refuses_malformed_selected_pipeline_definition() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::InvalidDefinition
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidDefinition
     );
     assert!(err.summary.contains("selected pipeline definition"));
 }
@@ -340,7 +340,7 @@ fn compile_refuses_malformed_selected_stage_definition() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::InvalidDefinition
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidDefinition
     );
     assert!(err.summary.contains("must declare kind `stage`"));
 }
@@ -356,7 +356,7 @@ fn compile_refuses_missing_required_artifact() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
+        handbook_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
     );
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
 }
@@ -380,7 +380,7 @@ fn compile_refuses_symlinked_required_artifact() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::InvalidState
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidState
     );
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
     assert!(!err.summary.contains("outside-secret"));
@@ -451,7 +451,7 @@ fn compile_refuses_when_required_variable_is_missing() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
+        handbook_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
     );
     assert!(err
         .summary
@@ -477,7 +477,7 @@ fn compile_succeeds_when_optional_artifacts_are_absent() {
         result.documents.iter().any(|document| {
             document.path == "artifacts/project_context/PROJECT_CONTEXT.md"
                 && document.status
-                    == system_compiler::PipelineCompileDocumentStatus::MissingOptional
+                    == handbook_compiler::PipelineCompileDocumentStatus::MissingOptional
         }),
         "expected optional project-context artifact to be marked missing"
     );
@@ -575,7 +575,7 @@ fn compile_refuses_stage_not_declared_in_pipeline() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::UnsupportedTarget
+        handbook_compiler::PipelineCompileRefusalClassification::UnsupportedTarget
     );
     assert!(err.summary.contains("unknown stage selector"));
     assert!(err.summary.contains("stage.10_feature_spec"));
@@ -651,10 +651,36 @@ fn compile_refuses_malformed_route_basis() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+        handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
     );
     assert!(err.summary.contains("route_basis"));
     assert!(err.recovery.contains("pipeline resolve"));
+}
+
+#[test]
+fn compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
+    let (_dir, repo_root) = prepare_compile_ready_repo();
+    let state_path = pipeline_proof_corpus_support::pipeline_state_path(&repo_root);
+    let state = fs::read_to_string(&state_path).expect("state file");
+    fs::write(&state_path, format!("{state}\nroute_basis_extra: true\n"))
+        .expect("write malformed state");
+
+    let err =
+        compile_pipeline_stage(&repo_root, PIPELINE_ID, STAGE_ID).expect_err("compile refusal");
+
+    assert_eq!(
+        err.classification,
+        handbook_compiler::PipelineCompileRefusalClassification::InvalidState
+    );
+    assert_eq!(err.pipeline_id.as_deref(), Some(PIPELINE_ID));
+    assert_eq!(err.stage_id.as_deref(), Some(STAGE_ID));
+    assert!(err.summary.contains("trusted pipeline session state at"));
+    assert!(err.summary.contains("unknown field"), "{err:?}");
+    assert!(err.summary.contains("route_basis_extra"), "{err:?}");
+    assert_eq!(
+        err.recovery,
+        "fix the persisted route state and retry `pipeline compile`"
+    );
 }
 
 #[test]
@@ -679,7 +705,7 @@ fn compile_refuses_forged_route_basis_status() {
 
     assert_eq!(
         err.classification,
-        system_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+        handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
     );
     pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
         &err,

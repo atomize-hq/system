@@ -4,7 +4,7 @@
 
 This document describes the legacy Python-harness mechanism that used a repo-root environment inventory as its store-of-record.
 
-In the current reduced-v1 `M8` product story, the shipped baseline canonical path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+In the current reduced-v1 `M8` product story, the shipped baseline canonical path is `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
 
 The legacy mechanism used `ENVIRONMENT_INVENTORY.md` as the historical store of record for:
 

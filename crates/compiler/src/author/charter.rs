@@ -14,9 +14,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const CANONICAL_CHARTER_REPO_PATH: &str = ".system/charter/CHARTER.md";
-pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".system/charter/CHARTER.md#exceptions";
-const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".system/state/authoring/charter.lock";
+pub const CANONICAL_CHARTER_REPO_PATH: &str = ".handbook/charter/CHARTER.md";
+pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".handbook/charter/CHARTER.md#exceptions";
+const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".handbook/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const AUTHORING_METHOD_MARKDOWN: &str =
     include_str!("../../../../core/library/authoring/charter_authoring_method.md");
@@ -25,8 +25,8 @@ const CHARTER_SYNTHESIZE_DIRECTIVE_MARKDOWN: &str =
 const CHARTER_TEMPLATE_MARKDOWN: &str =
     include_str!("../../../../core/library/charter/charter.md.tmpl");
 // Tests can override the codex binary path without changing the shipped CLI surface.
-const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
-const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
+const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";
 const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## What this is",
     "## How to use this charter",
@@ -70,15 +70,15 @@ const CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS: [&str; 6] = [
     "- e.g., accessibility baseline, performance perception, error messaging clarity",
 ];
 // Command paths:
-// `system author charter --from-inputs <path|->`
+// `handbook author charter --from-inputs <path|->`
 // -> normalized `CharterStructuredInput`
 // -> compiler-owned deterministic render
-// -> guarded write to `.system/charter/CHARTER.md`
+// -> guarded write to `.handbook/charter/CHARTER.md`
 //
-// `system author charter`
+// `handbook author charter`
 // -> normalized `CharterStructuredInput`
 // -> Codex-backed guided synthesis
-// -> guarded write to `.system/charter/CHARTER.md`
+// -> guarded write to `.handbook/charter/CHARTER.md`
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthorCharterRefusalKind {
@@ -1214,7 +1214,7 @@ pub fn author_charter(
                     ),
                     broken_subject: "charter authoring lock".to_string(),
                     next_safe_action:
-                        "repair the blocked charter authoring lock path and retry `system author charter`"
+                        "repair the blocked charter authoring lock path and retry `handbook author charter`"
                             .to_string(),
                 },
                 AuthoringLockError::Io { lock_path, source } => AuthorCharterRefusal {
@@ -1225,7 +1225,7 @@ pub fn author_charter(
                     ),
                     broken_subject: "charter authoring lock".to_string(),
                     next_safe_action:
-                        "wait for any in-progress `system author charter` run to finish or repair the lock path, then retry `system author charter`"
+                        "wait for any in-progress `handbook author charter` run to finish or repair the lock path, then retry `handbook author charter`"
                             .to_string(),
                 },
             },
@@ -1239,7 +1239,7 @@ pub fn author_charter(
             summary: format_repo_mutation_error(CANONICAL_CHARTER_REPO_PATH, err),
             broken_subject: "canonical charter write target".to_string(),
             next_safe_action:
-                "repair the blocked canonical charter path and retry `system author charter`"
+                "repair the blocked canonical charter path and retry `handbook author charter`"
                     .to_string(),
         })?;
 
@@ -1267,7 +1267,7 @@ pub fn author_charter_guided(
                     ),
                     broken_subject: "charter authoring lock".to_string(),
                     next_safe_action:
-                        "repair the blocked charter authoring lock path and retry `system author charter`"
+                        "repair the blocked charter authoring lock path and retry `handbook author charter`"
                             .to_string(),
                 },
                 AuthoringLockError::Io { lock_path, source } => AuthorCharterRefusal {
@@ -1278,7 +1278,7 @@ pub fn author_charter_guided(
                     ),
                     broken_subject: "charter authoring lock".to_string(),
                     next_safe_action:
-                        "wait for any in-progress `system author charter` run to finish or repair the lock path, then retry `system author charter`"
+                        "wait for any in-progress `handbook author charter` run to finish or repair the lock path, then retry `handbook author charter`"
                             .to_string(),
                 },
             },
@@ -1293,7 +1293,7 @@ pub fn author_charter_guided(
             summary: format_repo_mutation_error(CANONICAL_CHARTER_REPO_PATH, err),
             broken_subject: "canonical charter write target".to_string(),
             next_safe_action:
-                "repair the blocked canonical charter path and retry `system author charter`"
+                "repair the blocked canonical charter path and retry `handbook author charter`"
                     .to_string(),
         })?;
 
@@ -1307,9 +1307,9 @@ pub fn preflight_author_charter(repo_root: impl AsRef<Path>) -> Result<(), Autho
     let repo_root = repo_root.as_ref();
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| AuthorCharterRefusal {
         kind: AuthorCharterRefusalKind::InvalidSystemRoot,
-        summary: format!("failed to inspect canonical `.system` root: {err}"),
-        broken_subject: "canonical `.system` root".to_string(),
-        next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
+        summary: format!("failed to inspect canonical `.handbook` root: {err}"),
+        broken_subject: "canonical `.handbook` root".to_string(),
+        next_safe_action: "repair the canonical `.handbook` root and rerun `handbook setup`"
             .to_string(),
     })?;
     validate_authoring_preconditions(repo_root, &artifacts)?;
@@ -1326,27 +1326,27 @@ fn validate_authoring_preconditions(
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::MissingSystemRoot,
                 summary:
-                    "canonical `.system` root is missing; charter authoring requires setup first"
+                    "canonical `.handbook` root is missing; charter authoring requires setup first"
                         .to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "run `system setup`".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action: "run `handbook setup`".to_string(),
             })
         }
         Err(SystemRootAuthoringError::NotDir) => {
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::InvalidSystemRoot,
-                summary: "canonical `.system` root exists but is not a directory".to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "repair the canonical `.system` root and rerun `system setup`"
-                    .to_string(),
+                summary: "canonical `.handbook` root exists but is not a directory".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action:
+                    "repair the canonical `.handbook` root and rerun `handbook setup`".to_string(),
             })
         }
         Err(SystemRootAuthoringError::SymlinkNotAllowed) => {
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::InvalidSystemRoot,
-                summary: "canonical `.system` root cannot be a symlink".to_string(),
-                broken_subject: "canonical `.system` root".to_string(),
-                next_safe_action: "remove the `.system` symlink and rerun `system setup`"
+                summary: "canonical `.handbook` root cannot be a symlink".to_string(),
+                broken_subject: "canonical `.handbook` root".to_string(),
+                next_safe_action: "remove the `.handbook` symlink and rerun `handbook setup`"
                     .to_string(),
             })
         }
@@ -1359,7 +1359,8 @@ fn validate_authoring_preconditions(
             summary: "unexpected canonical artifact identity for charter authoring".to_string(),
             broken_subject: "canonical charter truth".to_string(),
             next_safe_action:
-                "inspect canonical artifact metadata and retry `system author charter`".to_string(),
+                "inspect canonical artifact metadata and retry `handbook author charter`"
+                    .to_string(),
         });
     }
 
@@ -1369,11 +1370,11 @@ fn validate_authoring_preconditions(
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::ExistingCanonicalTruth,
                 summary:
-                    "canonical charter truth already exists as valid non-starter truth; `system author charter` refuses to overwrite authored canonical truth"
+                    "canonical charter truth already exists as valid non-starter truth; `handbook author charter` refuses to overwrite authored canonical truth"
                         .to_string(),
                 broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
                 next_safe_action: format!(
-                    "inspect `{}` instead of rerunning `system author charter`",
+                    "inspect `{}` instead of rerunning `handbook author charter`",
                     CANONICAL_CHARTER_REPO_PATH
                 ),
             });
@@ -1382,10 +1383,10 @@ fn validate_authoring_preconditions(
             return Err(AuthorCharterRefusal {
                 kind: AuthorCharterRefusalKind::MutationRefused,
                 summary:
-                    "canonical charter truth is unreadable or path-invalid; repair it with `system setup refresh` before rerunning `system author charter`"
+                    "canonical charter truth is unreadable or path-invalid; repair it with `handbook setup refresh` before rerunning `handbook author charter`"
                         .to_string(),
                 broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
-                next_safe_action: "run `system setup refresh`".to_string(),
+                next_safe_action: "run `handbook setup refresh`".to_string(),
             });
         }
     }
@@ -1396,7 +1397,7 @@ fn validate_authoring_preconditions(
             summary: format_repo_write_path_error(CANONICAL_CHARTER_REPO_PATH, err),
             broken_subject: "canonical charter write target".to_string(),
             next_safe_action:
-                "repair the blocked canonical charter path and retry `system author charter`"
+                "repair the blocked canonical charter path and retry `handbook author charter`"
                     .to_string(),
         }
     })?;
@@ -1674,7 +1675,7 @@ fn structured_input_refusal(
         summary,
         broken_subject: "structured charter input".to_string(),
         next_safe_action:
-            "repair the structured charter input and retry `system author charter --from-inputs <path|->`"
+            "repair the structured charter input and retry `handbook author charter --from-inputs <path|->`"
                 .to_string(),
     }
 }
@@ -1685,7 +1686,7 @@ fn deterministic_render_refusal(summary: impl Into<String>) -> AuthorCharterRefu
         summary: summary.into(),
         broken_subject: "final charter render".to_string(),
         next_safe_action:
-            "repair the structured charter input or compiler-owned charter render path and retry `system author charter --from-inputs <path|->`"
+            "repair the structured charter input or compiler-owned charter render path and retry `handbook author charter --from-inputs <path|->`"
                 .to_string(),
     }
 }
@@ -1696,7 +1697,7 @@ fn synthesis_refusal(summary: impl Into<String>) -> AuthorCharterRefusal {
         summary: summary.into(),
         broken_subject: "final charter synthesis".to_string(),
         next_safe_action:
-            "repair the charter synthesis runtime or prompt inputs and retry `system author charter`"
+            "repair the charter synthesis runtime or prompt inputs and retry `handbook author charter`"
                 .to_string(),
     }
 }
@@ -2027,7 +2028,7 @@ fn synthesize_output_path() -> PathBuf {
         .unwrap_or_default()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "system-author-charter-{}-{timestamp}.md",
+        "handbook-author-charter-{}-{timestamp}.md",
         std::process::id()
     ))
 }

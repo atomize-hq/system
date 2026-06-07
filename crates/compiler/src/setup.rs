@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-const SYSTEM_DOCTOR_COMMAND: &str = "system doctor";
+const HANDBOOK_DOCTOR_COMMAND: &str = "handbook doctor";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SetupMode {
@@ -137,13 +137,13 @@ pub fn run_setup(
             setup_mutation_refusal(
                 request.mode,
                 reason,
-                "runtime-state target under `.system/state/**`",
+                "runtime-state target under `.handbook/state/**`",
             )
         })?;
     }
 
     let post_setup_artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
     })?;
     let disposition = setup_disposition(&post_setup_artifacts);
 
@@ -159,7 +159,7 @@ fn build_setup_execution_plan(
     request: &SetupRequest,
 ) -> Result<SetupExecutionPlan, SetupRefusal> {
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.system` root")
+        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
     })?;
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
     validate_request(&artifacts, request, resolved_mode)?;
@@ -195,7 +195,7 @@ fn build_setup_execution_plan(
             setup_mutation_refusal(
                 request.mode,
                 reason,
-                "runtime-state target under `.system/state/**`",
+                "runtime-state target under `.handbook/state/**`",
             )
         })?)
     } else {
@@ -269,7 +269,7 @@ fn validate_request(
                 SetupRefusalKind::InvalidRequest,
                 "setup mode must resolve to init or refresh",
                 "setup request",
-                "retry `system setup`",
+                "retry `handbook setup`",
             ));
         }
         SetupMode::Init => {
@@ -278,15 +278,15 @@ fn validate_request(
                     SetupRefusalKind::InvalidRequest,
                     "setup init does not accept refresh-only flags; retry without --rewrite or --reset-state",
                     "setup request",
-                    "retry `system setup init` without --rewrite or --reset-state",
+                    "retry `handbook setup init` without --rewrite or --reset-state",
                 ));
             }
             if artifacts.system_root_status == SystemRootStatus::Ok {
                 return Err(setup_refusal(
                     SetupRefusalKind::AlreadyInitialized,
-                    "canonical .system root already exists; use `system setup refresh` instead",
-                    "canonical `.system` root",
-                    "run `system setup refresh`",
+                    "canonical .handbook root already exists; use `handbook setup refresh` instead",
+                    "canonical `.handbook` root",
+                    "run `handbook setup refresh`",
                 ));
             }
         }
@@ -295,25 +295,25 @@ fn validate_request(
             SystemRootStatus::Missing => {
                 return Err(setup_refusal(
                     SetupRefusalKind::MissingCanonicalRoot,
-                    "canonical .system root is missing; run `system setup init` first",
-                    "canonical `.system` root",
-                    "run `system setup`",
+                    "canonical .handbook root is missing; run `handbook setup init` first",
+                    "canonical `.handbook` root",
+                    "run `handbook setup`",
                 ));
             }
             SystemRootStatus::NotDir => {
                 return Err(setup_refusal(
                     SetupRefusalKind::InvalidCanonicalRoot,
-                    "canonical .system root is invalid; run `system setup` to re-establish it",
-                    "canonical `.system` root",
-                    "run `system setup`",
+                    "canonical .handbook root is invalid; run `handbook setup` to re-establish it",
+                    "canonical `.handbook` root",
+                    "run `handbook setup`",
                 ));
             }
             SystemRootStatus::SymlinkNotAllowed => {
                 return Err(setup_refusal(
                     SetupRefusalKind::InvalidCanonicalRoot,
-                    "canonical .system root must not be a symlink; run `system setup` to re-establish it",
-                    "canonical `.system` root",
-                    "run `system setup`",
+                    "canonical .handbook root must not be a symlink; run `handbook setup` to re-establish it",
+                    "canonical `.handbook` root",
+                    "run `handbook setup`",
                 ));
             }
         },
@@ -415,7 +415,7 @@ fn apply_mutation(
 }
 
 fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), SetupRefusal> {
-    let system_root = repo_root.join(".system");
+    let system_root = repo_root.join(".handbook");
     let metadata = match fs::symlink_metadata(&system_root) {
         Ok(metadata) => metadata,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -423,10 +423,10 @@ fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), S
             return Err(setup_mutation_refusal(
                 mode,
                 format!(
-                    "failed to inspect canonical `.system` root at {}: {source}",
+                    "failed to inspect canonical `.handbook` root at {}: {source}",
                     system_root.display()
                 ),
-                "canonical `.system` root",
+                "canonical `.handbook` root",
             ));
         }
     };
@@ -439,10 +439,10 @@ fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), S
         setup_mutation_refusal(
             mode,
             format!(
-                "failed to remove invalid canonical `.system` root at {}: {source}",
+                "failed to remove invalid canonical `.handbook` root at {}: {source}",
                 system_root.display()
             ),
-            "canonical `.system` root",
+            "canonical `.handbook` root",
         )
     })
 }
@@ -467,8 +467,8 @@ fn setup_mutation_refusal(
     broken_subject: impl Into<String>,
 ) -> SetupRefusal {
     let rerun_command = match mode {
-        SetupMode::Auto | SetupMode::Init => "system setup",
-        SetupMode::Refresh => "system setup refresh",
+        SetupMode::Auto | SetupMode::Init => "handbook setup",
+        SetupMode::Refresh => "handbook setup refresh",
     };
 
     setup_refusal(
@@ -490,7 +490,7 @@ fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
 fn setup_next_safe_action(disposition: SetupDisposition) -> String {
     match disposition {
         SetupDisposition::Ready | SetupDisposition::Scaffolded => {
-            format!("run `{SYSTEM_DOCTOR_COMMAND}`")
+            format!("run `{HANDBOOK_DOCTOR_COMMAND}`")
         }
     }
 }

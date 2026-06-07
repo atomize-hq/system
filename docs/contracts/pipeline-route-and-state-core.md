@@ -7,8 +7,8 @@ revalidation_triggers:
   - Any change to the rule that declared pipeline files live under `core/pipelines/`.
   - Any change to the supported activation syntax, boolean clause grammar, or variable-name grammar.
   - Any change to the resolved route status vocabulary or the rule that ordering follows pipeline declaration order.
-  - Any change to the runtime-only `.system/state/pipeline/` schema, revision protocol, audit trimming policy, or mutation refusal semantics.
-  - Any change to the rule that route state is runtime-only under the `.system/` boundary and never canonical project truth.
+  - Any change to the runtime-only `.handbook/state/pipeline/` schema, revision protocol, audit trimming policy, or mutation refusal semantics.
+  - Any change to the rule that route state is runtime-only under the `.handbook/` boundary and never canonical project truth.
 ---
 
 # Pipeline Route and State Core Contract
@@ -32,7 +32,7 @@ This contract is authoritative for:
 - repo-safe path rules for pipeline files and referenced stage markdown files
 - the supported activation subset for reduced-v1 pipeline routing
 - the resolved route status vocabulary and its deterministic ordering rules
-- the runtime-only persisted state shape under `.system/state/pipeline/`
+- the runtime-only persisted state shape under `.handbook/state/pipeline/`
 - the mutation safety protocol for route-state writes
 
 This contract is not authoritative for CLI wording, help exposure, shorthand ID lookup, compile payload generation, or docs/help cutover work.
@@ -82,7 +82,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 
 ### Runtime-only route-state schema
 
-- Route state lives only at `.system/state/pipeline/<pipeline-id>.yaml`.
+- Route state lives only at `.handbook/state/pipeline/<pipeline-id>.yaml`.
 - Route state is runtime-only and MUST NOT become canonical project truth.
 - A missing state file MAY be treated as an empty runtime state during read-only resolution and MUST be created on the first successful mutation.
 - When present, the state file MUST be a YAML mapping with exactly these top-level keys:
@@ -160,7 +160,7 @@ This contract is not authoritative for CLI wording, help exposure, shorthand ID 
 
 - Any change to accepted pipeline shape, activation grammar, stage-status vocabulary, or runtime-state schema requires downstream revalidation.
 - Any change to route-state mutation semantics, `route_basis` persistence rules, revision handling, or audit trimming behavior requires downstream revalidation.
-- Any change to the runtime-only posture of `.system/state/**` requires downstream revalidation.
+- Any change to the runtime-only posture of `.handbook/state/**` requires downstream revalidation.
 - `THR-01` publication requires this contract to name the downstream revalidation targets explicitly, and any later change to `C-08` must revalidate `SEAM-2`, `SEAM-3`, and `SEAM-4` before the thread can be treated as current.
 
 ## Verification Checklist

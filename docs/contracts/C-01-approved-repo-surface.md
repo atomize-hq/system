@@ -44,11 +44,11 @@ For declarative planning content, the approved root is `core/**`. Approved docs 
 ## Supported Workflow During Transition
 
 - Rust-first is the supported product direction.
-- The supported setup story is the Rust CLI setup family: `system setup`, `system setup init`, and `system setup refresh`.
-- Bare `system setup` is the durable front door and routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- The supported setup story is the Rust CLI setup family: `handbook setup`, `handbook setup init`, and `handbook setup refresh`.
+- Bare `handbook setup` is the durable front door and routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 - The shipped setup starter templates are scaffolding only. Required starter files do not satisfy planning readiness until the operator replaces them with completed canonical truth.
 - Historical guided-setup or legacy-harness wording MAY remain only as explicit historical reference material. It MUST NOT read like active product authority.
-- After canonical `.system/` truth exists, the Rust CLI is the supported packet-resolution authority.
+- After canonical `.handbook/` truth exists, the Rust CLI is the supported packet-resolution authority.
 - Docs and help text MUST continue to distinguish `supported product direction` from `legacy reference material only` during the transition.
 
 ## Supported-vs-Legacy Wording

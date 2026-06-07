@@ -22,12 +22,12 @@ ROUTE BASIS:
   runner:
     id = codex-cli
     file = core/runners/codex-cli.md
-    file_sha256 = 0b8693c8d0f81b48aa97ab875dffb69e5730843cde8022b5968aa90fdb6eee4c
+    file_sha256 = 559d1f329fbaf149a1da49256a765b22813630a97ab3aed2072700136e03323e
   profile:
     id = python-uv
     profile.yaml.sha256 = 88a0080f75a7660944df592783c266af9f124565ac06bde3985ea63da0ccfb53
     commands.yaml.sha256 = 96cb50b8c885e8e0df43ec8dd2a9755c5f003198d11df95f5f3c7b5512202c22
-    conventions.md.sha256 = 2b537da156cc8046ba799e4360e5c47fac06b3fa7e42263d469a62476accf5da
+    conventions.md.sha256 = 86d957e95b49b44cff12b5b1a0723c286940daa8fa39ce52e740897c6939b154
 ROUTE SNAPSHOT:
   1. stage.00_base | active | core/stages/00_base.md
   2. stage.04_charter_inputs | active | core/stages/04_charter_inputs.md

@@ -15,5 +15,5 @@ fn main() {
         panic!("{} must not be empty", version_path.display());
     }
 
-    println!("cargo:rustc-env=SYSTEM_RELEASE_VERSION={version}");
+    println!("cargo:rustc-env=HANDBOOK_RELEASE_VERSION={version}");
 }

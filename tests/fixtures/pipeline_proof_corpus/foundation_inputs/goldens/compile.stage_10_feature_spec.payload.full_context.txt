@@ -32,7 +32,7 @@ This runner assumes the agent can:
 - Prefer minimal diffs.
 - Keep changes within slice scope.
 - If a change introduces/changes env vars, services, ports, or runtime assumptions:
-  - update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
   - if the current work also changes the stage-07 foundation artifact, keep `artifacts/foundation/ENVIRONMENT_INVENTORY.md` aligned with the canonical inventory
 
 ## Output discipline
@@ -87,7 +87,7 @@ commands:
 # Profile conventions: Python (uv)
 
 These are **project/tooling conventions** for Python projects managed with **uv**.
-Core system prompts should not hardcode any of the commands below; they should reference
+Core handbook prompts should not hardcode any of the commands below; they should reference
 **command keys** from `commands.yaml` (e.g., `commands.tests`).
 
 ## Layout assumptions
@@ -171,7 +171,7 @@ Only include scoped blocks when the current stage `work_level` matches.
 ## P0-ABSOLUTE: Change Discipline
 - Keep changes minimal and reversible when touching contracts or production systems.
 - If a change introduces/changes env vars, services, ports, or runtime assumptions:
-  - update the canonical inventory at `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+  - update the canonical inventory at `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
   - keep `artifacts/foundation/ENVIRONMENT_INVENTORY.md` aligned only when the current stage/output contract requires that artifact.
 
 
@@ -230,7 +230,7 @@ If downstream artifacts introduce requirements not present upstream:
 ### core/rules/evidence_policy.md
 # Evidence Policy
 
-This system treats “it passed” as a claim that must be backed by evidence.
+This handbook treats “it passed” as a claim that must be backed by evidence.
 
 ## Evidence requirements
 When you claim a gate passed, include an evidence record with:
@@ -482,8 +482,8 @@ If any charter red line would be violated, document an exception proposal:
 # Base Context
 
 ## Project
-- Name: System
-- Repo / Project Ref: `system`
+- Name: Handbook
+- Repo / Project Ref: `handbook`
 - Owner: Platform Foundations
 - Team: Build Systems
 
@@ -515,7 +515,7 @@ proof-first refusal model and a single supported compile target for the
 ### artifacts/charter/CHARTER.md
 # Project Charter
 - Charter Ref: `CH-FOUNDATION-2026-04`
-- Project: System
+- Project: Handbook
 - Owner: Platform Foundations
 - Team: Build Systems
 

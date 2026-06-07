@@ -43,7 +43,7 @@ That distinction matters:
 
 - `setup` is the durable product operation name for establishing or repairing trusted project truth.
 - `setup init` is only the concrete first-run subcommand name.
-- Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.
+- Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.
 
 Do not rename the core operation based on the interaction style. The interaction style may evolve. The operation should stay stable.
 
@@ -57,13 +57,13 @@ Reduced v1 now has one explicit setup-family story:
 
 - The product front door is setup-first.
 - `setup` is the durable family term; `setup init` is only the concrete first-run subcommand.
-- `setup refresh` is the explicit refresh path once canonical `.system/` truth already exists.
+- `setup refresh` is the explicit refresh path once canonical `.handbook/` truth already exists.
 - `setup refresh` preserves canonical files by default.
 - `setup refresh --rewrite` rewrites only the setup-owned starter files:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-- `setup refresh --reset-state` resets only `.system/state/**`.
+  - `.handbook/charter/CHARTER.md`
+  - `.handbook/project_context/PROJECT_CONTEXT.md`
+  - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- `setup refresh --reset-state` resets only `.handbook/state/**`.
 - The shipped starter templates are scaffolding only. Setup establishes the baseline set; `doctor` classifies the repo as `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE`.
 - `doctor` checklist lines include the artifact label, canonical path, status, and exact author command for each baseline artifact that still needs work.
 - `FEATURE_SPEC.md` stays on the packet path. It is not part of setup bootstrap or baseline doctor readiness.
@@ -75,15 +75,15 @@ Reduced v1 now has one explicit setup-family story:
 Use `setup` when:
 
 - the operator wants the setup family to choose the right path
-- canonical `.system/` truth is absent, invalid, or needs refresh
+- canonical `.handbook/` truth is absent, invalid, or needs refresh
 - the operator wants one stable front-door command name
 
 ### `setup init`
 
 Use `setup init` when:
 
-- the repo is new to the system
-- canonical `.system/` truth does not exist yet
+- the repo is new to the handbook workflow
+- canonical `.handbook/` truth does not exist yet
 - the operator is naming the first-run path explicitly
 
 ### `setup refresh`
@@ -96,27 +96,27 @@ Use `setup refresh` when:
 - the operator needs one of the explicit refresh modifiers:
   - default preserve behavior
   - `--rewrite` for setup-owned starter files only
-  - `--reset-state` for `.system/state/**` only
+  - `--reset-state` for `.handbook/state/**` only
 
 ### `author`
 
 Use `author` when:
 
-- setup has already established canonical `.system/` truth
+- setup has already established canonical `.handbook/` truth
 - a setup-owned starter file must be replaced with completed canonical truth
 - the operator needs a supported human-guided or automation-safe authoring surface
 
-The shipped baseline authoring surface includes `system author charter`, `system author project-context`, and `system author environment-inventory`.
+The shipped baseline authoring surface includes `handbook author charter`, `handbook author project-context`, and `handbook author environment-inventory`.
 
-`system author charter` is the human-guided surface.
+`handbook author charter` is the human-guided surface.
 
-`system author charter --from-inputs <path|->` is the agent and automation surface.
+`handbook author charter --from-inputs <path|->` is the agent and automation surface.
 
-`system author project-context` is the guided project-context authoring surface.
+`handbook author project-context` is the guided project-context authoring surface.
 
-`system author project-context --from-inputs <path|->` is the automation-safe project-context authoring surface.
+`handbook author project-context --from-inputs <path|->` is the automation-safe project-context authoring surface.
 
-`system author environment-inventory` authors canonical environment inventory.
+`handbook author environment-inventory` authors canonical environment inventory.
 
 ### `generate`
 
@@ -173,8 +173,8 @@ Its baseline-readiness states are:
 
 | Repo state | Operator intent | Correct first surface | Why |
 |------------|-----------------|-----------------------|-----|
-| No canonical `.system/` truth yet, or the root is invalid | Establish trusted project truth | `setup` -> `setup init` | The repo is not ready for packet generation |
-| Canonical `.system/` truth exists but posture is stale or needs deliberate refresh | Re-establish trusted project truth | `setup` -> `setup refresh` or direct `setup refresh` | The job is posture refresh, not packet generation |
+| No canonical `.handbook/` truth yet, or the root is invalid | Establish trusted project truth | `setup` -> `setup init` | The repo is not ready for packet generation |
+| Canonical `.handbook/` truth exists but posture is stale or needs deliberate refresh | Re-establish trusted project truth | `setup` -> `setup refresh` or direct `setup refresh` | The job is posture refresh, not packet generation |
 | Canonical root exists but setup-owned starter files must be regenerated | Recover setup-owned starter files without inventing new truth surfaces | `setup refresh --rewrite` | Recovery belongs to the setup family, not raw file creation |
 | Canonical artifacts exist and the operator needs route truth or stage selection | Work the planning compiler control plane | `pipeline` | The operator is resolving or preparing explicit pipeline stages |
 | Canonical artifacts are ready | Get the packet | `generate` | This is the default steady-state path |
@@ -195,15 +195,15 @@ Its baseline-readiness states are:
 The next safe action should reinforce the hierarchy rather than compete with it.
 
 - Use setup-family next actions when canonical truth is missing, invalid, or must be re-established.
-- Use `system setup refresh --rewrite` when setup-owned starter files must be regenerated without inventing new artifact types.
-- Use `system setup refresh --reset-state` only when the repair is limited to `.system/state/**`.
+- Use `handbook setup refresh --rewrite` when setup-owned starter files must be regenerated without inventing new artifact types.
+- Use `handbook setup refresh --reset-state` only when the repair is limited to `.handbook/state/**`.
 - Use `pipeline resolve` when the operator needs route truth before future stage-specific compile work.
 - Use `pipeline compile --id <pipeline-id> --stage <stage-id>` only after `pipeline resolve` established the current route basis.
 - Use `pipeline compile --explain` when the operator needs compile proof; keep `inspect` for packet proof.
 - Use `pipeline capture --preview` or `pipeline capture` only after `pipeline resolve` established the current route basis for the selected stage.
 - Use `doctor` when deeper diagnosis or blocker aggregation is needed.
 - Use `inspect` after a ready `generate` result when the operator needs proof.
-- Use `system generate --packet planning.packet` as the fallback from unsupported live execution requests.
+- Use `handbook generate --packet planning.packet` as the fallback from unsupported live execution requests.
 
 Do not send the operator to `inspect` when there is no trusted packet basis yet.
 
@@ -214,8 +214,8 @@ Do not send the operator to `doctor` as the default happy path when the repo is 
 The routing story also depends on which repo root the command is acting against.
 
 - Commands anchor to the enclosing git root when one exists.
-- If there is no enclosing git root, the nearest ancestor with `.system/` may act as the managed root.
-- A nested git repo boundary wins over a parent managed repo. The CLI must not cross that boundary and silently use the parent `.system/`.
+- If there is no enclosing git root, the nearest ancestor with `.handbook/` may act as the managed root.
+- A nested git repo boundary wins over a parent managed repo. The CLI must not cross that boundary and silently use the parent `.handbook/`.
 - For normal planning flows, invocation from a nested directory inside a ready repo should still resolve against the repo root.
 - Fixture-backed execution demos are selected explicitly via `execution.demo.packet` with `--fixture-set`; they do not redefine the normal planning front door.
 

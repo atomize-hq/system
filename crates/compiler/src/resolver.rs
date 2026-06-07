@@ -23,7 +23,7 @@ use crate::blocker::{
 const DEFAULT_PACKET_ID: &str = "planning.packet";
 const DEMO_EXECUTION_PACKET_ID: &str = "execution.demo.packet";
 const LIVE_EXECUTION_PACKET_ID: &str = "execution.live.packet";
-const SYSTEM_ROOT_PATH: &str = ".system";
+const HANDBOOK_ROOT_PATH: &str = ".handbook";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveRequest {
@@ -82,7 +82,7 @@ pub fn resolve(
     };
 
     decision_log.entries.push(format!(
-        "c03.system_root status={:?}",
+        "c03.handbook_root status={:?}",
         manifest.system_root_status
     ));
 
@@ -684,7 +684,7 @@ fn fixture_context_for(
         return None;
     }
 
-    let fixture_basis_root = format!("tests/fixtures/execution_demo/{fixture_set_id}/.system/");
+    let fixture_basis_root = format!("tests/fixtures/execution_demo/{fixture_set_id}/.handbook/");
 
     Some(PacketFixtureContext {
         fixture_set_id,
@@ -701,16 +701,16 @@ fn next_safe_action_for_ready_packet(
     match variant {
         PacketVariant::ExecutionLive => "run `doctor`".to_string(),
         PacketVariant::Planning => {
-            format!("run `system inspect --packet {packet_id}` for proof")
+            format!("run `handbook inspect --packet {packet_id}` for proof")
         }
         PacketVariant::ExecutionDemo => {
             if let Some(context) = fixture_context {
                 format!(
-                    "run `system inspect --packet {packet_id} --fixture-set {}` for proof",
+                    "run `handbook inspect --packet {packet_id} --fixture-set {}` for proof",
                     context.fixture_set_id
                 )
             } else {
-                format!("run `system inspect --packet {packet_id}` for proof")
+                format!("run `handbook inspect --packet {packet_id}` for proof")
             }
         }
     }
@@ -819,7 +819,7 @@ fn compute_refusal(
         SystemRootStatus::Missing => {
             return Some(Refusal {
                 category: RefusalCategory::SystemRootMissing,
-                summary: "missing canonical .system root".to_string(),
+                summary: "missing canonical .handbook root".to_string(),
                 broken_subject: SubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -829,7 +829,7 @@ fn compute_refusal(
         SystemRootStatus::NotDir => {
             return Some(Refusal {
                 category: RefusalCategory::SystemRootNotDir,
-                summary: "canonical .system root is not a directory".to_string(),
+                summary: "canonical .handbook root is not a directory".to_string(),
                 broken_subject: SubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -839,7 +839,7 @@ fn compute_refusal(
         SystemRootStatus::SymlinkNotAllowed => {
             return Some(Refusal {
                 category: RefusalCategory::SystemRootSymlinkNotAllowed,
-                summary: "canonical .system root must not be a symlink".to_string(),
+                summary: "canonical .handbook root must not be a symlink".to_string(),
                 broken_subject: SubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -926,7 +926,7 @@ fn compute_refusal(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => SYSTEM_ROOT_PATH,
+            None => HANDBOOK_ROOT_PATH,
         };
 
         return Some(Refusal {
@@ -1084,7 +1084,7 @@ fn compute_blockers(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => SYSTEM_ROOT_PATH,
+            None => HANDBOOK_ROOT_PATH,
         };
 
         blockers.push(Blocker {

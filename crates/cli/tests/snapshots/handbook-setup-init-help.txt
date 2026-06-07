@@ -1,0 +1,6 @@
+Create canonical `.handbook/` scaffold and starter files for first-run setup
+
+Usage: handbook setup init
+
+Options:
+  -h, --help  Print help

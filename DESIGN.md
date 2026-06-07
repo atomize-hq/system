@@ -4,7 +4,7 @@
 
 This file is the canonical interaction contract for the reduced-v1 CLI product.
 
-This repo does not need a visual design system yet. It needs a product interaction system for a trust-heavy CLI that is used by:
+This repo does not need a visual design handbook yet. It needs a product interaction handbook for a trust-heavy CLI that is used by:
 
 - humans in terminals
 - CLI agents consuming stdout
@@ -97,7 +97,7 @@ These risks are worth taking because the product wins on trust, not on surface-l
 
 ### 1. Trust before fluency
 
-The system should sound clear before it sounds polished.
+The handbook should sound clear before it sounds polished.
 
 If there is a tradeoff between clever copy and exact copy, choose exact copy.
 
@@ -146,18 +146,18 @@ Role:
 
 Current reduced-v1 reality:
 
-- the public setup family is `system setup`, `system setup init`, and `system setup refresh`
-- bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`
+- the public setup family is `handbook setup`, `handbook setup init`, and `handbook setup refresh`
+- bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`
 - `setup refresh` preserves canonical files by default
 - `setup refresh --rewrite` rewrites only the setup-owned starter files
-- `setup refresh --reset-state` resets only `.system/state/**`
-- setup hands off to `system doctor`, which renders baseline readiness and the next exact authoring action
+- `setup refresh --reset-state` resets only `.handbook/state/**`
+- setup hands off to `handbook doctor`, which renders baseline readiness and the next exact authoring action
 - the canonical setup-owned starter files are exactly:
-  - `.system/charter/CHARTER.md`
-  - `.system/project_context/PROJECT_CONTEXT.md`
-  - `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+  - `.handbook/charter/CHARTER.md`
+  - `.handbook/project_context/PROJECT_CONTEXT.md`
+  - `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 - `FEATURE_SPEC.md` stays off setup bootstrap and baseline doctor readiness; it remains on the packet path
-- this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`
+- this repository does not ship completed canonical `.handbook/` truth at repo root; a fresh clone starts with `handbook setup`
 
 Design rule:
 
@@ -166,27 +166,27 @@ Design rule:
 
 Finished interaction target:
 
-- expose the routed subcommand when bare `system setup` selects one
-- keep setup-owned file semantics explicit: preserve by default, rewrite only starter files, reset only `.system/state/**`
-- end with `system doctor`, which orders the baseline checklist and names the exact next authoring command when action is still required
+- expose the routed subcommand when bare `handbook setup` selects one
+- keep setup-owned file semantics explicit: preserve by default, rewrite only starter files, reset only `.handbook/state/**`
+- end with `handbook doctor`, which orders the baseline checklist and names the exact next authoring command when action is still required
 
 ### `author`
 
 Role:
 
 - canonical content-authoring surface for setup-created starter truth
-- the baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`
+- the baseline authoring family is `handbook author charter`, `handbook author project-context`, and `handbook author environment-inventory`
 
 Shipped M9.5 reality:
 
-- the first shipped slice is `system author charter`
-- `system author charter` is a TTY-only guided interview
-- `system author charter --from-inputs <path|->` is the deterministic non-interactive path
-- `system author charter --validate --from-inputs <path|->` is the mutation-free preflight path
+- the first shipped slice is `handbook author charter`
+- `handbook author charter` is a TTY-only guided interview
+- `handbook author charter --from-inputs <path|->` is the deterministic non-interactive path
+- `handbook author charter --validate --from-inputs <path|->` is the mutation-free preflight path
 - `--validate` is legal only with `--from-inputs <path|->`
 - the deterministic `--from-inputs` write path is compiler-owned and does not shell out to `codex exec`
-- the guided `system author charter` path remains the Codex-backed interview surface
-- the public authoring surface writes canonical truth to `.system/charter/CHARTER.md`
+- the guided `handbook author charter` path remains the Codex-backed interview surface
+- the public authoring surface writes canonical truth to `.handbook/charter/CHARTER.md`
 - if real charter truth already exists, `author` refuses rather than silently broadening scope
 
 Design rule:
@@ -198,44 +198,44 @@ Finished interaction target:
 
 - `author` is the only normal path from scaffolded setup to a usable charter
 - `author` reuses compiler-owned charter assets internally while keeping the public story simple
-- `author` keeps one authority boundary: canonical `.system/*` truth, no public derived mirrors
+- `author` keeps one authority boundary: canonical `.handbook/*` truth, no public derived mirrors
 
 ### Installed Codex Skill
 
 Role:
 
 - installed Codex discovery surface for charter intake
-- thin runtime wrapper over `system`, not a second source of truth
+- thin runtime wrapper over `handbook`, not a second source of truth
 
 Shipped M10.5 reality:
 
-- one discoverable skill name: `system-charter-intake`
-- authored install-home skill inputs live under `install/system-home/`
+- one discoverable skill name: `handbook-charter-intake`
+- authored install-home skill inputs live under `install/handbook-home/`
 - repo-local `.agents/skills/*` trees are thin generated projections only
-- the installed home is `~/system/`
-- `~/system/bin/system` is the only installed executable for this Codex surface
-- `~/system/runtime-manifest.json` remains part of the runtime contract
-- installed static guidance lives under `~/system/resources/**`
-- installed thin projections live under `~/system/.agents/skills/*`
-- `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
-- `tools/codex/install.sh` owns the installed `~/system/` home and refreshes the Codex discovery glue
+- the installed home is `~/handbook/`
+- `~/handbook/bin/handbook` is the only installed executable for this Codex surface
+- `~/handbook/runtime-manifest.json` remains part of the runtime contract
+- installed static guidance lives under `~/handbook/resources/**`
+- installed thin projections live under `~/handbook/.agents/skills/*`
+- `~/.codex/skills/handbook*` is discovery glue only and points into `~/handbook/.agents/skills/*`
+- `tools/codex/install.sh` owns the installed `~/handbook/` home and refreshes the Codex discovery glue
 - `tools/codex/dev-setup.sh` is the only symlink-based dev flow
-- the installed runtime may machine-parse only `system doctor --json`
+- the installed runtime may machine-parse only `handbook doctor --json`
 - validate/write steps use exit code plus persisted stdout/stderr transcripts; there is no second machine-readable authoring contract
 - the runtime resolves the target repo from the current working directory or enclosing git root and refuses before asking questions when outside a real git repo
-- there is no installed `~/system/bin/system-charter-intake`
-- there is no installed `~/system/share/**`
+- there is no installed `~/handbook/bin/handbook-charter-intake`
+- there is no installed `~/handbook/share/**`
 
 Finished interaction target:
 
 - fixed happy path:
-  - `system doctor --json`
-  - optional bare `system setup`
-  - `system doctor --json` again if setup ran
-  - `system author charter --validate --from-inputs`
-  - `system author charter --from-inputs`
-  - final `system doctor --json`
-- run artifacts persist under `~/.local/state/system/intake/runs/`
+  - `handbook doctor --json`
+  - optional bare `handbook setup`
+  - `handbook doctor --json` again if setup ran
+  - `handbook author charter --validate --from-inputs`
+  - `handbook author charter --from-inputs`
+  - final `handbook doctor --json`
+- run artifacts persist under `~/.local/state/handbook/intake/runs/`
 - normal install after dev setup replaces symlinks with copied directories cleanly
 
 ### `generate`
@@ -364,8 +364,8 @@ The canonical product vocabulary lives in [`docs/CLI_PRODUCT_VOCABULARY.md`](doc
 
 The highest-value vocabulary rules are:
 
-- use `canonical artifacts` as the primary noun for trusted repo-local `.system/` files
-- use `runtime zone` for non-canonical derived state under `.system/`
+- use `canonical artifacts` as the primary noun for trusted repo-local `.handbook/` files
+- use `runtime zone` for non-canonical derived state under `.handbook/`
 - use `canonical inputs` only when the sentence is explicitly about packet generation reading those artifacts as inputs
 - use `refusal` for blocked command outcomes
 - use `next safe action` for the repair handoff line
@@ -381,7 +381,7 @@ The highest-value hierarchy rules are:
 - the front door is the `setup` family
 - the stable operation name remains `setup`
 - `setup init` is the concrete first-run subcommand
-- bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise to `setup refresh`
+- bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise to `setup refresh`
 - `generate` is the default ready-path command
 - `inspect` is for packet proof
 - `pipeline compile --explain` is for compile proof
@@ -389,7 +389,7 @@ The highest-value hierarchy rules are:
 
 Repo-state routing:
 
-- missing or invalid canonical `.system/` truth -> `setup` / `setup init`
+- missing or invalid canonical `.handbook/` truth -> `setup` / `setup init`
 - stale canonical artifacts -> `setup` / `setup refresh`
 - regenerate starter files only -> `setup refresh --rewrite`
 - ready repo -> `generate`

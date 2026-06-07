@@ -2,9 +2,9 @@
 
 ## What This Repo Is
 
-`system` is a Rust-first planning compiler for agent-assisted software delivery.
+`handbook` is a Rust-first planning compiler for agent-assisted software delivery.
 
-Its job is to take canonical project inputs from a repo-local `.system/` directory, resolve the right planning path, compile stage-specific model payloads, capture completed outputs back into declared artifacts, and emit downstream handoff bundles that other planning tools can trust.
+Its job is to take canonical project inputs from a repo-local `.handbook/` directory, resolve the right planning path, compile stage-specific model payloads, capture completed outputs back into declared artifacts, and emit downstream handoff bundles that other planning tools can trust.
 
 In practical terms, this repo exists to remove a specific class of operator pain:
 
@@ -13,7 +13,7 @@ In practical terms, this repo exists to remove a specific class of operator pain
 - inconsistent planning outputs across runs
 - fragile human babysitting of multi-step planning flows
 
-The current shipped wedge is the baseline + foundation-family planning flow. Setup scaffolds the baseline truth set under `.system/`, authoring replaces starter content with canonical baseline truth, `doctor` classifies baseline readiness, and the packet path continues into foundation-flow artifacts and feature-spec handoff material.
+The current shipped wedge is the baseline + foundation-family planning flow. Setup scaffolds the baseline truth set under `.handbook/`, authoring replaces starter content with canonical baseline truth, `doctor` classifies baseline readiness, and the packet path continues into foundation-flow artifacts and feature-spec handoff material.
 
 ## The Problem It Solves
 
@@ -31,9 +31,9 @@ This repo centralizes those responsibilities inside a deterministic CLI. Instead
 
 ## Current Product Shape
 
-The operator-facing surface is the `system` CLI. The main commands are:
+The operator-facing surface is the `handbook` CLI. The main commands are:
 
-- `setup` to initialize or refresh canonical `.system/` inputs
+- `setup` to initialize or refresh canonical `.handbook/` inputs
 - `author` to replace setup-owned baseline scaffolding with canonical truth
 - `pipeline` to list, inspect, resolve, compile, capture, hand off, and mutate narrow route state
 - `generate` to produce supported packets from canonical inputs
@@ -69,9 +69,9 @@ The compiler is driven by declarative repo content rooted under `core/**`:
 
 Historical-only note: older docs may still mention top-level `pipelines/`, `profiles/`, or `runners/` roots. Approved docs and contracts now treat those names as old-root wording only; the declarative namespace is `core/**`.
 
-At runtime, the system works roughly like this:
+At runtime, the handbook works roughly like this:
 
-1. Load pipeline definitions and canonical `.system/` inputs.
+1. Load pipeline definitions and canonical `.handbook/` inputs.
 2. Resolve the active route and persist route basis/state.
 3. Compile one stage into a typed payload or proof surface.
 4. Validate and capture completed stage output into declared artifacts.

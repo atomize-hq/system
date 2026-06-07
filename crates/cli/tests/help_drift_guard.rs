@@ -14,7 +14,7 @@ fn help_snapshot_path(filename: &str) -> PathBuf {
 }
 
 fn run_help(args: &[&str], command_name: &str) -> String {
-    let exe = env!("CARGO_BIN_EXE_system");
+    let exe = env!("CARGO_BIN_EXE_handbook");
 
     let output = Command::new(exe)
         .args(args)
@@ -75,160 +75,160 @@ fn assert_help_matches_snapshot(args: &[&str], snapshot_filename: &str, command_
 }
 
 #[test]
-fn system_help_matches_snapshot() {
-    assert_help_matches_snapshot(&["--help"], "system-help.txt", "system --help");
+fn handbook_help_matches_snapshot() {
+    assert_help_matches_snapshot(&["--help"], "handbook-help.txt", "handbook --help");
 }
 
 #[test]
-fn system_setup_help_matches_snapshot() {
+fn handbook_setup_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["setup", "--help"],
-        "system-setup-help.txt",
-        "system setup --help",
+        "handbook-setup-help.txt",
+        "handbook setup --help",
     );
 }
 
 #[test]
-fn system_setup_init_help_matches_snapshot() {
+fn handbook_setup_init_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["setup", "init", "--help"],
-        "system-setup-init-help.txt",
-        "system setup init --help",
+        "handbook-setup-init-help.txt",
+        "handbook setup init --help",
     );
 }
 
 #[test]
-fn system_setup_refresh_help_matches_snapshot() {
+fn handbook_setup_refresh_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["setup", "refresh", "--help"],
-        "system-setup-refresh-help.txt",
-        "system setup refresh --help",
+        "handbook-setup-refresh-help.txt",
+        "handbook setup refresh --help",
     );
 }
 
 #[test]
-fn system_author_help_matches_snapshot() {
+fn handbook_author_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["author", "--help"],
-        "system-author-help.txt",
-        "system author --help",
+        "handbook-author-help.txt",
+        "handbook author --help",
     );
 }
 
 #[test]
-fn system_author_charter_help_matches_snapshot() {
+fn handbook_author_charter_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["author", "charter", "--help"],
-        "system-author-charter-help.txt",
-        "system author charter --help",
+        "handbook-author-charter-help.txt",
+        "handbook author charter --help",
     );
 }
 
 #[test]
-fn system_author_project_context_help_matches_snapshot() {
+fn handbook_author_project_context_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["author", "project-context", "--help"],
-        "system-author-project-context-help.txt",
-        "system author project-context --help",
+        "handbook-author-project-context-help.txt",
+        "handbook author project-context --help",
     );
 }
 
 #[test]
-fn system_author_environment_inventory_help_matches_snapshot() {
+fn handbook_author_environment_inventory_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["author", "environment-inventory", "--help"],
-        "system-author-environment-inventory-help.txt",
-        "system author environment-inventory --help",
+        "handbook-author-environment-inventory-help.txt",
+        "handbook author environment-inventory --help",
     );
 }
 
 #[test]
-fn system_generate_help_matches_snapshot() {
+fn handbook_generate_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["generate", "--help"],
-        "system-generate-help.txt",
-        "system generate --help",
+        "handbook-generate-help.txt",
+        "handbook generate --help",
     );
 }
 
 #[test]
-fn system_inspect_help_matches_snapshot() {
+fn handbook_inspect_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["inspect", "--help"],
-        "system-inspect-help.txt",
-        "system inspect --help",
+        "handbook-inspect-help.txt",
+        "handbook inspect --help",
     );
 }
 
 #[test]
-fn system_doctor_help_matches_snapshot() {
+fn handbook_doctor_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["doctor", "--help"],
-        "system-doctor-help.txt",
-        "system doctor --help",
+        "handbook-doctor-help.txt",
+        "handbook doctor --help",
     );
 }
 
 #[test]
-fn system_pipeline_help_matches_snapshot() {
+fn handbook_pipeline_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "--help"],
-        "system-pipeline-help.txt",
-        "system pipeline --help",
+        "handbook-pipeline-help.txt",
+        "handbook pipeline --help",
     );
 }
 
 #[test]
-fn system_pipeline_state_help_matches_snapshot() {
+fn handbook_pipeline_state_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "state", "--help"],
-        "system-pipeline-state-help.txt",
-        "system pipeline state --help",
+        "handbook-pipeline-state-help.txt",
+        "handbook pipeline state --help",
     );
 }
 
 #[test]
-fn system_pipeline_compile_help_matches_snapshot() {
+fn handbook_pipeline_compile_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "compile", "--help"],
-        "system-pipeline-compile-help.txt",
-        "system pipeline compile --help",
+        "handbook-pipeline-compile-help.txt",
+        "handbook pipeline compile --help",
     );
 }
 
 #[test]
-fn system_pipeline_capture_help_matches_snapshot() {
+fn handbook_pipeline_capture_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "capture", "--help"],
-        "system-pipeline-capture-help.txt",
-        "system pipeline capture --help",
+        "handbook-pipeline-capture-help.txt",
+        "handbook pipeline capture --help",
     );
 }
 
 #[test]
-fn system_pipeline_capture_apply_help_matches_snapshot() {
+fn handbook_pipeline_capture_apply_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "capture", "apply", "--help"],
-        "system-pipeline-capture-apply-help.txt",
-        "system pipeline capture apply --help",
+        "handbook-pipeline-capture-apply-help.txt",
+        "handbook pipeline capture apply --help",
     );
 }
 
 #[test]
-fn system_pipeline_handoff_help_matches_snapshot() {
+fn handbook_pipeline_handoff_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "handoff", "--help"],
-        "system-pipeline-handoff-help.txt",
-        "system pipeline handoff --help",
+        "handbook-pipeline-handoff-help.txt",
+        "handbook pipeline handoff --help",
     );
 }
 
 #[test]
-fn system_pipeline_handoff_emit_help_matches_snapshot() {
+fn handbook_pipeline_handoff_emit_help_matches_snapshot() {
     assert_help_matches_snapshot(
         &["pipeline", "handoff", "emit", "--help"],
-        "system-pipeline-handoff-emit-help.txt",
-        "system pipeline handoff emit --help",
+        "handbook-pipeline-handoff-emit-help.txt",
+        "handbook pipeline handoff emit --help",
     );
 }
 
@@ -252,26 +252,26 @@ fn support_story_docs_match_help_snapshots() {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let top_help_text = read_help_snapshot("system-help.txt");
-    let setup_help_text = read_help_snapshot("system-setup-help.txt");
-    let setup_init_help_text = read_help_snapshot("system-setup-init-help.txt");
-    let setup_refresh_help_text = read_help_snapshot("system-setup-refresh-help.txt");
-    let author_help_text = read_help_snapshot("system-author-help.txt");
-    let author_charter_help_text = read_help_snapshot("system-author-charter-help.txt");
+    let top_help_text = read_help_snapshot("handbook-help.txt");
+    let setup_help_text = read_help_snapshot("handbook-setup-help.txt");
+    let setup_init_help_text = read_help_snapshot("handbook-setup-init-help.txt");
+    let setup_refresh_help_text = read_help_snapshot("handbook-setup-refresh-help.txt");
+    let author_help_text = read_help_snapshot("handbook-author-help.txt");
+    let author_charter_help_text = read_help_snapshot("handbook-author-charter-help.txt");
     let author_project_context_help_text =
-        read_help_snapshot("system-author-project-context-help.txt");
+        read_help_snapshot("handbook-author-project-context-help.txt");
     let author_environment_inventory_help_text =
-        read_help_snapshot("system-author-environment-inventory-help.txt");
-    let generate_help_text = read_help_snapshot("system-generate-help.txt");
-    let inspect_help_text = read_help_snapshot("system-inspect-help.txt");
-    let pipeline_help_text = read_help_snapshot("system-pipeline-help.txt");
-    let compile_help_text = read_help_snapshot("system-pipeline-compile-help.txt");
-    let capture_help_text = read_help_snapshot("system-pipeline-capture-help.txt");
-    let capture_apply_help_text = read_help_snapshot("system-pipeline-capture-apply-help.txt");
+        read_help_snapshot("handbook-author-environment-inventory-help.txt");
+    let generate_help_text = read_help_snapshot("handbook-generate-help.txt");
+    let inspect_help_text = read_help_snapshot("handbook-inspect-help.txt");
+    let pipeline_help_text = read_help_snapshot("handbook-pipeline-help.txt");
+    let compile_help_text = read_help_snapshot("handbook-pipeline-compile-help.txt");
+    let capture_help_text = read_help_snapshot("handbook-pipeline-capture-help.txt");
+    let capture_apply_help_text = read_help_snapshot("handbook-pipeline-capture-apply-help.txt");
 
     let top_level_required_phrases = [
         "planning packet generation",
-        "canonical repo-local `.system/`",
+        "canonical repo-local `.handbook/`",
         "fixture-backed execution demo",
         "execution.demo.packet",
         "live execution is explicitly refused",
@@ -281,13 +281,13 @@ fn support_story_docs_match_help_snapshots() {
         "explicit stage-output capture",
     ];
     let setup_story_required_doc_phrases = [
-        "The public setup family is `system setup`, `system setup init`, and `system setup refresh`.",
-        "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "The public setup family is `handbook setup`, `handbook setup init`, and `handbook setup refresh`.",
+        "Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "`setup refresh` preserves canonical files by default",
         "`setup refresh --rewrite` rewrites only setup-owned starter files",
-        "`setup refresh --reset-state` resets only `.system/state/**`",
+        "`setup refresh --reset-state` resets only `.handbook/state/**`",
         "The shipped starter templates are scaffolding only.",
-        "Setup hands off to `system doctor`, which renders an ordered checklist",
+        "Setup hands off to `handbook doctor`, which renders an ordered checklist",
     ];
     let root_readme_required_phrases = [
         "pipeline capture --preview",
@@ -300,15 +300,15 @@ fn support_story_docs_match_help_snapshots() {
         "only supported stage-output writer surface",
         "payload-only",
         "compile -> external model output -> capture",
-        "`system`-coordinated single-writer flows",
+        "`handbook`-coordinated single-writer flows",
     ];
     let author_required_doc_phrases = [
-        "The public baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`.",
+        "The public baseline authoring family is `handbook author charter`, `handbook author project-context`, and `handbook author environment-inventory`.",
         "`author` is the baseline authoring surface.",
-        "`system author charter` is the human-guided surface.",
-        "`system author charter --from-inputs <path|->` is the agent and automation surface.",
-        "`system author project-context`",
-        "`system author environment-inventory`",
+        "`handbook author charter` is the human-guided surface.",
+        "`handbook author charter --from-inputs <path|->` is the agent and automation surface.",
+        "`handbook author project-context`",
+        "`handbook author environment-inventory`",
     ];
     let stage_10_required_doc_phrases = [
         "external model output",
@@ -375,7 +375,7 @@ fn support_story_docs_match_help_snapshots() {
     }
 
     for phrase in [
-        "Initialize or refresh canonical repo-local `.system/` inputs",
+        "Initialize or refresh canonical repo-local `.handbook/` inputs",
         "init",
         "refresh",
     ] {
@@ -386,7 +386,7 @@ fn support_story_docs_match_help_snapshots() {
     }
 
     assert!(
-        top_help_text.contains("Initialize or refresh canonical repo-local `.system/` inputs"),
+        top_help_text.contains("Initialize or refresh canonical repo-local `.handbook/` inputs"),
         "top-level help snapshot missing setup-family description"
     );
     assert!(
@@ -404,7 +404,7 @@ fn support_story_docs_match_help_snapshots() {
         "author charter help snapshot missing deterministic input flag"
     );
     assert!(
-        author_project_context_help_text.contains(".system/project_context/PROJECT_CONTEXT.md"),
+        author_project_context_help_text.contains(".handbook/project_context/PROJECT_CONTEXT.md"),
         "author project-context help snapshot missing canonical path"
     );
     assert!(
@@ -413,12 +413,13 @@ fn support_story_docs_match_help_snapshots() {
     );
     assert!(
         author_environment_inventory_help_text
-            .contains(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+            .contains(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "author environment-inventory help snapshot missing canonical path"
     );
     assert!(
-        setup_init_help_text
-            .contains("Create canonical `.system/` scaffold and starter files for first-run setup"),
+        setup_init_help_text.contains(
+            "Create canonical `.handbook/` scaffold and starter files for first-run setup"
+        ),
         "setup init help snapshot missing first-run description"
     );
     for phrase in [
@@ -610,15 +611,15 @@ fn m1_activation_contract_docs_remain_boolean_only() {
     let root = workspace_root();
     let plan_path = root.join("PLAN.md");
     let todos_path = root.join("TODOS.md");
-    let system_model_path = root.join("docs/legacy/SYSTEM_MODEL.md");
+    let legacy_model_path = root.join("docs/legacy/SYSTEM_MODEL.md");
     let contract_path = root.join("docs/contracts/pipeline-route-and-state-core.md");
 
     let plan_text = fs::read_to_string(&plan_path)
         .unwrap_or_else(|err| panic!("read {}: {}", plan_path.display(), err));
     let todos_text = fs::read_to_string(&todos_path)
         .unwrap_or_else(|err| panic!("read {}: {}", todos_path.display(), err));
-    let system_model_text = fs::read_to_string(&system_model_path)
-        .unwrap_or_else(|err| panic!("read {}: {}", system_model_path.display(), err));
+    let system_model_text = fs::read_to_string(&legacy_model_path)
+        .unwrap_or_else(|err| panic!("read {}: {}", legacy_model_path.display(), err));
     let contract_text = fs::read_to_string(&contract_path)
         .unwrap_or_else(|err| panic!("read {}: {}", contract_path.display(), err));
 
@@ -666,7 +667,7 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
 
     let required_phrases = [
         "planning packet generation",
-        "canonical repo-local `.system/` inputs",
+        "canonical repo-local `.handbook/` inputs",
         "`inspect` is the packet proof surface",
         "`doctor` is the recovery and baseline-readiness surface",
         "`setup` is the durable setup term",
@@ -674,8 +675,8 @@ fn cli_product_vocabulary_doc_locks_core_terms() {
         "`setup refresh` preserves canonical files by default",
         "scaffolding only",
         "`author` is the canonical authoring surface",
-        "`system author project-context`",
-        "`system author environment-inventory`",
+        "`handbook author project-context`",
+        "`handbook author environment-inventory`",
         "`pipeline compile --explain`",
         "next safe action",
         "bootstrap",
@@ -700,11 +701,11 @@ fn cli_command_hierarchy_doc_locks_front_door_rules() {
     let required_phrases = [
         "The front door is the `setup` family.",
         "The stable operation name remains `setup`.",
-        "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "`setup refresh` preserves canonical files by default.",
         "The shipped starter templates are scaffolding only.",
         "`doctor` is the recovery and baseline-readiness surface",
-        "The shipped baseline authoring surface includes `system author charter`, `system author project-context`, and `system author environment-inventory`.",
+        "The shipped baseline authoring surface includes `handbook author charter`, `handbook author project-context`, and `handbook author environment-inventory`.",
         "`generate` is the default ready-path command.",
         "`pipeline compile --id <pipeline-id> --stage <stage-id>`",
         "Commands anchor to the enclosing git root when one exists.",
@@ -766,9 +767,9 @@ fn cli_output_anatomy_doc_locks_section_order_rules() {
         "`setup` is a special M6 case: the setup family (`setup`, `setup init`, `setup refresh`) uses setup-family anatomy rather than packet anatomy.",
         "`OBJECT: setup init` or `OBJECT: setup refresh`",
         "exact author command",
-        "bare `system setup` must reveal which routed subcommand it selected",
+        "bare `handbook setup` must reveal which routed subcommand it selected",
         "the shipped starter templates are scaffolding only",
-        "setup success must point to `system doctor` for baseline classification rather than guessing which authoring command comes next",
+        "setup success must point to `handbook doctor` for baseline classification rather than guessing which authoring command comes next",
         "`setup refresh` preserves canonical files by default",
         "## Presentation Failure And Parse-Validation Output",
     ];
@@ -819,8 +820,8 @@ fn root_readme_locks_setup_story_individually() {
 
     let required_phrases = [
         "The shipped starter templates are scaffolding only.",
-        "Setup hands off to `system doctor`, which renders the ordered baseline checklist and the next exact authoring command.",
-        "This repository does not ship completed canonical `.system/` truth at repo root.",
+        "Setup hands off to `handbook doctor`, which renders the ordered baseline checklist and the next exact authoring command.",
+        "This repository does not ship completed canonical `.handbook/` truth at repo root.",
     ];
 
     for phrase in required_phrases {
@@ -842,12 +843,12 @@ fn design_doc_locks_cli_interaction_contract() {
         "This file is the canonical interaction contract for the reduced-v1 CLI product.",
         "the packet is the product",
         "`doctor` is the only canonical recovery verb",
-        "the public setup family is `system setup`, `system setup init`, and `system setup refresh`",
-        "bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`",
+        "the public setup family is `handbook setup`, `handbook setup init`, and `handbook setup refresh`",
+        "bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`",
         "`setup` should stay one durable family name even when it routes between `setup init` and `setup refresh`",
-        "setup hands off to `system doctor`, which renders baseline readiness and the next exact authoring action",
-        "this repository does not ship completed canonical `.system/` truth at repo root; a fresh clone starts with `system setup`",
-        "the baseline authoring family is `system author charter`, `system author project-context`, and `system author environment-inventory`",
+        "setup hands off to `handbook doctor`, which renders baseline readiness and the next exact authoring action",
+        "this repository does not ship completed canonical `.handbook/` truth at repo root; a fresh clone starts with `handbook setup`",
+        "the baseline authoring family is `handbook author charter`, `handbook author project-context`, and `handbook author environment-inventory`",
         "`inspect` currently emits a self-referential ready-path next action",
         "update the relevant D1-D4 source document",
     ];
@@ -869,8 +870,8 @@ fn cli_operator_journey_doc_locks_revision_findings() {
 
     let required_phrases = [
         "This M4/M5 journey now sits downstream of the M6 setup family.",
-        "`system setup` is the durable front door.",
-        "Bare `system setup` routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "`handbook setup` is the durable front door.",
+        "Bare `handbook setup` routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "The shipped starter templates are scaffolding only.",
         "`doctor` is the baseline-readiness surface and reports `SCAFFOLDED`, `PARTIAL_BASELINE`, `INVALID_BASELINE`, or `BASELINE_COMPLETE` before packet work continues.",
         "Does the shipped reduced-v1 product actually produce the confidence -> momentum -> controlled caution arc",
@@ -896,8 +897,8 @@ fn setup_family_contract_docs_lock_m6_story() {
     let approved_surface = fs::read_to_string(&approved_surface_path)
         .unwrap_or_else(|err| panic!("read {}: {}", approved_surface_path.display(), err));
     for phrase in [
-        "The supported setup story is the Rust CLI setup family: `system setup`, `system setup init`, and `system setup refresh`.",
-        "Bare `system setup` is the durable front door and routes to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
+        "The supported setup story is the Rust CLI setup family: `handbook setup`, `handbook setup init`, and `handbook setup refresh`.",
+        "Bare `handbook setup` is the durable front door and routes to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it routes to `setup refresh`.",
         "The shipped setup starter templates are scaffolding only.",
         "Historical guided-setup or legacy-harness wording MAY remain only as explicit historical reference material. It MUST NOT read like active product authority.",
     ] {
@@ -912,8 +913,8 @@ fn setup_family_contract_docs_lock_m6_story() {
     let command_surface = fs::read_to_string(&command_surface_path)
         .unwrap_or_else(|err| panic!("read {}: {}", command_surface_path.display(), err));
     for phrase in [
-        "Help text and docs MUST make clear that the public setup family is `system setup`, `system setup init`, and `system setup refresh`.",
-        "Bare `system setup` MUST route to `setup init` when canonical `.system/` truth is absent or invalid; otherwise it MUST route to `setup refresh`.",
+        "Help text and docs MUST make clear that the public setup family is `handbook setup`, `handbook setup init`, and `handbook setup refresh`.",
+        "Bare `handbook setup` MUST route to `setup init` when canonical `.handbook/` truth is absent or invalid; otherwise it MUST route to `setup refresh`.",
         "`setup refresh` MUST preserve canonical files by default.",
         "The shipped setup starter templates MUST be treated as scaffolding only.",
         "`doctor` MUST classify baseline readiness using exactly:",
@@ -936,7 +937,7 @@ fn setup_family_contract_docs_lock_m6_story() {
         "resolver blocker contract missing setup-family next-safe-action guidance"
     );
     let charter_blocker_phrase =
-        "Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `system author ...` command for that artifact.";
+        "Renderer-facing wording for artifact-specific blockers SHOULD route the operator toward the exact `handbook author ...` command for that artifact.";
     assert!(
         blocker_contract.contains(charter_blocker_phrase),
         "resolver blocker contract missing author-surface next-safe-action guidance"

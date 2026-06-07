@@ -9,17 +9,17 @@ use std::time::{Duration, Instant};
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
-const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_BIN";
-const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "SYSTEM_AUTHOR_CHARTER_CODEX_MODEL";
+const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
+const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
-    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
+    "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
-    "SYSTEM_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
-const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "SYSTEM_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
-const PROMPT_CAPTURE_REPO_PATH: &str = ".system/state/authoring/last_prompt.txt";
+    "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
+const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
+const PROMPT_CAPTURE_REPO_PATH: &str = ".handbook/state/authoring/last_prompt.txt";
 
 fn binary() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_system"))
+    Command::new(env!("CARGO_BIN_EXE_handbook"))
 }
 
 fn binary_in(dir: &Path) -> Command {
@@ -177,7 +177,7 @@ fn prompt_capture_path(root: &Path) -> std::path::PathBuf {
 
 fn successful_stub_script(markdown: &str) -> String {
     format!(
-        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .system/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
+        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .handbook/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\ncat <<'EOF' > \"$output\"\n{markdown}\nEOF\n",
         prompt_capture = PROMPT_CAPTURE_REPO_PATH,
         markdown = markdown
     )
@@ -200,7 +200,7 @@ fn scaffold_repo() -> tempfile::TempDir {
 
 fn valid_environment_inventory_markdown(project_context_ref: &str) -> String {
     format!(
-        "# Environment Inventory - System\n\n> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
+        "# Environment Inventory - Handbook\n\n> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
     )
     .trim_end()
     .to_string()
@@ -208,17 +208,17 @@ fn valid_environment_inventory_markdown(project_context_ref: &str) -> String {
 
 fn valid_project_context_inputs_yaml() -> &'static str {
     r#"schema_version: "0.1.0"
-project_name: "System"
+project_name: "Handbook"
 owner: "compiler-team"
-team: "System"
-repo_or_project_ref: "system"
-charter_ref: ".system/charter/CHARTER.md"
+team: "Handbook"
+repo_or_project_ref: "handbook"
+charter_ref: ".handbook/charter/CHARTER.md"
 project_summary:
   what_this_project_is: "CLI and compiler for canonical planning artifacts and workflow proofs"
   primary_surface: "CLI plus compiler library"
   primary_users: "internal operators and automation"
   key_workflows:
-    - "scaffold canonical .system state"
+    - "scaffold canonical .handbook state"
     - "author baseline artifacts"
     - "compile and inspect planning outputs"
   non_goals: "End-user product delivery"
@@ -242,7 +242,7 @@ classification_implications:
 system_boundaries:
   owned_areas:
     - "compiler and CLI crates in this repository"
-    - "canonical .system artifact formats and setup flow"
+    - "canonical .handbook artifact formats and setup flow"
   external_dependencies:
     - "OpenAI Codex runtime used for charter synthesis"
     - "local filesystem layout and git worktree state"
@@ -288,13 +288,13 @@ known_unknowns:
 }
 
 fn expected_project_context_markdown_from_yaml() -> String {
-    let input = system_compiler::parse_project_context_structured_input_yaml(
+    let input = handbook_compiler::parse_project_context_structured_input_yaml(
         valid_project_context_inputs_yaml(),
     )
     .expect("parse project-context yaml");
 
     with_project_context_now_utc("2026-04-21T12:34:56Z", || {
-        system_compiler::render_project_context_markdown(&input)
+        handbook_compiler::render_project_context_markdown(&input)
             .expect("render project-context markdown")
     })
 }
@@ -302,7 +302,7 @@ fn expected_project_context_markdown_from_yaml() -> String {
 fn valid_structured_inputs_yaml() -> &'static str {
     r#"schema_version: "0.1.0"
 project:
-  name: "System"
+  name: "Handbook"
   classification: greenfield
   team_size: 2
   users: internal
@@ -409,7 +409,7 @@ dimensions:
 exceptions:
   approvers:
     - project_owner
-  record_location: ".system/charter/CHARTER.md#exceptions"
+  record_location: ".handbook/charter/CHARTER.md#exceptions"
   minimum_fields:
     - what
     - why
@@ -430,21 +430,21 @@ decision_records:
 }
 
 fn stubbed_authored_markdown() -> String {
-    system_compiler::render_charter_markdown(&guided_expected_input())
+    handbook_compiler::render_charter_markdown(&guided_expected_input())
         .expect("render stubbed authored markdown")
 }
 
 fn deterministic_authored_markdown() -> String {
     let input =
-        system_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
+        handbook_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
             .expect("parse deterministic charter inputs");
-    system_compiler::render_charter_markdown(&input)
+    handbook_compiler::render_charter_markdown(&input)
         .expect("render deterministic authored markdown")
 }
 
-fn guided_expected_input() -> system_compiler::CharterStructuredInput {
+fn guided_expected_input() -> handbook_compiler::CharterStructuredInput {
     let baseline_level = 3;
-    let project_name = "System".to_string();
+    let project_name = "Handbook".to_string();
     let in_production_today = false;
     let mut dimensions: Vec<_> = all_dimension_names()
         .iter()
@@ -453,8 +453,8 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
             default_dimension_input(name, baseline_level, &project_name, in_production_today)
         })
         .collect();
-    dimensions[0] = system_compiler::CharterDimensionInput {
-        name: system_compiler::CharterDimensionName::SpeedVsQuality,
+    dimensions[0] = handbook_compiler::CharterDimensionInput {
+        name: handbook_compiler::CharterDimensionName::SpeedVsQuality,
         level: Some(4),
         default_stance: "favor durable launches over rush delivery".to_string(),
         raise_the_bar_triggers: vec![
@@ -474,40 +474,41 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
         ],
     };
 
-    system_compiler::CharterStructuredInput {
+    handbook_compiler::CharterStructuredInput {
         schema_version: "0.1.0".to_string(),
-        project: system_compiler::CharterProjectInput {
+        project: handbook_compiler::CharterProjectInput {
             name: project_name.clone(),
-            classification: system_compiler::CharterProjectClassification::Greenfield,
+            classification: handbook_compiler::CharterProjectClassification::Greenfield,
             team_size: 2,
-            users: system_compiler::CharterAudience::Internal,
-            expected_lifetime: system_compiler::CharterExpectedLifetime::Months,
+            users: handbook_compiler::CharterAudience::Internal,
+            expected_lifetime: handbook_compiler::CharterExpectedLifetime::Months,
             surfaces: vec![
-                system_compiler::CharterSurface::Cli,
-                system_compiler::CharterSurface::Api,
+                handbook_compiler::CharterSurface::Cli,
+                handbook_compiler::CharterSurface::Api,
             ],
-            runtime_environments: vec![system_compiler::CharterRuntimeEnvironment::Server],
-            constraints: system_compiler::CharterProjectConstraintsInput {
+            runtime_environments: vec![handbook_compiler::CharterRuntimeEnvironment::Server],
+            constraints: handbook_compiler::CharterProjectConstraintsInput {
                 deadline: String::new(),
                 budget: String::new(),
                 experience_notes: "small team".to_string(),
                 must_use_tech: vec!["rust".to_string()],
             },
-            operational_reality: system_compiler::CharterOperationalRealityInput {
+            operational_reality: handbook_compiler::CharterOperationalRealityInput {
                 in_production_today,
                 prod_users_or_data: String::new(),
                 external_contracts_to_preserve: Vec::new(),
                 uptime_expectations: "best effort".to_string(),
             },
-            default_implications: system_compiler::CharterDefaultImplicationsInput {
-                backward_compatibility: system_compiler::CharterBackwardCompatibility::NotRequired,
-                migration_planning: system_compiler::CharterRequiredness::NotRequired,
-                rollout_controls: system_compiler::CharterRolloutControls::Lightweight,
-                deprecation_policy: system_compiler::CharterDeprecationPolicy::NotRequiredYet,
-                observability_threshold: system_compiler::CharterObservabilityThreshold::Standard,
+            default_implications: handbook_compiler::CharterDefaultImplicationsInput {
+                backward_compatibility:
+                    handbook_compiler::CharterBackwardCompatibility::NotRequired,
+                migration_planning: handbook_compiler::CharterRequiredness::NotRequired,
+                rollout_controls: handbook_compiler::CharterRolloutControls::Lightweight,
+                deprecation_policy: handbook_compiler::CharterDeprecationPolicy::NotRequiredYet,
+                observability_threshold: handbook_compiler::CharterObservabilityThreshold::Standard,
             },
         },
-        posture: system_compiler::CharterPostureInput {
+        posture: handbook_compiler::CharterPostureInput {
             rubric_scale: "1-5".to_string(),
             baseline_level,
             baseline_rationale: vec![
@@ -515,24 +516,24 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
                 "moderate blast radius".to_string(),
             ],
         },
-        domains: vec![system_compiler::CharterDomainInput {
+        domains: vec![handbook_compiler::CharterDomainInput {
             name: "planning".to_string(),
             blast_radius: "medium".to_string(),
             touches: vec!["internal operators".to_string()],
             constraints: vec!["preserve trust boundaries".to_string()],
         }],
         dimensions,
-        exceptions: system_compiler::CharterExceptionsInput {
+        exceptions: handbook_compiler::CharterExceptionsInput {
             approvers: vec!["project_owner".to_string()],
-            record_location: system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION.to_string(),
+            record_location: handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION.to_string(),
             minimum_fields: default_exception_minimum_fields(),
         },
-        debt_tracking: system_compiler::CharterDebtTrackingInput {
+        debt_tracking: handbook_compiler::CharterDebtTrackingInput {
             system: "issues".to_string(),
             labels: vec!["debt".to_string()],
             review_cadence: "monthly".to_string(),
         },
-        decision_records: system_compiler::CharterDecisionRecordsInput {
+        decision_records: handbook_compiler::CharterDecisionRecordsInput {
             enabled: true,
             path: "docs/decisions".to_string(),
             format: "md".to_string(),
@@ -540,17 +541,17 @@ fn guided_expected_input() -> system_compiler::CharterStructuredInput {
     }
 }
 
-fn all_dimension_names() -> [system_compiler::CharterDimensionName; 9] {
+fn all_dimension_names() -> [handbook_compiler::CharterDimensionName; 9] {
     [
-        system_compiler::CharterDimensionName::SpeedVsQuality,
-        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
-        system_compiler::CharterDimensionName::TestingRigor,
-        system_compiler::CharterDimensionName::ScalabilityPerformance,
-        system_compiler::CharterDimensionName::ReliabilityOperability,
-        system_compiler::CharterDimensionName::SecurityPrivacy,
-        system_compiler::CharterDimensionName::Observability,
-        system_compiler::CharterDimensionName::DxToolingAutomation,
-        system_compiler::CharterDimensionName::UxPolishApiUsability,
+        handbook_compiler::CharterDimensionName::SpeedVsQuality,
+        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
+        handbook_compiler::CharterDimensionName::TestingRigor,
+        handbook_compiler::CharterDimensionName::ScalabilityPerformance,
+        handbook_compiler::CharterDimensionName::ReliabilityOperability,
+        handbook_compiler::CharterDimensionName::SecurityPrivacy,
+        handbook_compiler::CharterDimensionName::Observability,
+        handbook_compiler::CharterDimensionName::DxToolingAutomation,
+        handbook_compiler::CharterDimensionName::UxPolishApiUsability,
     ]
 }
 
@@ -569,11 +570,11 @@ fn default_exception_minimum_fields() -> Vec<String> {
 }
 
 fn default_dimension_input(
-    name: system_compiler::CharterDimensionName,
+    name: handbook_compiler::CharterDimensionName,
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> system_compiler::CharterDimensionInput {
+) -> handbook_compiler::CharterDimensionInput {
     let dimension_label = dimension_label(name);
     let production_trigger = if in_production_today {
         "changes touching live users, data, or uptime"
@@ -581,7 +582,7 @@ fn default_dimension_input(
         "changes that create irreversible migration or trust-boundary cost"
     };
 
-    system_compiler::CharterDimensionInput {
+    handbook_compiler::CharterDimensionInput {
         name,
         level: Some(baseline_level),
         default_stance: format!(
@@ -603,25 +604,25 @@ fn default_dimension_input(
     }
 }
 
-fn dimension_label(name: system_compiler::CharterDimensionName) -> &'static str {
+fn dimension_label(name: handbook_compiler::CharterDimensionName) -> &'static str {
     match name {
-        system_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
-        system_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
+        handbook_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
+        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
             "type safety and static analysis"
         }
-        system_compiler::CharterDimensionName::TestingRigor => "testing rigor",
-        system_compiler::CharterDimensionName::ScalabilityPerformance => {
+        handbook_compiler::CharterDimensionName::TestingRigor => "testing rigor",
+        handbook_compiler::CharterDimensionName::ScalabilityPerformance => {
             "scalability and performance"
         }
-        system_compiler::CharterDimensionName::ReliabilityOperability => {
+        handbook_compiler::CharterDimensionName::ReliabilityOperability => {
             "reliability and operability"
         }
-        system_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
-        system_compiler::CharterDimensionName::Observability => "observability",
-        system_compiler::CharterDimensionName::DxToolingAutomation => {
+        handbook_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
+        handbook_compiler::CharterDimensionName::Observability => "observability",
+        handbook_compiler::CharterDimensionName::DxToolingAutomation => {
             "developer tooling and automation"
         }
-        system_compiler::CharterDimensionName::UxPolishApiUsability => {
+        handbook_compiler::CharterDimensionName::UxPolishApiUsability => {
             "ux polish and api usability"
         }
     }
@@ -629,7 +630,7 @@ fn dimension_label(name: system_compiler::CharterDimensionName) -> &'static str 
 
 fn guided_prompt_answers() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("Project name:", "System"),
+        ("Project name:", "Handbook"),
         (
             "Project classification [greenfield|brownfield|integration|modernization|hardening]:",
             "greenfield",
@@ -735,7 +736,7 @@ fn guided_prompt_answers() -> Vec<(&'static str, &'static str)> {
             "project_owner",
         ),
         (
-            "Exception record location [.system/charter/CHARTER.md#exceptions]:",
+            "Exception record location [.handbook/charter/CHARTER.md#exceptions]:",
             "",
         ),
         (
@@ -776,7 +777,7 @@ fn run_guided_author_under_pty(dir: &Path) -> (String, portable_pty::ExitStatus)
         })
         .expect("open pty");
 
-    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_system"));
+    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_handbook"));
     command.cwd(dir);
     command.arg("author");
     command.arg("charter");
@@ -841,7 +842,7 @@ fn guided_project_context_prompt_answers() -> Vec<(&'static str, &'static str)> 
     vec![
         ("Project name [", ""),
         ("Owner:", "compiler-team"),
-        ("Team:", "System"),
+        ("Team:", "Handbook"),
         ("Repo / project reference [", ""),
         ("Charter ref [", ""),
         (
@@ -852,7 +853,7 @@ fn guided_project_context_prompt_answers() -> Vec<(&'static str, &'static str)> 
         ("Primary users:", "internal operators and automation"),
         (
             "Key workflows (comma-separated, 1-3):",
-            "scaffold canonical .system state, author baseline artifacts, compile and inspect planning outputs",
+            "scaffold canonical .handbook state, author baseline artifacts, compile and inspect planning outputs",
         ),
         ("Non-goals (optional):", "End-user product delivery"),
         ("Is anything live in production today?:", "no"),
@@ -893,7 +894,7 @@ fn guided_project_context_prompt_answers() -> Vec<(&'static str, &'static str)> 
         ),
         (
             "Owned areas (comma-separated):",
-            "compiler and CLI crates in this repository, canonical .system artifact formats and setup flow",
+            "compiler and CLI crates in this repository, canonical .handbook artifact formats and setup flow",
         ),
         (
             "External dependencies (comma-separated):",
@@ -966,7 +967,7 @@ fn run_guided_project_context_under_pty_with_interaction(
         })
         .expect("open pty");
 
-    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_system"));
+    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_handbook"));
     command.cwd(dir);
     command.arg("author");
     command.arg("project-context");
@@ -1044,7 +1045,7 @@ fn non_tty_author_refuses_and_points_to_deterministic_path() {
     assert!(out.contains("OUTCOME: REFUSED"));
     assert!(out.contains("CATEGORY: NonInteractiveRefusal"));
     assert!(out.contains("TTY-only guided interview"));
-    assert!(out.contains("system author charter --from-inputs <path|->"));
+    assert!(out.contains("handbook author charter --from-inputs <path|->"));
 }
 
 #[test]
@@ -1098,7 +1099,7 @@ fn stdin_inputs_refuse_when_yaml_is_malformed() {
 fn file_inputs_preserve_malformed_yaml_refusal_even_when_truth_exists() {
     let dir = scaffold_repo();
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         &stubbed_authored_markdown(),
     );
     let inputs_path = dir.path().join("charter-inputs.yaml");
@@ -1154,7 +1155,7 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
     assert!(out.contains("MODE: structured_inputs_file"));
     assert!(out.contains(&format!("SOURCE: {}", inputs_path.display())));
     assert_eq!(
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
+        fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
     assert!(!prompt_capture_path(dir.path()).exists());
@@ -1166,7 +1167,7 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
 fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
     let dir = scaffold_repo();
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
     );
     let inputs_path = dir.path().join("charter-inputs.yaml");
@@ -1192,7 +1193,7 @@ fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
         stdout(&output)
     );
     assert_eq!(
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
+        fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
 }
@@ -1223,7 +1224,7 @@ fn file_inputs_author_charter_ignores_runtime_model_override_for_deterministic_p
         stdout(&output)
     );
     assert_eq!(
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
+        fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
     assert!(!prompt_capture_path(dir.path()).exists());
@@ -1253,7 +1254,7 @@ fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
     assert!(out.contains("MODE: structured_inputs_stdin"));
     assert!(out.contains("SOURCE: -"));
     assert_eq!(
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter"),
+        fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter"),
         expected_markdown
     );
     assert!(!prompt_capture_path(dir.path()).exists());
@@ -1266,7 +1267,8 @@ fn validate_from_inputs_succeeds_without_mutation() {
     let dir = scaffold_repo();
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
-    let before = fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("starter charter");
+    let before =
+        fs::read(dir.path().join(".handbook/charter/CHARTER.md")).expect("starter charter");
     let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_author_runtime_override(&stub, None, || {
@@ -1291,7 +1293,7 @@ fn validate_from_inputs_succeeds_without_mutation() {
     assert!(out.contains("OUTCOME: VALIDATED"));
     assert!(out.contains("MODE: structured_inputs_file"));
     assert_eq!(
-        fs::read(dir.path().join(".system/charter/CHARTER.md")).expect("charter after validate"),
+        fs::read(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter after validate"),
         before
     );
     assert!(!prompt_capture_path(dir.path()).exists());
@@ -1337,10 +1339,10 @@ fn guided_tty_author_charter_succeeds_via_real_binary_path() {
     assert!(output.contains("OUTCOME: AUTHORED"), "{output}");
     assert!(output.contains("MODE: guided_interview"), "{output}");
     let charter =
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter");
+        fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter");
     assert_eq!(charter, expected_markdown);
     assert!(charter.contains("favor durable launches over rush delivery"));
-    assert!(charter.contains(system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(charter.contains(handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
     assert!(!charter.contains("`CHARTER.md#exceptions`"));
     assert!(prompt_capture_path(dir.path()).exists());
 }
@@ -1371,24 +1373,24 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
     );
     assert!(doctor_stdout.contains("ROOT STATUS: OK"), "{doctor_stdout}");
     assert!(
-        doctor_stdout.contains("NEXT SAFE ACTION: run `system author project-context`"),
+        doctor_stdout.contains("NEXT SAFE ACTION: run `handbook author project-context`"),
         "{doctor_stdout}"
     );
     assert!(
         doctor_stdout.contains(
-            "CHARTER [.system/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `system author charter`"
+            "CHARTER [.handbook/charter/CHARTER.md] STATUS: VALID_CANONICAL_TRUTH ACTION: run `handbook author charter`"
         ),
         "{doctor_stdout}"
     );
     assert!(
         doctor_stdout.contains(
-            "PROJECT_CONTEXT [.system/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `system author project-context`"
+            "PROJECT_CONTEXT [.handbook/project_context/PROJECT_CONTEXT.md] STATUS: STARTER_OWNED ACTION: run `handbook author project-context`"
         ),
         "{doctor_stdout}"
     );
     assert!(
         doctor_stdout.contains(
-            "ENVIRONMENT_INVENTORY [.system/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `system author environment-inventory`"
+            "ENVIRONMENT_INVENTORY [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md] STATUS: STARTER_OWNED ACTION: run `handbook author environment-inventory`"
         ),
         "{doctor_stdout}"
     );
@@ -1405,11 +1407,11 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
         "{generate_stdout}"
     );
     assert!(
-        generate_stdout.contains("### CHARTER (.system/charter/CHARTER.md)"),
+        generate_stdout.contains("### CHARTER (.handbook/charter/CHARTER.md)"),
         "{generate_stdout}"
     );
     assert!(
-        generate_stdout.contains("# Engineering Charter — System"),
+        generate_stdout.contains("# Engineering Charter — Handbook"),
         "{generate_stdout}"
     );
 }
@@ -1428,7 +1430,7 @@ fn non_tty_project_context_author_refuses_and_points_to_deterministic_path() {
     assert!(out.contains("OUTCOME: REFUSED"));
     assert!(out.contains("CATEGORY: NonInteractiveRefusal"));
     assert!(out.contains("TTY-only guided interview"));
-    assert!(out.contains("system author project-context --from-inputs <path|->"));
+    assert!(out.contains("handbook author project-context --from-inputs <path|->"));
 }
 
 #[test]
@@ -1508,7 +1510,7 @@ fn project_context_file_inputs_succeed() {
     assert_eq!(
         fs::read_to_string(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("project context"),
         expected_project_context_markdown_from_yaml()
@@ -1539,7 +1541,7 @@ fn project_context_stdin_inputs_succeed() {
     assert_eq!(
         fs::read_to_string(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("project context"),
         expected_project_context_markdown_from_yaml()
@@ -1551,7 +1553,7 @@ fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
     let dir = scaffold_repo();
     write_file(
         &dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
         "custom project context truth\n",
     );
     let inputs_path = dir.path().join("project-context-inputs.yaml");
@@ -1577,7 +1579,7 @@ fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
     assert_eq!(
         fs::read_to_string(
             dir.path()
-                .join(".system/project_context/PROJECT_CONTEXT.md")
+                .join(".handbook/project_context/PROJECT_CONTEXT.md")
         )
         .expect("project context"),
         expected_project_context_markdown_from_yaml()
@@ -1610,11 +1612,11 @@ fn guided_tty_author_project_context_succeeds() {
 
     let project_context = fs::read_to_string(
         dir.path()
-            .join(".system/project_context/PROJECT_CONTEXT.md"),
+            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
     )
     .expect("project context");
     assert!(project_context.contains("> **Owner:** compiler-team"));
-    assert!(project_context.contains("> **Team:** System"));
+    assert!(project_context.contains("> **Team:** Handbook"));
     assert!(project_context.contains("CLI and compiler for canonical planning artifacts"));
     assert!(project_context.contains("final CLI interview wording for project-context authoring"));
 }
@@ -1640,7 +1642,7 @@ fn guided_tty_author_project_context_eof_refusal_names_project_context_command()
     );
     assert!(output.contains("CATEGORY: InterviewIncomplete"), "{output}");
     assert!(
-        output.contains("restart `system author project-context` or use `system author project-context --from-inputs <path|->`"),
+        output.contains("restart `handbook author project-context` or use `handbook author project-context --from-inputs <path|->`"),
         "{output}"
     );
     assert!(
@@ -1655,7 +1657,7 @@ fn guided_tty_author_project_context_eof_refusal_names_project_context_command()
 fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
     let dir = scaffold_repo();
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
     );
     let expected_markdown = valid_environment_inventory_markdown("None");
@@ -1677,13 +1679,13 @@ fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
         "{out}"
     );
     assert!(
-        out.contains("Wrote canonical environment inventory to .system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        out.contains("Wrote canonical environment inventory to .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "{out}"
     );
     assert_eq!(
         fs::read_to_string(
             dir.path()
-                .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+                .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
         )
         .expect("environment inventory"),
         expected_markdown
@@ -1700,12 +1702,12 @@ fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
 fn author_environment_inventory_command_refuses_existing_truth_before_synthesis() {
     let dir = scaffold_repo();
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
     );
     write_file(
         &dir.path()
-            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+            .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         &valid_environment_inventory_markdown("None"),
     );
     let stub = install_stub_codex(
@@ -1728,7 +1730,7 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
     assert_eq!(
         fs::read_to_string(
             dir.path()
-                .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+                .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
         )
         .expect("environment inventory"),
         valid_environment_inventory_markdown("None")
@@ -1740,12 +1742,12 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
 fn author_environment_inventory_command_repairs_semantically_invalid_canonical_truth() {
     let dir = scaffold_repo();
     write_file(
-        &dir.path().join(".system/charter/CHARTER.md"),
+        &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
     );
     write_file(
         &dir.path()
-            .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+            .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "custom environment inventory truth\n",
     );
     let expected_markdown = valid_environment_inventory_markdown("None");
@@ -1763,7 +1765,7 @@ fn author_environment_inventory_command_repairs_semantically_invalid_canonical_t
     assert_eq!(
         fs::read_to_string(
             dir.path()
-                .join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md")
+                .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
         )
         .expect("environment inventory"),
         expected_markdown
@@ -1788,19 +1790,19 @@ fn charter_input_templates_and_fixtures_use_canonical_exception_record_location(
         brownfield_fixture,
         greenfield_fixture,
     ] {
-        assert!(contents.contains(system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+        assert!(contents.contains(handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
         assert!(!contents.contains("record_location: \"CHARTER.md#exceptions\""));
     }
 }
 
 #[test]
 fn structured_inputs_author_charter_succeeds_with_live_codex_transport() {
-    if std::env::var("SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE")
+    if std::env::var("HANDBOOK_RUN_LIVE_AUTHOR_CHARTER_SMOKE")
         .ok()
         .as_deref()
         != Some("1")
     {
-        eprintln!("skipping live Codex smoke; set SYSTEM_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1");
+        eprintln!("skipping live Codex smoke; set HANDBOOK_RUN_LIVE_AUTHOR_CHARTER_SMOKE=1");
         return;
     }
 
@@ -1825,8 +1827,8 @@ fn structured_inputs_author_charter_succeeds_with_live_codex_transport() {
     );
 
     let charter =
-        fs::read_to_string(dir.path().join(".system/charter/CHARTER.md")).expect("charter");
-    assert!(charter.starts_with("# Engineering Charter — System"));
+        fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter");
+    assert!(charter.starts_with("# Engineering Charter — Handbook"));
     for heading in [
         "## What this is",
         "## Dimensions (details + guardrails)",
@@ -1838,7 +1840,7 @@ fn structured_inputs_author_charter_succeeds_with_live_codex_transport() {
             "missing heading `{heading}` in:\n{charter}"
         );
     }
-    assert!(charter.contains(system_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(charter.contains(handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
     assert!(!charter.contains("`CHARTER.md#exceptions`"));
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());

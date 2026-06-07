@@ -27,7 +27,7 @@ except ModuleNotFoundError:  # pragma: no cover
     import yaml_lite as yaml  # type: ignore
 
 
-ROOT = Path(__file__).resolve().parents[1]  # system/
+ROOT = Path(__file__).resolve().parents[1]  # handbook/
 DIST_DIR = ROOT / "dist"
 ARTIFACTS_DIR = ROOT / "artifacts"
 
@@ -1058,14 +1058,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_list = sub.add_parser("list", help="List pipeline stages")
-    p_list.add_argument("--pipeline", help="Pipeline YAML to use (relative to system root, or absolute path)")
+    p_list.add_argument("--pipeline", help="Pipeline YAML to use (relative to handbook root, or absolute path)")
     p_list.set_defaults(func=cmd_list)
 
     p_ov = sub.add_parser("overlays", help="List available overlays")
     p_ov.set_defaults(func=cmd_overlays)
 
     p_compile = sub.add_parser("compile", help="Compile prompts into dist/")
-    p_compile.add_argument("--pipeline", help="Pipeline YAML to use (relative to system root, or absolute path)")
+    p_compile.add_argument("--pipeline", help="Pipeline YAML to use (relative to handbook root, or absolute path)")
     p_compile.add_argument("--only", help="Compile only one stage id")
     p_compile.add_argument("--until", help="Compile stages up to and including this stage id")
     p_compile.add_argument("--force", action="store_true", help="Compile even if activation conditions fail")
@@ -1091,7 +1091,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 
     p_run = sub.add_parser("run", help="Compile + capture a single stage (interactive paste)")
-    p_run.add_argument("--pipeline", help="Pipeline YAML to use (relative to system root, or absolute path)")
+    p_run.add_argument("--pipeline", help="Pipeline YAML to use (relative to handbook root, or absolute path)")
     p_run.add_argument("stage_id", help="Stage id to run")
     p_run.add_argument("--force", action="store_true", help="Run even if activation conditions fail")
     p_run.add_argument("--runner", help="Override runner id")
@@ -1114,7 +1114,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_run.set_defaults(func=cmd_run)
 
     p_capture = sub.add_parser("capture", help="Capture model output for a stage and write artifacts")
-    p_capture.add_argument("--pipeline", help="Pipeline YAML to use (relative to system root, or absolute path)")
+    p_capture.add_argument("--pipeline", help="Pipeline YAML to use (relative to handbook root, or absolute path)")
     p_capture.add_argument("stage_id", help="Stage id to capture output for")
     p_capture.set_defaults(func=cmd_capture)
 

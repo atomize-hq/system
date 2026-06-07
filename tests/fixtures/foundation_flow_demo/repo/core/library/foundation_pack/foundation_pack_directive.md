@@ -37,7 +37,7 @@ Also available:
    - Each artifact should be ~1–3 pages max.
    - Prefer checklists, tables, and concrete bullets.
 6. Environment inventory is a first-class output:
-   - The canonical baseline path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`.
+   - The canonical baseline path is `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
    - This stage emits the pipeline artifact `artifacts/foundation/ENVIRONMENT_INVENTORY.md`, but that artifact is not the canonical product authority.
    - Any change that impacts those must update the canonical file in the same change.
 

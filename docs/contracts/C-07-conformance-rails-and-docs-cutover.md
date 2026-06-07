@@ -23,8 +23,8 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 `C-07` exists to ensure the shipped repository continues to tell **one coherent supported story**:
 
 - Rust is the only supported runtime path for reduced v1
-- setup scaffolds the `M8` baseline set under canonical repo-local `.system/`
-- planning packets resolve deterministically from canonical repo-local `.system/` artifacts
+- setup scaffolds the `M8` baseline set under canonical repo-local `.handbook/`
+- planning packets resolve deterministically from canonical repo-local `.handbook/` artifacts
 - proof surfaces and refusal semantics remain stable and test-pinned
 - the fixture-backed execution demo cannot be mistaken for live slice execution
 - installed Codex packaging and charter-intake runtime drift cannot land without automated detection
@@ -42,7 +42,7 @@ This contract defines what “conformance” means for the reduced-v1 Rust-first
 
 - [`C-01`](C-01-approved-repo-surface.md) approved repo surface and legacy freeze (supported-vs-legacy messaging; archive/runtime boundary)
 - [`C-02`](C-02-rust-workspace-and-cli-command-surface.md) Rust workspace and CLI command surface (verbs, help posture, crate boundaries)
-- [`C-03`](C-03-canonical-artifact-manifest-contract.md) canonical artifact manifest contract (`.system/` inputs + freshness)
+- [`C-03`](C-03-canonical-artifact-manifest-contract.md) canonical artifact manifest contract (`.handbook/` inputs + freshness)
 - [`C-04`](C-04-resolver-result-and-doctor-blockers.md) doctor baseline-readiness and blocker taxonomy (checklist structure; next-safe-action requirements)
 - [`C-05`](C-05-renderer-and-proof-surfaces.md) renderer and proof surfaces (trust header ordering; inspect ordering; deterministic JSON/markdown rules)
 - [`C-06`](C-06-fixture-execution-demo-boundary.md) fixture execution demo boundary (fixture-only scope; live refusal semantics)
@@ -68,8 +68,8 @@ Reduced v1 MUST provide deterministic commands that:
 
 - validate formatting (`cargo fmt --all -- --check`)
 - validate compilation and tests (`cargo test --workspace`)
-- validate CLI surface tests (at minimum: `cargo test -p system-cli`)
-- validate compiler tests (at minimum: `cargo test -p system-compiler`)
+- validate CLI surface tests (at minimum: `cargo test -p handbook-cli`)
+- validate compiler tests (at minimum: `cargo test -p handbook-compiler`)
 - validate packaging install smoke (`bash tools/ci/install-smoke.sh`)
 - validate installed charter-intake runtime smoke (`bash tools/ci/codex-skill-live-smoke.sh`)
 
@@ -77,34 +77,34 @@ CI MUST run the same logical checks (or stricter) on supported targets.
 
 For the shipped Codex packaging wedge, CI MUST also prove:
 
-- repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` regenerate deterministically from `install/system-home/` as thin generated projections
-- the installed `~/system/` home contains exactly the curated runtime contract:
+- repo `.agents/skills/handbook-charter-intake/` and `.agents/skills/handbook/` regenerate deterministically from `install/handbook-home/` as thin generated projections
+- the installed `~/handbook/` home contains exactly the curated runtime contract:
   - `SKILL.md.tmpl`
   - `SKILL.md`
   - `agents/openai.yaml`
   - `charter-intake/SKILL.md.tmpl`
   - `charter-intake/SKILL.md`
   - `runtime-manifest.json`
-  - `bin/system`
+  - `bin/handbook`
   - `resources/authoring/charter_authoring_method.md`
   - `resources/charter/CHARTER_INPUTS.yaml.tmpl`
   - `resources/charter/charter_inputs_directive.md`
-  - `.agents/skills/system/SKILL.md`
-  - `.agents/skills/system/agents/openai.yaml`
-  - `.agents/skills/system-charter-intake/SKILL.md`
-  - `.agents/skills/system-charter-intake/agents/openai.yaml`
+  - `.agents/skills/handbook/SKILL.md`
+  - `.agents/skills/handbook/agents/openai.yaml`
+  - `.agents/skills/handbook-charter-intake/SKILL.md`
+  - `.agents/skills/handbook-charter-intake/agents/openai.yaml`
 - `runtime-manifest.json` contains at minimum:
   - `skill_name`
-  - `system_release_version`
+  - `handbook_release_version`
   - `manifest_version`
   - `generated_at_utc`
-- `~/system/` is the installed home, with installed thin projections under `~/system/.agents/skills/*`
-- `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
-- `tools/codex/install.sh` owns the installed `~/system/` home, installs `~/system/bin/system` as the only executable, installs runtime guidance under `~/system/resources/**`, and refreshes the thin Codex discovery glue
-- `tools/codex/dev-setup.sh` creates the dev symlink mode only, and normal install after dev setup restores the `~/.codex/skills/system* -> ~/system/.agents/skills/*` discovery topology cleanly
-- the installed home does not contain `~/system/bin/system-charter-intake`
-- the installed home does not contain `~/system/share/**`
-- the installed runtime may machine-parse only `system doctor --json`
+- `~/handbook/` is the installed home, with installed thin projections under `~/handbook/.agents/skills/*`
+- `~/.codex/skills/handbook*` is discovery glue only and points into `~/handbook/.agents/skills/*`
+- `tools/codex/install.sh` owns the installed `~/handbook/` home, installs `~/handbook/bin/handbook` as the only executable, installs runtime guidance under `~/handbook/resources/**`, and refreshes the thin Codex discovery glue
+- `tools/codex/dev-setup.sh` creates the dev symlink mode only, and normal install after dev setup restores the `~/.codex/skills/handbook* -> ~/handbook/.agents/skills/*` discovery topology cleanly
+- the installed home does not contain `~/handbook/bin/handbook-charter-intake`
+- the installed home does not contain `~/handbook/share/**`
+- the installed runtime may machine-parse only `handbook doctor --json`
 - validate/write steps rely on exit code plus persisted stdout/stderr transcripts only, with no new machine-readable authoring contract
 
 ### Supported install-smoke targets
@@ -116,8 +116,8 @@ Reduced v1 MUST treat these as supported install-smoke targets:
 
 Install smoke MUST, at minimum:
 
-- build and install `system` from this repository (`cargo install --path crates/cli`)
-- execute `system --help` (and any required verb-level help) without panicking
+- build and install `handbook` from this repository (`cargo install --path crates/cli`)
+- execute `handbook --help` (and any required verb-level help) without panicking
 - run `bash tools/ci/install-smoke.sh`
 - run `bash tools/ci/codex-skill-live-smoke.sh`
 
@@ -143,17 +143,17 @@ Docs and CLI help MUST NOT:
 
 Docs and CLI help MUST:
 
-- identify `system doctor --json` as the only machine-readable readiness surface for the installed charter-intake skill
-- identify `system author charter --validate --from-inputs <path|->` as the mutation-free charter preflight surface
-- identify `system author charter --from-inputs <path|->` as deterministic and compiler-owned
-- identify `install/system-home/` as the authored source of install-home skill content
-- identify `~/system/` as the installed home for the Codex-facing install surface
-- identify `~/system/bin/system` as the only installed executable for the Codex-facing install surface
-- identify `~/system/runtime-manifest.json` and `~/system/resources/**` as installed runtime contract surfaces
+- identify `handbook doctor --json` as the only machine-readable readiness surface for the installed charter-intake skill
+- identify `handbook author charter --validate --from-inputs <path|->` as the mutation-free charter preflight surface
+- identify `handbook author charter --from-inputs <path|->` as deterministic and compiler-owned
+- identify `install/handbook-home/` as the authored source of install-home skill content
+- identify `~/handbook/` as the installed home for the Codex-facing install surface
+- identify `~/handbook/bin/handbook` as the only installed executable for the Codex-facing install surface
+- identify `~/handbook/runtime-manifest.json` and `~/handbook/resources/**` as installed runtime contract surfaces
 - describe repo `.agents/skills/*` as thin generated projections only
-- describe `~/.codex/skills/system*` as discovery glue only, pointing into `~/system/.agents/skills/*`
-- describe `tools/codex/install.sh` as owning the installed `~/system/` home, `~/system/bin/system`, `~/system/resources/**`, and Codex discovery-glue refresh
-- state that there is no installed `~/system/bin/system-charter-intake` and no installed `~/system/share/**`
+- describe `~/.codex/skills/handbook*` as discovery glue only, pointing into `~/handbook/.agents/skills/*`
+- describe `tools/codex/install.sh` as owning the installed `~/handbook/` home, `~/handbook/bin/handbook`, `~/handbook/resources/**`, and Codex discovery-glue refresh
+- state that there is no installed `~/handbook/bin/handbook-charter-intake` and no installed `~/handbook/share/**`
 
 Docs and help SHOULD link directly to the authoritative contracts they reference.
 
@@ -165,7 +165,7 @@ The conformance rails owned by `C-07` are expected to pin drift against the upst
 | --- | --- |
 | Supported-vs-legacy wording (no implied Python support; archive/runtime boundary) | [`C-01`](C-01-approved-repo-surface.md) |
 | CLI verb vocabulary and help posture (setup/author/pipeline/generate/inspect/doctor ordering and copy) | [`C-02`](C-02-rust-workspace-and-cli-command-surface.md) |
-| Canonical `.system/` inputs + freshness fields used by planning packets | [`C-03`](C-03-canonical-artifact-manifest-contract.md) |
+| Canonical `.handbook/` inputs + freshness fields used by planning packets | [`C-03`](C-03-canonical-artifact-manifest-contract.md) |
 | Doctor baseline-state structure + “next safe action” semantics (including checklist and blocker taxonomy) | [`C-04`](C-04-resolver-result-and-doctor-blockers.md) |
 | Trust header field set + ordering; proof ordering; deterministic markdown/JSON/inspect rendering | [`C-05`](C-05-renderer-and-proof-surfaces.md) |
 | Fixture-backed execution demo boundary (fixture-only posture; live refusal semantics) | [`C-06`](C-06-fixture-execution-demo-boundary.md) |
@@ -176,28 +176,28 @@ The following checklist is normative for conformance execution and closeout:
 
 - [ ] `cargo fmt --all -- --check`
 - [ ] `cargo test --workspace`
-- [ ] `cargo test -p system-cli`
-- [ ] `cargo test -p system-compiler`
+- [ ] `cargo test -p handbook-cli`
+- [ ] `cargo test -p handbook-compiler`
 - [ ] `bash tools/ci/install-smoke.sh`
 - [ ] `bash tools/ci/codex-skill-live-smoke.sh`
 - [ ] `cargo install --path crates/cli` (smoke)
-- [ ] `system --help` (smoke)
-- [ ] `system doctor --help` and `system author charter --help` (help parity)
-- [ ] `system generate --help` and `system inspect --help` (help parity)
-- [ ] generated repo `.agents/skills/system-charter-intake/` and `.agents/skills/system/` are deterministic thin-projection outputs from `install/system-home/`
+- [ ] `handbook --help` (smoke)
+- [ ] `handbook doctor --help` and `handbook author charter --help` (help parity)
+- [ ] `handbook generate --help` and `handbook inspect --help` (help parity)
+- [ ] generated repo `.agents/skills/handbook-charter-intake/` and `.agents/skills/handbook/` are deterministic thin-projection outputs from `install/handbook-home/`
 - [ ] generated runtime root file set matches the locked contract
-- [ ] `~/system/` is the installed home and installed thin projections live under `~/system/.agents/skills/*`
-- [ ] `~/.codex/skills/system*` is discovery glue only and points into `~/system/.agents/skills/*`
-- [ ] normal install after dev setup restores the `~/.codex/skills/system* -> ~/system/.agents/skills/*` discovery topology cleanly
-- [ ] `~/system/bin/system` is the only installed executable for this Codex surface
-- [ ] `~/system/runtime-manifest.json` and `~/system/resources/**` exist as installed runtime contract surfaces
-- [ ] `~/system/bin/system-charter-intake` does not exist
-- [ ] `~/system/share/**` does not exist
-- [ ] the installed runtime happy path is `doctor --json` -> optional `system setup` -> `doctor --json` -> `author charter --validate --from-inputs` -> `author charter --from-inputs` -> final `doctor --json`
+- [ ] `~/handbook/` is the installed home and installed thin projections live under `~/handbook/.agents/skills/*`
+- [ ] `~/.codex/skills/handbook*` is discovery glue only and points into `~/handbook/.agents/skills/*`
+- [ ] normal install after dev setup restores the `~/.codex/skills/handbook* -> ~/handbook/.agents/skills/*` discovery topology cleanly
+- [ ] `~/handbook/bin/handbook` is the only installed executable for this Codex surface
+- [ ] `~/handbook/runtime-manifest.json` and `~/handbook/resources/**` exist as installed runtime contract surfaces
+- [ ] `~/handbook/bin/handbook-charter-intake` does not exist
+- [ ] `~/handbook/share/**` does not exist
+- [ ] the installed runtime happy path is `doctor --json` -> optional `handbook setup` -> `doctor --json` -> `author charter --validate --from-inputs` -> `author charter --from-inputs` -> final `doctor --json`
 - [ ] outside-git-repo refusal happens before questioning
 - [ ] existing-charter refusal is covered as a first-class smoke case
 - [ ] execution demo happy-path
-  - [ ] `cargo run -p system-cli -- generate --packet execution.demo.packet --fixture-set basic`
-  - [ ] `cargo run -p system-cli -- inspect --packet execution.demo.packet --fixture-set basic`
+  - [ ] `cargo run -p handbook-cli -- generate --packet execution.demo.packet --fixture-set basic`
+  - [ ] `cargo run -p handbook-cli -- inspect --packet execution.demo.packet --fixture-set basic`
 - [ ] live execution refusal (fixture-backed boundary)
-  - [ ] from `tests/fixtures/execution_demo/basic/`: `cargo run -p system-cli -- generate --packet execution.live.packet`
+  - [ ] from `tests/fixtures/execution_demo/basic/`: `cargo run -p handbook-cli -- generate --packet execution.live.packet`

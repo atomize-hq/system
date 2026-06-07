@@ -19,6 +19,17 @@ pub(crate) enum RepoRelativeFileAccessError {
 }
 
 #[derive(Debug)]
+pub(crate) enum RepoRelativeDirectoryAccessError {
+    Missing(PathBuf),
+    SymlinkNotAllowed(PathBuf),
+    NotDirectory(PathBuf),
+    ReadFailure {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+}
+
+#[derive(Debug)]
 pub(crate) enum RepoRelativeWritePathError {
     InvalidPath(String),
     ParentNotDirectory(PathBuf),
@@ -46,34 +57,233 @@ pub(crate) enum RepoRelativeMutationError {
     },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct NormalizedRepoRelativePath(String);
+
+impl NormalizedRepoRelativePath {
+    pub(crate) fn parse(path: &str) -> Result<Self, String> {
+        let path = validate_repo_relative_path(path)?;
+        let normalized = normalize_validated_repo_relative_path(path)?;
+        Ok(Self(normalized))
+    }
+
+    pub(crate) fn parse_path(path: &Path) -> Result<Self, String> {
+        let path = validate_repo_relative_path_from_path(path)?;
+        let normalized = normalize_validated_repo_relative_path(path)?;
+        Ok(Self(normalized))
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    fn as_path(&self) -> &Path {
+        Path::new(self.as_str())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct RepoRelativeMetadataReadError {
+    pub(crate) path: PathBuf,
+    pub(crate) source: std::io::Error,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CompilerWorkspace<'a> {
+    repo_root: &'a Path,
+}
+
+impl<'a> CompilerWorkspace<'a> {
+    pub(crate) fn new(repo_root: &'a Path) -> Self {
+        Self { repo_root }
+    }
+
+    pub(crate) fn normalize_repo_relative(
+        &self,
+        path: &str,
+    ) -> Result<NormalizedRepoRelativePath, String> {
+        NormalizedRepoRelativePath::parse(path)
+    }
+
+    pub(crate) fn normalize_repo_relative_path(
+        &self,
+        path: &Path,
+    ) -> Result<NormalizedRepoRelativePath, String> {
+        NormalizedRepoRelativePath::parse_path(path)
+    }
+
+    pub(crate) fn metadata_no_follow(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<Option<fs::Metadata>, RepoRelativeMetadataReadError> {
+        let absolute_path = self.absolute_path(relative_path);
+        match fs::symlink_metadata(&absolute_path) {
+            Ok(metadata) => Ok(Some(metadata)),
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(source) => Err(RepoRelativeMetadataReadError {
+                path: absolute_path,
+                source,
+            }),
+        }
+    }
+
+    pub(crate) fn trusted_read(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<TrustedRepoFile, RepoRelativeFileAccessError> {
+        let absolute_path =
+            resolve_repo_relative_regular_file_path(self.repo_root, relative_path.as_path())?;
+        Ok(TrustedRepoFile {
+            repo_relative: relative_path.clone(),
+            absolute_path,
+        })
+    }
+
+    pub(crate) fn trusted_directory(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<TrustedRepoDirectory, RepoRelativeDirectoryAccessError> {
+        let absolute_path =
+            resolve_repo_relative_directory_path(self.repo_root, relative_path.as_path())?;
+        Ok(TrustedRepoDirectory {
+            repo_relative: relative_path.clone(),
+            absolute_path,
+        })
+    }
+
+    pub(crate) fn read_string(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<String, RepoRelativeFileAccessError> {
+        let trusted_file = self.trusted_read(relative_path)?;
+        trusted_file
+            .read_string()
+            .map_err(|source| RepoRelativeFileAccessError::ReadFailure {
+                path: trusted_file.absolute_path.clone(),
+                source,
+            })
+    }
+
+    pub(crate) fn sha256_file(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<String, RepoRelativeFileAccessError> {
+        let trusted_file = self.trusted_read(relative_path)?;
+        trusted_file
+            .sha256_hex()
+            .map_err(|source| RepoRelativeFileAccessError::ReadFailure {
+                path: trusted_file.absolute_path.clone(),
+                source,
+            })
+    }
+
+    pub(crate) fn resolve_write_path(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<PathBuf, RepoRelativeWritePathError> {
+        resolve_repo_relative_write_path_from_validated(self.repo_root, relative_path.as_path())
+    }
+
+    pub(crate) fn write_bytes(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+        bytes: &[u8],
+    ) -> Result<(), RepoRelativeMutationError> {
+        write_repo_relative_bytes_from_validated(self.repo_root, relative_path.as_path(), bytes)
+    }
+
+    pub(crate) fn delete_file(
+        &self,
+        relative_path: &NormalizedRepoRelativePath,
+    ) -> Result<(), RepoRelativeMutationError> {
+        delete_repo_relative_file_from_validated(self.repo_root, relative_path.as_path())
+    }
+
+    fn absolute_path(&self, relative_path: &NormalizedRepoRelativePath) -> PathBuf {
+        self.repo_root.join(relative_path.as_path())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TrustedRepoDirectory {
+    repo_relative: NormalizedRepoRelativePath,
+    absolute_path: PathBuf,
+}
+
+impl TrustedRepoDirectory {
+    pub(crate) fn absolute_path(&self) -> &Path {
+        &self.absolute_path
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TrustedRepoFile {
+    repo_relative: NormalizedRepoRelativePath,
+    absolute_path: PathBuf,
+}
+
+impl TrustedRepoFile {
+    #[cfg(test)]
+    pub(crate) fn repo_relative(&self) -> &NormalizedRepoRelativePath {
+        &self.repo_relative
+    }
+
+    pub(crate) fn absolute_path(&self) -> &Path {
+        &self.absolute_path
+    }
+
+    pub(crate) fn read_string(&self) -> Result<String, std::io::Error> {
+        read_string_no_follow_path(&self.absolute_path)
+    }
+
+    pub(crate) fn read_bytes(&self) -> Result<Vec<u8>, std::io::Error> {
+        read_bytes_no_follow_path(&self.absolute_path)
+    }
+
+    pub(crate) fn sha256_hex(&self) -> Result<String, std::io::Error> {
+        let mut hasher = Sha256::new();
+        hasher.update(self.read_bytes()?);
+        Ok(format!("{:x}", hasher.finalize()))
+    }
+}
+
 pub(crate) fn read_repo_relative_string(
     repo_root: &Path,
     relative_path: &str,
 ) -> Result<String, RepoRelativeFileAccessError> {
-    let path = resolve_repo_relative_regular_file(repo_root, relative_path)?;
-    read_string_no_follow(&path)
-        .map_err(|source| RepoRelativeFileAccessError::ReadFailure { path, source })
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative(relative_path)
+        .map_err(RepoRelativeFileAccessError::InvalidPath)?;
+    workspace.read_string(&relative_path)
 }
 
 pub(crate) fn sha256_repo_relative_file(
     repo_root: &Path,
     relative_path: &str,
 ) -> Result<String, RepoRelativeFileAccessError> {
-    let path = resolve_repo_relative_regular_file(repo_root, relative_path)?;
-    let bytes = read_bytes_no_follow(&path)
-        .map_err(|source| RepoRelativeFileAccessError::ReadFailure { path, source })?;
-    let mut hasher = Sha256::new();
-    hasher.update(&bytes);
-    Ok(format!("{:x}", hasher.finalize()))
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative(relative_path)
+        .map_err(RepoRelativeFileAccessError::InvalidPath)?;
+    workspace.sha256_file(&relative_path)
 }
 
 pub(crate) fn resolve_repo_relative_write_path(
     repo_root: &Path,
     relative_path: &str,
 ) -> Result<PathBuf, RepoRelativeWritePathError> {
-    let relative_path = validate_repo_relative_path(relative_path)
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative(relative_path)
         .map_err(RepoRelativeWritePathError::InvalidPath)?;
+    workspace.resolve_write_path(&relative_path)
+}
 
+fn resolve_repo_relative_write_path_from_validated(
+    repo_root: &Path,
+    relative_path: &Path,
+) -> Result<PathBuf, RepoRelativeWritePathError> {
     let mut current = repo_root.to_path_buf();
     let mut components = relative_path.components().peekable();
 
@@ -133,6 +343,18 @@ pub(crate) fn write_repo_relative_bytes(
     relative_path: &str,
     bytes: &[u8],
 ) -> Result<(), RepoRelativeMutationError> {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative(relative_path)
+        .map_err(RepoRelativeMutationError::InvalidPath)?;
+    workspace.write_bytes(&relative_path, bytes)
+}
+
+fn write_repo_relative_bytes_from_validated(
+    repo_root: &Path,
+    relative_path: &Path,
+    bytes: &[u8],
+) -> Result<(), RepoRelativeMutationError> {
     #[cfg(unix)]
     {
         write_repo_relative_bytes_unix(repo_root, relative_path, bytes)
@@ -148,6 +370,17 @@ pub(crate) fn delete_repo_relative_file(
     repo_root: &Path,
     relative_path: &str,
 ) -> Result<(), RepoRelativeMutationError> {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let relative_path = workspace
+        .normalize_repo_relative(relative_path)
+        .map_err(RepoRelativeMutationError::InvalidPath)?;
+    workspace.delete_file(&relative_path)
+}
+
+fn delete_repo_relative_file_from_validated(
+    repo_root: &Path,
+    relative_path: &Path,
+) -> Result<(), RepoRelativeMutationError> {
     #[cfg(unix)]
     {
         delete_repo_relative_file_unix(repo_root, relative_path)
@@ -159,13 +392,10 @@ pub(crate) fn delete_repo_relative_file(
     }
 }
 
-fn resolve_repo_relative_regular_file(
+fn resolve_repo_relative_regular_file_path(
     repo_root: &Path,
-    relative_path: &str,
+    relative_path: &Path,
 ) -> Result<PathBuf, RepoRelativeFileAccessError> {
-    let relative_path = validate_repo_relative_path(relative_path)
-        .map_err(RepoRelativeFileAccessError::InvalidPath)?;
-
     let mut current = repo_root.to_path_buf();
     let mut components = relative_path.components().peekable();
 
@@ -207,13 +437,57 @@ fn resolve_repo_relative_regular_file(
     Ok(current)
 }
 
+fn resolve_repo_relative_directory_path(
+    repo_root: &Path,
+    relative_path: &Path,
+) -> Result<PathBuf, RepoRelativeDirectoryAccessError> {
+    let mut current = repo_root.to_path_buf();
+
+    for component in relative_path.components() {
+        let Component::Normal(part) = component else {
+            continue;
+        };
+        current.push(part);
+
+        let metadata = match fs::symlink_metadata(&current) {
+            Ok(metadata) => metadata,
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                return Err(RepoRelativeDirectoryAccessError::Missing(current.clone()))
+            }
+            Err(source) => {
+                return Err(RepoRelativeDirectoryAccessError::ReadFailure {
+                    path: current.clone(),
+                    source,
+                })
+            }
+        };
+
+        if metadata.file_type().is_symlink() {
+            return Err(RepoRelativeDirectoryAccessError::SymlinkNotAllowed(
+                current.clone(),
+            ));
+        }
+
+        if !metadata.is_dir() {
+            return Err(RepoRelativeDirectoryAccessError::NotDirectory(
+                current.clone(),
+            ));
+        }
+    }
+
+    Ok(current)
+}
+
 pub(crate) fn validate_repo_relative_path(path: &str) -> Result<&Path, String> {
     let trimmed = path.trim();
-    if trimmed.is_empty() {
+    validate_repo_relative_path_from_path(Path::new(trimmed))
+}
+
+pub(crate) fn validate_repo_relative_path_from_path(path: &Path) -> Result<&Path, String> {
+    if path.as_os_str().is_empty() {
         return Err("path must not be empty".to_string());
     }
 
-    let path = Path::new(trimmed);
     if path.is_absolute() {
         return Err("path must be repo-relative".to_string());
     }
@@ -233,7 +507,10 @@ pub(crate) fn validate_repo_relative_path(path: &str) -> Result<&Path, String> {
 }
 
 pub(crate) fn normalize_repo_relative_path(path: &str) -> Result<String, String> {
-    let path = validate_repo_relative_path(path)?;
+    NormalizedRepoRelativePath::parse(path).map(|path| path.0)
+}
+
+fn normalize_validated_repo_relative_path(path: &Path) -> Result<String, String> {
     let normalized = path
         .components()
         .filter_map(|component| match component {
@@ -252,7 +529,7 @@ pub(crate) fn normalize_repo_relative_path(path: &str) -> Result<String, String>
 #[cfg(unix)]
 fn write_repo_relative_bytes_unix(
     repo_root: &Path,
-    relative_path: &str,
+    relative_path: &Path,
     bytes: &[u8],
 ) -> Result<(), RepoRelativeMutationError> {
     use std::ffi::{CString, OsStr};
@@ -260,8 +537,6 @@ fn write_repo_relative_bytes_unix(
     use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd};
     use std::os::unix::ffi::OsStrExt;
 
-    let relative_path = validate_repo_relative_path(relative_path)
-        .map_err(RepoRelativeMutationError::InvalidPath)?;
     let components = normal_components(relative_path);
     let (target_name, parent_parts) = components.split_last().ok_or_else(|| {
         RepoRelativeMutationError::InvalidPath("path must not be empty".to_string())
@@ -544,14 +819,12 @@ fn write_repo_relative_bytes_unix(
 #[cfg(unix)]
 fn delete_repo_relative_file_unix(
     repo_root: &Path,
-    relative_path: &str,
+    relative_path: &Path,
 ) -> Result<(), RepoRelativeMutationError> {
     use std::ffi::{CString, OsStr};
     use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
     use std::os::unix::ffi::OsStrExt;
 
-    let relative_path = validate_repo_relative_path(relative_path)
-        .map_err(RepoRelativeMutationError::InvalidPath)?;
     let components: Vec<&OsStr> = relative_path
         .components()
         .filter_map(|component| match component {
@@ -683,10 +956,10 @@ fn delete_repo_relative_file_unix(
 #[cfg(not(unix))]
 fn write_repo_relative_bytes_fallback(
     repo_root: &Path,
-    relative_path: &str,
+    relative_path: &Path,
     bytes: &[u8],
 ) -> Result<(), RepoRelativeMutationError> {
-    let path = resolve_repo_relative_write_path(repo_root, relative_path)
+    let path = resolve_repo_relative_write_path_from_validated(repo_root, relative_path)
         .map_err(map_write_path_error_to_mutation_error)?;
     let parent = path.parent().ok_or_else(|| {
         RepoRelativeMutationError::InvalidPath("path must have a parent directory".to_string())
@@ -703,9 +976,9 @@ fn write_repo_relative_bytes_fallback(
 #[cfg(not(unix))]
 fn delete_repo_relative_file_fallback(
     repo_root: &Path,
-    relative_path: &str,
+    relative_path: &Path,
 ) -> Result<(), RepoRelativeMutationError> {
-    let path = resolve_repo_relative_write_path(repo_root, relative_path)
+    let path = resolve_repo_relative_write_path_from_validated(repo_root, relative_path)
         .map_err(map_write_path_error_to_mutation_error)?;
     match fs::remove_file(&path) {
         Ok(()) => Ok(()),
@@ -779,14 +1052,33 @@ pub(crate) fn read_bytes_no_follow(path: &Path) -> Result<Vec<u8>, std::io::Erro
 
 #[cfg(test)]
 mod tests {
-    use super::{delete_repo_relative_file, write_repo_relative_bytes, RepoRelativeMutationError};
+    use super::{CompilerWorkspace, RepoRelativeFileAccessError, RepoRelativeMutationError};
     use std::fs;
 
     #[test]
-    fn write_repo_relative_bytes_creates_missing_parent_chain() {
+    fn workspace_normalizes_repo_relative_paths() {
         let repo_root = tempfile::tempdir().expect("tempdir");
+        let workspace = CompilerWorkspace::new(repo_root.path());
 
-        write_repo_relative_bytes(repo_root.path(), "nested/path/output.txt", b"hello\n")
+        assert_eq!(
+            workspace
+                .normalize_repo_relative("./nested/./output.txt")
+                .expect("normalize repo-relative path")
+                .as_str(),
+            "nested/output.txt"
+        );
+    }
+
+    #[test]
+    fn workspace_write_bytes_creates_missing_parent_chain() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let workspace = CompilerWorkspace::new(repo_root.path());
+        let path = workspace
+            .normalize_repo_relative("nested/path/output.txt")
+            .expect("normalize repo-relative path");
+
+        workspace
+            .write_bytes(&path, b"hello\n")
             .expect("write bytes");
 
         assert_eq!(
@@ -798,13 +1090,76 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn write_repo_relative_bytes_rejects_symlinked_parent_chain() {
+    fn workspace_trusted_read_refuses_symlink_targets() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let external_root = tempfile::tempdir().expect("external tempdir");
+        let link_path = repo_root.path().join("nested/output.txt");
+        fs::create_dir_all(link_path.parent().expect("link parent")).expect("create parent");
+        fs::write(external_root.path().join("output.txt"), "outside\n").expect("seed outside");
+        std::os::unix::fs::symlink(external_root.path().join("output.txt"), &link_path)
+            .expect("symlink file");
+        let workspace = CompilerWorkspace::new(repo_root.path());
+        let path = workspace
+            .normalize_repo_relative("nested/output.txt")
+            .expect("normalize repo-relative path");
+
+        let err = workspace.trusted_read(&path).expect_err("symlink refusal");
+
+        assert!(
+            matches!(err, RepoRelativeFileAccessError::SymlinkNotAllowed(ref found) if found == &link_path),
+            "expected symlink refusal, got: {err:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trusted_repo_file_read_uses_no_follow_after_resolution() {
+        let repo_root = tempfile::tempdir().expect("tempdir");
+        let external_root = tempfile::tempdir().expect("external tempdir");
+        let file_path = repo_root.path().join("nested/output.txt");
+        fs::create_dir_all(file_path.parent().expect("file parent")).expect("create parent");
+        fs::write(&file_path, "inside\n").expect("seed repo file");
+        fs::write(external_root.path().join("output.txt"), "outside\n").expect("seed outside");
+
+        let workspace = CompilerWorkspace::new(repo_root.path());
+        let path = workspace
+            .normalize_repo_relative("nested/output.txt")
+            .expect("normalize repo-relative path");
+        let trusted_file = workspace.trusted_read(&path).expect("resolve regular file");
+
+        fs::remove_file(&file_path).expect("remove repo file");
+        std::os::unix::fs::symlink(external_root.path().join("output.txt"), &file_path)
+            .expect("replace repo file with symlink");
+
+        let err = trusted_file.read_string().expect_err("no-follow refusal");
+
+        assert_eq!(trusted_file.repo_relative().as_str(), "nested/output.txt");
+        assert_eq!(trusted_file.absolute_path(), file_path.as_path());
+        assert_eq!(
+            err.raw_os_error(),
+            Some(libc::ELOOP),
+            "expected O_NOFOLLOW refusal, got: {err}"
+        );
+        assert_eq!(
+            fs::read_to_string(external_root.path().join("output.txt")).expect("read outside"),
+            "outside\n"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_write_bytes_rejects_symlinked_parent_chain() {
         let repo_root = tempfile::tempdir().expect("tempdir");
         let external_root = tempfile::tempdir().expect("external tempdir");
         std::os::unix::fs::symlink(external_root.path(), repo_root.path().join("nested"))
             .expect("symlink parent");
+        let workspace = CompilerWorkspace::new(repo_root.path());
+        let path = workspace
+            .normalize_repo_relative("nested/output.txt")
+            .expect("normalize repo-relative path");
 
-        let err = write_repo_relative_bytes(repo_root.path(), "nested/output.txt", b"hello\n")
+        let err = workspace
+            .write_bytes(&path, b"hello\n")
             .expect_err("symlink refusal");
 
         assert!(
@@ -819,13 +1174,18 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn write_repo_relative_bytes_replaces_target_without_temp_leftovers() {
+    fn workspace_write_bytes_replaces_target_without_temp_leftovers() {
         let repo_root = tempfile::tempdir().expect("tempdir");
         let parent = repo_root.path().join("nested");
         fs::create_dir_all(&parent).expect("create parent");
         fs::write(parent.join("output.txt"), "before\n").expect("seed target");
+        let workspace = CompilerWorkspace::new(repo_root.path());
+        let path = workspace
+            .normalize_repo_relative("nested/output.txt")
+            .expect("normalize repo-relative path");
 
-        write_repo_relative_bytes(repo_root.path(), "nested/output.txt", b"after\n")
+        workspace
+            .write_bytes(&path, b"after\n")
             .expect("overwrite file");
 
         assert_eq!(
@@ -846,15 +1206,18 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn delete_repo_relative_file_rejects_symlinked_parent_chain() {
+    fn workspace_delete_file_rejects_symlinked_parent_chain() {
         let repo_root = tempfile::tempdir().expect("tempdir");
         let external_root = tempfile::tempdir().expect("external tempdir");
         fs::write(external_root.path().join("output.txt"), "outside\n").expect("seed outside");
         std::os::unix::fs::symlink(external_root.path(), repo_root.path().join("nested"))
             .expect("symlink parent");
+        let workspace = CompilerWorkspace::new(repo_root.path());
+        let path = workspace
+            .normalize_repo_relative("nested/output.txt")
+            .expect("normalize repo-relative path");
 
-        let err = delete_repo_relative_file(repo_root.path(), "nested/output.txt")
-            .expect_err("symlink refusal");
+        let err = workspace.delete_file(&path).expect_err("symlink refusal");
 
         assert!(
             matches!(err, RepoRelativeMutationError::SymlinkNotAllowed(_)),

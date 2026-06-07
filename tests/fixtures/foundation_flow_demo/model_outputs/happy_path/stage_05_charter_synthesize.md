@@ -1,6 +1,6 @@
 # Project Charter
 - Charter Ref: `CH-M4-FOUNDATION-2026-04`
-- Project: System
+- Project: Handbook
 - Owner: Platform Foundations
 - Team: Build Systems
 

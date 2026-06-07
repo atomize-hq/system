@@ -122,7 +122,7 @@ Legacy repo-file behavior:
 - `ENVIRONMENT_INVENTORY.md` is written to `${repo_root}/ENVIRONMENT_INVENTORY.md` and `artifacts/foundation/ENVIRONMENT_INVENTORY.md`
 
 Current reduced-v1 product note:
-- the shipped baseline canonical environment-inventory path is `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`, not the repo root
+- the shipped baseline canonical environment-inventory path is `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`, not the repo root
 
 ## Model output contracts (what the harness can parse)
 

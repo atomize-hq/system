@@ -1,4 +1,4 @@
-use system_compiler::{
+use handbook_compiler::{
     build_output_model, render_inspect, render_json, render_markdown, resolve, BudgetPolicy,
     ResolveRequest,
 };
@@ -11,7 +11,7 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
 }
 
 fn valid_charter_markdown() -> &'static str {
-    "# Engineering Charter — System
+    "# Engineering Charter — Handbook
 
 ## What this is
 Body.
@@ -60,14 +60,14 @@ Review monthly.
 }
 
 fn valid_project_context_markdown() -> &'static str {
-    "# Project Context — System
+    "# Project Context — Handbook
 
 > **File:** `PROJECT_CONTEXT.md`
 > **Created (UTC):** 2026-04-21T00:00:00Z
 > **Owner:** project-owner
-> **Team:** system-team
-> **Repo / Project:** /tmp/system
-> **Charter Ref:** .system/charter/CHARTER.md
+> **Team:** handbook-team
+> **Repo / Project:** /tmp/handbook
+> **Charter Ref:** .handbook/charter/CHARTER.md
 
 ## What this is
 Project reality.
@@ -86,7 +86,7 @@ Use this document to ground planning in reality.
 
 ## 3) System Boundaries (what we own vs integrate with)
 ### What we own
-- Canonical `.system/` truth.
+- Canonical `.handbook/` truth.
 ### What we do NOT own (but may depend on)
 - External delivery systems.
 
@@ -120,8 +120,8 @@ fn oversized_valid_project_context_markdown() -> String {
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
-> **Canonical File:** `.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.system/project_context/PROJECT_CONTEXT.md`
+> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
+> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -151,7 +151,7 @@ Canonical environment and runtime inventory.
 - None yet.
 
 ## 8) Update Contract (non-negotiable)
-- Update `.system/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
+- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.
 
 ## 9) Known Unknowns
 - None yet.
@@ -174,11 +174,11 @@ fn render_markdown_keeps_trust_header_first_for_ready_result() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -193,20 +193,20 @@ fn render_markdown_keeps_trust_header_first_for_ready_result() {
         [
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
         ]
     );
     assert_eq!(render_markdown(&model), rendered);
     assert!(rendered.contains("## PACKET OVERVIEW"));
     assert!(rendered.contains("PACKET VARIANT: planning.packet"));
     assert!(rendered.contains("## INCLUDED SOURCES"));
-    assert!(rendered.contains("Charter [.system/charter/CHARTER.md]"));
-    assert!(rendered.contains("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]"));
+    assert!(rendered.contains("Charter [.handbook/charter/CHARTER.md]"));
+    assert!(rendered.contains("FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]"));
     assert!(rendered.contains("## OMISSIONS AND BUDGET"));
     assert!(rendered.contains("## DECISION SUMMARY"));
     assert!(rendered.contains("## PACKET BODY"));
-    assert!(rendered.contains("### CHARTER (.system/charter/CHARTER.md)"));
-    assert!(rendered.contains("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)"));
+    assert!(rendered.contains("### CHARTER (.handbook/charter/CHARTER.md)"));
+    assert!(rendered.contains("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)"));
     assert!(
         !rendered.contains("render packet body once implemented"),
         "placeholder body text should be gone: {rendered}"
@@ -219,15 +219,15 @@ fn render_markdown_keeps_optional_project_context_in_order_when_present() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -236,20 +236,20 @@ fn render_markdown_keeps_optional_project_context_in_order_when_present() {
 
     let rendered = render_markdown(&model);
     let pos_charter = rendered
-        .find("### CHARTER (.system/charter/CHARTER.md)")
+        .find("### CHARTER (.handbook/charter/CHARTER.md)")
         .expect("charter section");
     let pos_context = rendered
-        .find("### PROJECT_CONTEXT (.system/project_context/PROJECT_CONTEXT.md)")
+        .find("### PROJECT_CONTEXT (.handbook/project_context/PROJECT_CONTEXT.md)")
         .expect("project context section");
     let pos_feature = rendered
-        .find("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)")
+        .find("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)")
         .expect("feature spec section");
 
     assert!(
         pos_charter < pos_context && pos_context < pos_feature,
         "expected section order charter -> project_context -> feature_spec: {rendered}"
     );
-    assert!(rendered.contains("ProjectContext [.system/project_context/PROJECT_CONTEXT.md]"));
+    assert!(rendered.contains("ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]"));
 }
 
 #[test]
@@ -258,13 +258,13 @@ fn render_markdown_omits_optional_feature_spec_starter_template_from_ready_packe
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
-        system_compiler::setup_starter_template_bytes(
-            system_compiler::CanonicalArtifactKind::FeatureSpec,
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
+        handbook_compiler::setup_starter_template_bytes(
+            handbook_compiler::CanonicalArtifactKind::FeatureSpec,
         ),
     );
 
@@ -273,11 +273,11 @@ fn render_markdown_omits_optional_feature_spec_starter_template_from_ready_packe
     let rendered = render_markdown(&model);
 
     assert!(rendered.contains("OUTCOME: READY"));
-    assert!(rendered.contains("Charter [.system/charter/CHARTER.md]"));
-    assert!(!rendered.contains("FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]"));
-    assert!(!rendered.contains("### FEATURE_SPEC (.system/feature_spec/FEATURE_SPEC.md)"));
+    assert!(rendered.contains("Charter [.handbook/charter/CHARTER.md]"));
+    assert!(!rendered.contains("FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]"));
+    assert!(!rendered.contains("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)"));
     assert!(rendered.contains(
-        "optional source omitted: .system/feature_spec/FEATURE_SPEC.md (shipped starter template)"
+        "optional source omitted: .handbook/feature_spec/FEATURE_SPEC.md (shipped starter template)"
     ));
 }
 
@@ -297,13 +297,13 @@ fn render_markdown_keeps_trust_header_first_for_refusal_result() {
         [
             "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system setup`",
+            "NEXT SAFE ACTION: run `handbook setup`",
         ]
     );
     assert!(rendered.contains("## REFUSAL"));
     assert!(rendered.contains("CATEGORY: SystemRootMissing"));
     assert!(rendered.contains("BROKEN SUBJECT: policy system_root"));
-    assert!(rendered.contains("NEXT SAFE ACTION: run `system setup`"));
+    assert!(rendered.contains("NEXT SAFE ACTION: run `handbook setup`"));
     assert!(
         !rendered.contains("## PACKET BODY"),
         "refusal output should stay compact: {rendered}"
@@ -316,11 +316,11 @@ fn render_json_is_deterministic_for_identical_models() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -344,11 +344,11 @@ fn render_json_redacts_packet_body_for_refused_live_execution_requests() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
 
@@ -377,14 +377,14 @@ fn render_json_does_not_mislabel_optional_read_error_as_omission() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
-    std::fs::create_dir_all(root.join(".system/project_context/PROJECT_CONTEXT.md"))
+    std::fs::create_dir_all(root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context dir");
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
@@ -396,7 +396,7 @@ fn render_json_does_not_mislabel_optional_read_error_as_omission() {
     assert!(rendered.contains("\"packet body omitted because request is not ready\""));
     assert!(rendered.contains("\"category\": \"ArtifactReadError\""));
     assert!(!rendered.contains(
-        "\"text\": \"optional source omitted: .system/project_context/PROJECT_CONTEXT.md\""
+        "\"text\": \"optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md\""
     ));
 }
 
@@ -406,11 +406,11 @@ fn render_inspect_is_deterministic_and_includes_json_fallback() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
 
@@ -426,18 +426,18 @@ fn render_inspect_is_deterministic_and_includes_json_fallback() {
         vec![
             "OUTCOME: READY",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `system generate --packet planning.packet`",
+            "NEXT SAFE ACTION: run `handbook generate --packet planning.packet`",
         ]
     );
     assert!(first.contains("## JSON FALLBACK"));
     assert!(first.contains("\"packet_id\": \"planning.packet\""));
     assert!(
-        !first.contains("run `system inspect --packet planning.packet` for proof"),
+        !first.contains("run `handbook inspect --packet planning.packet` for proof"),
         "inspect ready path should not loop back into inspect: {first}"
     );
     assert!(first.contains("## PACKET OVERVIEW"));
     assert!(first.contains("## PACKET BODY"));
-    assert!(first.contains("### CHARTER (.system/charter/CHARTER.md)"));
+    assert!(first.contains("### CHARTER (.handbook/charter/CHARTER.md)"));
 }
 
 #[test]
@@ -445,23 +445,23 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().join("tests/fixtures/execution_demo/basic");
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"demo feature",
     );
 
-    let request = system_compiler::ResolveRequest {
+    let request = handbook_compiler::ResolveRequest {
         packet_id: "execution.demo.packet",
         ..Default::default()
     };
@@ -474,25 +474,25 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
         vec![
             "OUTCOME: READY",
             "OBJECT: execution.demo.packet",
-            "NEXT SAFE ACTION: run `system inspect --packet execution.demo.packet --fixture-set basic` for proof",
+            "NEXT SAFE ACTION: run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof",
         ]
     );
     assert!(rendered.contains("## FIXTURE DEMO"));
     assert!(rendered.contains("MODE: fixture-backed execution demo"));
     assert!(rendered.contains("FIXTURE SET: basic"));
-    assert!(rendered.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.system/"));
+    assert!(rendered.contains("FIXTURE BASIS ROOT: tests/fixtures/execution_demo/basic/.handbook/"));
     assert!(rendered.contains("FIXTURE LINEAGE:"));
     assert_in_order(
         &rendered,
         &[
-            "1. Charter [.system/charter/CHARTER.md]",
-            "2. ProjectContext [.system/project_context/PROJECT_CONTEXT.md]",
-            "3. EnvironmentInventory [.system/environment_inventory/ENVIRONMENT_INVENTORY.md]",
-            "4. FeatureSpec [.system/feature_spec/FEATURE_SPEC.md]",
+            "1. Charter [.handbook/charter/CHARTER.md]",
+            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+            "4. FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]",
         ],
     );
-    assert!(rendered.contains("### CHARTER (.system/charter/CHARTER.md)"));
-    assert!(rendered.contains("# Engineering Charter — System"));
+    assert!(rendered.contains("### CHARTER (.handbook/charter/CHARTER.md)"));
+    assert!(rendered.contains("# Engineering Charter — Handbook"));
     assert!(rendered.contains("demo feature"));
 }
 
@@ -501,23 +501,23 @@ fn render_json_preserves_execution_demo_fixture_lineage_order() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().join("tests/fixtures/execution_demo/basic");
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"demo feature",
     );
 
-    let request = system_compiler::ResolveRequest {
+    let request = handbook_compiler::ResolveRequest {
         packet_id: "execution.demo.packet",
         ..Default::default()
     };
@@ -528,10 +528,10 @@ fn render_json_preserves_execution_demo_fixture_lineage_order() {
     assert_in_order(
         &rendered,
         &[
-            "\"canonical_repo_relative_path\": \".system/charter/CHARTER.md\"",
-            "\"canonical_repo_relative_path\": \".system/project_context/PROJECT_CONTEXT.md\"",
-            "\"canonical_repo_relative_path\": \".system/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
-            "\"canonical_repo_relative_path\": \".system/feature_spec/FEATURE_SPEC.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/charter/CHARTER.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/feature_spec/FEATURE_SPEC.md\"",
         ],
     );
 }
@@ -542,15 +542,15 @@ fn render_markdown_marks_budget_summarized_sections_without_leaking_body() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         oversized_valid_project_context_markdown().as_bytes(),
     );
 
@@ -568,7 +568,7 @@ fn render_markdown_marks_budget_summarized_sections_without_leaking_body() {
     let model = build_output_model(&result).expect("model");
 
     let rendered = render_markdown(&model);
-    assert!(rendered.contains("### PROJECT_CONTEXT (.system/project_context/PROJECT_CONTEXT.md)"));
+    assert!(rendered.contains("### PROJECT_CONTEXT (.handbook/project_context/PROJECT_CONTEXT.md)"));
     assert!(rendered.contains("MODE: summarized due to budget"));
     assert!(rendered.contains("budget summary: full contents omitted"));
     assert!(!rendered.contains(valid_project_context_markdown()));
@@ -580,15 +580,15 @@ fn render_markdown_omits_budget_excluded_optional_sections() {
     let root = dir.path();
 
     write_file(
-        &root.join(".system/charter/CHARTER.md"),
+        &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
     write_file(
-        &root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         oversized_valid_project_context_markdown().as_bytes(),
     );
 
@@ -606,9 +606,11 @@ fn render_markdown_omits_budget_excluded_optional_sections() {
     let model = build_output_model(&result).expect("model");
 
     let rendered = render_markdown(&model);
-    assert!(!rendered.contains("ProjectContext [.system/project_context/PROJECT_CONTEXT.md]"));
-    assert!(!rendered.contains("### PROJECT_CONTEXT (.system/project_context/PROJECT_CONTEXT.md)"));
+    assert!(!rendered.contains("ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]"));
+    assert!(
+        !rendered.contains("### PROJECT_CONTEXT (.handbook/project_context/PROJECT_CONTEXT.md)")
+    );
     assert!(rendered.contains(
-        "optional source excluded due to budget: .system/project_context/PROJECT_CONTEXT.md"
+        "optional source excluded due to budget: .handbook/project_context/PROJECT_CONTEXT.md"
     ));
 }

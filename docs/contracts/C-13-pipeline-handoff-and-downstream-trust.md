@@ -6,7 +6,7 @@ version: m5-v1
 currentness: current
 status: drafted
 revalidation_triggers:
-  - Any change to the rule that repo-local `.system/*` remains canonical project truth and `artifacts/*` remains derived.
+  - Any change to the rule that repo-local `.handbook/*` remains canonical project truth and `artifacts/*` remains derived.
   - Any change to the supported producer command or the named downstream consumer for this bundle.
   - Any change to the emitted bundle path, required files, or required trust metadata.
   - Any change to the trust-class enum or to the classification of `artifacts/feature_spec/FEATURE_SPEC.md`.
@@ -20,21 +20,21 @@ revalidation_triggers:
 
 `C-13` defines the derived downstream handoff bundle and trust model for:
 
-- `system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
+- `handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
 
 It exists so `M5` can prove one real downstream adoption flow from compiler outputs without treating derived artifacts as canonical project truth and without leaving the consumer's trust boundary informal.
 
 ## Canonical Location
 
 - Canonical artifact: `docs/contracts/C-13-pipeline-handoff-and-downstream-trust.md`
-- Producer command: `system pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
+- Producer command: `handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer`
 - Named downstream consumer: `feature-slice-decomposer`
 
 ## Owned Surface
 
 `C-13` is authoritative about:
 
-- the authority boundary between canonical `.system/*` truth and derived `artifacts/*` handoff outputs
+- the authority boundary between canonical `.handbook/*` truth and derived `artifacts/*` handoff outputs
 - the required bundle layout under `artifacts/handoff/feature_slice/<feature-id>/`
 - the trust classes attached to each file exposed to the named consumer
 - the allowlisted read set for the named consumer
@@ -46,7 +46,7 @@ It exists so `M5` can prove one real downstream adoption flow from compiler outp
 
 ### Authority boundary
 
-- Repo-local `.system/*` remains the canonical project-truth surface.
+- Repo-local `.handbook/*` remains the canonical project-truth surface.
 - `artifacts/*` remains derived, including `artifacts/handoff/**`.
 - The handoff bundle is a derived trust surface for one downstream adoption proof. It MUST NOT be treated as canonical truth.
 - `M5` proves one real downstream adoption flow. It MUST NOT use this bundle to justify canonical promotion or a generic consumer platform.
@@ -83,7 +83,7 @@ The trust-class enum for this bundle MUST be exactly:
 
 Trust classification rules:
 
-- repo-local `.system/*` sources referenced by the bundle MUST be labeled `canonical`
+- repo-local `.handbook/*` sources referenced by the bundle MUST be labeled `canonical`
 - compiler-emitted derived artifacts included in the bundle MUST be labeled `compiler_derived`
 - stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` MUST be labeled `external_manual_derived`
 - stage-10 `artifacts/feature_spec/FEATURE_SPEC.md` MUST be provenance-bound to the same stage-10 compile payload and route-basis result that the emitter validates before bundling it
@@ -98,7 +98,7 @@ The consumer MUST validate trust class per file from emitted trust metadata befo
 - the named consumer id, `feature-slice-decomposer`
 - the feature id / bundle root
 - producer version
-- the canonical `.system/*` sources the bundle was derived from, with fingerprints
+- the canonical `.handbook/*` sources the bundle was derived from, with fingerprints
 - the derived artifact sources exposed to the consumer, with fingerprints
 - route-basis provenance sufficient to bind the bundle to the upstream pipeline result
 - stage-10 compile provenance sufficient to prove the emitted `artifacts/feature_spec/FEATURE_SPEC.md` still matches the compile payload and route basis it was captured from
@@ -125,7 +125,7 @@ The consumer MUST validate trust class per file from emitted trust metadata befo
 
 ## Verification Checklist
 
-- [ ] `.system/*` remains canonical project truth.
+- [ ] `.handbook/*` remains canonical project truth.
 - [ ] `artifacts/*`, including `artifacts/handoff/**`, remain derived.
 - [ ] The emitted bundle path is `artifacts/handoff/feature_slice/<feature-id>/`.
 - [ ] The emitted bundle contains `handoff_manifest.json`, `trust_matrix.md`, `read_allowlist.json`, and `scorecard/*`.

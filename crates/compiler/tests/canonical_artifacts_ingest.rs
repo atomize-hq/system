@@ -1,4 +1,4 @@
-use system_compiler::{
+use handbook_compiler::{
     setup_starter_template_bytes, ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind,
     CanonicalArtifacts, SystemRootStatus,
 };
@@ -16,7 +16,7 @@ fn runtime_only_state_does_not_establish_system_root() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/state/pipeline/pipeline.foundation_inputs.yaml"),
+        &repo_root.join(".handbook/state/pipeline/pipeline.foundation_inputs.yaml"),
         b"pipeline_id: pipeline.foundation_inputs\n",
     );
 
@@ -37,7 +37,7 @@ fn charter_namespace_directory_establishes_partial_canonical_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/charter")).expect("mkdirs");
 
     let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
     assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
@@ -56,7 +56,7 @@ fn project_context_namespace_directory_establishes_partial_canonical_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/project_context")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/project_context")).expect("mkdirs");
 
     let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
     assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
@@ -75,7 +75,7 @@ fn feature_spec_namespace_directory_establishes_partial_canonical_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/feature_spec")).expect("mkdirs");
 
     let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
     assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
@@ -94,12 +94,12 @@ fn required_artifact_missing_is_reported_as_presence_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("mkdirs");
-    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/charter")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/feature_spec")).expect("mkdirs");
 
     // Only create FEATURE_SPEC; omit required CHARTER.
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
 
@@ -121,9 +121,9 @@ fn optional_missing_is_distinct_from_empty() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&repo_root.join(".handbook/charter/CHARTER.md"), b"charter");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
 
@@ -141,13 +141,13 @@ fn empty_means_exactly_zero_bytes() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&repo_root.join(".handbook/charter/CHARTER.md"), b"charter");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b"",
     );
 
@@ -168,13 +168,13 @@ fn whitespace_only_counts_as_non_empty() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&repo_root.join(".handbook/charter/CHARTER.md"), b"charter");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
     write_file(
-        &repo_root.join(".system/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
         b" \n\t",
     );
 
@@ -198,11 +198,11 @@ fn required_starter_template_is_detected_exactly() {
     let repo_root = dir.path();
 
     write_file(
-        &repo_root.join(".system/charter/CHARTER.md"),
+        &repo_root.join(".handbook/charter/CHARTER.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::Charter),
     );
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"completed feature spec",
     );
 
@@ -221,9 +221,9 @@ fn required_artifact_directory_is_recorded_as_read_error_and_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/charter/CHARTER.md")).expect("charter dir");
+    std::fs::create_dir_all(repo_root.join(".handbook/charter/CHARTER.md")).expect("charter dir");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
 
@@ -237,7 +237,7 @@ fn required_artifact_directory_is_recorded_as_read_error_and_missing() {
     assert!(
         artifacts.ingest_issues.iter().any(|issue| {
             issue.kind == ArtifactIngestIssueKind::CanonicalArtifactReadError
-                && issue.canonical_repo_relative_path == ".system/charter/CHARTER.md"
+                && issue.canonical_repo_relative_path == ".handbook/charter/CHARTER.md"
         }),
         "expected read-error ingest issue, got: {:?}",
         artifacts.ingest_issues
@@ -249,12 +249,12 @@ fn optional_artifact_directory_is_recorded_as_read_error_and_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    write_file(&repo_root.join(".system/charter/CHARTER.md"), b"charter");
+    write_file(&repo_root.join(".handbook/charter/CHARTER.md"), b"charter");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
-    std::fs::create_dir_all(repo_root.join(".system/project_context/PROJECT_CONTEXT.md"))
+    std::fs::create_dir_all(repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context dir");
 
     let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
@@ -268,7 +268,7 @@ fn optional_artifact_directory_is_recorded_as_read_error_and_missing() {
         artifacts.ingest_issues.iter().any(|issue| {
             issue.kind == ArtifactIngestIssueKind::CanonicalArtifactReadError
                 && issue.canonical_repo_relative_path
-                    == ".system/project_context/PROJECT_CONTEXT.md"
+                    == ".handbook/project_context/PROJECT_CONTEXT.md"
         }),
         "expected read-error ingest issue, got: {:?}",
         artifacts.ingest_issues
@@ -289,7 +289,7 @@ fn system_root_symlink_is_not_followed_and_is_reported() {
     write_file(&real_system.join("charter/CHARTER.md"), b"charter");
     write_file(&real_system.join("feature_spec/FEATURE_SPEC.md"), b"spec");
 
-    symlink(&real_system, repo_root.join(".system")).expect("symlink");
+    symlink(&real_system, repo_root.join(".handbook")).expect("symlink");
 
     let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
     assert_eq!(
@@ -314,14 +314,14 @@ fn canonical_artifact_symlink_is_not_followed_and_is_recorded_as_ingest_issue() 
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
 
-    std::fs::create_dir_all(repo_root.join(".system/charter")).expect("mkdirs");
-    std::fs::create_dir_all(repo_root.join(".system/feature_spec")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/charter")).expect("mkdirs");
+    std::fs::create_dir_all(repo_root.join(".handbook/feature_spec")).expect("mkdirs");
 
     let real = repo_root.join("real_charter.md");
     write_file(&real, b"charter");
-    symlink(&real, repo_root.join(".system/charter/CHARTER.md")).expect("symlink charter");
+    symlink(&real, repo_root.join(".handbook/charter/CHARTER.md")).expect("symlink charter");
     write_file(
-        &repo_root.join(".system/feature_spec/FEATURE_SPEC.md"),
+        &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"spec",
     );
 
@@ -334,7 +334,7 @@ fn canonical_artifact_symlink_is_not_followed_and_is_recorded_as_ingest_issue() 
     assert!(
         artifacts.ingest_issues.iter().any(|issue| {
             issue.kind == ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed
-                && issue.canonical_repo_relative_path == ".system/charter/CHARTER.md"
+                && issue.canonical_repo_relative_path == ".handbook/charter/CHARTER.md"
         }),
         "expected symlink ingest issue, got: {:?}",
         artifacts.ingest_issues

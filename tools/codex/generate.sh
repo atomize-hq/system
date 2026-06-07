@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SOURCE_ROOT="$ROOT_DIR/install/system-home"
+SOURCE_ROOT="$ROOT_DIR/install/handbook-home"
 
-tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/system-codex-generate.XXXXXX")"
+tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/handbook-codex-generate.XXXXXX")"
 cleanup() {
   rm -rf "$tmp_dir"
 }
@@ -54,11 +54,11 @@ assert_exact_file_set() {
   }
 }
 
-generated_root_skill_tmp="$tmp_dir/system-skill.md"
-generated_leaf_skill_tmp="$tmp_dir/system-charter-intake-skill.md"
+generated_root_skill_tmp="$tmp_dir/handbook-skill.md"
+generated_leaf_skill_tmp="$tmp_dir/handbook-charter-intake-skill.md"
 generated_root="$tmp_dir/.agents/skills"
-root_projection_tmp="$generated_root/system"
-leaf_projection_tmp="$generated_root/system-charter-intake"
+root_projection_tmp="$generated_root/handbook"
+leaf_projection_tmp="$generated_root/handbook-charter-intake"
 
 render_template "$SOURCE_ROOT/SKILL.md.tmpl" "$generated_root_skill_tmp"
 render_template "$SOURCE_ROOT/charter-intake/SKILL.md.tmpl" "$generated_leaf_skill_tmp"
@@ -80,6 +80,6 @@ EOF
 )"
 
 mkdir -p "$ROOT_DIR/.agents/skills"
-rm -rf "$ROOT_DIR/.agents/skills/system" "$ROOT_DIR/.agents/skills/system-charter-intake"
-cp -R "$root_projection_tmp" "$ROOT_DIR/.agents/skills/system"
-cp -R "$leaf_projection_tmp" "$ROOT_DIR/.agents/skills/system-charter-intake"
+rm -rf "$ROOT_DIR/.agents/skills/handbook" "$ROOT_DIR/.agents/skills/handbook-charter-intake"
+cp -R "$root_projection_tmp" "$ROOT_DIR/.agents/skills/handbook"
+cp -R "$leaf_projection_tmp" "$ROOT_DIR/.agents/skills/handbook-charter-intake"

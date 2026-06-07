@@ -41,7 +41,7 @@ pub fn install_foundation_inputs_repo() -> (tempfile::TempDir, PathBuf) {
 pub fn install_state_seed(repo_root: &Path, seed_name: &str) -> PathBuf {
     let source = committed_case_root().join("state_seeds").join(seed_name);
     let target = repo_root
-        .join(".system")
+        .join(".handbook")
         .join("state")
         .join("pipeline")
         .join(format!("{FOUNDATION_INPUTS_PIPELINE_ID}.yaml"));

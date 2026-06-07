@@ -54,6 +54,8 @@ done
   exit 1
 }
 
+fixture_root="$(cd "$fixture_root" && pwd -P)"
+
 case "$nested_cwd" in
   "")
     ;;
@@ -67,10 +69,25 @@ case "$nested_cwd" in
     ;;
 esac
 
-tmp_parent="$(mktemp -d "${TMPDIR:-/tmp}/system-fixture-checkout.XXXXXX")"
+tmp_parent="$(mktemp -d "${TMPDIR:-/tmp}/handbook-fixture-checkout.XXXXXX")"
 checkout_root="$tmp_parent/checkout"
 mkdir -p "$checkout_root"
-cp -R "$fixture_root"/. "$checkout_root"/
+
+copy_fixture_tree() {
+  local target_root="$1"
+  mkdir -p "$target_root"
+  cp -R "$fixture_root"/. "$target_root"/
+}
+
+copy_fixture_tree "$checkout_root"
+
+case "$fixture_root" in
+  */tests/fixtures/*)
+    preserved_root="$checkout_root/tests/fixtures/${fixture_root##*/tests/fixtures/}"
+    copy_fixture_tree "$preserved_root"
+    ;;
+esac
+
 mkdir -p "$checkout_root/.git"
 
 effective_cwd="$checkout_root"

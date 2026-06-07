@@ -16,10 +16,10 @@ This is NOT a setup guide and NOT a profile definition.
 
 ## Canonical location
 
-- **Canonical file:** `${repo_root}/.system/environment_inventory/ENVIRONMENT_INVENTORY.md`
+- **Canonical file:** `${repo_root}/.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
 
 You will output the document content once; the harness/orchestrator is responsible for writing
-the canonical `.system` file.
+the canonical `.handbook` file.
 
 ## Inputs
 
