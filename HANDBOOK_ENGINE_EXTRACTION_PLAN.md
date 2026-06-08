@@ -117,6 +117,12 @@ This must become a declared target contract rather than compiler logic frozen to
 
 ## Ordered Phases
 
+## Companion Slice Map
+
+Packetized spec/plan/tasks boundaries for Phases 1 through 5 live at:
+
+- `docs/specs/handbook-engine-extraction-slice-map.md`
+
 ## Phase 0: Freeze The Boundary Contract
 
 Goal:
@@ -440,6 +446,10 @@ cargo test -p handbook-compiler --test pipeline_state_store
 - recorded the ordered phase plan
 - recorded the pre-migration prerequisites
 - recorded the initial module classification
+
+### 2026-06-08
+
+- added the companion slice map for packet-sized spec/plan/tasks boundaries under `docs/specs/handbook-engine-extraction-slice-map.md`
 
 ## Open Questions
 
