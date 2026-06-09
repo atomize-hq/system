@@ -2,6 +2,7 @@ use crate::canonical_artifacts::{
     canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
     CanonicalArtifacts, SystemRootStatus, CANONICAL_ARTIFACT_ORDER,
 };
+use crate::layout::CanonicalLayout;
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
     RepoRelativeWritePathError,
@@ -161,6 +162,7 @@ fn build_setup_execution_plan(
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
         setup_mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
     })?;
+    let canonical_layout = CanonicalLayout::new(repo_root);
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
     validate_request(&artifacts, request, resolved_mode)?;
 
@@ -179,6 +181,7 @@ fn build_setup_execution_plan(
         .filter(|descriptor| descriptor.setup_scaffolded)
         .map(|descriptor| {
             plan_starter_action(
+                canonical_layout,
                 repo_root,
                 &artifacts,
                 &ingest_issue_paths,
@@ -323,6 +326,7 @@ fn validate_request(
 }
 
 fn plan_starter_action(
+    canonical_layout: CanonicalLayout<'_>,
     repo_root: &Path,
     artifacts: &CanonicalArtifacts,
     ingest_issue_paths: &BTreeSet<&'static str>,
@@ -331,6 +335,8 @@ fn plan_starter_action(
     rewrite: bool,
     repair_invalid_root: bool,
 ) -> Result<PlannedStarterAction, SetupRefusal> {
+    let relative_path = canonical_layout.artifact_relative_path(descriptor.kind);
+    debug_assert_eq!(relative_path, descriptor.relative_path);
     let artifact = match descriptor.kind {
         crate::CanonicalArtifactKind::Charter => &artifacts.charter,
         crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
@@ -345,19 +351,19 @@ fn plan_starter_action(
         return Ok(PlannedStarterAction {
             action: SetupAction {
                 label: SetupActionLabel::Preserved,
-                path: descriptor.relative_path.to_string(),
+                path: relative_path.to_string(),
             },
             mutation: None,
         });
     }
 
-    if (ingest_issue_paths.contains(descriptor.relative_path)
+    if (ingest_issue_paths.contains(relative_path)
         || matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
         || rewrite
         || resolved_mode == SetupMode::Init)
         && !repair_invalid_root
     {
-        validate_write_target(repo_root, descriptor.relative_path, resolved_mode)?;
+        validate_write_target(repo_root, relative_path, resolved_mode)?;
     }
 
     let label = if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
@@ -371,10 +377,10 @@ fn plan_starter_action(
     Ok(PlannedStarterAction {
         action: SetupAction {
             label,
-            path: descriptor.relative_path.to_string(),
+            path: relative_path.to_string(),
         },
         mutation: Some(PlannedMutation::Write {
-            path: descriptor.relative_path,
+            path: relative_path,
             bytes: setup_starter_template_bytes(descriptor.kind),
         }),
     })
@@ -415,7 +421,8 @@ fn apply_mutation(
 }
 
 fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), SetupRefusal> {
-    let system_root = repo_root.join(".handbook");
+    let canonical_layout = CanonicalLayout::new(repo_root);
+    let system_root = repo_root.join(canonical_layout.system_root_relative());
     let metadata = match fs::symlink_metadata(&system_root) {
         Ok(metadata) => metadata,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
