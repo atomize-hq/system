@@ -1,6 +1,7 @@
 use crate::artifact_manifest::{ArtifactManifest, ManifestInputs};
 use crate::canonical_artifacts::ArtifactPresence;
 use crate::declarative_roots::{is_canonical_declarative_path, DECLARATIVE_ROOT};
+use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{load_selected_pipeline_definition, supported_route_state_variables};
 use crate::pipeline_compile::{
     compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
@@ -292,7 +293,11 @@ pub fn emit_pipeline_handoff_bundle(
     })?;
 
     let feature_id = derive_feature_id(&feature_spec_body, &feature_spec_sha256);
-    let bundle_root = format!("artifacts/handoff/feature_slice/{feature_id}");
+    let bundle_root = RepoLayoutRoot::new(repo_root)
+        .handoff_bundle()
+        .feature_slice_bundle_root(&feature_id)
+        .as_str()
+        .to_string();
     let input_plans = build_input_copy_plans(&compile_result, &feature_spec_body)?;
 
     let canonical_manifest = ArtifactManifest::generate(repo_root, ManifestInputs::default())

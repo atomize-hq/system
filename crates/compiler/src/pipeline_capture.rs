@@ -1,3 +1,4 @@
+use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
     load_selected_pipeline_definition, load_stage_compile_definition,
     supported_route_state_variables, CompileStageDefinition, PipelineDefinition,
@@ -7,7 +8,7 @@ use crate::pipeline_compile::{compile_pipeline_stage, PipelineCompileRefusal};
 use crate::repo_file_access::{
     delete_repo_relative_file, read_bytes_no_follow_path, read_string_no_follow_path,
     resolve_repo_relative_write_path, validate_repo_relative_path, write_repo_relative_bytes,
-    RepoRelativeMutationError, RepoRelativeWritePathError,
+    NormalizedRepoRelativePath, RepoRelativeMutationError, RepoRelativeWritePathError,
 };
 use crate::route_state::{
     acquire_advisory_lock, effective_route_basis_run, load_route_state_with_supported_variables,
@@ -972,16 +973,20 @@ fn load_capture_cache(
         recovery: "retry with the capture id printed by `pipeline capture --preview`".to_string(),
     })?;
     let cache_relative_path =
-        capture_cache_repo_relative_path(capture_id).map_err(|reason| PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::MissingCaptureId,
-            summary: reason,
-            pipeline_id: None,
-            stage_id: None,
-            recovery: "retry with the capture id printed by `pipeline capture --preview`"
-                .to_string(),
+        capture_cache_repo_relative_path(repo_root, capture_id).map_err(|reason| {
+            PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::MissingCaptureId,
+                summary: reason,
+                pipeline_id: None,
+                stage_id: None,
+                recovery: "retry with the capture id printed by `pipeline capture --preview`"
+                    .to_string(),
+            }
         })?;
-    let cache_path = resolve_repo_relative_write_path(repo_root, &cache_relative_path)
-        .map_err(|source| classify_capture_cache_path_failure(&cache_relative_path, source))?;
+    let cache_path = resolve_repo_relative_write_path(repo_root, cache_relative_path.as_str())
+        .map_err(|source| {
+            classify_capture_cache_path_failure(cache_relative_path.as_str(), source)
+        })?;
     let contents = read_string_no_follow_path(&cache_path)
         .map_err(|source| classify_capture_cache_read_failure(&cache_path, capture_id, source))?;
     let cache_entry: PipelineCaptureCacheEntry =
@@ -1131,16 +1136,19 @@ fn delete_capture_cache(repo_root: &Path, capture_id: &str) -> Result<(), String
 }
 
 fn capture_cache_path(repo_root: &Path, capture_id: &str) -> Result<PathBuf, String> {
-    let relative_path = capture_cache_repo_relative_path(capture_id)?;
-    resolve_repo_relative_write_path(repo_root, &relative_path)
-        .map_err(|err| format_cache_path_error(&relative_path, err))
+    let relative_path = capture_cache_repo_relative_path(repo_root, capture_id)?;
+    resolve_repo_relative_write_path(repo_root, relative_path.as_str())
+        .map_err(|err| format_cache_path_error(relative_path.as_str(), err))
 }
 
-fn capture_cache_repo_relative_path(capture_id: &str) -> Result<String, String> {
+fn capture_cache_repo_relative_path(
+    repo_root: &Path,
+    capture_id: &str,
+) -> Result<NormalizedRepoRelativePath, String> {
     validate_capture_id(capture_id)?;
-    Ok(format!(
-        ".handbook/state/pipeline/capture/{capture_id}.yaml"
-    ))
+    Ok(RepoLayoutRoot::new(repo_root)
+        .capture_provenance()
+        .capture_cache_relative_path(capture_id))
 }
 
 fn validate_capture_id(capture_id: &str) -> Result<(), String> {

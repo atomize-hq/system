@@ -22,6 +22,7 @@ const RUNTIME_STATE_PIPELINE_DIR_RELATIVE: &str = ".handbook/state/pipeline";
 const CAPTURE_PROVENANCE_DIR_RELATIVE: &str = ".handbook/state/pipeline/stage_capture";
 #[cfg_attr(not(test), allow(dead_code))]
 const CAPTURE_CACHE_DIR_RELATIVE: &str = ".handbook/state/pipeline/capture";
+const HANDOFF_FEATURE_SLICE_DIR_RELATIVE: &str = "artifacts/handoff/feature_slice";
 
 pub(crate) fn canonical_artifact_relative_path(kind: CanonicalArtifactKind) -> &'static str {
     match kind {
@@ -67,6 +68,10 @@ impl<'a> RepoLayoutRoot<'a> {
 
     pub(crate) fn capture_provenance(self) -> CaptureProvenanceLayout<'a> {
         CaptureProvenanceLayout { repo_root: self }
+    }
+
+    pub(crate) fn handoff_bundle(self) -> HandoffBundleLayout<'a> {
+        HandoffBundleLayout { repo_root: self }
     }
 
     pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
@@ -142,10 +147,7 @@ impl<'a> RuntimeStateLayout<'a> {
             .expect("runtime-state root should stay repo-relative")
     }
 
-    pub(crate) fn route_state_relative_path(
-        self,
-        pipeline_id: &str,
-    ) -> NormalizedRepoRelativePath {
+    pub(crate) fn route_state_relative_path(self, pipeline_id: &str) -> NormalizedRepoRelativePath {
         self.workspace()
             .normalize_repo_relative(&format!(
                 "{RUNTIME_STATE_PIPELINE_DIR_RELATIVE}/{pipeline_id}.yaml"
@@ -198,5 +200,38 @@ impl<'a> CaptureProvenanceLayout<'a> {
         self.workspace()
             .normalize_repo_relative(self.capture_cache_root_relative())
             .expect("capture-cache root should stay repo-relative")
+    }
+
+    pub(crate) fn capture_cache_relative_path(
+        self,
+        capture_id: &str,
+    ) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(&format!("{CAPTURE_CACHE_DIR_RELATIVE}/{capture_id}.yaml"))
+            .expect("capture-cache path should stay repo-relative")
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HandoffBundleLayout<'a> {
+    repo_root: RepoLayoutRoot<'a>,
+}
+
+impl<'a> HandoffBundleLayout<'a> {
+    pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
+        self.repo_root.workspace()
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn feature_slice_root_relative(self) -> &'static str {
+        HANDOFF_FEATURE_SLICE_DIR_RELATIVE
+    }
+
+    pub(crate) fn feature_slice_bundle_root(self, feature_id: &str) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(&format!(
+                "{HANDOFF_FEATURE_SLICE_DIR_RELATIVE}/{feature_id}"
+            ))
+            .expect("handoff bundle root should stay repo-relative")
     }
 }
