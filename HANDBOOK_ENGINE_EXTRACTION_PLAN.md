@@ -117,11 +117,21 @@ This must become a declared target contract rather than compiler logic frozen to
 
 ## Ordered Phases
 
+This file remains the **phase-order authority**.
+
+Execution decomposition now follows the companion hierarchy:
+
+- **Phase** = the root-plan migration gate
+- **Slice** = the seam-sized unit that gets its own `spec.md` / `plan.md` / `tasks.md` triplet
+- **Implementation packet** = the one-session landing unit inside a slice
+
 ## Companion Slice Map
 
-Packetized spec/plan/tasks boundaries for Phases 1 through 5 live at:
+The Phase -> Slice -> Packet decomposition for Phases 1 through 5 lives at:
 
 - `docs/specs/handbook-engine-extraction-slice-map.md`
+
+That companion file is the naming and decomposition authority for slice triplets and packet execution boundaries.
 
 ## Phase 0: Freeze The Boundary Contract
 
@@ -140,7 +150,7 @@ Checklist:
 
 - [x] create the root extraction tracker
 - [ ] confirm this file is the active extraction authority
-- [ ] keep status/progress current as packets land
+- [ ] keep status/progress current as slices and packets land
 
 ## Phase 1: Parameterize Layout And Storage
 
@@ -413,7 +423,7 @@ These should not be forced into an early split without proving whether they are 
 
 ## Verification Wall
 
-Use this wall as the default extraction proof unless a smaller packet explicitly justifies a narrower subset:
+Use this wall as the default extraction proof unless a smaller slice or implementation packet explicitly justifies a narrower subset:
 
 ```bash
 cargo fmt --all -- --check
@@ -449,7 +459,7 @@ cargo test -p handbook-compiler --test pipeline_state_store
 
 ### 2026-06-08
 
-- added the companion slice map for packet-sized spec/plan/tasks boundaries under `docs/specs/handbook-engine-extraction-slice-map.md`
+- added the companion slice map for the Phase -> Slice -> Packet execution model under `docs/specs/handbook-engine-extraction-slice-map.md`
 
 ## Open Questions
 
