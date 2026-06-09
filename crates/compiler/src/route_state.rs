@@ -2,6 +2,7 @@ use crate::declarative_roots::{
     profile_file as profile_repo_file, profile_root, runner_file as runner_repo_file, runner_root,
     PROFILES_ROOT_DISPLAY, RUNNERS_ROOT_DISPLAY,
 };
+use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
     load_selected_pipeline_definition, supported_route_state_variables, PipelineDefinition,
 };
@@ -1970,12 +1971,10 @@ pub(crate) fn route_state_path(
     pipeline_id: &str,
 ) -> Result<PathBuf, &'static str> {
     validate_pipeline_id(pipeline_id)?;
-
-    Ok(repo_root
-        .join(".handbook")
-        .join("state")
-        .join("pipeline")
-        .join(format!("{pipeline_id}.yaml")))
+    let route_state_relative_path = RepoLayoutRoot::new(repo_root)
+        .runtime_state()
+        .route_state_relative_path(pipeline_id);
+    Ok(repo_root.join(route_state_relative_path.as_str()))
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -2018,7 +2017,9 @@ enum RuntimeStateResetEntryKind {
 
 pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
     let workspace = CompilerWorkspace::new(repo_root);
-    let state_root = inventory_root_path(&workspace, Path::new(".handbook/state"));
+    let runtime_state = RepoLayoutRoot::new(repo_root).runtime_state();
+    let state_root = runtime_state.state_root();
+    let state_root_relative = runtime_state.state_root_relative();
     let state_root_dir = match workspace.trusted_directory(&state_root) {
         Ok(directory) => directory,
         Err(RepoRelativeDirectoryAccessError::Missing(_)) => {
@@ -2029,19 +2030,19 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
         }
         Err(RepoRelativeDirectoryAccessError::SymlinkNotAllowed(path)) => {
             return Err(format!(
-                "runtime state root `.handbook/state` cannot be reset through symlink {}",
+                "runtime state root `{state_root_relative}` cannot be reset through symlink {}",
                 path.display()
             ));
         }
         Err(RepoRelativeDirectoryAccessError::NotDirectory(path)) => {
             return Err(format!(
-                "runtime state root `.handbook/state` is not a directory at {}",
+                "runtime state root `{state_root_relative}` is not a directory at {}",
                 path.display()
             ));
         }
         Err(RepoRelativeDirectoryAccessError::ReadFailure { path, source }) => {
             return Err(format!(
-                "failed to inspect runtime state root `.handbook/state` at {}: {source}",
+                "failed to inspect runtime state root `{state_root_relative}` at {}: {source}",
                 path.display()
             ));
         }
@@ -2049,7 +2050,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
     let mut entries = fs::read_dir(state_root_dir.absolute_path())
         .map_err(|source| {
             format!(
-                "failed to read runtime state root `.handbook/state` at {}: {source}",
+                "failed to read runtime state root `{state_root_relative}` at {}: {source}",
                 state_root_dir.absolute_path().display()
             )
         })?
@@ -2064,7 +2065,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
         .collect::<Result<Vec<_>, _>>()
         .map_err(|source| {
             format!(
-                "failed to enumerate runtime state root `.handbook/state` at {}: {source}",
+                "failed to enumerate runtime state root `{state_root_relative}` at {}: {source}",
                 state_root_dir.absolute_path().display()
             )
         })?;

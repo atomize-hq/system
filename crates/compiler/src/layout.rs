@@ -17,6 +17,11 @@ pub(crate) const CANONICAL_PROJECT_CONTEXT_NAMESPACE_DIR: &str = ".handbook/proj
 pub(crate) const CANONICAL_ENVIRONMENT_INVENTORY_NAMESPACE_DIR: &str =
     ".handbook/environment_inventory";
 pub(crate) const CANONICAL_FEATURE_SPEC_NAMESPACE_DIR: &str = ".handbook/feature_spec";
+pub(crate) const RUNTIME_STATE_ROOT_RELATIVE: &str = ".handbook/state";
+const RUNTIME_STATE_PIPELINE_DIR_RELATIVE: &str = ".handbook/state/pipeline";
+const CAPTURE_PROVENANCE_DIR_RELATIVE: &str = ".handbook/state/pipeline/stage_capture";
+#[cfg_attr(not(test), allow(dead_code))]
+const CAPTURE_CACHE_DIR_RELATIVE: &str = ".handbook/state/pipeline/capture";
 
 pub(crate) fn canonical_artifact_relative_path(kind: CanonicalArtifactKind) -> &'static str {
     match kind {
@@ -54,6 +59,14 @@ impl<'a> RepoLayoutRoot<'a> {
 
     pub(crate) fn canonical(self) -> CanonicalLayout<'a> {
         CanonicalLayout { repo_root: self }
+    }
+
+    pub(crate) fn runtime_state(self) -> RuntimeStateLayout<'a> {
+        RuntimeStateLayout { repo_root: self }
+    }
+
+    pub(crate) fn capture_provenance(self) -> CaptureProvenanceLayout<'a> {
+        CaptureProvenanceLayout { repo_root: self }
     }
 
     pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
@@ -106,5 +119,84 @@ impl<'a> CanonicalLayout<'a> {
         self.workspace()
             .normalize_repo_relative(self.namespace_dir(kind))
             .expect("canonical namespace path should stay repo-relative")
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RuntimeStateLayout<'a> {
+    repo_root: RepoLayoutRoot<'a>,
+}
+
+impl<'a> RuntimeStateLayout<'a> {
+    pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
+        self.repo_root.workspace()
+    }
+
+    pub(crate) fn state_root_relative(self) -> &'static str {
+        RUNTIME_STATE_ROOT_RELATIVE
+    }
+
+    pub(crate) fn state_root(self) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(self.state_root_relative())
+            .expect("runtime-state root should stay repo-relative")
+    }
+
+    pub(crate) fn route_state_relative_path(
+        self,
+        pipeline_id: &str,
+    ) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(&format!(
+                "{RUNTIME_STATE_PIPELINE_DIR_RELATIVE}/{pipeline_id}.yaml"
+            ))
+            .expect("runtime-state route-state path should stay repo-relative")
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CaptureProvenanceLayout<'a> {
+    repo_root: RepoLayoutRoot<'a>,
+}
+
+impl<'a> CaptureProvenanceLayout<'a> {
+    pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
+        self.repo_root.workspace()
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn stage_capture_root_relative(self) -> &'static str {
+        CAPTURE_PROVENANCE_DIR_RELATIVE
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn stage_capture_root(self) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(self.stage_capture_root_relative())
+            .expect("capture-provenance root should stay repo-relative")
+    }
+
+    pub(crate) fn stage_capture_provenance_relative_path(
+        self,
+        pipeline_id: &str,
+        stage_id: &str,
+    ) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(&format!(
+                "{CAPTURE_PROVENANCE_DIR_RELATIVE}/{pipeline_id}.{stage_id}.json"
+            ))
+            .expect("capture-provenance path should stay repo-relative")
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn capture_cache_root_relative(self) -> &'static str {
+        CAPTURE_CACHE_DIR_RELATIVE
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn capture_cache_root(self) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(self.capture_cache_root_relative())
+            .expect("capture-cache root should stay repo-relative")
     }
 }

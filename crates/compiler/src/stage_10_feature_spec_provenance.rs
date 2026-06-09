@@ -1,7 +1,9 @@
+use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{load_selected_pipeline_definition, load_stage_compile_definition};
 use crate::pipeline_compile::{render_pipeline_compile_payload, PipelineCompileResult};
 use crate::repo_file_access::{
     read_repo_relative_string, sha256_repo_relative_file, write_repo_relative_bytes,
+    NormalizedRepoRelativePath,
 };
 use crate::route_state::RouteBasis;
 use serde::{Deserialize, Serialize};
@@ -9,8 +11,6 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 
 pub(crate) const FEATURE_SPEC_ARTIFACT_PATH: &str = "artifacts/feature_spec/FEATURE_SPEC.md";
-pub(crate) const STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH: &str =
-    ".handbook/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 pub(crate) const STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION: &str =
     "m5-stage-10-feature-spec-capture-provenance-v1";
 
@@ -115,24 +115,22 @@ pub(crate) fn persist_stage_10_feature_spec_capture_provenance(
     repo_root: &Path,
     provenance: &Stage10FeatureSpecCaptureProvenance,
 ) -> Result<(), String> {
+    let provenance_path = stage_10_feature_spec_capture_provenance_path(repo_root);
     let bytes = serde_json::to_vec_pretty(provenance)
         .map_err(|err| format!("failed to serialize stage-10 capture provenance: {err}"))?;
-    write_repo_relative_bytes(
-        repo_root,
-        STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH,
-        &bytes,
-    )
-    .map_err(|err| format_repo_mutation_error(STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH, err))
+    write_repo_relative_bytes(repo_root, provenance_path.as_str(), &bytes)
+        .map_err(|err| format_repo_mutation_error(provenance_path.as_str(), err))
 }
 
 pub(crate) fn load_stage_10_feature_spec_capture_provenance(
     repo_root: &Path,
 ) -> Result<Stage10FeatureSpecCaptureProvenance, String> {
-    let body = read_repo_relative_string(repo_root, STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH)
-        .map_err(|err| {
+    let provenance_path = stage_10_feature_spec_capture_provenance_path(repo_root);
+    let body =
+        read_repo_relative_string(repo_root, provenance_path.as_str()).map_err(|err| {
             format!(
                 "stage-10 capture provenance is missing or unreadable at `{}`: {}",
-                STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH,
+                provenance_path.as_str(),
                 format_repo_file_access_error(&err)
             )
         })?;
@@ -140,7 +138,7 @@ pub(crate) fn load_stage_10_feature_spec_capture_provenance(
         serde_json::from_str(&body).map_err(|err| {
             format!(
                 "stage-10 capture provenance at `{}` is not valid JSON: {err}",
-                STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_PATH
+                provenance_path.as_str()
             )
         })?;
     validate_capture_provenance(&provenance)?;
@@ -226,6 +224,14 @@ fn normalize_compile_payload_for_provenance(payload: &str) -> String {
         normalized.push('\n');
     }
     normalized
+}
+
+fn stage_10_feature_spec_capture_provenance_path(
+    repo_root: &Path,
+) -> NormalizedRepoRelativePath {
+    RepoLayoutRoot::new(repo_root)
+        .capture_provenance()
+        .stage_capture_provenance_relative_path(SUPPORTED_PIPELINE_ID, SUPPORTED_STAGE_ID)
 }
 
 fn validate_supported_target(pipeline_id: &str, stage_id: &str) -> Result<(), String> {
