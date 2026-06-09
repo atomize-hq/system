@@ -1,6 +1,7 @@
 use super::{baseline_authoring_eligibility, BaselineAuthoringEligibility};
 use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
+use crate::layout::{RepoLayoutRoot, CANONICAL_ENVIRONMENT_INVENTORY_RELATIVE_PATH};
 use crate::repo_file_access::{
     resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
     RepoRelativeWritePathError,
@@ -12,10 +13,7 @@ use std::process::{Command, Output, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH: &str =
-    ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md";
-
-const ENVIRONMENT_INVENTORY_AUTHORING_LOCK_REPO_PATH: &str =
-    ".handbook/state/authoring/environment_inventory.lock";
+    CANONICAL_ENVIRONMENT_INVENTORY_RELATIVE_PATH;
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
     "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
@@ -98,6 +96,9 @@ pub fn author_environment_inventory(
     repo_root: impl AsRef<Path>,
 ) -> Result<AuthorEnvironmentInventoryResult, AuthorEnvironmentInventoryRefusal> {
     let repo_root = repo_root.as_ref();
+    let environment_inventory_layout = RepoLayoutRoot::new(repo_root)
+        .authoring()
+        .environment_inventory();
     let _ = prepare_environment_inventory_authoring_inputs(repo_root)?;
     let _lock = acquire_environment_inventory_authoring_lock(repo_root)?;
     let inputs = prepare_environment_inventory_authoring_inputs(repo_root)?;
@@ -105,12 +106,15 @@ pub fn author_environment_inventory(
     let markdown = synthesize_environment_inventory_markdown(repo_root, &inputs)?;
     write_repo_relative_bytes(
         repo_root,
-        CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH,
+        environment_inventory_layout.canonical_target().as_str(),
         markdown.as_bytes(),
     )
     .map_err(|err| AuthorEnvironmentInventoryRefusal {
         kind: AuthorEnvironmentInventoryRefusalKind::MutationRefused,
-        summary: format_repo_mutation_error(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, err),
+        summary: format_repo_mutation_error(
+            environment_inventory_layout.canonical_target_relative(),
+            err,
+        ),
         broken_subject: "canonical environment inventory write target".to_string(),
         next_safe_action:
             "repair the blocked canonical environment inventory path and retry `handbook author environment-inventory`"
@@ -118,7 +122,7 @@ pub fn author_environment_inventory(
     })?;
 
     Ok(AuthorEnvironmentInventoryResult {
-        canonical_repo_relative_path: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH,
+        canonical_repo_relative_path: environment_inventory_layout.canonical_target_relative(),
         bytes_written: markdown.len(),
     })
 }
@@ -226,6 +230,9 @@ fn validate_environment_inventory_authoring_preconditions(
     repo_root: &Path,
     artifacts: &CanonicalArtifacts,
 ) -> Result<(), AuthorEnvironmentInventoryRefusal> {
+    let environment_inventory_layout = RepoLayoutRoot::new(repo_root)
+        .authoring()
+        .environment_inventory();
     match artifacts.system_root_status {
         SystemRootStatus::Ok => {}
         SystemRootStatus::Missing => {
@@ -279,10 +286,12 @@ fn validate_environment_inventory_authoring_preconditions(
                 summary:
                     "canonical environment inventory truth already exists as valid non-starter truth; `handbook author environment-inventory` refuses to overwrite authored canonical truth"
                         .to_string(),
-                broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
+                broken_subject: environment_inventory_layout
+                    .canonical_target_relative()
+                    .to_string(),
                 next_safe_action: format!(
                     "inspect `{}` instead of rerunning `handbook author environment-inventory`",
-                    CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH
+                    environment_inventory_layout.canonical_target_relative()
                 ),
             });
         }
@@ -292,16 +301,24 @@ fn validate_environment_inventory_authoring_preconditions(
                 summary:
                     "canonical environment inventory truth is unreadable or path-invalid; repair it with `handbook setup refresh` before rerunning `handbook author environment-inventory`"
                         .to_string(),
-                broken_subject: CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH.to_string(),
+                broken_subject: environment_inventory_layout
+                    .canonical_target_relative()
+                    .to_string(),
                 next_safe_action: "run `handbook setup refresh`".to_string(),
             });
         }
     }
 
-    resolve_repo_relative_write_path(repo_root, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH)
+    resolve_repo_relative_write_path(
+        repo_root,
+        environment_inventory_layout.canonical_target().as_str(),
+    )
         .map_err(|err| AuthorEnvironmentInventoryRefusal {
             kind: AuthorEnvironmentInventoryRefusalKind::MutationRefused,
-            summary: format_repo_write_path_error(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, err),
+            summary: format_repo_write_path_error(
+                environment_inventory_layout.canonical_target_relative(),
+                err,
+            ),
             broken_subject: "canonical environment inventory write target".to_string(),
             next_safe_action:
                 "repair the blocked canonical environment inventory path and retry `handbook author environment-inventory`"
@@ -551,19 +568,24 @@ fn validate_synthesized_environment_inventory_markdown(
 fn acquire_environment_inventory_authoring_lock(
     repo_root: &Path,
 ) -> Result<EnvironmentInventoryAuthoringLockGuard, AuthorEnvironmentInventoryRefusal> {
-    let lock_path =
-        resolve_repo_relative_write_path(repo_root, ENVIRONMENT_INVENTORY_AUTHORING_LOCK_REPO_PATH)
-            .map_err(|err| AuthorEnvironmentInventoryRefusal {
-                kind: AuthorEnvironmentInventoryRefusalKind::MutationRefused,
-                summary: format_repo_write_path_error(
-                    ENVIRONMENT_INVENTORY_AUTHORING_LOCK_REPO_PATH,
-                    err,
-                ),
-                broken_subject: "environment inventory authoring lock".to_string(),
-                next_safe_action:
-                    "repair the blocked environment inventory authoring lock path and retry `handbook author environment-inventory`"
-                        .to_string(),
-            })?;
+    let environment_inventory_layout = RepoLayoutRoot::new(repo_root)
+        .authoring()
+        .environment_inventory();
+    let lock_path = resolve_repo_relative_write_path(
+        repo_root,
+        environment_inventory_layout.lock_path().as_str(),
+    )
+    .map_err(|err| AuthorEnvironmentInventoryRefusal {
+        kind: AuthorEnvironmentInventoryRefusalKind::MutationRefused,
+        summary: format_repo_write_path_error(
+            environment_inventory_layout.lock_relative_path(),
+            err,
+        ),
+        broken_subject: "environment inventory authoring lock".to_string(),
+        next_safe_action:
+            "repair the blocked environment inventory authoring lock path and retry `handbook author environment-inventory`"
+                .to_string(),
+    })?;
 
     if let Some(parent) = lock_path.parent() {
         std::fs::create_dir_all(parent)

@@ -5,6 +5,7 @@ use super::{
     AuthoringLockError, BaselineAuthoringEligibility, SystemRootAuthoringError,
 };
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
+use crate::layout::{RepoLayoutRoot, CANONICAL_CHARTER_RELATIVE_PATH};
 use crate::repo_file_access::write_repo_relative_bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -14,9 +15,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const CANONICAL_CHARTER_REPO_PATH: &str = ".handbook/charter/CHARTER.md";
+pub const CANONICAL_CHARTER_REPO_PATH: &str = CANONICAL_CHARTER_RELATIVE_PATH;
 pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".handbook/charter/CHARTER.md#exceptions";
-const CHARTER_AUTHORING_LOCK_REPO_PATH: &str = ".handbook/state/authoring/charter.lock";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const AUTHORING_METHOD_MARKDOWN: &str =
     include_str!("../../../../core/library/authoring/charter_authoring_method.md");
@@ -1202,14 +1202,15 @@ pub fn author_charter(
     input: &CharterStructuredInput,
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
+    let charter_layout = RepoLayoutRoot::new(repo_root).authoring().charter();
     preflight_author_charter_from_input(repo_root, input)?;
     let _lock =
-        acquire_authoring_lock(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH).map_err(
-            |err| match err {
+        acquire_authoring_lock(repo_root, charter_layout.lock_path().as_str()).map_err(|err| {
+            match err {
                 AuthoringLockError::WritePath(path_err) => AuthorCharterRefusal {
                     kind: AuthorCharterRefusalKind::MutationRefused,
                     summary: format_repo_write_path_error(
-                        CHARTER_AUTHORING_LOCK_REPO_PATH,
+                        charter_layout.lock_relative_path(),
                         path_err,
                     ),
                     broken_subject: "charter authoring lock".to_string(),
@@ -1228,23 +1229,27 @@ pub fn author_charter(
                         "wait for any in-progress `handbook author charter` run to finish or repair the lock path, then retry `handbook author charter`"
                             .to_string(),
                 },
-            },
-        )?;
+            }
+        })?;
     preflight_author_charter_from_input(repo_root, input)?;
 
     let markdown = compiler_owned_charter_markdown(input)?;
-    write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
-        .map_err(|err| AuthorCharterRefusal {
-            kind: AuthorCharterRefusalKind::MutationRefused,
-            summary: format_repo_mutation_error(CANONICAL_CHARTER_REPO_PATH, err),
-            broken_subject: "canonical charter write target".to_string(),
-            next_safe_action:
-                "repair the blocked canonical charter path and retry `handbook author charter`"
-                    .to_string(),
-        })?;
+    write_repo_relative_bytes(
+        repo_root,
+        charter_layout.canonical_target().as_str(),
+        markdown.as_bytes(),
+    )
+    .map_err(|err| AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::MutationRefused,
+        summary: format_repo_mutation_error(charter_layout.canonical_target_relative(), err),
+        broken_subject: "canonical charter write target".to_string(),
+        next_safe_action:
+            "repair the blocked canonical charter path and retry `handbook author charter`"
+                .to_string(),
+    })?;
 
     Ok(AuthorCharterResult {
-        canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,
+        canonical_repo_relative_path: charter_layout.canonical_target_relative(),
         bytes_written: markdown.len(),
     })
 }
@@ -1254,15 +1259,16 @@ pub fn author_charter_guided(
     input: &CharterStructuredInput,
 ) -> Result<AuthorCharterResult, AuthorCharterRefusal> {
     let repo_root = repo_root.as_ref();
+    let charter_layout = RepoLayoutRoot::new(repo_root).authoring().charter();
     validate_charter_structured_input(input)?;
     preflight_author_charter(repo_root)?;
     let _lock =
-        acquire_authoring_lock(repo_root, CHARTER_AUTHORING_LOCK_REPO_PATH).map_err(
-            |err| match err {
+        acquire_authoring_lock(repo_root, charter_layout.lock_path().as_str()).map_err(|err| {
+            match err {
                 AuthoringLockError::WritePath(path_err) => AuthorCharterRefusal {
                     kind: AuthorCharterRefusalKind::MutationRefused,
                     summary: format_repo_write_path_error(
-                        CHARTER_AUTHORING_LOCK_REPO_PATH,
+                        charter_layout.lock_relative_path(),
                         path_err,
                     ),
                     broken_subject: "charter authoring lock".to_string(),
@@ -1281,24 +1287,28 @@ pub fn author_charter_guided(
                         "wait for any in-progress `handbook author charter` run to finish or repair the lock path, then retry `handbook author charter`"
                             .to_string(),
                 },
-            },
-        )?;
+            }
+        })?;
     validate_charter_structured_input(input)?;
     preflight_author_charter(repo_root)?;
 
     let markdown = synthesize_charter_markdown(repo_root, input)?;
-    write_repo_relative_bytes(repo_root, CANONICAL_CHARTER_REPO_PATH, markdown.as_bytes())
-        .map_err(|err| AuthorCharterRefusal {
-            kind: AuthorCharterRefusalKind::MutationRefused,
-            summary: format_repo_mutation_error(CANONICAL_CHARTER_REPO_PATH, err),
-            broken_subject: "canonical charter write target".to_string(),
-            next_safe_action:
-                "repair the blocked canonical charter path and retry `handbook author charter`"
-                    .to_string(),
-        })?;
+    write_repo_relative_bytes(
+        repo_root,
+        charter_layout.canonical_target().as_str(),
+        markdown.as_bytes(),
+    )
+    .map_err(|err| AuthorCharterRefusal {
+        kind: AuthorCharterRefusalKind::MutationRefused,
+        summary: format_repo_mutation_error(charter_layout.canonical_target_relative(), err),
+        broken_subject: "canonical charter write target".to_string(),
+        next_safe_action:
+            "repair the blocked canonical charter path and retry `handbook author charter`"
+                .to_string(),
+    })?;
 
     Ok(AuthorCharterResult {
-        canonical_repo_relative_path: CANONICAL_CHARTER_REPO_PATH,
+        canonical_repo_relative_path: charter_layout.canonical_target_relative(),
         bytes_written: markdown.len(),
     })
 }
@@ -1320,6 +1330,7 @@ fn validate_authoring_preconditions(
     repo_root: &Path,
     artifacts: &CanonicalArtifacts,
 ) -> Result<(), AuthorCharterRefusal> {
+    let charter_layout = RepoLayoutRoot::new(repo_root).authoring().charter();
     match validate_system_root_for_authoring(artifacts) {
         Ok(()) => {}
         Err(SystemRootAuthoringError::Missing) => {
@@ -1372,10 +1383,10 @@ fn validate_authoring_preconditions(
                 summary:
                     "canonical charter truth already exists as valid non-starter truth; `handbook author charter` refuses to overwrite authored canonical truth"
                         .to_string(),
-                broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
+                broken_subject: charter_layout.canonical_target_relative().to_string(),
                 next_safe_action: format!(
                     "inspect `{}` instead of rerunning `handbook author charter`",
-                    CANONICAL_CHARTER_REPO_PATH
+                    charter_layout.canonical_target_relative()
                 ),
             });
         }
@@ -1385,22 +1396,21 @@ fn validate_authoring_preconditions(
                 summary:
                     "canonical charter truth is unreadable or path-invalid; repair it with `handbook setup refresh` before rerunning `handbook author charter`"
                         .to_string(),
-                broken_subject: CANONICAL_CHARTER_REPO_PATH.to_string(),
+                broken_subject: charter_layout.canonical_target_relative().to_string(),
                 next_safe_action: "run `handbook setup refresh`".to_string(),
             });
         }
     }
 
-    validate_canonical_write_target(repo_root, CANONICAL_CHARTER_REPO_PATH).map_err(|err| {
-        AuthorCharterRefusal {
+    validate_canonical_write_target(repo_root, charter_layout.canonical_target().as_str())
+        .map_err(|err| AuthorCharterRefusal {
             kind: AuthorCharterRefusalKind::MutationRefused,
-            summary: format_repo_write_path_error(CANONICAL_CHARTER_REPO_PATH, err),
+            summary: format_repo_write_path_error(charter_layout.canonical_target_relative(), err),
             broken_subject: "canonical charter write target".to_string(),
             next_safe_action:
                 "repair the blocked canonical charter path and retry `handbook author charter`"
                     .to_string(),
-        }
-    })?;
+        })?;
 
     Ok(())
 }

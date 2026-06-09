@@ -18,6 +18,12 @@ pub(crate) const CANONICAL_ENVIRONMENT_INVENTORY_NAMESPACE_DIR: &str =
     ".handbook/environment_inventory";
 pub(crate) const CANONICAL_FEATURE_SPEC_NAMESPACE_DIR: &str = ".handbook/feature_spec";
 pub(crate) const RUNTIME_STATE_ROOT_RELATIVE: &str = ".handbook/state";
+const AUTHORING_LOCK_ROOT_RELATIVE: &str = ".handbook/state/authoring";
+const CHARTER_AUTHORING_LOCK_RELATIVE_PATH: &str = ".handbook/state/authoring/charter.lock";
+const PROJECT_CONTEXT_AUTHORING_LOCK_RELATIVE_PATH: &str =
+    ".handbook/state/authoring/project_context.lock";
+const ENVIRONMENT_INVENTORY_AUTHORING_LOCK_RELATIVE_PATH: &str =
+    ".handbook/state/authoring/environment_inventory.lock";
 const RUNTIME_STATE_PIPELINE_DIR_RELATIVE: &str = ".handbook/state/pipeline";
 const CAPTURE_PROVENANCE_DIR_RELATIVE: &str = ".handbook/state/pipeline/stage_capture";
 #[cfg_attr(not(test), allow(dead_code))]
@@ -64,6 +70,10 @@ impl<'a> RepoLayoutRoot<'a> {
 
     pub(crate) fn runtime_state(self) -> RuntimeStateLayout<'a> {
         RuntimeStateLayout { repo_root: self }
+    }
+
+    pub(crate) fn authoring(self) -> AuthoringLayout<'a> {
+        AuthoringLayout { repo_root: self }
     }
 
     pub(crate) fn capture_provenance(self) -> CaptureProvenanceLayout<'a> {
@@ -233,5 +243,85 @@ impl<'a> HandoffBundleLayout<'a> {
                 "{HANDOFF_FEATURE_SLICE_DIR_RELATIVE}/{feature_id}"
             ))
             .expect("handoff bundle root should stay repo-relative")
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AuthoringLayout<'a> {
+    repo_root: RepoLayoutRoot<'a>,
+}
+
+impl<'a> AuthoringLayout<'a> {
+    pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
+        self.repo_root.workspace()
+    }
+
+    pub(crate) fn lock_root_relative(self) -> &'static str {
+        AUTHORING_LOCK_ROOT_RELATIVE
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn lock_root(self) -> NormalizedRepoRelativePath {
+        self.workspace()
+            .normalize_repo_relative(self.lock_root_relative())
+            .expect("authoring lock root should stay repo-relative")
+    }
+
+    pub(crate) fn charter(self) -> AuthoringArtifactLayout<'a> {
+        AuthoringArtifactLayout {
+            authoring: self,
+            kind: CanonicalArtifactKind::Charter,
+            lock_relative_path: CHARTER_AUTHORING_LOCK_RELATIVE_PATH,
+        }
+    }
+
+    pub(crate) fn project_context(self) -> AuthoringArtifactLayout<'a> {
+        AuthoringArtifactLayout {
+            authoring: self,
+            kind: CanonicalArtifactKind::ProjectContext,
+            lock_relative_path: PROJECT_CONTEXT_AUTHORING_LOCK_RELATIVE_PATH,
+        }
+    }
+
+    pub(crate) fn environment_inventory(self) -> AuthoringArtifactLayout<'a> {
+        AuthoringArtifactLayout {
+            authoring: self,
+            kind: CanonicalArtifactKind::EnvironmentInventory,
+            lock_relative_path: ENVIRONMENT_INVENTORY_AUTHORING_LOCK_RELATIVE_PATH,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AuthoringArtifactLayout<'a> {
+    authoring: AuthoringLayout<'a>,
+    kind: CanonicalArtifactKind,
+    lock_relative_path: &'static str,
+}
+
+impl<'a> AuthoringArtifactLayout<'a> {
+    pub(crate) fn canonical_target_relative(self) -> &'static str {
+        self.authoring
+            .repo_root
+            .canonical()
+            .artifact_relative_path(self.kind)
+    }
+
+    pub(crate) fn canonical_target(self) -> NormalizedRepoRelativePath {
+        self.authoring
+            .repo_root
+            .canonical()
+            .artifact_path(self.kind)
+    }
+
+    pub(crate) fn lock_relative_path(self) -> &'static str {
+        self.lock_relative_path
+    }
+
+    pub(crate) fn lock_path(self) -> NormalizedRepoRelativePath {
+        self.authoring
+            .workspace()
+            .normalize_repo_relative(self.lock_relative_path())
+            .expect("authoring lock path should stay repo-relative")
     }
 }

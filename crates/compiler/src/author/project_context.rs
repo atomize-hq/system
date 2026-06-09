@@ -5,6 +5,7 @@ use super::{
     SystemRootAuthoringError,
 };
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
+use crate::layout::{RepoLayoutRoot, CANONICAL_PROJECT_CONTEXT_RELATIVE_PATH};
 use crate::repo_file_access::write_repo_relative_bytes;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
@@ -12,11 +13,7 @@ use std::path::Path;
 use time::macros::format_description;
 use time::OffsetDateTime;
 
-pub const CANONICAL_PROJECT_CONTEXT_REPO_PATH: &str =
-    ".handbook/project_context/PROJECT_CONTEXT.md";
-
-const PROJECT_CONTEXT_AUTHORING_LOCK_REPO_PATH: &str =
-    ".handbook/state/authoring/project_context.lock";
+pub const CANONICAL_PROJECT_CONTEXT_REPO_PATH: &str = CANONICAL_PROJECT_CONTEXT_RELATIVE_PATH;
 const PROJECT_CONTEXT_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const NOW_UTC_FORMAT: &[time::format_description::FormatItem<'static>] =
@@ -1086,47 +1083,44 @@ pub fn author_project_context_from_input(
     input: &ProjectContextStructuredInput,
 ) -> Result<AuthorProjectContextResult, AuthorProjectContextRefusal> {
     let repo_root = repo_root.as_ref();
+    let project_context_layout = RepoLayoutRoot::new(repo_root).authoring().project_context();
     validate_project_context_structured_input(input)?;
     preflight_author_project_context(repo_root)?;
-    let _lock =
-        acquire_authoring_lock(repo_root, PROJECT_CONTEXT_AUTHORING_LOCK_REPO_PATH).map_err(
-            |err| match err {
-                AuthoringLockError::WritePath(path_err) => mutation_refusal(
-                    format_repo_write_path_error(
-                        PROJECT_CONTEXT_AUTHORING_LOCK_REPO_PATH,
-                        path_err,
-                    ),
-                    "project-context authoring lock",
-                    "repair the blocked project-context authoring lock path and retry `handbook author project-context`",
-                ),
-                AuthoringLockError::Io { lock_path, source } => mutation_refusal(
-                    format!(
-                        "failed to acquire exclusive project-context authoring lock at {}: {source}",
-                        lock_path.display()
-                    ),
-                    "project-context authoring lock",
-                    "wait for any in-progress `handbook author project-context` run to finish or repair the lock path, then retry `handbook author project-context`",
-                ),
-            },
-        )?;
+    let lock_result =
+        acquire_authoring_lock(repo_root, project_context_layout.lock_path().as_str());
+    let _lock = lock_result.map_err(|err| match err {
+        AuthoringLockError::WritePath(path_err) => mutation_refusal(
+            format_repo_write_path_error(project_context_layout.lock_relative_path(), path_err),
+            "project-context authoring lock",
+            "repair the blocked project-context authoring lock path and retry `handbook author project-context`",
+        ),
+        AuthoringLockError::Io { lock_path, source } => mutation_refusal(
+            format!(
+                "failed to acquire exclusive project-context authoring lock at {}: {source}",
+                lock_path.display()
+            ),
+            "project-context authoring lock",
+            "wait for any in-progress `handbook author project-context` run to finish or repair the lock path, then retry `handbook author project-context`",
+        ),
+    })?;
     preflight_author_project_context(repo_root)?;
 
     let markdown = render_project_context_markdown(input)?;
     write_repo_relative_bytes(
         repo_root,
-        CANONICAL_PROJECT_CONTEXT_REPO_PATH,
+        project_context_layout.canonical_target().as_str(),
         markdown.as_bytes(),
     )
     .map_err(|err| {
         mutation_refusal(
-            format_repo_mutation_error(CANONICAL_PROJECT_CONTEXT_REPO_PATH, err),
+            format_repo_mutation_error(project_context_layout.canonical_target_relative(), err),
             "canonical project context write target",
             "repair the blocked canonical project context path and retry `handbook author project-context`",
         )
     })?;
 
     Ok(AuthorProjectContextResult {
-        canonical_repo_relative_path: CANONICAL_PROJECT_CONTEXT_REPO_PATH,
+        canonical_repo_relative_path: project_context_layout.canonical_target_relative(),
         bytes_written: markdown.len(),
     })
 }
@@ -1135,6 +1129,7 @@ fn validate_authoring_preconditions(
     repo_root: &Path,
     artifacts: &CanonicalArtifacts,
 ) -> Result<(), AuthorProjectContextRefusal> {
+    let project_context_layout = RepoLayoutRoot::new(repo_root).authoring().project_context();
     match validate_system_root_for_authoring(artifacts) {
         Ok(()) => {}
         Err(SystemRootAuthoringError::Missing) => {
@@ -1189,10 +1184,10 @@ fn validate_authoring_preconditions(
                 summary:
                     "canonical project context truth already exists as valid non-starter truth; `handbook author project-context` refuses to overwrite authored canonical truth"
                         .to_string(),
-                broken_subject: CANONICAL_PROJECT_CONTEXT_REPO_PATH.to_string(),
+                broken_subject: project_context_layout.canonical_target_relative().to_string(),
                 next_safe_action: format!(
                     "inspect `{}` instead of rerunning `handbook author project-context`",
-                    CANONICAL_PROJECT_CONTEXT_REPO_PATH
+                    project_context_layout.canonical_target_relative()
                 ),
             });
         }
@@ -1202,16 +1197,16 @@ fn validate_authoring_preconditions(
                 summary:
                     "canonical project context truth is unreadable or path-invalid; repair it with `handbook setup refresh` before rerunning `handbook author project-context`"
                         .to_string(),
-                broken_subject: CANONICAL_PROJECT_CONTEXT_REPO_PATH.to_string(),
+                broken_subject: project_context_layout.canonical_target_relative().to_string(),
                 next_safe_action: "run `handbook setup refresh`".to_string(),
             });
         }
     }
 
-    validate_canonical_write_target(repo_root, CANONICAL_PROJECT_CONTEXT_REPO_PATH).map_err(
+    validate_canonical_write_target(repo_root, project_context_layout.canonical_target().as_str()).map_err(
         |err| {
             mutation_refusal(
-                format_repo_write_path_error(CANONICAL_PROJECT_CONTEXT_REPO_PATH, err),
+                format_repo_write_path_error(project_context_layout.canonical_target_relative(), err),
                 "canonical project context write target",
                 "repair the blocked canonical project context path and retry `handbook author project-context`",
             )
