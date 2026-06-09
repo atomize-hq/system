@@ -1,6 +1,5 @@
-use crate::repo_file_access::{
-    CompilerWorkspace, RepoRelativeFileAccessError, RepoRelativeMetadataReadError,
-};
+use crate::layout::{canonical_artifact_relative_path, CanonicalLayout};
+use crate::repo_file_access::{RepoRelativeFileAccessError, RepoRelativeMetadataReadError};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -16,14 +15,7 @@ pub enum CanonicalArtifactKind {
 
 impl CanonicalArtifactKind {
     pub(crate) fn relative_path(self) -> &'static str {
-        match self {
-            CanonicalArtifactKind::Charter => ".handbook/charter/CHARTER.md",
-            CanonicalArtifactKind::ProjectContext => ".handbook/project_context/PROJECT_CONTEXT.md",
-            CanonicalArtifactKind::EnvironmentInventory => {
-                ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
-            }
-            CanonicalArtifactKind::FeatureSpec => ".handbook/feature_spec/FEATURE_SPEC.md",
-        }
+        canonical_artifact_relative_path(self)
     }
 }
 
@@ -33,8 +25,6 @@ pub const CANONICAL_ARTIFACT_ORDER: [CanonicalArtifactKind; 4] = [
     CanonicalArtifactKind::EnvironmentInventory,
     CanonicalArtifactKind::FeatureSpec,
 ];
-
-const SYSTEM_ROOT_RELATIVE: &str = ".handbook";
 
 const CHARTER_TEMPLATE: &str = "\
 # Charter
@@ -118,8 +108,8 @@ pub struct CanonicalArtifactDescriptor {
 const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::Charter,
-        relative_path: ".handbook/charter/CHARTER.md",
-        namespace_dir: ".handbook/charter",
+        relative_path: crate::layout::CANONICAL_CHARTER_RELATIVE_PATH,
+        namespace_dir: crate::layout::CANONICAL_CHARTER_NAMESPACE_DIR,
         packet_required: true,
         baseline_required: true,
         setup_scaffolded: true,
@@ -127,8 +117,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::ProjectContext,
-        relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
-        namespace_dir: ".handbook/project_context",
+        relative_path: crate::layout::CANONICAL_PROJECT_CONTEXT_RELATIVE_PATH,
+        namespace_dir: crate::layout::CANONICAL_PROJECT_CONTEXT_NAMESPACE_DIR,
         packet_required: false,
         baseline_required: true,
         setup_scaffolded: true,
@@ -136,8 +126,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::EnvironmentInventory,
-        relative_path: ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
-        namespace_dir: ".handbook/environment_inventory",
+        relative_path: crate::layout::CANONICAL_ENVIRONMENT_INVENTORY_RELATIVE_PATH,
+        namespace_dir: crate::layout::CANONICAL_ENVIRONMENT_INVENTORY_NAMESPACE_DIR,
         packet_required: false,
         baseline_required: true,
         setup_scaffolded: true,
@@ -145,8 +135,8 @@ const CANONICAL_ARTIFACT_DESCRIPTORS: [CanonicalArtifactDescriptor; 4] = [
     },
     CanonicalArtifactDescriptor {
         kind: CanonicalArtifactKind::FeatureSpec,
-        relative_path: ".handbook/feature_spec/FEATURE_SPEC.md",
-        namespace_dir: ".handbook/feature_spec",
+        relative_path: crate::layout::CANONICAL_FEATURE_SPEC_RELATIVE_PATH,
+        namespace_dir: crate::layout::CANONICAL_FEATURE_SPEC_NAMESPACE_DIR,
         packet_required: false,
         baseline_required: false,
         setup_scaffolded: false,
@@ -218,10 +208,9 @@ pub struct CanonicalArtifacts {
 impl CanonicalArtifacts {
     pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, ArtifactIngestError> {
         let repo_root = repo_root.as_ref();
-        let workspace = CompilerWorkspace::new(repo_root);
-        let system_root = workspace
-            .normalize_repo_relative(SYSTEM_ROOT_RELATIVE)
-            .expect("canonical .handbook root should stay repo-relative");
+        let layout = CanonicalLayout::new(repo_root);
+        let workspace = layout.workspace();
+        let system_root = layout.system_root();
 
         let system_root_status = match workspace.metadata_no_follow(&system_root) {
             Ok(Some(meta)) => {
@@ -229,7 +218,7 @@ impl CanonicalArtifacts {
                     SystemRootStatus::SymlinkNotAllowed
                 } else if !meta.is_dir() {
                     SystemRootStatus::NotDir
-                } else if canonical_root_scaffold_exists(&workspace)? {
+                } else if canonical_root_scaffold_exists(layout)? {
                     SystemRootStatus::Ok
                 } else {
                     SystemRootStatus::Missing
@@ -246,23 +235,19 @@ impl CanonicalArtifacts {
         let (charter, project_context, environment_inventory, feature_spec) =
             match system_root_status {
                 SystemRootStatus::Ok => (
+                    load_one(layout, CanonicalArtifactKind::Charter, &mut ingest_issues),
                     load_one(
-                        &workspace,
-                        CanonicalArtifactKind::Charter,
-                        &mut ingest_issues,
-                    ),
-                    load_one(
-                        &workspace,
+                        layout,
                         CanonicalArtifactKind::ProjectContext,
                         &mut ingest_issues,
                     ),
                     load_one(
-                        &workspace,
+                        layout,
                         CanonicalArtifactKind::EnvironmentInventory,
                         &mut ingest_issues,
                     ),
                     load_one(
-                        &workspace,
+                        layout,
                         CanonicalArtifactKind::FeatureSpec,
                         &mut ingest_issues,
                     ),
@@ -298,21 +283,18 @@ impl CanonicalArtifacts {
 }
 
 fn canonical_root_scaffold_exists(
-    workspace: &CompilerWorkspace<'_>,
+    layout: CanonicalLayout<'_>,
 ) -> Result<bool, ArtifactIngestError> {
+    let workspace = layout.workspace();
     for kind in CANONICAL_ARTIFACT_ORDER {
-        let artifact_path = workspace
-            .normalize_repo_relative(kind.relative_path())
-            .expect("canonical artifact path should stay repo-relative");
+        let artifact_path = layout.artifact_path(kind);
         match workspace.metadata_no_follow(&artifact_path) {
             Ok(Some(_)) => return Ok(true),
             Ok(None) => {}
             Err(err) => return Err(artifact_ingest_read_failure(err)),
         }
 
-        let namespace_dir = workspace
-            .normalize_repo_relative(canonical_namespace_dir(kind))
-            .expect("canonical namespace path should stay repo-relative");
+        let namespace_dir = layout.namespace_dir_path(kind);
         match workspace.metadata_no_follow(&namespace_dir) {
             Ok(Some(meta)) if meta.is_dir() => return Ok(true),
             Ok(Some(_)) | Ok(None) => {}
@@ -321,13 +303,6 @@ fn canonical_root_scaffold_exists(
     }
 
     Ok(false)
-}
-
-fn canonical_namespace_dir(kind: CanonicalArtifactKind) -> &'static str {
-    kind.relative_path()
-        .rsplit_once('/')
-        .map(|(parent, _)| parent)
-        .expect("canonical artifact path should include parent directory")
 }
 
 #[derive(Debug)]
@@ -425,14 +400,13 @@ fn record_ingest_issue(
 }
 
 fn load_one(
-    workspace: &CompilerWorkspace<'_>,
+    layout: CanonicalLayout<'_>,
     kind: CanonicalArtifactKind,
     issues: &mut Vec<ArtifactIngestIssue>,
 ) -> CanonicalArtifact {
-    let relative_path = kind.relative_path();
-    let artifact_path = workspace
-        .normalize_repo_relative(relative_path)
-        .expect("canonical artifact path should stay repo-relative");
+    let workspace = layout.workspace();
+    let relative_path = layout.artifact_relative_path(kind);
+    let artifact_path = layout.artifact_path(kind);
 
     let descriptor = descriptor_for(kind);
 

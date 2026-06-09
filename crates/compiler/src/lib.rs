@@ -9,6 +9,9 @@ pub mod declarative_roots;
 pub mod doctor;
 pub mod error;
 pub mod freshness;
+// Keep the initial layout-owner seam compiler-internal until later slices
+// prove the reviewed outward API surface we actually want to freeze.
+mod layout;
 pub mod packet_result;
 pub mod pipeline;
 pub mod pipeline_capture;
