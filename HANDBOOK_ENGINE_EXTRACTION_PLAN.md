@@ -15,7 +15,8 @@ It exists to track:
 Current status:
 
 - research and seam mapping completed
-- no extraction implementation started yet
+- Phase 1 layout and storage parameterization completed through Slice 1.4
+- Phase 2 orchestration-target and template-resolution parameterization is the next execution gate
 - migration into Substrate is explicitly blocked until the prerequisite phases below are complete
 
 ## Objective
@@ -185,14 +186,14 @@ Primary files likely involved:
 
 Checklist:
 
-- [ ] design the typed layout object and its ownership boundary
-- [ ] inventory all reusable-internal references to `.handbook/**`
-- [ ] inventory all reusable-internal references to `.handbook/state/**`
-- [ ] move canonical artifact path ownership behind the layout seam
-- [ ] move route-state file ownership behind the layout seam
-- [ ] move stage-capture provenance file ownership behind the layout seam
-- [ ] move handoff bundle root ownership behind the layout seam
-- [ ] keep CLI/product wording out of the layout seam
+- [x] design the typed layout object and its ownership boundary
+- [x] inventory all reusable-internal references to `.handbook/**`
+- [x] inventory all reusable-internal references to `.handbook/state/**`
+- [x] move canonical artifact path ownership behind the layout seam
+- [x] move route-state file ownership behind the layout seam
+- [x] move stage-capture provenance file ownership behind the layout seam
+- [x] move handoff bundle root ownership behind the layout seam
+- [x] keep CLI/product wording out of the layout seam
 
 Exit criteria:
 
@@ -489,7 +490,7 @@ cargo test -p handbook-compiler --test pipeline_state_store
 
 Do not start the Substrate move until all of the following are true:
 
-- [ ] Phase 1 complete
+- [x] Phase 1 complete
 - [ ] Phase 2 complete
 - [ ] Phase 3 complete
 - [ ] Phase 4 complete
