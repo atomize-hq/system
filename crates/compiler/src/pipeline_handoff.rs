@@ -2,7 +2,9 @@ use crate::artifact_manifest::{ArtifactManifest, ManifestInputs};
 use crate::canonical_artifacts::ArtifactPresence;
 use crate::declarative_roots::{is_canonical_declarative_path, DECLARATIVE_ROOT};
 use crate::layout::RepoLayoutRoot;
-use crate::pipeline::{load_selected_pipeline_definition, supported_route_state_variables};
+use crate::pipeline::{
+    load_selected_pipeline_definition, supported_route_state_variables, SupportedTargetRegistry,
+};
 use crate::pipeline_compile::{
     compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
     PipelineCompileDocumentStatus, PipelineCompileRefusal, PipelineCompileRefusalClassification,
@@ -25,7 +27,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::Path;
 
-const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const SUPPORTED_CONSUMER_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
 const HANDOFF_SCHEMA_VERSION: &str = "m5-pipeline-handoff-v1";
@@ -219,18 +220,33 @@ struct InputCopyPlan {
     bytes: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SupportedHandoffTarget {
+    pipeline_id: String,
+    stage_id: String,
+    consumer_id: String,
+}
+
 pub fn emit_pipeline_handoff_bundle(
     repo_root: impl AsRef<Path>,
     request: &PipelineHandoffEmitRequest,
 ) -> Result<PipelineHandoffEmitResult, PipelineHandoffRefusal> {
     let repo_root = repo_root.as_ref();
-    validate_supported_consumer(&request.consumer_selector)?;
+    let registry = load_supported_handoff_target_registry_for_emit(repo_root)?;
+    let supported_target = supported_handoff_target(&registry);
+    validate_supported_consumer(&supported_target, &request.consumer_selector)?;
 
-    let compile_result =
-        compile_pipeline_stage(repo_root, &request.pipeline_selector, SUPPORTED_STAGE_ID)
-            .map_err(|refusal| map_compile_refusal(refusal, request.consumer_selector.trim()))?;
+    let compile_result = compile_pipeline_stage(
+        repo_root,
+        &request.pipeline_selector,
+        &supported_target.stage_id,
+    )
+    .map_err(|refusal| map_compile_refusal(refusal, request.consumer_selector.trim()))?;
     validate_supported_compile_target(
+        &registry,
+        &supported_target,
         &compile_result.target.pipeline_id,
+        &compile_result.target.stage_id,
         request.consumer_selector.trim(),
     )?;
 
@@ -242,9 +258,10 @@ pub fn emit_pipeline_handoff_bundle(
                 format_repo_file_access_error(&err)
             ),
             pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+            consumer_id: Some(supported_target.consumer_id.clone()),
             recovery: format!(
-                "capture `{SUPPORTED_STAGE_ID}` output before retrying `pipeline handoff emit`"
+                "capture `{}` output before retrying `pipeline handoff emit`",
+                supported_target.stage_id
             ),
         })?;
     let feature_spec_sha256 = sha256_repo_relative_file(repo_root, FEATURE_SPEC_ARTIFACT_PATH)
@@ -255,9 +272,10 @@ pub fn emit_pipeline_handoff_bundle(
                 format_repo_file_access_error(&err)
             ),
             pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+            consumer_id: Some(supported_target.consumer_id.clone()),
             recovery: format!(
-                "capture `{SUPPORTED_STAGE_ID}` output before retrying `pipeline handoff emit`"
+                "capture `{}` output before retrying `pipeline handoff emit`",
+                supported_target.stage_id
             ),
         })?;
     let current_capture_provenance = build_stage_10_feature_spec_capture_provenance(
@@ -269,7 +287,7 @@ pub fn emit_pipeline_handoff_bundle(
         classification: PipelineHandoffRefusalClassification::InvalidProvenance,
         summary: format!("failed to rebuild current stage-10 compile provenance: {reason}"),
         pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-        consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+        consumer_id: Some(supported_target.consumer_id.clone()),
         recovery: stage_10_provenance_recovery(),
     })?;
     let stored_capture_provenance = load_stage_10_feature_spec_capture_provenance(repo_root)
@@ -277,7 +295,7 @@ pub fn emit_pipeline_handoff_bundle(
             classification: PipelineHandoffRefusalClassification::InvalidProvenance,
             summary: reason,
             pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+            consumer_id: Some(supported_target.consumer_id.clone()),
             recovery: stage_10_provenance_recovery(),
         })?;
     validate_stage_10_feature_spec_capture_provenance_match(
@@ -288,7 +306,7 @@ pub fn emit_pipeline_handoff_bundle(
         classification: PipelineHandoffRefusalClassification::InvalidProvenance,
         summary: reason,
         pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-        consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+        consumer_id: Some(supported_target.consumer_id.clone()),
         recovery: stage_10_provenance_recovery(),
     })?;
 
@@ -305,7 +323,7 @@ pub fn emit_pipeline_handoff_bundle(
             classification: PipelineHandoffRefusalClassification::InvalidProvenance,
             summary: format!("failed to compute canonical artifact provenance: {err}"),
             pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-            consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+            consumer_id: Some(supported_target.consumer_id.clone()),
             recovery: "repair canonical artifact provenance and retry `pipeline handoff emit`"
                 .to_string(),
         })?;
@@ -338,7 +356,7 @@ pub fn emit_pipeline_handoff_bundle(
             version: request.producer_version.trim().to_string(),
         },
         pipeline_id: compile_result.target.pipeline_id.clone(),
-        consumer_id: SUPPORTED_CONSUMER_ID.to_string(),
+        consumer_id: supported_target.consumer_id.clone(),
         feature_id: feature_id.clone(),
         bundle_root: bundle_root.clone(),
         route_basis: PipelineHandoffRouteBasisProvenance {
@@ -456,6 +474,7 @@ pub fn validate_pipeline_handoff_bundle(
     bundle_root: &str,
 ) -> Result<PipelineHandoffValidatedBundle, PipelineHandoffValidationFailure> {
     let repo_root = repo_root.as_ref();
+    let registry = load_supported_handoff_target_registry_for_validation(repo_root)?;
     let bundle_root = bundle_root.trim();
     let normalized_bundle_root = normalize_repo_relative_path(bundle_root).map_err(|reason| {
         PipelineHandoffValidationFailure {
@@ -470,7 +489,7 @@ pub fn validate_pipeline_handoff_bundle(
         &bundle_repo_relative_path(bundle_root, "handoff_manifest.json"),
         "handoff manifest",
     )?;
-    validate_supported_manifest_target(&manifest)?;
+    validate_supported_manifest_target(&registry, &manifest)?;
     let normalized_manifest_bundle_root =
         normalize_bundle_root_from_metadata("handoff manifest", &manifest.bundle_root)?;
     if normalized_bundle_root != normalized_manifest_bundle_root {
@@ -666,49 +685,101 @@ fn render_pipeline_handoff_refusal_classification(
     }
 }
 
-fn validate_supported_consumer(consumer_selector: &str) -> Result<(), PipelineHandoffRefusal> {
+fn load_supported_handoff_target_registry_for_emit(
+    repo_root: &Path,
+) -> Result<SupportedTargetRegistry, PipelineHandoffRefusal> {
+    SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineHandoffRefusal {
+        classification: PipelineHandoffRefusalClassification::InvalidState,
+        summary: format!("failed to load supported target registry: {err}"),
+        pipeline_id: None,
+        consumer_id: None,
+        recovery: "fix the pipeline/stage definitions and retry `pipeline handoff emit`"
+            .to_string(),
+    })
+}
+
+fn load_supported_handoff_target_registry_for_validation(
+    repo_root: &Path,
+) -> Result<SupportedTargetRegistry, PipelineHandoffValidationFailure> {
+    SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineHandoffValidationFailure {
+        classification: PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+        summary: format!("failed to load supported target registry: {err}"),
+    })
+}
+
+fn supported_handoff_target(registry: &SupportedTargetRegistry) -> SupportedHandoffTarget {
+    let compile_target = registry.compile_target();
+    let pipeline_id = compile_target.pipeline.id.clone();
+    let stage_id = compile_target.stage.id.clone();
+    let consumer_id = registry
+        .consumers()
+        .find(|consumer| registry.supports_handoff_target(&pipeline_id, &stage_id, &consumer.id))
+        .expect("supported target registry must include one handoff consumer")
+        .id
+        .clone();
+
+    SupportedHandoffTarget {
+        pipeline_id,
+        stage_id,
+        consumer_id,
+    }
+}
+
+fn validate_supported_consumer(
+    supported_target: &SupportedHandoffTarget,
+    consumer_selector: &str,
+) -> Result<(), PipelineHandoffRefusal> {
     let consumer_selector = consumer_selector.trim();
-    if consumer_selector == SUPPORTED_CONSUMER_ID {
+    if consumer_selector == supported_target.consumer_id {
         Ok(())
     } else {
         Err(PipelineHandoffRefusal {
             classification: PipelineHandoffRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "M5 handoff emit currently supports only consumer `{SUPPORTED_CONSUMER_ID}`"
+                "M5 handoff emit currently supports only consumer `{}`",
+                supported_target.consumer_id
             ),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(supported_target.pipeline_id.clone()),
             consumer_id: Some(consumer_selector.to_string()),
             recovery: format!(
-                "retry with `handbook pipeline handoff emit --id {SUPPORTED_PIPELINE_ID} --consumer {SUPPORTED_CONSUMER_ID}`"
+                "retry with `handbook pipeline handoff emit --id {} --consumer {}`",
+                supported_target.pipeline_id, supported_target.consumer_id
             ),
         })
     }
 }
 
 fn validate_supported_compile_target(
+    registry: &SupportedTargetRegistry,
+    supported_target: &SupportedHandoffTarget,
     pipeline_id: &str,
+    stage_id: &str,
     consumer_id: &str,
 ) -> Result<(), PipelineHandoffRefusal> {
-    if pipeline_id == SUPPORTED_PIPELINE_ID && consumer_id == SUPPORTED_CONSUMER_ID {
+    if registry.supports_handoff_target(pipeline_id, stage_id, consumer_id) {
         Ok(())
     } else {
         Err(PipelineHandoffRefusal {
             classification: PipelineHandoffRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "M5 handoff emit currently supports only `{SUPPORTED_PIPELINE_ID}` -> `{SUPPORTED_CONSUMER_ID}`"
+                "M5 handoff emit currently supports only `{}` -> `{}`",
+                supported_target.pipeline_id, supported_target.consumer_id
             ),
             pipeline_id: Some(pipeline_id.to_string()),
             consumer_id: Some(consumer_id.to_string()),
             recovery: format!(
-                "retry with `handbook pipeline handoff emit --id {SUPPORTED_PIPELINE_ID} --consumer {SUPPORTED_CONSUMER_ID}`"
+                "retry with `handbook pipeline handoff emit --id {} --consumer {}`",
+                supported_target.pipeline_id, supported_target.consumer_id
             ),
         })
     }
 }
 
 fn validate_supported_manifest_target(
+    registry: &SupportedTargetRegistry,
     manifest: &PipelineHandoffManifest,
 ) -> Result<(), PipelineHandoffValidationFailure> {
+    let supported_target = supported_handoff_target(registry);
     if manifest.schema_version != HANDOFF_SCHEMA_VERSION {
         return Err(PipelineHandoffValidationFailure {
             classification:
@@ -719,8 +790,8 @@ fn validate_supported_manifest_target(
             ),
         });
     }
-    if manifest.pipeline_id != SUPPORTED_PIPELINE_ID
-        || manifest.consumer_id != SUPPORTED_CONSUMER_ID
+    if manifest.pipeline_id != supported_target.pipeline_id
+        || manifest.consumer_id != supported_target.consumer_id
     {
         return Err(PipelineHandoffValidationFailure {
             classification: PipelineHandoffValidationFailureClassification::UnsupportedTarget,
@@ -730,7 +801,11 @@ fn validate_supported_manifest_target(
             ),
         });
     }
-    if manifest.feature_spec_compile.stage_id != SUPPORTED_STAGE_ID {
+    if !registry.supports_handoff_target(
+        &manifest.pipeline_id,
+        &manifest.feature_spec_compile.stage_id,
+        &manifest.consumer_id,
+    ) {
         return Err(PipelineHandoffValidationFailure {
             classification: PipelineHandoffValidationFailureClassification::UnsupportedTarget,
             summary: format!(
