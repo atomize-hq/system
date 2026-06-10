@@ -3,6 +3,7 @@ mod charter_core;
 mod charter_shell;
 pub mod environment_inventory;
 mod environment_inventory_core;
+mod environment_inventory_shell;
 pub mod project_context;
 mod project_context_core;
 mod project_context_shell;
