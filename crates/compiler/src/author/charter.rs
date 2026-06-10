@@ -1,8 +1,10 @@
 use super::{
     acquire_authoring_lock, baseline_authoring_eligibility, canonical_artifact_identity,
     format_repo_mutation_error, format_repo_write_path_error, render_exit_status,
-    summarize_process_output, validate_canonical_write_target, validate_system_root_for_authoring,
-    AuthoringLockError, BaselineAuthoringEligibility, SystemRootAuthoringError,
+    summarize_process_output, template_library::resolve_shipped_template_library,
+    template_library::TemplateLibraryRequest, template_library::TemplateLibrarySelection,
+    validate_canonical_write_target, validate_system_root_for_authoring, AuthoringLockError,
+    BaselineAuthoringEligibility, SystemRootAuthoringError,
 };
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
 use crate::layout::{RepoLayoutRoot, CANONICAL_CHARTER_RELATIVE_PATH};
@@ -18,12 +20,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const CANONICAL_CHARTER_REPO_PATH: &str = CANONICAL_CHARTER_RELATIVE_PATH;
 pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".handbook/charter/CHARTER.md#exceptions";
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
-const AUTHORING_METHOD_MARKDOWN: &str =
-    include_str!("../../../../core/library/authoring/charter_authoring_method.md");
-const CHARTER_SYNTHESIZE_DIRECTIVE_MARKDOWN: &str =
-    include_str!("../../../../core/library/charter/charter_synthesize_directive.md");
-const CHARTER_TEMPLATE_MARKDOWN: &str =
-    include_str!("../../../../core/library/charter/charter.md.tmpl");
 // Tests can override the codex binary path without changing the shipped CLI surface.
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";
@@ -1831,13 +1827,20 @@ fn synthesize_charter_markdown(
 fn build_charter_synthesis_prompt(
     input: &CharterStructuredInput,
 ) -> Result<String, AuthorCharterRefusal> {
+    let selection = match resolve_shipped_template_library(TemplateLibraryRequest::CharterAuthoring)
+    {
+        TemplateLibrarySelection::Charter(selection) => selection,
+        TemplateLibrarySelection::EnvironmentInventory(_) => {
+            unreachable!("charter authoring must resolve charter template-library assets")
+        }
+    };
     let normalized_input = normalized_charter_structured_input(input);
     let structured_yaml = serde_yaml_bw::to_string(&normalized_input).map_err(|err| {
         synthesis_refusal(format!(
             "failed to serialize normalized charter inputs for synthesis: {err}"
         ))
     })?;
-    let sanitized_template = sanitize_charter_template(CHARTER_TEMPLATE_MARKDOWN);
+    let sanitized_template = sanitize_charter_template(selection.template().contents());
     if let Some(leaked_line) = find_charter_template_scaffold_line(&sanitized_template) {
         return Err(synthesis_refusal(format!(
             "sanitized charter template still contains author-facing scaffold: `{}`",
@@ -1848,11 +1851,11 @@ fn build_charter_synthesis_prompt(
     let mut prompt = String::new();
     writeln!(prompt, "# Repo-Owned Charter Authoring Method").unwrap();
     writeln!(prompt).unwrap();
-    writeln!(prompt, "{AUTHORING_METHOD_MARKDOWN}").unwrap();
+    writeln!(prompt, "{}", selection.authoring_method().contents()).unwrap();
     writeln!(prompt).unwrap();
     writeln!(prompt, "# Charter Synthesis Directive").unwrap();
     writeln!(prompt).unwrap();
-    writeln!(prompt, "{CHARTER_SYNTHESIZE_DIRECTIVE_MARKDOWN}").unwrap();
+    writeln!(prompt, "{}", selection.synthesize_directive().contents()).unwrap();
     writeln!(prompt).unwrap();
     writeln!(prompt, "# Sanitized charter.md.tmpl").unwrap();
     writeln!(prompt).unwrap();

@@ -1,6 +1,8 @@
 pub mod charter;
 pub mod environment_inventory;
 pub mod project_context;
+#[path = "../template_library.rs"]
+pub mod template_library;
 
 pub use charter::{
     author_charter, author_charter_guided, is_unusably_vague_charter_text,

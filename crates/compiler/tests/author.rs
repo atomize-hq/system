@@ -2,7 +2,13 @@ use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use handbook_compiler::author::{author_charter_guided, preflight_author_charter_from_input};
+use handbook_compiler::author::{
+    author_charter_guided, preflight_author_charter_from_input,
+    template_library::{
+        resolve_shipped_template_library, TemplateLibraryAsset, TemplateLibraryRequest,
+        TemplateLibrarySelection,
+    },
+};
 use handbook_compiler::{
     author_charter, author_environment_inventory, author_project_context_from_input,
     parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
@@ -796,6 +802,69 @@ fn guided_author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs
 }
 
 #[test]
+fn shipped_template_library_resolver_exposes_canonical_repo_relative_authoring_assets() {
+    let TemplateLibrarySelection::Charter(charter) =
+        resolve_shipped_template_library(TemplateLibraryRequest::CharterAuthoring)
+    else {
+        panic!("expected charter template-library selection");
+    };
+
+    assert_eq!(
+        charter.authoring_method().asset(),
+        TemplateLibraryAsset::CharterAuthoringMethod
+    );
+    assert_eq!(
+        charter.authoring_method().repo_relative_path(),
+        "core/library/authoring/charter_authoring_method.md"
+    );
+    assert!(charter
+        .authoring_method()
+        .contents()
+        .contains("Treat the completed structured input document as the source of truth"));
+    assert_eq!(
+        charter.synthesize_directive().repo_relative_path(),
+        "core/library/charter/charter_synthesize_directive.md"
+    );
+    assert!(charter
+        .synthesize_directive()
+        .contents()
+        .contains("Treat `CHARTER_INPUTS.yaml` as the source of truth."));
+    assert_eq!(
+        charter.template().repo_relative_path(),
+        "core/library/charter/charter.md.tmpl"
+    );
+
+    let TemplateLibrarySelection::EnvironmentInventory(environment_inventory) =
+        resolve_shipped_template_library(TemplateLibraryRequest::EnvironmentInventoryAuthoring)
+    else {
+        panic!("expected environment-inventory template-library selection");
+    };
+
+    assert_eq!(
+        environment_inventory.synthesize_directive().asset(),
+        TemplateLibraryAsset::EnvironmentInventorySynthesizeDirective
+    );
+    assert_eq!(
+        environment_inventory
+            .synthesize_directive()
+            .repo_relative_path(),
+        "core/library/environment_inventory/environment_inventory_directive.md"
+    );
+    assert_eq!(
+        environment_inventory.template().asset(),
+        TemplateLibraryAsset::EnvironmentInventoryTemplate
+    );
+    assert_eq!(
+        environment_inventory.template().repo_relative_path(),
+        "core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl"
+    );
+    assert!(environment_inventory
+        .template()
+        .contents()
+        .contains("# Environment Inventory"));
+}
+
+#[test]
 fn guided_author_charter_uses_codex_from_path_when_override_unset() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
@@ -1421,6 +1490,32 @@ fn author_environment_inventory_replaces_starter_template_and_writes_only_canoni
         .join("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
         .exists());
     assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_prompt_uses_repo_owned_assets_and_keeps_optional_context_local() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let expected_markdown = expected_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path()).expect("author environment inventory");
+    });
+
+    let prompt = std::fs::read_to_string(prompt_capture_path(dir.path())).expect("prompt capture");
+    assert!(prompt.contains("# Environment Inventory Synthesis Directive"));
+    assert!(prompt.contains(
+        "Canonical file reference: `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`"
+    ));
+    assert!(prompt.contains("Project context reference line: `None`"));
+    assert!(prompt.contains("## 1) Environment Variables (Inventory)"));
+    assert!(prompt
+        .contains("Do not describe any repo-root `ENVIRONMENT_INVENTORY.md` file as canonical."));
 }
 
 #[test]

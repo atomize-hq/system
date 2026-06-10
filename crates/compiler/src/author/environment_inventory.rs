@@ -1,4 +1,8 @@
-use super::{baseline_authoring_eligibility, BaselineAuthoringEligibility};
+use super::{
+    baseline_authoring_eligibility, template_library::resolve_shipped_template_library,
+    template_library::TemplateLibraryRequest, template_library::TemplateLibrarySelection,
+    BaselineAuthoringEligibility,
+};
 use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
 use crate::layout::{RepoLayoutRoot, CANONICAL_ENVIRONMENT_INVENTORY_RELATIVE_PATH};
@@ -18,11 +22,6 @@ const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR: &str =
     "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN";
 const AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL_ENV_VAR: &str =
     "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL";
-const ENVIRONMENT_INVENTORY_SYNTHESIZE_DIRECTIVE_MARKDOWN: &str = include_str!(
-    "../../../../core/library/environment_inventory/environment_inventory_directive.md"
-);
-const ENVIRONMENT_INVENTORY_TEMPLATE_MARKDOWN: &str =
-    include_str!("../../../../core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl");
 const PROCESS_SUMMARY_LINE_LIMIT: usize = 3;
 const PROCESS_SUMMARY_CHAR_LIMIT: usize = 600;
 const PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS: [&str; 5] = [
@@ -499,6 +498,16 @@ fn synthesize_environment_inventory_markdown(
 fn build_environment_inventory_synthesis_prompt(
     inputs: &EnvironmentInventorySynthesisInputs,
 ) -> String {
+    let selection = match resolve_shipped_template_library(
+        TemplateLibraryRequest::EnvironmentInventoryAuthoring,
+    ) {
+        TemplateLibrarySelection::EnvironmentInventory(selection) => selection,
+        TemplateLibrarySelection::Charter(_) => {
+            unreachable!(
+                "environment inventory authoring must resolve environment-inventory template-library assets"
+            )
+        }
+    };
     let project_context_ref = if inputs.project_context_markdown.is_some() {
         ".handbook/project_context/PROJECT_CONTEXT.md"
     } else {
@@ -507,7 +516,7 @@ fn build_environment_inventory_synthesis_prompt(
 
     let mut prompt = String::new();
     prompt.push_str("# Environment Inventory Synthesis Directive\n\n");
-    prompt.push_str(ENVIRONMENT_INVENTORY_SYNTHESIZE_DIRECTIVE_MARKDOWN);
+    prompt.push_str(selection.synthesize_directive().contents());
     prompt.push_str("\n\n# Canonical Write Contract\n\n");
     prompt.push_str("- Write only the canonical `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` content.\n");
     prompt.push_str(
@@ -516,7 +525,7 @@ fn build_environment_inventory_synthesis_prompt(
     prompt.push_str("- Do not mention artifact copies as canonical or as the store of record.\n");
     prompt.push_str("- `PROJECT_CONTEXT` is optional context for this authoring flow. If it is absent, continue from the charter alone.\n");
     prompt.push_str("\n# ENVIRONMENT_INVENTORY.md Template\n\n```md\n");
-    prompt.push_str(ENVIRONMENT_INVENTORY_TEMPLATE_MARKDOWN.trim());
+    prompt.push_str(selection.template().contents().trim());
     prompt.push_str("\n```\n\n");
     prompt.push_str("# Exact references that must be preserved verbatim\n\n");
     prompt.push_str(
