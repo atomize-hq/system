@@ -5,8 +5,10 @@ use std::sync::{Mutex, OnceLock};
 use handbook_compiler::author::{
     author_charter_guided, preflight_author_charter_from_input,
     template_library::{
-        resolve_shipped_template_library, TemplateLibraryAsset, TemplateLibraryRequest,
-        TemplateLibrarySelection,
+        resolve_shipped_template_library, resolve_template_library, CharterTemplateLibraryOverride,
+        EnvironmentInventoryTemplateLibraryOverride, TemplateLibraryAsset,
+        TemplateLibraryOverrideRequest, TemplateLibraryRequest, TemplateLibraryResolveErrorKind,
+        TemplateLibraryResolveRequest, TemplateLibrarySelection,
     },
 };
 use handbook_compiler::{
@@ -862,6 +864,220 @@ fn shipped_template_library_resolver_exposes_canonical_repo_relative_authoring_a
         .template()
         .contents()
         .contains("# Environment Inventory"));
+}
+
+#[test]
+fn template_library_resolver_accepts_valid_overrides_for_approved_asset_families() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    write_file(
+        &root.join("core/library/authoring/charter_authoring_method_alt.md"),
+        b"alt charter method
+",
+    );
+    write_file(
+        &root.join("core/library/charter/charter_synthesize_directive_alt.md"),
+        b"alt charter directive
+",
+    );
+    write_file(
+        &root.join("core/library/charter/charter_alt.md.tmpl"),
+        b"alt charter template
+",
+    );
+    write_file(
+        &root.join("core/library/environment_inventory/environment_inventory_directive_alt.md"),
+        b"alt environment inventory directive
+",
+    );
+    write_file(
+        &root.join("core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl"),
+        b"alt environment inventory template
+",
+    );
+
+    let charter_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new()
+            .with_authoring_method_repo_relative_path(
+                "core/library/authoring/charter_authoring_method_alt.md",
+            )
+            .with_synthesize_directive_repo_relative_path(
+                "core/library/charter/charter_synthesize_directive_alt.md",
+            )
+            .with_template_repo_relative_path("core/library/charter/charter_alt.md.tmpl"),
+    ));
+    let TemplateLibrarySelection::Charter(charter) =
+        resolve_template_library(root, &charter_request).expect("charter overrides")
+    else {
+        panic!("expected charter selection");
+    };
+    assert_eq!(
+        charter.authoring_method().repo_relative_path(),
+        "core/library/authoring/charter_authoring_method_alt.md"
+    );
+    assert_eq!(
+        charter.authoring_method().contents(),
+        "alt charter method
+"
+    );
+    assert_eq!(
+        charter.synthesize_directive().repo_relative_path(),
+        "core/library/charter/charter_synthesize_directive_alt.md"
+    );
+    assert_eq!(
+        charter.synthesize_directive().contents(),
+        "alt charter directive
+"
+    );
+    assert_eq!(
+        charter.template().repo_relative_path(),
+        "core/library/charter/charter_alt.md.tmpl"
+    );
+    assert_eq!(
+        charter.template().contents(),
+        "alt charter template
+"
+    );
+
+    let environment_request =
+        TemplateLibraryResolveRequest::new(TemplateLibraryRequest::EnvironmentInventoryAuthoring)
+            .with_override(TemplateLibraryOverrideRequest::EnvironmentInventory(
+                EnvironmentInventoryTemplateLibraryOverride::new()
+                    .with_synthesize_directive_repo_relative_path(
+                        "core/library/environment_inventory/environment_inventory_directive_alt.md",
+                    )
+                    .with_template_repo_relative_path(
+                        "core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl",
+                    ),
+            ));
+    let TemplateLibrarySelection::EnvironmentInventory(environment_inventory) =
+        resolve_template_library(root, &environment_request)
+            .expect("environment inventory overrides")
+    else {
+        panic!("expected environment inventory selection");
+    };
+    assert_eq!(
+        environment_inventory
+            .synthesize_directive()
+            .repo_relative_path(),
+        "core/library/environment_inventory/environment_inventory_directive_alt.md"
+    );
+    assert_eq!(
+        environment_inventory.synthesize_directive().contents(),
+        "alt environment inventory directive
+"
+    );
+    assert_eq!(
+        environment_inventory.template().repo_relative_path(),
+        "core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl"
+    );
+    assert_eq!(
+        environment_inventory.template().contents(),
+        "alt environment inventory template
+"
+    );
+}
+
+#[test]
+fn template_library_resolver_refuses_unsafe_override_paths_and_missing_files() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    let absolute_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new().with_template_repo_relative_path(
+            root.join("core/library/charter/charter.md.tmpl")
+                .display()
+                .to_string(),
+        ),
+    ));
+    let absolute_err = resolve_template_library(root, &absolute_request)
+        .expect_err("absolute override path should refuse");
+    assert_eq!(
+        absolute_err.kind,
+        TemplateLibraryResolveErrorKind::InvalidOverridePath
+    );
+    assert!(absolute_err.summary.contains("bounded repo-relative path"));
+
+    let traversal_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new()
+            .with_template_repo_relative_path("../outside/charter.md.tmpl"),
+    ));
+    let traversal_err = resolve_template_library(root, &traversal_request)
+        .expect_err("traversal override path should refuse");
+    assert_eq!(
+        traversal_err.kind,
+        TemplateLibraryResolveErrorKind::InvalidOverridePath
+    );
+    assert!(traversal_err.summary.contains("bounded repo-relative path"));
+
+    let missing_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new()
+            .with_template_repo_relative_path("core/library/charter/missing.md.tmpl"),
+    ));
+    let missing_err = resolve_template_library(root, &missing_request)
+        .expect_err("missing override should refuse");
+    assert_eq!(
+        missing_err.kind,
+        TemplateLibraryResolveErrorKind::MissingOverride
+    );
+    assert!(missing_err.summary.contains("is missing"));
+}
+
+#[test]
+fn template_library_resolver_refuses_override_family_and_asset_kind_mismatches() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    write_file(
+        &root.join("core/library/charter/charter_synthesize_directive_alt.md"),
+        b"alt charter directive
+",
+    );
+
+    let family_mismatch_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::EnvironmentInventory(
+        EnvironmentInventoryTemplateLibraryOverride::new().with_template_repo_relative_path(
+            "core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl",
+        ),
+    ));
+    let family_mismatch_err = resolve_template_library(root, &family_mismatch_request)
+        .expect_err("override family mismatch should refuse");
+    assert_eq!(
+        family_mismatch_err.kind,
+        TemplateLibraryResolveErrorKind::OverrideFamilyMismatch
+    );
+    assert!(family_mismatch_err
+        .summary
+        .contains("does not match resolver request"));
+
+    let asset_kind_mismatch_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new().with_template_repo_relative_path(
+            "core/library/charter/charter_synthesize_directive_alt.md",
+        ),
+    ));
+    let asset_kind_mismatch_err = resolve_template_library(root, &asset_kind_mismatch_request)
+        .expect_err("asset kind mismatch should refuse");
+    assert_eq!(
+        asset_kind_mismatch_err.kind,
+        TemplateLibraryResolveErrorKind::AssetKindMismatch
+    );
+    assert!(asset_kind_mismatch_err.summary.contains("must stay under"));
 }
 
 #[test]

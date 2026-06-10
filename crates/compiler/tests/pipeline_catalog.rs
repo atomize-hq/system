@@ -1,6 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use handbook_compiler::author::template_library::{
+    resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection,
+};
 use handbook_compiler::{
     load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
     load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
@@ -243,6 +246,16 @@ fn stage_library_inputs_remain_the_authoritative_declarative_source() {
     let root = repo_root();
     let pipeline = load_pipeline_definition(&root, "core/pipelines/foundation_inputs.yaml")
         .expect("foundation inputs pipeline");
+    let TemplateLibrarySelection::Charter(charter_defaults) =
+        resolve_shipped_template_library(TemplateLibraryRequest::CharterAuthoring)
+    else {
+        panic!("expected shipped charter defaults");
+    };
+    let TemplateLibrarySelection::EnvironmentInventory(environment_inventory_defaults) =
+        resolve_shipped_template_library(TemplateLibraryRequest::EnvironmentInventoryAuthoring)
+    else {
+        panic!("expected shipped environment inventory defaults");
+    };
 
     let charter_stage =
         load_stage_compile_definition(&root, &pipeline, "stage.05_charter_synthesize")
@@ -251,11 +264,14 @@ fn stage_library_inputs_remain_the_authoritative_declarative_source() {
         charter_stage.inputs.library,
         vec![
             CompileStageInput {
-                path: "core/library/charter/charter_synthesize_directive.md".to_string(),
+                path: charter_defaults
+                    .synthesize_directive()
+                    .repo_relative_path()
+                    .to_string(),
                 required: true,
             },
             CompileStageInput {
-                path: "core/library/charter/charter.md.tmpl".to_string(),
+                path: charter_defaults.template().repo_relative_path().to_string(),
                 required: true,
             },
         ]
@@ -268,7 +284,9 @@ fn stage_library_inputs_remain_the_authoritative_declarative_source() {
         .inputs
         .library
         .contains(&CompileStageInput {
-            path: "core/library/environment_inventory/environment_inventory_directive.md"
+            path: environment_inventory_defaults
+                .synthesize_directive()
+                .repo_relative_path()
                 .to_string(),
             required: true,
         }));
@@ -276,7 +294,10 @@ fn stage_library_inputs_remain_the_authoritative_declarative_source() {
         .inputs
         .library
         .contains(&CompileStageInput {
-            path: "core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl".to_string(),
+            path: environment_inventory_defaults
+                .template()
+                .repo_relative_path()
+                .to_string(),
             required: true,
         }));
 }

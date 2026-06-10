@@ -1,7 +1,7 @@
 use super::{
-    baseline_authoring_eligibility, template_library::resolve_shipped_template_library,
-    template_library::TemplateLibraryRequest, template_library::TemplateLibrarySelection,
-    BaselineAuthoringEligibility,
+    baseline_authoring_eligibility, template_library::resolve_template_library,
+    template_library::TemplateLibraryRequest, template_library::TemplateLibraryResolveRequest,
+    template_library::TemplateLibrarySelection, BaselineAuthoringEligibility,
 };
 use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
@@ -412,7 +412,7 @@ fn synthesize_environment_inventory_markdown(
     repo_root: &Path,
     inputs: &EnvironmentInventorySynthesisInputs,
 ) -> Result<String, AuthorEnvironmentInventoryRefusal> {
-    let prompt = build_environment_inventory_synthesis_prompt(inputs);
+    let prompt = build_environment_inventory_synthesis_prompt(repo_root, inputs)?;
     let output_path = synthesize_output_path();
     let codex_bin = std::env::var(AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN_ENV_VAR)
         .ok()
@@ -496,11 +496,18 @@ fn synthesize_environment_inventory_markdown(
 }
 
 fn build_environment_inventory_synthesis_prompt(
+    repo_root: &Path,
     inputs: &EnvironmentInventorySynthesisInputs,
-) -> String {
-    let selection = match resolve_shipped_template_library(
-        TemplateLibraryRequest::EnvironmentInventoryAuthoring,
-    ) {
+) -> Result<String, AuthorEnvironmentInventoryRefusal> {
+    let selection = match resolve_template_library(
+        repo_root,
+        &TemplateLibraryResolveRequest::new(TemplateLibraryRequest::EnvironmentInventoryAuthoring),
+    )
+    .map_err(|err| {
+        synthesis_refusal(format!(
+            "failed to resolve environment inventory authoring assets: {err}"
+        ))
+    })? {
         TemplateLibrarySelection::EnvironmentInventory(selection) => selection,
         TemplateLibrarySelection::Charter(_) => {
             unreachable!(
@@ -551,7 +558,7 @@ fn build_environment_inventory_synthesis_prompt(
     prompt.push_str(
         "\nReturn only the final `ENVIRONMENT_INVENTORY.md` markdown with all template placeholders resolved.\n",
     );
-    prompt
+    Ok(prompt)
 }
 
 fn validate_synthesized_environment_inventory_markdown(

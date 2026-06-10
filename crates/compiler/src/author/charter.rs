@@ -1,10 +1,11 @@
 use super::{
     acquire_authoring_lock, baseline_authoring_eligibility, canonical_artifact_identity,
     format_repo_mutation_error, format_repo_write_path_error, render_exit_status,
-    summarize_process_output, template_library::resolve_shipped_template_library,
-    template_library::TemplateLibraryRequest, template_library::TemplateLibrarySelection,
-    validate_canonical_write_target, validate_system_root_for_authoring, AuthoringLockError,
-    BaselineAuthoringEligibility, SystemRootAuthoringError,
+    summarize_process_output, template_library::resolve_template_library,
+    template_library::TemplateLibraryRequest, template_library::TemplateLibraryResolveRequest,
+    template_library::TemplateLibrarySelection, validate_canonical_write_target,
+    validate_system_root_for_authoring, AuthoringLockError, BaselineAuthoringEligibility,
+    SystemRootAuthoringError,
 };
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
 use crate::layout::{RepoLayoutRoot, CANONICAL_CHARTER_RELATIVE_PATH};
@@ -1743,7 +1744,7 @@ fn synthesize_charter_markdown(
 ) -> Result<String, AuthorCharterRefusal> {
     validate_charter_structured_input(input)?;
 
-    let prompt = build_charter_synthesis_prompt(input)?;
+    let prompt = build_charter_synthesis_prompt(repo_root, input)?;
     let output_path = synthesize_output_path();
     let codex_bin = std::env::var(AUTHOR_CHARTER_CODEX_BIN_ENV_VAR)
         .ok()
@@ -1825,10 +1826,16 @@ fn synthesize_charter_markdown(
 }
 
 fn build_charter_synthesis_prompt(
+    repo_root: &Path,
     input: &CharterStructuredInput,
 ) -> Result<String, AuthorCharterRefusal> {
-    let selection = match resolve_shipped_template_library(TemplateLibraryRequest::CharterAuthoring)
-    {
+    let selection = match resolve_template_library(
+        repo_root,
+        &TemplateLibraryResolveRequest::new(TemplateLibraryRequest::CharterAuthoring),
+    )
+    .map_err(|err| {
+        synthesis_refusal(format!("failed to resolve charter authoring assets: {err}"))
+    })? {
         TemplateLibrarySelection::Charter(selection) => selection,
         TemplateLibrarySelection::EnvironmentInventory(_) => {
             unreachable!("charter authoring must resolve charter template-library assets")
