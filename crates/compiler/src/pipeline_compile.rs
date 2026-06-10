@@ -2,7 +2,7 @@ use crate::declarative_roots::{is_profile_file, profile_file};
 use crate::pipeline::{
     load_selected_pipeline_definition, load_stage_compile_definition, CompileStageDefinition,
     CompileStageInput, CompileStageLoadError, CompileStageVariable, PipelineDefinition,
-    SelectedPipelineLoadError,
+    SelectedPipelineLoadError, SupportedTargetRegistry,
 };
 use crate::repo_file_access::{read_repo_relative_string, RepoRelativeFileAccessError};
 use crate::route_state::{
@@ -15,8 +15,6 @@ use std::path::{Component, Path, PathBuf};
 use time::macros::format_description;
 use time::OffsetDateTime;
 
-const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
-const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
 pub const PIPELINE_COMPILE_NOW_UTC_ENV_VAR: &str = "HANDBOOK_PIPELINE_COMPILE_NOW_UTC";
 const NOW_UTC_FORMAT: &[time::format_description::FormatItem<'static>] =
     format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
@@ -139,6 +137,8 @@ pub fn compile_pipeline_stage_with_runtime(
     runtime: &PipelineCompileRuntimeContext,
 ) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
     let repo_root = repo_root.as_ref();
+    let canonical_pipeline_id = SupportedTargetRegistry::canonical_compile_pipeline_id();
+    let canonical_stage_id = SupportedTargetRegistry::canonical_compile_stage_id();
     let pipeline = load_selected_pipeline_definition(repo_root, pipeline_selector).map_err(
         |err| match err {
             SelectedPipelineLoadError::Lookup(err) => PipelineCompileRefusal {
@@ -146,8 +146,7 @@ pub fn compile_pipeline_stage_with_runtime(
                 summary: err.to_string(),
                 pipeline_id: None,
                 stage_id: None,
-                recovery: "retry with the canonical pipeline id `pipeline.foundation_inputs`"
-                    .to_string(),
+                recovery: format!("retry with the canonical pipeline id `{canonical_pipeline_id}`"),
             },
             SelectedPipelineLoadError::Catalog(err) => PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::InvalidDefinition,
@@ -170,13 +169,13 @@ pub fn compile_pipeline_stage_with_runtime(
 
     let resolved_stage_id =
         resolve_stage_selector(&pipeline, stage_selector).map_err(|summary| {
-            let recovery = if pipeline.header.id == SUPPORTED_PIPELINE_ID
-                && stage_selector.trim() == SUPPORTED_STAGE_ID
+            let recovery = if pipeline.header.id == canonical_pipeline_id
+                && stage_selector.trim() == canonical_stage_id
             {
                 "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline"
                     .to_string()
             } else {
-                "retry with the canonical stage id `stage.10_feature_spec`".to_string()
+                format!("retry with the canonical stage id `{canonical_stage_id}`")
             };
             PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::UnsupportedTarget,
@@ -187,21 +186,36 @@ pub fn compile_pipeline_stage_with_runtime(
             }
         })?;
 
-    if pipeline.header.id != SUPPORTED_PIPELINE_ID || resolved_stage_id != SUPPORTED_STAGE_ID {
+    let registry =
+        SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineCompileRefusal {
+            classification: PipelineCompileRefusalClassification::InvalidDefinition,
+            summary: format!("failed to load supported target registry: {err}"),
+            pipeline_id: Some(pipeline.header.id.clone()),
+            stage_id: Some(resolved_stage_id.clone()),
+            recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
+        })?;
+    let supported_compile_target = registry.compile_target();
+
+    if registry
+        .resolve_compile_target(&pipeline.header.id, &resolved_stage_id)
+        .is_err()
+    {
         return Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "M2 compile currently supports only `{SUPPORTED_PIPELINE_ID}` + `{SUPPORTED_STAGE_ID}`"
+                "M2 compile currently supports only `{}` + `{}`",
+                supported_compile_target.pipeline.id, supported_compile_target.stage.id
             ),
             pipeline_id: Some(pipeline.header.id.clone()),
             stage_id: Some(resolved_stage_id),
             recovery: format!(
-                "retry with `pipeline compile --id {SUPPORTED_PIPELINE_ID} --stage {SUPPORTED_STAGE_ID}`"
+                "retry with `pipeline compile --id {} --stage {}`",
+                supported_compile_target.pipeline.id, supported_compile_target.stage.id
             ),
         });
     }
 
-    let stage_id = SUPPORTED_STAGE_ID.to_string();
+    let stage_id = supported_compile_target.stage.id.clone();
     let trusted_session = load_trusted_pipeline_session(repo_root, &pipeline).map_err(|err| {
         classify_trusted_pipeline_session_refusal(err, &pipeline.header.id, &stage_id)
     })?;
@@ -219,8 +233,13 @@ pub fn compile_pipeline_stage_with_runtime(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "L1".to_string());
-    let variable_values =
-        resolve_compile_variables(&route_basis, &stage_definition, &work_level, runtime)?;
+    let variable_values = resolve_compile_variables(
+        &pipeline.header.id,
+        &route_basis,
+        &stage_definition,
+        &work_level,
+        runtime,
+    )?;
     validate_required_variables(
         &pipeline.header.id,
         &stage_id,
@@ -234,6 +253,7 @@ pub fn compile_pipeline_stage_with_runtime(
     );
     let documents = assemble_documents(
         repo_root,
+        &pipeline.header.id,
         &stage_definition,
         &route_basis,
         &variable_values,
@@ -660,6 +680,7 @@ fn stale_basis_refusal(
 }
 
 fn resolve_compile_variables(
+    pipeline_id: &str,
     basis: &RouteBasis,
     stage_definition: &CompileStageDefinition,
     work_level: &str,
@@ -668,7 +689,7 @@ fn resolve_compile_variables(
     let now_utc = resolve_now_utc(runtime).map_err(|summary| PipelineCompileRefusal {
         classification: PipelineCompileRefusalClassification::InvalidState,
         summary,
-        pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+        pipeline_id: Some(pipeline_id.to_string()),
         stage_id: Some(stage_definition.id.clone()),
         recovery: "restore the compile runtime context and retry `pipeline compile`".to_string(),
     })?;
@@ -793,6 +814,7 @@ fn resolve_now_utc(runtime: &PipelineCompileRuntimeContext) -> Result<String, St
 
 fn assemble_documents(
     repo_root: &Path,
+    pipeline_id: &str,
     stage_definition: &CompileStageDefinition,
     basis: &RouteBasis,
     variables: &BTreeMap<String, String>,
@@ -819,6 +841,7 @@ fn assemble_documents(
         };
         documents.push(load_required_document(
             repo_root,
+            pipeline_id,
             &stage_definition.id,
             kind,
             &path,
@@ -829,6 +852,7 @@ fn assemble_documents(
     for input in &stage_definition.inputs.library {
         documents.push(load_declared_input(
             repo_root,
+            pipeline_id,
             &stage_definition.id,
             PipelineCompileDocumentKind::Library,
             input,
@@ -840,6 +864,7 @@ fn assemble_documents(
     for input in &stage_definition.inputs.artifacts {
         documents.push(load_declared_input(
             repo_root,
+            pipeline_id,
             &stage_definition.id,
             PipelineCompileDocumentKind::Artifact,
             input,
@@ -853,6 +878,7 @@ fn assemble_documents(
 
 fn load_required_document(
     repo_root: &Path,
+    pipeline_id: &str,
     stage_id: &str,
     kind: PipelineCompileDocumentKind,
     path: &str,
@@ -869,21 +895,21 @@ fn load_required_document(
         Err(DocumentLoadError::Missing) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::MissingRequiredInput,
             summary: format!("required compile-shaping input `{path}` is missing for `{stage_id}`"),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "restore the missing input and retry `pipeline compile`".to_string(),
         }),
         Err(DocumentLoadError::Empty) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::EmptyRequiredInput,
             summary: format!("required compile-shaping input `{path}` is empty for `{stage_id}`"),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "fill the required input and retry `pipeline compile`".to_string(),
         }),
         Err(DocumentLoadError::InvalidPath(reason)) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::InvalidDefinition,
             summary: format!("compile input path `{path}` is invalid: {reason}"),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "fix the stage definition and retry `pipeline compile`".to_string(),
         }),
@@ -893,7 +919,7 @@ fn load_required_document(
                 "failed to read compile input {}: {source}",
                 err_path.display()
             ),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "fix the unreadable input and retry `pipeline compile`".to_string(),
         }),
@@ -902,6 +928,7 @@ fn load_required_document(
 
 fn load_declared_input(
     repo_root: &Path,
+    pipeline_id: &str,
     stage_id: &str,
     kind: PipelineCompileDocumentKind,
     input: &CompileStageInput,
@@ -934,21 +961,21 @@ fn load_declared_input(
         Err(DocumentLoadError::Missing) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::MissingRequiredInput,
             summary: format!("required input `{path}` is missing for `{stage_id}`"),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "restore the required input and retry `pipeline compile`".to_string(),
         }),
         Err(DocumentLoadError::Empty) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::EmptyRequiredInput,
             summary: format!("required input `{path}` is empty for `{stage_id}`"),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "fill the required input and retry `pipeline compile`".to_string(),
         }),
         Err(DocumentLoadError::InvalidPath(reason)) => Err(PipelineCompileRefusal {
             classification: PipelineCompileRefusalClassification::InvalidDefinition,
             summary: format!("compile input path `{path}` is invalid: {reason}"),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "fix the stage definition and retry `pipeline compile`".to_string(),
         }),
@@ -958,7 +985,7 @@ fn load_declared_input(
                 "failed to read compile input {}: {source}",
                 err_path.display()
             ),
-            pipeline_id: Some(SUPPORTED_PIPELINE_ID.to_string()),
+            pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "fix the unreadable input and retry `pipeline compile`".to_string(),
         }),
