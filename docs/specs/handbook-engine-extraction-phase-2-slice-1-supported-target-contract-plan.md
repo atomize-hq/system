@@ -2,30 +2,34 @@
 
 ## Objective
 
-Land Packet 2.1.1 as a thin docs-only slice that freezes the supported-target contract without starting registry-owner work, runtime adoption, or template/library resolver work.
+Land Packet 2.1.2 as a thin docs-only slice that freezes `SupportedTargetRegistry` as the lookup-and-validation owner and records one hardcoded-target evidence ledger for the already-approved Packet 2.1.1 contract, without starting runtime adoption or template/library resolver work.
 
 Spec reference: [handbook-engine-extraction-phase-2-slice-1-supported-target-contract-spec.md](./handbook-engine-extraction-phase-2-slice-1-supported-target-contract-spec.md)
 
 ## Major Artifacts
 
-1. Supported target contract
-   - freezes `SupportedPipelineTarget`, `SupportedStageTarget`, and `SupportedConsumerTarget`
-   - freezes the allowed pairings for compile, capture, provenance, and handoff
+1. Packet 2.1.1 contract baseline
+   - preserves `SupportedPipelineTarget`, `SupportedStageTarget`, and `SupportedConsumerTarget`
+   - preserves the allowed pairings for compile, capture, provenance, and handoff
 
-2. Truth-model statement
-   - keeps pipeline/stage truth declarative catalog truth
-   - keeps consumer truth as code-owned validated defaults
+2. SupportedTargetRegistry ownership boundary
+   - freezes `SupportedTargetRegistry` as the lookup-and-validation owner
+   - keeps declarative pipeline/stage truth and consumer truth as code-owned validated defaults
 
-3. Boundary statement
-   - repeats that there is **no runtime adoption** in Packet 2.1.1
+3. Hardcoded-target evidence ledger
+   - covers compile, capture, stage-10 provenance, handoff, CLI help, and adjacent runtime-state evidence
+   - marks `route_state.rs` and CLI help as explicit non-owner surfaces
+
+4. Boundary statement
    - repeats that Slice 2.2 owns runtime adoption
-   - repeats that Slice 2.3 owns template/library resolver work
+   - repeats that Slice 2.3 stays template/library-only
+   - keeps Packet 2.1.2 docs-only and behavior-neutral
 
 ## Order
 
-### Packet 2.1.1 now: Freeze the typed target and consumer contract
+### Packet 2.1.1 already frozen: prerequisite contract baseline
 
-Why now:
+Why this remains the prerequisite:
 
 - later packets need stable supported-target vocabulary before they can safely add ownership or adoption details
 - the currently supported compile/capture/provenance/handoff wedge must be frozen once, in one authority set, before any follow-on packet uses it
@@ -38,11 +42,25 @@ Output:
 - one approved truth model: declarative pipeline/stage truth plus code-owned validated default consumers
 - one approved no-runtime-adoption boundary for Slice 2.1 Packet 2.1.1
 
-### Deferred after review: Packet 2.1.2, Slice 2.2, and Slice 2.3
+### Packet 2.1.2 now: Freeze registry owner and hardcoded-target evidence
+
+Why now:
+
+- the current supported wedge already exists in hardcoded runtime/help/state sites, but those sites do not yet have one frozen owner boundary
+- later runtime adoption needs one approved owner before code changes begin
+- `route_state.rs` and CLI help must be called explicit non-owner surfaces before Slice 2.2 starts using the registry
+
+Output:
+
+- one approved owner: `SupportedTargetRegistry`
+- one approved hardcoded-target evidence ledger covering compile, capture, stage-10 provenance, handoff, CLI help, and adjacent runtime-state evidence
+- one approved truth model: declarative pipeline/stage truth plus code-owned validated default consumers
+- one approved boundary: Slice 2.2 adopts the registry in runtime flows and Slice 2.3 stays template/library-only
+
+### Deferred after Packet 2.1.2: Slice 2.2 and Slice 2.3
 
 This plan intentionally does **not** perform those follow-on steps. It only keeps their boundaries explicit:
 
-- Packet 2.1.2 is where registry-owner and evidence-ledger wording may be added later
 - Slice 2.2 is where runtime adoption may happen later
 - Slice 2.3 is where template/library resolver work may happen later
 
@@ -55,26 +73,33 @@ Mitigation:
 - freeze the concrete live pairings already in scope today
 - freeze the three target types explicitly instead of describing them informally
 
-### Risk: Slice 2.1 leaks into registry-owner or evidence-ledger work
+### Risk: ownership stays ambiguous after Packet 2.1.2
 
 Mitigation:
 
-- keep Packet 2.1.1 limited to contract language only
-- treat Packet 2.1.2 as explicitly deferred follow-on work
+- name `SupportedTargetRegistry` explicitly as the owner
+- keep one hardcoded-target evidence ledger for the supported wedge instead of leaving ownership distributed
 
 ### Risk: Slice 2.1 leaks into Slice 2.2 runtime adoption
 
 Mitigation:
 
-- repeat that there is **no runtime adoption** in this packet
+- repeat that Slice 2.2 owns runtime adoption
 - keep the packet docs-only and behavior-neutral
 
 ### Risk: Slice 2.1 leaks into Slice 2.3 template/library work
 
 Mitigation:
 
-- keep template/library resolver work explicitly reserved for Slice 2.3
-- reject contract wording that exists only to solve resolver behavior
+- keep Slice 2.3 explicitly template/library-only
+- reject ownership wording that exists only to solve resolver behavior
+
+### Risk: route_state.rs or CLI help is mistaken for the long-term owner
+
+Mitigation:
+
+- record both surfaces inside the hardcoded-target evidence ledger
+- mark `route_state.rs` and CLI help as explicit non-owner surfaces
 
 ### Risk: the packet invents a declarative consumer schema too early
 
@@ -85,45 +110,56 @@ Mitigation:
 
 ## Verification Checkpoints
 
-### Checkpoint 1: Contract freeze complete
+### Checkpoint 1: Live hardcoded-target evidence ledger is complete
 
-Confirm the spec contains:
+Confirm live repo evidence covers:
 
-- `SupportedPipelineTarget`
-- `SupportedStageTarget`
-- `SupportedConsumerTarget`
-- `Allowed pairings`
-- `pipeline compile`
-- `pipeline capture`
-- `pipeline handoff emit`
+- `pipeline.foundation_inputs`
+- `stage.10_feature_spec`
+- `feature-slice-decomposer`
 
 Suggested verification:
 
 ```bash
-rg -n "SupportedPipelineTarget|SupportedStageTarget|SupportedConsumerTarget|Allowed pairings|pipeline compile|pipeline capture|pipeline handoff emit" docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-spec.md
+rg -n "pipeline\.foundation_inputs|stage\.10_feature_spec|feature-slice-decomposer" crates/compiler/src crates/cli/src
 ```
 
-### Checkpoint 2: Boundary freeze complete
+### Checkpoint 2: Owner boundary freeze complete
 
 Confirm the authority set contains:
 
-- `no runtime adoption`
+- `SupportedTargetRegistry`
+- `declarative pipeline/stage`
+- `code-owned validated defaults`
 - `Slice 2.2`
 - `Slice 2.3`
-- `Out of scope`
 
 Suggested verification:
 
 ```bash
-rg -n "no runtime adoption|Slice 2\.2|Slice 2\.3|Out of scope" docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-spec.md docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-plan.md docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-tasks.md
+rg -n "SupportedTargetRegistry|declarative pipeline/stage|code-owned validated defaults|Slice 2\.2|Slice 2\.3" docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-spec.md docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-plan.md docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-tasks.md
+```
+
+### Checkpoint 3: Non-owner surface freeze complete
+
+Confirm the authority set contains:
+
+- `route_state.rs`
+- `CLI help`
+- `hardcoded-target evidence`
+
+Suggested verification:
+
+```bash
+rg -n "route_state\.rs|CLI help|hardcoded-target evidence" docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-spec.md docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-plan.md docs/specs/handbook-engine-extraction-phase-2-slice-1-supported-target-contract-tasks.md
 ```
 
 ## Exit Conditions
 
-Packet 2.1.1 is ready for human review when:
+Packet 2.1.2 is ready for human review when:
 
-- the supported-target contract is explicit enough that later work does not need to rename or rediscover the target vocabulary
-- the allowed pairings are frozen clearly enough for later runtime adoption
+- the Packet 2.1.1 supported-target contract stays explicit enough that later work does not need to rename or rediscover the target vocabulary
+- `SupportedTargetRegistry` is frozen clearly enough that later runtime adoption does not need to rediscover ownership
 - the truth model clearly separates declarative pipeline/stage truth from code-owned validated default consumers
-- the docs clearly state there is **no runtime adoption** in this packet
-- any Packet 2.1.2, Slice 2.2, and Slice 2.3 work is clearly deferred rather than partially started
+- the docs clearly state that `route_state.rs` and CLI help are non-owner surfaces recorded only as hardcoded-target evidence
+- any Slice 2.2 and Slice 2.3 work is clearly deferred rather than partially started
