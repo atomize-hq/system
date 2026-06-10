@@ -2,7 +2,7 @@ use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
     load_selected_pipeline_definition, load_stage_compile_definition,
     supported_route_state_variables, CompileStageDefinition, PipelineDefinition,
-    SelectedPipelineLoadError,
+    SelectedPipelineLoadError, SupportedTargetRegistry,
 };
 use crate::pipeline_compile::{compile_pipeline_stage, PipelineCompileRefusal};
 use crate::repo_file_access::{
@@ -29,11 +29,6 @@ use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
-const SUPPORTED_PIPELINE_ID: &str = "pipeline.foundation_inputs";
-const SUPPORTED_STAGE_CHARTER_INPUTS_ID: &str = "stage.04_charter_inputs";
-const SUPPORTED_STAGE_CHARTER_ID: &str = "stage.05_charter_synthesize";
-const SUPPORTED_STAGE_PROJECT_CONTEXT_ID: &str = "stage.06_project_context_interview";
-const SUPPORTED_STAGE_FOUNDATION_ID: &str = "stage.07_foundation_pack";
 const SUPPORTED_STAGE_FEATURE_SPEC_ID: &str = "stage.10_feature_spec";
 const REQUIRED_STAGE_10_FEATURE_SPEC_HEADINGS: [&str; 23] = [
     "## 0) Charter Alignment",
@@ -63,14 +58,6 @@ const REQUIRED_STAGE_10_FEATURE_SPEC_HEADINGS: [&str; 23] = [
 const CAPTURE_CACHE_SCHEMA_VERSION: &str = "m3-capture-cache-v1";
 const CAPTURE_UNKNOWN_MARKERS: [&str; 5] = ["TBD", "UNKNOWN", "Unknown", "TODO", "??"];
 pub const PIPELINE_CAPTURE_CACHE_SCHEMA_VERSION: &str = CAPTURE_CACHE_SCHEMA_VERSION;
-const SUPPORTED_CAPTURE_STAGE_IDS: [&str; 5] = [
-    SUPPORTED_STAGE_CHARTER_INPUTS_ID,
-    SUPPORTED_STAGE_CHARTER_ID,
-    SUPPORTED_STAGE_PROJECT_CONTEXT_ID,
-    SUPPORTED_STAGE_FOUNDATION_ID,
-    SUPPORTED_STAGE_FEATURE_SPEC_ID,
-];
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineCaptureRequest {
     pub pipeline_selector: String,
@@ -385,19 +372,26 @@ fn build_capture_plan(
         },
     )?;
 
-    let stage_id = resolve_stage_selector(&pipeline, stage_selector).map_err(|summary| {
-        PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
-            summary,
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(stage_selector.trim().to_string()),
-            recovery: format!(
-                "retry with one of {}",
-                render_supported_capture_stage_list()
-            ),
+    let stage_id = match resolve_stage_selector(&pipeline, stage_selector) {
+        Ok(stage_id) => stage_id,
+        Err(summary) => {
+            let registry =
+                load_capture_target_registry(repo_root, Some(&pipeline.header.id), None)?;
+            return Err(PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
+                summary,
+                pipeline_id: Some(pipeline.header.id.clone()),
+                stage_id: Some(stage_selector.trim().to_string()),
+                recovery: format!(
+                    "retry with one of {}",
+                    render_supported_capture_stage_list(&registry)
+                ),
+            });
         }
-    })?;
-    validate_supported_capture_target(&pipeline.header.id, &stage_id)?;
+    };
+    let registry =
+        load_capture_target_registry(repo_root, Some(&pipeline.header.id), Some(&stage_id))?;
+    validate_supported_capture_target(&registry, &pipeline.header.id, &stage_id)?;
 
     let supported_variables = supported_route_state_variables(&pipeline);
     let state = load_route_state_with_supported_variables(
@@ -646,7 +640,12 @@ fn apply_capture_plan(
             ),
         });
     }
-    validate_supported_capture_target(&plan.target.pipeline_id, &plan.target.stage_id)?;
+    let registry = load_capture_target_registry(
+        repo_root,
+        Some(&plan.target.pipeline_id),
+        Some(&plan.target.stage_id),
+    )?;
+    validate_supported_capture_target(&registry, &plan.target.pipeline_id, &plan.target.stage_id)?;
     let stage_definition = load_stage_compile_definition(
         repo_root,
         &pipeline,
@@ -1962,47 +1961,100 @@ fn classify_state_read_refusal(
     }
 }
 
+fn load_capture_target_registry(
+    repo_root: &Path,
+    pipeline_id: Option<&str>,
+    stage_id: Option<&str>,
+) -> Result<SupportedTargetRegistry, PipelineCaptureRefusal> {
+    SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineCaptureRefusal {
+        classification: PipelineCaptureRefusalClassification::InvalidDefinition,
+        summary: format!("failed to load supported target registry: {err}"),
+        pipeline_id: pipeline_id.map(str::to_string),
+        stage_id: stage_id.map(str::to_string),
+        recovery: "fix the pipeline/stage definitions and retry `pipeline capture`".to_string(),
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SupportedCaptureTargetHelp {
+    pipeline_id: String,
+    default_stage_id: String,
+    rendered_stage_list: String,
+}
+
+fn supported_capture_target_help(registry: &SupportedTargetRegistry) -> SupportedCaptureTargetHelp {
+    let pipeline_id = registry
+        .pipelines()
+        .next()
+        .expect("supported target registry must include one capture pipeline")
+        .id
+        .clone();
+    let supported_stage_ids = registry
+        .stages()
+        .filter(|stage| registry.supports_capture_target(&pipeline_id, &stage.id))
+        .map(|stage| stage.id.clone())
+        .collect::<Vec<_>>();
+    let default_stage_id = supported_stage_ids
+        .first()
+        .cloned()
+        .expect("supported target registry must include at least one capture stage");
+    let rendered_stage_list = supported_stage_ids
+        .iter()
+        .map(|stage_id| format!("`{stage_id}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    SupportedCaptureTargetHelp {
+        pipeline_id,
+        default_stage_id,
+        rendered_stage_list,
+    }
+}
+
 fn validate_supported_capture_target(
+    registry: &SupportedTargetRegistry,
     pipeline_id: &str,
     stage_id: &str,
 ) -> Result<(), PipelineCaptureRefusal> {
-    if pipeline_id != SUPPORTED_PIPELINE_ID {
+    let supported_target = supported_capture_target_help(registry);
+
+    if pipeline_id != supported_target.pipeline_id {
         return Err(PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "`pipeline capture` currently supports only pipeline `{SUPPORTED_PIPELINE_ID}`"
+                "`pipeline capture` currently supports only pipeline `{}`",
+                supported_target.pipeline_id
             ),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: format!(
-                "retry with `pipeline capture --id {SUPPORTED_PIPELINE_ID} --stage {SUPPORTED_STAGE_CHARTER_INPUTS_ID}`"
+                "retry with `pipeline capture --id {} --stage {}`",
+                supported_target.pipeline_id, supported_target.default_stage_id
             ),
         });
     }
-    if !SUPPORTED_CAPTURE_STAGE_IDS.contains(&stage_id) {
+    if !registry.supports_capture_target(pipeline_id, stage_id) {
         return Err(PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::UnsupportedTarget,
             summary: format!(
-                "`pipeline capture` currently supports only stages {} for pipeline `{SUPPORTED_PIPELINE_ID}`",
-                render_supported_capture_stage_list()
+                "`pipeline capture` currently supports only stages {} for pipeline `{}`",
+                supported_target.rendered_stage_list, supported_target.pipeline_id
             ),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: format!(
-                "retry with `pipeline capture --id {pipeline_id} --stage {SUPPORTED_STAGE_CHARTER_INPUTS_ID}` or another supported capture stage from {}",
-                render_supported_capture_stage_list()
+                "retry with `pipeline capture --id {} --stage {}` or another supported capture stage from {}",
+                supported_target.pipeline_id,
+                supported_target.default_stage_id,
+                supported_target.rendered_stage_list
             ),
         });
     }
     Ok(())
 }
 
-fn render_supported_capture_stage_list() -> String {
-    SUPPORTED_CAPTURE_STAGE_IDS
-        .iter()
-        .map(|stage_id| format!("`{stage_id}`"))
-        .collect::<Vec<_>>()
-        .join(", ")
+fn render_supported_capture_stage_list(registry: &SupportedTargetRegistry) -> String {
+    supported_capture_target_help(registry).rendered_stage_list
 }
 
 fn resolve_stage_selector(pipeline: &PipelineDefinition, selector: &str) -> Result<String, String> {

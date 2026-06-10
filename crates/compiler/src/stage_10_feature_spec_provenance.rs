@@ -1,5 +1,7 @@
 use crate::layout::RepoLayoutRoot;
-use crate::pipeline::{load_selected_pipeline_definition, load_stage_compile_definition};
+use crate::pipeline::{
+    load_selected_pipeline_definition, load_stage_compile_definition, SupportedTargetRegistry,
+};
 use crate::pipeline_compile::{render_pipeline_compile_payload, PipelineCompileResult};
 use crate::repo_file_access::{
     read_repo_relative_string, sha256_repo_relative_file, write_repo_relative_bytes,
@@ -73,7 +75,9 @@ pub(crate) fn build_stage_10_feature_spec_compile_provenance(
     repo_root: &Path,
     compile_result: &PipelineCompileResult,
 ) -> Result<Stage10FeatureSpecCompileProvenance, String> {
+    let registry = load_supported_target_registry(repo_root)?;
     validate_supported_target(
+        &registry,
         &compile_result.target.pipeline_id,
         &compile_result.target.stage_id,
     )?;
@@ -140,7 +144,8 @@ pub(crate) fn load_stage_10_feature_spec_capture_provenance(
                 provenance_path.as_str()
             )
         })?;
-    validate_capture_provenance(&provenance)?;
+    let registry = load_supported_target_registry(repo_root)?;
+    validate_capture_provenance(&registry, &provenance)?;
     Ok(provenance)
 }
 
@@ -231,16 +236,28 @@ fn stage_10_feature_spec_capture_provenance_path(repo_root: &Path) -> Normalized
         .stage_capture_provenance_relative_path(SUPPORTED_PIPELINE_ID, SUPPORTED_STAGE_ID)
 }
 
-fn validate_supported_target(pipeline_id: &str, stage_id: &str) -> Result<(), String> {
-    if pipeline_id != SUPPORTED_PIPELINE_ID || stage_id != SUPPORTED_STAGE_ID {
+fn load_supported_target_registry(repo_root: &Path) -> Result<SupportedTargetRegistry, String> {
+    SupportedTargetRegistry::load(repo_root)
+        .map_err(|err| format!("failed to load supported target registry: {err}"))
+}
+
+fn validate_supported_target(
+    registry: &SupportedTargetRegistry,
+    pipeline_id: &str,
+    stage_id: &str,
+) -> Result<(), String> {
+    if !registry.supports_provenance_target(pipeline_id, stage_id) {
+        let supported_target = registry.compile_target();
         return Err(format!(
-            "stage-10 capture provenance currently supports only `{SUPPORTED_PIPELINE_ID}` + `{SUPPORTED_STAGE_ID}`, got `{pipeline_id}` + `{stage_id}`"
+            "stage-10 capture provenance currently supports only `{}` + `{}`, got `{pipeline_id}` + `{stage_id}`",
+            supported_target.pipeline.id, supported_target.stage.id
         ));
     }
     Ok(())
 }
 
 fn validate_capture_provenance(
+    registry: &SupportedTargetRegistry,
     provenance: &Stage10FeatureSpecCaptureProvenance,
 ) -> Result<(), String> {
     if provenance.schema_version != STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION {
@@ -249,7 +266,7 @@ fn validate_capture_provenance(
             provenance.schema_version, STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION
         ));
     }
-    validate_supported_target(&provenance.pipeline_id, &provenance.stage_id)?;
+    validate_supported_target(registry, &provenance.pipeline_id, &provenance.stage_id)?;
     if provenance.feature_spec_path != FEATURE_SPEC_ARTIFACT_PATH {
         return Err(format!(
             "stage-10 capture provenance feature_spec_path `{}` does not match expected `{}`",
