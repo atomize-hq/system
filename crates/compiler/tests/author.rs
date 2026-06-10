@@ -17,21 +17,22 @@ use handbook_compiler::{
     preflight_author_charter, preflight_author_environment_inventory,
     preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
     run_setup, setup_starter_template_bytes, validate_charter_structured_input,
-    validate_project_context_markdown, validate_project_context_structured_input,
-    AuthorCharterRefusalKind, AuthorEnvironmentInventoryRefusalKind,
-    AuthorProjectContextRefusalKind, CanonicalArtifactKind, CharterAudience,
-    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
-    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
-    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
-    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
-    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
-    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
-    CharterSurface, ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
-    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
-    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
-    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
-    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
-    SetupRequest, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
+    validate_environment_inventory_markdown, validate_project_context_markdown,
+    validate_project_context_structured_input, AuthorCharterRefusalKind,
+    AuthorEnvironmentInventoryRefusalKind, AuthorProjectContextRefusalKind, CanonicalArtifactKind,
+    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
+    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
+    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
+    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
+    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
+    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
+    CharterStructuredInput, CharterSurface, ProjectContextClassificationImplicationsInput,
+    ProjectContextConstraintsInput, ProjectContextDataRealityInput,
+    ProjectContextEnvironmentsAndDeliveryInput, ProjectContextIntegrationInput,
+    ProjectContextKnownUnknownInput, ProjectContextOperationalRealityInput,
+    ProjectContextRepoCodebaseRealityInput, ProjectContextStructuredInput,
+    ProjectContextSummaryInput, ProjectContextSystemBoundariesInput, SetupRequest,
+    CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
@@ -1661,6 +1662,33 @@ fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaf
         )
         .expect("starter project-context bytes"),
         setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext)
+    );
+}
+
+#[test]
+fn validate_environment_inventory_markdown_accepts_canonical_document() {
+    validate_environment_inventory_markdown(&expected_environment_inventory_markdown("None"))
+        .expect("canonical environment inventory markdown should validate");
+}
+
+#[test]
+fn validate_environment_inventory_markdown_refuses_legacy_non_canonical_path_claims() {
+    let err = validate_environment_inventory_markdown(
+        &expected_environment_inventory_markdown("None").replace(
+            "`.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`",
+            "`${repo_root}/ENVIRONMENT_INVENTORY.md`",
+        ),
+    )
+    .expect_err("legacy canonical path claim should be rejected");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(
+        err.summary.contains("legacy non-canonical path claims"),
+        "unexpected summary: {}",
+        err.summary
     );
 }
 

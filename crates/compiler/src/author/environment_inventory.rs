@@ -1,7 +1,15 @@
 use super::{
-    baseline_authoring_eligibility, template_library::resolve_template_library,
-    template_library::TemplateLibraryRequest, template_library::TemplateLibraryResolveRequest,
-    template_library::TemplateLibrarySelection, BaselineAuthoringEligibility,
+    baseline_authoring_eligibility,
+    environment_inventory_core::{
+        validate_environment_inventory_markdown as validate_environment_inventory_markdown_core,
+        validate_synthesized_environment_inventory_markdown as validate_synthesized_environment_inventory_markdown_core,
+        EnvironmentInventoryValidationExpectations,
+    },
+    template_library::resolve_template_library,
+    template_library::TemplateLibraryRequest,
+    template_library::TemplateLibraryResolveRequest,
+    template_library::TemplateLibrarySelection,
+    BaselineAuthoringEligibility,
 };
 use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
@@ -31,20 +39,6 @@ const PROCESS_SUMMARY_HIGH_SIGNAL_MARKERS: [&str; 5] = [
     "missing bearer",
     "failed",
 ];
-const REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS: [&str; 11] = [
-    "## What this is",
-    "## How to use",
-    "## 1) Environment Variables (Inventory)",
-    "## 2) External Services / Infrastructure Dependencies",
-    "## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)",
-    "## 4) Local Development Requirements",
-    "## 5) CI Requirements",
-    "## 6) Production / Deployment Requirements (even if not live yet)",
-    "## 7) Dependency & Tooling Inventory (project-specific)",
-    "## 8) Update Contract (non-negotiable)",
-    "## 9) Known Unknowns",
-];
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthorEnvironmentInventoryRefusalKind {
     MissingSystemRoot,
@@ -129,77 +123,8 @@ pub fn author_environment_inventory(
 pub fn validate_environment_inventory_markdown(
     markdown: &str,
 ) -> Result<(), AuthorEnvironmentInventoryRefusal> {
-    let normalized = markdown.trim();
-    if normalized.is_empty() {
-        return Err(synthesis_refusal(
-            "synthesized environment inventory markdown was empty",
-        ));
-    }
-    if !markdown.starts_with("# Environment Inventory") {
-        return Err(synthesis_refusal(
-            "synthesized environment inventory markdown must start with `# Environment Inventory`",
-        ));
-    }
-    if normalized.contains("{{") || normalized.contains("}}") {
-        return Err(synthesis_refusal(
-            "synthesized environment inventory markdown contains unresolved template placeholders",
-        ));
-    }
-    if normalized.contains("${repo_root}/ENVIRONMENT_INVENTORY.md")
-        || normalized.contains("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
-        || normalized.contains("repo/project root")
-    {
-        return Err(synthesis_refusal(
-            "synthesized environment inventory markdown still contains legacy non-canonical path claims",
-        ));
-    }
-    if !normalized.contains("`.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`") {
-        return Err(synthesis_refusal(
-            "synthesized environment inventory markdown must reference `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` as the canonical file",
-        ));
-    }
-    validate_required_heading_order_result(normalized, &REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS)
-        .map_err(synthesis_refusal)?;
-    Ok(())
-}
-
-fn validate_required_heading_order_result(
-    markdown: &str,
-    required_headings: &[&str],
-) -> Result<(), String> {
-    let heading_lines = markdown
-        .lines()
-        .enumerate()
-        .filter_map(|(index, line)| {
-            let trimmed = line.trim_end();
-            required_headings
-                .contains(&trimmed)
-                .then_some((index, trimmed))
-        })
-        .collect::<Vec<_>>();
-
-    let mut previous = 0usize;
-    for heading in required_headings {
-        let positions = heading_lines
-            .iter()
-            .filter_map(|(index, line)| (*line == *heading).then_some(*index))
-            .collect::<Vec<_>>();
-        if positions.is_empty() {
-            return Err(format!("missing required heading `{heading}`"));
-        }
-        if positions.len() != 1 {
-            return Err(format!(
-                "required heading `{heading}` must appear exactly once"
-            ));
-        }
-        let position = positions[0];
-        if position < previous {
-            return Err(format!("required heading `{heading}` is out of order"));
-        }
-        previous = position;
-    }
-
-    Ok(())
+    validate_environment_inventory_markdown_core(markdown)
+        .map_err(|summary| synthesis_refusal(summary))
 }
 
 fn prepare_environment_inventory_authoring_inputs(
@@ -491,7 +416,11 @@ fn synthesize_environment_inventory_markdown(
     let _ = std::fs::remove_file(&output_path);
 
     let normalized = markdown.trim().to_string();
-    validate_synthesized_environment_inventory_markdown(&normalized, inputs)?;
+    let expectations = EnvironmentInventoryValidationExpectations::for_optional_project_context(
+        inputs.project_context_markdown.is_some(),
+    );
+    validate_synthesized_environment_inventory_markdown_core(&normalized, expectations)
+        .map_err(|summary| synthesis_refusal(summary))?;
     Ok(normalized)
 }
 
@@ -559,26 +488,6 @@ fn build_environment_inventory_synthesis_prompt(
         "\nReturn only the final `ENVIRONMENT_INVENTORY.md` markdown with all template placeholders resolved.\n",
     );
     Ok(prompt)
-}
-
-fn validate_synthesized_environment_inventory_markdown(
-    markdown: &str,
-    inputs: &EnvironmentInventorySynthesisInputs,
-) -> Result<(), AuthorEnvironmentInventoryRefusal> {
-    validate_environment_inventory_markdown(markdown)?;
-
-    let expected_project_context_ref = if inputs.project_context_markdown.is_some() {
-        "> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`"
-    } else {
-        "> **Project Context Ref:** None"
-    };
-    if !markdown.contains(expected_project_context_ref) {
-        return Err(synthesis_refusal(format!(
-            "synthesized environment inventory markdown must include the exact project context reference line `{expected_project_context_ref}`"
-        )));
-    }
-
-    Ok(())
 }
 
 fn acquire_environment_inventory_authoring_lock(
