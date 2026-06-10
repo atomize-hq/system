@@ -1,9 +1,12 @@
 use super::{
     acquire_authoring_lock, baseline_authoring_eligibility, canonical_artifact_identity,
     charter_core::{
-        compiler_owned_charter_markdown, find_charter_template_scaffold_line,
-        normalized_charter_structured_input, sanitize_charter_template,
-        validate_required_heading_order_result,
+        compiler_owned_charter_markdown as compiler_owned_charter_markdown_core,
+        find_charter_template_scaffold_line, normalized_charter_structured_input,
+        parse_charter_structured_input_yaml as parse_charter_structured_input_yaml_core,
+        render_charter_markdown as render_charter_markdown_core, sanitize_charter_template,
+        validate_charter_structured_input as validate_charter_structured_input_core,
+        validate_required_heading_order_result, CharterCoreError, CharterCoreErrorKind,
     },
     format_repo_mutation_error, format_repo_write_path_error, render_exit_status,
     summarize_process_output,
@@ -24,16 +27,14 @@ use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub use super::charter_core::{
-    is_unusably_vague_charter_text, normalize_charter_free_text,
-    parse_charter_structured_input_yaml, render_charter_markdown, validate_charter_markdown,
-    validate_charter_structured_input, CharterAudience, CharterBackwardCompatibility,
-    CharterDebtTrackingInput, CharterDecisionRecordsInput, CharterDefaultImplicationsInput,
-    CharterDeprecationPolicy, CharterDimensionInput, CharterDimensionName, CharterDomainInput,
-    CharterExceptionsInput, CharterExpectedLifetime, CharterObservabilityThreshold,
-    CharterOperationalRealityInput, CharterPostureInput, CharterProjectClassification,
-    CharterProjectConstraintsInput, CharterProjectInput, CharterRequiredness,
-    CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput, CharterSurface,
-    DEFAULT_EXCEPTION_RECORD_LOCATION,
+    is_unusably_vague_charter_text, normalize_charter_free_text, validate_charter_markdown,
+    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
+    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
+    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
+    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
+    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
+    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
+    CharterStructuredInput, CharterSurface, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 pub const CANONICAL_CHARTER_REPO_PATH: &str = CANONICAL_CHARTER_RELATIVE_PATH;
@@ -84,6 +85,30 @@ pub struct AuthorCharterResult {
     pub bytes_written: usize,
 }
 
+pub fn parse_charter_structured_input_yaml(
+    yaml: &str,
+) -> Result<CharterStructuredInput, AuthorCharterRefusal> {
+    parse_charter_structured_input_yaml_core(yaml).map_err(map_charter_core_error)
+}
+
+pub fn validate_charter_structured_input(
+    input: &CharterStructuredInput,
+) -> Result<(), AuthorCharterRefusal> {
+    validate_charter_structured_input_core(input).map_err(map_charter_core_error)
+}
+
+pub fn render_charter_markdown(
+    input: &CharterStructuredInput,
+) -> Result<String, AuthorCharterRefusal> {
+    render_charter_markdown_core(input).map_err(map_charter_core_error)
+}
+
+fn compiler_owned_charter_markdown(
+    input: &CharterStructuredInput,
+) -> Result<String, AuthorCharterRefusal> {
+    compiler_owned_charter_markdown_core(input).map_err(map_charter_core_error)
+}
+
 pub fn preflight_author_charter_from_input(
     repo_root: impl AsRef<Path>,
     input: &CharterStructuredInput,
@@ -92,6 +117,35 @@ pub fn preflight_author_charter_from_input(
     compiler_owned_charter_markdown(input)?;
     preflight_author_charter(repo_root)?;
     Ok(())
+}
+
+fn map_charter_core_error(err: CharterCoreError) -> AuthorCharterRefusal {
+    match err.kind {
+        CharterCoreErrorKind::MalformedStructuredInput => AuthorCharterRefusal {
+            kind: AuthorCharterRefusalKind::MalformedStructuredInput,
+            summary: err.summary,
+            broken_subject: "structured charter input".to_string(),
+            next_safe_action:
+                "repair the structured charter input and retry `handbook author charter --from-inputs <path|->`"
+                    .to_string(),
+        },
+        CharterCoreErrorKind::IncompleteStructuredInput => AuthorCharterRefusal {
+            kind: AuthorCharterRefusalKind::IncompleteStructuredInput,
+            summary: err.summary,
+            broken_subject: "structured charter input".to_string(),
+            next_safe_action:
+                "repair the structured charter input and retry `handbook author charter --from-inputs <path|->`"
+                    .to_string(),
+        },
+        CharterCoreErrorKind::DeterministicRenderFailed => AuthorCharterRefusal {
+            kind: AuthorCharterRefusalKind::SynthesisFailed,
+            summary: err.summary,
+            broken_subject: "final charter render".to_string(),
+            next_safe_action:
+                "repair the structured charter input or compiler-owned charter render path and retry `handbook author charter --from-inputs <path|->`"
+                    .to_string(),
+        },
+    }
 }
 
 pub fn author_charter(

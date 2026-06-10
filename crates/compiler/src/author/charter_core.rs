@@ -1,4 +1,3 @@
-use super::charter::{AuthorCharterRefusal, AuthorCharterRefusalKind};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
@@ -47,6 +46,19 @@ const CHARTER_TEMPLATE_SCAFFOLD_PREFIX_MARKERS: [&str; 6] = [
     "- e.g., ci, formatting, linting, release automation, local dev scripts",
     "- e.g., accessibility baseline, performance perception, error messaging clarity",
 ];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CharterCoreErrorKind {
+    MalformedStructuredInput,
+    IncompleteStructuredInput,
+    DeterministicRenderFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CharterCoreError {
+    pub(crate) kind: CharterCoreErrorKind,
+    pub(crate) summary: String,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -496,12 +508,9 @@ impl CharterObservabilityThreshold {
 
 pub fn parse_charter_structured_input_yaml(
     yaml: &str,
-) -> Result<CharterStructuredInput, AuthorCharterRefusal> {
+) -> Result<CharterStructuredInput, CharterCoreError> {
     let parsed = serde_yaml_bw::from_str::<CharterStructuredInput>(yaml).map_err(|err| {
-        structured_input_refusal(
-            AuthorCharterRefusalKind::MalformedStructuredInput,
-            format!("structured charter input is malformed: {err}"),
-        )
+        malformed_structured_input_error(format!("structured charter input is malformed: {err}"))
     })?;
     validate_charter_structured_input(&parsed)?;
     Ok(parsed)
@@ -545,7 +554,7 @@ pub fn is_unusably_vague_charter_text(value: &str) -> bool {
 
 pub fn validate_charter_structured_input(
     input: &CharterStructuredInput,
-) -> Result<(), AuthorCharterRefusal> {
+) -> Result<(), CharterCoreError> {
     let mut issues = Vec::new();
 
     if input.schema_version.trim() != CHARTER_INPUTS_SCHEMA_VERSION {
@@ -684,19 +693,14 @@ pub fn validate_charter_structured_input(
     if issues.is_empty() {
         Ok(())
     } else {
-        Err(structured_input_refusal(
-            AuthorCharterRefusalKind::IncompleteStructuredInput,
-            format!(
-                "structured charter input is incomplete: {}",
-                issues.join("; ")
-            ),
-        ))
+        Err(incomplete_structured_input_error(format!(
+            "structured charter input is incomplete: {}",
+            issues.join("; ")
+        )))
     }
 }
 
-pub fn render_charter_markdown(
-    input: &CharterStructuredInput,
-) -> Result<String, AuthorCharterRefusal> {
+pub fn render_charter_markdown(input: &CharterStructuredInput) -> Result<String, CharterCoreError> {
     validate_charter_structured_input(input)?;
 
     let project_name = normalize_charter_free_text(&input.project.name);
@@ -1383,34 +1387,30 @@ pub(crate) fn validate_required_heading_order_result(markdown: &str) -> Result<(
     Ok(())
 }
 
-fn structured_input_refusal(
-    kind: AuthorCharterRefusalKind,
-    summary: String,
-) -> AuthorCharterRefusal {
-    AuthorCharterRefusal {
-        kind,
+fn malformed_structured_input_error(summary: String) -> CharterCoreError {
+    CharterCoreError {
+        kind: CharterCoreErrorKind::MalformedStructuredInput,
         summary,
-        broken_subject: "structured charter input".to_string(),
-        next_safe_action:
-            "repair the structured charter input and retry `handbook author charter --from-inputs <path|->`"
-                .to_string(),
     }
 }
 
-fn deterministic_render_refusal(summary: impl Into<String>) -> AuthorCharterRefusal {
-    AuthorCharterRefusal {
-        kind: AuthorCharterRefusalKind::SynthesisFailed,
+fn incomplete_structured_input_error(summary: String) -> CharterCoreError {
+    CharterCoreError {
+        kind: CharterCoreErrorKind::IncompleteStructuredInput,
+        summary,
+    }
+}
+
+fn deterministic_render_error(summary: impl Into<String>) -> CharterCoreError {
+    CharterCoreError {
+        kind: CharterCoreErrorKind::DeterministicRenderFailed,
         summary: summary.into(),
-        broken_subject: "final charter render".to_string(),
-        next_safe_action:
-            "repair the structured charter input or compiler-owned charter render path and retry `handbook author charter --from-inputs <path|->`"
-                .to_string(),
     }
 }
 
 pub(crate) fn compiler_owned_charter_markdown(
     input: &CharterStructuredInput,
-) -> Result<String, AuthorCharterRefusal> {
+) -> Result<String, CharterCoreError> {
     let markdown = render_charter_markdown(input)?;
     validate_compiler_owned_charter_markdown(&markdown, input)?;
     Ok(markdown)
@@ -1419,9 +1419,9 @@ pub(crate) fn compiler_owned_charter_markdown(
 pub(crate) fn validate_compiler_owned_charter_markdown(
     markdown: &str,
     input: &CharterStructuredInput,
-) -> Result<(), AuthorCharterRefusal> {
+) -> Result<(), CharterCoreError> {
     validate_charter_markdown(markdown).map_err(|summary| {
-        deterministic_render_refusal(format!(
+        deterministic_render_error(format!(
             "compiler-owned charter markdown failed validation: {summary}"
         ))
     })?;
@@ -1429,7 +1429,7 @@ pub(crate) fn validate_compiler_owned_charter_markdown(
     let expected_exception_record_location =
         normalize_charter_free_text(&input.exceptions.record_location);
     if !markdown.contains(&expected_exception_record_location) {
-        return Err(deterministic_render_refusal(format!(
+        return Err(deterministic_render_error(format!(
             "compiler-owned charter markdown must include the exact exception record location `{expected_exception_record_location}`"
         )));
     }
