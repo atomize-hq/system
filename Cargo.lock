@@ -291,14 +291,23 @@ dependencies = [
 [[package]]
 name = "handbook-engine"
 version = "0.1.0"
+dependencies = [
+ "handbook-compiler",
+]
 
 [[package]]
 name = "handbook-flow"
 version = "0.1.0"
+dependencies = [
+ "handbook-compiler",
+]
 
 [[package]]
 name = "handbook-pipeline"
 version = "0.1.0"
+dependencies = [
+ "handbook-compiler",
+]
 
 [[package]]
 name = "hashbrown"

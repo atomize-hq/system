@@ -6,3 +6,6 @@ edition = "2021"
 [lib]
 name = "handbook_engine"
 path = "src/lib.rs"
+
+[dependencies]
+handbook-compiler = { path = "../compiler" }
