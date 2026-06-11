@@ -1,6 +1,6 @@
 use crate::{
-    discover_managed_repo_root, read_stdin, AuthorArgs, AuthorCharterArgs, AuthorCommand,
-    AuthorProjectContextArgs, Cli,
+    shell_shared::{discover_managed_repo_root, read_stdin},
+    AuthorArgs, AuthorCharterArgs, AuthorCommand, AuthorProjectContextArgs, Cli,
 };
 use std::cell::RefCell;
 use std::fs;

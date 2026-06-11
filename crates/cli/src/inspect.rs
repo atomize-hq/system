@@ -1,4 +1,4 @@
-use super::{discover_managed_repo_root, request_shared, RequestArgs};
+use crate::{request_shared, shell_shared::discover_managed_repo_root, RequestArgs};
 use std::path::Path;
 use std::process::ExitCode;
 

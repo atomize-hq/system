@@ -1,4 +1,4 @@
-use super::{discover_managed_repo_root, DoctorArgs};
+use crate::{shell_shared::discover_managed_repo_root, DoctorArgs};
 use std::process::ExitCode;
 
 pub(super) fn run(args: DoctorArgs) -> ExitCode {

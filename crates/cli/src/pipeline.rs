@@ -1,9 +1,9 @@
 use super::{
-    discover_managed_repo_root, read_stdin, PipelineArgs, PipelineCaptureArgs,
-    PipelineCaptureCommand, PipelineCommand, PipelineCompileArgs, PipelineHandoffArgs,
-    PipelineHandoffCommand, PipelineSelectorArgs, PipelineShowArgs, PipelineStateCommand,
-    PipelineStateSetArgs, RELEASE_VERSION,
+    PipelineArgs, PipelineCaptureArgs, PipelineCaptureCommand, PipelineCommand,
+    PipelineCompileArgs, PipelineHandoffArgs, PipelineHandoffCommand, PipelineSelectorArgs,
+    PipelineShowArgs, PipelineStateCommand, PipelineStateSetArgs, RELEASE_VERSION,
 };
+use crate::shell_shared::{discover_managed_repo_root, read_stdin};
 use std::process::ExitCode;
 
 pub(super) fn run(args: PipelineArgs) -> ExitCode {

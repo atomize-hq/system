@@ -1,5 +1,6 @@
 mod author;
 mod doctor;
+mod generate;
 mod inspect;
 mod pipeline;
 mod request_shared;
@@ -7,8 +8,6 @@ mod setup;
 mod shell_shared;
 
 use clap::{CommandFactory, Parser, Subcommand};
-use std::io::Read;
-use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 const PACKET_PLANNING_ID: &str = "planning.packet";
@@ -65,7 +64,7 @@ impl Command {
             Command::Setup(args) => setup::run(args),
             Command::Author(args) => author::run(args),
             Command::Pipeline(args) => pipeline::run(args),
-            Command::Generate(args) => generate(args),
+            Command::Generate(args) => generate::run(args),
             Command::Inspect(args) => inspect::run(args),
             Command::Doctor(args) => doctor::run(args),
         }
@@ -273,96 +272,6 @@ struct RequestArgs {
     /// Fixture set id (required for `execution.demo.packet`).
     #[arg(long)]
     fixture_set: Option<String>,
-}
-
-fn path_is_dir_or_file(path: &Path) -> bool {
-    match std::fs::symlink_metadata(path) {
-        Ok(meta) => meta.is_dir() || meta.is_file(),
-        Err(_) => false,
-    }
-}
-
-fn discover_enclosing_git_root(start: &Path) -> Option<PathBuf> {
-    for candidate in start.ancestors() {
-        if path_is_dir_or_file(&candidate.join(".git")) {
-            return Some(candidate.to_path_buf());
-        }
-    }
-
-    None
-}
-
-fn discover_nearest_managed_root(start: &Path) -> Option<PathBuf> {
-    for candidate in start.ancestors() {
-        if std::fs::symlink_metadata(candidate.join(".handbook")).is_ok() {
-            return Some(candidate.to_path_buf());
-        }
-    }
-
-    None
-}
-
-fn discover_managed_repo_root(start: &Path) -> PathBuf {
-    shell_shared::discover_managed_repo_root(start)
-}
-
-fn generate(args: RequestArgs) -> ExitCode {
-    let cwd = match std::env::current_dir() {
-        Ok(dir) => dir,
-        Err(err) => {
-            println!("REFUSED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let repo_root = discover_managed_repo_root(&cwd);
-    let request = match request_shared::prepare_request(&args, &repo_root) {
-        Ok(request) => request,
-        Err(err) => {
-            println!("REFUSED: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let result = match handbook_flow::resolve(
-        &request.compiler_root,
-        handbook_flow::ResolveRequest {
-            packet_id: request.packet_id.as_str(),
-            ..handbook_flow::ResolveRequest::default()
-        },
-    ) {
-        Ok(result) => result,
-        Err(err) => {
-            println!("REFUSED: resolver error: {err:?}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let ready = result.selection.status == handbook_flow::PacketSelectionStatus::Selected
-        && result.refusal.is_none()
-        && result.blockers.is_empty();
-
-    let compiler_result = request_shared::flow_result_for_rendering(result);
-    let model = match handbook_compiler::build_output_model(&compiler_result) {
-        Ok(model) => model,
-        Err(err) => {
-            println!("PRESENTATION FAILURE: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    println!("{}", handbook_compiler::render_markdown(&model));
-    if ready {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
-    }
-}
-
-fn read_stdin() -> Result<String, std::io::Error> {
-    let mut input = String::new();
-    std::io::stdin().read_to_string(&mut input)?;
-    Ok(input)
 }
 
 const _: () = {
