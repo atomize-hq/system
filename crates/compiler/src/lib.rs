@@ -1,30 +1,21 @@
-pub mod artifact_manifest;
 pub mod author;
 mod baseline_validation;
 pub mod blocker;
-pub mod budget;
-pub mod canonical_artifacts;
+mod canonical_artifacts;
 pub mod decision_log;
 mod doctor;
 mod doctor_shell;
 pub mod error;
-pub mod freshness;
 // Keep the initial layout-owner seam compiler-internal until later slices
 // prove the reviewed outward API surface we actually want to freeze.
 mod layout;
-pub mod packet_result;
-pub mod pipeline;
-pub mod pipeline_capture;
-pub mod pipeline_compile;
-pub mod pipeline_handoff;
-pub mod pipeline_route;
 pub mod refusal;
 pub mod rendering;
 // Keep the workspace seam compiler-internal until a downstream crate proves
 // the minimal reviewed API surface we actually want to freeze.
 mod repo_file_access;
 pub mod resolver;
-pub mod route_state;
+mod route_state;
 mod setup;
 mod setup_shell;
 
@@ -34,7 +25,6 @@ mod setup_shell;
 // explicit compatibility modules for those families, but the root export surface is
 // limited to CLI-facing support types and adapters rather than remaining a flat
 // umbrella import path.
-pub(crate) use artifact_manifest::{ArtifactManifest, ManifestError, ManifestInputs};
 pub use author::template_library::{
     resolve_shipped_template_library, resolve_template_library, CharterTemplateLibraryOverride,
     EnvironmentInventoryTemplateLibraryOverride, TemplateLibraryAsset,
@@ -70,7 +60,6 @@ pub use author::{
     DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use blocker::{blocker_category_priority, Blocker, BlockerCategory, C04_RESULT_VERSION};
-pub(crate) use budget::BudgetOutcome;
 pub(crate) use canonical_artifacts::{
     ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact,
 };
@@ -80,8 +69,12 @@ pub use doctor::{
     DoctorReport,
 };
 pub use error::CompilerError;
+pub(crate) use handbook_engine::artifact_manifest::{
+    ArtifactManifest, ManifestError, ManifestInputs,
+};
 pub use handbook_engine::{ArtifactIngestError, CanonicalArtifactKind, SystemRootStatus};
-pub(crate) use packet_result::PacketResult;
+pub(crate) use handbook_flow::BudgetOutcome;
+pub(crate) use handbook_flow::PacketResult;
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
     build_output_model, render_blocker_category, render_inspect, render_json, render_markdown,
