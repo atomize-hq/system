@@ -827,5 +827,4 @@ mod tests {
         );
         assert_eq!(entries[0].to_string_lossy(), "output.txt");
     }
-
 }

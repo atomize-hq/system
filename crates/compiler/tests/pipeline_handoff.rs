@@ -4,7 +4,7 @@ mod pipeline_proof_corpus_support;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use handbook_compiler::{
+use handbook_pipeline::{
     capture_pipeline_output, emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle,
     PipelineCaptureRequest, PipelineHandoffEmitRequest, PipelineHandoffManifest,
     PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,

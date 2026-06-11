@@ -64,8 +64,12 @@ fn map_refusal_category(category: handbook_flow::ResolverRefusalCategory) -> Ref
         handbook_flow::ResolverRefusalCategory::NonCanonicalInputAttempt => {
             RefusalCategory::NonCanonicalInputAttempt
         }
-        handbook_flow::ResolverRefusalCategory::SystemRootMissing => RefusalCategory::SystemRootMissing,
-        handbook_flow::ResolverRefusalCategory::SystemRootNotDir => RefusalCategory::SystemRootNotDir,
+        handbook_flow::ResolverRefusalCategory::SystemRootMissing => {
+            RefusalCategory::SystemRootMissing
+        }
+        handbook_flow::ResolverRefusalCategory::SystemRootNotDir => {
+            RefusalCategory::SystemRootNotDir
+        }
         handbook_flow::ResolverRefusalCategory::SystemRootSymlinkNotAllowed => {
             RefusalCategory::SystemRootSymlinkNotAllowed
         }
@@ -81,17 +85,27 @@ fn map_refusal_category(category: handbook_flow::ResolverRefusalCategory) -> Ref
         handbook_flow::ResolverRefusalCategory::RequiredArtifactInvalid => {
             RefusalCategory::RequiredArtifactInvalid
         }
-        handbook_flow::ResolverRefusalCategory::ArtifactReadError => RefusalCategory::ArtifactReadError,
-        handbook_flow::ResolverRefusalCategory::FreshnessInvalid => RefusalCategory::FreshnessInvalid,
+        handbook_flow::ResolverRefusalCategory::ArtifactReadError => {
+            RefusalCategory::ArtifactReadError
+        }
+        handbook_flow::ResolverRefusalCategory::FreshnessInvalid => {
+            RefusalCategory::FreshnessInvalid
+        }
         handbook_flow::ResolverRefusalCategory::BudgetRefused => RefusalCategory::BudgetRefused,
-        handbook_flow::ResolverRefusalCategory::UnsupportedRequest => RefusalCategory::UnsupportedRequest,
+        handbook_flow::ResolverRefusalCategory::UnsupportedRequest => {
+            RefusalCategory::UnsupportedRequest
+        }
     }
 }
 
 fn map_blocker_category(category: handbook_flow::ResolverBlockerCategory) -> BlockerCategory {
     match category {
-        handbook_flow::ResolverBlockerCategory::SystemRootMissing => BlockerCategory::SystemRootMissing,
-        handbook_flow::ResolverBlockerCategory::SystemRootNotDir => BlockerCategory::SystemRootNotDir,
+        handbook_flow::ResolverBlockerCategory::SystemRootMissing => {
+            BlockerCategory::SystemRootMissing
+        }
+        handbook_flow::ResolverBlockerCategory::SystemRootNotDir => {
+            BlockerCategory::SystemRootNotDir
+        }
         handbook_flow::ResolverBlockerCategory::SystemRootSymlinkNotAllowed => {
             BlockerCategory::SystemRootSymlinkNotAllowed
         }
@@ -107,10 +121,16 @@ fn map_blocker_category(category: handbook_flow::ResolverBlockerCategory) -> Blo
         handbook_flow::ResolverBlockerCategory::RequiredArtifactInvalid => {
             BlockerCategory::RequiredArtifactInvalid
         }
-        handbook_flow::ResolverBlockerCategory::ArtifactReadError => BlockerCategory::ArtifactReadError,
-        handbook_flow::ResolverBlockerCategory::FreshnessInvalid => BlockerCategory::FreshnessInvalid,
+        handbook_flow::ResolverBlockerCategory::ArtifactReadError => {
+            BlockerCategory::ArtifactReadError
+        }
+        handbook_flow::ResolverBlockerCategory::FreshnessInvalid => {
+            BlockerCategory::FreshnessInvalid
+        }
         handbook_flow::ResolverBlockerCategory::BudgetRefused => BlockerCategory::BudgetRefused,
-        handbook_flow::ResolverBlockerCategory::UnsupportedRequest => BlockerCategory::UnsupportedRequest,
+        handbook_flow::ResolverBlockerCategory::UnsupportedRequest => {
+            BlockerCategory::UnsupportedRequest
+        }
     }
 }
 
@@ -138,8 +158,12 @@ fn map_next_safe_action(action: handbook_flow::ResolverNextSafeAction) -> crate:
     match action {
         handbook_flow::ResolverNextSafeAction::RunSetup => crate::NextSafeAction::RunSetup,
         handbook_flow::ResolverNextSafeAction::RunSetupInit => crate::NextSafeAction::RunSetupInit,
-        handbook_flow::ResolverNextSafeAction::RunSetupRefresh => crate::NextSafeAction::RunSetupRefresh,
-        handbook_flow::ResolverNextSafeAction::RunAuthorCharter => crate::NextSafeAction::RunAuthorCharter,
+        handbook_flow::ResolverNextSafeAction::RunSetupRefresh => {
+            crate::NextSafeAction::RunSetupRefresh
+        }
+        handbook_flow::ResolverNextSafeAction::RunAuthorCharter => {
+            crate::NextSafeAction::RunAuthorCharter
+        }
         handbook_flow::ResolverNextSafeAction::RunAuthorProjectContext => {
             crate::NextSafeAction::RunAuthorProjectContext
         }

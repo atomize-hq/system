@@ -7,12 +7,11 @@ use crate::packet_result::{
     PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
 };
 use handbook_engine::{
-    baseline_artifact_validation_for_path, ArtifactIngestIssueKind, ArtifactManifest,
-    ArtifactPresence, BaselineArtifactValidation, BaselineArtifactVerdict, CanonicalArtifact,
-    CanonicalArtifactKind, CanonicalArtifacts, FreshnessIssueKind, FreshnessStatus,
-    ManifestError, ManifestInputs, SystemRootStatus,
-    validate_charter_markdown, validate_environment_inventory_markdown,
-    validate_project_context_markdown,
+    baseline_artifact_validation_for_path, validate_charter_markdown,
+    validate_environment_inventory_markdown, validate_project_context_markdown,
+    ArtifactIngestIssueKind, ArtifactManifest, ArtifactPresence, BaselineArtifactValidation,
+    BaselineArtifactVerdict, CanonicalArtifact, CanonicalArtifactKind, CanonicalArtifacts,
+    FreshnessIssueKind, FreshnessStatus, ManifestError, ManifestInputs, SystemRootStatus,
 };
 use std::cmp::Ordering;
 use std::path::Path;
@@ -330,6 +329,7 @@ fn push_baseline_truth_blockers(
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BaselineBlockerScope {
     RequiredOnly,
@@ -799,9 +799,7 @@ fn packet_artifact_disposition_for(
     match artifact.identity.presence {
         ArtifactPresence::Missing => PacketArtifactDisposition::OmittedMissing,
         ArtifactPresence::PresentEmpty => PacketArtifactDisposition::OmittedEmpty,
-        ArtifactPresence::PresentNonEmpty
-            if artifact.identity.matches_setup_starter_template =>
-        {
+        ArtifactPresence::PresentNonEmpty if artifact.identity.matches_setup_starter_template => {
             PacketArtifactDisposition::OmittedStarterTemplate
         }
         ArtifactPresence::PresentNonEmpty => {
@@ -1431,9 +1429,7 @@ fn compute_blockers(
                     artifact.relative_path,
                     author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
                 )),
-                ArtifactPresence::PresentNonEmpty
-                    if artifact.matches_setup_starter_template =>
-                {
+                ArtifactPresence::PresentNonEmpty if artifact.matches_setup_starter_template => {
                     blockers.push(required_artifact_blocker(
                         ResolverBlockerCategory::RequiredArtifactStarterTemplate,
                         "required canonical artifact still contains the shipped starter template"

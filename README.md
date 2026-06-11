@@ -1,6 +1,6 @@
 # Handbook
 
-Rust-first planning/compiler CLI for the reduced-v1 `handbook` product.
+Rust-first planning workspace and CLI for the reduced-v1 `handbook` product.
 
 The supported path is the Rust workspace in `crates/`. The older Python harness still ships in this repo, but only as frozen reference material while the cutover finishes.
 
@@ -134,7 +134,10 @@ cargo run -p handbook-cli -- inspect
 ## Repo Layout
 
 - `crates/cli/`: CLI binary and command-surface tests
-- `crates/compiler/`: compiler, resolver, rendering, and pipeline runtime logic
+- `crates/compiler/`: narrow compatibility/support seam for CLI-facing authoring, setup/doctor, rendering, and template-library glue that still spans owner crates
+- `crates/engine/`: canonical artifact, freshness, and structured authoring core
+- `crates/flow/`: resolver, packet-result, and budget runtime surfaces
+- `crates/pipeline/`: declarative pipeline loading, route state, compile/capture, and handoff runtime surfaces
 - `core/pipelines/`: approved declarative pipeline definitions
 - `core/profiles/`: approved declarative profile packs and profile command surfaces
 - `core/runners/`: approved declarative runner allowlist and execution-guidance modules

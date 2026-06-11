@@ -4,7 +4,7 @@ use std::path::Path;
 pub(crate) const RUNTIME_STATE_ROOT_RELATIVE: &str = ".handbook/state";
 const RUNTIME_STATE_PIPELINE_DIR_RELATIVE: &str = ".handbook/state/pipeline";
 const CAPTURE_PROVENANCE_DIR_RELATIVE: &str = ".handbook/state/pipeline/stage_capture";
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 const CAPTURE_CACHE_DIR_RELATIVE: &str = ".handbook/state/pipeline/capture";
 const HANDOFF_FEATURE_SLICE_DIR_RELATIVE: &str = "artifacts/handoff/feature_slice";
 
@@ -70,12 +70,12 @@ pub(crate) struct CaptureProvenanceLayout<'a> {
 }
 
 impl<'a> CaptureProvenanceLayout<'a> {
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn stage_capture_root_relative(self) -> &'static str {
         CAPTURE_PROVENANCE_DIR_RELATIVE
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn stage_capture_root(self) -> NormalizedRepoRelativePath {
         self.workspace
             .normalize_repo_relative(self.stage_capture_root_relative())
@@ -94,12 +94,12 @@ impl<'a> CaptureProvenanceLayout<'a> {
             .expect("capture-provenance path should stay repo-relative")
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn capture_cache_root_relative(self) -> &'static str {
         CAPTURE_CACHE_DIR_RELATIVE
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn capture_cache_root(self) -> NormalizedRepoRelativePath {
         self.workspace
             .normalize_repo_relative(self.capture_cache_root_relative())
@@ -122,7 +122,7 @@ pub(crate) struct HandoffBundleLayout<'a> {
 }
 
 impl<'a> HandoffBundleLayout<'a> {
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn feature_slice_root_relative(self) -> &'static str {
         HANDOFF_FEATURE_SLICE_DIR_RELATIVE
     }

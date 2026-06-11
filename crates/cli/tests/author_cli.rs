@@ -500,8 +500,7 @@ fn guided_expected_input() -> handbook_engine::CharterStructuredInput {
                 uptime_expectations: "best effort".to_string(),
             },
             default_implications: handbook_engine::CharterDefaultImplicationsInput {
-                backward_compatibility:
-                    handbook_engine::CharterBackwardCompatibility::NotRequired,
+                backward_compatibility: handbook_engine::CharterBackwardCompatibility::NotRequired,
                 migration_planning: handbook_engine::CharterRequiredness::NotRequired,
                 rollout_controls: handbook_engine::CharterRolloutControls::Lightweight,
                 deprecation_policy: handbook_engine::CharterDeprecationPolicy::NotRequiredYet,

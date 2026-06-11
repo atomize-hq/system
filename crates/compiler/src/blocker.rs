@@ -82,6 +82,7 @@ pub(crate) fn required_artifact_blocker(
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn ingest_issue_for_path(
     manifest: &ArtifactManifest,
     canonical_repo_relative_path: &'static str,
@@ -104,6 +105,7 @@ pub(crate) fn build_doctor_blockers(
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn build_required_baseline_blockers(
     manifest: &ArtifactManifest,
     baseline_validations: &[BaselineArtifactValidation],
@@ -236,6 +238,7 @@ fn push_baseline_truth_blockers(
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BaselineBlockerScope {
     RequiredOnly,

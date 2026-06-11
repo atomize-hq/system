@@ -12,6 +12,7 @@ pub(crate) const CANONICAL_ENVIRONMENT_INVENTORY_RELATIVE_PATH: &str =
 pub(crate) const CANONICAL_FEATURE_SPEC_RELATIVE_PATH: &str =
     ".handbook/feature_spec/FEATURE_SPEC.md";
 
+#[allow(dead_code)]
 const AUTHORING_LOCK_ROOT_RELATIVE: &str = ".handbook/state/authoring";
 const CHARTER_AUTHORING_LOCK_RELATIVE_PATH: &str = ".handbook/state/authoring/charter.lock";
 const PROJECT_CONTEXT_AUTHORING_LOCK_RELATIVE_PATH: &str =
@@ -94,11 +95,12 @@ impl<'a> AuthoringLayout<'a> {
         self.repo_root.workspace()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn lock_root_relative(self) -> &'static str {
         AUTHORING_LOCK_ROOT_RELATIVE
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn lock_root(self) -> NormalizedRepoRelativePath {
         self.workspace()
             .normalize_repo_relative(self.lock_root_relative())

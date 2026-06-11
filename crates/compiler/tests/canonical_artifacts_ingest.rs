@@ -1,4 +1,4 @@
-use handbook_compiler::{
+use handbook_engine::{
     setup_starter_template_bytes, ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind,
     CanonicalArtifacts, SystemRootStatus,
 };

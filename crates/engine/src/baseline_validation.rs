@@ -31,7 +31,9 @@ where
     canonical_artifact_descriptors()
         .iter()
         .filter(|descriptor| descriptor.baseline_required)
-        .map(|descriptor| validation_for_descriptor(artifacts, descriptor, validate_artifact_markdown))
+        .map(|descriptor| {
+            validation_for_descriptor(artifacts, descriptor, validate_artifact_markdown)
+        })
         .collect()
 }
 
@@ -46,7 +48,9 @@ where
     canonical_artifact_descriptors()
         .iter()
         .find(|descriptor| descriptor.baseline_required && descriptor.kind == kind)
-        .map(|descriptor| validation_for_descriptor(artifacts, descriptor, validate_artifact_markdown))
+        .map(|descriptor| {
+            validation_for_descriptor(artifacts, descriptor, validate_artifact_markdown)
+        })
 }
 
 pub fn baseline_artifact_validation_for_path<'a>(

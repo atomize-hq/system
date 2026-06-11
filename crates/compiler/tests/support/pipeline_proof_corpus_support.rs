@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use handbook_compiler::{
+use handbook_pipeline::{
     build_route_basis, load_pipeline_definition, load_route_state_with_supported_variables,
     persist_route_basis, resolve_pipeline_route, set_route_state, supported_route_state_variables,
     PipelineCompileRefusal, PipelineCompileRefusalClassification, ResolvedPipelineRoute,
@@ -122,7 +122,7 @@ pub fn pipeline_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBu
 pub fn load_foundation_inputs_definition(
     repo_root: &Path,
 ) -> (
-    handbook_compiler::PipelineDefinition,
+    handbook_pipeline::PipelineDefinition,
     std::collections::BTreeSet<String>,
 ) {
     let definition = load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")

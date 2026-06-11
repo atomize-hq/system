@@ -1,7 +1,9 @@
 use handbook_compiler::{
-    doctor, setup_starter_template_bytes, BlockerCategory, CanonicalArtifactKind,
-    DoctorArtifactStatus, DoctorBaselineStatus, NextSafeAction, SubjectRef, C03_SCHEMA_VERSION,
-    C04_RESULT_VERSION, MANIFEST_GENERATION_VERSION,
+    doctor, BlockerCategory, CanonicalArtifactKind, DoctorArtifactStatus, DoctorBaselineStatus,
+    NextSafeAction, SubjectRef, C04_RESULT_VERSION,
+};
+use handbook_engine::{
+    setup_starter_template_bytes, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
 };
 
 fn assert_json_object_keys(

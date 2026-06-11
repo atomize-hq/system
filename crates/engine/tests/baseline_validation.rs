@@ -23,16 +23,27 @@ fn make_repo() -> tempfile::TempDir {
         &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"valid environment inventory",
     );
-    write_file(&root.join(".handbook/feature_spec/FEATURE_SPEC.md"), b"feature");
+    write_file(
+        &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
+        b"feature",
+    );
     dir
 }
 
 fn test_validator(kind: CanonicalArtifactKind, markdown: &str) -> Result<(), String> {
     match kind {
         CanonicalArtifactKind::Charter if markdown.contains("valid charter") => Ok(()),
-        CanonicalArtifactKind::ProjectContext if markdown.contains("valid project context") => Ok(()),
-        CanonicalArtifactKind::EnvironmentInventory if markdown.contains("valid environment inventory") => Ok(()),
-        CanonicalArtifactKind::FeatureSpec => Err("feature spec is not part of baseline validation".to_string()),
+        CanonicalArtifactKind::ProjectContext if markdown.contains("valid project context") => {
+            Ok(())
+        }
+        CanonicalArtifactKind::EnvironmentInventory
+            if markdown.contains("valid environment inventory") =>
+        {
+            Ok(())
+        }
+        CanonicalArtifactKind::FeatureSpec => {
+            Err("feature spec is not part of baseline validation".to_string())
+        }
         _ => Err(format!("unexpected markdown for {kind:?}")),
     }
 }

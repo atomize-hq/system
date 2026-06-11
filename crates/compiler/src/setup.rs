@@ -311,6 +311,7 @@ fn validate_request(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn plan_starter_action(
     canonical_layout: CanonicalLayout<'_>,
     repo_root: &Path,

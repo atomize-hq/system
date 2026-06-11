@@ -1966,10 +1966,7 @@ fn trim_audit_history(audit: &mut Vec<RouteStateAuditEntry>) {
     audit.drain(0..overflow);
 }
 
-pub fn route_state_path(
-    repo_root: &Path,
-    pipeline_id: &str,
-) -> Result<PathBuf, &'static str> {
+pub fn route_state_path(repo_root: &Path, pipeline_id: &str) -> Result<PathBuf, &'static str> {
     validate_pipeline_id(pipeline_id)?;
     let route_state_relative_path = RepoLayoutRoot::new(repo_root)
         .runtime_state()

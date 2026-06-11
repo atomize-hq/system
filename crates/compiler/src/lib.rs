@@ -5,8 +5,7 @@ pub mod blocker;
 pub mod budget;
 pub mod canonical_artifacts;
 pub mod decision_log;
-pub mod declarative_roots;
-pub mod doctor;
+mod doctor;
 mod doctor_shell;
 pub mod error;
 pub mod freshness;
@@ -26,11 +25,21 @@ pub mod rendering;
 mod repo_file_access;
 pub mod resolver;
 pub mod route_state;
-pub mod setup;
+mod setup;
 mod setup_shell;
 
-pub use artifact_manifest::{
-    ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
+// Packet 4.5.2 posture: `handbook-compiler` remains a narrow compatibility/support
+// crate for the unresolved product-shell seams that still span multiple owner crates.
+// Engine-, flow-, and pipeline-owned logic stays in those crates; this crate keeps
+// explicit compatibility modules for those families, but the root export surface is
+// limited to CLI-facing support types and adapters rather than remaining a flat
+// umbrella import path.
+pub(crate) use artifact_manifest::{ArtifactManifest, ManifestError, ManifestInputs};
+pub use author::template_library::{
+    resolve_shipped_template_library, resolve_template_library, CharterTemplateLibraryOverride,
+    EnvironmentInventoryTemplateLibraryOverride, TemplateLibraryAsset,
+    TemplateLibraryOverrideRequest, TemplateLibraryRequest, TemplateLibraryResolveError,
+    TemplateLibraryResolveErrorKind, TemplateLibraryResolveRequest, TemplateLibrarySelection,
 };
 pub use author::{
     author_charter, author_charter_guided, author_environment_inventory, author_project_context,
@@ -61,15 +70,9 @@ pub use author::{
     DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use blocker::{blocker_category_priority, Blocker, BlockerCategory, C04_RESULT_VERSION};
-pub use budget::{
-    BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason,
-    NextSafeAction as BudgetNextSafeAction,
-};
-pub use canonical_artifacts::{
-    canonical_artifact_descriptors, matches_setup_starter_template, setup_starter_template,
-    setup_starter_template_bytes, ArtifactIngestError, ArtifactIngestIssue,
-    ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact, CanonicalArtifactDescriptor,
-    CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
+pub(crate) use budget::BudgetOutcome;
+pub(crate) use canonical_artifacts::{
+    ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact,
 };
 pub use decision_log::DecisionLog;
 pub use doctor::{
@@ -77,78 +80,15 @@ pub use doctor::{
     DoctorReport,
 };
 pub use error::CompilerError;
-pub use freshness::{
-    compute_freshness, FreshnessIssue, FreshnessIssueKind, FreshnessStatus, FreshnessTruth,
-    InheritedDependency, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,
-    MANIFEST_GENERATION_VERSION,
-};
-pub use packet_result::PacketResult;
-pub use pipeline::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
-    load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
-    render_pipeline_show, resolve_pipeline_only_selector, resolve_pipeline_selector,
-    supported_route_state_variables, ActivationClause, ActivationConditionSet, ActivationOperator,
-    ActivationValidationError, CompileStageDefinition, CompileStageGating, CompileStageInput,
-    CompileStageInputs, CompileStageLoadError, CompileStageOutput, CompileStageOutputs,
-    CompileStageVariable, PipelineBody, PipelineCatalog, PipelineCatalogEntry,
-    PipelineCatalogError, PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition,
-    PipelineHeader, PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError,
-    PipelineSelection, PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
-    StageFileValidationError,
-};
-pub use pipeline_capture::{
-    apply_cached_pipeline_capture, apply_pipeline_capture, capture_pipeline_output,
-    load_pipeline_capture_cache_entry, preview_pipeline_capture,
-    render_pipeline_capture_apply_result, render_pipeline_capture_preview,
-    render_pipeline_capture_refusal, PipelineCaptureApplyResult, PipelineCaptureCacheEntry,
-    PipelineCapturePlan, PipelineCapturePreview, PipelineCaptureRefusal,
-    PipelineCaptureRefusalClassification, PipelineCaptureRequest, PipelineCaptureStateEffect,
-    PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCaptureTarget,
-    PipelineCaptureWrite, PipelineCaptureWriteIntent, PIPELINE_CAPTURE_CACHE_SCHEMA_VERSION,
-};
-pub use pipeline_compile::{
-    compile_pipeline_stage, compile_pipeline_stage_with_runtime, render_pipeline_compile_explain,
-    render_pipeline_compile_payload, PipelineCompileDocument, PipelineCompileDocumentKind,
-    PipelineCompileDocumentStatus, PipelineCompileGatingSummary, PipelineCompileOutput,
-    PipelineCompileOutputKind, PipelineCompileRefusal, PipelineCompileRefusalClassification,
-    PipelineCompileResult, PipelineCompileRuntimeContext, PipelineCompileTarget,
-    PipelineCompileVariable, PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
-};
-pub use pipeline_handoff::{
-    emit_pipeline_handoff_bundle, render_pipeline_handoff_emit_result,
-    render_pipeline_handoff_refusal, validate_pipeline_handoff_bundle,
-    PipelineHandoffCanonicalArtifactFingerprint, PipelineHandoffCanonicalProvenance,
-    PipelineHandoffEmitRequest, PipelineHandoffEmitResult, PipelineHandoffFallbackMetadata,
-    PipelineHandoffFeatureSpecCompileProvenance, PipelineHandoffInput, PipelineHandoffManifest,
-    PipelineHandoffProducer, PipelineHandoffReadAllowlist, PipelineHandoffRefusal,
-    PipelineHandoffRefusalClassification, PipelineHandoffRouteBasisProvenance,
-    PipelineHandoffTrustClass, PipelineHandoffValidatedBundle, PipelineHandoffValidationFailure,
-    PipelineHandoffValidationFailureClassification,
-};
-pub use pipeline_route::{
-    resolve_pipeline_route, ResolvedPipelineRoute, ResolvedPipelineStage, RouteEvaluationError,
-    RouteStageReason, RouteStageStatus, RouteVariables,
-};
+pub use handbook_engine::{ArtifactIngestError, CanonicalArtifactKind, SystemRootStatus};
+pub(crate) use packet_result::PacketResult;
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
     build_output_model, render_blocker_category, render_inspect, render_json, render_markdown,
     render_next_safe_action_value, render_subject_ref, RenderError, RenderOutputModel,
     RenderSurface,
 };
-pub use resolver::{
-    resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverResult,
-};
-pub use route_state::{
-    build_route_basis, effective_route_basis_run, load_route_state,
-    load_route_state_with_supported_variables, persist_route_basis, set_route_state, RouteBasis,
-    RouteBasisActivationOperator, RouteBasisBuildError, RouteBasisPersistOutcome,
-    RouteBasisPersistRefusal, RouteBasisProfilePack, RouteBasisResolvedStage, RouteBasisRunner,
-    RouteBasisStageReason, RouteBasisStageStatus, RouteState, RouteStateAuditEntry,
-    RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateRefs, RouteStateRun, RouteStateStoreError, RouteStateValue,
-    ROUTE_BASIS_REPO_ROOT_SENTINEL, ROUTE_BASIS_SCHEMA_VERSION, ROUTE_STATE_AUDIT_LIMIT,
-    ROUTE_STATE_SCHEMA_VERSION,
-};
+pub use resolver::{resolve, ResolverResult};
 pub use setup::{
     plan_setup, run_setup, SetupAction, SetupActionLabel, SetupDisposition, SetupMode,
     SetupOutcome, SetupPlan, SetupRefusal, SetupRefusalKind, SetupRequest,

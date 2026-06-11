@@ -1,9 +1,9 @@
+use handbook_engine::CanonicalArtifactKind;
 use handbook_flow::{
     resolve, BudgetDisposition, BudgetPolicy, PacketSectionMode, PacketSelectionStatus,
     PacketVariant, ResolveRequest, ResolverNextSafeAction, ResolverRefusalCategory,
     ResolverSubjectRef,
 };
-use handbook_engine::CanonicalArtifactKind;
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -224,8 +224,14 @@ fn flow_resolver_builds_ready_planning_packet_body() {
     assert_eq!(result.packet_result.sections[0].title, "CHARTER");
     assert_eq!(result.packet_result.sections[1].title, "PROJECT_CONTEXT");
     assert_eq!(result.packet_result.sections[2].title, "FEATURE_SPEC");
-    assert_eq!(result.packet_result.sections[0].mode, PacketSectionMode::Verbatim);
-    assert_eq!(result.packet_result.sections[0].contents, valid_charter_markdown());
+    assert_eq!(
+        result.packet_result.sections[0].mode,
+        PacketSectionMode::Verbatim
+    );
+    assert_eq!(
+        result.packet_result.sections[0].contents,
+        valid_charter_markdown()
+    );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
         "run `handbook inspect --packet planning.packet` for proof"
@@ -262,7 +268,10 @@ fn flow_resolver_summarizes_optional_sources_when_budget_demands_it() {
     )
     .expect("resolve");
 
-    assert_eq!(result.budget_outcome.disposition, BudgetDisposition::Summarize);
+    assert_eq!(
+        result.budget_outcome.disposition,
+        BudgetDisposition::Summarize
+    );
     let section = result
         .packet_result
         .sections
@@ -270,7 +279,9 @@ fn flow_resolver_summarizes_optional_sources_when_budget_demands_it() {
         .find(|section| section.title == "PROJECT_CONTEXT")
         .expect("project context section");
     assert_eq!(section.mode, PacketSectionMode::Summary);
-    assert!(section.contents.contains("budget summary: full contents omitted"));
+    assert!(section
+        .contents
+        .contains("budget summary: full contents omitted"));
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
             == "optional source summarized due to budget: .handbook/project_context/PROJECT_CONTEXT.md"
@@ -310,7 +321,10 @@ fn flow_resolver_refuses_symlinked_canonical_artifact_as_non_canonical_input() {
             canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
         }
     );
-    assert_eq!(refusal.next_safe_action, ResolverNextSafeAction::RunSetupRefresh);
+    assert_eq!(
+        refusal.next_safe_action,
+        ResolverNextSafeAction::RunSetupRefresh
+    );
 }
 
 #[test]
@@ -351,8 +365,7 @@ fn flow_resolver_blocks_optional_artifact_read_error_without_refusal() {
             && blocker.subject
                 == ResolverSubjectRef::CanonicalArtifact {
                     kind: CanonicalArtifactKind::ProjectContext,
-                    canonical_repo_relative_path:
-                        ".handbook/project_context/PROJECT_CONTEXT.md",
+                    canonical_repo_relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
                 }
             && blocker.next_safe_action == ResolverNextSafeAction::RunSetupRefresh
     }));
@@ -380,7 +393,10 @@ fn flow_resolver_refuses_required_artifact_malformed_path_read_error() {
             canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
         }
     );
-    assert_eq!(refusal.next_safe_action, ResolverNextSafeAction::RunSetupRefresh);
+    assert_eq!(
+        refusal.next_safe_action,
+        ResolverNextSafeAction::RunSetupRefresh
+    );
 }
 
 #[test]
@@ -448,7 +464,10 @@ fn flow_resolver_refuses_live_execution_packets_without_fixture_backing() {
     .expect("resolve");
 
     let refusal = result.refusal.expect("refusal");
-    assert_eq!(refusal.category, ResolverRefusalCategory::UnsupportedRequest);
+    assert_eq!(
+        refusal.category,
+        ResolverRefusalCategory::UnsupportedRequest
+    );
     assert!(
         refusal.summary.contains("fixture-backed"),
         "expected boundary statement mentioning fixture-backed demos: {:?}",
@@ -495,7 +514,10 @@ fn flow_resolver_excludes_optional_sources_when_total_budget_demands_it() {
     )
     .expect("resolve");
 
-    assert_eq!(result.budget_outcome.disposition, BudgetDisposition::Exclude);
+    assert_eq!(
+        result.budget_outcome.disposition,
+        BudgetDisposition::Exclude
+    );
     assert!(result
         .packet_result
         .sections

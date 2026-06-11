@@ -27,10 +27,13 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 
 - Workspace root:
   - `Cargo.toml` at the repo root is the authoritative Rust workspace entrypoint.
-  - The workspace members are `crates/cli` and `crates/compiler`.
+  - The workspace members are `crates/cli`, `crates/compiler`, `crates/engine`, `crates/flow`, and `crates/pipeline`.
 - Crate ownership:
   - `crates/cli` owns binary entrypoints, argument parsing, command dispatch, and user-facing help text.
-  - `crates/compiler` owns shared types, packet/decision-log scaffolding, and core compilation or resolution logic.
+  - `crates/engine` owns canonical-artifact, freshness, and structured authoring core.
+  - `crates/flow` owns resolver, packet-result, and budget runtime surfaces.
+  - `crates/pipeline` owns declarative pipeline loading, route state, compile/capture, and handoff runtime surfaces.
+  - `crates/compiler` is a narrow compatibility/support crate for the remaining CLI-facing seams that still span owner crates, including setup/doctor orchestration, rendering/refusal/blocker adapters, and template-library support.
   - `crates/cli` MUST NOT become the home for resolver logic, packet selection, or shared domain types beyond thin wiring.
   - `crates/compiler` MUST NOT parse CLI arguments or own the supported help surface.
 
@@ -39,10 +42,12 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 ### Workspace and crate boundaries
 
 - The workspace MUST expose one obvious split between the operator-facing CLI and the compiler core.
-- The CLI crate MUST remain a thin orchestration layer that delegates shared logic into the compiler crate.
-- The compiler crate MUST be the compile-time home for shared packet-result and decision-log types used by downstream seams.
-- For the first supported `M2` compile wedge, the CLI crate MUST stay thin and the compiler crate MUST own compile assembly, compile proof, and compile refusal logic without spreading that behavior across a new abstraction stack.
-- For the first supported `M2` compile wedge, plain `pipeline compile` and `pipeline compile --explain` MUST render from one shared compiler-owned typed compile result rather than maintaining separate assembly paths.
+- The CLI crate MUST remain a thin orchestration layer that delegates logic to the crate that actually owns it.
+- `crates/engine`, `crates/flow`, and `crates/pipeline` MUST remain the default import surfaces for the logic they own.
+- `crates/compiler` MUST remain a narrow compatibility/support seam and MUST NOT revert to being an umbrella re-export crate for engine-, flow-, or pipeline-owned logic.
+- The compiler crate MUST remain the compile-time home for the small shared support types and adapters that still bind the CLI-facing seams together.
+- For the first supported `M2` compile wedge, the CLI crate MUST stay thin and the retained compiler support seam MUST own compile-proof rendering and refusal adaptation without spreading that behavior across a new abstraction stack.
+- For the first supported `M2` compile wedge, plain `pipeline compile` and `pipeline compile --explain` MUST still render from one shared typed compile result rather than maintaining separate assembly paths.
 - For the first supported `M2` compile wedge, legacy Python compile behavior MAY be used as content reference, but the supported Rust payload shape, refusal wording, and proof wording MUST follow current Rust contracts rather than byte-for-byte legacy formatting.
 - The Rust CLI MUST be the only supported packet-resolution authority once Rust setup exists.
 
@@ -153,9 +158,10 @@ This contract defines the reduced-v1 Rust workspace and CLI command-surface trut
 
 ## Verification Checklist
 
-- [ ] `Cargo.toml` defines a root workspace with `crates/cli` and `crates/compiler` as members.
+- [ ] `Cargo.toml` defines a root workspace with `crates/cli`, `crates/compiler`, `crates/engine`, `crates/flow`, and `crates/pipeline` as members.
 - [ ] `crates/cli` owns parsing, dispatch, and help text.
-- [ ] `crates/compiler` owns shared types and compiler-core logic.
+- [ ] `crates/engine`, `crates/flow`, and `crates/pipeline` own their extracted runtime logic directly.
+- [ ] `crates/compiler` remains a narrow compatibility/support seam and is not the default umbrella import path for extracted logic.
 - [ ] `--help` shows the supported surface in setup-first order and presents the setup family as `setup`, `setup init`, and `setup refresh`.
 - [ ] `--help` shows `author` between `setup` and `pipeline`, and documents `handbook author charter`, `handbook author charter --validate --from-inputs <path|->`, `handbook author charter --from-inputs <path|->`, `handbook author project-context`, `handbook author project-context --from-inputs <path|->`, and `handbook author environment-inventory`.
 - [ ] Help text matches the supported reduced-v1 command story, documents the routed setup family, documents `author` as the canonical authoring surface, documents `pipeline` as the orchestration surface, and exposes the M2 compile wedge plus the M3 capture wedge.

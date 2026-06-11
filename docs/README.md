@@ -2,7 +2,7 @@
 
 ## Start Here (Supported)
 
-Reduced v1 is a **Rust-first context compiler CLI**.
+Reduced v1 is a **Rust-first multi-crate CLI workspace**.
 
 - Repo overview: [`README.md`](../README.md)
 - Start here: [`docs/START_HERE.md`](START_HERE.md)
@@ -11,6 +11,7 @@ Reduced v1 is a **Rust-first context compiler CLI**.
 - CLI product vocabulary: [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
 - CLI command hierarchy and front door: [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
 - Baseline authoring commands: `handbook author charter`, `handbook author project-context`, `handbook author environment-inventory`
+- Ownership posture: `handbook-engine`, `handbook-flow`, and `handbook-pipeline` own their extracted logic directly; `handbook-compiler` remains a narrow compatibility/support seam for residual CLI-facing glue
 - Reviewed orchestration surface: `pipeline` for route resolution, explicit stage compilation, explicit stage-output capture, and narrow route-state mutation
 - First shipped compile wedge: `pipeline compile --id <pipeline-id> --stage <stage-id>` with payload-only stdout, plus `pipeline compile --explain` for proof-only stdout
 - First shipped writer wedge: `pipeline capture --id <pipeline-id> --stage <stage-id>` plus `pipeline capture --preview` and `pipeline capture apply --capture-id <capture-id>`

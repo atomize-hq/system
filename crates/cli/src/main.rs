@@ -839,8 +839,7 @@ where
     GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
     InteractiveAllowed: Fn() -> bool,
     PreflightAuthoring: Fn(&Path) -> Result<(), handbook_compiler::AuthorProjectContextRefusal>,
-    CollectGuidedInput:
-        Fn(&Path) -> Result<handbook_engine::ProjectContextStructuredInput, String>,
+    CollectGuidedInput: Fn(&Path) -> Result<handbook_engine::ProjectContextStructuredInput, String>,
     RunAuthor: Fn(
         &Path,
         &handbook_engine::ProjectContextStructuredInput,
@@ -903,8 +902,7 @@ where
                     };
                 }
             };
-            let input = match handbook_engine::parse_project_context_structured_input_yaml(&yaml)
-            {
+            let input = match handbook_engine::parse_project_context_structured_input_yaml(&yaml) {
                 Ok(input) => input,
                 Err(err) => {
                     let refusal = map_engine_project_context_core_error(err);
@@ -970,11 +968,17 @@ fn flow_result_for_rendering(
         budget_outcome: result.budget_outcome,
         selection: result.selection,
         refusal: result.refusal.map(flow_refusal_for_rendering),
-        blockers: result.blockers.into_iter().map(flow_blocker_for_rendering).collect(),
+        blockers: result
+            .blockers
+            .into_iter()
+            .map(flow_blocker_for_rendering)
+            .collect(),
     }
 }
 
-fn flow_refusal_for_rendering(refusal: handbook_flow::ResolverRefusal) -> handbook_compiler::Refusal {
+fn flow_refusal_for_rendering(
+    refusal: handbook_flow::ResolverRefusal,
+) -> handbook_compiler::Refusal {
     handbook_compiler::Refusal {
         category: flow_refusal_category_for_rendering(refusal.category),
         summary: refusal.summary,
@@ -983,7 +987,9 @@ fn flow_refusal_for_rendering(refusal: handbook_flow::ResolverRefusal) -> handbo
     }
 }
 
-fn flow_blocker_for_rendering(blocker: handbook_flow::ResolverBlocker) -> handbook_compiler::Blocker {
+fn flow_blocker_for_rendering(
+    blocker: handbook_flow::ResolverBlocker,
+) -> handbook_compiler::Blocker {
     handbook_compiler::Blocker {
         category: flow_blocker_category_for_rendering(blocker.category),
         subject: flow_subject_ref_for_rendering(blocker.subject),
@@ -1103,7 +1109,9 @@ fn flow_next_safe_action_for_rendering(
     action: handbook_flow::ResolverNextSafeAction,
 ) -> handbook_compiler::NextSafeAction {
     match action {
-        handbook_flow::ResolverNextSafeAction::RunSetup => handbook_compiler::NextSafeAction::RunSetup,
+        handbook_flow::ResolverNextSafeAction::RunSetup => {
+            handbook_compiler::NextSafeAction::RunSetup
+        }
         handbook_flow::ResolverNextSafeAction::RunSetupInit => {
             handbook_compiler::NextSafeAction::RunSetupInit
         }
@@ -1152,7 +1160,9 @@ fn flow_next_safe_action_for_rendering(
         handbook_flow::ResolverNextSafeAction::RunGenerate { packet_id } => {
             handbook_compiler::NextSafeAction::RunGenerate { packet_id }
         }
-        handbook_flow::ResolverNextSafeAction::RunDoctor => handbook_compiler::NextSafeAction::RunDoctor,
+        handbook_flow::ResolverNextSafeAction::RunDoctor => {
+            handbook_compiler::NextSafeAction::RunDoctor
+        }
     }
 }
 
@@ -2515,9 +2525,7 @@ fn parse_requiredness(value: &str) -> Result<handbook_engine::CharterRequirednes
     }
 }
 
-fn parse_rollout_controls(
-    value: &str,
-) -> Result<handbook_engine::CharterRolloutControls, String> {
+fn parse_rollout_controls(value: &str) -> Result<handbook_engine::CharterRolloutControls, String> {
     match value.trim().to_ascii_lowercase().as_str() {
         "none" => Ok(handbook_engine::CharterRolloutControls::None),
         "lightweight" => Ok(handbook_engine::CharterRolloutControls::Lightweight),

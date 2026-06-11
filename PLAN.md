@@ -10,6 +10,7 @@ The milestone stays the same. The plan is now explicit about:
 - the live compiler inputs that must be rewritten, not just the files that move
 - the exact compiler, docs, fixture, and proof surfaces that must change together
 - the exact validation rails and worktree-parallel execution order
+- the live workspace posture documented in [`C-02`](docs/contracts/C-02-rust-workspace-and-cli-command-surface.md): `crates/engine`, `crates/flow`, and `crates/pipeline` own extracted logic directly, while `crates/compiler` is now a narrow compatibility/support seam rather than the default umbrella import surface
 
 ## Objective
 

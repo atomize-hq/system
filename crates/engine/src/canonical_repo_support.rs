@@ -2,6 +2,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum RepoRelativeFileAccessError {
     Missing(PathBuf),

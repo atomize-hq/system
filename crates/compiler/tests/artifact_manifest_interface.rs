@@ -1,4 +1,4 @@
-use handbook_compiler::{
+use handbook_engine::{
     ArtifactManifest, CanonicalArtifactKind, CanonicalArtifacts, InheritedDependency,
     ManifestInputs, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,
     MANIFEST_GENERATION_VERSION,

@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use handbook_compiler::author::template_library::{
+use handbook_compiler::{
     resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection,
 };
-use handbook_compiler::{
+use handbook_pipeline::{
     load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
     load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
     render_pipeline_show, CompileStageInput, PipelineCatalogError, PipelineLoadError,

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use handbook_compiler::{
-    load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
-    StageFileValidationError,
+use handbook_pipeline::{
+    load_pipeline_definition, ActivationOperator, ActivationValidationError, PipelineLoadError,
+    PipelineValidationError, StageFileValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -1555,7 +1555,7 @@ stages:
                 PipelineValidationError::InvalidActivation {
                     stage_id,
                     reason:
-                        handbook_compiler::ActivationValidationError::EmptyConditionList {
+                        ActivationValidationError::EmptyConditionList {
                             operator: ActivationOperator::Any,
                         },
                 },

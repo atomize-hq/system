@@ -2,38 +2,34 @@ use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use handbook_compiler::author::{
-    author_charter_guided, preflight_author_charter_from_input,
-    template_library::{
-        resolve_shipped_template_library, resolve_template_library, CharterTemplateLibraryOverride,
-        EnvironmentInventoryTemplateLibraryOverride, TemplateLibraryAsset,
-        TemplateLibraryOverrideRequest, TemplateLibraryRequest, TemplateLibraryResolveErrorKind,
-        TemplateLibraryResolveRequest, TemplateLibrarySelection,
-    },
-};
 use handbook_compiler::{
-    author_charter, author_environment_inventory, author_project_context_from_input,
-    parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
-    preflight_author_charter, preflight_author_environment_inventory,
+    author_charter, author_charter_guided, author_environment_inventory,
+    author_project_context_from_input, parse_charter_structured_input_yaml,
+    parse_project_context_structured_input_yaml, preflight_author_charter,
+    preflight_author_charter_from_input, preflight_author_environment_inventory,
     preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
-    run_setup, setup_starter_template_bytes, validate_charter_structured_input,
-    validate_environment_inventory_markdown, validate_project_context_markdown,
-    validate_project_context_structured_input, AuthorCharterRefusalKind,
-    AuthorEnvironmentInventoryRefusalKind, AuthorProjectContextRefusalKind, CanonicalArtifactKind,
-    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, ProjectContextClassificationImplicationsInput,
-    ProjectContextConstraintsInput, ProjectContextDataRealityInput,
-    ProjectContextEnvironmentsAndDeliveryInput, ProjectContextIntegrationInput,
-    ProjectContextKnownUnknownInput, ProjectContextOperationalRealityInput,
-    ProjectContextRepoCodebaseRealityInput, ProjectContextStructuredInput,
-    ProjectContextSummaryInput, ProjectContextSystemBoundariesInput, SetupRequest,
+    resolve_shipped_template_library, resolve_template_library, run_setup,
+    validate_charter_structured_input, validate_environment_inventory_markdown,
+    validate_project_context_markdown, validate_project_context_structured_input,
+    AuthorCharterRefusalKind, AuthorEnvironmentInventoryRefusalKind,
+    AuthorProjectContextRefusalKind, CanonicalArtifactKind, CharterAudience,
+    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
+    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
+    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
+    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
+    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
+    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
+    CharterSurface, CharterTemplateLibraryOverride, EnvironmentInventoryTemplateLibraryOverride,
+    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
+    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
+    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
+    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
+    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
+    SetupRequest, TemplateLibraryAsset, TemplateLibraryOverrideRequest, TemplateLibraryRequest,
+    TemplateLibraryResolveErrorKind, TemplateLibraryResolveRequest, TemplateLibrarySelection,
     CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
+use handbook_engine::setup_starter_template_bytes;
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";

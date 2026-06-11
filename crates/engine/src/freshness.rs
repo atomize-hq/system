@@ -1,4 +1,6 @@
-use crate::canonical_artifacts::{ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind};
+use crate::canonical_artifacts::{
+    ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind,
+};
 use sha2::{Digest, Sha256};
 
 pub const C03_SCHEMA_VERSION: &str = "reduced-v1-m8";

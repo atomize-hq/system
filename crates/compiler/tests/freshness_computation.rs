@@ -1,6 +1,6 @@
-use handbook_compiler::{
+use handbook_engine::{
     compute_freshness, ArtifactPresence, CanonicalArtifactIdentity, CanonicalArtifactKind,
-    FreshnessIssueKind, FreshnessStatus, InheritedDependency, OverrideTarget,
+    FreshnessIssue, FreshnessIssueKind, FreshnessStatus, InheritedDependency, OverrideTarget,
     OverrideWithRationale, C03_SCHEMA_VERSION, MANIFEST_GENERATION_VERSION,
 };
 
@@ -258,7 +258,7 @@ fn required_starter_template_is_invalid_and_changes_fingerprint() {
     assert_eq!(starter_truth.status, FreshnessStatus::Invalid);
     assert_eq!(
         starter_truth.issues,
-        vec![handbook_compiler::FreshnessIssue {
+        vec![FreshnessIssue {
             kind: FreshnessIssueKind::RequiredArtifactStarterTemplate,
             detail: "required canonical artifact still contains the shipped starter template: Charter at .handbook/charter/CHARTER.md".to_string(),
         }]
