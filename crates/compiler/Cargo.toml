@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 handbook-engine = { path = "../engine" }
+handbook-flow = { path = "../flow" }
 handbook-pipeline = { path = "../pipeline" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }

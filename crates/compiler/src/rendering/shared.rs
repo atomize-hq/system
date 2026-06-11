@@ -1,12 +1,12 @@
 use crate::{
     blocker::Blocker,
-    budget::{BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction},
-    packet_result::{
-        PacketBodyNote, PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection,
-        PacketSectionMode, PacketSourceSummary, PacketVariant,
-    },
     refusal::{NextSafeAction, RefusalCategory, SubjectRef},
-    BlockerCategory, CanonicalArtifactKind, PacketSelectionStatus,
+    BlockerCategory, CanonicalArtifactKind,
+};
+use handbook_flow::{
+    BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction, PacketBodyNote,
+    PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection, PacketSectionMode,
+    PacketSelectionStatus, PacketSourceSummary, PacketVariant,
 };
 
 pub fn push_line(output: &mut String, line: impl AsRef<str>) {

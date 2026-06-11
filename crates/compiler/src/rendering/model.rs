@@ -1,8 +1,6 @@
 use super::error::RenderError;
-use crate::{
-    Blocker, BudgetOutcome, PacketResult, PacketSelectionStatus, Refusal, ResolverResult,
-    C04_RESULT_VERSION,
-};
+use crate::{Blocker, Refusal, ResolverResult, C04_RESULT_VERSION};
+use handbook_flow::{BudgetOutcome, PacketResult, PacketSelectionStatus};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderSurface {

@@ -1,5 +1,5 @@
 pub use handbook_engine::baseline_validation::{
-    baseline_artifact_validation_for_path, BaselineArtifactValidation, BaselineArtifactVerdict,
+    BaselineArtifactValidation, BaselineArtifactVerdict,
 };
 
 use crate::author::{

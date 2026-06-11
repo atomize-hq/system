@@ -4,11 +4,11 @@ use super::shared::{
     render_budget_next_safe_action, render_budget_reason, render_canonical_artifact_kind,
     render_packet_status, render_packet_variant, render_refusal_category,
 };
-use crate::packet_result::{
+use crate::{ArtifactPresence, Blocker, Refusal, SubjectRef};
+use handbook_flow::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
     PacketSection, PacketSectionMode, PacketSourceSummary,
 };
-use crate::{ArtifactPresence, Blocker, Refusal, SubjectRef};
 use std::fmt::Write;
 
 pub fn render_json(model: &RenderOutputModel) -> String {
