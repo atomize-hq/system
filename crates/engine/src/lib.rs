@@ -1,14 +1,34 @@
 #![forbid(unsafe_code)]
 
 pub mod artifact_manifest;
+pub mod author;
 pub mod baseline_validation;
 pub mod canonical_artifacts;
-pub mod freshness;
 mod canonical_paths;
 mod canonical_repo_support;
+pub mod freshness;
 
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
+};
+pub use author::{
+    parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
+    render_charter_markdown, render_project_context_markdown, validate_charter_markdown,
+    validate_charter_structured_input, validate_environment_inventory_markdown,
+    validate_project_context_markdown, validate_project_context_structured_input, CharterAudience,
+    CharterBackwardCompatibility, CharterCoreError, CharterCoreErrorKind, CharterDebtTrackingInput,
+    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
+    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
+    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
+    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
+    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
+    CharterStructuredInput, CharterSurface, ProjectContextClassificationImplicationsInput,
+    ProjectContextConstraintsInput, ProjectContextCoreError, ProjectContextCoreErrorKind,
+    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
+    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
+    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
+    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
+    ProjectContextValidationError, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use baseline_validation::{
     baseline_artifact_validation, baseline_artifact_validation_for_path,
