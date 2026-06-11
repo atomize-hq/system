@@ -550,15 +550,6 @@ fn generate(args: RequestArgs) -> ExitCode {
     }
 }
 
-fn author(args: AuthorArgs) -> ExitCode {
-    match args.command {
-        Some(AuthorCommand::Charter(args)) => author_charter_command(args),
-        Some(AuthorCommand::ProjectContext(args)) => author_project_context_command(args),
-        Some(AuthorCommand::EnvironmentInventory) => author_environment_inventory_command(),
-        None => print_subcommand_help(&["author"]),
-    }
-}
-
 struct RenderedCommand {
     output: String,
     exit_code: ExitCode,
@@ -2696,57 +2687,6 @@ fn dimension_label(name: handbook_engine::CharterDimensionName) -> &'static str 
         }
         handbook_engine::CharterDimensionName::UxPolishApiUsability => {
             "ux polish and api usability"
-        }
-    }
-}
-
-fn print_subcommand_help(path: &[&str]) -> ExitCode {
-    shell_shared::print_subcommand_help::<Cli>(path)
-}
-
-fn setup(args: SetupArgs) -> ExitCode {
-    let cwd = match std::env::current_dir() {
-        Ok(dir) => dir,
-        Err(err) => {
-            println!("REFUSED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
-        }
-    };
-    let repo_root = discover_managed_repo_root(&cwd);
-
-    let (request, routed_from_auto) = match args.command {
-        None => (
-            handbook_compiler::SetupRequest {
-                mode: handbook_compiler::SetupMode::Auto,
-                ..handbook_compiler::SetupRequest::default()
-            },
-            true,
-        ),
-        Some(SetupCommand::Init) => (
-            handbook_compiler::SetupRequest {
-                mode: handbook_compiler::SetupMode::Init,
-                ..handbook_compiler::SetupRequest::default()
-            },
-            false,
-        ),
-        Some(SetupCommand::Refresh(refresh)) => (
-            handbook_compiler::SetupRequest {
-                mode: handbook_compiler::SetupMode::Refresh,
-                rewrite: refresh.rewrite,
-                reset_state: refresh.reset_state,
-            },
-            false,
-        ),
-    };
-
-    match handbook_compiler::run_setup(&repo_root, &request) {
-        Ok(outcome) => {
-            println!("{}", render_setup_success(&outcome, routed_from_auto));
-            ExitCode::SUCCESS
-        }
-        Err(refusal) => {
-            println!("{}", render_setup_refusal(&refusal));
-            ExitCode::from(1)
         }
     }
 }
