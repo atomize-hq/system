@@ -17,14 +17,12 @@ pub(crate) const CANONICAL_PROJECT_CONTEXT_NAMESPACE_DIR: &str = ".handbook/proj
 pub(crate) const CANONICAL_ENVIRONMENT_INVENTORY_NAMESPACE_DIR: &str =
     ".handbook/environment_inventory";
 pub(crate) const CANONICAL_FEATURE_SPEC_NAMESPACE_DIR: &str = ".handbook/feature_spec";
-pub(crate) const RUNTIME_STATE_ROOT_RELATIVE: &str = ".handbook/state";
 const AUTHORING_LOCK_ROOT_RELATIVE: &str = ".handbook/state/authoring";
 const CHARTER_AUTHORING_LOCK_RELATIVE_PATH: &str = ".handbook/state/authoring/charter.lock";
 const PROJECT_CONTEXT_AUTHORING_LOCK_RELATIVE_PATH: &str =
     ".handbook/state/authoring/project_context.lock";
 const ENVIRONMENT_INVENTORY_AUTHORING_LOCK_RELATIVE_PATH: &str =
     ".handbook/state/authoring/environment_inventory.lock";
-const RUNTIME_STATE_PIPELINE_DIR_RELATIVE: &str = ".handbook/state/pipeline";
 const CAPTURE_PROVENANCE_DIR_RELATIVE: &str = ".handbook/state/pipeline/stage_capture";
 #[cfg_attr(not(test), allow(dead_code))]
 const CAPTURE_CACHE_DIR_RELATIVE: &str = ".handbook/state/pipeline/capture";
@@ -66,10 +64,6 @@ impl<'a> RepoLayoutRoot<'a> {
 
     pub(crate) fn canonical(self) -> CanonicalLayout<'a> {
         CanonicalLayout { repo_root: self }
-    }
-
-    pub(crate) fn runtime_state(self) -> RuntimeStateLayout<'a> {
-        RuntimeStateLayout { repo_root: self }
     }
 
     pub(crate) fn authoring(self) -> AuthoringLayout<'a> {
@@ -134,35 +128,6 @@ impl<'a> CanonicalLayout<'a> {
         self.workspace()
             .normalize_repo_relative(self.namespace_dir(kind))
             .expect("canonical namespace path should stay repo-relative")
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct RuntimeStateLayout<'a> {
-    repo_root: RepoLayoutRoot<'a>,
-}
-
-impl<'a> RuntimeStateLayout<'a> {
-    pub(crate) fn workspace(self) -> CompilerWorkspace<'a> {
-        self.repo_root.workspace()
-    }
-
-    pub(crate) fn state_root_relative(self) -> &'static str {
-        RUNTIME_STATE_ROOT_RELATIVE
-    }
-
-    pub(crate) fn state_root(self) -> NormalizedRepoRelativePath {
-        self.workspace()
-            .normalize_repo_relative(self.state_root_relative())
-            .expect("runtime-state root should stay repo-relative")
-    }
-
-    pub(crate) fn route_state_relative_path(self, pipeline_id: &str) -> NormalizedRepoRelativePath {
-        self.workspace()
-            .normalize_repo_relative(&format!(
-                "{RUNTIME_STATE_PIPELINE_DIR_RELATIVE}/{pipeline_id}.yaml"
-            ))
-            .expect("runtime-state route-state path should stay repo-relative")
     }
 }
 

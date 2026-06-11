@@ -19,17 +19,6 @@ pub(crate) enum RepoRelativeFileAccessError {
 }
 
 #[derive(Debug)]
-pub(crate) enum RepoRelativeDirectoryAccessError {
-    Missing(PathBuf),
-    SymlinkNotAllowed(PathBuf),
-    NotDirectory(PathBuf),
-    ReadFailure {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-}
-
-#[derive(Debug)]
 pub(crate) enum RepoRelativeWritePathError {
     InvalidPath(String),
     ParentNotDirectory(PathBuf),
@@ -82,12 +71,6 @@ impl NormalizedRepoRelativePath {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct RepoRelativeMetadataReadError {
-    pub(crate) path: PathBuf,
-    pub(crate) source: std::io::Error,
-}
-
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CompilerWorkspace<'a> {
     repo_root: &'a Path,
@@ -105,28 +88,6 @@ impl<'a> CompilerWorkspace<'a> {
         NormalizedRepoRelativePath::parse(path)
     }
 
-    pub(crate) fn normalize_repo_relative_path(
-        &self,
-        path: &Path,
-    ) -> Result<NormalizedRepoRelativePath, String> {
-        NormalizedRepoRelativePath::parse_path(path)
-    }
-
-    pub(crate) fn metadata_no_follow(
-        &self,
-        relative_path: &NormalizedRepoRelativePath,
-    ) -> Result<Option<fs::Metadata>, RepoRelativeMetadataReadError> {
-        let absolute_path = self.absolute_path(relative_path);
-        match fs::symlink_metadata(&absolute_path) {
-            Ok(metadata) => Ok(Some(metadata)),
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(source) => Err(RepoRelativeMetadataReadError {
-                path: absolute_path,
-                source,
-            }),
-        }
-    }
-
     pub(crate) fn trusted_read(
         &self,
         relative_path: &NormalizedRepoRelativePath,
@@ -134,18 +95,6 @@ impl<'a> CompilerWorkspace<'a> {
         let absolute_path =
             resolve_repo_relative_regular_file_path(self.repo_root, relative_path.as_path())?;
         Ok(TrustedRepoFile {
-            repo_relative: relative_path.clone(),
-            absolute_path,
-        })
-    }
-
-    pub(crate) fn trusted_directory(
-        &self,
-        relative_path: &NormalizedRepoRelativePath,
-    ) -> Result<TrustedRepoDirectory, RepoRelativeDirectoryAccessError> {
-        let absolute_path =
-            resolve_repo_relative_directory_path(self.repo_root, relative_path.as_path())?;
-        Ok(TrustedRepoDirectory {
             repo_relative: relative_path.clone(),
             absolute_path,
         })
@@ -197,22 +146,6 @@ impl<'a> CompilerWorkspace<'a> {
         relative_path: &NormalizedRepoRelativePath,
     ) -> Result<(), RepoRelativeMutationError> {
         delete_repo_relative_file_from_validated(self.repo_root, relative_path.as_path())
-    }
-
-    fn absolute_path(&self, relative_path: &NormalizedRepoRelativePath) -> PathBuf {
-        self.repo_root.join(relative_path.as_path())
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct TrustedRepoDirectory {
-    repo_relative: NormalizedRepoRelativePath,
-    absolute_path: PathBuf,
-}
-
-impl TrustedRepoDirectory {
-    pub(crate) fn absolute_path(&self) -> &Path {
-        &self.absolute_path
     }
 }
 
@@ -431,47 +364,6 @@ fn resolve_repo_relative_regular_file_path(
             }
         } else if !metadata.is_dir() {
             return Err(RepoRelativeFileAccessError::NotRegularFile(current.clone()));
-        }
-    }
-
-    Ok(current)
-}
-
-fn resolve_repo_relative_directory_path(
-    repo_root: &Path,
-    relative_path: &Path,
-) -> Result<PathBuf, RepoRelativeDirectoryAccessError> {
-    let mut current = repo_root.to_path_buf();
-
-    for component in relative_path.components() {
-        let Component::Normal(part) = component else {
-            continue;
-        };
-        current.push(part);
-
-        let metadata = match fs::symlink_metadata(&current) {
-            Ok(metadata) => metadata,
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
-                return Err(RepoRelativeDirectoryAccessError::Missing(current.clone()))
-            }
-            Err(source) => {
-                return Err(RepoRelativeDirectoryAccessError::ReadFailure {
-                    path: current.clone(),
-                    source,
-                })
-            }
-        };
-
-        if metadata.file_type().is_symlink() {
-            return Err(RepoRelativeDirectoryAccessError::SymlinkNotAllowed(
-                current.clone(),
-            ));
-        }
-
-        if !metadata.is_dir() {
-            return Err(RepoRelativeDirectoryAccessError::NotDirectory(
-                current.clone(),
-            ));
         }
     }
 
