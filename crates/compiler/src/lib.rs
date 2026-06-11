@@ -7,6 +7,7 @@ pub mod canonical_artifacts;
 pub mod decision_log;
 pub mod declarative_roots;
 pub mod doctor;
+mod doctor_shell;
 pub mod error;
 pub mod freshness;
 // Keep the initial layout-owner seam compiler-internal until later slices
