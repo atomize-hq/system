@@ -1,3 +1,7 @@
+mod author;
+mod setup;
+mod shell_shared;
+
 use clap::{CommandFactory, Parser, Subcommand};
 use std::cell::RefCell;
 use std::fs;
@@ -114,8 +118,8 @@ enum Command {
 impl Command {
     fn run(self) -> ExitCode {
         match self {
-            Command::Setup(args) => setup(args),
-            Command::Author(args) => author(args),
+            Command::Setup(args) => setup::run(args),
+            Command::Author(args) => author::run(args),
             Command::Pipeline(args) => pipeline(args),
             Command::Generate(args) => generate(args),
             Command::Inspect(args) => inspect(args),
@@ -415,15 +419,7 @@ fn discover_nearest_managed_root(start: &Path) -> Option<PathBuf> {
 }
 
 fn discover_managed_repo_root(start: &Path) -> PathBuf {
-    if let Some(git_root) = discover_enclosing_git_root(start) {
-        return git_root;
-    }
-
-    if let Some(managed_root) = discover_nearest_managed_root(start) {
-        return managed_root;
-    }
-
-    start.to_path_buf()
+    shell_shared::discover_managed_repo_root(start)
 }
 
 fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
@@ -2705,16 +2701,7 @@ fn dimension_label(name: handbook_engine::CharterDimensionName) -> &'static str 
 }
 
 fn print_subcommand_help(path: &[&str]) -> ExitCode {
-    let mut command = Cli::command();
-    let mut current = &mut command;
-    for segment in path {
-        current = current
-            .find_subcommand_mut(segment)
-            .expect("subcommand help path");
-    }
-    current.print_help().expect("help output");
-    println!();
-    ExitCode::SUCCESS
+    shell_shared::print_subcommand_help::<Cli>(path)
 }
 
 fn setup(args: SetupArgs) -> ExitCode {
