@@ -7,7 +7,7 @@ use crate::repo_file_access::{resolve_repo_relative_write_path, write_repo_relat
 use crate::route_state::{
     apply_runtime_state_reset, plan_runtime_state_reset, RuntimeStateResetPlan,
 };
-use crate::setup_shell::{self, SetupRequestRefusalCopy};
+use crate::setup_shell::{self, SetupMutationRefusalCopy, SetupRequestRefusalCopy};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
@@ -133,14 +133,18 @@ pub fn run_setup(
         apply_runtime_state_reset(reset_plan).map_err(|reason| {
             setup_shell::mutation_refusal(
                 request.mode,
-                reason,
-                "runtime-state target under `.handbook/state/**`",
+                SetupMutationRefusalCopy::RuntimeStateTarget { reason },
             )
         })?;
     }
 
     let post_setup_artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_shell::mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
+        setup_shell::mutation_refusal(
+            request.mode,
+            SetupMutationRefusalCopy::CanonicalRootLoad {
+                error: err.to_string(),
+            },
+        )
     })?;
     let disposition = setup_disposition(&post_setup_artifacts);
 
@@ -156,7 +160,12 @@ fn build_setup_execution_plan(
     request: &SetupRequest,
 ) -> Result<SetupExecutionPlan, SetupRefusal> {
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_shell::mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
+        setup_shell::mutation_refusal(
+            request.mode,
+            SetupMutationRefusalCopy::CanonicalRootLoad {
+                error: err.to_string(),
+            },
+        )
     })?;
     let canonical_layout = CanonicalLayout::new(repo_root);
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
@@ -193,8 +202,7 @@ fn build_setup_execution_plan(
         Some(plan_runtime_state_reset(repo_root).map_err(|reason| {
             setup_shell::mutation_refusal(
                 request.mode,
-                reason,
-                "runtime-state target under `.handbook/state/**`",
+                SetupMutationRefusalCopy::RuntimeStateTarget { reason },
             )
         })?)
     } else {
@@ -374,8 +382,10 @@ fn validate_write_target(
         .map_err(|err| {
             setup_shell::mutation_refusal(
                 mode,
-                setup_shell::format_repo_write_path_error(relative_path, err),
-                "setup-owned starter-file write target",
+                SetupMutationRefusalCopy::StarterWriteTargetPath {
+                    path: relative_path,
+                    error: err,
+                },
             )
         })
 }
@@ -391,8 +401,7 @@ fn apply_mutation(
             .map_err(|err| {
                 setup_shell::mutation_refusal(
                     mode,
-                    setup_shell::format_repo_mutation_error(path, err),
-                    "setup-owned starter-file write target",
+                    SetupMutationRefusalCopy::StarterWriteTargetMutation { path, error: err },
                 )
             }),
     }
@@ -407,11 +416,10 @@ fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), S
         Err(source) => {
             return Err(setup_shell::mutation_refusal(
                 mode,
-                format!(
-                    "failed to inspect canonical `.handbook` root at {}: {source}",
-                    system_root.display()
-                ),
-                "canonical `.handbook` root",
+                SetupMutationRefusalCopy::CanonicalRootInspect {
+                    path: system_root.clone(),
+                    error: source,
+                },
             ));
         }
     };
@@ -423,11 +431,10 @@ fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), S
     fs::remove_file(&system_root).map_err(|source| {
         setup_shell::mutation_refusal(
             mode,
-            format!(
-                "failed to remove invalid canonical `.handbook` root at {}: {source}",
-                system_root.display()
-            ),
-            "canonical `.handbook` root",
+            SetupMutationRefusalCopy::CanonicalRootRepair {
+                path: system_root,
+                error: source,
+            },
         )
     })
 }

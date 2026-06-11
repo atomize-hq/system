@@ -1,5 +1,6 @@
 use crate::repo_file_access::{RepoRelativeMutationError, RepoRelativeWritePathError};
 use crate::setup::{SetupDisposition, SetupMode, SetupRefusal, SetupRefusalKind};
+use std::path::PathBuf;
 
 const HANDBOOK_SETUP_COMMAND: &str = "handbook setup";
 const HANDBOOK_SETUP_INIT_COMMAND: &str = "handbook setup init";
@@ -14,6 +15,32 @@ pub(crate) enum SetupRequestRefusalCopy {
     MissingCanonicalRoot,
     InvalidCanonicalRoot,
     SymlinkCanonicalRoot,
+}
+
+#[derive(Debug)]
+pub(crate) enum SetupMutationRefusalCopy {
+    CanonicalRootLoad {
+        error: String,
+    },
+    RuntimeStateTarget {
+        reason: String,
+    },
+    StarterWriteTargetPath {
+        path: &'static str,
+        error: RepoRelativeWritePathError,
+    },
+    StarterWriteTargetMutation {
+        path: &'static str,
+        error: RepoRelativeMutationError,
+    },
+    CanonicalRootInspect {
+        path: PathBuf,
+        error: std::io::Error,
+    },
+    CanonicalRootRepair {
+        path: PathBuf,
+        error: std::io::Error,
+    },
 }
 
 pub(crate) fn request_refusal(copy: SetupRequestRefusalCopy) -> SetupRefusal {
@@ -67,11 +94,39 @@ pub(crate) fn request_refusal(copy: SetupRequestRefusalCopy) -> SetupRefusal {
     }
 }
 
-pub(crate) fn mutation_refusal(
-    mode: SetupMode,
-    summary: impl Into<String>,
-    broken_subject: impl Into<String>,
-) -> SetupRefusal {
+pub(crate) fn mutation_refusal(mode: SetupMode, copy: SetupMutationRefusalCopy) -> SetupRefusal {
+    let (summary, broken_subject) = match copy {
+        SetupMutationRefusalCopy::CanonicalRootLoad { error } => {
+            (error, "canonical `.handbook` root".to_string())
+        }
+        SetupMutationRefusalCopy::RuntimeStateTarget { reason } => (
+            reason,
+            "runtime-state target under `.handbook/state/**`".to_string(),
+        ),
+        SetupMutationRefusalCopy::StarterWriteTargetPath { path, error } => (
+            format_repo_write_path_error(path, error),
+            "setup-owned starter-file write target".to_string(),
+        ),
+        SetupMutationRefusalCopy::StarterWriteTargetMutation { path, error } => (
+            format_repo_mutation_error(path, error),
+            "setup-owned starter-file write target".to_string(),
+        ),
+        SetupMutationRefusalCopy::CanonicalRootInspect { path, error } => (
+            format!(
+                "failed to inspect canonical `.handbook` root at {}: {error}",
+                path.display()
+            ),
+            "canonical `.handbook` root".to_string(),
+        ),
+        SetupMutationRefusalCopy::CanonicalRootRepair { path, error } => (
+            format!(
+                "failed to remove invalid canonical `.handbook` root at {}: {error}",
+                path.display()
+            ),
+            "canonical `.handbook` root".to_string(),
+        ),
+    };
+
     refusal(
         SetupRefusalKind::MutationRefused,
         summary,
@@ -91,7 +146,7 @@ pub(crate) fn next_safe_action(disposition: SetupDisposition) -> String {
     }
 }
 
-pub(crate) fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
+fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
     match err {
         RepoRelativeMutationError::InvalidPath(reason) => {
             format!("write target `{path}` is invalid: {reason}")
@@ -130,7 +185,7 @@ pub(crate) fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationEr
     }
 }
 
-pub(crate) fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> String {
+fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> String {
     match err {
         RepoRelativeWritePathError::InvalidPath(reason) => {
             format!("write target `{path}` is invalid: {reason}")
