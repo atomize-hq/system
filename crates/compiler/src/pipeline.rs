@@ -11,7 +11,3 @@ pub use handbook_pipeline::pipeline::{
     PipelineSelection, PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
     StageFileValidationError,
 };
-
-pub(crate) use handbook_pipeline::pipeline::{
-    load_selected_pipeline_definition, SelectedPipelineLoadError, SupportedTargetRegistry,
-};

@@ -12,8 +12,5 @@ pub use handbook_pipeline::route_state::{
 };
 
 pub(crate) use handbook_pipeline::route_state::{
-    acquire_advisory_lock, apply_runtime_state_reset, normalize_route_basis_run,
-    normalized_state_for_persistence, open_new_temp_file, persist_route_state,
-    plan_runtime_state_reset, rebuild_canonical_route_basis, route_basis_mismatch_reason,
-    route_state_path, sync_parent_dir, temp_route_state_path, RuntimeStateResetPlan,
+    apply_runtime_state_reset, plan_runtime_state_reset, RuntimeStateResetPlan,
 };

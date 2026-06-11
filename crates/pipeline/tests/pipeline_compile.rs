@@ -321,7 +321,7 @@ fn compile_refuses_malformed_selected_pipeline_definition() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::InvalidDefinition
+        handbook_pipeline::PipelineCompileRefusalClassification::InvalidDefinition
     );
     assert!(err.summary.contains("selected pipeline definition"));
 }
@@ -340,7 +340,7 @@ fn compile_refuses_malformed_selected_stage_definition() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::InvalidDefinition
+        handbook_pipeline::PipelineCompileRefusalClassification::InvalidDefinition
     );
     assert!(err.summary.contains("must declare kind `stage`"));
 }
@@ -356,7 +356,7 @@ fn compile_refuses_missing_required_artifact() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
+        handbook_pipeline::PipelineCompileRefusalClassification::MissingRequiredInput
     );
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
 }
@@ -380,7 +380,7 @@ fn compile_refuses_symlinked_required_artifact() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::InvalidState
+        handbook_pipeline::PipelineCompileRefusalClassification::InvalidState
     );
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
     assert!(!err.summary.contains("outside-secret"));
@@ -451,7 +451,7 @@ fn compile_refuses_when_required_variable_is_missing() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::MissingRequiredInput
+        handbook_pipeline::PipelineCompileRefusalClassification::MissingRequiredInput
     );
     assert!(err
         .summary
@@ -477,7 +477,7 @@ fn compile_succeeds_when_optional_artifacts_are_absent() {
         result.documents.iter().any(|document| {
             document.path == "artifacts/project_context/PROJECT_CONTEXT.md"
                 && document.status
-                    == handbook_compiler::PipelineCompileDocumentStatus::MissingOptional
+                    == handbook_pipeline::PipelineCompileDocumentStatus::MissingOptional
         }),
         "expected optional project-context artifact to be marked missing"
     );
@@ -575,7 +575,7 @@ fn compile_refuses_stage_not_declared_in_pipeline() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::UnsupportedTarget
+        handbook_pipeline::PipelineCompileRefusalClassification::UnsupportedTarget
     );
     assert!(err.summary.contains("unknown stage selector"));
     assert!(err.summary.contains("stage.10_feature_spec"));
@@ -651,7 +651,7 @@ fn compile_refuses_malformed_route_basis() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+        handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis
     );
     assert!(err.summary.contains("route_basis"));
     assert!(err.recovery.contains("pipeline resolve"));
@@ -670,7 +670,7 @@ fn compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::InvalidState
+        handbook_pipeline::PipelineCompileRefusalClassification::InvalidState
     );
     assert_eq!(err.pipeline_id.as_deref(), Some(PIPELINE_ID));
     assert_eq!(err.stage_id.as_deref(), Some(STAGE_ID));
@@ -705,7 +705,7 @@ fn compile_refuses_forged_route_basis_status() {
 
     assert_eq!(
         err.classification,
-        handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
+        handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis
     );
     pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
         &err,

@@ -416,33 +416,33 @@ fn classify_override_read_error(
     err: RepoRelativeFileAccessError,
 ) -> TemplateLibraryResolveError {
     match err {
-        RepoRelativeFileAccessError::Missing(_) => TemplateLibraryResolveError {
+        RepoRelativeFileAccessError::Missing(path) => TemplateLibraryResolveError {
             kind: TemplateLibraryResolveErrorKind::MissingOverride,
             summary: format!(
-                "override for {} is missing at `{}`",
+                "override for {} is missing at `{}` ({})",
                 asset_label(asset),
-                repo_relative_path
+                repo_relative_path,
+                path.display()
             ),
             asset: Some(asset),
             repo_relative_path: Some(repo_relative_path.to_string()),
         },
-        RepoRelativeFileAccessError::InvalidPath(reason) => {
-            invalid_override_path(asset, repo_relative_path, reason)
-        }
-        RepoRelativeFileAccessError::SymlinkNotAllowed(_) => TemplateLibraryResolveError {
+        RepoRelativeFileAccessError::SymlinkNotAllowed(path) => TemplateLibraryResolveError {
             kind: TemplateLibraryResolveErrorKind::InvalidOverridePath,
             summary: format!(
-                "override for {} must resolve to a regular repo-owned file; symlinks are not allowed",
-                asset_label(asset)
+                "override for {} must resolve to a regular repo-owned file; symlinks are not allowed ({})",
+                asset_label(asset),
+                path.display()
             ),
             asset: Some(asset),
             repo_relative_path: Some(repo_relative_path.to_string()),
         },
-        RepoRelativeFileAccessError::NotRegularFile(_) => TemplateLibraryResolveError {
+        RepoRelativeFileAccessError::NotRegularFile(path) => TemplateLibraryResolveError {
             kind: TemplateLibraryResolveErrorKind::InvalidOverridePath,
             summary: format!(
-                "override for {} must resolve to a regular repo-owned file",
-                asset_label(asset)
+                "override for {} must resolve to a regular repo-owned file ({})",
+                asset_label(asset),
+                path.display()
             ),
             asset: Some(asset),
             repo_relative_path: Some(repo_relative_path.to_string()),
