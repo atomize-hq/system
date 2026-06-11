@@ -8,4 +8,12 @@ name = "handbook_pipeline"
 path = "src/lib.rs"
 
 [dependencies]
+handbook-engine = { path = "../engine" }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_yaml_bw = "2.5.4"
+sha2 = "0.10"
+
+[dev-dependencies]
 handbook-compiler = { path = "../compiler" }
+tempfile = "3"
