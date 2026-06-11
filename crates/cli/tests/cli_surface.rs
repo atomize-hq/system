@@ -341,17 +341,17 @@ fn assert_doctor_empty_baseline_invalid(
 
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
     match path {
-        ".handbook/charter/CHARTER.md" => handbook_compiler::setup_starter_template_bytes(
-            handbook_compiler::CanonicalArtifactKind::Charter,
+        ".handbook/charter/CHARTER.md" => handbook_engine::setup_starter_template_bytes(
+            handbook_engine::CanonicalArtifactKind::Charter,
         ),
         ".handbook/project_context/PROJECT_CONTEXT.md" => {
-            handbook_compiler::setup_starter_template_bytes(
-                handbook_compiler::CanonicalArtifactKind::ProjectContext,
+            handbook_engine::setup_starter_template_bytes(
+                handbook_engine::CanonicalArtifactKind::ProjectContext,
             )
         }
         ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
-            handbook_compiler::setup_starter_template_bytes(
-                handbook_compiler::CanonicalArtifactKind::EnvironmentInventory,
+            handbook_engine::setup_starter_template_bytes(
+                handbook_engine::CanonicalArtifactKind::EnvironmentInventory,
             )
         }
         _ => panic!("unexpected starter path: {path}"),
@@ -893,7 +893,7 @@ fn stage_10_compile_payload(root: &std::path::Path) -> String {
             "stage.10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -986,8 +986,8 @@ fn record_virtual_evidence_step(transcript: &mut String, command: &str, stdout: 
 fn read_bundle_manifest_from_disk(
     repo_root: &std::path::Path,
     bundle_root: &str,
-) -> handbook_compiler::PipelineHandoffManifest {
-    handbook_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+) -> handbook_pipeline::PipelineHandoffManifest {
+    handbook_pipeline::validate_pipeline_handoff_bundle(repo_root, bundle_root)
         .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
         .manifest
 }
@@ -995,8 +995,8 @@ fn read_bundle_manifest_from_disk(
 fn read_bundle_allowlist_from_disk(
     repo_root: &std::path::Path,
     bundle_root: &str,
-) -> handbook_compiler::PipelineHandoffReadAllowlist {
-    handbook_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+) -> handbook_pipeline::PipelineHandoffReadAllowlist {
+    handbook_pipeline::validate_pipeline_handoff_bundle(repo_root, bundle_root)
         .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
         .read_allowlist
 }
@@ -1032,7 +1032,7 @@ fn read_repo_text(
 }
 
 fn bundle_path_for_source_path(
-    manifest: &handbook_compiler::PipelineHandoffManifest,
+    manifest: &handbook_pipeline::PipelineHandoffManifest,
     source_path: &str,
 ) -> String {
     manifest
@@ -1176,7 +1176,7 @@ fn collect_repo_reread_planning_inputs(
 }
 
 fn build_planning_inputs(
-    manifest: &handbook_compiler::PipelineHandoffManifest,
+    manifest: &handbook_pipeline::PipelineHandoffManifest,
     feature_spec: &str,
     foundation_strategy: &str,
     tech_arch_brief: &str,
@@ -1457,7 +1457,7 @@ fn run_repo_reread_feature_slice_consumer_baseline(
 }
 
 fn render_handoff_validation_output(
-    validated: &handbook_compiler::PipelineHandoffValidatedBundle,
+    validated: &handbook_pipeline::PipelineHandoffValidatedBundle,
 ) -> String {
     format!(
         "\
@@ -1715,7 +1715,7 @@ fn happy_path_evidence_transcript() -> String {
                 "stage.10_feature_spec",
             ],
             &[(
-                handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
                 FIXED_NOW_UTC,
             )],
         ),
@@ -1772,7 +1772,7 @@ fn happy_path_evidence_transcript() -> String {
         ),
     );
 
-    let validated = handbook_compiler::validate_pipeline_handoff_bundle(
+    let validated = handbook_pipeline::validate_pipeline_handoff_bundle(
         root.as_path(),
         &foundation_flow_demo_happy_path_bundle_root(),
     )
@@ -1901,7 +1901,7 @@ fn skip_path_evidence_transcript() -> String {
                 "stage.10_feature_spec",
             ],
             &[(
-                handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
                 FIXED_NOW_UTC,
             )],
         ),
@@ -3012,7 +3012,7 @@ fn pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slic
         "emit output should keep the stable bundle root: {emit_stdout}"
     );
 
-    let validated = handbook_compiler::validate_pipeline_handoff_bundle(
+    let validated = handbook_pipeline::validate_pipeline_handoff_bundle(
         root.as_path(),
         &foundation_flow_demo_happy_path_bundle_root(),
     )
@@ -3626,7 +3626,7 @@ fn pipeline_compile_feature_spec_payload_matches_shared_golden() {
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3682,7 +3682,7 @@ description: malformed and unrelated
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3717,7 +3717,7 @@ fn pipeline_compile_feature_spec_explain_matches_shared_golden() {
             "--explain",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3767,7 +3767,7 @@ fn pipeline_compile_refuses_when_required_variable_is_missing() {
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3812,7 +3812,7 @@ fn pipeline_compile_refuses_symlinked_required_artifact_input() {
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4118,7 +4118,7 @@ fn pipeline_compile_refuses_missing_required_artifact() {
             "stage.10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4149,15 +4149,15 @@ fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
     }
 
     let canonical_root = canonical_repo_root(root.as_path());
-    let expected = handbook_compiler::compile_pipeline_stage_with_runtime(
+    let expected = handbook_pipeline::compile_pipeline_stage_with_runtime(
         canonical_root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
-        &handbook_compiler::PipelineCompileRuntimeContext {
+        &handbook_pipeline::PipelineCompileRuntimeContext {
             now_utc_override: Some(FIXED_NOW_UTC.to_string()),
         },
     )
-    .map(|result| handbook_compiler::render_pipeline_compile_payload(&result))
+    .map(|result| handbook_pipeline::render_pipeline_compile_payload(&result))
     .expect("compile should succeed");
 
     let output = run_in_with_env(
@@ -4171,7 +4171,7 @@ fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
             "stage.10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );

@@ -663,19 +663,19 @@ where
     PreflightGuided: Fn(&Path) -> Result<(), handbook_compiler::AuthorCharterRefusal>,
     PreflightFromInput: Fn(
         &Path,
-        &handbook_compiler::CharterStructuredInput,
+        &handbook_engine::CharterStructuredInput,
     ) -> Result<(), handbook_compiler::AuthorCharterRefusal>,
-    CollectGuidedInput: Fn() -> Result<handbook_compiler::CharterStructuredInput, String>,
+    CollectGuidedInput: Fn() -> Result<handbook_engine::CharterStructuredInput, String>,
     RunGuidedAuthor: Fn(
         &Path,
-        &handbook_compiler::CharterStructuredInput,
+        &handbook_engine::CharterStructuredInput,
     ) -> Result<
         handbook_compiler::AuthorCharterResult,
         handbook_compiler::AuthorCharterRefusal,
     >,
     RunDeterministicAuthor: Fn(
         &Path,
-        &handbook_compiler::CharterStructuredInput,
+        &handbook_engine::CharterStructuredInput,
     ) -> Result<
         handbook_compiler::AuthorCharterResult,
         handbook_compiler::AuthorCharterRefusal,
@@ -838,10 +838,10 @@ where
     InteractiveAllowed: Fn() -> bool,
     PreflightAuthoring: Fn(&Path) -> Result<(), handbook_compiler::AuthorProjectContextRefusal>,
     CollectGuidedInput:
-        Fn(&Path) -> Result<handbook_compiler::ProjectContextStructuredInput, String>,
+        Fn(&Path) -> Result<handbook_engine::ProjectContextStructuredInput, String>,
     RunAuthor: Fn(
         &Path,
-        &handbook_compiler::ProjectContextStructuredInput,
+        &handbook_engine::ProjectContextStructuredInput,
     ) -> Result<
         handbook_compiler::AuthorProjectContextResult,
         handbook_compiler::AuthorProjectContextRefusal,
@@ -1156,7 +1156,7 @@ fn read_author_inputs_source(
     })
 }
 
-fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructuredInput, String> {
+fn collect_guided_charter_input() -> Result<handbook_engine::CharterStructuredInput, String> {
     println!("Guided charter interview");
     println!("Answer with the documented value form. Comma-separated prompts accept `a, b, c`.");
 
@@ -1234,7 +1234,7 @@ fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructured
         let touches = prompt_csv_optional("Primary domain touches (comma-separated, optional)")?;
         let constraints =
             prompt_csv_optional("Primary domain constraints (comma-separated, optional)")?;
-        vec![handbook_compiler::CharterDomainInput {
+        vec![handbook_engine::CharterDomainInput {
             name: primary_domain_name,
             blast_radius,
             touches,
@@ -1249,7 +1249,7 @@ fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructured
     )?;
     let record_location = prompt_with_default(
         "Exception record location",
-        handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION,
+        handbook_engine::DEFAULT_EXCEPTION_RECORD_LOCATION,
     )?;
     let minimum_fields_input = prompt_optional(
         "Exception minimum fields (comma-separated; press enter for standard fields)",
@@ -1289,9 +1289,9 @@ fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructured
         (String::new(), String::new())
     };
 
-    Ok(handbook_compiler::CharterStructuredInput {
+    Ok(handbook_engine::CharterStructuredInput {
         schema_version: "0.1.0".to_string(),
-        project: handbook_compiler::CharterProjectInput {
+        project: handbook_engine::CharterProjectInput {
             name: project_name.clone(),
             classification,
             team_size,
@@ -1299,19 +1299,19 @@ fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructured
             expected_lifetime,
             surfaces,
             runtime_environments,
-            constraints: handbook_compiler::CharterProjectConstraintsInput {
+            constraints: handbook_engine::CharterProjectConstraintsInput {
                 deadline,
                 budget,
                 experience_notes: experience_notes.clone(),
                 must_use_tech,
             },
-            operational_reality: handbook_compiler::CharterOperationalRealityInput {
+            operational_reality: handbook_engine::CharterOperationalRealityInput {
                 in_production_today,
                 prod_users_or_data,
                 external_contracts_to_preserve,
                 uptime_expectations,
             },
-            default_implications: handbook_compiler::CharterDefaultImplicationsInput {
+            default_implications: handbook_engine::CharterDefaultImplicationsInput {
                 backward_compatibility,
                 migration_planning,
                 rollout_controls,
@@ -1319,24 +1319,24 @@ fn collect_guided_charter_input() -> Result<handbook_compiler::CharterStructured
                 observability_threshold,
             },
         },
-        posture: handbook_compiler::CharterPostureInput {
+        posture: handbook_engine::CharterPostureInput {
             rubric_scale: "1-5".to_string(),
             baseline_level,
             baseline_rationale,
         },
         domains,
         dimensions,
-        exceptions: handbook_compiler::CharterExceptionsInput {
+        exceptions: handbook_engine::CharterExceptionsInput {
             approvers,
             record_location,
             minimum_fields,
         },
-        debt_tracking: handbook_compiler::CharterDebtTrackingInput {
+        debt_tracking: handbook_engine::CharterDebtTrackingInput {
             system: debt_tracking_system,
             labels: debt_tracking_labels,
             review_cadence: debt_tracking_review_cadence,
         },
-        decision_records: handbook_compiler::CharterDecisionRecordsInput {
+        decision_records: handbook_engine::CharterDecisionRecordsInput {
             enabled: decision_records_enabled,
             path: decision_records_path,
             format: decision_records_format,
@@ -1352,7 +1352,7 @@ struct ProjectContextGuidedDefaults {
 
 fn collect_guided_project_context_input(
     repo_root: &Path,
-) -> Result<handbook_compiler::ProjectContextStructuredInput, String> {
+) -> Result<handbook_engine::ProjectContextStructuredInput, String> {
     let _prompt_context = GuidedPromptContextGuard::push(&PROJECT_CONTEXT_PROMPT_CONTEXT);
     let defaults = project_context_guided_defaults(repo_root);
 
@@ -1526,7 +1526,7 @@ fn collect_guided_project_context_input(
             "Failure mode expectations need a concrete value",
             &format!("integration {label} failure modes"),
         )?;
-        integrations.push(handbook_compiler::ProjectContextIntegrationInput {
+        integrations.push(handbook_engine::ProjectContextIntegrationInput {
             name,
             integration_type,
             contract_surface,
@@ -1657,28 +1657,28 @@ fn collect_guided_project_context_input(
             "Known unknown revisit trigger needs a concrete milestone or condition",
             &format!("known unknown {label} revisit trigger"),
         )?;
-        known_unknowns.push(handbook_compiler::ProjectContextKnownUnknownInput {
+        known_unknowns.push(handbook_engine::ProjectContextKnownUnknownInput {
             item,
             owner: unknown_owner,
             revisit_trigger,
         });
     }
 
-    Ok(handbook_compiler::ProjectContextStructuredInput {
+    Ok(handbook_engine::ProjectContextStructuredInput {
         schema_version: "0.1.0".to_string(),
         project_name,
         owner,
         team,
         repo_or_project_ref,
         charter_ref,
-        project_summary: handbook_compiler::ProjectContextSummaryInput {
+        project_summary: handbook_engine::ProjectContextSummaryInput {
             what_this_project_is,
             primary_surface,
             primary_users,
             key_workflows,
             non_goals,
         },
-        operational_reality: handbook_compiler::ProjectContextOperationalRealityInput {
+        operational_reality: handbook_engine::ProjectContextOperationalRealityInput {
             is_live_in_production_today,
             users,
             data_in_production,
@@ -1687,7 +1687,7 @@ fn collect_guided_project_context_input(
             primary_risk_flags_present,
         },
         classification_implications:
-            handbook_compiler::ProjectContextClassificationImplicationsInput {
+            handbook_engine::ProjectContextClassificationImplicationsInput {
                 project_type,
                 backward_compatibility_required,
                 backward_compatibility_notes,
@@ -1698,12 +1698,12 @@ fn collect_guided_project_context_input(
                 rollout_controls_required,
                 rollout_controls_notes,
             },
-        system_boundaries: handbook_compiler::ProjectContextSystemBoundariesInput {
+        system_boundaries: handbook_engine::ProjectContextSystemBoundariesInput {
             owned_areas,
             external_dependencies,
         },
         integrations,
-        environments_and_delivery: handbook_compiler::ProjectContextEnvironmentsAndDeliveryInput {
+        environments_and_delivery: handbook_engine::ProjectContextEnvironmentsAndDeliveryInput {
             environments_that_exist,
             deployment_model,
             ci_cd_reality,
@@ -1711,20 +1711,20 @@ fn collect_guided_project_context_input(
             config_and_secrets,
             observability_stack,
         },
-        data_reality: handbook_compiler::ProjectContextDataRealityInput {
+        data_reality: handbook_engine::ProjectContextDataRealityInput {
             primary_data_stores,
             data_classification,
             retention_requirements,
             backups_disaster_recovery,
             existing_migrations_history,
         },
-        repo_codebase_reality: handbook_compiler::ProjectContextRepoCodebaseRealityInput {
+        repo_codebase_reality: handbook_engine::ProjectContextRepoCodebaseRealityInput {
             codebase_exists_today,
             current_maturity,
             key_modules_or_areas,
             known_constraints_from_existing_code,
         },
-        constraints: handbook_compiler::ProjectContextConstraintsInput {
+        constraints: handbook_engine::ProjectContextConstraintsInput {
             deadline_time_constraints,
             budget_constraints,
             must_use_or_prohibited_tech,
@@ -2167,13 +2167,13 @@ fn render_project_context_interview_incomplete_refusal(summary: &str) -> String 
 
 fn parse_project_classification(
     value: &str,
-) -> Result<handbook_compiler::CharterProjectClassification, String> {
+) -> Result<handbook_engine::CharterProjectClassification, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "greenfield" => Ok(handbook_compiler::CharterProjectClassification::Greenfield),
-        "brownfield" => Ok(handbook_compiler::CharterProjectClassification::Brownfield),
-        "integration" => Ok(handbook_compiler::CharterProjectClassification::Integration),
-        "modernization" => Ok(handbook_compiler::CharterProjectClassification::Modernization),
-        "hardening" => Ok(handbook_compiler::CharterProjectClassification::Hardening),
+        "greenfield" => Ok(handbook_engine::CharterProjectClassification::Greenfield),
+        "brownfield" => Ok(handbook_engine::CharterProjectClassification::Brownfield),
+        "integration" => Ok(handbook_engine::CharterProjectClassification::Integration),
+        "modernization" => Ok(handbook_engine::CharterProjectClassification::Modernization),
+        "hardening" => Ok(handbook_engine::CharterProjectClassification::Hardening),
         _ => Err(
             "Expected one of greenfield, brownfield, integration, modernization, or hardening."
                 .to_string(),
@@ -2181,100 +2181,100 @@ fn parse_project_classification(
     }
 }
 
-fn parse_audience(value: &str) -> Result<handbook_compiler::CharterAudience, String> {
+fn parse_audience(value: &str) -> Result<handbook_engine::CharterAudience, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "internal" => Ok(handbook_compiler::CharterAudience::Internal),
-        "external" => Ok(handbook_compiler::CharterAudience::External),
-        "mixed" => Ok(handbook_compiler::CharterAudience::Mixed),
+        "internal" => Ok(handbook_engine::CharterAudience::Internal),
+        "external" => Ok(handbook_engine::CharterAudience::External),
+        "mixed" => Ok(handbook_engine::CharterAudience::Mixed),
         _ => Err("Expected one of internal, external, or mixed.".to_string()),
     }
 }
 
 fn parse_expected_lifetime(
     value: &str,
-) -> Result<handbook_compiler::CharterExpectedLifetime, String> {
+) -> Result<handbook_engine::CharterExpectedLifetime, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "days" => Ok(handbook_compiler::CharterExpectedLifetime::Days),
-        "weeks" => Ok(handbook_compiler::CharterExpectedLifetime::Weeks),
-        "months" => Ok(handbook_compiler::CharterExpectedLifetime::Months),
-        "years" => Ok(handbook_compiler::CharterExpectedLifetime::Years),
+        "days" => Ok(handbook_engine::CharterExpectedLifetime::Days),
+        "weeks" => Ok(handbook_engine::CharterExpectedLifetime::Weeks),
+        "months" => Ok(handbook_engine::CharterExpectedLifetime::Months),
+        "years" => Ok(handbook_engine::CharterExpectedLifetime::Years),
         _ => Err("Expected one of days, weeks, months, or years.".to_string()),
     }
 }
 
-fn parse_surface(value: &str) -> Result<handbook_compiler::CharterSurface, String> {
+fn parse_surface(value: &str) -> Result<handbook_engine::CharterSurface, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "web_app" => Ok(handbook_compiler::CharterSurface::WebApp),
-        "api" => Ok(handbook_compiler::CharterSurface::Api),
-        "cli" => Ok(handbook_compiler::CharterSurface::Cli),
-        "lib" => Ok(handbook_compiler::CharterSurface::Lib),
-        "infra" => Ok(handbook_compiler::CharterSurface::Infra),
-        "ml" => Ok(handbook_compiler::CharterSurface::Ml),
+        "web_app" => Ok(handbook_engine::CharterSurface::WebApp),
+        "api" => Ok(handbook_engine::CharterSurface::Api),
+        "cli" => Ok(handbook_engine::CharterSurface::Cli),
+        "lib" => Ok(handbook_engine::CharterSurface::Lib),
+        "infra" => Ok(handbook_engine::CharterSurface::Infra),
+        "ml" => Ok(handbook_engine::CharterSurface::Ml),
         _ => Err("Expected one of web_app, api, cli, lib, infra, or ml.".to_string()),
     }
 }
 
 fn parse_runtime_environment(
     value: &str,
-) -> Result<handbook_compiler::CharterRuntimeEnvironment, String> {
+) -> Result<handbook_engine::CharterRuntimeEnvironment, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "browser" => Ok(handbook_compiler::CharterRuntimeEnvironment::Browser),
-        "server" => Ok(handbook_compiler::CharterRuntimeEnvironment::Server),
-        "cloud" => Ok(handbook_compiler::CharterRuntimeEnvironment::Cloud),
-        "on_prem" => Ok(handbook_compiler::CharterRuntimeEnvironment::OnPrem),
-        "edge" => Ok(handbook_compiler::CharterRuntimeEnvironment::Edge),
+        "browser" => Ok(handbook_engine::CharterRuntimeEnvironment::Browser),
+        "server" => Ok(handbook_engine::CharterRuntimeEnvironment::Server),
+        "cloud" => Ok(handbook_engine::CharterRuntimeEnvironment::Cloud),
+        "on_prem" => Ok(handbook_engine::CharterRuntimeEnvironment::OnPrem),
+        "edge" => Ok(handbook_engine::CharterRuntimeEnvironment::Edge),
         _ => Err("Expected one of browser, server, cloud, on_prem, or edge.".to_string()),
     }
 }
 
 fn parse_backward_compatibility(
     value: &str,
-) -> Result<handbook_compiler::CharterBackwardCompatibility, String> {
+) -> Result<handbook_engine::CharterBackwardCompatibility, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "required" => Ok(handbook_compiler::CharterBackwardCompatibility::Required),
-        "not_required" => Ok(handbook_compiler::CharterBackwardCompatibility::NotRequired),
-        "boundary_only" => Ok(handbook_compiler::CharterBackwardCompatibility::BoundaryOnly),
+        "required" => Ok(handbook_engine::CharterBackwardCompatibility::Required),
+        "not_required" => Ok(handbook_engine::CharterBackwardCompatibility::NotRequired),
+        "boundary_only" => Ok(handbook_engine::CharterBackwardCompatibility::BoundaryOnly),
         _ => Err("Expected one of required, not_required, or boundary_only.".to_string()),
     }
 }
 
-fn parse_requiredness(value: &str) -> Result<handbook_compiler::CharterRequiredness, String> {
+fn parse_requiredness(value: &str) -> Result<handbook_engine::CharterRequiredness, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "required" => Ok(handbook_compiler::CharterRequiredness::Required),
-        "not_required" => Ok(handbook_compiler::CharterRequiredness::NotRequired),
+        "required" => Ok(handbook_engine::CharterRequiredness::Required),
+        "not_required" => Ok(handbook_engine::CharterRequiredness::NotRequired),
         _ => Err("Expected one of required or not_required.".to_string()),
     }
 }
 
 fn parse_rollout_controls(
     value: &str,
-) -> Result<handbook_compiler::CharterRolloutControls, String> {
+) -> Result<handbook_engine::CharterRolloutControls, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "none" => Ok(handbook_compiler::CharterRolloutControls::None),
-        "lightweight" => Ok(handbook_compiler::CharterRolloutControls::Lightweight),
-        "required" => Ok(handbook_compiler::CharterRolloutControls::Required),
+        "none" => Ok(handbook_engine::CharterRolloutControls::None),
+        "lightweight" => Ok(handbook_engine::CharterRolloutControls::Lightweight),
+        "required" => Ok(handbook_engine::CharterRolloutControls::Required),
         _ => Err("Expected one of none, lightweight, or required.".to_string()),
     }
 }
 
 fn parse_deprecation_policy(
     value: &str,
-) -> Result<handbook_compiler::CharterDeprecationPolicy, String> {
+) -> Result<handbook_engine::CharterDeprecationPolicy, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "required" => Ok(handbook_compiler::CharterDeprecationPolicy::Required),
-        "not_required_yet" => Ok(handbook_compiler::CharterDeprecationPolicy::NotRequiredYet),
+        "required" => Ok(handbook_engine::CharterDeprecationPolicy::Required),
+        "not_required_yet" => Ok(handbook_engine::CharterDeprecationPolicy::NotRequiredYet),
         _ => Err("Expected one of required or not_required_yet.".to_string()),
     }
 }
 
 fn parse_observability_threshold(
     value: &str,
-) -> Result<handbook_compiler::CharterObservabilityThreshold, String> {
+) -> Result<handbook_engine::CharterObservabilityThreshold, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "minimal" => Ok(handbook_compiler::CharterObservabilityThreshold::Minimal),
-        "standard" => Ok(handbook_compiler::CharterObservabilityThreshold::Standard),
-        "high" => Ok(handbook_compiler::CharterObservabilityThreshold::High),
-        "regulated" => Ok(handbook_compiler::CharterObservabilityThreshold::Regulated),
+        "minimal" => Ok(handbook_engine::CharterObservabilityThreshold::Minimal),
+        "standard" => Ok(handbook_engine::CharterObservabilityThreshold::Standard),
+        "high" => Ok(handbook_engine::CharterObservabilityThreshold::High),
+        "regulated" => Ok(handbook_engine::CharterObservabilityThreshold::Regulated),
         _ => Err("Expected one of minimal, standard, high, or regulated.".to_string()),
     }
 }
@@ -2297,7 +2297,7 @@ fn collect_dimension_inputs(
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> Result<Vec<handbook_compiler::CharterDimensionInput>, String> {
+) -> Result<Vec<handbook_engine::CharterDimensionInput>, String> {
     let mut dimensions = Vec::with_capacity(all_dimension_names().len());
     for name in all_dimension_names() {
         let baseline =
@@ -2341,7 +2341,7 @@ fn collect_dimension_inputs(
             &baseline.domain_overrides,
         )?;
 
-        dimensions.push(handbook_compiler::CharterDimensionInput {
+        dimensions.push(handbook_engine::CharterDimensionInput {
             name,
             level,
             default_stance,
@@ -2354,26 +2354,26 @@ fn collect_dimension_inputs(
     Ok(dimensions)
 }
 
-fn all_dimension_names() -> [handbook_compiler::CharterDimensionName; 9] {
+fn all_dimension_names() -> [handbook_engine::CharterDimensionName; 9] {
     [
-        handbook_compiler::CharterDimensionName::SpeedVsQuality,
-        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
-        handbook_compiler::CharterDimensionName::TestingRigor,
-        handbook_compiler::CharterDimensionName::ScalabilityPerformance,
-        handbook_compiler::CharterDimensionName::ReliabilityOperability,
-        handbook_compiler::CharterDimensionName::SecurityPrivacy,
-        handbook_compiler::CharterDimensionName::Observability,
-        handbook_compiler::CharterDimensionName::DxToolingAutomation,
-        handbook_compiler::CharterDimensionName::UxPolishApiUsability,
+        handbook_engine::CharterDimensionName::SpeedVsQuality,
+        handbook_engine::CharterDimensionName::TypeSafetyStaticAnalysis,
+        handbook_engine::CharterDimensionName::TestingRigor,
+        handbook_engine::CharterDimensionName::ScalabilityPerformance,
+        handbook_engine::CharterDimensionName::ReliabilityOperability,
+        handbook_engine::CharterDimensionName::SecurityPrivacy,
+        handbook_engine::CharterDimensionName::Observability,
+        handbook_engine::CharterDimensionName::DxToolingAutomation,
+        handbook_engine::CharterDimensionName::UxPolishApiUsability,
     ]
 }
 
 fn default_dimension_input(
-    name: handbook_compiler::CharterDimensionName,
+    name: handbook_engine::CharterDimensionName,
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> handbook_compiler::CharterDimensionInput {
+) -> handbook_engine::CharterDimensionInput {
     let dimension_label = dimension_label(name);
     let production_trigger = if in_production_today {
         "changes touching live users, data, or uptime"
@@ -2381,7 +2381,7 @@ fn default_dimension_input(
         "changes that create irreversible migration or trust-boundary cost"
     };
 
-    handbook_compiler::CharterDimensionInput {
+    handbook_engine::CharterDimensionInput {
         name,
         level: Some(baseline_level),
         default_stance: format!(
@@ -2403,25 +2403,25 @@ fn default_dimension_input(
     }
 }
 
-fn dimension_label(name: handbook_compiler::CharterDimensionName) -> &'static str {
+fn dimension_label(name: handbook_engine::CharterDimensionName) -> &'static str {
     match name {
-        handbook_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
-        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
+        handbook_engine::CharterDimensionName::SpeedVsQuality => "speed vs quality",
+        handbook_engine::CharterDimensionName::TypeSafetyStaticAnalysis => {
             "type safety and static analysis"
         }
-        handbook_compiler::CharterDimensionName::TestingRigor => "testing rigor",
-        handbook_compiler::CharterDimensionName::ScalabilityPerformance => {
+        handbook_engine::CharterDimensionName::TestingRigor => "testing rigor",
+        handbook_engine::CharterDimensionName::ScalabilityPerformance => {
             "scalability and performance"
         }
-        handbook_compiler::CharterDimensionName::ReliabilityOperability => {
+        handbook_engine::CharterDimensionName::ReliabilityOperability => {
             "reliability and operability"
         }
-        handbook_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
-        handbook_compiler::CharterDimensionName::Observability => "observability",
-        handbook_compiler::CharterDimensionName::DxToolingAutomation => {
+        handbook_engine::CharterDimensionName::SecurityPrivacy => "security and privacy",
+        handbook_engine::CharterDimensionName::Observability => "observability",
+        handbook_engine::CharterDimensionName::DxToolingAutomation => {
             "developer tooling and automation"
         }
-        handbook_compiler::CharterDimensionName::UxPolishApiUsability => {
+        handbook_engine::CharterDimensionName::UxPolishApiUsability => {
             "ux polish and api usability"
         }
     }
@@ -2844,7 +2844,7 @@ fn pipeline_list() -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_compiler::load_pipeline_catalog_metadata(&repo_root) {
+    let catalog = match handbook_pipeline::load_pipeline_catalog_metadata(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -2852,7 +2852,7 @@ fn pipeline_list() -> ExitCode {
         }
     };
 
-    println!("{}", handbook_compiler::render_pipeline_list(&catalog));
+    println!("{}", handbook_pipeline::render_pipeline_list(&catalog));
     ExitCode::SUCCESS
 }
 
@@ -2866,20 +2866,20 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let selection = match handbook_compiler::load_pipeline_selection_metadata(&repo_root, &args.id)
+    let selection = match handbook_pipeline::load_pipeline_selection_metadata(&repo_root, &args.id)
     {
         Ok(selection) => selection,
-        Err(handbook_compiler::PipelineMetadataSelectionError::Catalog(err)) => {
+        Err(handbook_pipeline::PipelineMetadataSelectionError::Catalog(err)) => {
             println!("REFUSED: pipeline catalog error: {err}");
             return ExitCode::from(1);
         }
-        Err(handbook_compiler::PipelineMetadataSelectionError::Lookup(err)) => {
+        Err(handbook_pipeline::PipelineMetadataSelectionError::Lookup(err)) => {
             println!("{}", render_pipeline_selector_refusal(err));
             return ExitCode::from(1);
         }
     };
 
-    println!("{}", handbook_compiler::render_pipeline_show(&selection));
+    println!("{}", handbook_pipeline::render_pipeline_show(&selection));
     ExitCode::SUCCESS
 }
 
@@ -2893,7 +2893,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_compiler::load_pipeline_catalog(&repo_root) {
+    let catalog = match handbook_pipeline::load_pipeline_catalog(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -2901,7 +2901,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let pipeline = match handbook_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
+    let pipeline = match handbook_pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
         Ok(pipeline) => pipeline,
         Err(err) => {
             println!("{}", render_pipeline_selector_refusal(err));
@@ -2910,8 +2910,8 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
 
     let supported_variables =
-        handbook_compiler::supported_route_state_variables(&pipeline.definition);
-    let state = match handbook_compiler::load_route_state_with_supported_variables(
+        handbook_pipeline::supported_route_state_variables(&pipeline.definition);
+    let state = match handbook_pipeline::load_route_state_with_supported_variables(
         &repo_root,
         &pipeline.definition.header.id,
         &supported_variables,
@@ -2923,7 +2923,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let route_variables = match handbook_compiler::RouteVariables::new(state.routing.clone()) {
+    let route_variables = match handbook_pipeline::RouteVariables::new(state.routing.clone()) {
         Ok(variables) => variables,
         Err(err) => {
             println!("REFUSED: malformed route state variables: {err}");
@@ -2932,7 +2932,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
 
     let route =
-        match handbook_compiler::resolve_pipeline_route(&pipeline.definition, &route_variables) {
+        match handbook_pipeline::resolve_pipeline_route(&pipeline.definition, &route_variables) {
             Ok(route) => route,
             Err(err) => {
                 println!("REFUSED: route resolution error: {err}");
@@ -2940,7 +2940,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
             }
         };
 
-    let route_basis = match handbook_compiler::build_route_basis(
+    let route_basis = match handbook_pipeline::build_route_basis(
         &repo_root,
         &pipeline.definition,
         &state,
@@ -2953,13 +2953,13 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    match handbook_compiler::persist_route_basis(
+    match handbook_pipeline::persist_route_basis(
         &repo_root,
         &pipeline.definition.header.id,
         route_basis,
     ) {
-        Ok(handbook_compiler::RouteBasisPersistOutcome::Applied(_)) => {}
-        Ok(handbook_compiler::RouteBasisPersistOutcome::Refused(refusal)) => {
+        Ok(handbook_pipeline::RouteBasisPersistOutcome::Applied(_)) => {}
+        Ok(handbook_pipeline::RouteBasisPersistOutcome::Refused(refusal)) => {
             println!("REFUSED: route basis persistence refused: {refusal}");
             return ExitCode::from(1);
         }
@@ -2974,7 +2974,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         render_pipeline_resolve_output(
             &pipeline.definition.header.id,
             &state,
-            &handbook_compiler::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
+            &handbook_pipeline::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
             &route,
         )
     );
@@ -2991,17 +2991,17 @@ fn pipeline_compile(args: PipelineCompileArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    match handbook_compiler::compile_pipeline_stage(&repo_root, &args.id, &args.stage) {
+    match handbook_pipeline::compile_pipeline_stage(&repo_root, &args.id, &args.stage) {
         Ok(result) => {
             if args.explain {
                 println!(
                     "{}",
-                    handbook_compiler::render_pipeline_compile_explain(&result)
+                    handbook_pipeline::render_pipeline_compile_explain(&result)
                 );
             } else {
                 println!(
                     "{}",
-                    handbook_compiler::render_pipeline_compile_payload(&result)
+                    handbook_pipeline::render_pipeline_compile_payload(&result)
                 );
             }
             ExitCode::SUCCESS
@@ -3028,18 +3028,18 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
 
     match args.command {
         Some(PipelineCaptureCommand::Apply(apply_args)) => {
-            match handbook_compiler::apply_pipeline_capture(&repo_root, &apply_args.capture_id) {
+            match handbook_pipeline::apply_pipeline_capture(&repo_root, &apply_args.capture_id) {
                 Ok(result) => {
                     println!(
                         "{}",
-                        handbook_compiler::render_pipeline_capture_apply_result(&result)
+                        handbook_pipeline::render_pipeline_capture_apply_result(&result)
                     );
                     ExitCode::SUCCESS
                 }
                 Err(refusal) => {
                     println!(
                         "{}",
-                        handbook_compiler::render_pipeline_capture_refusal(&refusal, None, None)
+                        handbook_pipeline::render_pipeline_capture_refusal(&refusal, None, None)
                     );
                     ExitCode::from(1)
                 }
@@ -3061,25 +3061,25 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                     return ExitCode::from(1);
                 }
             };
-            let request = handbook_compiler::PipelineCaptureRequest {
+            let request = handbook_pipeline::PipelineCaptureRequest {
                 pipeline_selector: pipeline_id.to_string(),
                 stage_selector: stage_id.to_string(),
                 input: stdin,
             };
 
             if args.preview {
-                match handbook_compiler::preview_pipeline_capture(&repo_root, &request) {
+                match handbook_pipeline::preview_pipeline_capture(&repo_root, &request) {
                     Ok(preview) => {
                         println!(
                             "{}",
-                            handbook_compiler::render_pipeline_capture_preview(&preview)
+                            handbook_pipeline::render_pipeline_capture_preview(&preview)
                         );
                         ExitCode::SUCCESS
                     }
                     Err(refusal) => {
                         println!(
                             "{}",
-                            handbook_compiler::render_pipeline_capture_refusal(
+                            handbook_pipeline::render_pipeline_capture_refusal(
                                 &refusal,
                                 Some(pipeline_id),
                                 Some(stage_id),
@@ -3089,18 +3089,18 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                     }
                 }
             } else {
-                match handbook_compiler::capture_pipeline_output(&repo_root, &request) {
+                match handbook_pipeline::capture_pipeline_output(&repo_root, &request) {
                     Ok(result) => {
                         println!(
                             "{}",
-                            handbook_compiler::render_pipeline_capture_apply_result(&result)
+                            handbook_pipeline::render_pipeline_capture_apply_result(&result)
                         );
                         ExitCode::SUCCESS
                     }
                     Err(refusal) => {
                         println!(
                             "{}",
-                            handbook_compiler::render_pipeline_capture_refusal(
+                            handbook_pipeline::render_pipeline_capture_refusal(
                                 &refusal,
                                 Some(pipeline_id),
                                 Some(stage_id),
@@ -3126,24 +3126,24 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
 
     match args.command {
         PipelineHandoffCommand::Emit(emit_args) => {
-            let request = handbook_compiler::PipelineHandoffEmitRequest {
+            let request = handbook_pipeline::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
                 producer_command: "handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer".to_string(),
                 producer_version: RELEASE_VERSION.to_string(),
             };
-            match handbook_compiler::emit_pipeline_handoff_bundle(&repo_root, &request) {
+            match handbook_pipeline::emit_pipeline_handoff_bundle(&repo_root, &request) {
                 Ok(result) => {
                     println!(
                         "{}",
-                        handbook_compiler::render_pipeline_handoff_emit_result(&result)
+                        handbook_pipeline::render_pipeline_handoff_emit_result(&result)
                     );
                     ExitCode::SUCCESS
                 }
                 Err(refusal) => {
                     println!(
                         "{}",
-                        handbook_compiler::render_pipeline_handoff_refusal(&refusal)
+                        handbook_pipeline::render_pipeline_handoff_refusal(&refusal)
                     );
                     ExitCode::from(1)
                 }
@@ -3162,7 +3162,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_compiler::load_pipeline_catalog(&repo_root) {
+    let catalog = match handbook_pipeline::load_pipeline_catalog(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -3170,7 +3170,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
         }
     };
 
-    let pipeline = match handbook_compiler::resolve_pipeline_only_selector(&catalog, &args.id) {
+    let pipeline = match handbook_pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
         Ok(pipeline) => pipeline,
         Err(err) => {
             println!("{}", render_pipeline_selector_refusal(err));
@@ -3179,8 +3179,8 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     let supported_variables =
-        handbook_compiler::supported_route_state_variables(&pipeline.definition);
-    let current_state = match handbook_compiler::load_route_state_with_supported_variables(
+        handbook_pipeline::supported_route_state_variables(&pipeline.definition);
+    let current_state = match handbook_pipeline::load_route_state_with_supported_variables(
         &repo_root,
         &pipeline.definition.header.id,
         &supported_variables,
@@ -3201,7 +3201,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     let expected_revision = args.expected_revision.unwrap_or(current_state.revision);
-    let outcome = match handbook_compiler::set_route_state(
+    let outcome = match handbook_pipeline::set_route_state(
         &repo_root,
         &pipeline.definition.header.id,
         supported_variables,
@@ -3216,22 +3216,22 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     match outcome {
-        handbook_compiler::RouteStateMutationOutcome::Applied(state) => {
+        handbook_pipeline::RouteStateMutationOutcome::Applied(state) => {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
                     &pipeline.definition.header.id,
-                    handbook_compiler::RouteStateMutationOutcome::Applied(state),
+                    handbook_pipeline::RouteStateMutationOutcome::Applied(state),
                 )
             );
             ExitCode::SUCCESS
         }
-        handbook_compiler::RouteStateMutationOutcome::Refused(refusal) => {
+        handbook_pipeline::RouteStateMutationOutcome::Refused(refusal) => {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
                     &pipeline.definition.header.id,
-                    handbook_compiler::RouteStateMutationOutcome::Refused(refusal),
+                    handbook_pipeline::RouteStateMutationOutcome::Refused(refusal),
                 )
             );
             ExitCode::from(1)
@@ -3239,18 +3239,18 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     }
 }
 
-fn render_pipeline_selector_refusal(err: handbook_compiler::PipelineLookupError) -> String {
+fn render_pipeline_selector_refusal(err: handbook_pipeline::PipelineLookupError) -> String {
     match err {
-        handbook_compiler::PipelineLookupError::AmbiguousSelector { selector, matches } => {
+        handbook_pipeline::PipelineLookupError::AmbiguousSelector { selector, matches } => {
             format!(
                 "REFUSED: ambiguous selector `{selector}` matched multiple canonical ids: {}\nNEXT SAFE ACTION: use the full canonical id or rename the conflicting ids",
                 matches.join(", ")
             )
         }
-        handbook_compiler::PipelineLookupError::UnknownSelector { selector } => format!(
+        handbook_pipeline::PipelineLookupError::UnknownSelector { selector } => format!(
             "REFUSED: unknown pipeline selector `{selector}`; use a canonical id or `pipeline list` to inspect available inventory\nNEXT SAFE ACTION: run `pipeline list` and retry with the full canonical id"
         ),
-        handbook_compiler::PipelineLookupError::UnsupportedSelector { selector, reason } => {
+        handbook_pipeline::PipelineLookupError::UnsupportedSelector { selector, reason } => {
             let next_safe_action = if reason.contains("raw file paths are evidence only") {
                 "use `pipeline list` to inspect available inventory and retry with a canonical pipeline or stage id"
             } else {
@@ -3265,7 +3265,7 @@ fn render_pipeline_selector_refusal(err: handbook_compiler::PipelineLookupError)
 }
 
 fn render_pipeline_compile_refusal(
-    refusal: handbook_compiler::PipelineCompileRefusal,
+    refusal: handbook_pipeline::PipelineCompileRefusal,
     requested_pipeline_id: &str,
     requested_stage_id: &str,
 ) -> String {
@@ -3297,42 +3297,42 @@ fn render_pipeline_compile_refusal(
 }
 
 fn render_pipeline_compile_refusal_classification(
-    classification: handbook_compiler::PipelineCompileRefusalClassification,
+    classification: handbook_pipeline::PipelineCompileRefusalClassification,
 ) -> &'static str {
     match classification {
-        handbook_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
+        handbook_pipeline::PipelineCompileRefusalClassification::UnsupportedTarget => {
             "unsupported_target"
         }
-        handbook_compiler::PipelineCompileRefusalClassification::InvalidDefinition => {
+        handbook_pipeline::PipelineCompileRefusalClassification::InvalidDefinition => {
             "invalid_definition"
         }
-        handbook_compiler::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
-        handbook_compiler::PipelineCompileRefusalClassification::MissingRouteBasis => {
+        handbook_pipeline::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
+        handbook_pipeline::PipelineCompileRefusalClassification::MissingRouteBasis => {
             "missing_route_basis"
         }
-        handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis => {
+        handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis => {
             "malformed_route_basis"
         }
-        handbook_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => {
+        handbook_pipeline::PipelineCompileRefusalClassification::StaleRouteBasis => {
             "stale_route_basis"
         }
-        handbook_compiler::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
-        handbook_compiler::PipelineCompileRefusalClassification::MissingRequiredInput => {
+        handbook_pipeline::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
+        handbook_pipeline::PipelineCompileRefusalClassification::MissingRequiredInput => {
             "missing_required_input"
         }
-        handbook_compiler::PipelineCompileRefusalClassification::EmptyRequiredInput => {
+        handbook_pipeline::PipelineCompileRefusalClassification::EmptyRequiredInput => {
             "empty_required_input"
         }
     }
 }
 
 fn render_pipeline_compile_next_safe_action(
-    refusal: &handbook_compiler::PipelineCompileRefusal,
+    refusal: &handbook_pipeline::PipelineCompileRefusal,
     pipeline_id: &str,
     stage_id: &str,
 ) -> String {
     match refusal.classification {
-        handbook_compiler::PipelineCompileRefusalClassification::UnsupportedTarget => {
+        handbook_pipeline::PipelineCompileRefusalClassification::UnsupportedTarget => {
             if refusal
                 .recovery
                 .trim()
@@ -3345,12 +3345,12 @@ fn render_pipeline_compile_next_safe_action(
                 refusal.recovery.trim().to_string()
             }
         }
-        handbook_compiler::PipelineCompileRefusalClassification::MissingRouteBasis
-        | handbook_compiler::PipelineCompileRefusalClassification::MalformedRouteBasis
-        | handbook_compiler::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
+        handbook_pipeline::PipelineCompileRefusalClassification::MissingRouteBasis
+        | handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis
+        | handbook_pipeline::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
             "run `handbook pipeline resolve --id {pipeline_id}` and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
-        handbook_compiler::PipelineCompileRefusalClassification::InactiveStage => format!(
+        handbook_pipeline::PipelineCompileRefusalClassification::InactiveStage => format!(
             "run `handbook pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
         _ => format!(
@@ -3362,7 +3362,7 @@ fn render_pipeline_compile_next_safe_action(
 
 fn parse_route_state_mutation(
     args: &PipelineStateSetArgs,
-) -> Result<handbook_compiler::RouteStateMutation, String> {
+) -> Result<handbook_pipeline::RouteStateMutation, String> {
     match (&args.var, &args.field) {
         (Some(value), None) => parse_route_state_var_assignment(value),
         (None, Some(value)) => parse_route_state_field_assignment(value),
@@ -3379,7 +3379,7 @@ fn read_stdin() -> Result<String, std::io::Error> {
 
 fn parse_route_state_var_assignment(
     value: &str,
-) -> Result<handbook_compiler::RouteStateMutation, String> {
+) -> Result<handbook_pipeline::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((name, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --var in name=value form".to_string());
@@ -3401,7 +3401,7 @@ fn parse_route_state_var_assignment(
         }
     };
 
-    Ok(handbook_compiler::RouteStateMutation::RoutingVariable {
+    Ok(handbook_pipeline::RouteStateMutation::RoutingVariable {
         variable: name.to_string(),
         value: parsed_value,
     })
@@ -3409,7 +3409,7 @@ fn parse_route_state_var_assignment(
 
 fn parse_route_state_field_assignment(
     value: &str,
-) -> Result<handbook_compiler::RouteStateMutation, String> {
+) -> Result<handbook_pipeline::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((field_path, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --field in field.path=value form".to_string());
@@ -3425,17 +3425,17 @@ fn parse_route_state_field_assignment(
     }
 
     match field_path {
-        "run.runner" => Ok(handbook_compiler::RouteStateMutation::RunRunner {
+        "run.runner" => Ok(handbook_pipeline::RouteStateMutation::RunRunner {
             value: raw_value.to_string(),
         }),
-        "run.profile" => Ok(handbook_compiler::RouteStateMutation::RunProfile {
+        "run.profile" => Ok(handbook_pipeline::RouteStateMutation::RunProfile {
             value: raw_value.to_string(),
         }),
-        "refs.charter_ref" => Ok(handbook_compiler::RouteStateMutation::RefCharterRef {
+        "refs.charter_ref" => Ok(handbook_pipeline::RouteStateMutation::RefCharterRef {
             value: raw_value.to_string(),
         }),
         "refs.project_context_ref" => {
-            Ok(handbook_compiler::RouteStateMutation::RefProjectContextRef {
+            Ok(handbook_pipeline::RouteStateMutation::RefProjectContextRef {
                 value: raw_value.to_string(),
             })
         }
@@ -3447,9 +3447,9 @@ fn parse_route_state_field_assignment(
 
 fn render_pipeline_resolve_output(
     pipeline_id: &str,
-    state: &handbook_compiler::RouteState,
-    effective_run: &handbook_compiler::RouteStateRun,
-    route: &handbook_compiler::ResolvedPipelineRoute,
+    state: &handbook_pipeline::RouteState,
+    effective_run: &handbook_pipeline::RouteStateRun,
+    route: &handbook_pipeline::ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
     out.push_str("OUTCOME: RESOLVED\n");
@@ -3502,20 +3502,20 @@ fn render_optional_route_basis_field(out: &mut String, name: &str, value: Option
     }
 }
 
-fn render_route_stage_reason(reason: &handbook_compiler::RouteStageReason) -> String {
+fn render_route_stage_reason(reason: &handbook_pipeline::RouteStageReason) -> String {
     match reason {
-        handbook_compiler::RouteStageReason::SkippedActivationFalse {
+        handbook_pipeline::RouteStageReason::SkippedActivationFalse {
             unsatisfied_variables,
             ..
         } => format!(
             "activation evaluated false for variables: {}",
             unsatisfied_variables.join(", ")
         ),
-        handbook_compiler::RouteStageReason::NextMissingRouteVariables {
+        handbook_pipeline::RouteStageReason::NextMissingRouteVariables {
             missing_variables,
             ..
         } => format!("missing route variables: {}", missing_variables.join(", ")),
-        handbook_compiler::RouteStageReason::BlockedByUnresolvedStage {
+        handbook_pipeline::RouteStageReason::BlockedByUnresolvedStage {
             upstream_stage_id,
             upstream_status,
         } => format!(
@@ -3528,11 +3528,11 @@ fn render_route_stage_reason(reason: &handbook_compiler::RouteStageReason) -> St
 
 fn render_pipeline_state_set_output(
     pipeline_id: &str,
-    outcome: handbook_compiler::RouteStateMutationOutcome,
+    outcome: handbook_pipeline::RouteStateMutationOutcome,
 ) -> String {
     let mut out = String::new();
     match outcome {
-        handbook_compiler::RouteStateMutationOutcome::Applied(state) => {
+        handbook_pipeline::RouteStateMutationOutcome::Applied(state) => {
             let state = *state;
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
@@ -3557,7 +3557,7 @@ fn render_pipeline_state_set_output(
             render_optional_state_field(&mut out, "profile", state.run.profile.as_deref());
             render_optional_state_field(&mut out, "repo_root", state.run.repo_root.as_deref());
         }
-        handbook_compiler::RouteStateMutationOutcome::Refused(refusal) => {
+        handbook_pipeline::RouteStateMutationOutcome::Refused(refusal) => {
             out.push_str("OUTCOME: REFUSED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REASON: {}\n", refusal));
@@ -3672,7 +3672,7 @@ fn inspect(args: RequestArgs) -> ExitCode {
 const _: () = {
     let _ = (
         std::mem::size_of::<handbook_compiler::DecisionLog>(),
-        std::mem::size_of::<handbook_compiler::PacketResult>(),
+        std::mem::size_of::<handbook_flow::PacketResult>(),
         std::mem::size_of::<handbook_compiler::CompilerError>(),
         std::mem::size_of::<handbook_compiler::Refusal>(),
     );

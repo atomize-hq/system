@@ -270,6 +270,9 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "handbook-compiler",
+ "handbook-engine",
+ "handbook-flow",
+ "handbook-pipeline",
  "portable-pty",
  "serde_json",
  "tempfile",
