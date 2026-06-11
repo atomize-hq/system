@@ -56,10 +56,10 @@ The repo already behaves as if `core/` is the center of gravity, but the declara
 
 Current contradictions:
 
-- `crates/compiler/src/pipeline.rs` still discovers pipelines under `pipelines/`
-- `crates/compiler/src/route_state.rs` still fingerprints runner and profile files under top-level `runners/` and `profiles/`
-- `crates/compiler/src/pipeline_compile.rs` still special-cases `profiles/<id>/...`
-- `crates/compiler/src/pipeline_handoff.rs` still treats `runners/` and `profiles/` as separate top-level canonical roots
+- `crates/pipeline/src/pipeline.rs` still discovers pipelines under `pipelines/`
+- `crates/pipeline/src/route_state.rs` still fingerprints runner and profile files under top-level `runners/` and `profiles/`
+- `crates/pipeline/src/pipeline_compile.rs` still special-cases `profiles/<id>/...`
+- `crates/pipeline/src/pipeline_handoff.rs` still treats `runners/` and `profiles/` as separate top-level canonical roots
 - live stage documents under `core/stages/**` still include `runners/${runner}.md` and `profiles/${profile}/...`
 - live library content and proof fixtures still cite old-root examples
 - approved docs and contracts still teach top-level `pipelines/`, `profiles/`, `runners/`, and `pipeline.yaml` as supported surfaces
@@ -88,21 +88,21 @@ That leaves the operator with two mental models for one compiler surface. That i
 | `profiles/<id>/*` | still treated as top-level profile packs | move to `core/profiles/<id>/*` |
 | `runners/*.md` | still treated as top-level runner guidance | move to `core/runners/*.md` |
 | top-level `pipeline.yaml` | still documented in some legacy and contract surfaces; loader already treats it as out-of-scope for the current shape | retire as supported declarative input; preserve any still-needed definition only under `core/pipelines/` |
-| `crates/compiler/src/pipeline.rs` | owns catalog discovery and stage boundary validation | update to the new canonical roots |
-| `crates/compiler/src/route_state.rs` | owns route-basis runner/profile path snapshots | update path builders and mismatch text |
-| `crates/compiler/src/pipeline_compile.rs` | classifies runner/profile/include compile documents | update path recognition and any rendered path strings |
-| `crates/compiler/src/pipeline_handoff.rs` | classifies canonical trust for source paths | collapse canonical declarative trust to `core/**` plus existing artifact rules |
+| `crates/pipeline/src/pipeline.rs` | owns catalog discovery and stage boundary validation | update to the new canonical roots |
+| `crates/pipeline/src/route_state.rs` | owns route-basis runner/profile path snapshots | update path builders and mismatch text |
+| `crates/pipeline/src/pipeline_compile.rs` | classifies runner/profile/include compile documents | update path recognition and any rendered path strings |
+| `crates/pipeline/src/pipeline_handoff.rs` | classifies canonical trust for source paths | collapse canonical declarative trust to `core/**` plus existing artifact rules |
 | compiler tests, CLI tests, proof fixtures, and demo repos | lock old path strings aggressively | rewrite as regression proof for the new root |
 
 ### Existing-code leverage map
 
 | Sub-problem | Existing code to reuse | This plan's action |
 | --- | --- | --- |
-| Pipeline file discovery | `discover_repo_relative_files(...)` in `pipeline.rs` | keep the discovery mechanism, change the root from `pipelines/` to `core/pipelines/` |
-| Stage boundary enforcement | `core/stages/` validation in `pipeline.rs` | keep exactly as-is |
-| Route-basis fingerprinting | runner/profile SHA logic in `route_state.rs` | keep SHA behavior, change path builders and emitted text only |
-| Compile include typing | document-kind routing in `pipeline_compile.rs` | keep behavior, change runner/profile path matching only |
-| Handoff trust model | canonical/artifact/manual-derived split in `pipeline_handoff.rs` | keep trust classes, collapse canonical declarative roots under `core/` |
+| Pipeline file discovery | `discover_repo_relative_files(...)` in `crates/pipeline/src/pipeline.rs` | keep the discovery mechanism, change the root from `pipelines/` to `core/pipelines/` |
+| Stage boundary enforcement | `core/stages/` validation in `crates/pipeline/src/pipeline.rs` | keep exactly as-is |
+| Route-basis fingerprinting | runner/profile SHA logic in `crates/pipeline/src/route_state.rs` | keep SHA behavior, change path builders and emitted text only |
+| Compile include typing | document-kind routing in `crates/pipeline/src/pipeline_compile.rs` | keep behavior, change runner/profile path matching only |
+| Handoff trust model | canonical/artifact/manual-derived split in `crates/pipeline/src/pipeline_handoff.rs` | keep trust classes, collapse canonical declarative roots under `core/` |
 | Catalog and proof output | existing `SOURCE:` rendering in tests and CLI output | keep output shape, change emitted paths |
 | Fixture-backed proof | proof corpus and CLI surface tests | keep the rails, refresh file layout and golden strings |
 
@@ -255,11 +255,11 @@ core/
 
 | File | Responsibility in this milestone |
 | --- | --- |
-| `crates/compiler/src/pipeline.rs` | pipeline discovery root, selector handling, stage-boundary proof strings |
-| `crates/compiler/src/route_state.rs` | runner/profile snapshot paths, mismatch reasons, route-basis rendering |
-| `crates/compiler/src/pipeline_compile.rs` | include classification for runner/profile files and rendered proof text |
-| `crates/compiler/src/pipeline_handoff.rs` | canonical trust classification for declarative inputs |
-| `crates/compiler/src/lib.rs` or equivalent module exports | export any new helper module if needed |
+| `crates/pipeline/src/pipeline.rs` | pipeline discovery root, selector handling, stage-boundary proof strings |
+| `crates/pipeline/src/route_state.rs` | runner/profile snapshot paths, mismatch reasons, route-basis rendering |
+| `crates/pipeline/src/pipeline_compile.rs` | include classification for runner/profile files and rendered proof text |
+| `crates/pipeline/src/pipeline_handoff.rs` | canonical trust classification for declarative inputs |
+| `crates/compiler/src/lib.rs` | keep the narrow compiler support seam truthful if any path helpers still surface there |
 
 ### Docs and contracts blast radius
 
@@ -294,7 +294,7 @@ Use one tiny shared helper module for declarative roots. Do not invent a config 
 
 Recommended shape:
 
-- `crates/compiler/src/declarative_roots.rs`
+- `crates/pipeline/src/declarative_roots.rs` or the equivalent owner-owned helper surface if the constants stay inlined
 
 Recommended contents:
 
@@ -319,17 +319,17 @@ Why this is the right level:
 handbook CLI / tests
       |
       v
-crates/compiler/src/pipeline.rs
+crates/pipeline/src/pipeline.rs
   - discovers core/pipelines/*.yaml
   - validates core/stages/*.md
       |
-      +--> crates/compiler/src/route_state.rs
+      +--> crates/pipeline/src/route_state.rs
       |      - fingerprints core/runners/* and core/profiles/*
       |
-      +--> crates/compiler/src/pipeline_compile.rs
+      +--> crates/pipeline/src/pipeline_compile.rs
       |      - classifies includes from core/runners/* + core/profiles/* + core/rules/* + core/library/*
       |
-      +--> crates/compiler/src/pipeline_handoff.rs
+      +--> crates/pipeline/src/pipeline_handoff.rs
              - assigns trust classes for core/** and artifacts/**
 ```
 
@@ -370,10 +370,10 @@ Exit criteria:
 
 Scope:
 
-- update discovery in `pipeline.rs`
-- update route-basis path builders and reason text in `route_state.rs`
-- update compile include classification and rendered path strings in `pipeline_compile.rs`
-- update canonical trust recognition in `pipeline_handoff.rs`
+- update discovery in `crates/pipeline/src/pipeline.rs`
+- update route-basis path builders and reason text in `crates/pipeline/src/route_state.rs`
+- update compile include classification and rendered path strings in `crates/pipeline/src/pipeline_compile.rs`
+- update canonical trust recognition in `crates/pipeline/src/pipeline_handoff.rs`
 - add or wire the tiny helper module if it reduces duplicated root strings
 
 Exit criteria:
@@ -430,7 +430,7 @@ Exit criteria:
 ### Findings and decisions
 
 1. **String-literal drift is already real.**
-   - Evidence: `pipeline.rs`, `route_state.rs`, `pipeline_compile.rs`, `pipeline_handoff.rs`, tests, fixtures, and docs all spell roots independently.
+   - Evidence: `crates/pipeline/src/pipeline.rs`, `crates/pipeline/src/route_state.rs`, `crates/pipeline/src/pipeline_compile.rs`, `crates/pipeline/src/pipeline_handoff.rs`, tests, fixtures, and docs all spell roots independently.
    - Decision: centralize the declarative-root strings in one tiny helper or one explicit shared constant surface.
 
 2. **Live stage includes are part of the compiler contract.**
@@ -447,10 +447,10 @@ Exit criteria:
 
 ### Files that must stay simple
 
-- `pipeline.rs`: explicit root constants and discovery calls
-- `route_state.rs`: explicit path-builder helpers
-- `pipeline_compile.rs`: explicit runner/profile path matching against the new roots
-- `pipeline_handoff.rs`: explicit `core/**` canonical check
+- `crates/pipeline/src/pipeline.rs`: explicit root constants and discovery calls
+- `crates/pipeline/src/route_state.rs`: explicit path-builder helpers
+- `crates/pipeline/src/pipeline_compile.rs`: explicit runner/profile path matching against the new roots
+- `crates/pipeline/src/pipeline_handoff.rs`: explicit `core/**` canonical check
 
 Do not add:
 
