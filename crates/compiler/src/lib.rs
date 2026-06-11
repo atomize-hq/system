@@ -20,11 +20,10 @@ mod setup;
 mod setup_shell;
 
 // Packet 4.5.2 posture: `handbook-compiler` remains a narrow compatibility/support
-// crate for the unresolved product-shell seams that still span multiple owner crates.
-// Engine-, flow-, and pipeline-owned logic stays in those crates; this crate keeps
-// explicit compatibility modules for those families, but the root export surface is
-// limited to CLI-facing support types and adapters rather than remaining a flat
-// umbrella import path.
+// crate for the unresolved CLI-facing seams that still span multiple owner crates.
+// Engine-, flow-, and pipeline-owned logic stays in those crates; this crate exposes
+// only the reviewed CLI-facing support types and adapters at the compiler root and
+// keeps no legacy owner-family facade modules alive in the source tree.
 pub use author::template_library::{
     resolve_shipped_template_library, resolve_template_library, CharterTemplateLibraryOverride,
     EnvironmentInventoryTemplateLibraryOverride, TemplateLibraryAsset,
