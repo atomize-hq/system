@@ -1,5 +1,8 @@
 mod author;
+mod doctor;
+mod inspect;
 mod pipeline;
+mod request_shared;
 mod setup;
 mod shell_shared;
 
@@ -63,8 +66,8 @@ impl Command {
             Command::Author(args) => author::run(args),
             Command::Pipeline(args) => pipeline::run(args),
             Command::Generate(args) => generate(args),
-            Command::Inspect(args) => inspect(args),
-            Command::Doctor(args) => doctor(args),
+            Command::Inspect(args) => inspect::run(args),
+            Command::Doctor(args) => doctor::run(args),
         }
     }
 }
@@ -272,66 +275,6 @@ struct RequestArgs {
     fixture_set: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PacketId {
-    Planning,
-    ExecutionDemo,
-    ExecutionLive,
-}
-
-impl PacketId {
-    fn as_str(self) -> &'static str {
-        match self {
-            PacketId::Planning => PACKET_PLANNING_ID,
-            PacketId::ExecutionDemo => PACKET_EXECUTION_DEMO_ID,
-            PacketId::ExecutionLive => PACKET_EXECUTION_LIVE_ID,
-        }
-    }
-}
-
-fn parse_packet_id(packet: &str) -> Result<PacketId, String> {
-    let packet = packet.trim();
-    match packet {
-        PACKET_PLANNING_ID => Ok(PacketId::Planning),
-        PACKET_EXECUTION_DEMO_ID => Ok(PacketId::ExecutionDemo),
-        PACKET_EXECUTION_LIVE_ID => Ok(PacketId::ExecutionLive),
-        _ => Err(format!(
-            "unsupported --packet {packet:?} (allowed: {PACKET_PLANNING_ID:?}, {PACKET_EXECUTION_DEMO_ID:?}, {PACKET_EXECUTION_LIVE_ID:?})"
-        )),
-    }
-}
-
-fn validate_fixture_set_id(value: &str) -> Result<(), String> {
-    let value = value.trim();
-    if value.is_empty() {
-        return Err("fixture_set_id must not be empty".to_string());
-    }
-    if value == "." || value == ".." {
-        return Err("fixture_set_id must not be '.' or '..'".to_string());
-    }
-    if value
-        .chars()
-        .any(|c| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
-    {
-        return Err("fixture_set_id must be ASCII [A-Za-z0-9_-] only".to_string());
-    }
-    Ok(())
-}
-
-fn execution_demo_fixture_set_dir(repo_root: &Path, fixture_set_id: &str) -> PathBuf {
-    repo_root
-        .join("tests/fixtures/execution_demo")
-        .join(fixture_set_id)
-}
-
-fn ensure_dir(path: &Path, what: &str) -> Result<(), String> {
-    match std::fs::metadata(path) {
-        Ok(meta) if meta.is_dir() => Ok(()),
-        Ok(_) => Err(format!("{what} is not a directory: {}", path.display())),
-        Err(err) => Err(format!("{what} is missing: {} ({err})", path.display())),
-    }
-}
-
 fn path_is_dir_or_file(path: &Path) -> bool {
     match std::fs::symlink_metadata(path) {
         Ok(meta) => meta.is_dir() || meta.is_file(),
@@ -363,51 +306,6 @@ fn discover_managed_repo_root(start: &Path) -> PathBuf {
     shell_shared::discover_managed_repo_root(start)
 }
 
-fn fixture_lineage_for_demo(repo_root: &Path, fixture_set_id: &str) -> Vec<String> {
-    let base = execution_demo_fixture_set_dir(repo_root, fixture_set_id).join(".handbook");
-
-    let project_context = base.join("project_context/PROJECT_CONTEXT.md");
-
-    let mut out = Vec::new();
-    out.push(format!(
-        "tests/fixtures/execution_demo/{fixture_set_id}/.handbook/charter/CHARTER.md"
-    ));
-    if project_context.is_file() {
-        out.push(format!(
-            "tests/fixtures/execution_demo/{fixture_set_id}/.handbook/project_context/PROJECT_CONTEXT.md"
-        ));
-    }
-    out.push(format!(
-        "tests/fixtures/execution_demo/{fixture_set_id}/.handbook/feature_spec/FEATURE_SPEC.md"
-    ));
-    out
-}
-
-fn fixture_section_for_demo(repo_root: &Path, fixture_set_id: &str) -> String {
-    let mut out = String::new();
-    out.push_str("MODE: fixture-backed execution demo\n");
-    out.push_str("## FIXTURE DEMO\n");
-    out.push_str(&format!("FIXTURE SET: {fixture_set_id}\n"));
-    out.push_str(&format!(
-        "FIXTURE BASIS ROOT: tests/fixtures/execution_demo/{fixture_set_id}/.handbook/\n"
-    ));
-    out.push_str("FIXTURE LINEAGE:\n");
-    for (index, item) in fixture_lineage_for_demo(repo_root, fixture_set_id)
-        .iter()
-        .enumerate()
-    {
-        out.push_str(&format!("{}. {}\n", index + 1, item));
-    }
-    out
-}
-
-fn inject_after_first_three_lines(rendered: &str, injection: &str) -> String {
-    let mut lines: Vec<&str> = rendered.split('\n').collect();
-    let insert_at = 3.min(lines.len());
-    lines.insert(insert_at, injection.trim_end_matches('\n'));
-    lines.join("\n")
-}
-
 fn generate(args: RequestArgs) -> ExitCode {
     let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
@@ -417,49 +315,19 @@ fn generate(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let packet_id = match parse_packet_id(&args.packet) {
-        Ok(packet_id) => packet_id,
+    let repo_root = discover_managed_repo_root(&cwd);
+    let request = match request_shared::prepare_request(&args, &repo_root) {
+        Ok(request) => request,
         Err(err) => {
             println!("REFUSED: {err}");
             return ExitCode::from(1);
         }
     };
 
-    let repo_root = discover_managed_repo_root(&cwd);
-
-    let compiler_root = match packet_id {
-        PacketId::Planning | PacketId::ExecutionLive => repo_root.clone(),
-        PacketId::ExecutionDemo => {
-            let fixture_set_id = match args.fixture_set.as_deref() {
-                Some(id) => id.trim(),
-                None => {
-                    println!("REFUSED: --fixture-set is required when --packet {PACKET_EXECUTION_DEMO_ID}");
-                    return ExitCode::from(1);
-                }
-            };
-            if let Err(err) = validate_fixture_set_id(fixture_set_id) {
-                println!("REFUSED: invalid --fixture-set {fixture_set_id:?}: {err}");
-                return ExitCode::from(1);
-            }
-
-            let fixture_set_dir = execution_demo_fixture_set_dir(&repo_root, fixture_set_id);
-            if let Err(err) = ensure_dir(&fixture_set_dir, "fixture set directory") {
-                println!("REFUSED: {err}");
-                return ExitCode::from(1);
-            }
-            let basis_root = fixture_set_dir.join(".handbook");
-            if let Err(err) = ensure_dir(&basis_root, "fixture basis root") {
-                println!("REFUSED: {err}");
-                return ExitCode::from(1);
-            }
-            fixture_set_dir
-        }
-    };
-
     let result = match handbook_flow::resolve(
-        &compiler_root,
+        &request.compiler_root,
         handbook_flow::ResolveRequest {
-            packet_id: packet_id.as_str(),
+            packet_id: request.packet_id.as_str(),
             ..handbook_flow::ResolveRequest::default()
         },
     ) {
@@ -474,7 +342,7 @@ fn generate(args: RequestArgs) -> ExitCode {
         && result.refusal.is_none()
         && result.blockers.is_empty();
 
-    let compiler_result = flow_result_for_rendering(result);
+    let compiler_result = request_shared::flow_result_for_rendering(result);
     let model = match handbook_compiler::build_output_model(&compiler_result) {
         Ok(model) => model,
         Err(err) => {
@@ -491,424 +359,10 @@ fn generate(args: RequestArgs) -> ExitCode {
     }
 }
 
-fn flow_result_for_rendering(
-    result: handbook_flow::ResolverResult,
-) -> handbook_compiler::ResolverResult {
-    handbook_compiler::ResolverResult {
-        c04_result_version: result.c04_result_version,
-        c03_schema_version: result.c03_schema_version,
-        c03_manifest_generation_version: result.c03_manifest_generation_version,
-        c03_fingerprint_sha256: result.c03_fingerprint_sha256,
-        packet_result: result.packet_result,
-        decision_log: handbook_compiler::DecisionLog {
-            entries: result.decision_log_entries,
-        },
-        budget_outcome: result.budget_outcome,
-        selection: result.selection,
-        refusal: result.refusal.map(flow_refusal_for_rendering),
-        blockers: result
-            .blockers
-            .into_iter()
-            .map(flow_blocker_for_rendering)
-            .collect(),
-    }
-}
-
-fn flow_refusal_for_rendering(
-    refusal: handbook_flow::ResolverRefusal,
-) -> handbook_compiler::Refusal {
-    handbook_compiler::Refusal {
-        category: flow_refusal_category_for_rendering(refusal.category),
-        summary: refusal.summary,
-        broken_subject: flow_subject_ref_for_rendering(refusal.broken_subject),
-        next_safe_action: flow_next_safe_action_for_rendering(refusal.next_safe_action),
-    }
-}
-
-fn flow_blocker_for_rendering(
-    blocker: handbook_flow::ResolverBlocker,
-) -> handbook_compiler::Blocker {
-    handbook_compiler::Blocker {
-        category: flow_blocker_category_for_rendering(blocker.category),
-        subject: flow_subject_ref_for_rendering(blocker.subject),
-        summary: blocker.summary,
-        next_safe_action: flow_next_safe_action_for_rendering(blocker.next_safe_action),
-    }
-}
-
-fn flow_refusal_category_for_rendering(
-    category: handbook_flow::ResolverRefusalCategory,
-) -> handbook_compiler::RefusalCategory {
-    match category {
-        handbook_flow::ResolverRefusalCategory::NonCanonicalInputAttempt => {
-            handbook_compiler::RefusalCategory::NonCanonicalInputAttempt
-        }
-        handbook_flow::ResolverRefusalCategory::SystemRootMissing => {
-            handbook_compiler::RefusalCategory::SystemRootMissing
-        }
-        handbook_flow::ResolverRefusalCategory::SystemRootNotDir => {
-            handbook_compiler::RefusalCategory::SystemRootNotDir
-        }
-        handbook_flow::ResolverRefusalCategory::SystemRootSymlinkNotAllowed => {
-            handbook_compiler::RefusalCategory::SystemRootSymlinkNotAllowed
-        }
-        handbook_flow::ResolverRefusalCategory::RequiredArtifactMissing => {
-            handbook_compiler::RefusalCategory::RequiredArtifactMissing
-        }
-        handbook_flow::ResolverRefusalCategory::RequiredArtifactEmpty => {
-            handbook_compiler::RefusalCategory::RequiredArtifactEmpty
-        }
-        handbook_flow::ResolverRefusalCategory::RequiredArtifactStarterTemplate => {
-            handbook_compiler::RefusalCategory::RequiredArtifactStarterTemplate
-        }
-        handbook_flow::ResolverRefusalCategory::RequiredArtifactInvalid => {
-            handbook_compiler::RefusalCategory::RequiredArtifactInvalid
-        }
-        handbook_flow::ResolverRefusalCategory::ArtifactReadError => {
-            handbook_compiler::RefusalCategory::ArtifactReadError
-        }
-        handbook_flow::ResolverRefusalCategory::FreshnessInvalid => {
-            handbook_compiler::RefusalCategory::FreshnessInvalid
-        }
-        handbook_flow::ResolverRefusalCategory::BudgetRefused => {
-            handbook_compiler::RefusalCategory::BudgetRefused
-        }
-        handbook_flow::ResolverRefusalCategory::UnsupportedRequest => {
-            handbook_compiler::RefusalCategory::UnsupportedRequest
-        }
-    }
-}
-
-fn flow_blocker_category_for_rendering(
-    category: handbook_flow::ResolverBlockerCategory,
-) -> handbook_compiler::BlockerCategory {
-    match category {
-        handbook_flow::ResolverBlockerCategory::SystemRootMissing => {
-            handbook_compiler::BlockerCategory::SystemRootMissing
-        }
-        handbook_flow::ResolverBlockerCategory::SystemRootNotDir => {
-            handbook_compiler::BlockerCategory::SystemRootNotDir
-        }
-        handbook_flow::ResolverBlockerCategory::SystemRootSymlinkNotAllowed => {
-            handbook_compiler::BlockerCategory::SystemRootSymlinkNotAllowed
-        }
-        handbook_flow::ResolverBlockerCategory::RequiredArtifactMissing => {
-            handbook_compiler::BlockerCategory::RequiredArtifactMissing
-        }
-        handbook_flow::ResolverBlockerCategory::RequiredArtifactEmpty => {
-            handbook_compiler::BlockerCategory::RequiredArtifactEmpty
-        }
-        handbook_flow::ResolverBlockerCategory::RequiredArtifactStarterTemplate => {
-            handbook_compiler::BlockerCategory::RequiredArtifactStarterTemplate
-        }
-        handbook_flow::ResolverBlockerCategory::RequiredArtifactInvalid => {
-            handbook_compiler::BlockerCategory::RequiredArtifactInvalid
-        }
-        handbook_flow::ResolverBlockerCategory::ArtifactReadError => {
-            handbook_compiler::BlockerCategory::ArtifactReadError
-        }
-        handbook_flow::ResolverBlockerCategory::FreshnessInvalid => {
-            handbook_compiler::BlockerCategory::FreshnessInvalid
-        }
-        handbook_flow::ResolverBlockerCategory::BudgetRefused => {
-            handbook_compiler::BlockerCategory::BudgetRefused
-        }
-        handbook_flow::ResolverBlockerCategory::UnsupportedRequest => {
-            handbook_compiler::BlockerCategory::UnsupportedRequest
-        }
-    }
-}
-
-fn flow_subject_ref_for_rendering(
-    subject: handbook_flow::ResolverSubjectRef,
-) -> handbook_compiler::SubjectRef {
-    match subject {
-        handbook_flow::ResolverSubjectRef::CanonicalArtifact {
-            kind,
-            canonical_repo_relative_path,
-        } => handbook_compiler::SubjectRef::CanonicalArtifact {
-            kind,
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverSubjectRef::InheritedDependency {
-            dependency_id,
-            version,
-        } => handbook_compiler::SubjectRef::InheritedDependency {
-            dependency_id,
-            version,
-        },
-        handbook_flow::ResolverSubjectRef::Policy { policy_id } => {
-            handbook_compiler::SubjectRef::Policy { policy_id }
-        }
-    }
-}
-
-fn flow_next_safe_action_for_rendering(
-    action: handbook_flow::ResolverNextSafeAction,
-) -> handbook_compiler::NextSafeAction {
-    match action {
-        handbook_flow::ResolverNextSafeAction::RunSetup => {
-            handbook_compiler::NextSafeAction::RunSetup
-        }
-        handbook_flow::ResolverNextSafeAction::RunSetupInit => {
-            handbook_compiler::NextSafeAction::RunSetupInit
-        }
-        handbook_flow::ResolverNextSafeAction::RunSetupRefresh => {
-            handbook_compiler::NextSafeAction::RunSetupRefresh
-        }
-        handbook_flow::ResolverNextSafeAction::RunAuthorCharter => {
-            handbook_compiler::NextSafeAction::RunAuthorCharter
-        }
-        handbook_flow::ResolverNextSafeAction::RunAuthorProjectContext => {
-            handbook_compiler::NextSafeAction::RunAuthorProjectContext
-        }
-        handbook_flow::ResolverNextSafeAction::RunAuthorEnvironmentInventory => {
-            handbook_compiler::NextSafeAction::RunAuthorEnvironmentInventory
-        }
-        handbook_flow::ResolverNextSafeAction::CreateSystemRoot {
-            canonical_repo_relative_path,
-        } => handbook_compiler::NextSafeAction::CreateSystemRoot {
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverNextSafeAction::EnsureSystemRootIsDirectory {
-            canonical_repo_relative_path,
-        } => handbook_compiler::NextSafeAction::EnsureSystemRootIsDirectory {
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverNextSafeAction::RemoveSystemRootSymlink {
-            canonical_repo_relative_path,
-        } => handbook_compiler::NextSafeAction::RemoveSystemRootSymlink {
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverNextSafeAction::CreateCanonicalArtifact {
-            canonical_repo_relative_path,
-        } => handbook_compiler::NextSafeAction::CreateCanonicalArtifact {
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverNextSafeAction::FillCanonicalArtifact {
-            canonical_repo_relative_path,
-        } => handbook_compiler::NextSafeAction::FillCanonicalArtifact {
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverNextSafeAction::ReduceCanonicalArtifactSize {
-            canonical_repo_relative_path,
-        } => handbook_compiler::NextSafeAction::ReduceCanonicalArtifactSize {
-            canonical_repo_relative_path,
-        },
-        handbook_flow::ResolverNextSafeAction::RunGenerate { packet_id } => {
-            handbook_compiler::NextSafeAction::RunGenerate { packet_id }
-        }
-        handbook_flow::ResolverNextSafeAction::RunDoctor => {
-            handbook_compiler::NextSafeAction::RunDoctor
-        }
-    }
-}
-
-fn render_doctor_json(report: &handbook_compiler::DoctorReport) -> Result<String, String> {
-    serde_json::to_string_pretty(report)
-        .map(|mut output| {
-            output.push('\n');
-            output
-        })
-        .map_err(|err| format!("failed to serialize doctor json: {err}"))
-}
-
-fn doctor(args: DoctorArgs) -> ExitCode {
-    let cwd = match std::env::current_dir() {
-        Ok(dir) => dir,
-        Err(err) => {
-            println!("BLOCKED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
-        }
-    };
-    let repo_root = discover_managed_repo_root(&cwd);
-
-    let report = match handbook_compiler::doctor(&repo_root) {
-        Ok(report) => report,
-        Err(err) => {
-            println!("INVALID_BASELINE");
-            println!("SUMMARY: failed to inspect baseline truth: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    if args.json {
-        match render_doctor_json(&report) {
-            Ok(json) => print!("{json}"),
-            Err(err) => {
-                println!("INVALID_BASELINE");
-                println!("SUMMARY: {err}");
-                return ExitCode::from(1);
-            }
-        }
-    } else {
-        println!("{}", doctor_status_name(report.status));
-        println!(
-            "ROOT STATUS: {}",
-            doctor_root_status_name(report.system_root_status)
-        );
-        if let Some(next_safe_action) = &report.next_safe_action {
-            println!(
-                "NEXT SAFE ACTION: {}",
-                handbook_compiler::render_next_safe_action_value(next_safe_action)
-            );
-        } else {
-            println!("NEXT SAFE ACTION: <none>");
-        }
-        println!("## BASELINE CHECKLIST");
-        for item in report.checklist.iter() {
-            let subject_path = match &item.subject {
-                handbook_compiler::SubjectRef::CanonicalArtifact {
-                    canonical_repo_relative_path,
-                    ..
-                } => *canonical_repo_relative_path,
-                _ => item.canonical_repo_relative_path,
-            };
-            println!(
-                "{} [{}] STATUS: {} ACTION: {}",
-                item.artifact_label,
-                subject_path,
-                doctor_artifact_status_name(item.status),
-                item.author_command
-            );
-        }
-    }
-
-    if report.status == handbook_compiler::DoctorBaselineStatus::BaselineComplete {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
-    }
-}
-
-fn doctor_status_name(status: handbook_compiler::DoctorBaselineStatus) -> &'static str {
-    match status {
-        handbook_compiler::DoctorBaselineStatus::Scaffolded => "SCAFFOLDED",
-        handbook_compiler::DoctorBaselineStatus::PartialBaseline => "PARTIAL_BASELINE",
-        handbook_compiler::DoctorBaselineStatus::InvalidBaseline => "INVALID_BASELINE",
-        handbook_compiler::DoctorBaselineStatus::BaselineComplete => "BASELINE_COMPLETE",
-    }
-}
-
-fn doctor_root_status_name(status: handbook_compiler::SystemRootStatus) -> &'static str {
-    match status {
-        handbook_compiler::SystemRootStatus::Ok => "OK",
-        handbook_compiler::SystemRootStatus::Missing => "MISSING",
-        handbook_compiler::SystemRootStatus::NotDir => "NOT_DIR",
-        handbook_compiler::SystemRootStatus::SymlinkNotAllowed => "SYMLINK_NOT_ALLOWED",
-    }
-}
-
-fn doctor_artifact_status_name(status: handbook_compiler::DoctorArtifactStatus) -> &'static str {
-    match status {
-        handbook_compiler::DoctorArtifactStatus::Missing => "MISSING",
-        handbook_compiler::DoctorArtifactStatus::Empty => "EMPTY",
-        handbook_compiler::DoctorArtifactStatus::StarterOwned => "STARTER_OWNED",
-        handbook_compiler::DoctorArtifactStatus::Invalid => "INVALID",
-        handbook_compiler::DoctorArtifactStatus::ValidCanonicalTruth => "VALID_CANONICAL_TRUTH",
-    }
-}
-
 fn read_stdin() -> Result<String, std::io::Error> {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
     Ok(input)
-}
-
-fn inspect(args: RequestArgs) -> ExitCode {
-    let cwd = match std::env::current_dir() {
-        Ok(dir) => dir,
-        Err(err) => {
-            println!("BLOCKED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let packet_id = match parse_packet_id(&args.packet) {
-        Ok(packet_id) => packet_id,
-        Err(err) => {
-            println!("BLOCKED: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let repo_root = discover_managed_repo_root(&cwd);
-
-    let (compiler_root, demo_fixture_set_id) = match packet_id {
-        PacketId::Planning | PacketId::ExecutionLive => (repo_root.clone(), None),
-        PacketId::ExecutionDemo => {
-            let fixture_set_id = match args.fixture_set.as_deref() {
-                Some(id) => id.trim(),
-                None => {
-                    println!(
-                        "BLOCKED: --fixture-set is required when --packet {PACKET_EXECUTION_DEMO_ID}"
-                    );
-                    return ExitCode::from(1);
-                }
-            };
-            if let Err(err) = validate_fixture_set_id(fixture_set_id) {
-                println!("BLOCKED: invalid --fixture-set {fixture_set_id:?}: {err}");
-                return ExitCode::from(1);
-            }
-
-            let fixture_set_dir = execution_demo_fixture_set_dir(&repo_root, fixture_set_id);
-            if let Err(err) = ensure_dir(&fixture_set_dir, "fixture set directory") {
-                println!("BLOCKED: {err}");
-                return ExitCode::from(1);
-            }
-            let basis_root = fixture_set_dir.join(".handbook");
-            if let Err(err) = ensure_dir(&basis_root, "fixture basis root") {
-                println!("BLOCKED: {err}");
-                return ExitCode::from(1);
-            }
-            (fixture_set_dir, Some(fixture_set_id.to_string()))
-        }
-    };
-
-    let result = match handbook_flow::resolve(
-        &compiler_root,
-        handbook_flow::ResolveRequest {
-            packet_id: packet_id.as_str(),
-            ..handbook_flow::ResolveRequest::default()
-        },
-    ) {
-        Ok(result) => result,
-        Err(err) => {
-            println!("BLOCKED: resolver error: {err:?}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let ready = result.selection.status == handbook_flow::PacketSelectionStatus::Selected
-        && result.refusal.is_none()
-        && result.blockers.is_empty();
-
-    let compiler_result = flow_result_for_rendering(result);
-    let model = match handbook_compiler::build_output_model(&compiler_result) {
-        Ok(model) => model,
-        Err(err) => {
-            println!("PRESENTATION FAILURE: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    if ready {
-        println!("{}", handbook_compiler::render_inspect(&model));
-    } else {
-        let rendered = handbook_compiler::render_inspect(&model);
-        if let Some(fixture_set_id) = demo_fixture_set_id.as_deref() {
-            let section = fixture_section_for_demo(&repo_root, fixture_set_id);
-            println!("{}", inject_after_first_three_lines(&rendered, &section));
-        } else {
-            println!("{rendered}");
-        }
-    }
-
-    if ready {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
-    }
 }
 
 const _: () = {
