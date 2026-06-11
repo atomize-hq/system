@@ -7,7 +7,6 @@ pub mod pipeline_handoff;
 pub mod pipeline_route;
 mod repo_file_access;
 pub mod route_state;
-mod stage_10_feature_spec_provenance;
 
 pub use pipeline::{
     load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,

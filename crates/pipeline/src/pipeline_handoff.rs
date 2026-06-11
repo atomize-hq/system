@@ -3,6 +3,11 @@ use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
     load_selected_pipeline_definition, supported_route_state_variables, SupportedTargetRegistry,
 };
+use crate::pipeline_capture::{
+    build_stage_10_feature_spec_capture_provenance, load_stage_10_feature_spec_capture_provenance,
+    route_basis_fingerprint_sha256, sha256_hex,
+    validate_stage_10_feature_spec_capture_provenance_match, FEATURE_SPEC_ARTIFACT_PATH,
+};
 use crate::pipeline_compile::{
     compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
     PipelineCompileDocumentStatus, PipelineCompileRefusal, PipelineCompileRefusalClassification,
@@ -14,11 +19,6 @@ use crate::repo_file_access::{
 };
 use crate::route_state::{
     load_route_state_with_supported_variables, rebuild_canonical_route_basis, RouteStateReadError,
-};
-use crate::stage_10_feature_spec_provenance::{
-    build_stage_10_feature_spec_capture_provenance, load_stage_10_feature_spec_capture_provenance,
-    route_basis_fingerprint_sha256, sha256_hex,
-    validate_stage_10_feature_spec_capture_provenance_match, FEATURE_SPEC_ARTIFACT_PATH,
 };
 use handbook_engine::{ArtifactManifest, ArtifactPresence, ManifestInputs};
 use serde::{Deserialize, Serialize};
