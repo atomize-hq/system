@@ -7,7 +7,16 @@ pub(crate) struct PreparedFlowOutput {
 
 impl PreparedFlowOutput {
     pub(crate) fn render_markdown(&self) -> String {
-        handbook_compiler::render_markdown(&self.model)
+        let rendered = handbook_compiler::render_markdown(&self.model);
+        if self.ready {
+            return rendered;
+        }
+
+        let Some(context) = self.model.packet_result.fixture_context.as_ref() else {
+            return rendered;
+        };
+
+        inject_after_first_three_lines(&rendered, &render_fixture_section_for_demo(context))
     }
 
     pub(crate) fn render_inspect(&self) -> String {
