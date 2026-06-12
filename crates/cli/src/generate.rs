@@ -1,4 +1,4 @@
-use crate::{request_shared, shell_shared::discover_managed_repo_root, RequestArgs};
+use crate::{rendering, request_shared, shell_shared::discover_managed_repo_root, RequestArgs};
 use std::process::ExitCode;
 
 pub(super) fn run(args: RequestArgs) -> ExitCode {
@@ -33,23 +33,14 @@ pub(super) fn run(args: RequestArgs) -> ExitCode {
         }
     };
 
-    let ready = result.selection.status == handbook_flow::PacketSelectionStatus::Selected
-        && result.refusal.is_none()
-        && result.blockers.is_empty();
-
-    let compiler_result = request_shared::flow_result_for_rendering(result);
-    let model = match handbook_compiler::build_output_model(&compiler_result) {
-        Ok(model) => model,
+    let output = match rendering::prepare_flow_output(result) {
+        Ok(output) => output,
         Err(err) => {
             println!("PRESENTATION FAILURE: {err}");
             return ExitCode::from(1);
         }
     };
 
-    println!("{}", handbook_compiler::render_markdown(&model));
-    if ready {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
-    }
+    println!("{}", output.render_markdown());
+    output.exit_code()
 }

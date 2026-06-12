@@ -1,8 +1,10 @@
 mod author;
 mod doctor;
+mod doctor_rendering;
 mod generate;
 mod inspect;
 mod pipeline;
+mod rendering;
 mod request_shared;
 mod setup;
 mod shell_shared;
