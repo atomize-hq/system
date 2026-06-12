@@ -40,6 +40,7 @@ pub use canonical_artifacts::{
     ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact, CanonicalArtifactDescriptor,
     CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
+pub use canonical_paths::{handbook_product_canonical_layout_contract, CanonicalLayoutContract};
 pub use freshness::{
     compute_freshness, FreshnessIssue, FreshnessIssueKind, FreshnessStatus, FreshnessTruth,
     InheritedDependency, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,

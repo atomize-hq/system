@@ -1,6 +1,6 @@
 use handbook_engine::{
     setup_starter_template_bytes, ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind,
-    CanonicalArtifacts, SystemRootStatus,
+    CanonicalArtifacts, CanonicalLayoutContract, SystemRootStatus,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -8,6 +8,20 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
         std::fs::create_dir_all(parent).expect("mkdirs");
     }
     std::fs::write(path, contents).expect("write");
+}
+
+fn custom_layout_contract() -> CanonicalLayoutContract {
+    CanonicalLayoutContract::from_paths(
+        ".custom_handbook",
+        ".custom_handbook/charter",
+        ".custom_handbook/charter/CHARTER.md",
+        ".custom_handbook/project_context",
+        ".custom_handbook/project_context/PROJECT_CONTEXT.md",
+        ".custom_handbook/environment_inventory",
+        ".custom_handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".custom_handbook/feature_spec",
+        ".custom_handbook/feature_spec/FEATURE_SPEC.md",
+    )
 }
 
 #[test]
@@ -260,4 +274,54 @@ fn required_artifact_directory_is_recorded_as_read_error_and_missing() {
         "expected read-error ingest issue, got: {:?}",
         artifacts.ingest_issues
     );
+}
+
+#[test]
+fn non_default_layout_contract_flows_through_ingest_identities_and_issue_paths() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".custom_handbook/charter/CHARTER.md"))
+        .expect("charter dir");
+    write_file(
+        &repo_root.join(".custom_handbook/feature_spec/FEATURE_SPEC.md"),
+        b"custom spec",
+    );
+
+    let artifacts =
+        CanonicalArtifacts::load_with_contract(repo_root, custom_layout_contract()).expect("load");
+
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.charter.identity.relative_path,
+        ".custom_handbook/charter/CHARTER.md"
+    );
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert_eq!(
+        artifacts.project_context.identity.relative_path,
+        ".custom_handbook/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        artifacts.feature_spec.identity.relative_path,
+        ".custom_handbook/feature_spec/FEATURE_SPEC.md"
+    );
+    assert_eq!(
+        artifacts.feature_spec.identity.presence,
+        ArtifactPresence::PresentNonEmpty
+    );
+    assert!(
+        artifacts.ingest_issues.iter().any(|issue| {
+            issue.kind == ArtifactIngestIssueKind::CanonicalArtifactReadError
+                && issue.canonical_repo_relative_path == ".custom_handbook/charter/CHARTER.md"
+        }),
+        "expected custom-layout read-error ingest issue, got: {:?}",
+        artifacts.ingest_issues
+    );
+    assert!(artifacts
+        .identities()
+        .iter()
+        .all(|identity| identity.relative_path.starts_with(".custom_handbook/")));
 }

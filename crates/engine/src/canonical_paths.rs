@@ -3,7 +3,7 @@ use crate::canonical_repo_support::{CanonicalWorkspace, NormalizedRepoRelativePa
 use std::path::Path;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CanonicalArtifactPathContract {
+struct CanonicalArtifactPathContract {
     namespace_dir: &'static str,
     relative_path: &'static str,
 }
@@ -26,7 +26,7 @@ impl CanonicalArtifactPathContract {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CanonicalLayoutContract {
+pub struct CanonicalLayoutContract {
     system_root_relative: &'static str,
     charter: CanonicalArtifactPathContract,
     project_context: CanonicalArtifactPathContract,
@@ -35,7 +35,7 @@ pub(crate) struct CanonicalLayoutContract {
 }
 
 impl CanonicalLayoutContract {
-    pub(crate) const fn new(
+    const fn new(
         system_root_relative: &'static str,
         charter: CanonicalArtifactPathContract,
         project_context: CanonicalArtifactPathContract,
@@ -51,20 +51,54 @@ impl CanonicalLayoutContract {
         }
     }
 
-    pub(crate) const fn system_root_relative(self) -> &'static str {
+    pub const fn from_paths(
+        system_root_relative: &'static str,
+        charter_namespace_dir: &'static str,
+        charter_relative_path: &'static str,
+        project_context_namespace_dir: &'static str,
+        project_context_relative_path: &'static str,
+        environment_inventory_namespace_dir: &'static str,
+        environment_inventory_relative_path: &'static str,
+        feature_spec_namespace_dir: &'static str,
+        feature_spec_relative_path: &'static str,
+    ) -> Self {
+        Self::new(
+            system_root_relative,
+            CanonicalArtifactPathContract::new(charter_namespace_dir, charter_relative_path),
+            CanonicalArtifactPathContract::new(
+                project_context_namespace_dir,
+                project_context_relative_path,
+            ),
+            CanonicalArtifactPathContract::new(
+                environment_inventory_namespace_dir,
+                environment_inventory_relative_path,
+            ),
+            CanonicalArtifactPathContract::new(
+                feature_spec_namespace_dir,
+                feature_spec_relative_path,
+            ),
+        )
+    }
+
+    pub const fn system_root_relative(self) -> &'static str {
         self.system_root_relative
     }
 
-    pub(crate) const fn artifact(
-        self,
-        kind: CanonicalArtifactKind,
-    ) -> CanonicalArtifactPathContract {
+    const fn artifact(self, kind: CanonicalArtifactKind) -> CanonicalArtifactPathContract {
         match kind {
             CanonicalArtifactKind::Charter => self.charter,
             CanonicalArtifactKind::ProjectContext => self.project_context,
             CanonicalArtifactKind::EnvironmentInventory => self.environment_inventory,
             CanonicalArtifactKind::FeatureSpec => self.feature_spec,
         }
+    }
+
+    pub const fn namespace_dir(self, kind: CanonicalArtifactKind) -> &'static str {
+        self.artifact(kind).namespace_dir()
+    }
+
+    pub const fn artifact_relative_path(self, kind: CanonicalArtifactKind) -> &'static str {
+        self.artifact(kind).relative_path()
     }
 }
 
@@ -86,35 +120,26 @@ pub(crate) const HANDBOOK_PRODUCT_CANONICAL_LAYOUT: CanonicalLayoutContract =
         ),
     );
 
-pub(crate) const CANONICAL_CHARTER_RELATIVE_PATH: &str = HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-    .artifact(CanonicalArtifactKind::Charter)
-    .relative_path();
-pub(crate) const CANONICAL_PROJECT_CONTEXT_RELATIVE_PATH: &str = HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-    .artifact(CanonicalArtifactKind::ProjectContext)
-    .relative_path();
+pub(crate) const CANONICAL_CHARTER_RELATIVE_PATH: &str =
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.artifact_relative_path(CanonicalArtifactKind::Charter);
+pub(crate) const CANONICAL_PROJECT_CONTEXT_RELATIVE_PATH: &str =
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.artifact_relative_path(CanonicalArtifactKind::ProjectContext);
 pub(crate) const CANONICAL_ENVIRONMENT_INVENTORY_RELATIVE_PATH: &str =
     HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-        .artifact(CanonicalArtifactKind::EnvironmentInventory)
-        .relative_path();
-pub(crate) const CANONICAL_FEATURE_SPEC_RELATIVE_PATH: &str = HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-    .artifact(CanonicalArtifactKind::FeatureSpec)
-    .relative_path();
+        .artifact_relative_path(CanonicalArtifactKind::EnvironmentInventory);
+pub(crate) const CANONICAL_FEATURE_SPEC_RELATIVE_PATH: &str =
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.artifact_relative_path(CanonicalArtifactKind::FeatureSpec);
 
-pub(crate) const CANONICAL_CHARTER_NAMESPACE_DIR: &str = HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-    .artifact(CanonicalArtifactKind::Charter)
-    .namespace_dir();
-pub(crate) const CANONICAL_PROJECT_CONTEXT_NAMESPACE_DIR: &str = HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-    .artifact(CanonicalArtifactKind::ProjectContext)
-    .namespace_dir();
+pub(crate) const CANONICAL_CHARTER_NAMESPACE_DIR: &str =
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.namespace_dir(CanonicalArtifactKind::Charter);
+pub(crate) const CANONICAL_PROJECT_CONTEXT_NAMESPACE_DIR: &str =
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.namespace_dir(CanonicalArtifactKind::ProjectContext);
 pub(crate) const CANONICAL_ENVIRONMENT_INVENTORY_NAMESPACE_DIR: &str =
-    HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-        .artifact(CanonicalArtifactKind::EnvironmentInventory)
-        .namespace_dir();
-pub(crate) const CANONICAL_FEATURE_SPEC_NAMESPACE_DIR: &str = HANDBOOK_PRODUCT_CANONICAL_LAYOUT
-    .artifact(CanonicalArtifactKind::FeatureSpec)
-    .namespace_dir();
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.namespace_dir(CanonicalArtifactKind::EnvironmentInventory);
+pub(crate) const CANONICAL_FEATURE_SPEC_NAMESPACE_DIR: &str =
+    HANDBOOK_PRODUCT_CANONICAL_LAYOUT.namespace_dir(CanonicalArtifactKind::FeatureSpec);
 
-pub(crate) fn handbook_product_canonical_layout_contract() -> &'static CanonicalLayoutContract {
+pub fn handbook_product_canonical_layout_contract() -> &'static CanonicalLayoutContract {
     &HANDBOOK_PRODUCT_CANONICAL_LAYOUT
 }
 
@@ -136,9 +161,7 @@ fn validate_canonical_layout_contract(contract: CanonicalLayoutContract) -> Resu
 }
 
 pub(crate) fn canonical_artifact_relative_path(kind: CanonicalArtifactKind) -> &'static str {
-    handbook_product_canonical_layout_contract()
-        .artifact(kind)
-        .relative_path()
+    handbook_product_canonical_layout_contract().artifact_relative_path(kind)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -180,11 +203,11 @@ impl<'repo> CanonicalLayout<'repo> {
     }
 
     pub(crate) fn artifact_relative_path(self, kind: CanonicalArtifactKind) -> &'static str {
-        self.contract().artifact(kind).relative_path()
+        self.contract().artifact_relative_path(kind)
     }
 
     pub(crate) fn namespace_dir(self, kind: CanonicalArtifactKind) -> &'static str {
-        self.contract().artifact(kind).namespace_dir()
+        self.contract().namespace_dir(kind)
     }
 
     pub(crate) fn artifact_path(self, kind: CanonicalArtifactKind) -> NormalizedRepoRelativePath {
@@ -205,30 +228,22 @@ impl<'repo> CanonicalLayout<'repo> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CanonicalArtifactPathContract, CanonicalLayout, CanonicalLayoutContract};
+    use super::{CanonicalLayout, CanonicalLayoutContract};
     use crate::canonical_artifacts::CanonicalArtifactKind;
     use std::path::Path;
 
     #[test]
     fn canonical_layout_contract_can_drive_non_default_paths() {
-        let contract = CanonicalLayoutContract::new(
+        let contract = CanonicalLayoutContract::from_paths(
             ".custom_handbook",
-            CanonicalArtifactPathContract::new(
-                ".custom_handbook/charter",
-                ".custom_handbook/charter/CHARTER.md",
-            ),
-            CanonicalArtifactPathContract::new(
-                ".custom_handbook/project_context",
-                ".custom_handbook/project_context/PROJECT_CONTEXT.md",
-            ),
-            CanonicalArtifactPathContract::new(
-                ".custom_handbook/environment_inventory",
-                ".custom_handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
-            ),
-            CanonicalArtifactPathContract::new(
-                ".custom_handbook/feature_spec",
-                ".custom_handbook/feature_spec/FEATURE_SPEC.md",
-            ),
+            ".custom_handbook/charter",
+            ".custom_handbook/charter/CHARTER.md",
+            ".custom_handbook/project_context",
+            ".custom_handbook/project_context/PROJECT_CONTEXT.md",
+            ".custom_handbook/environment_inventory",
+            ".custom_handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
+            ".custom_handbook/feature_spec",
+            ".custom_handbook/feature_spec/FEATURE_SPEC.md",
         );
 
         let layout = CanonicalLayout::with_contract(Path::new("."), contract);

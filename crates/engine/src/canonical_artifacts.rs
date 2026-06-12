@@ -1,4 +1,7 @@
-use crate::canonical_paths::{canonical_artifact_relative_path, CanonicalLayout};
+use crate::canonical_paths::{
+    canonical_artifact_relative_path, handbook_product_canonical_layout_contract, CanonicalLayout,
+    CanonicalLayoutContract,
+};
 use crate::canonical_repo_support::{RepoRelativeFileAccessError, RepoRelativeMetadataReadError};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -207,8 +210,19 @@ pub struct CanonicalArtifacts {
 
 impl CanonicalArtifacts {
     pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, ArtifactIngestError> {
+        Self::load_with_contract(repo_root, *handbook_product_canonical_layout_contract())
+    }
+
+    pub fn load_with_contract(
+        repo_root: impl AsRef<Path>,
+        contract: CanonicalLayoutContract,
+    ) -> Result<Self, ArtifactIngestError> {
         let repo_root = repo_root.as_ref();
-        let layout = CanonicalLayout::new(repo_root);
+        let layout = if contract == *handbook_product_canonical_layout_contract() {
+            CanonicalLayout::new(repo_root)
+        } else {
+            CanonicalLayout::with_contract(repo_root, contract)
+        };
         let workspace = layout.workspace();
         let system_root = layout.system_root();
 
@@ -255,10 +269,10 @@ impl CanonicalArtifacts {
                 SystemRootStatus::Missing
                 | SystemRootStatus::NotDir
                 | SystemRootStatus::SymlinkNotAllowed => (
-                    missing_one(CanonicalArtifactKind::Charter),
-                    missing_one(CanonicalArtifactKind::ProjectContext),
-                    missing_one(CanonicalArtifactKind::EnvironmentInventory),
-                    missing_one(CanonicalArtifactKind::FeatureSpec),
+                    missing_one(layout, CanonicalArtifactKind::Charter),
+                    missing_one(layout, CanonicalArtifactKind::ProjectContext),
+                    missing_one(layout, CanonicalArtifactKind::EnvironmentInventory),
+                    missing_one(layout, CanonicalArtifactKind::FeatureSpec),
                 ),
             };
 
@@ -405,10 +419,8 @@ fn load_one(
     issues: &mut Vec<ArtifactIngestIssue>,
 ) -> CanonicalArtifact {
     let workspace = layout.workspace();
-    let relative_path = layout.artifact_relative_path(kind);
     let artifact_path = layout.artifact_path(kind);
-
-    let descriptor = descriptor_for(kind);
+    let descriptor = descriptor_for_layout(layout, kind);
 
     let meta = match workspace.metadata_no_follow(&artifact_path) {
         Ok(meta) => meta,
@@ -417,14 +429,14 @@ fn load_one(
                 issues,
                 ArtifactIngestIssueKind::CanonicalArtifactReadError,
                 kind,
-                relative_path,
+                descriptor.relative_path,
             );
-            return missing_one(kind);
+            return missing_one(layout, kind);
         }
     };
 
     if meta.is_none() {
-        return missing_one(kind);
+        return missing_one(layout, kind);
     }
 
     let meta = meta.expect("meta");
@@ -433,18 +445,18 @@ fn load_one(
             issues,
             ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
             kind,
-            relative_path,
+            descriptor.relative_path,
         );
-        return missing_one(kind);
+        return missing_one(layout, kind);
     }
     if !meta.is_file() {
         record_ingest_issue(
             issues,
             ArtifactIngestIssueKind::CanonicalArtifactReadError,
             kind,
-            relative_path,
+            descriptor.relative_path,
         );
-        return missing_one(kind);
+        return missing_one(layout, kind);
     }
 
     let trusted_file = match workspace.trusted_read(&artifact_path) {
@@ -454,9 +466,9 @@ fn load_one(
                 issues,
                 ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed,
                 kind,
-                relative_path,
+                descriptor.relative_path,
             );
-            return missing_one(kind);
+            return missing_one(layout, kind);
         }
         Err(
             RepoRelativeFileAccessError::Missing(_)
@@ -467,9 +479,9 @@ fn load_one(
                 issues,
                 ArtifactIngestIssueKind::CanonicalArtifactReadError,
                 kind,
-                relative_path,
+                descriptor.relative_path,
             );
-            return missing_one(kind);
+            return missing_one(layout, kind);
         }
         Err(RepoRelativeFileAccessError::InvalidPath(_)) => {
             unreachable!("canonical artifact paths should stay repo-relative")
@@ -483,9 +495,9 @@ fn load_one(
                 issues,
                 ArtifactIngestIssueKind::CanonicalArtifactReadError,
                 kind,
-                relative_path,
+                descriptor.relative_path,
             );
-            return missing_one(kind);
+            return missing_one(layout, kind);
         }
     };
 
@@ -502,7 +514,7 @@ fn load_one(
     CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
             kind,
-            relative_path,
+            relative_path: descriptor.relative_path,
             packet_required: descriptor.packet_required,
             baseline_required: descriptor.baseline_required,
             setup_scaffolded: descriptor.setup_scaffolded,
@@ -515,12 +527,12 @@ fn load_one(
     }
 }
 
-fn missing_one(kind: CanonicalArtifactKind) -> CanonicalArtifact {
-    let descriptor = descriptor_for(kind);
+fn missing_one(layout: CanonicalLayout<'_>, kind: CanonicalArtifactKind) -> CanonicalArtifact {
+    let descriptor = descriptor_for_layout(layout, kind);
     CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
             kind,
-            relative_path: kind.relative_path(),
+            relative_path: descriptor.relative_path,
             packet_required: descriptor.packet_required,
             baseline_required: descriptor.baseline_required,
             setup_scaffolded: descriptor.setup_scaffolded,
@@ -545,6 +557,20 @@ fn bytes_to_lower_hex(bytes: &[u8]) -> String {
         let _ = write!(out, "{:02x}", b);
     }
     out
+}
+
+fn descriptor_for_layout(
+    layout: CanonicalLayout<'_>,
+    kind: CanonicalArtifactKind,
+) -> CanonicalArtifactDescriptor {
+    let mut descriptor = *descriptor_for(kind);
+    if layout.contract() == *handbook_product_canonical_layout_contract() {
+        descriptor.relative_path = kind.relative_path();
+    } else {
+        descriptor.relative_path = layout.artifact_relative_path(kind);
+        descriptor.namespace_dir = layout.namespace_dir(kind);
+    }
+    descriptor
 }
 
 fn descriptor_for(kind: CanonicalArtifactKind) -> &'static CanonicalArtifactDescriptor {
