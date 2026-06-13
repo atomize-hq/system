@@ -1,9 +1,11 @@
 mod author;
+mod author_prompting;
 mod doctor;
 mod doctor_rendering;
 mod generate;
 mod inspect;
 mod pipeline;
+mod pipeline_help;
 mod rendering;
 mod request_shared;
 mod setup;
@@ -153,16 +155,16 @@ enum PipelineCommand {
     Resolve(PipelineSelectorArgs),
     /// Compile one supported stage payload from persisted route basis.
     Compile(PipelineCompileArgs),
-    #[command(about = handbook_pipeline::pipeline::SUPPORTED_CAPTURE_HELP_SUMMARY)]
+    #[command(about = pipeline_help::SUPPORTED_CAPTURE_HELP_SUMMARY)]
     Capture(PipelineCaptureArgs),
-    #[command(about = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_HELP_SUMMARY)]
+    #[command(about = pipeline_help::SUPPORTED_HANDOFF_HELP_SUMMARY)]
     Handoff(PipelineHandoffArgs),
     /// Route-state operations.
     State(PipelineStateArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(after_help = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_HELP_EXAMPLES)]
+#[command(after_help = pipeline_help::SUPPORTED_HANDOFF_HELP_EXAMPLES)]
 struct PipelineHandoffArgs {
     #[command(subcommand)]
     command: PipelineHandoffCommand,
@@ -170,12 +172,12 @@ struct PipelineHandoffArgs {
 
 #[derive(Subcommand, Debug)]
 enum PipelineHandoffCommand {
-    #[command(about = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_EMIT_HELP_SUMMARY)]
+    #[command(about = pipeline_help::SUPPORTED_HANDOFF_EMIT_HELP_SUMMARY)]
     Emit(PipelineHandoffEmitArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(after_help = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_HELP_EXAMPLES)]
+#[command(after_help = pipeline_help::SUPPORTED_HANDOFF_HELP_EXAMPLES)]
 struct PipelineHandoffEmitArgs {
     /// Canonical id or unambiguous shorthand for a pipeline.
     #[arg(long)]
@@ -225,7 +227,7 @@ struct PipelineCompileArgs {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(after_help = handbook_pipeline::pipeline::SUPPORTED_CAPTURE_HELP_EXAMPLES)]
+#[command(after_help = pipeline_help::SUPPORTED_CAPTURE_HELP_EXAMPLES)]
 struct PipelineCaptureArgs {
     #[command(subcommand)]
     command: Option<PipelineCaptureCommand>,

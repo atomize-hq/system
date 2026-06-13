@@ -3,7 +3,10 @@ use super::{
     PipelineCompileArgs, PipelineHandoffArgs, PipelineHandoffCommand, PipelineSelectorArgs,
     PipelineShowArgs, PipelineStateCommand, PipelineStateSetArgs, RELEASE_VERSION,
 };
-use crate::shell_shared::{discover_managed_repo_root, read_stdin};
+use crate::{
+    pipeline_help,
+    shell_shared::{discover_managed_repo_root, read_stdin},
+};
 use std::process::ExitCode;
 
 pub(super) fn run(args: PipelineArgs) -> ExitCode {
@@ -340,10 +343,9 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
             let request = handbook_pipeline::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
-                producer_command:
-                    handbook_pipeline::pipeline_handoff::render_supported_handoff_emit_command(
-                        &supported_target,
-                    ),
+                producer_command: pipeline_help::render_supported_handoff_emit_command(
+                    &supported_target,
+                ),
                 producer_version: RELEASE_VERSION.to_string(),
             };
             match handbook_pipeline::emit_pipeline_handoff_bundle(&repo_root, &request) {
