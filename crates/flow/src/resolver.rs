@@ -7,11 +7,12 @@ use crate::packet_result::{
     PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
 };
 use handbook_engine::{
-    baseline_artifact_validation_for_path, validate_charter_markdown,
-    validate_environment_inventory_markdown, validate_project_context_markdown,
-    ArtifactIngestIssueKind, ArtifactManifest, ArtifactPresence, BaselineArtifactValidation,
-    BaselineArtifactVerdict, CanonicalArtifact, CanonicalArtifactKind, CanonicalArtifacts,
-    FreshnessIssueKind, FreshnessStatus, ManifestError, ManifestInputs, SystemRootStatus,
+    baseline_artifact_validation_for_path, handbook_product_canonical_layout_contract,
+    validate_charter_markdown, validate_environment_inventory_markdown,
+    validate_project_context_markdown, ArtifactIngestIssueKind, ArtifactManifest, ArtifactPresence,
+    BaselineArtifactValidation, BaselineArtifactVerdict, CanonicalArtifact, CanonicalArtifactKind,
+    CanonicalArtifacts, FreshnessIssueKind, FreshnessStatus, ManifestError, ManifestInputs,
+    SystemRootStatus,
 };
 use std::cmp::Ordering;
 use std::path::Path;
@@ -410,7 +411,6 @@ fn canonical_artifact_kind_priority(kind: CanonicalArtifactKind) -> u8 {
 const DEFAULT_PACKET_ID: &str = "planning.packet";
 const DEMO_EXECUTION_PACKET_ID: &str = "execution.demo.packet";
 const LIVE_EXECUTION_PACKET_ID: &str = "execution.live.packet";
-const HANDBOOK_ROOT_PATH: &str = ".handbook";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveRequest {
@@ -1309,7 +1309,7 @@ fn compute_refusal(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => HANDBOOK_ROOT_PATH,
+            None => handbook_product_canonical_layout_contract().system_root_relative(),
         };
 
         return Some(ResolverRefusal {
@@ -1465,7 +1465,7 @@ fn compute_blockers(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => HANDBOOK_ROOT_PATH,
+            None => handbook_product_canonical_layout_contract().system_root_relative(),
         };
 
         blockers.push(ResolverBlocker {
