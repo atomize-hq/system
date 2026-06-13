@@ -296,6 +296,14 @@ fn support_story_docs_match_help_snapshots() {
         "narrow compatibility/support seam",
         "default owner surfaces for extracted logic rather than routing that logic through `crates/compiler`",
     ];
+    let root_readme_ownership_required_phrases = [
+        "narrow compatibility/support seam",
+        "direct callers should import `crates/engine/`, `crates/flow/`, and `crates/pipeline/` for extracted logic instead of routing through this crate",
+    ];
+    let docs_readme_ownership_required_phrases = [
+        "direct owner crates for extracted logic",
+        "narrow compatibility/support seam",
+    ];
     let root_readme_required_phrases = [
         "pipeline capture --preview",
         "pipeline capture apply --capture-id <capture-id>",
@@ -386,6 +394,34 @@ fn support_story_docs_match_help_snapshots() {
             docs_text.contains(phrase),
             "docs missing ownership-boundary phrase `{phrase}`"
         );
+    }
+
+    for (path, required_phrases) in [
+        (
+            root_readme_path.as_path(),
+            root_readme_ownership_required_phrases.as_slice(),
+        ),
+        (
+            root.join("docs/README.md").as_path(),
+            docs_readme_ownership_required_phrases.as_slice(),
+        ),
+        (
+            root.join("docs/contracts/C-02-rust-workspace-and-cli-command-surface.md")
+                .as_path(),
+            ownership_required_doc_phrases.as_slice(),
+        ),
+    ] {
+        let text = fs::read_to_string(path)
+            .unwrap_or_else(|err| panic!("read {}: {}", path.display(), err));
+
+        for phrase in required_phrases {
+            assert!(
+                text.contains(phrase),
+                "{} missing ownership-boundary phrase `{}`",
+                path.display(),
+                phrase
+            );
+        }
     }
 
     for phrase in [
