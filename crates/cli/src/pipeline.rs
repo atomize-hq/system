@@ -357,15 +357,28 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
                     ExitCode::SUCCESS
                 }
                 Err(refusal) => {
-                    println!(
-                        "{}",
-                        handbook_pipeline::render_pipeline_handoff_refusal(&refusal)
-                    );
+                    println!("{}", render_pipeline_handoff_refusal(&refusal, &supported_target));
                     ExitCode::from(1)
                 }
             }
         }
     }
+}
+
+fn render_pipeline_handoff_refusal(
+    refusal: &handbook_pipeline::PipelineHandoffRefusal,
+    supported_target: &handbook_pipeline::pipeline::SupportedHandoffTarget,
+) -> String {
+    let mut refusal = refusal.clone();
+    if refusal.classification == handbook_pipeline::PipelineHandoffRefusalClassification::UnsupportedTarget
+        && refusal.recovery == "retry with the supported handoff emit command"
+    {
+        refusal.recovery = format!(
+            "retry with `{}`",
+            pipeline_help::render_supported_handoff_emit_command(supported_target)
+        );
+    }
+    handbook_pipeline::render_pipeline_handoff_refusal(&refusal)
 }
 
 fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
