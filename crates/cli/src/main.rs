@@ -153,7 +153,7 @@ enum PipelineCommand {
     Resolve(PipelineSelectorArgs),
     /// Compile one supported stage payload from persisted route basis.
     Compile(PipelineCompileArgs),
-    /// Capture one supported stage output and materialize declared artifact and repo-mirror files for `pipeline.foundation_inputs` stages `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`.
+    /// Capture one supported stage output and materialize declared artifact and repo-mirror files for the current bounded pipeline target.
     Capture(PipelineCaptureArgs),
     /// Emit one supported downstream handoff bundle from persisted stage and provenance surfaces.
     Handoff(PipelineHandoffArgs),
@@ -169,7 +169,7 @@ struct PipelineHandoffArgs {
 
 #[derive(Subcommand, Debug)]
 enum PipelineHandoffCommand {
-    /// Emit one bounded handoff bundle for `pipeline.foundation_inputs` -> `feature-slice-decomposer`.
+    /// Emit one bounded handoff bundle for the current supported downstream target.
     Emit(PipelineHandoffEmitArgs),
 }
 

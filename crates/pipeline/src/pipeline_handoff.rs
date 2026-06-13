@@ -668,6 +668,13 @@ pub fn render_pipeline_handoff_refusal(refusal: &PipelineHandoffRefusal) -> Stri
     out
 }
 
+pub fn render_supported_handoff_emit_command(target: &SupportedHandoffTarget) -> String {
+    format!(
+        "handbook pipeline handoff emit --id {} --consumer {}",
+        target.pipeline_id, target.consumer_id
+    )
+}
+
 fn render_pipeline_handoff_refusal_classification(
     classification: PipelineHandoffRefusalClassification,
 ) -> &'static str {
@@ -723,8 +730,8 @@ fn validate_supported_consumer(
             pipeline_id: Some(supported_target.pipeline_id.clone()),
             consumer_id: Some(consumer_selector.to_string()),
             recovery: format!(
-                "retry with `handbook pipeline handoff emit --id {} --consumer {}`",
-                supported_target.pipeline_id, supported_target.consumer_id
+                "retry with `{}`",
+                render_supported_handoff_emit_command(supported_target)
             ),
         })
     }
@@ -749,8 +756,8 @@ fn validate_supported_compile_target(
             pipeline_id: Some(pipeline_id.to_string()),
             consumer_id: Some(consumer_id.to_string()),
             recovery: format!(
-                "retry with `handbook pipeline handoff emit --id {} --consumer {}`",
-                supported_target.pipeline_id, supported_target.consumer_id
+                "retry with `{}`",
+                render_supported_handoff_emit_command(supported_target)
             ),
         })
     }

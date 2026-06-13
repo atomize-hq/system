@@ -339,10 +339,10 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
             let request = handbook_pipeline::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
-                producer_command: format!(
-                    "handbook pipeline handoff emit --id {} --consumer {}",
-                    supported_target.pipeline_id, supported_target.consumer_id
-                ),
+                producer_command:
+                    handbook_pipeline::pipeline_handoff::render_supported_handoff_emit_command(
+                        &supported_target,
+                    ),
                 producer_version: RELEASE_VERSION.to_string(),
             };
             match handbook_pipeline::emit_pipeline_handoff_bundle(&repo_root, &request) {
