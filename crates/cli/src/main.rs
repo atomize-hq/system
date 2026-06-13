@@ -291,7 +291,7 @@ const _: () = {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::author::{execute_author_charter_command, render_author_charter_refusal};
+    use crate::author::execute_author_charter_command;
     use std::{cell::Cell, fs};
 
     fn valid_structured_inputs_yaml() -> &'static str {
@@ -444,7 +444,7 @@ decision_records:
                 handbook_engine::parse_charter_structured_input_yaml(
                     valid_structured_inputs_yaml(),
                 )
-                .map_err(|err| err.to_string())
+                .map_err(|err| err.summary)
             },
             |repo_root, input| {
                 author_called.set(true);
