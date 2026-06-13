@@ -51,6 +51,7 @@ impl CanonicalLayoutContract {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub const fn from_paths(
         system_root_relative: &'static str,
         charter_namespace_dir: &'static str,
