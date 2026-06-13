@@ -1,4 +1,4 @@
-use crate::{SetupArgs, SetupCommand};
+use crate::{exit_policy, SetupArgs, SetupCommand};
 use std::process::ExitCode;
 
 pub(crate) fn run(args: SetupArgs) -> ExitCode {
@@ -6,7 +6,7 @@ pub(crate) fn run(args: SetupArgs) -> ExitCode {
         Ok(dir) => dir,
         Err(err) => {
             println!("REFUSED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
     let repo_root = crate::shell_shared::discover_managed_repo_root(&cwd);
@@ -39,11 +39,11 @@ pub(crate) fn run(args: SetupArgs) -> ExitCode {
     match handbook_compiler::run_setup(&repo_root, &request) {
         Ok(outcome) => {
             println!("{}", render_setup_success(&outcome, routed_from_auto));
-            ExitCode::SUCCESS
+            exit_policy::success()
         }
         Err(refusal) => {
             println!("{}", render_setup_refusal(&refusal));
-            ExitCode::from(1)
+            exit_policy::failure()
         }
     }
 }

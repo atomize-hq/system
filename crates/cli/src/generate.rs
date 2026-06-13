@@ -1,4 +1,6 @@
-use crate::{rendering, request_shared, shell_shared::discover_managed_repo_root, RequestArgs};
+use crate::{
+    exit_policy, rendering, request_shared, shell_shared::discover_managed_repo_root, RequestArgs,
+};
 use std::process::ExitCode;
 
 pub(super) fn run(args: RequestArgs) -> ExitCode {
@@ -6,7 +8,7 @@ pub(super) fn run(args: RequestArgs) -> ExitCode {
         Ok(dir) => dir,
         Err(err) => {
             println!("REFUSED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
 
@@ -15,7 +17,7 @@ pub(super) fn run(args: RequestArgs) -> ExitCode {
         Ok(request) => request,
         Err(err) => {
             println!("REFUSED: {err}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
 
@@ -29,7 +31,7 @@ pub(super) fn run(args: RequestArgs) -> ExitCode {
         Ok(result) => result,
         Err(err) => {
             println!("REFUSED: resolver error: {err:?}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
 
@@ -37,10 +39,10 @@ pub(super) fn run(args: RequestArgs) -> ExitCode {
         Ok(output) => output,
         Err(err) => {
             println!("PRESENTATION FAILURE: {err}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
 
     println!("{}", output.render_markdown());
-    output.exit_code()
+    exit_policy::flow_output(&output)
 }

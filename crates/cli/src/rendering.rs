@@ -1,5 +1,3 @@
-use std::process::ExitCode;
-
 pub(crate) struct PreparedFlowOutput {
     ready: bool,
     model: handbook_compiler::RenderOutputModel,
@@ -32,12 +30,8 @@ impl PreparedFlowOutput {
         inject_after_first_three_lines(&rendered, &render_fixture_section_for_demo(context))
     }
 
-    pub(crate) fn exit_code(&self) -> ExitCode {
-        if self.ready {
-            ExitCode::SUCCESS
-        } else {
-            ExitCode::from(1)
-        }
+    pub(crate) fn is_ready(&self) -> bool {
+        self.ready
     }
 }
 

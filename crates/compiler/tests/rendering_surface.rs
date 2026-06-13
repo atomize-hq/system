@@ -1,6 +1,5 @@
-use handbook_compiler::{
-    build_output_model, render_inspect, render_json, render_markdown, resolve,
-};
+use handbook_compiler::rendering::{render_inspect, render_markdown};
+use handbook_compiler::{build_output_model, render_json, resolve};
 use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
 use handbook_flow::{BudgetPolicy, ResolveRequest};
 

@@ -78,9 +78,8 @@ pub(crate) use handbook_flow::BudgetOutcome;
 pub(crate) use handbook_flow::PacketResult;
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
-    build_output_model, render_blocker_category, render_inspect, render_json, render_markdown,
-    render_next_safe_action_value, render_subject_ref, RenderError, RenderOutputModel,
-    RenderSurface,
+    build_output_model, render_blocker_category, render_json, render_next_safe_action_value,
+    render_subject_ref, RenderError, RenderOutputModel, RenderSurface,
 };
 pub use resolver::{resolve, ResolverResult};
 pub use setup::{

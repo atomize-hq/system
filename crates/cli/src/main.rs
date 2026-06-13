@@ -2,6 +2,7 @@ mod author;
 mod author_prompting;
 mod doctor;
 mod doctor_rendering;
+mod exit_policy;
 mod generate;
 mod inspect;
 mod pipeline;

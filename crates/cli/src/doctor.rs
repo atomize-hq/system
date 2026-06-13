@@ -1,4 +1,4 @@
-use crate::{doctor_rendering, shell_shared::discover_managed_repo_root, DoctorArgs};
+use crate::{doctor_rendering, exit_policy, shell_shared::discover_managed_repo_root, DoctorArgs};
 use std::process::ExitCode;
 
 pub(super) fn run(args: DoctorArgs) -> ExitCode {
@@ -6,7 +6,7 @@ pub(super) fn run(args: DoctorArgs) -> ExitCode {
         Ok(dir) => dir,
         Err(err) => {
             println!("BLOCKED: failed to determine repo root: {err}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
     let repo_root = discover_managed_repo_root(&cwd);
@@ -16,7 +16,7 @@ pub(super) fn run(args: DoctorArgs) -> ExitCode {
         Err(err) => {
             println!("INVALID_BASELINE");
             println!("SUMMARY: failed to inspect baseline truth: {err}");
-            return ExitCode::from(1);
+            return exit_policy::failure();
         }
     };
 
@@ -26,16 +26,12 @@ pub(super) fn run(args: DoctorArgs) -> ExitCode {
             Err(err) => {
                 println!("INVALID_BASELINE");
                 println!("SUMMARY: {err}");
-                return ExitCode::from(1);
+                return exit_policy::failure();
             }
         }
     } else {
         print!("{}", doctor_rendering::render_text(&report));
     }
 
-    if report.status == handbook_compiler::DoctorBaselineStatus::BaselineComplete {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
-    }
+    exit_policy::doctor_report(&report)
 }
