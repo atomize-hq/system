@@ -10,6 +10,18 @@ use std::path::{Path, PathBuf};
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_BASE_STAGE_SOURCE_PATH: &str = "core/stages/00_base.md";
 const SUPPORTED_COMPILE_STAGE_SOURCE_PATH: &str = "core/stages/10_feature_spec.md";
+pub const SUPPORTED_CAPTURE_HELP_SUMMARY: &str =
+    "Capture one supported stage output and materialize declared artifact and repo-mirror files for `pipeline.foundation_inputs` stages `stage.04_charter_inputs`, `stage.05_charter_synthesize`, `stage.06_project_context_interview`, `stage.07_foundation_pack`, and `stage.10_feature_spec`";
+pub const SUPPORTED_CAPTURE_HELP_EXAMPLES: &str = "Examples:
+  handbook pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
+  handbook pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack --preview
+  handbook pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec < /tmp/FEATURE_SPEC.md
+  handbook pipeline capture apply --capture-id <capture-id>";
+pub const SUPPORTED_HANDOFF_HELP_SUMMARY: &str =
+    "Emit one bounded handoff bundle for `pipeline.foundation_inputs` -> `feature-slice-decomposer`";
+pub const SUPPORTED_HANDOFF_EMIT_HELP_SUMMARY: &str = SUPPORTED_HANDOFF_HELP_SUMMARY;
+pub const SUPPORTED_HANDOFF_HELP_EXAMPLES: &str = "Example:
+  handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer";
 const SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS: &[&str] = &[
     "core/stages/04_charter_inputs.md",
     "core/stages/05_charter_synthesize.md",
@@ -364,12 +376,14 @@ fn resolve_supported_target_topology(
     }
 
     if pipeline_candidates.len() > 1 {
-        return Err(SupportedTargetRegistryLoadError::AmbiguousCatalogBackedPipelineShape {
-            pipeline_ids: pipeline_candidates
-                .iter()
-                .map(|pipeline| pipeline.definition.header.id.clone())
-                .collect(),
-        });
+        return Err(
+            SupportedTargetRegistryLoadError::AmbiguousCatalogBackedPipelineShape {
+                pipeline_ids: pipeline_candidates
+                    .iter()
+                    .map(|pipeline| pipeline.definition.header.id.clone())
+                    .collect(),
+            },
+        );
     }
 
     let pipeline = pipeline_candidates.remove(0);
@@ -378,10 +392,12 @@ fn resolve_supported_target_topology(
         .iter()
         .find(|stage| stage_source_path_matches(stage, SUPPORTED_COMPILE_STAGE_SOURCE_PATH))
         .map(|stage| stage.stage_id.clone())
-        .ok_or_else(|| SupportedTargetRegistryLoadError::MissingCatalogBackedCompileStage {
-            pipeline_id: pipeline.definition.header.id.clone(),
-            required_stage_source_path: SUPPORTED_COMPILE_STAGE_SOURCE_PATH.to_string(),
-        })?;
+        .ok_or_else(
+            || SupportedTargetRegistryLoadError::MissingCatalogBackedCompileStage {
+                pipeline_id: pipeline.definition.header.id.clone(),
+                required_stage_source_path: SUPPORTED_COMPILE_STAGE_SOURCE_PATH.to_string(),
+            },
+        )?;
 
     if !pipeline
         .stages
@@ -413,7 +429,10 @@ fn resolve_supported_target_topology(
         );
     }
 
-    if !capture_stage_ids.iter().any(|stage_id| stage_id == &compile_stage_id) {
+    if !capture_stage_ids
+        .iter()
+        .any(|stage_id| stage_id == &compile_stage_id)
+    {
         return Err(SupportedTargetRegistryLoadError::MissingPipelineStage {
             pipeline_id: pipeline.definition.header.id.clone(),
             stage_id: compile_stage_id.clone(),
@@ -454,7 +473,10 @@ fn stage_source_path_matches(stage: &PipelineCatalogStageEntry, expected: &str) 
 }
 
 fn supported_stage_source_paths(expected_paths: &[&str]) -> Vec<String> {
-    expected_paths.iter().map(|path| (*path).to_string()).collect()
+    expected_paths
+        .iter()
+        .map(|path| (*path).to_string())
+        .collect()
 }
 
 #[derive(Debug)]

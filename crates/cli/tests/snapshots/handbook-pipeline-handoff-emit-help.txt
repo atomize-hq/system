@@ -6,3 +6,6 @@ Options:
       --id <ID>              Canonical id or unambiguous shorthand for a pipeline
       --consumer <CONSUMER>  Supported downstream consumer id
   -h, --help                 Print help
+
+Example:
+  handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer

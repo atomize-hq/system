@@ -153,15 +153,16 @@ enum PipelineCommand {
     Resolve(PipelineSelectorArgs),
     /// Compile one supported stage payload from persisted route basis.
     Compile(PipelineCompileArgs),
-    /// Capture one supported stage output and materialize declared artifact and repo-mirror files for the current bounded pipeline target.
+    #[command(about = handbook_pipeline::pipeline::SUPPORTED_CAPTURE_HELP_SUMMARY)]
     Capture(PipelineCaptureArgs),
-    /// Emit one supported downstream handoff bundle from persisted stage and provenance surfaces.
+    #[command(about = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_HELP_SUMMARY)]
     Handoff(PipelineHandoffArgs),
     /// Route-state operations.
     State(PipelineStateArgs),
 }
 
 #[derive(clap::Args, Debug)]
+#[command(after_help = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_HELP_EXAMPLES)]
 struct PipelineHandoffArgs {
     #[command(subcommand)]
     command: PipelineHandoffCommand,
@@ -169,11 +170,12 @@ struct PipelineHandoffArgs {
 
 #[derive(Subcommand, Debug)]
 enum PipelineHandoffCommand {
-    /// Emit one bounded handoff bundle for the current supported downstream target.
+    #[command(about = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_EMIT_HELP_SUMMARY)]
     Emit(PipelineHandoffEmitArgs),
 }
 
 #[derive(clap::Args, Debug)]
+#[command(after_help = handbook_pipeline::pipeline::SUPPORTED_HANDOFF_HELP_EXAMPLES)]
 struct PipelineHandoffEmitArgs {
     /// Canonical id or unambiguous shorthand for a pipeline.
     #[arg(long)]
@@ -223,6 +225,7 @@ struct PipelineCompileArgs {
 }
 
 #[derive(clap::Args, Debug)]
+#[command(after_help = handbook_pipeline::pipeline::SUPPORTED_CAPTURE_HELP_EXAMPLES)]
 struct PipelineCaptureArgs {
     #[command(subcommand)]
     command: Option<PipelineCaptureCommand>,

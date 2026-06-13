@@ -10,3 +10,9 @@ Options:
       --stage <STAGE>  Canonical id or unambiguous shorthand for a stage within the selected pipeline
       --preview        Validate and cache the capture plan without writing declared outputs
   -h, --help           Print help
+
+Examples:
+  handbook pipeline capture --id pipeline.foundation_inputs --stage stage.04_charter_inputs
+  handbook pipeline capture --id pipeline.foundation_inputs --stage stage.07_foundation_pack --preview
+  handbook pipeline capture --id pipeline.foundation_inputs --stage stage.10_feature_spec < /tmp/FEATURE_SPEC.md
+  handbook pipeline capture apply --capture-id <capture-id>
