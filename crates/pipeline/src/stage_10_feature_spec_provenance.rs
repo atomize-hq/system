@@ -16,8 +16,6 @@ pub(crate) const FEATURE_SPEC_ARTIFACT_PATH: &str = "artifacts/feature_spec/FEAT
 pub(crate) const STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION: &str =
     "m5-stage-10-feature-spec-capture-provenance-v1";
 
-const SUPPORTED_PROVENANCE_PIPELINE_ID: &str = "pipeline.foundation_inputs";
-const SUPPORTED_PROVENANCE_STAGE_ID: &str = "stage.10_feature_spec";
 const FEATURE_SPEC_TEMPLATE_SUFFIX: &str = "FEATURE_SPEC.md.tmpl";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,7 +73,8 @@ pub(crate) fn persist_stage_10_feature_spec_capture_provenance(
     repo_root: &Path,
     provenance: &Stage10FeatureSpecCaptureProvenance,
 ) -> Result<(), String> {
-    let provenance_path = stage_10_feature_spec_capture_provenance_path(repo_root);
+    let registry = load_stage_10_supported_target_registry(repo_root)?;
+    let provenance_path = stage_10_feature_spec_capture_provenance_path(repo_root, &registry);
     let bytes = serde_json::to_vec_pretty(provenance)
         .map_err(|err| format!("failed to serialize stage-10 capture provenance: {err}"))?;
     write_repo_relative_bytes(repo_root, provenance_path.as_str(), &bytes)
@@ -85,7 +84,8 @@ pub(crate) fn persist_stage_10_feature_spec_capture_provenance(
 pub(crate) fn load_stage_10_feature_spec_capture_provenance(
     repo_root: &Path,
 ) -> Result<Stage10FeatureSpecCaptureProvenance, String> {
-    let provenance_path = stage_10_feature_spec_capture_provenance_path(repo_root);
+    let registry = load_stage_10_supported_target_registry(repo_root)?;
+    let provenance_path = stage_10_feature_spec_capture_provenance_path(repo_root, &registry);
     let body = read_repo_relative_string(repo_root, provenance_path.as_str()).map_err(|err| {
         format!(
             "stage-10 capture provenance is missing or unreadable at `{}`: {}",
@@ -100,7 +100,6 @@ pub(crate) fn load_stage_10_feature_spec_capture_provenance(
                 provenance_path.as_str()
             )
         })?;
-    let registry = load_stage_10_supported_target_registry(repo_root)?;
     validate_stage_10_capture_provenance(&registry, &provenance)?;
     Ok(provenance)
 }
@@ -230,12 +229,16 @@ fn normalize_compile_payload_for_provenance(payload: &str) -> String {
     normalized
 }
 
-fn stage_10_feature_spec_capture_provenance_path(repo_root: &Path) -> NormalizedRepoRelativePath {
+fn stage_10_feature_spec_capture_provenance_path(
+    repo_root: &Path,
+    registry: &SupportedTargetRegistry,
+) -> NormalizedRepoRelativePath {
+    let compile_target = registry.compile_target();
     RepoLayoutRoot::new(repo_root)
         .capture_provenance()
         .stage_capture_provenance_relative_path(
-            SUPPORTED_PROVENANCE_PIPELINE_ID,
-            SUPPORTED_PROVENANCE_STAGE_ID,
+            &compile_target.pipeline.id,
+            &compile_target.stage.id,
         )
 }
 

@@ -344,6 +344,9 @@ fn build_capture_plan(
     stage_selector: &str,
     input: &str,
 ) -> Result<PipelineCapturePlan, PipelineCaptureRefusal> {
+    let supported_target_help = SupportedTargetRegistry::load(repo_root)
+        .ok()
+        .map(|registry| supported_capture_target_help(&registry));
     let pipeline = load_selected_pipeline_definition(repo_root, pipeline_selector).map_err(
         |err| match err {
             SelectedPipelineLoadError::Lookup(err) => PipelineCaptureRefusal {
@@ -351,8 +354,18 @@ fn build_capture_plan(
                 summary: err.to_string(),
                 pipeline_id: None,
                 stage_id: None,
-                recovery: "retry with the canonical pipeline id `pipeline.foundation_inputs`"
-                    .to_string(),
+                recovery: supported_target_help
+                    .as_ref()
+                    .map(|help| {
+                        format!(
+                            "retry with `pipeline capture --id {} --stage {}`",
+                            help.pipeline_id, help.default_stage_id
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        "inspect `pipeline list` for the supported capture pipeline and retry `pipeline capture`"
+                            .to_string()
+                    }),
             },
             SelectedPipelineLoadError::Catalog(err) => PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::InvalidDefinition,
@@ -744,7 +757,15 @@ fn build_stage_10_capture_provenance_for_apply(
     repo_root: &Path,
     plan: &PipelineCapturePlan,
 ) -> Result<Option<Stage10FeatureSpecCaptureProvenance>, PipelineCaptureRefusal> {
-    if plan.target.stage_id != SUPPORTED_STAGE_FEATURE_SPEC_ID {
+    let registry = load_capture_target_registry(
+        repo_root,
+        Some(&plan.target.pipeline_id),
+        Some(&plan.target.stage_id),
+    )?;
+    let supported_compile_target = registry.compile_target();
+    if plan.target.pipeline_id != supported_compile_target.pipeline.id
+        || plan.target.stage_id != supported_compile_target.stage.id
+    {
         return Ok(None);
     }
 

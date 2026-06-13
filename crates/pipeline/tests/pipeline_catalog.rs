@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use handbook_compiler::author::template_library::{
     resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection,
 };
+use handbook_pipeline::pipeline::SupportedTargetRegistry;
 use handbook_pipeline::{
     load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
     load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
@@ -701,6 +702,185 @@ stages:
         }
         other => panic!("expected stage-kind-mismatch refusal, got {other:?}"),
     }
+}
+
+#[test]
+fn supported_target_registry_derives_current_pipeline_and_stage_wedge_from_catalog_truth() {
+    let registry = SupportedTargetRegistry::load(repo_root()).expect("supported target registry");
+
+    assert_eq!(
+        registry.canonical_compile_pipeline_id(),
+        "pipeline.foundation_inputs"
+    );
+    assert_eq!(registry.canonical_compile_stage_id(), "stage.10_feature_spec");
+
+    let compile_target = registry.compile_target();
+    assert_eq!(compile_target.pipeline.id, "pipeline.foundation_inputs");
+    assert_eq!(compile_target.stage.id, "stage.10_feature_spec");
+
+    let capture_stage_ids = registry
+        .stages()
+        .filter(|stage| registry.supports_capture_target(&compile_target.pipeline.id, &stage.id))
+        .map(|stage| stage.id.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        capture_stage_ids,
+        vec![
+            "stage.04_charter_inputs".to_string(),
+            "stage.05_charter_synthesize".to_string(),
+            "stage.06_project_context_interview".to_string(),
+            "stage.07_foundation_pack".to_string(),
+            "stage.10_feature_spec".to_string(),
+        ]
+    );
+    assert!(!registry.supports_capture_target(
+        &compile_target.pipeline.id,
+        "stage.00_base"
+    ));
+}
+
+#[test]
+fn supported_target_registry_refuses_foundation_inputs_shape_that_widens_beyond_packet_wedge() {
+    let source_root = repo_root();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    copy_tree(
+        &source_root.join("core/pipelines"),
+        &root.join("core/pipelines"),
+    );
+    copy_tree(&source_root.join("core/stages"), &root.join("core/stages"));
+
+    write_file(
+        &root.join("core/stages/11_extra_capture.md"),
+        r#"---
+kind: stage
+id: stage.11_extra_capture
+version: 0.1.0
+title: Extra Capture
+description: extra capture stage
+---
+# extra
+"#,
+    );
+    write_file(
+        &root.join("core/pipelines/foundation_inputs.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.foundation_inputs
+version: 0.1.0
+title: "Foundation Pipeline (Dev/Test Charter Inputs → Charter → Context? → Foundation Pack)"
+description: >
+  Development/testing pipeline that avoids the multi-turn Charter interview by generating
+  CHARTER_INPUTS.yaml and synthesizing CHARTER.md from it in a single shot.
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.04_charter_inputs
+    file: core/stages/04_charter_inputs.md
+  - id: stage.05_charter_synthesize
+    file: core/stages/05_charter_synthesize.md
+    sets:
+      - needs_project_context
+  - id: stage.06_project_context_interview
+    file: core/stages/06_project_context_interview.md
+    activation:
+      when:
+        any:
+          - variables.needs_project_context == true
+          - variables.charter_gaps_detected == true
+  - id: stage.07_foundation_pack
+    file: core/stages/07_foundation_pack.md
+  - id: stage.11_extra_capture
+    file: core/stages/11_extra_capture.md
+  - id: stage.10_feature_spec
+    file: core/stages/10_feature_spec.md
+"#,
+    );
+
+    let err = SupportedTargetRegistry::load(root).expect_err("extra capture stage must refuse");
+    match err {
+        handbook_pipeline::pipeline::SupportedTargetRegistryLoadError::MissingCatalogBackedPipelineShape {
+            ..
+        } => {}
+        other => panic!("expected bounded-pipeline-shape refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn supported_target_registry_ignores_unrelated_compile_broken_pipeline_during_topology_resolution() {
+    let source_root = repo_root();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    copy_tree(
+        &source_root.join("core/pipelines"),
+        &root.join("core/pipelines"),
+    );
+    copy_tree(&source_root.join("core/stages"), &root.join("core/stages"));
+
+    write_file(
+        &root.join("core/stages/99_unrelated.md"),
+        r#"---
+kind: stage
+id: stage.99_unrelated
+version: 0.1.0
+title: Unrelated
+description: unrelated stage whose compile front matter is intentionally invalid
+activation:
+  when:
+    any:
+      - variables.unrelated == true
+---
+# unrelated
+"#,
+    );
+    write_file(
+        &root.join("core/pipelines/unrelated.yaml"),
+        r#"---
+kind: pipeline
+id: pipeline.unrelated
+version: 0.1.0
+title: Unrelated
+description: unrelated pipeline
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+
+stages:
+  - id: stage.00_base
+    file: core/stages/00_base.md
+  - id: stage.99_unrelated
+    file: core/stages/99_unrelated.md
+    activation:
+      when:
+        any:
+          - variables.unrelated == true
+"#,
+    );
+
+    let unrelated_pipeline = load_pipeline_definition(root, "core/pipelines/unrelated.yaml")
+        .expect("unrelated pipeline definition");
+    let broken_stage_err = load_stage_compile_definition(root, &unrelated_pipeline, "stage.99_unrelated")
+        .expect_err("unrelated stage compile definition should be broken");
+    match broken_stage_err {
+        handbook_pipeline::CompileStageLoadError::ParseFrontMatter { .. } => {}
+        other => panic!("expected compile front-matter parse refusal, got {other:?}"),
+    }
+
+    let registry =
+        SupportedTargetRegistry::load(root).expect("supported target registry should ignore unrelated broken pipeline");
+    assert_eq!(
+        registry.canonical_compile_pipeline_id(),
+        "pipeline.foundation_inputs"
+    );
+    assert_eq!(registry.canonical_compile_stage_id(), "stage.10_feature_spec");
 }
 
 fn write_file(path: &Path, contents: &str) {

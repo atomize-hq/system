@@ -137,8 +137,13 @@ pub fn compile_pipeline_stage_with_runtime(
     runtime: &PipelineCompileRuntimeContext,
 ) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
     let repo_root = repo_root.as_ref();
-    let canonical_pipeline_id = SupportedTargetRegistry::canonical_compile_pipeline_id();
-    let canonical_stage_id = SupportedTargetRegistry::canonical_compile_stage_id();
+    let supported_registry = SupportedTargetRegistry::load(repo_root).ok();
+    let canonical_pipeline_id = supported_registry
+        .as_ref()
+        .map(|registry| registry.canonical_compile_pipeline_id().to_string());
+    let canonical_stage_id = supported_registry
+        .as_ref()
+        .map(|registry| registry.canonical_compile_stage_id().to_string());
     let pipeline = load_selected_pipeline_definition(repo_root, pipeline_selector).map_err(
         |err| match err {
             SelectedPipelineLoadError::Lookup(err) => PipelineCompileRefusal {
@@ -146,7 +151,15 @@ pub fn compile_pipeline_stage_with_runtime(
                 summary: err.to_string(),
                 pipeline_id: None,
                 stage_id: None,
-                recovery: format!("retry with the canonical pipeline id `{canonical_pipeline_id}`"),
+                recovery: canonical_pipeline_id
+                    .as_deref()
+                    .map(|pipeline_id| {
+                        format!("retry with the canonical pipeline id `{pipeline_id}`")
+                    })
+                    .unwrap_or_else(|| {
+                        "inspect `pipeline list` for the supported compile pipeline and retry `pipeline compile`"
+                            .to_string()
+                    }),
             },
             SelectedPipelineLoadError::Catalog(err) => PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::InvalidDefinition,
@@ -169,13 +182,18 @@ pub fn compile_pipeline_stage_with_runtime(
 
     let resolved_stage_id =
         resolve_stage_selector(&pipeline, stage_selector).map_err(|summary| {
-            let recovery = if pipeline.header.id == canonical_pipeline_id
-                && stage_selector.trim() == canonical_stage_id
+            let recovery = if stage_selector.trim().starts_with("stage.")
             {
                 "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline"
                     .to_string()
             } else {
-                format!("retry with the canonical stage id `{canonical_stage_id}`")
+                canonical_stage_id
+                    .as_deref()
+                    .map(|stage_id| format!("retry with the canonical stage id `{stage_id}`"))
+                    .unwrap_or_else(|| {
+                        "inspect the supported compile target and retry `pipeline compile`"
+                            .to_string()
+                    })
             };
             PipelineCompileRefusal {
                 classification: PipelineCompileRefusalClassification::UnsupportedTarget,

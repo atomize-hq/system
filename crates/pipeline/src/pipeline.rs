@@ -7,16 +7,24 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-const SUPPORTED_PIPELINE_TARGET_ID: &str = "pipeline.foundation_inputs";
-const SUPPORTED_COMPILE_STAGE_TARGET_ID: &str = "stage.10_feature_spec";
-const SUPPORTED_CAPTURE_STAGE_TARGET_IDS: &[&str] = &[
-    "stage.04_charter_inputs",
-    "stage.05_charter_synthesize",
-    "stage.06_project_context_interview",
-    "stage.07_foundation_pack",
-    SUPPORTED_COMPILE_STAGE_TARGET_ID,
-];
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
+const SUPPORTED_BASE_STAGE_SOURCE_PATH: &str = "core/stages/00_base.md";
+const SUPPORTED_COMPILE_STAGE_SOURCE_PATH: &str = "core/stages/10_feature_spec.md";
+const SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS: &[&str] = &[
+    "core/stages/04_charter_inputs.md",
+    "core/stages/05_charter_synthesize.md",
+    "core/stages/06_project_context_interview.md",
+    "core/stages/07_foundation_pack.md",
+    SUPPORTED_COMPILE_STAGE_SOURCE_PATH,
+];
+const SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS: &[&str] = &[
+    SUPPORTED_BASE_STAGE_SOURCE_PATH,
+    "core/stages/04_charter_inputs.md",
+    "core/stages/05_charter_synthesize.md",
+    "core/stages/06_project_context_interview.md",
+    "core/stages/07_foundation_pack.md",
+    SUPPORTED_COMPILE_STAGE_SOURCE_PATH,
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineDefinition {
@@ -131,55 +139,28 @@ pub struct SupportedTargetRegistry {
 
 impl SupportedTargetRegistry {
     pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, SupportedTargetRegistryLoadError> {
+        let repo_root = repo_root.as_ref();
         let catalog = load_pipeline_catalog_metadata(repo_root)
             .map_err(SupportedTargetRegistryLoadError::Catalog)?;
-
-        let pipeline = catalog
-            .pipelines
-            .get(SUPPORTED_PIPELINE_TARGET_ID)
-            .ok_or_else(
-                || SupportedTargetRegistryLoadError::MissingSupportedPipeline {
-                    pipeline_id: SUPPORTED_PIPELINE_TARGET_ID.to_string(),
-                },
-            )?;
-
-        let supported_pipeline = SupportedPipelineTarget {
-            id: pipeline.definition.header.id.clone(),
-            declared_stage_ids: pipeline
-                .stages
-                .iter()
-                .map(|stage| stage.stage_id.clone())
-                .collect(),
-        };
-        for stage_id in SUPPORTED_CAPTURE_STAGE_TARGET_IDS {
-            if !supported_pipeline
-                .declared_stage_ids
-                .iter()
-                .any(|declared| declared == stage_id)
-            {
-                return Err(SupportedTargetRegistryLoadError::MissingPipelineStage {
-                    pipeline_id: supported_pipeline.id.clone(),
-                    stage_id: (*stage_id).to_string(),
-                });
-            }
-        }
+        let supported_topology = resolve_supported_target_topology(&catalog)?;
+        let supported_pipeline = supported_topology.pipeline;
 
         let mut stages = BTreeMap::new();
-        for stage_id in SUPPORTED_CAPTURE_STAGE_TARGET_IDS {
-            let stage = catalog.stages.get(*stage_id).ok_or_else(|| {
+        for stage_id in &supported_topology.capture_stage_ids {
+            let stage = catalog.stages.get(stage_id).ok_or_else(|| {
                 SupportedTargetRegistryLoadError::MissingSupportedStage {
-                    stage_id: (*stage_id).to_string(),
+                    stage_id: stage_id.clone(),
                 }
             })?;
             if !stage
                 .pipelines
                 .iter()
-                .any(|pipeline_id| pipeline_id == SUPPORTED_PIPELINE_TARGET_ID)
+                .any(|pipeline_id| pipeline_id == &supported_pipeline.id)
             {
                 return Err(
                     SupportedTargetRegistryLoadError::UnsupportedStagePipelineMembership {
-                        pipeline_id: SUPPORTED_PIPELINE_TARGET_ID.to_string(),
-                        stage_id: (*stage_id).to_string(),
+                        pipeline_id: supported_pipeline.id.clone(),
+                        stage_id: stage_id.clone(),
                     },
                 );
             }
@@ -194,7 +175,7 @@ impl SupportedTargetRegistry {
         }
 
         let pipeline_id = supported_pipeline.id.clone();
-        let compile_stage_id = SUPPORTED_COMPILE_STAGE_TARGET_ID.to_string();
+        let compile_stage_id = supported_topology.compile_stage_id;
         let mut pipelines = BTreeMap::new();
         pipelines.insert(pipeline_id.clone(), supported_pipeline);
 
@@ -209,9 +190,10 @@ impl SupportedTargetRegistry {
         );
 
         let compile_pairs = BTreeSet::from([(pipeline_id.clone(), compile_stage_id.clone())]);
-        let capture_pairs = SUPPORTED_CAPTURE_STAGE_TARGET_IDS
+        let capture_pairs = supported_topology
+            .capture_stage_ids
             .iter()
-            .map(|stage_id| (pipeline_id.clone(), (*stage_id).to_string()))
+            .map(|stage_id| (pipeline_id.clone(), stage_id.clone()))
             .collect();
         let provenance_pairs = compile_pairs.clone();
         let handoff_pairs = BTreeSet::from([(
@@ -231,12 +213,20 @@ impl SupportedTargetRegistry {
         })
     }
 
-    pub fn canonical_compile_pipeline_id() -> &'static str {
-        SUPPORTED_PIPELINE_TARGET_ID
+    pub fn canonical_compile_pipeline_id(&self) -> &str {
+        self.compile_pairs
+            .iter()
+            .next()
+            .map(|(pipeline_id, _)| pipeline_id.as_str())
+            .expect("supported target registry must include one compile pipeline")
     }
 
-    pub fn canonical_compile_stage_id() -> &'static str {
-        SUPPORTED_COMPILE_STAGE_TARGET_ID
+    pub fn canonical_compile_stage_id(&self) -> &str {
+        self.compile_pairs
+            .iter()
+            .next()
+            .map(|(_, stage_id)| stage_id.as_str())
+            .expect("supported target registry must include one compile stage")
     }
 
     pub fn pipelines(&self) -> impl Iterator<Item = &SupportedPipelineTarget> {
@@ -327,9 +317,147 @@ impl SupportedTargetRegistry {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SupportedTargetTopology {
+    pipeline: SupportedPipelineTarget,
+    compile_stage_id: String,
+    capture_stage_ids: Vec<String>,
+}
+
+fn resolve_supported_target_topology(
+    catalog: &PipelineCatalog,
+) -> Result<SupportedTargetTopology, SupportedTargetRegistryLoadError> {
+    let mut pipeline_candidates = catalog
+        .pipelines
+        .values()
+        .filter(|pipeline| supported_pipeline_stage_shape_matches(pipeline))
+        .collect::<Vec<_>>();
+
+    if pipeline_candidates.is_empty() {
+        return Err(
+            SupportedTargetRegistryLoadError::MissingCatalogBackedPipelineShape {
+                required_stage_source_paths: supported_stage_source_paths(
+                    SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS,
+                ),
+            },
+        );
+    }
+
+    if pipeline_candidates.len() > 1 {
+        return Err(SupportedTargetRegistryLoadError::AmbiguousCatalogBackedPipelineShape {
+            pipeline_ids: pipeline_candidates
+                .iter()
+                .map(|pipeline| pipeline.definition.header.id.clone())
+                .collect(),
+        });
+    }
+
+    let pipeline = pipeline_candidates.remove(0);
+    let compile_stage_id = pipeline
+        .stages
+        .iter()
+        .find(|stage| stage_source_path_matches(stage, SUPPORTED_COMPILE_STAGE_SOURCE_PATH))
+        .map(|stage| stage.stage_id.clone())
+        .ok_or_else(|| SupportedTargetRegistryLoadError::MissingCatalogBackedCompileStage {
+            pipeline_id: pipeline.definition.header.id.clone(),
+            required_stage_source_path: SUPPORTED_COMPILE_STAGE_SOURCE_PATH.to_string(),
+        })?;
+
+    if !pipeline
+        .stages
+        .iter()
+        .any(|stage| stage_source_path_matches(stage, SUPPORTED_BASE_STAGE_SOURCE_PATH))
+    {
+        return Err(
+            SupportedTargetRegistryLoadError::MissingCatalogBackedBaseStage {
+                pipeline_id: pipeline.definition.header.id.clone(),
+                required_stage_source_path: SUPPORTED_BASE_STAGE_SOURCE_PATH.to_string(),
+            },
+        );
+    }
+
+    let capture_stage_ids = pipeline
+        .stages
+        .iter()
+        .filter(|stage| supported_capture_stage_source_path_matches(stage))
+        .map(|stage| stage.stage_id.clone())
+        .collect::<Vec<_>>();
+    if capture_stage_ids.len() != SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS.len() {
+        return Err(
+            SupportedTargetRegistryLoadError::MissingCatalogBackedCaptureStages {
+                pipeline_id: pipeline.definition.header.id.clone(),
+                required_stage_source_paths: supported_stage_source_paths(
+                    SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS,
+                ),
+            },
+        );
+    }
+
+    if !capture_stage_ids.iter().any(|stage_id| stage_id == &compile_stage_id) {
+        return Err(SupportedTargetRegistryLoadError::MissingPipelineStage {
+            pipeline_id: pipeline.definition.header.id.clone(),
+            stage_id: compile_stage_id.clone(),
+        });
+    }
+
+    Ok(SupportedTargetTopology {
+        pipeline: SupportedPipelineTarget {
+            id: pipeline.definition.header.id.clone(),
+            declared_stage_ids: pipeline
+                .stages
+                .iter()
+                .map(|stage| stage.stage_id.clone())
+                .collect(),
+        },
+        compile_stage_id,
+        capture_stage_ids,
+    })
+}
+
+fn supported_pipeline_stage_shape_matches(pipeline: &PipelineCatalogEntry) -> bool {
+    pipeline.stages.len() == SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS.len()
+        && pipeline
+            .stages
+            .iter()
+            .zip(SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS.iter())
+            .all(|(stage, expected)| stage_source_path_matches(stage, expected))
+}
+
+fn supported_capture_stage_source_path_matches(stage: &PipelineCatalogStageEntry) -> bool {
+    SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS
+        .iter()
+        .any(|expected| stage_source_path_matches(stage, expected))
+}
+
+fn stage_source_path_matches(stage: &PipelineCatalogStageEntry, expected: &str) -> bool {
+    stage.source_path == Path::new(expected)
+}
+
+fn supported_stage_source_paths(expected_paths: &[&str]) -> Vec<String> {
+    expected_paths.iter().map(|path| (*path).to_string()).collect()
+}
+
 #[derive(Debug)]
 pub enum SupportedTargetRegistryLoadError {
     Catalog(PipelineCatalogError),
+    MissingCatalogBackedPipelineShape {
+        required_stage_source_paths: Vec<String>,
+    },
+    AmbiguousCatalogBackedPipelineShape {
+        pipeline_ids: Vec<String>,
+    },
+    MissingCatalogBackedCompileStage {
+        pipeline_id: String,
+        required_stage_source_path: String,
+    },
+    MissingCatalogBackedBaseStage {
+        pipeline_id: String,
+        required_stage_source_path: String,
+    },
+    MissingCatalogBackedCaptureStages {
+        pipeline_id: String,
+        required_stage_source_paths: Vec<String>,
+    },
     MissingSupportedPipeline {
         pipeline_id: String,
     },
@@ -350,6 +478,42 @@ impl fmt::Display for SupportedTargetRegistryLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SupportedTargetRegistryLoadError::Catalog(err) => write!(f, "{err}"),
+            SupportedTargetRegistryLoadError::MissingCatalogBackedPipelineShape {
+                required_stage_source_paths,
+            } => write!(
+                f,
+                "could not derive the approved supported pipeline from declarative catalog truth; expected exact stage sources [{}]",
+                required_stage_source_paths.join(", ")
+            ),
+            SupportedTargetRegistryLoadError::AmbiguousCatalogBackedPipelineShape {
+                pipeline_ids,
+            } => write!(
+                f,
+                "multiple pipelines match the approved catalog-backed supported shape: {}",
+                pipeline_ids.join(", ")
+            ),
+            SupportedTargetRegistryLoadError::MissingCatalogBackedCompileStage {
+                pipeline_id,
+                required_stage_source_path,
+            } => write!(
+                f,
+                "pipeline `{pipeline_id}` does not declare the approved compile stage source `{required_stage_source_path}`"
+            ),
+            SupportedTargetRegistryLoadError::MissingCatalogBackedBaseStage {
+                pipeline_id,
+                required_stage_source_path,
+            } => write!(
+                f,
+                "pipeline `{pipeline_id}` does not declare the approved base stage source `{required_stage_source_path}`"
+            ),
+            SupportedTargetRegistryLoadError::MissingCatalogBackedCaptureStages {
+                pipeline_id,
+                required_stage_source_paths,
+            } => write!(
+                f,
+                "pipeline `{pipeline_id}` does not declare the approved capture stage sources [{}]",
+                required_stage_source_paths.join(", ")
+            ),
             SupportedTargetRegistryLoadError::MissingSupportedPipeline { pipeline_id } => write!(
                 f,
                 "approved supported pipeline `{pipeline_id}` is missing from declarative catalog truth"
@@ -380,7 +544,12 @@ impl std::error::Error for SupportedTargetRegistryLoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             SupportedTargetRegistryLoadError::Catalog(err) => Some(err),
-            SupportedTargetRegistryLoadError::MissingSupportedPipeline { .. }
+            SupportedTargetRegistryLoadError::MissingCatalogBackedPipelineShape { .. }
+            | SupportedTargetRegistryLoadError::AmbiguousCatalogBackedPipelineShape { .. }
+            | SupportedTargetRegistryLoadError::MissingCatalogBackedCompileStage { .. }
+            | SupportedTargetRegistryLoadError::MissingCatalogBackedBaseStage { .. }
+            | SupportedTargetRegistryLoadError::MissingCatalogBackedCaptureStages { .. }
+            | SupportedTargetRegistryLoadError::MissingSupportedPipeline { .. }
             | SupportedTargetRegistryLoadError::MissingPipelineStage { .. }
             | SupportedTargetRegistryLoadError::MissingSupportedStage { .. }
             | SupportedTargetRegistryLoadError::UnsupportedStagePipelineMembership { .. } => None,
