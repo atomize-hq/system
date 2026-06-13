@@ -1,146 +1,148 @@
-# Plan: Handbook Engine Extraction Phase 4 Slice 5 (Slice 4.5) - Caller Rewires And Compiler Narrowing
+# Plan: Handbook Engine Extraction Phase 4 Slice 5 (Set 3 / Slice 4.5 Refresh) - Direct Caller Rewires + Compiler Narrowing Closeout
 
 ## Objective
 
-Make the Phase 4 extraction operationally real by rewiring remaining callers directly to `handbook-engine`, `handbook-pipeline`, and `handbook-flow`, then landing one intentional end state for `crates/compiler`: a thin compatibility/support crate or clean retirement.
+Refresh and close the remaining Phase 4 caller/dependency boundary gap by removing stale compiler-facade imports, preserving already-landed direct-owner surfaces, and keeping `handbook-compiler` intentionally narrow and truthfully documented.
 
 Spec reference: [handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-spec.md](./handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-spec.md)
 
-## Major Modules
+## Major Artifacts
 
-1. Caller inventory and dependency map
-   - `crates/cli/Cargo.toml`
-   - `crates/cli/src/main.rs`
-   - `crates/cli/tests/{author_cli,cli_surface,help_drift_guard}.rs`
-   - `crates/flow/src/lib.rs`
-   - identifies every direct `handbook_compiler::*` caller that should move to a real owner crate
+1. Residual caller inventory and owner classification
+   - identifies every remaining `handbook_compiler::*` caller in CLI-adjacent code
+   - classifies each usage as stale extracted-logic indirection or legitimate retained support seam
 
-2. Direct CLI rewires
-   - `crates/cli/src/main.rs`
-   - rewires production command handlers to engine/pipeline/flow-owned surfaces without changing the CLI product behavior
+2. Direct-owner caller closeout
+   - rewires stale convenience imports to `handbook-engine`, `handbook-pipeline`, and `handbook-flow`
+   - preserves already-owner-rooted test and flow surfaces
 
-3. Test and support rewires
-   - `crates/cli/tests/{author_cli,cli_surface}.rs`
-   - `crates/flow/src/lib.rs`
-   - removes remaining compiler-as-default-import patterns from integration callers and crate scaffolds
+3. Narrow compiler-seam truth
+   - keeps `crates/compiler/src/lib.rs` limited to reviewed compatibility/support exports
+   - keeps manifest and dependency posture aligned with that boundary
 
-4. Compiler posture decision
-   - `Cargo.toml`
-   - `crates/compiler/Cargo.toml`
-   - `crates/compiler/src/lib.rs`
-   - any remaining compiler-local source files required by the chosen posture
-   - chooses and lands either a narrow compatibility/support crate or retirement
+4. Ownership-doc and guard alignment
+   - keeps README/contract/help truth aligned with the retained compiler seam
+   - records explicit deferrals into Set 4 rather than silently widening into CLI-shell redesign
 
-5. Doc and guard truth alignment
-   - `README.md`
-   - `PLAN.md`
-   - `docs/README.md`
-   - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
-   - `crates/cli/tests/help_drift_guard.rs`
-   - proves the final ownership model is explained and enforced correctly
+## Order
 
-## Dependencies And Order
-
-### Prerequisite: freeze the direct-caller inventory and target-owner map
+### Packet 4.5.1: Refresh the residual caller inventory and freeze the allowed compiler seam
 
 Why first:
 
-- Slice 4.5 cannot succeed without one explicit inventory of which `handbook_compiler::*` usages represent genuine unresolved product-shell ownership and which are stale facade imports
-- the compiler posture decision depends on seeing what remains after direct rewires, not on guessing beforehand
-- keeping Phase 5 shell-thinning out of scope requires a bounded caller map so import rewires do not turn into open-ended `main.rs` cleanup
+- live Slice 4.5 truth is no longer “compiler is still broad”; the refresh must begin by mapping what remains after earlier landings
+- direct-owner rewires should happen only after the repo distinguishes stale convenience imports from legitimate retained compiler support seams
+- a frozen inventory prevents the slice from drifting into speculative Phase 5 CLI reshaping
 
 Output:
 
-- one agreed caller inventory covering production CLI, CLI tests, and the flow scaffold
-- one agreed owner map from each migrated surface to `handbook-engine`, `handbook-pipeline`, or `handbook-flow`
-- one agreed rule for compiler end-state evaluation: decide after direct rewires land, not before
+- one reviewed inventory of all remaining `handbook_compiler::*` callers in CLI-adjacent code
+- one explicit classification for each caller: stale extracted-logic indirection or retained narrow support seam
+- one preserved baseline that `crates/flow/src/lib.rs` and owner-rooted tests are already on the right side of the boundary
 
-### Packet 4.5.1: Direct Caller Rewires To New Crates
-
-Why first:
-
-- the repo cannot choose the final compiler posture intelligently until the real direct-caller surface is visible without the facade
-- direct imports make the remaining compiler responsibilities explicit and testable
-- rewiring callers first keeps the later compiler decision focused on genuine leftovers rather than convenience imports
-
-Output:
-
-- `handbook-cli` depends directly on the owning crates for approved engine, pipeline, and flow surfaces
-- CLI tests and the flow scaffold stop defaulting to `handbook_compiler::*` for extracted logic
-- package manifests reflect the real dependency graph after the rewire
-
-### Packet 4.5.2: Compiler Narrowing Or Retirement Decision Landing
+### Packet 4.5.2: Rewire stale extracted-logic callers to the real owner crates
 
 Why second:
 
-- the right compiler end state is only clear after direct callers no longer mask the remaining surface area
-- docs, contracts, and help guards must describe the chosen end state, not a hypothetical one
-- postponing this packet until after rewires keeps the decision reviewable: what remains in compiler is what the repo truly still needs there
+- once the inventory is frozen, the refresh can remove the stale facade uses without disturbing the legitimate retained compiler seam
+- direct imports make the remaining compiler surface reviewable and honest
+- keeping this packet focused on stale owner-crate indirection avoids turning it into broad CLI cleanup
 
 Output:
 
-- either `handbook-compiler` becomes a sharply narrowed compatibility/support crate with reviewable remaining exports, or the workspace retires it cleanly
-- repo-facing docs and help guards describe the final ownership boundary truthfully
-- the full workspace verification wall passes under the chosen end state
+- stale caller imports move to `handbook-engine`, `handbook-pipeline`, or `handbook-flow`
+- `handbook-cli` manifest and dependency posture remain aligned with real owners plus the retained compiler seam
+- targeted CLI and crate tests prove behavior stability after rewires
+
+### Packet 4.5.3: Keep `handbook-compiler` intentionally narrow and align ownership truth
+
+Why third:
+
+- after stale caller rewires land, the remaining compiler surface can be reviewed as the true retained seam rather than a mixed bag of old and new ownership
+- repo-facing docs and help guards should describe the boundary that now actually exists
+- this packet closes the “support-surface narrowing” part of the root-plan gap without reopening retirement or Phase 5 shell work
+
+Output:
+
+- a reviewable compiler-root export surface that stays narrow and non-umbrella
+- docs/contracts/help guards that describe the retained compiler seam and direct-owner graph honestly
+- explicit notes about what remains deferred to Set 4 CLI shell closeout
+
+### Packet 4.5.4: Final closeout proof and deferral ledger
+
+Why last:
+
+- Slice 4.5 should not be called complete until format, lint, tests, docs, and caller inventories all agree
+- the closeout must leave a clear boundary between “Phase 4 ownership closeout” and “Phase 5 CLI shell finish pass”
+
+Output:
+
+- one final verification wall for caller rewires, compiler narrowing truth, and workspace health
+- one explicit deferral ledger naming the remaining CLI shell work that belongs to Set 4
 
 ## Risks And Mitigations
 
-### Risk: caller rewires expand into a Phase 5 CLI refactor
+### Risk: the refresh widens into a Phase 5 CLI refactor
 
 Mitigation:
 
-- keep the work framed as import-path and manifest rewiring, not module decomposition
-- reject opportunistic `main.rs` extraction unless the rewire is impossible without a tiny local helper move
-- use the caller inventory as the scope fence for Packet 4.5.1
+- keep the packet sequence centered on caller classification, rewires, compiler-boundary truth, and verification
+- reject opportunistic `main.rs` decomposition or wording cleanup unless a tiny move is strictly required to complete a rewire
+- use Set 4 as the explicit sink for remaining shell-finish work
 
-### Risk: compiler retirement is attempted before the remaining product-shell surfaces are understood
-
-Mitigation:
-
-- decide the compiler end state only after direct rewires land
-- allow a narrowed compiler crate if retirement would force premature renderer/refusal/setup relocation
-- require explicit documentation of what remains and why if compiler is retained
-
-### Risk: docs and help tests drift from the new ownership model
+### Risk: legitimate retained compiler support seams get misclassified as stale leftovers
 
 Mitigation:
 
-- treat doc and guard alignment as part of Packet 4.5.2, not optional cleanup
-- keep `help_drift_guard` in the focused verification set throughout the landing
-- update only the docs that make ownership or command-surface claims affected by the chosen posture
+- freeze the residual caller inventory before rewiring
+- require an explicit owner classification for every remaining compiler-root import
+- preserve compiler-root usage where the live support seam still spans multiple owner crates
 
-### Risk: direct caller rewires leave hidden compiler dependencies in tests or scaffolds
+### Risk: the compiler seam silently broadens again while fixing a few callers
 
 Mitigation:
 
-- scan `crates/cli` and `crates/flow` for `handbook_compiler::*` before and after Packet 4.5.1
-- use `cargo tree -p handbook-cli -e normal` to confirm the real direct dependency posture
-- treat unexpected remaining facade imports as packet leakage unless explicitly justified
+- keep `crates/compiler/src/lib.rs` and `cargo tree -p handbook-compiler -e normal` as first-class review evidence
+- reject changes that reintroduce umbrella exports or new convenience facades for engine/pipeline/flow-owned logic
+
+### Risk: docs and help guards drift from live ownership truth
+
+Mitigation:
+
+- update README/docs/contracts/help guards only after the remaining caller graph is settled
+- require targeted help/doc verification before the final workspace wall
+
+### Risk: the slice is called complete just because tests are green
+
+Mitigation:
+
+- require the residual caller inventory, dependency trees, and doc truth as closeout evidence in addition to tests
+- keep success criteria tied to ownership honesty, not just passing verification
 
 ## Parallel Vs Sequential
 
 Sequential:
 
-- freeze the caller inventory before changing imports
-- land production/test caller rewires before deciding compiler narrowing or retirement
-- update docs and help guards only after the chosen compiler posture is known
+- freeze the residual caller inventory before changing imports
+- land stale caller rewires before reasserting final compiler-boundary truth
+- align docs/help guards only after the retained compiler seam is known
 - run the full workspace wall last
 
 Parallel opportunities after Packet 4.5.1 lands:
 
-- doc updates and help-guard alignment can be prepared in parallel with compiler-surface trimming once the end-state decision is made
-- engine/pipeline/flow package tests can be run in parallel while compiler-posture cleanup is being finalized
+- owner-crate tests can run in parallel while stale caller rewires are being finalized
+- doc/help truth edits can be prepared in parallel with compiler-root export cleanup once the retained seam classification is stable
 
 ## Verification Checkpoints
 
-### Checkpoint 1: direct caller inventory is materially reduced
+### Checkpoint 1: Residual caller inventory is frozen and classified
 
 ```bash
-rg -n 'handbook_compiler::|use handbook_compiler|extern crate handbook_compiler' crates/cli crates/flow
+rg -n 'handbook_compiler::|use handbook_compiler|extern crate handbook_compiler' crates/cli/src crates/cli/tests crates/flow crates/compiler/src/lib.rs
 cargo tree -p handbook-cli -e normal
 ```
 
-### Checkpoint 2: caller rewires preserve CLI behavior
+### Checkpoint 2: Stale extracted-logic callers are removed without behavior drift
 
 ```bash
 cargo test -p handbook-cli --test author_cli
@@ -150,11 +152,14 @@ cargo test -p handbook-pipeline
 cargo test -p handbook-flow
 ```
 
-### Checkpoint 3: chosen compiler posture is explicit and workspace-clean
+### Checkpoint 3: Retained compiler seam and ownership docs are aligned
 
 ```bash
 cargo tree -p handbook-compiler -e normal
-cargo test --workspace
+cargo test -p handbook-cli --test help_drift_guard
+cargo test -p handbook-compiler --test author
+cargo test -p handbook-compiler --test doctor
+cargo test -p handbook-compiler --test setup
 ```
 
 ### Final checkpoint
@@ -167,11 +172,12 @@ cargo test --workspace
 
 ## Exit Conditions
 
-The slice is ready for human review when:
+Slice 4.5 refresh is ready for human review when:
 
-- direct callers use the real owner crates for extracted logic
-- the CLI dependency graph reflects those direct owners
-- `crates/compiler` has a deliberate end state rather than remaining a default umbrella
-- docs and help guards are truthful about the resulting ownership model
-- the full workspace wall passes
-- no Phase 5 CLI-thinning work or new runtime behavior leaked into the landing
+- the remaining `handbook_compiler::*` callers are fully inventoried and each one is either removed or explicitly justified
+- direct owner crates are the default import path for extracted logic
+- `handbook-cli` manifests reflect real owners plus the retained compiler seam honestly
+- `handbook-compiler` remains intentionally narrow and non-umbrella
+- repo-facing docs and help guards tell the same ownership story as the live code
+- the full workspace verification wall passes
+- remaining Phase 5 shell-finish work is explicitly deferred instead of mixed into this slice

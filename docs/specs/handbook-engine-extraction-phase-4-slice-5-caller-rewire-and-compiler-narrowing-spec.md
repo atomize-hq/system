@@ -1,49 +1,82 @@
-# Spec: Handbook Engine Extraction Phase 4 Slice 5 (Slice 4.5) - Caller Rewires And Compiler Narrowing
+# Spec: Handbook Engine Extraction Phase 4 Slice 5 (Set 3 / Slice 4.5 Refresh) - Direct Caller Rewires + Compiler Narrowing Closeout
 
 ## Assumptions
 
-1. Slices 4.2 through 4.4 are complete enough in live code that `handbook-engine`, `handbook-pipeline`, and `handbook-flow` already own the approved implementation families moved in those slices, even though many callers still import them through `handbook-compiler` today.
-2. The current direct-caller gap is large and real: `crates/cli/src/main.rs`, `crates/cli/tests/**`, and the `handbook-flow` scaffold still contain many `handbook_compiler::*` references even after engine and pipeline crates exist as first-class packages.
-3. Slice 4.5 is an ownership-and-import landing, not the full CLI-thinning program. Parsing, prompting, wording, rendering, and exit-code behavior should remain in `handbook-cli`; Phase 5 is where larger `main.rs` decomposition happens.
-4. The slice map intentionally leaves two valid end states for `crates/compiler`: a narrowed compatibility/support crate or a retired crate. Slice 4.5 must choose and prove one end state instead of drifting in place.
-5. Contract, help, README, and guard-doc truth may need targeted updates during this slice because direct caller ownership claims and crate boundaries become user-visible and test-enforced once the compiler facade stops being the default import path.
-6. `rendering`, `refusal`, `error`, `doctor`, and product-facing `setup` may remain where they are if the compiler-narrowing decision proves that is the smallest coherent posture, but they must no longer justify keeping `handbook-compiler` as the main import surface for engine/pipeline/flow-owned logic.
-7. The final Slice 4.5 verifier is the full workspace wall: formatting, clippy, and tests. A narrower command set is not enough once direct caller rewires and compiler-shape decisions land.
+1. This is a refresh/closeout of an existing Phase 4 seam, not a brand-new architecture slice.
+2. `handbook-engine`, `handbook-pipeline`, and `handbook-flow` already own most extracted behavior in live code; the remaining gap is mainly caller/dependency honesty and explicit boundary truth.
+3. `handbook-compiler` is already materially narrower than the original umbrella crate posture. This slice should keep it intentionally narrow, not treat retirement as the default goal.
+4. Remaining CLI imports of `handbook_compiler::*` must be classified carefully: some are stale convenience imports that should move to owner crates, while others may still be legitimate CLI-facing compatibility/support seams.
+5. Phase 1 layout/storage parameterization, Phase 2 orchestration-target parameterization, and Phase 5 CLI shell closeout remain separate seams unless a tiny supporting adjustment is strictly required to close the Slice 4.5 ownership boundary honestly.
+6. The final closeout verdict must be stricter than “tests pass”: this slice is only complete when direct callers, manifests, and repo-facing docs all tell the same ownership story.
 
 ## Objective
 
-Move remaining callers directly to `handbook-engine`, `handbook-pipeline`, and `handbook-flow` for the logic those crates now own, then intentionally narrow or retire `crates/compiler` so it stops being the default integration center for extracted logic.
+Finish the remaining Phase 4 closeout gap so the crate split is operationally real in direct callers and dependency posture, while `handbook-compiler` remains a deliberately narrow compatibility/support seam instead of drifting back into the default integration center.
 
-The maintainer needs this slice so the Phase 4 extraction becomes operationally real, not just internally reorganized. Success means:
+The maintainer needs this refresh because the workspace has already landed the major split, but live caller truth is mixed:
 
-- direct production and test callers stop using `handbook-compiler` as the default path to engine-owned, pipeline-owned, and flow-owned logic
-- `crates/cli` depends directly on the crates that own the logic it invokes, subject to any explicitly unresolved product-shell exceptions
-- `crates/compiler` lands an intentional end state: either a narrow compatibility/support crate with reduced exports, or a clean retirement from the workspace
-- docs, contracts, and help/test guards remain truthful about the resulting ownership model
-- `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` pass after the decision lands
+- `crates/cli` already depends directly on `handbook-engine`, `handbook-pipeline`, and `handbook-flow`
+- `crates/flow/src/lib.rs` no longer forwards through `handbook-compiler`
+- CLI tests already use owner crates directly in many places
+- `crates/compiler/src/lib.rs` already presents itself as a narrow support seam
+- but several CLI source modules still import `handbook_compiler::*`, and the refreshed slice must distinguish legitimate retained support seams from stale owner-crate indirection
+
+Success means:
+
+- no direct caller still uses `handbook-compiler` merely as a convenience facade for engine-owned, pipeline-owned, or flow-owned logic
+- any remaining compiler-root imports are explicitly justified as part of the retained narrow compatibility/support seam
+- `handbook-cli` dependency posture remains honest about real owners plus the retained compiler seam
+- repo-facing docs and guards clearly state what still belongs to `handbook-compiler` and what no longer does
 
 ## Tech Stack
 
 - Rust 2021 workspace
-- Current crates:
-  - `handbook-compiler`
+- workspace crates:
   - `handbook-cli`
+  - `handbook-compiler`
   - `handbook-engine`
-  - `handbook-pipeline`
   - `handbook-flow`
-- Authority docs:
+  - `handbook-pipeline`
+- authority docs:
   - `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`
   - `docs/specs/handbook-engine-extraction-slice-map.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-2-engine-migration-spec.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-3-pipeline-migration-spec.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-4-flow-migration-spec.md`
+  - `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`
+  - existing Slice 4.5 triplet
+  - existing Slice 4.2 / 4.3 / 4.4 triplets
+  - `README.md`
+  - `docs/README.md`
   - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
-  - `docs/contracts/C-04-resolver-result-and-doctor-blockers.md`
-  - `docs/contracts/C-05-renderer-and-proof-surfaces.md`
 
 ## Commands
 
-Primary slice verifier:
+Residual compiler-caller inventory:
+
+```bash
+rg -n 'handbook_compiler::|use handbook_compiler|extern crate handbook_compiler' crates/cli/src crates/cli/tests crates/flow crates/compiler/src/lib.rs
+```
+
+Dependency-posture checks:
+
+```bash
+cargo tree -p handbook-cli -e normal
+cargo tree -p handbook-compiler -e normal
+```
+
+Focused caller and support-seam verification:
+
+```bash
+cargo test -p handbook-cli --test author_cli
+cargo test -p handbook-cli --test cli_surface
+cargo test -p handbook-cli --test help_drift_guard
+cargo test -p handbook-engine
+cargo test -p handbook-pipeline
+cargo test -p handbook-flow
+cargo test -p handbook-compiler --test author
+cargo test -p handbook-compiler --test doctor
+cargo test -p handbook-compiler --test setup
+```
+
+Final verification wall:
 
 ```bash
 cargo fmt --all -- --check
@@ -51,197 +84,149 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-Direct-caller inventory scan:
-
-```bash
-rg -n 'handbook_compiler::|use handbook_compiler|extern crate handbook_compiler' crates/cli crates/flow
-```
-
-Dependency-posture verification:
-
-```bash
-cargo tree -p handbook-cli -e normal
-cargo tree -p handbook-compiler -e normal
-```
-
-Focused caller-rewire guards:
-
-```bash
-cargo test -p handbook-cli --test author_cli
-cargo test -p handbook-cli --test cli_surface
-cargo test -p handbook-cli --test help_drift_guard
-```
-
-Focused crate-owner guards:
-
-```bash
-cargo test -p handbook-engine
-cargo test -p handbook-pipeline
-cargo test -p handbook-flow
-```
-
-Optional compiler-posture guards while the crate still exists:
-
-```bash
-cargo test -p handbook-compiler --test author
-cargo test -p handbook-compiler --test setup
-cargo test -p handbook-compiler --test doctor
-```
-
 ## Project Structure
 
 ```text
-Cargo.toml                                            -> workspace membership and any compiler-retirement changes
-crates/cli/Cargo.toml                                 -> direct crate dependencies for engine/pipeline/flow-owned surfaces
-crates/cli/src/main.rs                                -> main production caller set that should stop defaulting to handbook_compiler for extracted logic
-crates/cli/tests/author_cli.rs                        -> CLI authoring regression callers that should import engine-owned types directly when possible
-crates/cli/tests/cli_surface.rs                       -> CLI integration callers that should import engine/pipeline/flow-owned types directly when possible
-crates/cli/tests/help_drift_guard.rs                  -> doc/help truth guard that must stay aligned with the final ownership posture
-crates/flow/src/lib.rs                                -> current scaffold forwarder that should stop routing through handbook-compiler
-crates/engine/Cargo.toml                              -> direct dependency target for engine-owned authoring/canonical-artifact surfaces
-crates/engine/src/lib.rs                              -> public engine surface consumed directly after caller rewires
-crates/pipeline/Cargo.toml                            -> direct dependency target for pipeline-owned runtime surfaces
-crates/pipeline/src/lib.rs                            -> public pipeline surface consumed directly after caller rewires
-crates/flow/Cargo.toml                                -> direct dependency target for flow-owned resolver/result/budget surfaces
-crates/flow/src/lib.rs                                -> public flow surface consumed directly after caller rewires
-crates/compiler/Cargo.toml                            -> narrowed compatibility/support crate or retirement candidate
-crates/compiler/src/lib.rs                            -> current wide re-export hub to narrow sharply or delete
-README.md, PLAN.md, docs/README.md                    -> repo-facing boundary docs that may need targeted ownership-truth updates if the compiler posture changes
-docs/contracts/C-02-rust-workspace-and-cli-command-surface.md -> command-surface and crate-boundary contract that must stay truthful after the rewire decision
+Cargo.toml                                                     -> Workspace membership and high-level dependency truth
+crates/cli/Cargo.toml                                          -> Direct dependency posture for real owner crates plus the retained compiler seam
+crates/cli/src/main.rs                                         -> Top-level CLI dispatch and a small remaining set of compiler-root type references
+crates/cli/src/author.rs                                       -> CLI-facing author orchestration and refusal handling that still consumes compiler-root author support today
+crates/cli/src/setup.rs                                        -> CLI-facing setup orchestration still consuming compiler setup support
+crates/cli/src/doctor.rs                                       -> CLI-facing doctor entrypoint still consuming compiler doctor support
+crates/cli/src/doctor_rendering.rs                             -> CLI-facing rendering over compiler doctor/report support types
+crates/cli/src/rendering.rs                                    -> CLI-facing render/refusal/blocker adapters that still consume compiler support types
+crates/cli/tests/author_cli.rs                                 -> Authoring CLI regression proof, already using engine-owned surfaces in several places
+crates/cli/tests/cli_surface.rs                                -> CLI surface regression proof for setup/pipeline/handoff behavior
+crates/cli/tests/help_drift_guard.rs                           -> Help and ownership truth guard
+crates/flow/src/lib.rs                                         -> Already owner-rooted flow public surface; should stay free of compiler forwarding
+crates/compiler/Cargo.toml                                     -> Narrow compatibility/support seam dependency posture
+crates/compiler/src/lib.rs                                     -> Reviewed compiler-root export surface that must stay intentionally narrow
+crates/compiler/tests/{author,doctor,setup,rendering_surface}.rs -> Proof that retained compiler-owned support seams remain coherent
+README.md, docs/README.md                                      -> Repo-facing ownership summary
+docs/contracts/C-02-rust-workspace-and-cli-command-surface.md  -> Contract for crate boundaries and retained compiler seam truth
+docs/specs/                                                    -> Slice 4.5 authority documents
 ```
 
 ## Code Style
 
-Prefer direct imports from the crate that owns the logic over umbrella imports through `handbook-compiler`.
+Prefer direct imports from the crate that owns extracted logic, and reserve `handbook-compiler` imports for the reviewed compatibility/support seam only.
 
 ```rust
-use handbook_engine::{
-    author_charter, parse_charter_structured_input_yaml, CanonicalArtifactKind,
-};
-use handbook_flow::{resolve, PacketResult, ResolveRequest};
-use handbook_pipeline::{compile_pipeline_stage_with_runtime, validate_pipeline_handoff_bundle};
+use handbook_engine::parse_charter_structured_input_yaml;
+use handbook_flow::resolve;
+use handbook_pipeline::compile_pipeline_stage_with_runtime;
+use handbook_compiler::{author_charter, AuthorCharterRefusal};
 ```
 
 Conventions:
 
-- production and test callers should import from the real owner crate when that owner is already established by earlier slices
-- if `handbook-compiler` remains after Slice 4.5, its public surface must be intentionally small and justified by the chosen end-state decision
-- keep import changes explicit; do not hide the transition behind broad wildcard prelude modules
-- keep CLI behavior stable while changing import paths and dependency posture
-- do not turn Slice 4.5 into a broad Phase 5 `main.rs` refactor or a renderer/refusal redesign
+- owner-crate imports should be the default when behavior already belongs to `handbook-engine`, `handbook-pipeline`, or `handbook-flow`
+- `handbook-compiler` imports should survive only when the retained compiler seam still owns the CLI-facing compatibility/support behavior in live code
+- do not reintroduce umbrella re-export modules or broad facade habits just because the compiler crate still exists
+- keep CLI behavior stable while correcting import paths, dependency posture, and ownership claims
+- do not turn this slice into Phase 5 CLI module decomposition or wording cleanup
 
 ## Testing Strategy
 
-- Framework: Cargo workspace checks and existing CLI/crate regression tests
+- Framework: Cargo workspace checks plus existing crate and CLI integration tests
 - Primary test levels:
-  - `handbook-cli` tests for public behavior and doc/help truth
-  - direct crate tests for `handbook-engine`, `handbook-pipeline`, and `handbook-flow`
-  - compiler tests only as needed to validate the chosen narrow-or-retire posture
+  - CLI regression tests for behavior and help-surface truth
+  - owner-crate tests for engine/pipeline/flow stability after rewires
+  - compiler tests for the retained narrow support seam only
 - Coverage focus:
-  - direct callers no longer rely on `handbook-compiler` for extracted engine/pipeline/flow logic
-  - `handbook-cli` behavior remains stable after dependency rewires
-  - docs and help guards stay aligned with the resulting ownership truth
-  - the final compiler posture is explicit, reviewable, and enforced by the workspace graph
+  - stale compiler-facade imports are removed or explicitly justified
+  - `handbook-cli` keeps its current behavior while imports and manifests become more honest
+  - `handbook-flow` stays free of compiler forwarding
+  - `handbook-compiler` remains narrow and reviewable rather than drifting back into umbrella ownership
+  - repo-facing docs and help guards describe the same boundary the code implements
 - Coverage expectation:
-  - Packet 4.5.1 proves direct caller rewires first
-  - Packet 4.5.2 proves the final compiler posture and doc/help truth second
-  - the final slice wall proves the workspace is consistent, warning-clean, and fully tested under the chosen end state
+  - each implementation packet proves its narrowed surface with targeted tests
+  - the slice is not complete until the full workspace wall passes
 
 ## Slice Scope
 
 In scope:
 
-- rewire direct production and test callers to `handbook-engine`, `handbook-pipeline`, and `handbook-flow` for surfaces those crates now own
-- update crate manifests so dependencies reflect the real ownership graph
-- stop using `handbook-compiler` as the default import hub for extracted logic
-- choose and land one intentional `crates/compiler` end state: narrowed compatibility/support crate or retirement
-- update docs/contracts/help guards required to keep ownership claims truthful after the chosen end state lands
+- refresh the live inventory of remaining `handbook_compiler::*` callers across CLI source and adjacent tests
+- classify each remaining caller as either stale extracted-logic indirection or legitimate retained compatibility/support usage
+- move any stale extracted-logic callers directly to `handbook-engine`, `handbook-pipeline`, or `handbook-flow`
+- keep `handbook-cli` manifests and dependency posture aligned with the actual owner graph
+- keep `handbook-compiler` limited to the reviewed narrow support seam
+- update the minimum docs and help/ownership guards required to keep the boundary truthful
 
 Out of scope:
 
-- broad CLI module decomposition, prompt-flow rewrites, or other Phase 5 shell-thinning work
-- major renderer/refusal/error reclassification beyond what is strictly required for the chosen compiler posture
-- new runtime features or semantic changes to engine, pipeline, or flow behavior
-- speculative extraction of additional surfaces not already approved by earlier slices
-- ownership or integration planning for Substrate after extraction
+- broad Phase 5 CLI decomposition, prompt-flow redesign, help-text rewrites, or product-shell cleanup
+- reopening Phase 1 layout/storage parameterization as the main job of this slice
+- reopening Phase 2 orchestration-target parameterization as the main job of this slice
+- retiring `handbook-compiler` unless live code proves that is the smallest coherent closeout and the user explicitly approves the scope change
+- introducing new engine/pipeline/flow runtime features
+- widening into new consumer/platform architecture work
 
 ## Authority Inputs
 
 - `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`
 - `docs/specs/handbook-engine-extraction-slice-map.md`
-- Slice 4.2 authority set:
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-2-engine-migration-spec.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-2-engine-migration-plan.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-2-engine-migration-tasks.md`
-- Slice 4.3 authority set:
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-3-pipeline-migration-spec.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-3-pipeline-migration-plan.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-3-pipeline-migration-tasks.md`
-- Slice 4.4 authority set:
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-4-flow-migration-spec.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-4-flow-migration-plan.md`
-  - `docs/specs/handbook-engine-extraction-phase-4-slice-4-flow-migration-tasks.md`
-- Command and renderer contracts:
-  - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
-  - `docs/contracts/C-04-resolver-result-and-doctor-blockers.md`
-  - `docs/contracts/C-05-renderer-and-proof-surfaces.md`
-- Live package and module truth:
+- `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`
+- existing Slice 4.5 authority set:
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-spec.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-plan.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-tasks.md`
+- earlier Phase 4 authority sets:
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-2-engine-migration-*.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-3-pipeline-migration-*.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-4-flow-migration-*.md`
+- live code/doc truth:
   - `Cargo.toml`
   - `crates/cli/Cargo.toml`
-  - `crates/cli/src/main.rs`
-  - `crates/cli/tests/author_cli.rs`
-  - `crates/cli/tests/cli_surface.rs`
-  - `crates/cli/tests/help_drift_guard.rs`
-  - `crates/flow/Cargo.toml`
+  - `crates/cli/src/{main,author,setup,doctor,doctor_rendering,rendering}.rs`
+  - `crates/cli/tests/{author_cli,cli_surface,help_drift_guard}.rs`
   - `crates/flow/src/lib.rs`
-  - `crates/engine/Cargo.toml`
-  - `crates/engine/src/lib.rs`
-  - `crates/pipeline/Cargo.toml`
-  - `crates/pipeline/src/lib.rs`
   - `crates/compiler/Cargo.toml`
   - `crates/compiler/src/lib.rs`
   - `README.md`
-  - `PLAN.md`
   - `docs/README.md`
+  - `docs/contracts/C-02-rust-workspace-and-cli-command-surface.md`
 
-## Current Ownership Gap To Close
+## Current Repo-Truth Gaps This Closeout Must Finish
 
-| Surface | Current live caller posture | Slice 4.5 requirement |
+| Surface | Current live posture | Slice 4.5 refresh requirement |
 | --- | --- | --- |
-| engine-owned authoring and canonical-artifact helpers | `crates/cli/src/main.rs` and `crates/cli/tests/author_cli.rs` still import them through `handbook_compiler::*` | rewire direct callers to `handbook-engine` where the owner is already established |
-| pipeline-owned compile/capture/handoff and route-state helpers | `crates/cli/src/main.rs` and `crates/cli/tests/cli_surface.rs` still import them through `handbook_compiler::*` | rewire direct callers to `handbook-pipeline` where the owner is already established |
-| flow-owned resolver/result/budget helpers | `crates/cli/src/main.rs`, `crates/cli/tests/cli_surface.rs`, and `crates/flow/src/lib.rs` still route through `handbook_compiler::*` | rewire direct callers to `handbook-flow` where the owner is already established |
-| compiler crate public surface | `crates/compiler/src/lib.rs` is still a wide umbrella re-export hub | narrow it to an intentional compatibility/support surface or retire it entirely |
-| repo-facing ownership truth | docs and guards still assume compiler is an important command-surface and crate-boundary authority | update the minimum docs and tests needed so the final ownership posture is truthful and enforced |
+| `crates/cli/src/main.rs` | already uses `handbook-pipeline` for supported help constants, but still references a small set of `handbook_compiler` author/support types | rewire any stale extracted-logic imports to owner crates and explicitly justify any remaining compiler-root support references |
+| `crates/cli/src/author.rs` | still fronts compiler-root author orchestration and refusal/result types | decide which compiler-root author usages are legitimate retained CLI-facing support seams and move any leftover engine-owned helpers directly to `handbook-engine` |
+| `crates/cli/src/setup.rs`, `doctor.rs`, `doctor_rendering.rs`, `rendering.rs` | still consume compiler-root setup/doctor/rendering support surfaces | keep these only if they are part of the retained narrow compiler seam; do not let them justify broader umbrella imports elsewhere |
+| `crates/cli/tests/*.rs` | tests already use owner crates directly in many places, but the refresh must ensure no stale facade pattern is reintroduced | preserve owner-rooted tests and tighten any remaining compiler-facing test assumptions to the retained support seam only |
+| `crates/flow/src/lib.rs` | already exposes flow-owned surfaces directly without compiler forwarding | keep that posture frozen and treat regressions here as Slice 4.5 failures |
+| `crates/compiler/src/lib.rs` + `crates/compiler/Cargo.toml` | compiler already presents itself as a narrow compatibility/support seam over engine/flow/pipeline dependencies | keep the compiler export surface small, reviewable, and explicitly non-umbrella |
+| repo-facing docs and guard rails | README/docs/contract text already says compiler is narrow, but the refreshed slice docs must match live caller truth exactly | align docs and help guards with the actual retained compiler seam and the actual direct-owner caller graph |
 
 ## Boundaries
 
 - Always:
-  - move direct callers to the real owner crate when that owner is already approved by earlier slices
-  - keep CLI behavior stable while changing imports and package dependencies
-  - land one explicit compiler end state instead of leaving the crate as an accidental umbrella
-  - keep docs, contracts, and help guards truthful about the resulting ownership model
+  - keep this slice focused on caller rewires, dependency honesty, and compiler narrowing closeout
+  - distinguish “retained narrow support seam” from “umbrella implementation center”
+  - preserve already-landed direct-owner surfaces such as `handbook-flow`
+  - refresh the existing Slice 4.5 authority rather than inventing a different seam
 - Ask first:
-  - broad CLI module decomposition beyond import and dependency rewires
-  - major renderer/refusal/error relocation not forced by the chosen compiler posture
-  - retiring `handbook-compiler` if live code still proves essential unresolved product-shell ownership there
-  - changing user-visible command wording instead of preserving it through the rewire
+  - any compiler-retirement attempt
+  - any new public API expansion created only to simplify one caller rewire
+  - any change that meaningfully widens Phase 5 CLI-shell work
 - Never:
-  - keep `handbook-compiler` as the default import hub for logic that already has a real owner crate
-  - claim compiler retirement or narrowing without proving the resulting workspace graph and tests
-  - use Slice 4.5 to smuggle in new runtime features or a broad CLI redesign
-  - leave docs/help truth stale after changing the ownership model
+  - widen into CLI shell redesign or broad copy/wording cleanup
+  - reopen Phase 2 target-parameterization as the main job of this slice
+  - treat passing tests alone as proof that the ownership boundary is now honest
+  - allow `handbook-compiler` to regain broad facade ownership for engine-, pipeline-, or flow-owned logic
 
 ## Success Criteria
 
-- Direct production and test callers use `handbook-engine`, `handbook-pipeline`, and `handbook-flow` for the surfaces those crates own.
-- `crates/cli/Cargo.toml` reflects the real ownership graph instead of defaulting to `handbook-compiler` for extracted logic.
-- `crates/compiler` lands a deliberate end state: thin compatibility/support crate or retirement.
-- Repo-facing docs and help guards remain truthful about the resulting command-surface and crate-boundary posture.
-- `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` all pass.
-- No Phase 5 shell-thinning work, new runtime features, or speculative extractions leak into the slice.
+- Every remaining `handbook_compiler::*` caller in the CLI-adjacent surfaces is either removed in favor of the real owner crate or explicitly justified as part of the retained narrow support seam.
+- `handbook-cli` dependencies and import paths reflect the real owner graph: `handbook-engine`, `handbook-pipeline`, and `handbook-flow` for extracted logic, plus `handbook-compiler` only for retained support seams.
+- `crates/flow/src/lib.rs` and other already-owner-rooted surfaces stay free of compiler forwarding.
+- `crates/compiler/src/lib.rs` remains intentionally narrow and does not drift back into umbrella re-export ownership.
+- Repo-facing docs and help/guard coverage accurately describe the resulting boundary.
+- `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` pass after the closeout.
 
 ## Open Questions
 
-- Is the smallest durable end state a retained `handbook-compiler` crate that holds only explicitly unresolved product-shell compatibility/support surfaces, or can the workspace retire compiler cleanly once direct caller rewires land?
-- If `handbook-compiler` remains, which exact surfaces are justified enough to stay there after Slice 4.5, and which ones must be treated as accidental leftovers that should block approval?
+- Which current `crates/cli/src/author.rs` compiler-root imports are still legitimately part of the retained CLI-facing author support seam, and which should now move directly to `handbook-engine`?
+- Is the smallest honest closeout for `crates/cli/src/rendering.rs` to keep compiler-root rendering/refusal adapters in place, or has live code reduced that seam enough that some of those types should now be consumed from owner crates directly?
