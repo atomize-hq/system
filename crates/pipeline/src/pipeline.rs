@@ -127,6 +127,13 @@ pub struct SupportedCompileTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SupportedHandoffTarget {
+    pub pipeline_id: String,
+    pub stage_id: String,
+    pub consumer_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SupportedTargetRegistry {
     pipelines: BTreeMap<String, SupportedPipelineTarget>,
     stages: BTreeMap<String, SupportedStageTarget>,
@@ -258,6 +265,19 @@ impl SupportedTargetRegistry {
                 .get(stage_id)
                 .expect("supported target registry must include the compile stage")
                 .clone(),
+        }
+    }
+
+    pub fn handoff_target(&self) -> SupportedHandoffTarget {
+        let (pipeline_id, stage_id, consumer_id) = self
+            .handoff_pairs
+            .iter()
+            .next()
+            .expect("supported target registry must include one handoff target");
+        SupportedHandoffTarget {
+            pipeline_id: pipeline_id.clone(),
+            stage_id: stage_id.clone(),
+            consumer_id: consumer_id.clone(),
         }
     }
 

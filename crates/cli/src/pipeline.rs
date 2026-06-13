@@ -312,10 +312,37 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
 
     match args.command {
         PipelineHandoffCommand::Emit(emit_args) => {
+            let supported_target =
+                match handbook_pipeline::pipeline::SupportedTargetRegistry::load(&repo_root) {
+                    Ok(registry) => registry.handoff_target(),
+                    Err(err) => {
+                        println!(
+                            "{}",
+                            handbook_pipeline::render_pipeline_handoff_refusal(
+                                &handbook_pipeline::PipelineHandoffRefusal {
+                                    classification:
+                                        handbook_pipeline::PipelineHandoffRefusalClassification::InvalidState,
+                                    summary: format!(
+                                        "failed to load supported target registry: {err}"
+                                    ),
+                                    pipeline_id: None,
+                                    consumer_id: None,
+                                    recovery:
+                                        "fix the pipeline/stage definitions and retry `pipeline handoff emit`"
+                                            .to_string(),
+                                }
+                            )
+                        );
+                        return ExitCode::from(1);
+                    }
+                };
             let request = handbook_pipeline::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
-                producer_command: "handbook pipeline handoff emit --id pipeline.foundation_inputs --consumer feature-slice-decomposer".to_string(),
+                producer_command: format!(
+                    "handbook pipeline handoff emit --id {} --consumer {}",
+                    supported_target.pipeline_id, supported_target.consumer_id
+                ),
                 producer_version: RELEASE_VERSION.to_string(),
             };
             match handbook_pipeline::emit_pipeline_handoff_bundle(&repo_root, &request) {

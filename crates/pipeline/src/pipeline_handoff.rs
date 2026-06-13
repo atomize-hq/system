@@ -1,7 +1,8 @@
 use crate::declarative_roots::{is_canonical_declarative_path, DECLARATIVE_ROOT};
 use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
-    load_selected_pipeline_definition, supported_route_state_variables, SupportedTargetRegistry,
+    load_selected_pipeline_definition, supported_route_state_variables, SupportedHandoffTarget,
+    SupportedTargetRegistry,
 };
 use crate::pipeline_compile::{
     compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
@@ -26,8 +27,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::Path;
 
-const SUPPORTED_CONSUMER_ID: &str = "feature-slice-decomposer";
-const SUPPORTED_STAGE_ID: &str = "stage.10_feature_spec";
 const HANDOFF_SCHEMA_VERSION: &str = "m5-pipeline-handoff-v1";
 const READ_ALLOWLIST_SCHEMA_VERSION: &str = "m5-pipeline-handoff-read-allowlist-v1";
 const SCORECARD_SCHEMA_VERSION: &str = "m5-pipeline-handoff-scorecard-v1";
@@ -219,13 +218,6 @@ struct InputCopyPlan {
     bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SupportedHandoffTarget {
-    pipeline_id: String,
-    stage_id: String,
-    consumer_id: String,
-}
-
 pub fn emit_pipeline_handoff_bundle(
     repo_root: impl AsRef<Path>,
     request: &PipelineHandoffEmitRequest,
@@ -287,7 +279,7 @@ pub fn emit_pipeline_handoff_bundle(
         summary: format!("failed to rebuild current stage-10 compile provenance: {reason}"),
         pipeline_id: Some(compile_result.target.pipeline_id.clone()),
         consumer_id: Some(supported_target.consumer_id.clone()),
-        recovery: stage_10_provenance_recovery(),
+        recovery: stage_10_provenance_recovery(&supported_target.stage_id),
     })?;
     let stored_capture_provenance = load_stage_10_feature_spec_capture_provenance(repo_root)
         .map_err(|reason| PipelineHandoffRefusal {
@@ -295,7 +287,7 @@ pub fn emit_pipeline_handoff_bundle(
             summary: reason,
             pipeline_id: Some(compile_result.target.pipeline_id.clone()),
             consumer_id: Some(supported_target.consumer_id.clone()),
-            recovery: stage_10_provenance_recovery(),
+            recovery: stage_10_provenance_recovery(&supported_target.stage_id),
         })?;
     validate_stage_10_feature_spec_capture_provenance_match(
         &stored_capture_provenance,
@@ -306,7 +298,7 @@ pub fn emit_pipeline_handoff_bundle(
         summary: reason,
         pipeline_id: Some(compile_result.target.pipeline_id.clone()),
         consumer_id: Some(supported_target.consumer_id.clone()),
-        recovery: stage_10_provenance_recovery(),
+        recovery: stage_10_provenance_recovery(&supported_target.stage_id),
     })?;
 
     let feature_id = derive_feature_id(&feature_spec_body, &feature_spec_sha256);
@@ -315,7 +307,11 @@ pub fn emit_pipeline_handoff_bundle(
         .feature_slice_bundle_root(&feature_id)
         .as_str()
         .to_string();
-    let input_plans = build_input_copy_plans(&compile_result, &feature_spec_body)?;
+    let input_plans = build_input_copy_plans(
+        &compile_result,
+        &feature_spec_body,
+        &supported_target.consumer_id,
+    )?;
 
     let canonical_manifest = ArtifactManifest::generate(repo_root, ManifestInputs::default())
         .map_err(|err| PipelineHandoffRefusal {
@@ -707,21 +703,7 @@ fn load_supported_handoff_target_registry_for_validation(
 }
 
 fn supported_handoff_target(registry: &SupportedTargetRegistry) -> SupportedHandoffTarget {
-    let compile_target = registry.compile_target();
-    let pipeline_id = compile_target.pipeline.id.clone();
-    let stage_id = compile_target.stage.id.clone();
-    let consumer_id = registry
-        .consumers()
-        .find(|consumer| registry.supports_handoff_target(&pipeline_id, &stage_id, &consumer.id))
-        .expect("supported target registry must include one handoff consumer")
-        .id
-        .clone();
-
-    SupportedHandoffTarget {
-        pipeline_id,
-        stage_id,
-        consumer_id,
-    }
+    registry.handoff_target()
 }
 
 fn validate_supported_consumer(
@@ -827,6 +809,7 @@ fn validate_supported_manifest_target(
 fn build_input_copy_plans(
     compile_result: &PipelineCompileResult,
     feature_spec_body: &str,
+    consumer_id: &str,
 ) -> Result<Vec<InputCopyPlan>, PipelineHandoffRefusal> {
     let mut plans = Vec::new();
     for document in &compile_result.documents {
@@ -841,7 +824,7 @@ fn build_input_copy_plans(
                 classification: PipelineHandoffRefusalClassification::InvalidProvenance,
                 summary,
                 pipeline_id: Some(compile_result.target.pipeline_id.clone()),
-                consumer_id: Some(SUPPORTED_CONSUMER_ID.to_string()),
+                consumer_id: Some(consumer_id.to_string()),
                 recovery: "repair compile input provenance and retry `pipeline handoff emit`"
                     .to_string(),
             }
@@ -1125,9 +1108,9 @@ fn normalize_bundle_root_from_metadata(
     })
 }
 
-fn stage_10_provenance_recovery() -> String {
+fn stage_10_provenance_recovery(stage_id: &str) -> String {
     format!(
-        "recapture `{SUPPORTED_STAGE_ID}` from the current compile payload before retrying `pipeline handoff emit`"
+        "recapture `{stage_id}` from the current compile payload before retrying `pipeline handoff emit`"
     )
 }
 
