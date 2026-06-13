@@ -12,6 +12,13 @@ This file is the seam map for future spec-driven execution:
 
 This file does not replace the root extraction plan. It is the companion decomposition authority for future slice triplets and packet prompts.
 
+## Current Status
+
+- Execution is now fully landed through Phase 5, including Phase 1 Slice 1.5, Phase 2 Slice 2.4, the refreshed Phase 4 Slice 4.5 closeout, and Phase 5 Slice 5.3.
+- The extracted workspace shape is live in code: `crates/engine`, `crates/pipeline`, `crates/flow`, and `crates/cli` are the real owner layers, with `crates/compiler` retained only as the reviewed narrow compatibility/support seam.
+- The current runtime wedge remains intentionally bounded while pipeline/stage truth comes from declarative catalog inputs and the retained default consumer stays code-owned and validated.
+- Phase 6 in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` is now the next authoritative step.
+
 ## Authority And Assumptions
 
 - `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` remains the phase-order and migration-gate authority.
@@ -106,10 +113,10 @@ If a packet fails any of those rules, split the packet before execution.
 
 | Phase | Slice count | Packet count | Notes |
 | --- | ---: | ---: | --- |
-| Phase 1 | 4 | 7 | Layout and storage parameterization |
-| Phase 2 | 3 | 7 | Target contracts and resolver parameterization |
+| Phase 1 | 5 | 10 | Layout and storage parameterization plus Slice 1.5 closeout |
+| Phase 2 | 4 | 11 | Target contracts and resolver parameterization plus Slice 2.4 closeout |
 | Phase 3 | 4 | 8 | In-place engine-vs-product cleanup |
-| Phase 4 | 5 | 10 | Real crate-boundary creation |
+| Phase 4 | 5 | 12 | Real crate-boundary creation plus refreshed Slice 4.5 closeout |
 | Phase 5 | 3 | 6 | CLI thinning |
 
 ## Phase 1 Slice Map
@@ -159,6 +166,18 @@ Phase 1 in the root plan is too broad for one triplet because it mixes layout co
   1. `Packet 1.4.1: Authoring Roots And Lock Paths Adoption`
 - **Dependency:** Slice 1.2
 
+### Slice 1.5: Layout Parameterization Closeout
+
+- **Triplet stem:** `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout`
+- **Seam:** finish the Phase 1 requirement that reusable internals are parameterized instead of merely centralized behind layout helper types
+- **Primary files:** `crates/engine/src/canonical_paths.rs`, `crates/pipeline/src/layout.rs`, `crates/flow/src/resolver.rs`, adjacent reusable callers that still depend on product-default layout ownership
+- **Slice verifier:** `cargo test -p handbook-engine --test canonical_artifacts_ingest && cargo test -p handbook-engine --test baseline_validation && cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff && cargo test -p handbook-flow --test resolver_core`
+- **Implementation packets:**
+  1. `Packet 1.5.1: Parameterized Canonical Layout Contract`
+  2. `Packet 1.5.2: Parameterized Pipeline Storage Layout Adoption`
+  3. `Packet 1.5.3: Remaining Reusable Caller Adoption And Residual-Literal Closeout`
+- **Dependency:** Slice 1.4
+
 ## Phase 2 Slice Map
 
 Phase 2 in the root plan is too broad for one triplet because it mixes supported-target definition, compile/capture/handoff adoption, provenance behavior, and template/library resolution.
@@ -196,6 +215,19 @@ Phase 2 in the root plan is too broad for one triplet because it mixes supported
   1. `Packet 2.3.1: Typed Resolver Contract And Shipped-Default Posture`
   2. `Packet 2.3.2: Validated Override And Selection Rules`
 - **Dependency:** Slice 2.1
+
+### Slice 2.4: Orchestration Target Parameterization Closeout
+
+- **Triplet stem:** `handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout`
+- **Seam:** close the remaining Phase 2 gap so compile/capture/handoff/provenance behavior is driven by declared targets rather than scattered singleton runtime ownership
+- **Primary files:** `core/pipelines/**`, `core/stages/**`, `crates/pipeline/src/pipeline.rs`, `crates/pipeline/src/pipeline_capture.rs`, `crates/pipeline/src/pipeline_handoff.rs`, `crates/cli/src/pipeline_help.rs`
+- **Slice verifier:** `cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_compile && cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff && cargo test -p handbook-cli --test cli_surface`
+- **Implementation packets:**
+  1. `Packet 2.4.1: Catalog-Backed Pipeline And Stage Target Closeout`
+  2. `Packet 2.4.2: Bounded Default-Consumer Ownership`
+  3. `Packet 2.4.3: CLI Help, Recovery, And Producer-Command Alignment`
+  4. `Packet 2.4.4: Final Closeout Proof`
+- **Dependency:** Slice 2.3
 
 ## Phase 3 Slice Map
 
@@ -300,8 +332,10 @@ Phase 4 in the root plan is too broad for one triplet because it mixes workspace
 - **Primary files:** `crates/compiler/src/lib.rs`, `crates/cli/src/main.rs`, crate `Cargo.toml` files, any remaining direct `handbook_compiler::*` callers
 - **Slice verifier:** `cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
 - **Implementation packets:**
-  1. `Packet 4.5.1: Direct Caller Rewires To New Crates`
-  2. `Packet 4.5.2: Compiler Narrowing Or Retirement Decision Landing`
+  1. `Packet 4.5.1: Residual Caller Inventory And Boundary Freeze`
+  2. `Packet 4.5.2: Stale Caller Rewires To Real Owner Crates`
+  3. `Packet 4.5.3: Compiler Narrow Boundary Truth`
+  4. `Packet 4.5.4: Final Closeout Proof`
 - **Dependency:** Slices 4.2 through 4.4
 
 ## Phase 5 Slice Map
@@ -349,21 +383,25 @@ Use this order unless live repo truth forces a narrower repair slice. Inside eac
 2. Slice 1.2
 3. Slice 1.3
 4. Slice 1.4
-5. Slice 2.1
-6. Slice 2.2
-7. Slice 2.3
-8. Slice 3.1
-9. Slice 3.2
-10. Slice 3.3
-11. Slice 3.4
-12. Slice 4.1
-13. Slice 4.2
-14. Slice 4.3
-15. Slice 4.4
-16. Slice 4.5
-17. Slice 5.1
-18. Slice 5.2
-19. Slice 5.3
+5. Slice 1.5
+6. Slice 2.1
+7. Slice 2.2
+8. Slice 2.3
+9. Slice 2.4
+10. Slice 3.1
+11. Slice 3.2
+12. Slice 3.3
+13. Slice 3.4
+14. Slice 4.1
+15. Slice 4.2
+16. Slice 4.3
+17. Slice 4.4
+18. Slice 4.5
+19. Slice 5.1
+20. Slice 5.2
+21. Slice 5.3
+
+That execution order is now fully landed through Slice 5.3; the next step is Phase 6 in the root plan, not another Phase 1–5 slice.
 
 ## Start Conditions For Writing The First Triplet
 

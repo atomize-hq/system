@@ -1,5 +1,11 @@
 # Plan: Handbook Engine Extraction Phase 2 Slice 4 (Slice 2.4) - Orchestration Target Parameterization Closeout
 
+## Status
+
+- Landed closeout plan.
+- The packet order below is preserved as the implementation history for the slice.
+- Keep this file as the durable record of how Slice 2.4 was closed, not as evidence that the slice remains open.
+
 ## Objective
 
 Close the remaining Phase 2 orchestration-target parameterization gap by removing singleton hardcoded ownership of the currently supported pipeline/stage/consumer wedge while preserving current behavior and explicitly deferring generalized consumer-platform work.
@@ -24,7 +30,7 @@ Spec reference: [handbook-engine-extraction-phase-2-slice-4-orchestration-target
    - proves the currently supported wedge remains unchanged
    - explicitly records that multi-consumer platforms, new consumer catalogs, and CLI shell finish work remain deferred
 
-## Order
+## Landed Packet Order
 
 ### Packet 2.4.1: Close the pipeline/stage target owner around declarative catalog truth
 
@@ -161,9 +167,9 @@ Confirm the full workspace still passes:
 cargo test --workspace
 ```
 
-## Exit Conditions
+## Landed Exit Conditions
 
-Slice 2.4 is ready for human review when:
+Slice 2.4 closed successfully once all of the following were true:
 
 - declarative catalog truth is the authoritative owner of supported pipeline/stage ids
 - the bounded current consumer is owned in one code-owned validated default owner

@@ -15,9 +15,10 @@ It exists to track:
 Current status:
 
 - research and seam mapping completed
-- Phase 1 layout and storage parameterization completed through Slice 1.4
-- Phase 2 orchestration-target and template-resolution parameterization is the next execution gate
-- migration into Substrate is explicitly blocked until the prerequisite phases below are complete
+- Phases 1 through 5 are complete in live repo truth, including the Phase 1 Slice 1.5, Phase 2 Slice 2.4, refreshed Phase 4 Slice 4.5, and Phase 5 Slice 5.3 closeout work
+- `handbook-engine`, `handbook-pipeline`, `handbook-flow`, and `handbook-cli` are now the real implementation layers; `handbook-compiler` remains only the reviewed narrow compatibility/support seam
+- the current runtime scope remains intentionally bounded to the reviewed wedge; pipeline/stage truth is catalog-backed and the retained default consumer stays code-owned and validated
+- Phase 6 migration-readiness reassessment is now the next authoritative step; do not start ownership/import planning outside Phase 6
 
 ## Objective
 
@@ -150,8 +151,8 @@ Deliverables:
 Checklist:
 
 - [x] create the root extraction tracker
-- [ ] confirm this file is the active extraction authority
-- [ ] keep status/progress current as slices and packets land
+- [x] confirm this file is the active extraction authority
+- [x] keep status/progress current as slices and packets land
 
 ## Phase 1: Parameterize Layout And Storage
 
@@ -233,15 +234,15 @@ Primary files likely involved:
 
 Checklist:
 
-- [ ] define a typed supported-target contract
-- [ ] remove direct hardcoding of `pipeline.foundation_inputs`
-- [ ] remove direct hardcoding of `stage.10_feature_spec`
-- [ ] remove direct hardcoding of `feature-slice-decomposer`
-- [ ] route recovery/help text through target definitions where appropriate
-- [ ] ensure targets determine inputs, outputs, provenance rules, and materialization rules
-- [ ] define the typed template/library resolver boundary
-- [ ] keep shipped templates/library content as validated defaults initially
-- [ ] allow configuration to select or override targets/templates within validated bounds
+- [x] define a typed supported-target contract
+- [x] remove direct hardcoding of `pipeline.foundation_inputs`
+- [x] remove direct hardcoding of `stage.10_feature_spec`
+- [x] remove direct hardcoding of `feature-slice-decomposer`
+- [x] route recovery/help text through target definitions where appropriate
+- [x] ensure targets determine inputs, outputs, provenance rules, and materialization rules
+- [x] define the typed template/library resolver boundary
+- [x] keep shipped templates/library content as validated defaults initially
+- [x] allow configuration to select or override targets/templates within validated bounds
 
 Exit criteria:
 
@@ -268,10 +269,10 @@ Primary files likely involved:
 
 Checklist:
 
-- [ ] separate deterministic parse/render/validate from guided synthesis behavior
-- [ ] separate lock-file/storage mechanics from canonical truth modeling where practical
-- [ ] separate product command wording from readiness/report logic
-- [ ] separate product-shell recovery wording from reusable refusal classification where practical
+- [x] separate deterministic parse/render/validate from guided synthesis behavior
+- [x] separate lock-file/storage mechanics from canonical truth modeling where practical
+- [x] separate product command wording from readiness/report logic
+- [x] separate product-shell recovery wording from reusable refusal classification where practical
 
 Exit criteria:
 
@@ -296,14 +297,14 @@ Target workspace shape:
 
 Checklist:
 
-- [ ] add `crates/engine`
-- [ ] add `crates/pipeline`
-- [ ] add `crates/flow`
-- [ ] move engine code behind `handbook-engine`
-- [ ] move pipeline code behind `handbook-pipeline`
-- [ ] move middle-layer flow/application code behind `handbook-flow`
-- [ ] move callers directly to the new crates without relying on a compiler facade
-- [ ] narrow or retire `crates/compiler` intentionally rather than preserving it as the implementation center
+- [x] add `crates/engine`
+- [x] add `crates/pipeline`
+- [x] add `crates/flow`
+- [x] move engine code behind `handbook-engine`
+- [x] move pipeline code behind `handbook-pipeline`
+- [x] move middle-layer flow/application code behind `handbook-flow`
+- [x] move callers directly to the new crates without relying on a compiler facade
+- [x] narrow or retire `crates/compiler` intentionally rather than preserving it as the implementation center
 
 Exit criteria:
 
@@ -329,12 +330,12 @@ Primary files likely involved:
 
 Checklist:
 
-- [ ] reduce `main.rs` responsibility
-- [ ] split CLI by command/helper areas where useful
-- [ ] isolate interactive prompting helpers
-- [ ] isolate product wording/rendering helpers
-- [ ] stop pulling broad internal types directly through product code where avoidable
-- [ ] keep command surface behavior unchanged unless explicitly intended
+- [x] reduce `main.rs` responsibility
+- [x] split CLI by command/helper areas where useful
+- [x] isolate interactive prompting helpers
+- [x] isolate product wording/rendering helpers
+- [x] stop pulling broad internal types directly through product code where avoidable
+- [x] keep command surface behavior unchanged unless explicitly intended
 
 Exit criteria:
 
@@ -462,6 +463,12 @@ cargo test -p handbook-compiler --test pipeline_state_store
 
 - added the companion slice map for the Phase -> Slice -> Packet execution model under `docs/specs/handbook-engine-extraction-slice-map.md`
 
+### 2026-06-13
+
+- closed the remaining extraction truth gaps through Phase 1 Slice 1.5, Phase 2 Slice 2.4, the refreshed Phase 4 Slice 4.5 closeout, and Phase 5 Slice 5.3
+- revalidated the live workspace shape, retained compiler-seam posture, and full verification wall (`cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`)
+- advanced the root authority from “Phase 2 next gate” to “Phase 6 reassess migration readiness next”
+
 ## Open Questions
 
 - After extraction, which crates should be handbook-owned and imported by Substrate versus moved into Substrate ownership?
@@ -491,9 +498,9 @@ cargo test -p handbook-compiler --test pipeline_state_store
 Do not start the Substrate move until all of the following are true:
 
 - [x] Phase 1 complete
-- [ ] Phase 2 complete
-- [ ] Phase 3 complete
-- [ ] Phase 4 complete
-- [ ] Phase 5 complete
+- [x] Phase 2 complete
+- [x] Phase 3 complete
+- [x] Phase 4 complete
+- [x] Phase 5 complete
 
 If any of those boxes are still open, migration planning is premature.

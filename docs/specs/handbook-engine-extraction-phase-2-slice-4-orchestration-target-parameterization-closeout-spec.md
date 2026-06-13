@@ -1,6 +1,12 @@
 # Spec: Handbook Engine Extraction Phase 2 Slice 4 (Slice 2.4) - Orchestration Target Parameterization Closeout
 
-## Assumptions
+## Status
+
+- Landed closeout slice.
+- Phase 2 is now closed in live repo truth.
+- Keep this file as the durable authority for what this slice was required to close, not as evidence that the slice remains open.
+
+## Slice-Open Assumptions (Historical Planning Context)
 
 1. Phase 2 Slices 2.1, 2.2, and 2.3 are materially landed, so this slice is a closeout/remediation seam for the remaining root-plan target-parameterization gap rather than a restart of Phase 2.
 2. Live runtime ownership now sits primarily in `handbook-pipeline`, but the approved wedge is still materially centered on singleton Rust constants and product-surface literals for `pipeline.foundation_inputs`, `stage.10_feature_spec`, and `feature-slice-decomposer`.
@@ -11,7 +17,7 @@
 
 ## Objective
 
-Finish the remaining Phase 2 closeout gap so compile, capture, provenance, handoff, and adjacent CLI/help surfaces are driven by declared orchestration targets instead of a singleton hardcoded runtime posture.
+Close the remaining Phase 2 gap so compile, capture, provenance, handoff, and adjacent CLI/help surfaces are driven by declared orchestration targets instead of a singleton hardcoded runtime posture.
 
 The maintainer needs this slice because the repo has already adopted `SupportedTargetRegistry`, but the current supported wedge still leaks through direct owner constants and operator-facing literals. Success means:
 
@@ -173,17 +179,17 @@ Out of scope:
   - `crates/cli/src/main.rs`
   - `crates/cli/src/pipeline.rs`
 
-## Current Repo-Truth Gaps This Closeout Must Finish
+## Repo-Truth Gaps This Closeout Resolved
 
-| Surface | Current live hardcoded posture | Slice 2.4 closeout requirement |
+| Surface | Slice-open posture | Landed Slice 2.4 outcome |
 | --- | --- | --- |
-| `crates/pipeline/src/pipeline.rs` | builds the supported registry around singleton constants for the supported pipeline, compile stage, capture stage set, and bounded consumer | keep one shared runtime owner, but derive pipeline/stage truth from declarative catalog inputs and keep the bounded consumer in one explicit validated default owner |
-| `crates/pipeline/src/pipeline_compile.rs` | still exposes canonical compile id helpers and recovery posture tied to the singleton supported compile target | continue central runtime lookup, but stop treating singleton compile ids as independent owner constants |
-| `crates/pipeline/src/pipeline_capture.rs` | still renders supported capture posture around direct stage-id expectations | derive supported capture posture from shared target ownership while keeping capture-specific wording local |
-| `crates/pipeline/src/stage_10_feature_spec_provenance.rs` | still keeps a direct supported provenance pipeline/stage expectation | derive provenance target validation from shared target ownership while keeping provenance-specific validation local |
-| `crates/pipeline/src/pipeline_handoff.rs` | still carries direct supported consumer/stage constants even though the registry is already live | move the bounded consumer and handoff target posture behind one shared validated owner |
-| `crates/cli/src/main.rs` | public help text still spells out supported pipeline/stage/consumer ids directly | render or source bounded supported-target examples from shared target ownership without widening into Phase 5 shell redesign |
-| `crates/cli/src/pipeline.rs` | hardcodes the producer command for handoff emit | derive producer-command rendering from the shared bounded target owner |
+| `crates/pipeline/src/pipeline.rs` | built the supported registry around singleton constants for the supported pipeline, compile stage, capture stage set, and bounded consumer | kept one shared runtime owner, derived pipeline/stage truth from declarative catalog inputs, and retained the bounded consumer in one explicit validated default owner |
+| `crates/pipeline/src/pipeline_compile.rs` | exposed canonical compile id helpers and recovery posture tied to the singleton supported compile target | kept central runtime lookup without treating singleton compile ids as independent owner constants |
+| `crates/pipeline/src/pipeline_capture.rs` | rendered supported capture posture around direct stage-id expectations | now derives supported capture posture from shared target ownership while keeping capture-specific wording local |
+| `crates/pipeline/src/stage_10_feature_spec_provenance.rs` | kept a direct supported provenance pipeline/stage expectation | now derives provenance target validation from shared target ownership while keeping provenance-specific validation local |
+| `crates/pipeline/src/pipeline_handoff.rs` | carried direct supported consumer/stage constants even though the registry was already live | now consumes the bounded consumer and handoff target posture through one shared validated owner |
+| `crates/cli/src/main.rs` | public help text spelled out supported pipeline/stage/consumer ids directly | now loads bounded supported-target examples from shared target ownership without widening into Phase 5 shell redesign |
+| `crates/cli/src/pipeline.rs` | hardcoded the producer command for handoff emit | now derives producer-command rendering from the shared bounded target owner |
 
 ## Boundaries
 
@@ -206,6 +212,8 @@ Out of scope:
   - call Phase 2 complete while singleton hardcoded target ownership still remains in runtime or adjacent CLI surfaces
 
 ## Success Criteria
+
+The landed slice satisfies the following:
 
 - The live target owner no longer depends on scattered singleton ownership of `pipeline.foundation_inputs`, `stage.10_feature_spec`, and `feature-slice-decomposer`.
 - Pipeline and stage truth are resolved from declarative catalog inputs rather than duplicated Rust owner constants.

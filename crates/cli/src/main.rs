@@ -12,7 +12,7 @@ mod request_shared;
 mod setup;
 mod shell_shared;
 
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use std::process::ExitCode;
 
 const PACKET_PLANNING_ID: &str = "planning.packet";
@@ -21,12 +21,14 @@ const PACKET_EXECUTION_LIVE_ID: &str = "execution.live.packet";
 const RELEASE_VERSION: &str = env!("HANDBOOK_RELEASE_VERSION");
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let command = pipeline_help::apply_dynamic_pipeline_help(Cli::command());
+    let matches = command.clone().get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|err| err.exit());
 
     match cli.command {
         Some(command) => command.run(),
         None => {
-            let mut command = Cli::command();
+            let mut command = command;
             command.print_help().expect("help output");
             println!();
             ExitCode::SUCCESS

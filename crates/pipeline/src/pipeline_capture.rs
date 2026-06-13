@@ -30,7 +30,6 @@ use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
-const SUPPORTED_STAGE_FEATURE_SPEC_ID: &str = "stage.10_feature_spec";
 const REQUIRED_STAGE_10_FEATURE_SPEC_HEADINGS: [&str; 23] = [
     "## 0) Charter Alignment",
     "### Dimension alignment",
@@ -486,7 +485,12 @@ fn build_capture_plan(
         })?;
 
     let artifact_contents = if artifact_paths.len() == 1 {
-        parse_single_file_capture_input(&stage_definition.id, input).map(|content| {
+        parse_single_file_capture_input(
+            &stage_definition.id,
+            &registry.compile_target().stage.id,
+            input,
+        )
+        .map(|content| {
             vec![PipelineCaptureWriteIntent {
                 path: artifact_paths[0].clone(),
                 content,
@@ -1329,6 +1333,7 @@ fn canonicalize_cached_artifact_writes(
 
 fn parse_single_file_capture_input(
     stage_id: &str,
+    supported_compile_stage_id: &str,
     input: &str,
 ) -> Result<String, CaptureInputParseError> {
     let normalized = normalize_capture_line_endings(input);
@@ -1340,7 +1345,7 @@ fn parse_single_file_capture_input(
     }
     let content = normalize_nonempty_capture_content(&normalized)
         .ok_or(CaptureInputParseError::EmptySingleFileBody)?;
-    validate_single_file_capture_content(stage_id, &content)?;
+    validate_single_file_capture_content(stage_id, supported_compile_stage_id, &content)?;
     Ok(content)
 }
 
@@ -1443,10 +1448,11 @@ fn normalize_nonempty_capture_content(input: &str) -> Option<String> {
 
 fn validate_single_file_capture_content(
     stage_id: &str,
+    supported_compile_stage_id: &str,
     content: &str,
 ) -> Result<(), CaptureInputParseError> {
-    if stage_id == SUPPORTED_STAGE_FEATURE_SPEC_ID {
-        if is_raw_stage_10_compile_payload(content) {
+    if stage_id == supported_compile_stage_id {
+        if is_raw_stage_10_compile_payload(stage_id, content) {
             return Err(CaptureInputParseError::RawStage10CompilePayload);
         }
         if !is_completed_stage_10_feature_spec_body(content) {
@@ -1456,9 +1462,9 @@ fn validate_single_file_capture_content(
     Ok(())
 }
 
-fn is_raw_stage_10_compile_payload(content: &str) -> bool {
+fn is_raw_stage_10_compile_payload(stage_id: &str, content: &str) -> bool {
     let mut lines = content.lines();
-    if lines.next() != Some("# stage.10_feature_spec - Feature Specification") {
+    if lines.next() != Some(format!("# {stage_id} - Feature Specification").as_str()) {
         return false;
     }
 
@@ -1867,14 +1873,18 @@ fn classify_capture_input_refusal(
         },
         CaptureInputParseError::RawStage10CompilePayload => PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
-            summary: "stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload".to_string(),
+            summary: format!(
+                "{stage_id} capture must receive a completed FEATURE_SPEC.md body, not raw `pipeline compile` payload"
+            ),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "run the stage-10 compile payload through an external operator or model runner, then retry `pipeline capture` with the completed `FEATURE_SPEC.md`".to_string(),
         },
         CaptureInputParseError::InvalidStage10FeatureSpecBody => PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidCaptureInput,
-            summary: "stage.10_feature_spec capture must receive a completed FEATURE_SPEC.md body that satisfies the shipped feature-spec contract".to_string(),
+            summary: format!(
+                "{stage_id} capture must receive a completed FEATURE_SPEC.md body that satisfies the shipped feature-spec contract"
+            ),
             pipeline_id: Some(pipeline_id.to_string()),
             stage_id: Some(stage_id.to_string()),
             recovery: "provide only the completed `FEATURE_SPEC.md` body, with the shipped headings and filled content, then retry `pipeline capture`".to_string(),

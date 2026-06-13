@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This file is the planning-entry map for the remaining four closeout sets required to finish the handbook engine extraction honestly against the root objective in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`.
+This file was the planning-entry map for the four closeout sets required to finish the handbook engine extraction honestly against the root objective in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`.
 
-Future agents should use this file as the starting context when running `$spec-driven-development` for any of the four remaining sets.
+Those four closeout sets are now landed in live repo truth. This file should be read as the closeout-shape reference for how Phases 1 through 5 were finished, not as evidence that those phases remain open.
 
 This file does **not** replace:
 
@@ -12,7 +12,7 @@ This file does **not** replace:
 - `docs/specs/handbook-engine-extraction-slice-map.md` as the existing Phase -> Slice -> Packet decomposition authority
 - any already-landed slice triplets as the authority for their original slice boundaries
 
-Instead, this file explains the remaining closeout seams, the order they should be addressed in, the exact triplet stems to create or refresh, and the repo-truth assumptions that future agents should carry into `SPECIFY`.
+Instead, this file records the four closeout seams, the order they landed, the triplet stems they used, and the repo-truth assumptions that were required to close Phases 1 through 5 honestly before Phase 6.
 
 ---
 
@@ -21,55 +21,48 @@ Instead, this file explains the remaining closeout seams, the order they should 
 The current repo truth is:
 
 - the crate split is real (`engine`, `pipeline`, `flow`, `cli`, plus a narrowed `compiler`)
-- the verification wall is green in recent audits (`fmt`, `clippy`, `test`)
-- the landing is substantial, but still **partial** against the root extraction-plan objective
+- the verification wall is green in the current repo (`cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`)
+- the four-set closeout is landed, so Phases 1 through 5 are complete against the root extraction-plan objective
 
-The remaining misses separate cleanly into four seams:
+The four seams that had to be closed were:
 
 1. reusable layout/storage assumptions are still centralized but not fully parameterized
 2. orchestration targets are still effectively one bounded runtime wedge
 3. direct callers and compatibility ownership still lean too heavily on `handbook-compiler`
 4. the CLI shell is improved but not yet the fully isolated product shell described in the plan
 
-One important planning decision is now fixed:
+The residual truths that remain explicit after closeout are:
 
-- **defer generalized multi-consumer/customizable consumer-framework work**
-- **do not defer de-hardcoding the current consumer**
-
-For the current closeout:
-
-- pipeline truth should come from declarative pipeline catalog sources
-- stage truth should come from declarative stage catalog sources
-- consumer truth should move to one code-owned validated registry/default owner
-- the current bounded consumer id `feature-slice-decomposer` should stop being a scattered runtime literal
-- this closeout should **not** introduce a generic `core/consumers/**` tree, free-form consumer config, or a broad multi-consumer platform
+- generalized multi-consumer/customizable consumer-framework work is still deferred
+- the current bounded consumer/runtime wedge is intentionally retained and code-owned
+- handbook-product default layout contracts still exist as defaults, but reusable internals now consume reviewed typed contracts instead of scattered literals
+- `handbook-compiler` remains a narrow compatibility/support seam rather than the implementation center
+- Phase 6 in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` is now the next authoritative step
 
 ---
 
-## How Future Agents Should Use This Map
+## How Future Agents Should Use This File
 
-For each set below:
+For future audits or regression repairs:
 
-1. start in `SPECIFY` using `$spec-driven-development`
-2. treat this file as the high-level seam map, not as the final spec
-3. re-read the listed live authority inputs before writing the new triplet
-4. save the resulting triplet in `docs/specs/`
-5. do **not** widen one set into the neighboring sets
+1. treat this file as the high-level record of the closed four-set reconciliation, not as an active backlog
+2. re-read the listed live authority inputs before claiming one of the four seams regressed
+3. start new forward-looking work from Phase 6 in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` unless the task is a narrow regression repair inside one landed set
+4. do **not** use this file to justify widening one closed set into another
 
 Recommended flow for a future agent:
 
 1. read this file
 2. read `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`
 3. read `docs/specs/handbook-engine-extraction-slice-map.md`
-4. read the set-specific authority files listed below
-5. produce the set's `spec.md`
-6. stop for review unless explicitly asked to continue into `plan.md` and `tasks.md`
+4. read the set-specific authority files listed below only if you are auditing or repairing that closed seam
+5. if no regression exists, move on to Phase 6 authority instead of reopening Phase 1–5 planning
 
 ---
 
-## Ordering
+## Landed Order
 
-Address the four sets in this order:
+The four sets landed in this order:
 
 1. **Set 1 / Slice 1.5** — Layout / storage parameterization closeout
 2. **Set 2 / Slice 2.4** — Orchestration target parameterization closeout
@@ -88,13 +81,13 @@ Why this order:
 
 ### Triplet Status
 
-- **Create new remediation triplet**
+- **Landed remediation triplet**
 
 ### Proposed Triplet Stem
 
 - `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout`
 
-### Files To Create
+### Landed Files
 
 - `docs/specs/handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout-spec.md`
 - `docs/specs/handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout-plan.md`
@@ -185,13 +178,13 @@ cargo test --workspace
 
 ### Triplet Status
 
-- **Create new remediation triplet**
+- **Landed remediation triplet**
 
 ### Proposed Triplet Stem
 
 - `handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout`
 
-### Files To Create
+### Landed Files
 
 - `docs/specs/handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout-spec.md`
 - `docs/specs/handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout-plan.md`
@@ -301,13 +294,13 @@ cargo test -p handbook-cli --test cli_surface
 
 ### Triplet Status
 
-- **Refresh existing triplet against live repo truth**
+- **Refreshed triplet landed against live repo truth**
 
 ### Existing Triplet Stem
 
 - `handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing`
 
-### Files To Refresh
+### Landed Files
 
 - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-spec.md`
 - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-plan.md`
@@ -399,13 +392,13 @@ cargo test --workspace
 
 ### Triplet Status
 
-- **Create the missing triplet**
+- **Landed closeout triplet**
 
 ### Proposed Triplet Stem
 
 - `handbook-engine-extraction-phase-5-slice-3-cli-shell-closeout`
 
-### Files To Create
+### Landed Files
 
 - `docs/specs/handbook-engine-extraction-phase-5-slice-3-cli-shell-closeout-spec.md`
 - `docs/specs/handbook-engine-extraction-phase-5-slice-3-cli-shell-closeout-plan.md`
@@ -524,11 +517,11 @@ If the work crosses multiple questions at once, stop and split the seam before w
 
 ## Expected Outcome
 
-After all four sets are fully specified, planned, task-decomposed, implemented, and honestly closed:
+After all four sets were specified, planned, task-decomposed, implemented, and honestly closed:
 
-- reusable internals will no longer carry unjustified fixed layout assumptions
-- runtime target behavior will be driven by declared targets instead of a scattered singleton wedge
-- the extracted crates will be the real operational center instead of `handbook-compiler`
-- the CLI will be the clear thin product shell
+- reusable internals no longer carry unjustified fixed layout assumptions
+- runtime target behavior is driven by declared targets instead of a scattered singleton wedge
+- the extracted crates are the real operational center instead of `handbook-compiler`
+- the CLI is the clear thin product shell
 
-That is the intended closeout posture for the remaining handbook engine extraction work.
+That closeout posture is now the landed Phase 1–5 end state. Phase 6 is the next authoritative step.
