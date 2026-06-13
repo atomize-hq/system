@@ -143,13 +143,51 @@ fn validate_pipeline_storage_layout_contract(
     let capture_storage = contract.capture_storage();
     let handoff_bundle = contract.handoff_bundle();
 
-    let _ = NormalizedRepoRelativePath::parse(runtime_state.state_root_relative())?;
-    let _ = NormalizedRepoRelativePath::parse(runtime_state.pipeline_dir_relative())?;
-    let _ = NormalizedRepoRelativePath::parse(capture_storage.stage_capture_root_relative())?;
-    let _ = NormalizedRepoRelativePath::parse(capture_storage.capture_cache_root_relative())?;
+    let state_root = NormalizedRepoRelativePath::parse(runtime_state.state_root_relative())?;
+    let pipeline_dir = NormalizedRepoRelativePath::parse(runtime_state.pipeline_dir_relative())?;
+    let stage_capture_root =
+        NormalizedRepoRelativePath::parse(capture_storage.stage_capture_root_relative())?;
+    let capture_cache_root =
+        NormalizedRepoRelativePath::parse(capture_storage.capture_cache_root_relative())?;
     let _ = NormalizedRepoRelativePath::parse(handoff_bundle.feature_slice_root_relative())?;
 
+    validate_repo_relative_containment(
+        "state_root_relative",
+        &state_root,
+        "pipeline_dir_relative",
+        &pipeline_dir,
+    )?;
+    validate_repo_relative_containment(
+        "state_root_relative",
+        &state_root,
+        "stage_capture_root_relative",
+        &stage_capture_root,
+    )?;
+    validate_repo_relative_containment(
+        "state_root_relative",
+        &state_root,
+        "capture_cache_root_relative",
+        &capture_cache_root,
+    )?;
+
     Ok(())
+}
+
+fn validate_repo_relative_containment(
+    parent_label: &str,
+    parent: &NormalizedRepoRelativePath,
+    child_label: &str,
+    child: &NormalizedRepoRelativePath,
+) -> Result<(), String> {
+    if Path::new(child.as_str()).starts_with(Path::new(parent.as_str())) {
+        return Ok(());
+    }
+
+    Err(format!(
+        "{child_label} (`{}`) must stay within {parent_label} (`{}`)",
+        child.as_str(),
+        parent.as_str()
+    ))
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -311,7 +349,9 @@ impl<'a> HandoffBundleLayout<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PipelineStorageLayoutContract, RepoLayoutRoot};
+    use super::{
+        validate_pipeline_storage_layout_contract, PipelineStorageLayoutContract, RepoLayoutRoot,
+    };
     use std::path::Path;
 
     #[test]
@@ -358,5 +398,48 @@ mod tests {
                 .as_str(),
             "custom_artifacts/handoff/feature_slice/feature-123"
         );
+    }
+
+    #[test]
+    fn pipeline_storage_layout_contract_rejects_runtime_state_paths_outside_state_root() {
+        for (label, contract) in [
+            (
+                "pipeline_dir_relative",
+                PipelineStorageLayoutContract::from_paths(
+                    ".custom_handbook/state",
+                    ".custom_handbook/pipelines",
+                    ".custom_handbook/state/pipelines/stage_capture",
+                    ".custom_handbook/state/pipelines/capture_cache",
+                    "custom_artifacts/handoff/feature_slice",
+                ),
+            ),
+            (
+                "stage_capture_root_relative",
+                PipelineStorageLayoutContract::from_paths(
+                    ".custom_handbook/state",
+                    ".custom_handbook/state/pipelines",
+                    ".custom_handbook/captures",
+                    ".custom_handbook/state/pipelines/capture_cache",
+                    "custom_artifacts/handoff/feature_slice",
+                ),
+            ),
+            (
+                "capture_cache_root_relative",
+                PipelineStorageLayoutContract::from_paths(
+                    ".custom_handbook/state",
+                    ".custom_handbook/state/pipelines",
+                    ".custom_handbook/state/pipelines/stage_capture",
+                    ".custom_handbook/capture_cache",
+                    "custom_artifacts/handoff/feature_slice",
+                ),
+            ),
+        ] {
+            let err = validate_pipeline_storage_layout_contract(contract)
+                .expect_err("contract should reject runtime-state paths outside state root");
+            assert!(
+                err.contains(label),
+                "expected `{label}` in error, got: {err}"
+            );
+        }
     }
 }
