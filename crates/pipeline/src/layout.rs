@@ -1,40 +1,201 @@
 use crate::repo_file_access::{CompilerWorkspace, NormalizedRepoRelativePath};
 use std::path::Path;
 
-pub(crate) const RUNTIME_STATE_ROOT_RELATIVE: &str = ".handbook/state";
-const RUNTIME_STATE_PIPELINE_DIR_RELATIVE: &str = ".handbook/state/pipeline";
-const CAPTURE_PROVENANCE_DIR_RELATIVE: &str = ".handbook/state/pipeline/stage_capture";
-#[allow(dead_code)]
-const CAPTURE_CACHE_DIR_RELATIVE: &str = ".handbook/state/pipeline/capture";
-const HANDOFF_FEATURE_SLICE_DIR_RELATIVE: &str = "artifacts/handoff/feature_slice";
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RuntimeStateLayoutContract {
+    state_root_relative: &'static str,
+    pipeline_dir_relative: &'static str,
+}
+
+impl RuntimeStateLayoutContract {
+    pub(crate) const fn new(
+        state_root_relative: &'static str,
+        pipeline_dir_relative: &'static str,
+    ) -> Self {
+        Self {
+            state_root_relative,
+            pipeline_dir_relative,
+        }
+    }
+
+    pub(crate) const fn state_root_relative(self) -> &'static str {
+        self.state_root_relative
+    }
+
+    pub(crate) const fn pipeline_dir_relative(self) -> &'static str {
+        self.pipeline_dir_relative
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CaptureStorageLayoutContract {
+    stage_capture_root_relative: &'static str,
+    capture_cache_root_relative: &'static str,
+}
+
+impl CaptureStorageLayoutContract {
+    pub(crate) const fn new(
+        stage_capture_root_relative: &'static str,
+        capture_cache_root_relative: &'static str,
+    ) -> Self {
+        Self {
+            stage_capture_root_relative,
+            capture_cache_root_relative,
+        }
+    }
+
+    pub(crate) const fn stage_capture_root_relative(self) -> &'static str {
+        self.stage_capture_root_relative
+    }
+
+    pub(crate) const fn capture_cache_root_relative(self) -> &'static str {
+        self.capture_cache_root_relative
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct HandoffBundleLayoutContract {
+    feature_slice_root_relative: &'static str,
+}
+
+impl HandoffBundleLayoutContract {
+    pub(crate) const fn new(feature_slice_root_relative: &'static str) -> Self {
+        Self {
+            feature_slice_root_relative,
+        }
+    }
+
+    pub(crate) const fn feature_slice_root_relative(self) -> &'static str {
+        self.feature_slice_root_relative
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PipelineStorageLayoutContract {
+    runtime_state: RuntimeStateLayoutContract,
+    capture_storage: CaptureStorageLayoutContract,
+    handoff_bundle: HandoffBundleLayoutContract,
+}
+
+impl PipelineStorageLayoutContract {
+    const fn new(
+        runtime_state: RuntimeStateLayoutContract,
+        capture_storage: CaptureStorageLayoutContract,
+        handoff_bundle: HandoffBundleLayoutContract,
+    ) -> Self {
+        Self {
+            runtime_state,
+            capture_storage,
+            handoff_bundle,
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) const fn from_paths(
+        state_root_relative: &'static str,
+        pipeline_dir_relative: &'static str,
+        stage_capture_root_relative: &'static str,
+        capture_cache_root_relative: &'static str,
+        feature_slice_root_relative: &'static str,
+    ) -> Self {
+        Self::new(
+            RuntimeStateLayoutContract::new(state_root_relative, pipeline_dir_relative),
+            CaptureStorageLayoutContract::new(
+                stage_capture_root_relative,
+                capture_cache_root_relative,
+            ),
+            HandoffBundleLayoutContract::new(feature_slice_root_relative),
+        )
+    }
+
+    const fn runtime_state(self) -> RuntimeStateLayoutContract {
+        self.runtime_state
+    }
+
+    const fn capture_storage(self) -> CaptureStorageLayoutContract {
+        self.capture_storage
+    }
+
+    const fn handoff_bundle(self) -> HandoffBundleLayoutContract {
+        self.handoff_bundle
+    }
+}
+
+pub(crate) const HANDBOOK_PRODUCT_PIPELINE_STORAGE_LAYOUT: PipelineStorageLayoutContract =
+    PipelineStorageLayoutContract::new(
+        RuntimeStateLayoutContract::new(".handbook/state", ".handbook/state/pipeline"),
+        CaptureStorageLayoutContract::new(
+            ".handbook/state/pipeline/stage_capture",
+            ".handbook/state/pipeline/capture",
+        ),
+        HandoffBundleLayoutContract::new("artifacts/handoff/feature_slice"),
+    );
+
+pub(crate) fn handbook_product_pipeline_storage_layout_contract(
+) -> &'static PipelineStorageLayoutContract {
+    &HANDBOOK_PRODUCT_PIPELINE_STORAGE_LAYOUT
+}
+
+fn validate_pipeline_storage_layout_contract(
+    contract: PipelineStorageLayoutContract,
+) -> Result<(), String> {
+    let runtime_state = contract.runtime_state();
+    let capture_storage = contract.capture_storage();
+    let handoff_bundle = contract.handoff_bundle();
+
+    let _ = NormalizedRepoRelativePath::parse(runtime_state.state_root_relative())?;
+    let _ = NormalizedRepoRelativePath::parse(runtime_state.pipeline_dir_relative())?;
+    let _ = NormalizedRepoRelativePath::parse(capture_storage.stage_capture_root_relative())?;
+    let _ = NormalizedRepoRelativePath::parse(capture_storage.capture_cache_root_relative())?;
+    let _ = NormalizedRepoRelativePath::parse(handoff_bundle.feature_slice_root_relative())?;
+
+    Ok(())
+}
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RepoLayoutRoot<'a> {
     workspace: CompilerWorkspace<'a>,
+    contract: PipelineStorageLayoutContract,
 }
 
 impl<'a> RepoLayoutRoot<'a> {
     pub(crate) fn new(repo_root: &'a Path) -> Self {
+        Self::with_contract(
+            repo_root,
+            *handbook_product_pipeline_storage_layout_contract(),
+        )
+    }
+
+    pub(crate) fn with_contract(
+        repo_root: &'a Path,
+        contract: PipelineStorageLayoutContract,
+    ) -> Self {
+        validate_pipeline_storage_layout_contract(contract)
+            .expect("pipeline storage layout contract should stay repo-relative");
         Self {
             workspace: CompilerWorkspace::new(repo_root),
+            contract,
         }
     }
 
     pub(crate) fn runtime_state(self) -> RuntimeStateLayout<'a> {
         RuntimeStateLayout {
             workspace: self.workspace,
+            contract: self.contract.runtime_state(),
         }
     }
 
     pub(crate) fn capture_provenance(self) -> CaptureProvenanceLayout<'a> {
         CaptureProvenanceLayout {
             workspace: self.workspace,
+            contract: self.contract.capture_storage(),
         }
     }
 
     pub(crate) fn handoff_bundle(self) -> HandoffBundleLayout<'a> {
         HandoffBundleLayout {
             workspace: self.workspace,
+            contract: self.contract.handoff_bundle(),
         }
     }
 }
@@ -42,11 +203,12 @@ impl<'a> RepoLayoutRoot<'a> {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RuntimeStateLayout<'a> {
     workspace: CompilerWorkspace<'a>,
+    contract: RuntimeStateLayoutContract,
 }
 
 impl<'a> RuntimeStateLayout<'a> {
     pub(crate) fn state_root_relative(self) -> &'static str {
-        RUNTIME_STATE_ROOT_RELATIVE
+        self.contract.state_root_relative()
     }
 
     pub(crate) fn state_root(self) -> NormalizedRepoRelativePath {
@@ -58,7 +220,8 @@ impl<'a> RuntimeStateLayout<'a> {
     pub(crate) fn route_state_relative_path(self, pipeline_id: &str) -> NormalizedRepoRelativePath {
         self.workspace
             .normalize_repo_relative(&format!(
-                "{RUNTIME_STATE_PIPELINE_DIR_RELATIVE}/{pipeline_id}.yaml"
+                "{}/{pipeline_id}.yaml",
+                self.contract.pipeline_dir_relative()
             ))
             .expect("runtime-state route-state path should stay repo-relative")
     }
@@ -67,12 +230,13 @@ impl<'a> RuntimeStateLayout<'a> {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CaptureProvenanceLayout<'a> {
     workspace: CompilerWorkspace<'a>,
+    contract: CaptureStorageLayoutContract,
 }
 
 impl<'a> CaptureProvenanceLayout<'a> {
     #[allow(dead_code)]
     pub(crate) fn stage_capture_root_relative(self) -> &'static str {
-        CAPTURE_PROVENANCE_DIR_RELATIVE
+        self.contract.stage_capture_root_relative()
     }
 
     #[allow(dead_code)]
@@ -89,14 +253,17 @@ impl<'a> CaptureProvenanceLayout<'a> {
     ) -> NormalizedRepoRelativePath {
         self.workspace
             .normalize_repo_relative(&format!(
-                "{CAPTURE_PROVENANCE_DIR_RELATIVE}/{pipeline_id}.{stage_id}.json"
+                "{}/{}.{}.json",
+                self.contract.stage_capture_root_relative(),
+                pipeline_id,
+                stage_id
             ))
             .expect("capture-provenance path should stay repo-relative")
     }
 
     #[allow(dead_code)]
     pub(crate) fn capture_cache_root_relative(self) -> &'static str {
-        CAPTURE_CACHE_DIR_RELATIVE
+        self.contract.capture_cache_root_relative()
     }
 
     #[allow(dead_code)]
@@ -111,7 +278,10 @@ impl<'a> CaptureProvenanceLayout<'a> {
         capture_id: &str,
     ) -> NormalizedRepoRelativePath {
         self.workspace
-            .normalize_repo_relative(&format!("{CAPTURE_CACHE_DIR_RELATIVE}/{capture_id}.yaml"))
+            .normalize_repo_relative(&format!(
+                "{}/{capture_id}.yaml",
+                self.contract.capture_cache_root_relative()
+            ))
             .expect("capture-cache path should stay repo-relative")
     }
 }
@@ -119,19 +289,74 @@ impl<'a> CaptureProvenanceLayout<'a> {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct HandoffBundleLayout<'a> {
     workspace: CompilerWorkspace<'a>,
+    contract: HandoffBundleLayoutContract,
 }
 
 impl<'a> HandoffBundleLayout<'a> {
     #[allow(dead_code)]
     pub(crate) fn feature_slice_root_relative(self) -> &'static str {
-        HANDOFF_FEATURE_SLICE_DIR_RELATIVE
+        self.contract.feature_slice_root_relative()
     }
 
     pub(crate) fn feature_slice_bundle_root(self, feature_id: &str) -> NormalizedRepoRelativePath {
         self.workspace
             .normalize_repo_relative(&format!(
-                "{HANDOFF_FEATURE_SLICE_DIR_RELATIVE}/{feature_id}"
+                "{}/{}",
+                self.feature_slice_root_relative(),
+                feature_id
             ))
             .expect("handoff bundle root should stay repo-relative")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PipelineStorageLayoutContract, RepoLayoutRoot};
+    use std::path::Path;
+
+    #[test]
+    fn pipeline_storage_layout_contract_can_drive_non_default_paths() {
+        let contract = PipelineStorageLayoutContract::from_paths(
+            ".custom_handbook/state",
+            ".custom_handbook/state/pipelines",
+            ".custom_handbook/state/pipelines/stage_capture",
+            ".custom_handbook/state/pipelines/capture_cache",
+            "custom_artifacts/handoff/feature_slice",
+        );
+
+        let layout = RepoLayoutRoot::with_contract(Path::new("."), contract);
+
+        assert_eq!(
+            layout.runtime_state().state_root_relative(),
+            ".custom_handbook/state"
+        );
+        assert_eq!(
+            layout
+                .runtime_state()
+                .route_state_relative_path("foundation")
+                .as_str(),
+            ".custom_handbook/state/pipelines/foundation.yaml"
+        );
+        assert_eq!(
+            layout
+                .capture_provenance()
+                .stage_capture_provenance_relative_path("foundation", "stage.10_feature_spec")
+                .as_str(),
+            ".custom_handbook/state/pipelines/stage_capture/foundation.stage.10_feature_spec.json"
+        );
+        assert_eq!(
+            layout
+                .capture_provenance()
+                .capture_cache_relative_path("abc123")
+                .as_str(),
+            ".custom_handbook/state/pipelines/capture_cache/abc123.yaml"
+        );
+        assert_eq!(
+            layout
+                .handoff_bundle()
+                .feature_slice_bundle_root("feature-123")
+                .as_str(),
+            "custom_artifacts/handoff/feature_slice/feature-123"
+        );
     }
 }
