@@ -1,0 +1,239 @@
+# Spec: Handbook Engine Extraction Phase 6 Slice 1 (Slice 6.1) - Migration Readiness Reassessment
+
+## Status
+
+- Planned validation/planning slice.
+- Phase 6 is the next authoritative step after the landed Phase 1 through Phase 5 extraction work.
+- This slice is a reassessment boundary only. It must not be treated as permission to start ownership/import implementation.
+
+## Assumptions
+
+1. The live repo currently satisfies the Phase 1 through Phase 5 migration gate in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, and any follow-up to this slice should start from that live truth rather than from stale pre-closeout docs.
+2. The current extracted workspace shape is real: `crates/engine`, `crates/pipeline`, `crates/flow`, and `crates/cli` are the primary owner layers, while `crates/compiler` remains a reviewed narrow compatibility/support seam.
+3. The bounded current runtime wedge is intentionally retained. Phase 6 must not reinterpret that bounded posture as a hidden regression unless live code or tests prove a real migration-gate failure.
+4. The main unresolved problem is no longer extraction mechanics; it is ownership/readiness reassessment: which crates remain handbook-owned and imported by Substrate versus which, if any, should move into Substrate ownership later.
+5. This slice should stay narrow and produce a final readiness call plus the next planning boundary. If it uncovers a genuine Phase 1 through Phase 5 regression, that regression should be named explicitly and routed back to a narrow repair seam rather than widened into Phase 6.
+6. Success is not “Substrate move planned.” Success is “the repo can now truthfully say whether it is ready for a separate ownership/integration planning family.”
+
+## Objective
+
+Reassess the post-extraction workspace against the root migration rule and decide whether the repo is ready for a separate ownership/integration plan.
+
+The maintainer needs this slice because the extraction work is now landed through the closeout seams, but the root plan intentionally deferred the final ownership call. Success means:
+
+- the Phase 1 through Phase 5 migration gate is revalidated against live repo truth
+- each extracted crate is reassessed against the handbook-domain versus substrate-domain ownership rule
+- the bounded current wedge is evaluated honestly without confusing intentional deferral with regression
+- the repo ends with an explicit READY / NOT READY style migration-readiness reassessment
+- the next planning artifact boundary is named, but ownership/import planning itself has not started yet
+
+## Tech Stack
+
+- Rust 2021 workspace
+- crates in scope:
+  - `handbook-engine`
+  - `handbook-pipeline`
+  - `handbook-flow`
+  - `handbook-cli`
+  - retained `handbook-compiler` compatibility/support seam
+- planning authorities:
+  - `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`
+  - `docs/specs/handbook-engine-extraction-slice-map.md`
+  - `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`
+- live validation surfaces:
+  - `crates/engine/src/**`
+  - `crates/pipeline/src/**`
+  - `crates/flow/src/**`
+  - `crates/cli/src/**`
+  - `crates/compiler/src/**`
+  - `crates/**/tests/**`
+
+## Commands
+
+Truth-surface freeze:
+
+```bash
+git status --short --branch
+git log --oneline --decorate -20
+```
+
+Root-authority sweep:
+
+```bash
+rg -n "Phase 6|Migration Gate|Exit criteria|Open Questions|next authoritative step" HANDBOOK_ENGINE_EXTRACTION_PLAN.md
+rg -n "Phase 6|next step|fully landed through Slice 5.3|Authority And Assumptions" docs/specs/handbook-engine-extraction-slice-map.md
+rg -n "Phase 6|verification wall|four-set closeout|next authoritative step" docs/specs/handbook-engine-extraction-closeout-four-set-map.md
+```
+
+Ownership-surface sweep:
+
+```bash
+rg -n "pub use|pub mod|mod " crates/engine/src/lib.rs crates/pipeline/src/lib.rs crates/flow/src/lib.rs crates/compiler/src/lib.rs crates/cli/src/main.rs
+cargo tree -p handbook-engine
+cargo tree -p handbook-pipeline
+cargo tree -p handbook-flow
+cargo tree -p handbook-compiler
+```
+
+Targeted evidence rails:
+
+```bash
+cargo test -p handbook-engine --test canonical_artifacts_ingest
+cargo test -p handbook-pipeline --test pipeline_catalog
+cargo test -p handbook-cli --test help_drift_guard
+```
+
+Final verification wall:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+## Project Structure
+
+```text
+HANDBOOK_ENGINE_EXTRACTION_PLAN.md                                   -> root migration-gate authority and Phase 6 decision rule
+docs/specs/handbook-engine-extraction-slice-map.md                   -> Phase -> Slice -> Packet authority through the landed extraction family
+docs/specs/handbook-engine-extraction-closeout-four-set-map.md       -> closeout-shape authority for how Phases 1 through 5 were honestly finished
+docs/specs/handbook-engine-extraction-phase-1-slice-5-*.md           -> layout/storage parameterization closeout authority
+docs/specs/handbook-engine-extraction-phase-2-slice-4-*.md           -> orchestration-target parameterization closeout authority
+docs/specs/handbook-engine-extraction-phase-4-slice-5-*.md           -> caller-rewire / compiler-narrowing closeout authority
+docs/specs/handbook-engine-extraction-phase-5-slice-3-*.md           -> CLI shell closeout authority
+crates/engine/src/lib.rs                                             -> engine-owned outward surface and typed layout contract posture
+crates/pipeline/src/lib.rs                                           -> pipeline-owned outward surface and supported-target/runtime posture
+crates/flow/src/lib.rs                                               -> flow-owned outward surface and middle-layer composition posture
+crates/compiler/src/lib.rs                                           -> retained compatibility/support seam that Phase 6 must reassess honestly
+crates/cli/src/main.rs                                               -> thin product-shell entrypoint proving CLI remains a shell, not the import target
+crates/**/tests/**                                                   -> live regression evidence for parameterization, target bounding, CLI shell stability, and retained-seam posture
+docs/specs/handbook-engine-extraction-phase-6-slice-1-*.md           -> this Phase 6 reassessment authority set
+```
+
+## Code Style
+
+Prefer explicit evidence-backed ownership decisions over optimistic prose or premature import plans.
+
+```rust
+match ownership_decision {
+    OwnershipDecision::HandbookOwnedImported => "clean adapter boundary; keep handbook as owner",
+    OwnershipDecision::MoveIntoSubstrate => "center of gravity is substrate-specific",
+    OwnershipDecision::Deferred => "not ready to move; keep ownership question open explicitly",
+}
+```
+
+Conventions:
+
+- name the live evidence behind each ownership call
+- distinguish handbook-domain logic from substrate-domain pressure
+- distinguish intentional boundedness from real regression
+- prefer explicit deferral over wishful certainty
+- if a real blocker exists, route it back to the narrow earlier seam that owns it
+
+## Testing Strategy
+
+- Framework: existing Rust integration/unit tests plus live authority/doc consistency checks
+- Primary test levels:
+  - root-authority sweep for Phase 6 wording and migration-gate truth
+  - crate-surface inspection for owner-layer boundaries
+  - targeted regression tests that anchor the most important completed seams
+  - full workspace verification wall
+- Coverage focus:
+  - Phases 1 through 5 remain green against the migration gate
+  - extracted crates are the real owner layers rather than `handbook-compiler`
+  - the supported target wedge remains intentionally bounded and validated
+  - CLI remains a thin shell rather than the future ownership target
+  - Phase 6 conclusions stay grounded in live code/tests/docs, not only in earlier planning claims
+- Coverage expectation:
+  - if targeted rails or the full wall fail, the slice cannot call migration readiness complete
+  - if the wall is green but ownership questions remain open, the slice must report that as a Phase 6 planning/output issue rather than overclaiming readiness
+
+## Slice Scope
+
+In scope:
+
+- revalidate the Phase 1 through Phase 5 migration gate against current repo truth
+- reassess `handbook-engine`, `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` posture against the root ownership rule
+- identify whether any residual handbook-product assumptions still prevent a clean later import boundary
+- decide whether the repo is ready for a separate ownership/integration planning family
+- name the exact next planning artifact boundary after the reassessment
+
+Out of scope:
+
+- moving crates into Substrate
+- writing the ownership/import plan itself
+- adding new supported pipelines, stages, or consumers
+- reopening a closed Phase 1 through Phase 5 seam without concrete live regression evidence
+- broad CLI redesign, runtime widening, or new product behavior
+
+## Authority Inputs
+
+- `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`
+- `docs/specs/handbook-engine-extraction-slice-map.md`
+- `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`
+- closeout authority sets:
+  - `docs/specs/handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout-spec.md`
+  - `docs/specs/handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout-plan.md`
+  - `docs/specs/handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout-tasks.md`
+  - `docs/specs/handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout-spec.md`
+  - `docs/specs/handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout-plan.md`
+  - `docs/specs/handbook-engine-extraction-phase-2-slice-4-orchestration-target-parameterization-closeout-tasks.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-spec.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-plan.md`
+  - `docs/specs/handbook-engine-extraction-phase-4-slice-5-caller-rewire-and-compiler-narrowing-tasks.md`
+  - `docs/specs/handbook-engine-extraction-phase-5-slice-3-cli-shell-closeout-spec.md`
+  - `docs/specs/handbook-engine-extraction-phase-5-slice-3-cli-shell-closeout-plan.md`
+  - `docs/specs/handbook-engine-extraction-phase-5-slice-3-cli-shell-closeout-tasks.md`
+- live crate surfaces:
+  - `crates/engine/src/lib.rs`
+  - `crates/pipeline/src/lib.rs`
+  - `crates/flow/src/lib.rs`
+  - `crates/compiler/src/lib.rs`
+  - `crates/cli/src/main.rs`
+- live evidence tests:
+  - `crates/engine/tests/canonical_artifacts_ingest.rs`
+  - `crates/pipeline/tests/pipeline_catalog.rs`
+  - `crates/cli/tests/help_drift_guard.rs`
+
+## Current Repo-Truth Questions This Reassessment Must Resolve
+
+| Surface | Current live posture | Phase 6 reassessment question |
+| --- | --- | --- |
+| `handbook-engine` | typed canonical truth and layout contract surface is exported from the engine crate | is this crate handbook-domain reusable core that Substrate should import rather than own? |
+| `handbook-pipeline` | target/runtime posture is catalog-backed and intentionally bounded | is this crate reusable enough to import as-is, or does its center of gravity still remain handbook-owned for longer? |
+| `handbook-flow` | middle-layer composition remains the least clearly settled domain seam | is this genuinely reusable workflow composition, or still handbook-specific enough to defer any ownership move? |
+| `handbook-cli` | CLI is now the thin product shell | should this remain purely handbook-owned and explicitly excluded from any ownership/import target? |
+| retained `handbook-compiler` seam | compiler remains narrowed compatibility/support glue rather than the implementation center | can later planning treat this as temporary retained glue to retire, and not as a future ownership target? |
+
+## Boundaries
+
+- Always:
+  - treat live repo truth as authoritative
+  - rerun the verification wall before making the final readiness call
+  - keep Phase 6 centered on reassessment, ownership criteria, and next-planning boundary
+  - separate “tests green” from “ownership decision complete”
+- Ask first:
+  - any code change
+  - any root-plan or slice-map wording change beyond what the human explicitly requested
+  - starting the follow-on ownership/import planning family
+- Never:
+  - treat bounded current runtime posture as automatic proof that pipeline/flow belong in Substrate
+  - start ownership/import implementation inside this slice
+  - reopen closed Phase 1 through Phase 5 work without concrete live regression evidence
+  - call migration readiness complete while crate-by-crate ownership posture remains implicit
+
+## Success Criteria
+
+- The Phase 1 through Phase 5 migration gate is revalidated against live repo truth.
+- The full verification wall is green, or any failure is explicitly named as a blocker.
+- Each crate in the extracted workspace has an explicit ownership/readiness assessment.
+- The retained `handbook-compiler` seam is described honestly as either temporary glue to retire later or as a still-blocking ambiguity.
+- The slice ends with a clear readiness verdict for separate ownership/integration planning.
+- The exact next planning boundary is named without beginning that follow-on work.
+
+## Open Questions
+
+- Should `handbook-pipeline` remain handbook-owned longer than `handbook-engine`, even if Substrate can consume it through a clean adapter boundary?
+- Is `handbook-flow` mature enough to classify now, or should Phase 6 explicitly defer that ownership call longer than engine/pipeline?
+- Which parts of `rendering`, `refusal`, and `error` still need ownership clarification before a later import plan can be honest?
+- At what point should retained `handbook-compiler` support glue be retired instead of remaining as a transition seam?
