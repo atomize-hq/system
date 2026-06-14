@@ -6,7 +6,8 @@
 - This plan defines how to decide whether the repo is ready for a separate ownership/integration planning family.
 - The packet order below is sequential by default and should stay narrow unless live regression evidence forces a different seam.
 - Packet 6.1.2's ownership matrix is now captured in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
-- Packet 6.1.3's final verdict is now NOT READY because `handbook-engine` still carries handbook-product assumptions at the boundary; Packet 6.1.4 remains pending.
+- Packet 6.1.3's final verdict is now NOT READY because `handbook-engine` still carries handbook-product assumptions at the boundary.
+- Packet 6.1.4 now routes that blocker to the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam instead of starting a new ownership/integration planning family.
 
 ## Objective
 
@@ -101,6 +102,13 @@ Output:
 - exact next planning family name and scope if READY
 - exact blocker seam name and scope if NOT READY
 - no ownership/import plan authored yet
+
+Landed Packet 6.1.4 result:
+
+- Exact next-boundary statement: Packet 6.1.3 is **NOT READY**, so the next planning boundary is **not** the ownership/integration planning family; it is the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam.
+- Exact blocker seam scope: remove or parameterize the remaining handbook-product assumptions still exposed at the `handbook-engine` boundary by `handbook_product_canonical_layout_contract` and the associated charter / project-context / environment-inventory canonical-layout vocabulary.
+- Why this seam and not another one: the blocker is a reusable-layout contract assumption problem, so it belongs to Set 1 / Slice 1.5 rather than target parameterization, caller/compiler narrowing, or CLI shell closeout.
+- Still out of scope here: authoring that repair triplet, reopening other landed closeout sets, or beginning the later ownership/import planning family.
 
 ## Risks And Mitigations
 

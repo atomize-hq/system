@@ -9,7 +9,8 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
 - Packet 6.1.1 is now validated against committed HEAD `5644ff7`.
 - Packet 6.1.2 is now recorded against committed Packet 6.1.1 truth at `30b22d5`; at Packet 6.1.2 capture time, unrelated local edits in `AGENTS.md` and `CLAUDE.md` were preserved outside packet scope.
-- Packet 6.1.3 is now landed with a NOT READY verdict because `handbook-engine` still carries handbook-product assumptions at the current boundary; Packet 6.1.4 remains pending.
+- Packet 6.1.3 is now landed with a NOT READY verdict because `handbook-engine` still carries handbook-product assumptions at the current boundary.
+- Packet 6.1.4 now lands by routing that blocker to the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam instead of starting any ownership/import planning family.
 
 ## Implementation Authority Used
 
@@ -69,15 +70,17 @@ This slice is a reassessment seam. It should validate readiness and define the n
 
 ## Packet 6.1.4: Name The Next Planning Boundary
 
-- [ ] Task: If READY, name the exact next planning family without starting it
+- [x] Task: If READY, name the exact next planning family without starting it
   - Acceptance: The output names the follow-on ownership/integration planning family clearly enough for a future session to start it cleanly, but does not generate that family inside Slice 6.1.
   - Verify: Manual review that the named next family is distinct from this reassessment slice and does not reopen a closed earlier seam.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
+  - Completion note: Packet 6.1.3 is explicitly **NOT READY**, so Packet 6.1.4 intentionally does **not** name or start any follow-on ownership/integration planning family. This closes the READY branch without silently continuing into it.
 
-- [ ] Task: If NOT READY, route the blocker back to a narrow earlier seam rather than vague “more Phase 6”
+- [x] Task: If NOT READY, route the blocker back to a narrow earlier seam rather than vague “more Phase 6”
   - Acceptance: Any blocking regression is attached to a concrete earlier seam owner (for example layout parameterization, target parameterization, caller/compiler narrowing, or CLI shell closeout) instead of being left as generic unfinished reassessment work.
   - Verify: Manual review against `docs/specs/handbook-engine-extraction-closeout-four-set-map.md` and the relevant landed closeout triplet.
   - Files: `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
+  - Completion note: Packet 6.1.4 routes the blocker to the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam because Set 1 owns replacing fixed handbook-product layout assumptions inside reusable internals, and the remaining blocker is the exported `handbook_product_canonical_layout_contract` plus the associated charter / project-context / environment-inventory canonical-layout vocabulary still exposed at the `handbook-engine` boundary. No widening into target parameterization, caller/compiler narrowing, CLI shell closeout, or ownership/import planning is authorized here.
 
 ## Human Review Gate
 

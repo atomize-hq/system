@@ -7,7 +7,7 @@
 - This slice is a reassessment boundary only. It must not be treated as permission to start ownership/import implementation.
 - Packet 6.1.2 ownership reassessment is now recorded in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
 - Packet 6.1.3 now resolves the readiness verdict and explicit deferrals below.
-- Packet 6.1.4 remains pending and is still out of scope for this slice update.
+- Packet 6.1.4 now names the next boundary explicitly: because Packet 6.1.3 is **NOT READY**, the blocker routes back to the earlier Phase 1 Slice 1.5 layout-parameterization closeout seam rather than starting any ownership/integration planning family.
 
 ## Assumptions
 
@@ -284,6 +284,16 @@ Verdict basis:
 ### Retained `handbook-compiler` readiness call
 
 For Phase 6 readiness, retained `handbook-compiler` is temporary transition glue, not a still-blocking ownership ambiguity. The only deferred work is when and how later planning narrows or retires that glue.
+
+## Packet 6.1.4 landed next-boundary statement
+
+**Exact next-boundary statement:** Packet 6.1.3 is **NOT READY**, so the next planning boundary is **not** a separate ownership/integration planning family. The next honest boundary is the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam, scoped only to removing or parameterizing the remaining handbook-product assumptions still exposed at the `handbook-engine` boundary by `handbook_product_canonical_layout_contract` and the associated charter / project-context / environment-inventory canonical-layout vocabulary.
+
+Why this is the right earlier seam:
+
+- The landed Set 1 / Slice 1.5 closeout already owns the requirement that reusable internals stop carrying fixed handbook-product layout assumptions as their active contract.
+- Packet 6.1.3's blocker is exactly that remaining assumption class at the `handbook-engine` boundary, not a target-definition problem, caller/compiler-ownership problem, or CLI-shell ownership problem.
+- Therefore Packet 6.1.4 routes the blocker back to that narrow earlier seam and stops there; it does **not** silently reopen Set 2 / Set 3 / Set 4 and does **not** begin the later ownership/import planning family.
 
 ## Success Criteria
 
