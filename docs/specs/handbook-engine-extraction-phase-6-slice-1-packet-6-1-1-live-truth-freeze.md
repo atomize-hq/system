@@ -5,10 +5,14 @@ This note freezes the live repo truth used to land Packet 6.1.1 for Phase 6 Slic
 ## Frozen repo posture
 
 - Branch: `feat/seam-extraction`
-- HEAD at validation time: `5644ff7` (`Add Phase 6 packet prompt artifact`)
-- Tracking: `origin/feat/seam-extraction`
-- Working tree at validation time: clean (`git status --short --branch` returned only the branch header)
-- Validation basis: committed HEAD truth before any Packet 6.1.1 documentation edits
+- HEAD at validation time: `a883d16` (`Revalidate Phase 6 readiness after layout boundary removal`)
+- Tracking: `origin/feat/seam-extraction` with local HEAD ahead by 2 commits
+- Working tree at validation time: dirty because four unrelated, untracked follow-on planning docs were already present and preserved outside Packet 6.1.1 scope:
+  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-packet-prompts.md`
+  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-plan.md`
+  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-spec.md`
+  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-tasks.md`
+- Validation basis: unstaged local truth at the current checkout; Packet 6.1.1 preserved the unrelated local docs and did not treat them as packet-owned changes
 
 Evidence commands:
 
@@ -52,4 +56,6 @@ Full verification wall:
 - No live regression was found in the representative rails or the full verification wall.
 - No true blocker was found for the Phase 1 through Phase 5 migration gate.
 - No production-code repair was warranted, so Packet 6.1.1 remains validation/documentation only.
+- The root plan, slice map, and closeout map still agree that Phase 6 is the next authoritative step.
+- Packet 6.1.1 establishes an honest Phase 6 baseline from current local repo truth even though the tree was not clean.
 - Packet 6.1.1 stops at the frozen truth and green wall; it does not begin Packet 6.1.2, 6.1.3, or 6.1.4.
