@@ -5,12 +5,12 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 ## Status
 
 - Planned reassessment task ledger.
-- This checklist exists to execute Phase 6 validation and produce the final planning boundary.
+- This checklist exists to execute Phase 6 validation and produce the final readiness verdict plus explicit deferrals.
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
 - Packet 6.1.1 is now revalidated against unstaged local truth at HEAD `a883d16`; unrelated unstaged `AGENTS.md` and `CLAUDE.md` edits plus four untracked `handbook-engine-extraction-phase-6-ownership-and-integration-planning-{spec,plan,tasks,packet-prompts}.md` docs were preserved outside packet scope.
 - Packet 6.1.2 is now recorded against committed Packet 6.1.1 truth at `30b22d5`; at Packet 6.1.2 capture time, unrelated local edits in `AGENTS.md` and `CLAUDE.md` were preserved outside packet scope.
-- Packet 6.1.3 is now revalidated at committed HEAD `aa882af42792a250cc02a6740bd1e2123178caff` with a READY verdict because the prior `handbook-engine` boundary blocker is cleared in live repo truth.
-- Packet 6.1.4 now names the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family while explicitly not starting or authoring it here.
+- Packet 6.1.3 is now revalidated at committed HEAD `c8d9e7222b3b2e436a9484fc59f6ec923f2a01b6` with a READY verdict because the prior `handbook-engine` boundary blocker remains cleared in live repo truth.
+- Packet 6.1.4 remains deferred; any exact future ownership/integration-planning family naming is outside this packet.
 
 ## Implementation Authority Used
 
@@ -24,7 +24,7 @@ Before execution, this slice is grounded in:
 - the landed Phase 4 Slice 4.5 closeout triplet
 - the landed Phase 5 Slice 5.3 closeout triplet
 
-This slice is a reassessment seam. It should validate readiness and define the next planning boundary without silently widening into implementation or into the follow-on ownership/import planning family.
+This slice is a reassessment seam. It should validate readiness and make later planning explicit without silently widening into implementation or into the follow-on ownership/import planning family.
 
 ## Packet 6.1.1: Freeze Live Repo Truth And Revalidate The Migration Gate
 
@@ -66,22 +66,22 @@ This slice is a reassessment seam. It should validate readiness and define the n
   - Acceptance: The slice ends with an explicit readiness call for separate ownership/integration planning, or with a named narrow blocker seam if the repo is not ready; the output does not silently spill into authoring the next family.
   - Verify: Manual review against the Phase 6 success criteria and planned exit conditions in the spec/plan.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Packet 6.1.3 now lands a READY verdict because the old `handbook-engine` blocker is cleared by live repo truth at `aa882af42792a250cc02a6740bd1e2123178caff`; the remaining open questions stay separate from readiness, and retained `handbook-compiler` remains temporary transition glue rather than a readiness ambiguity.
+  - Completion note: Packet 6.1.3 now lands a READY verdict because the old `handbook-engine` blocker stays cleared in live repo truth at `c8d9e7222b3b2e436a9484fc59f6ec923f2a01b6`; the remaining open questions stay separate from readiness, retained `handbook-compiler` remains temporary transition glue rather than a readiness ambiguity, and naming any exact follow-on planning family remains explicitly deferred.
 
-## Packet 6.1.4: Name The Next Planning Boundary
+## Packet 6.1.4: Name The Next Planning Boundary (Deferred, Not Started Here)
 
-- [x] Task: If READY, name the exact next planning family without starting it
+- [ ] Task: If READY, name the exact next planning family without starting it
   - Acceptance: The output names the follow-on ownership/integration planning family clearly enough for a future session to start it cleanly, but does not generate that family inside Slice 6.1.
   - Verify: Manual review that the named next family is distinct from this reassessment slice and does not reopen a closed earlier seam.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Packet 6.1.3 is explicitly **READY**, so Packet 6.1.4 now names the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family clearly enough for a later session to start it cleanly, while still not starting or authoring that family here.
+  - Deferred note: Packet 6.1.3 is explicitly **READY**, but this packet intentionally stops before naming the exact future planning family.
 
-- [x] Task: If NOT READY, route the blocker back to a narrow earlier seam rather than vague “more Phase 6”
+- [ ] Task: If NOT READY, route the blocker back to a narrow earlier seam rather than vague “more Phase 6”
   - Acceptance: Any blocking regression is attached to a concrete earlier seam owner (for example layout parameterization, target parameterization, caller/compiler narrowing, or CLI shell closeout) instead of being left as generic unfinished reassessment work.
   - Verify: Manual review against `docs/specs/handbook-engine-extraction-closeout-four-set-map.md` and the relevant landed closeout triplet.
   - Files: `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Not taken after revalidation at `aa882af42792a250cc02a6740bd1e2123178caff`: Packet 6.1.3 is READY, so no earlier-seam blocker-routing remains. The next honest boundary is ownership/integration planning, not Phase 1.5 repair, target parameterization, caller/compiler narrowing, or CLI shell closeout.
+  - Deferred note: Not taken here because Packet 6.1.3 is READY; if future evidence ever flips that verdict, the blocker must be routed back to a concrete earlier seam instead of vague “more Phase 6”.
 
 ## Human Review Gate
 
-Do not start or author the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family from this task ledger until the human reviews the Phase 6 verdict and explicitly approves that next step.
+Do not start or author any follow-on ownership/integration planning family from this task ledger until the human reviews the Phase 6 verdict and explicitly approves that next step.

@@ -6,12 +6,12 @@
 - This plan defines how to decide whether the repo is ready for a separate ownership/integration planning family.
 - The packet order below is sequential by default and should stay narrow unless live regression evidence forces a different seam.
 - Packet 6.1.2's ownership matrix is now captured in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
-- Packet 6.1.3's final verdict is now READY because the prior `handbook-engine` boundary blocker is cleared in live repo truth at `aa882af42792a250cc02a6740bd1e2123178caff`.
-- Packet 6.1.4 now names the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family, while still stopping short of authoring it.
+- Packet 6.1.3's final verdict remains READY because the prior `handbook-engine` boundary blocker stays cleared in current live repo truth.
+- Packet 6.1.4 remains deferred; this slice now stops at Packet 6.1.3's readiness verdict and explicit deferrals.
 
 ## Objective
 
-Revalidate the migration gate, reassess crate ownership posture, and finish with an explicit Phase 6 readiness verdict plus the next planning boundary.
+Revalidate the migration gate, reassess crate ownership posture, and finish with an explicit Phase 6 readiness verdict plus an explicit deferral set.
 
 Spec reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-spec.md](./handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-spec.md)
 
@@ -30,9 +30,9 @@ Spec reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
    - decides whether the repo is ready for a separate ownership/integration planning family
    - distinguishes true blockers from intentional deferrals
 
-4. Next-planning boundary
-   - names the exact follow-on artifact family if Phase 6 finishes READY
-   - or names the narrow repair seam if Phase 6 discovers a real blocker
+4. Explicit deferral boundary
+   - records what later ownership/integration planning work is justified if Phase 6 finishes READY
+   - keeps naming or authoring the follow-on family out of scope for Packet 6.1.3
 
 ## Planned Packet Order
 
@@ -83,13 +83,14 @@ Landed Packet 6.1.3 result:
 
 - Final verdict: **READY** for a separate ownership/integration planning family.
 - Prior blocker cleared: `handbook-engine` no longer exposes the handbook-product-named layout boundary; live repo truth now uses `default_canonical_layout_contract` instead, and `handbook-flow` fallback sites consume that generic default owner.
-- No production-code regression was found: `canonical_artifacts_ingest`, `freshness_computation`, `baseline_validation`, `resolver_core`, `help_drift_guard`, and `cargo check --workspace` all passed at `aa882af42792a250cc02a6740bd1e2123178caff`.
+- Packet 6.1.1's verification wall remains the authoritative regression evidence; this packet did not rerun unchanged expensive commands.
+- Cheap live-truth revalidation at committed HEAD `c8d9e7222b3b2e436a9484fc59f6ec923f2a01b6` still shows no `handbook_product_canonical_layout_contract` usage in `crates/engine` or `crates/flow`, while `default_canonical_layout_contract` remains the live engine export and flow fallback path.
 - Handbook-owned/imported now: `handbook-engine` and `handbook-pipeline`.
 - Handbook-side deferrals that remain explicit but non-blocking: `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`.
 - Retained `handbook-compiler` is classified as temporary transition glue rather than a remaining readiness ambiguity.
-- Still deferred: authoring the ownership/integration planning family itself, any code repair, and any actual crate-move or runtime-widening work.
+- Still deferred: naming or authoring the ownership/integration planning family itself, any code repair, and any actual crate-move or runtime-widening work.
 
-### Packet 6.1.4: Name the next planning artifact boundary without starting it
+### Packet 6.1.4: Name the next planning artifact boundary without starting it (deferred; not landed here)
 
 Why last:
 
@@ -97,18 +98,17 @@ Why last:
 - if READY, the next artifact family must be named clearly enough that a future session can start cleanly
 - if NOT READY, the next artifact must be the narrow repair seam rather than a vague “more Phase 6”
 
-Output:
+Output when explicitly approved later:
 
 - exact next planning family name and scope if READY
 - exact blocker seam name and scope if NOT READY
 - no ownership/import plan authored yet
 
-Landed Packet 6.1.4 result:
+Deferred Packet 6.1.4 posture:
 
-- Exact next-boundary statement: Packet 6.1.3 is **READY**, so the next planning boundary is the separate `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family: `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-{spec,plan,tasks}.md`.
-- Exact family scope: decide per-crate ownership posture and import/integration boundaries for `handbook-engine`, `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`, without moving crates or widening runtime behavior in this packet.
-- Why this family and not another seam: the prior reusable-layout boundary blocker is cleared, so the remaining work is now ownership/integration planning rather than Phase 1.5 repair, target parameterization, caller/compiler narrowing, or CLI shell closeout.
-- Still out of scope here: authoring that triplet, reopening landed closeout sets, or beginning implementation.
+- Not started here.
+- Packet 6.1.3 only establishes READY for a separate future ownership/integration planning family.
+- Exact family naming, artifact selection, and any later planning packet beyond the readiness/deferral boundary remain out of scope for this packet.
 
 ## Risks And Mitigations
 
@@ -137,8 +137,8 @@ Mitigation:
 
 Mitigation:
 
-- end the slice at the planning boundary
-- name the follow-on family but do not author or implement it inside this slice
+- end the slice at the readiness verdict and explicit deferrals
+- do not name or author the follow-on family inside this packet
 
 ### Risk: a real blocker is found but gets buried as “open questions”
 
@@ -213,5 +213,5 @@ Slice 6.1 should be considered complete only when all of the following are true:
 - the Phase 1 through Phase 5 migration gate has been revalidated against live repo truth
 - the verification wall is green, or any failure is explicitly named as a blocker
 - `handbook-engine`, `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` each have an explicit ownership/readiness posture
-- the slice ends with a concrete next-planning boundary
+- the slice ends with an explicit readiness verdict and explicit deferral set
 - no follow-on ownership/import planning has started yet inside this slice
