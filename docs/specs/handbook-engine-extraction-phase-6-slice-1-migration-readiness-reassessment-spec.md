@@ -278,7 +278,7 @@ Verdict basis:
 ### Explicit deferrals that remain out of scope
 
 - Authoring any separate future ownership/integration planning family itself.
-- Naming the exact future ownership/integration planning family or treating any local draft docs for it as landed authority.
+- Treating any local draft docs for the named follow-on ownership/integration planning family as landed authority, or authoring/revising that family inside this packet.
 - Any production-code repair, crate move, or runtime widening.
 - Any decision to move `handbook-flow`, `handbook-cli`, or retained `handbook-compiler` out of handbook ownership.
 - Any retirement/narrowing work for retained `handbook-compiler` beyond documenting it as transition glue.

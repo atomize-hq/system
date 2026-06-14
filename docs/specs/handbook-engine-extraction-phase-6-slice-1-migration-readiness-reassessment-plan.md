@@ -140,7 +140,7 @@ Mitigation:
 Mitigation:
 
 - end the slice at the readiness verdict and explicit deferrals
-- do not name or author the follow-on family inside this packet
+- allow Packet 6.1.4 to name the follow-on family only as the next planning boundary, but do not author it or widen into implementation
 
 ### Risk: a real blocker is found but gets buried as “open questions”
 
