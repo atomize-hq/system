@@ -7,7 +7,7 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 - Planned reassessment task ledger.
 - This checklist exists to execute Phase 6 validation and produce the final readiness verdict plus explicit deferrals.
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
-- Packet 6.1.1 is now revalidated against unstaged local truth at HEAD `a883d16`; unrelated unstaged `AGENTS.md` and `CLAUDE.md` edits plus four untracked `handbook-engine-extraction-phase-6-ownership-and-integration-planning-{spec,plan,tasks,packet-prompts}.md` docs were preserved outside packet scope.
+- Packet 6.1.1 is now revalidated against unstaged local truth at HEAD `a883d16`; unrelated unstaged `AGENTS.md` and `CLAUDE.md` edits plus four untracked follow-on planning docs were preserved outside packet scope.
 - Packet 6.1.2 is now recorded against committed Packet 6.1.1 truth at `30b22d5`; at Packet 6.1.2 capture time, unrelated local edits in `AGENTS.md` and `CLAUDE.md` were preserved outside packet scope.
 - Packet 6.1.3 is now revalidated at committed HEAD `c8d9e7222b3b2e436a9484fc59f6ec923f2a01b6` with a READY verdict because the prior `handbook-engine` boundary blocker remains cleared in live repo truth.
 - Packet 6.1.4 remains deferred; any exact future ownership/integration-planning family naming is outside this packet.
