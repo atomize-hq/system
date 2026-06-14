@@ -9,8 +9,8 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
 - Packet 6.1.1 is now validated against committed HEAD `5644ff7`.
 - Packet 6.1.2 is now recorded against committed Packet 6.1.1 truth at `30b22d5`; at Packet 6.1.2 capture time, unrelated local edits in `AGENTS.md` and `CLAUDE.md` were preserved outside packet scope.
-- Packet 6.1.3 is now landed with a NOT READY verdict because `handbook-engine` still carries handbook-product assumptions at the current boundary.
-- Packet 6.1.4 now lands by routing that blocker to the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam instead of starting any ownership/import planning family.
+- Packet 6.1.3 is now revalidated at committed HEAD `aa882af42792a250cc02a6740bd1e2123178caff` with a READY verdict because the prior `handbook-engine` boundary blocker is cleared in live repo truth.
+- Packet 6.1.4 now names the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family while explicitly not starting or authoring it here.
 
 ## Implementation Authority Used
 
@@ -36,9 +36,9 @@ This slice is a reassessment seam. It should validate readiness and define the n
 
 - [x] Task: Re-run the representative proof rails and full workspace wall before any final verdict
   - Acceptance: The representative closeout rails and the full verification wall are green, or any failure is captured as a concrete blocker rather than omitted from the Phase 6 call.
-  - Verify: `cargo test -p handbook-engine --test canonical_artifacts_ingest && cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-cli --test help_drift_guard && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+  - Verify: `cargo test -p handbook-engine --test canonical_artifacts_ingest && cargo test -p handbook-engine --test freshness_computation && cargo test -p handbook-engine --test baseline_validation && cargo test -p handbook-flow --test resolver_core && cargo test -p handbook-cli --test help_drift_guard && cargo check --workspace`
   - Files: `crates/engine/tests/canonical_artifacts_ingest.rs`, `crates/pipeline/tests/pipeline_catalog.rs`, `crates/cli/tests/help_drift_guard.rs`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-1-live-truth-freeze.md`
-  - Completion note: All required representative rails and the full verification wall passed; no blocker or production regression was found during Packet 6.1.1 validation.
+  - Completion note: This revalidation pass reran `canonical_artifacts_ingest`, `freshness_computation`, `baseline_validation`, `resolver_core`, `help_drift_guard`, and `cargo check --workspace`; all passed cleanly at committed HEAD `aa882af42792a250cc02a6740bd1e2123178caff`, so no blocker or production regression was found during the Packet 6.1.3/6.1.4 verdict refresh.
 
 ## Packet 6.1.2: Reassess Extracted Crate Boundaries Against The Ownership Rule
 
@@ -60,13 +60,13 @@ This slice is a reassessment seam. It should validate readiness and define the n
   - Acceptance: The already-authored Packet 6.1.2 matrix is used to separate blockers from non-blocking open questions before the final verdict; no crate is left implicit.
   - Verify: Manual review against `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` Phase 6 checklist, the live crate surfaces named in the spec, and `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
   - Files: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-tasks.md`
-  - Completion note: Packet 6.1.3 now makes every crate explicit: `handbook-engine` stays handbook-owned/imported but is also the named readiness blocker because handbook-product assumptions remain at its boundary; `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` are preserved as explicit non-blocking handbook-side postures or deferrals.
+  - Completion note: Packet 6.1.3 now makes every crate explicit without leaving any blocker implicit: `handbook-engine` stays handbook-owned/imported and is no longer blocking because the handbook-product-named layout boundary is gone in live code; `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` remain explicit non-blocking handbook-side postures or deferrals.
 
 - [x] Task: Write the final Phase 6 verdict without beginning the follow-on planning family
   - Acceptance: The slice ends with an explicit readiness call for separate ownership/integration planning, or with a named narrow blocker seam if the repo is not ready; the output does not silently spill into authoring the next family.
   - Verify: Manual review against the Phase 6 success criteria and planned exit conditions in the spec/plan.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Packet 6.1.3 lands a NOT READY verdict with a named `handbook-engine` blocker, keeps the other non-blocking open questions separate, and states that retained `handbook-compiler` is temporary transition glue rather than a readiness ambiguity.
+  - Completion note: Packet 6.1.3 now lands a READY verdict because the old `handbook-engine` blocker is cleared by live repo truth at `aa882af42792a250cc02a6740bd1e2123178caff`; the remaining open questions stay separate from readiness, and retained `handbook-compiler` remains temporary transition glue rather than a readiness ambiguity.
 
 ## Packet 6.1.4: Name The Next Planning Boundary
 
@@ -74,14 +74,14 @@ This slice is a reassessment seam. It should validate readiness and define the n
   - Acceptance: The output names the follow-on ownership/integration planning family clearly enough for a future session to start it cleanly, but does not generate that family inside Slice 6.1.
   - Verify: Manual review that the named next family is distinct from this reassessment slice and does not reopen a closed earlier seam.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Packet 6.1.3 is explicitly **NOT READY**, so Packet 6.1.4 intentionally does **not** name or start any follow-on ownership/integration planning family. This closes the READY branch without silently continuing into it.
+  - Completion note: Packet 6.1.3 is explicitly **READY**, so Packet 6.1.4 now names the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family clearly enough for a later session to start it cleanly, while still not starting or authoring that family here.
 
 - [x] Task: If NOT READY, route the blocker back to a narrow earlier seam rather than vague “more Phase 6”
   - Acceptance: Any blocking regression is attached to a concrete earlier seam owner (for example layout parameterization, target parameterization, caller/compiler narrowing, or CLI shell closeout) instead of being left as generic unfinished reassessment work.
   - Verify: Manual review against `docs/specs/handbook-engine-extraction-closeout-four-set-map.md` and the relevant landed closeout triplet.
   - Files: `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Packet 6.1.4 routes the blocker to the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam because Set 1 owns replacing fixed handbook-product layout assumptions inside reusable internals, and the remaining authorized repair boundary is the active `handbook_product_canonical_layout_contract`-level reusable-layout assumption still exposed at the `handbook-engine` boundary. The associated charter / project-context / environment-inventory canonical-layout vocabulary is only evidence for that blocker or a later follow-up question, not newly authorized Slice 1.5 scope. No widening into target parameterization, caller/compiler narrowing, CLI shell closeout, or ownership/import planning is authorized here.
+  - Completion note: Not taken after revalidation at `aa882af42792a250cc02a6740bd1e2123178caff`: Packet 6.1.3 is READY, so no earlier-seam blocker-routing remains. The next honest boundary is ownership/integration planning, not Phase 1.5 repair, target parameterization, caller/compiler narrowing, or CLI shell closeout.
 
 ## Human Review Gate
 
-Do not start the follow-on ownership/import planning family from this task ledger until the human reviews the Phase 6 verdict and explicitly approves that next step.
+Do not start or author the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family from this task ledger until the human reviews the Phase 6 verdict and explicitly approves that next step.

@@ -6,8 +6,8 @@
 - This plan defines how to decide whether the repo is ready for a separate ownership/integration planning family.
 - The packet order below is sequential by default and should stay narrow unless live regression evidence forces a different seam.
 - Packet 6.1.2's ownership matrix is now captured in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
-- Packet 6.1.3's final verdict is now NOT READY because `handbook-engine` still carries handbook-product assumptions at the boundary.
-- Packet 6.1.4 now routes that blocker to the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam instead of starting a new ownership/integration planning family.
+- Packet 6.1.3's final verdict is now READY because the prior `handbook-engine` boundary blocker is cleared in live repo truth at `aa882af42792a250cc02a6740bd1e2123178caff`.
+- Packet 6.1.4 now names the follow-on `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family, while still stopping short of authoring it.
 
 ## Objective
 
@@ -81,13 +81,13 @@ Output:
 
 Landed Packet 6.1.3 result:
 
-- Final verdict: **NOT READY** for a separate ownership/integration planning family.
-- Named blocker: `handbook-engine` still carries handbook-product assumptions at its current boundary, so the root Phase 6 checklist is not yet satisfied.
-- No production-code regression was found in Packet 6.1.1’s verification wall; the blocker is architectural/readiness truth, not failing runtime proof.
-- Handbook-owned/imported now: `handbook-pipeline`.
-- Handbook-side blocker or deferrals: `handbook-engine` is the blocker; `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` remain explicit handbook-side deferrals.
+- Final verdict: **READY** for a separate ownership/integration planning family.
+- Prior blocker cleared: `handbook-engine` no longer exposes the handbook-product-named layout boundary; live repo truth now uses `default_canonical_layout_contract` instead, and `handbook-flow` fallback sites consume that generic default owner.
+- No production-code regression was found: `canonical_artifacts_ingest`, `freshness_computation`, `baseline_validation`, `resolver_core`, `help_drift_guard`, and `cargo check --workspace` all passed at `aa882af42792a250cc02a6740bd1e2123178caff`.
+- Handbook-owned/imported now: `handbook-engine` and `handbook-pipeline`.
+- Handbook-side deferrals that remain explicit but non-blocking: `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`.
 - Retained `handbook-compiler` is classified as temporary transition glue rather than a remaining readiness ambiguity.
-- Still deferred: any ownership/integration planning artifact authoring, any code repair, and any actual crate-move or runtime-widening work.
+- Still deferred: authoring the ownership/integration planning family itself, any code repair, and any actual crate-move or runtime-widening work.
 
 ### Packet 6.1.4: Name the next planning artifact boundary without starting it
 
@@ -105,10 +105,10 @@ Output:
 
 Landed Packet 6.1.4 result:
 
-- Exact next-boundary statement: Packet 6.1.3 is **NOT READY**, so the next planning boundary is **not** the ownership/integration planning family; it is the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam.
-- Exact blocker seam scope: parameterize or remove the active reusable-layout assumptions still exposed at the `handbook-engine` boundary through `handbook_product_canonical_layout_contract`. The associated charter / project-context / environment-inventory canonical-layout vocabulary is blocker evidence or a later follow-up question, not newly authorized Slice 1.5 scope.
-- Why this seam and not another one: the blocker is a reusable-layout contract assumption problem, so it belongs to Set 1 / Slice 1.5 rather than target parameterization, caller/compiler narrowing, or CLI shell closeout.
-- Still out of scope here: authoring that repair triplet, reopening other landed closeout sets, or beginning the later ownership/import planning family.
+- Exact next-boundary statement: Packet 6.1.3 is **READY**, so the next planning boundary is the separate `handbook-engine-extraction-phase-6-ownership-and-integration-planning` family: `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-{spec,plan,tasks}.md`.
+- Exact family scope: decide per-crate ownership posture and import/integration boundaries for `handbook-engine`, `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`, without moving crates or widening runtime behavior in this packet.
+- Why this family and not another seam: the prior reusable-layout boundary blocker is cleared, so the remaining work is now ownership/integration planning rather than Phase 1.5 repair, target parameterization, caller/compiler narrowing, or CLI shell closeout.
+- Still out of scope here: authoring that triplet, reopening landed closeout sets, or beginning implementation.
 
 ## Risks And Mitigations
 
@@ -170,8 +170,11 @@ Confirm targeted representative rails still pass:
 
 ```bash
 cargo test -p handbook-engine --test canonical_artifacts_ingest
-cargo test -p handbook-pipeline --test pipeline_catalog
+cargo test -p handbook-engine --test freshness_computation
+cargo test -p handbook-engine --test baseline_validation
+cargo test -p handbook-flow --test resolver_core
 cargo test -p handbook-cli --test help_drift_guard
+cargo check --workspace
 ```
 
 ### Checkpoint 3: Ownership posture is explicit for every crate
