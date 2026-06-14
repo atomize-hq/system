@@ -7,12 +7,16 @@ This note freezes the live repo truth used to land Packet 6.1.1 for Phase 6 Slic
 - Branch: `feat/seam-extraction`
 - HEAD at validation time: `a883d16` (`Revalidate Phase 6 readiness after layout boundary removal`)
 - Tracking: `origin/feat/seam-extraction` with local HEAD ahead by 2 commits
-- Working tree at validation time: dirty because four unrelated, untracked follow-on planning docs were already present and preserved outside Packet 6.1.1 scope:
-  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-packet-prompts.md`
-  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-plan.md`
-  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-spec.md`
-  - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-tasks.md`
-- Validation basis: unstaged local truth at the current checkout; Packet 6.1.1 preserved the unrelated local docs and did not treat them as packet-owned changes
+- Working tree at validation time: dirty because unrelated local changes were already present and preserved outside Packet 6.1.1 scope:
+  - unstaged tracked docs:
+    - `AGENTS.md`
+    - `CLAUDE.md`
+  - untracked follow-on planning docs:
+    - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-packet-prompts.md`
+    - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-plan.md`
+    - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-spec.md`
+    - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-tasks.md`
+- Validation basis: unstaged local truth at the current checkout; Packet 6.1.1 preserved those unrelated local edits and docs and did not treat them as packet-owned changes
 
 Evidence commands:
 
