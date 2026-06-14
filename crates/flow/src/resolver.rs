@@ -7,7 +7,7 @@ use crate::packet_result::{
     PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
 };
 use handbook_engine::{
-    baseline_artifact_validation_for_path, handbook_product_canonical_layout_contract,
+    baseline_artifact_validation_for_path, default_canonical_layout_contract,
     validate_charter_markdown, validate_environment_inventory_markdown,
     validate_project_context_markdown, ArtifactIngestIssueKind, ArtifactManifest, ArtifactPresence,
     BaselineArtifactValidation, BaselineArtifactVerdict, CanonicalArtifact, CanonicalArtifactKind,
@@ -1309,7 +1309,7 @@ fn compute_refusal(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => handbook_product_canonical_layout_contract().system_root_relative(),
+            None => default_canonical_layout_contract().system_root_relative(),
         };
 
         return Some(ResolverRefusal {
@@ -1465,7 +1465,7 @@ fn compute_blockers(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => handbook_product_canonical_layout_contract().system_root_relative(),
+            None => default_canonical_layout_contract().system_root_relative(),
         };
 
         blockers.push(ResolverBlocker {

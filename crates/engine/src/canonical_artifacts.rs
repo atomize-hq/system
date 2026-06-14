@@ -1,5 +1,5 @@
 use crate::canonical_paths::{
-    canonical_artifact_relative_path, handbook_product_canonical_layout_contract, CanonicalLayout,
+    canonical_artifact_relative_path, default_canonical_layout_contract, CanonicalLayout,
     CanonicalLayoutContract,
 };
 use crate::canonical_repo_support::{RepoRelativeFileAccessError, RepoRelativeMetadataReadError};
@@ -210,7 +210,7 @@ pub struct CanonicalArtifacts {
 
 impl CanonicalArtifacts {
     pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, ArtifactIngestError> {
-        Self::load_with_contract(repo_root, *handbook_product_canonical_layout_contract())
+        Self::load_with_contract(repo_root, *default_canonical_layout_contract())
     }
 
     pub fn load_with_contract(
@@ -218,7 +218,7 @@ impl CanonicalArtifacts {
         contract: CanonicalLayoutContract,
     ) -> Result<Self, ArtifactIngestError> {
         let repo_root = repo_root.as_ref();
-        let layout = if contract == *handbook_product_canonical_layout_contract() {
+        let layout = if contract == *default_canonical_layout_contract() {
             CanonicalLayout::new(repo_root)
         } else {
             CanonicalLayout::with_contract(repo_root, contract)
@@ -564,7 +564,7 @@ fn descriptor_for_layout(
     kind: CanonicalArtifactKind,
 ) -> CanonicalArtifactDescriptor {
     let mut descriptor = *descriptor_for(kind);
-    if layout.contract() == *handbook_product_canonical_layout_contract() {
+    if layout.contract() == *default_canonical_layout_contract() {
         descriptor.relative_path = kind.relative_path();
     } else {
         descriptor.relative_path = layout.artifact_relative_path(kind);
