@@ -7,6 +7,7 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 - Planned reassessment task ledger.
 - This checklist exists to execute Phase 6 validation and produce the final planning boundary.
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
+- Packet 6.1.1 is now validated against committed HEAD `5644ff7`; later packets remain pending.
 
 ## Implementation Authority Used
 
@@ -24,15 +25,17 @@ This slice is a reassessment seam. It should validate readiness and define the n
 
 ## Packet 6.1.1: Freeze Live Repo Truth And Revalidate The Migration Gate
 
-- [ ] Task: Record working-tree truth and authority-doc truth before making any readiness call
+- [x] Task: Record working-tree truth and authority-doc truth before making any readiness call
   - Acceptance: Branch, HEAD, and working-tree posture are recorded; the root plan, slice map, and closeout map still name Phase 6 as the next authoritative step; the execution clearly states whether it is validating committed truth or local-only truth.
   - Verify: `git status --short --branch && git log --oneline --decorate -20 && rg -n "Phase 6|Migration Gate|next authoritative step" HANDBOOK_ENGINE_EXTRACTION_PLAN.md docs/specs/handbook-engine-extraction-slice-map.md docs/specs/handbook-engine-extraction-closeout-four-set-map.md`
-  - Files: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-slice-map.md`, `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
+  - Files: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-slice-map.md`, `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-1-live-truth-freeze.md`
+  - Completion note: Recorded a clean `feat/seam-extraction` checkout at committed HEAD `5644ff7` and froze the authority agreement in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-1-live-truth-freeze.md`.
 
-- [ ] Task: Re-run the representative proof rails and full workspace wall before any final verdict
+- [x] Task: Re-run the representative proof rails and full workspace wall before any final verdict
   - Acceptance: The representative closeout rails and the full verification wall are green, or any failure is captured as a concrete blocker rather than omitted from the Phase 6 call.
   - Verify: `cargo test -p handbook-engine --test canonical_artifacts_ingest && cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-cli --test help_drift_guard && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
-  - Files: `crates/engine/tests/canonical_artifacts_ingest.rs`, `crates/pipeline/tests/pipeline_catalog.rs`, `crates/cli/tests/help_drift_guard.rs`
+  - Files: `crates/engine/tests/canonical_artifacts_ingest.rs`, `crates/pipeline/tests/pipeline_catalog.rs`, `crates/cli/tests/help_drift_guard.rs`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-1-live-truth-freeze.md`
+  - Completion note: All required representative rails and the full verification wall passed; no blocker or production regression was found during Packet 6.1.1 validation.
 
 ## Packet 6.1.2: Reassess Extracted Crate Boundaries Against The Ownership Rule
 
