@@ -106,7 +106,7 @@ Output:
 Landed Packet 6.1.4 result:
 
 - Exact next-boundary statement: Packet 6.1.3 is **NOT READY**, so the next planning boundary is **not** the ownership/integration planning family; it is the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam.
-- Exact blocker seam scope: remove or parameterize the remaining handbook-product assumptions still exposed at the `handbook-engine` boundary by `handbook_product_canonical_layout_contract` and the associated charter / project-context / environment-inventory canonical-layout vocabulary.
+- Exact blocker seam scope: parameterize or remove the active reusable-layout assumptions still exposed at the `handbook-engine` boundary through `handbook_product_canonical_layout_contract`. The associated charter / project-context / environment-inventory canonical-layout vocabulary is blocker evidence or a later follow-up question, not newly authorized Slice 1.5 scope.
 - Why this seam and not another one: the blocker is a reusable-layout contract assumption problem, so it belongs to Set 1 / Slice 1.5 rather than target parameterization, caller/compiler narrowing, or CLI shell closeout.
 - Still out of scope here: authoring that repair triplet, reopening other landed closeout sets, or beginning the later ownership/import planning family.
 

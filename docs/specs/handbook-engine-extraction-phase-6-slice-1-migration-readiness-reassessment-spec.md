@@ -287,7 +287,7 @@ For Phase 6 readiness, retained `handbook-compiler` is temporary transition glue
 
 ## Packet 6.1.4 landed next-boundary statement
 
-**Exact next-boundary statement:** Packet 6.1.3 is **NOT READY**, so the next planning boundary is **not** a separate ownership/integration planning family. The next honest boundary is the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam, scoped only to removing or parameterizing the remaining handbook-product assumptions still exposed at the `handbook-engine` boundary by `handbook_product_canonical_layout_contract` and the associated charter / project-context / environment-inventory canonical-layout vocabulary.
+**Exact next-boundary statement:** Packet 6.1.3 is **NOT READY**, so the next planning boundary is **not** a separate ownership/integration planning family. The next honest boundary is the earlier `handbook-engine-extraction-phase-1-slice-5-layout-parameterization-closeout` seam, scoped only to parameterizing or removing the active reusable-layout assumptions still exposed at the `handbook-engine` boundary through `handbook_product_canonical_layout_contract`. The associated charter / project-context / environment-inventory canonical-layout vocabulary remains evidence for why that blocker is still visible at the boundary, or a later follow-up question, not newly authorized Slice 1.5 scope.
 
 Why this is the right earlier seam:
 
