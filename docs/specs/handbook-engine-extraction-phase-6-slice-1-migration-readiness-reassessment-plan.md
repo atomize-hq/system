@@ -5,6 +5,7 @@
 - Planned reassessment slice.
 - This plan defines how to decide whether the repo is ready for a separate ownership/integration planning family.
 - The packet order below is sequential by default and should stay narrow unless live regression evidence forces a different seam.
+- Packet 6.1.2's ownership matrix is now captured in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`; the final verdict packets remain pending.
 
 ## Objective
 
@@ -21,6 +22,7 @@ Spec reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 2. Crate-by-crate ownership assessment matrix
    - evaluates `handbook-engine`, `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`
    - uses the root ownership decision rule instead of optimistic future assumptions
+   - lives in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`
 
 3. Final reassessment verdict
    - decides whether the repo is ready for a separate ownership/integration planning family
@@ -59,6 +61,7 @@ Output:
 - one crate-by-crate matrix covering handbook-domain versus substrate-domain center of gravity
 - explicit notes on where handbook-product assumptions still matter
 - explicit notes on where Substrate can likely consume through a clean boundary
+- artifact: `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`
 
 ### Packet 6.1.3: Resolve the readiness verdict and explicit deferral set
 
@@ -159,6 +162,7 @@ Confirm:
 - every extracted crate has an evidence-backed call
 - handbook-domain versus substrate-domain reasoning is written down
 - retained compiler posture is handled explicitly
+- Packet 6.1.2 matrix artifact is populated and referenced by the Phase 6 authority docs
 
 Suggested verification:
 

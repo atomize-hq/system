@@ -5,6 +5,7 @@
 - Planned validation/planning slice.
 - Phase 6 is the next authoritative step after the landed Phase 1 through Phase 5 extraction work.
 - This slice is a reassessment boundary only. It must not be treated as permission to start ownership/import implementation.
+- Packet 6.1.2 ownership reassessment is now recorded in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`; Packet 6.1.3 and Packet 6.1.4 remain pending.
 
 ## Assumptions
 
@@ -101,6 +102,7 @@ docs/specs/handbook-engine-extraction-phase-1-slice-5-*.md           -> layout/s
 docs/specs/handbook-engine-extraction-phase-2-slice-4-*.md           -> orchestration-target parameterization closeout authority
 docs/specs/handbook-engine-extraction-phase-4-slice-5-*.md           -> caller-rewire / compiler-narrowing closeout authority
 docs/specs/handbook-engine-extraction-phase-5-slice-3-*.md           -> CLI shell closeout authority
+docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md -> Packet 6.1.2 crate-by-crate ownership/readiness matrix
 crates/engine/src/lib.rs                                             -> engine-owned outward surface and typed layout contract posture
 crates/pipeline/src/lib.rs                                           -> pipeline-owned outward surface and supported-target/runtime posture
 crates/flow/src/lib.rs                                               -> flow-owned outward surface and middle-layer composition posture
@@ -194,6 +196,8 @@ Out of scope:
   - `crates/engine/tests/canonical_artifacts_ingest.rs`
   - `crates/pipeline/tests/pipeline_catalog.rs`
   - `crates/cli/tests/help_drift_guard.rs`
+- Packet 6.1.2 matrix artifact:
+  - `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`
 
 ## Current Repo-Truth Questions This Reassessment Must Resolve
 
@@ -221,6 +225,19 @@ Out of scope:
   - start ownership/import implementation inside this slice
   - reopen closed Phase 1 through Phase 5 work without concrete live regression evidence
   - call migration readiness complete while crate-by-crate ownership posture remains implicit
+
+## Packet 6.1.2 landed matrix
+
+Packet 6.1.2 now records the explicit crate-by-crate ownership/readiness matrix in:
+
+- `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`
+
+That matrix answers, for each crate:
+
+- handbook-domain versus substrate-domain center of gravity
+- whether Substrate should likely import it through a clean boundary
+- whether ownership should remain handbook-side longer
+- which handbook-product assumptions still matter to the call
 
 ## Success Criteria
 

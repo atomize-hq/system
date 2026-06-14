@@ -7,7 +7,9 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 - Planned reassessment task ledger.
 - This checklist exists to execute Phase 6 validation and produce the final planning boundary.
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
-- Packet 6.1.1 is now validated against committed HEAD `5644ff7`; later packets remain pending.
+- Packet 6.1.1 is now validated against committed HEAD `5644ff7`.
+- Packet 6.1.2 is now recorded against committed Packet 6.1.1 truth at `30b22d5`, with preserved unrelated local edits still present in `AGENTS.md` and `CLAUDE.md`.
+- Packets 6.1.3 and 6.1.4 remain pending.
 
 ## Implementation Authority Used
 
@@ -39,22 +41,24 @@ This slice is a reassessment seam. It should validate readiness and define the n
 
 ## Packet 6.1.2: Reassess Extracted Crate Boundaries Against The Ownership Rule
 
-- [ ] Task: Reassess `handbook-engine` and `handbook-pipeline` against handbook-domain versus substrate-domain center of gravity
+- [x] Task: Reassess `handbook-engine` and `handbook-pipeline` against handbook-domain versus substrate-domain center of gravity
   - Acceptance: Each crate has an explicit evidence-backed posture that answers whether Substrate should import it through a clean boundary or whether moving ownership would be cleaner later; intentional boundedness is not misreported as a blocker by itself.
   - Verify: `rg -n "pub use|pub mod|mod " crates/engine/src/lib.rs crates/pipeline/src/lib.rs && cargo tree -p handbook-engine && cargo tree -p handbook-pipeline`
   - Files: `crates/engine/src/lib.rs`, `crates/pipeline/src/lib.rs`, `crates/engine/tests/canonical_artifacts_ingest.rs`, `crates/pipeline/tests/pipeline_catalog.rs`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
+  - Completion note: `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md` now records both crates as handbook-domain centers of gravity that Substrate should likely consume through a clean boundary rather than absorb.
 
-- [ ] Task: Reassess `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` posture explicitly
+- [x] Task: Reassess `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` posture explicitly
   - Acceptance: `handbook-flow` is not left as an implied afterthought, `handbook-cli` is treated honestly as a product shell rather than a move target, and retained `handbook-compiler` posture is classified as either temporary glue to retire later or a still-blocking ambiguity.
   - Verify: `rg -n "pub use|pub mod|mod " crates/flow/src/lib.rs crates/compiler/src/lib.rs crates/cli/src/main.rs && cargo tree -p handbook-flow && cargo tree -p handbook-compiler`
   - Files: `crates/flow/src/lib.rs`, `crates/compiler/src/lib.rs`, `crates/cli/src/main.rs`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
+  - Completion note: The Packet 6.1.2 matrix now records `handbook-flow` as a handbook-side middle layer, `handbook-cli` as the product shell rather than any move target, and retained `handbook-compiler` as compatibility/support glue rather than the implementation center.
 
 ## Packet 6.1.3: Resolve The Readiness Verdict And Explicit Deferrals
 
-- [ ] Task: Produce one crate-by-crate ownership/readiness matrix with explicit blockers versus open questions
-  - Acceptance: Every crate is assigned an explicit posture such as handbook-owned/imported, candidate future move, or explicitly deferred; blockers are separated from non-blocking open questions; no crate is left implicit.
-  - Verify: Manual review against `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` Phase 6 checklist and the live crate surfaces named in the spec.
-  - Files: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-tasks.md`
+- [ ] Task: Carry the Packet 6.1.2 ownership/readiness matrix into explicit blockers versus open questions
+  - Acceptance: The already-authored Packet 6.1.2 matrix is used to separate blockers from non-blocking open questions before the final verdict; no crate is left implicit.
+  - Verify: Manual review against `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` Phase 6 checklist, the live crate surfaces named in the spec, and `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
+  - Files: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-tasks.md`
 
 - [ ] Task: Write the final Phase 6 verdict without beginning the follow-on planning family
   - Acceptance: The slice ends with an explicit readiness call for separate ownership/integration planning, or with a named narrow blocker seam if the repo is not ready; the output does not silently spill into authoring the next family.
