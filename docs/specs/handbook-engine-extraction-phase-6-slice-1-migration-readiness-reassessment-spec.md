@@ -243,19 +243,19 @@ That matrix answers, for each crate:
 
 ## Packet 6.1.3 landed verdict
 
-Final verdict: **READY** for a separate ownership/integration planning family.
+Final verdict: **NOT READY** for a separate ownership/integration planning family.
 
 Verdict basis:
 
 - Packet 6.1.1 already froze a clean committed repo posture and a green representative/full verification wall.
 - Packet 6.1.2 already made every in-scope crate explicit instead of leaving ownership/readiness implicit.
-- The root Phase 6 checklist in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` is now satisfied at the reassessment level: the repo can truthfully distinguish handbook-owned/imported crates from explicit handbook-side deferrals without hiding code repair inside readiness cleanup.
+- Packet 6.1.2 also records that `handbook-engine` still carries handbook-product assumptions at its current boundary (`handbook_product_canonical_layout_contract` plus charter/project-context/environment-inventory vocabulary), and the root Phase 6 checklist in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` still requires confirming `handbook-engine` is reusable without handbook-product assumptions before the repo can honestly call itself ready for the separate planning family.
 
 ### Final crate-by-crate readiness posture
 
 | Crate | Packet 6.1.3 posture | Blocker status | Non-blocking open question or explicit deferral |
 | --- | --- | --- | --- |
-| `handbook-engine` | Handbook-owned/imported. The clean adapter-boundary posture is strong enough for later planning to assume handbook remains the owner and Substrate is the consumer. | No blocker. | Defer any later adapter-shape refinement to the separate ownership/integration planning family. |
+| `handbook-engine` | Handbook-owned/imported, but still carrying handbook-product assumptions at the boundary. | **Blocker.** Packet 6.1.2 preserved handbook-product assumptions here, so the root Phase 6 checklist is not yet satisfied. | The unresolved question is whether a narrower earlier seam can remove or recast those assumptions cleanly enough for a later planning family, without widening into ownership/import implementation here. |
 | `handbook-pipeline` | Handbook-owned/imported through the already-reviewed boundary. | No blocker. The intentionally bounded runtime wedge is still acceptable for readiness. | Keep the compiler-backed test-fixture coupling and longer-term bounded-runtime posture explicit as follow-on planning inputs, not hidden blockers. |
 | `handbook-flow` | Explicitly deferred handbook-side middle layer, not a current move target. | No blocker. | The long-term ownership question stays open for the next family, but the current evidence is already clear enough to avoid blocking readiness. |
 | `handbook-cli` | Handbook-owned product shell and explicitly outside any import target. | No blocker. | Any future CLI product split or redesign is deferred; it is not part of migration-readiness cleanup. |
@@ -263,11 +263,12 @@ Verdict basis:
 
 ### Readiness blockers
 
-- None identified from the Packet 6.1.1 truth freeze, verification wall, Packet 6.1.2 matrix, or the root Phase 6 checklist.
-- No real code regression was surfaced that needs to be routed back to an earlier closeout seam.
+- `handbook-engine` still carries handbook-product assumptions at its current boundary, which means the root Phase 6 checklist has not yet confirmed engine reusability without handbook-product assumptions.
+- No production-code regression was surfaced, but this is still a real Phase 6 blocker because the readiness rule is architectural as well as test-based.
 
 ### Non-blocking open questions
 
+- If a narrower earlier seam removes or reframes `handbook-engine`'s remaining handbook-product assumptions, what is the smallest honest repair boundary?
 - Should `handbook-pipeline` keep the current compiler-backed test fixture path longer, or should a later planning family narrow that coupling further?
 - Does `handbook-flow` ever earn a future ownership move, or does it remain handbook-owned longer-term?
 - Which `rendering`, `refusal`, or error-surfaces should the later ownership/integration planning family treat as explicit handbook-owned boundaries?

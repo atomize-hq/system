@@ -9,7 +9,7 @@ Plan reference: [handbook-engine-extraction-phase-6-slice-1-migration-readiness-
 - No code implementation or ownership/import planning should begin from this file without a later explicit approval step.
 - Packet 6.1.1 is now validated against committed HEAD `5644ff7`.
 - Packet 6.1.2 is now recorded against committed Packet 6.1.1 truth at `30b22d5`; at Packet 6.1.2 capture time, unrelated local edits in `AGENTS.md` and `CLAUDE.md` were preserved outside packet scope.
-- Packet 6.1.3 is now landed; Packet 6.1.4 remains pending.
+- Packet 6.1.3 is now landed with a NOT READY verdict because `handbook-engine` still carries handbook-product assumptions at the current boundary; Packet 6.1.4 remains pending.
 
 ## Implementation Authority Used
 
@@ -59,13 +59,13 @@ This slice is a reassessment seam. It should validate readiness and define the n
   - Acceptance: The already-authored Packet 6.1.2 matrix is used to separate blockers from non-blocking open questions before the final verdict; no crate is left implicit.
   - Verify: Manual review against `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` Phase 6 checklist, the live crate surfaces named in the spec, and `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
   - Files: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-tasks.md`
-  - Completion note: Packet 6.1.3 now makes every crate explicit: `handbook-engine` and `handbook-pipeline` stay handbook-owned/imported, while `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` remain explicit handbook-side deferrals rather than hidden blockers.
+  - Completion note: Packet 6.1.3 now makes every crate explicit: `handbook-engine` stays handbook-owned/imported but is also the named readiness blocker because handbook-product assumptions remain at its boundary; `handbook-pipeline`, `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` are preserved as explicit non-blocking handbook-side postures or deferrals.
 
 - [x] Task: Write the final Phase 6 verdict without beginning the follow-on planning family
   - Acceptance: The slice ends with an explicit readiness call for separate ownership/integration planning, or with a named narrow blocker seam if the repo is not ready; the output does not silently spill into authoring the next family.
   - Verify: Manual review against the Phase 6 success criteria and planned exit conditions in the spec/plan.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-slice-1-migration-readiness-reassessment-*.md`
-  - Completion note: Packet 6.1.3 lands a READY verdict with no named blockers, keeps non-blocking open questions separate, and states that retained `handbook-compiler` is temporary transition glue rather than a readiness ambiguity.
+  - Completion note: Packet 6.1.3 lands a NOT READY verdict with a named `handbook-engine` blocker, keeps the other non-blocking open questions separate, and states that retained `handbook-compiler` is temporary transition glue rather than a readiness ambiguity.
 
 ## Packet 6.1.4: Name The Next Planning Boundary
 

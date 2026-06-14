@@ -6,7 +6,7 @@
 - This plan defines how to decide whether the repo is ready for a separate ownership/integration planning family.
 - The packet order below is sequential by default and should stay narrow unless live regression evidence forces a different seam.
 - Packet 6.1.2's ownership matrix is now captured in `docs/specs/handbook-engine-extraction-phase-6-slice-1-packet-6-1-2-ownership-matrix.md`.
-- Packet 6.1.3's final verdict is now READY with explicit deferrals; Packet 6.1.4 remains pending.
+- Packet 6.1.3's final verdict is now NOT READY because `handbook-engine` still carries handbook-product assumptions at the boundary; Packet 6.1.4 remains pending.
 
 ## Objective
 
@@ -80,10 +80,11 @@ Output:
 
 Landed Packet 6.1.3 result:
 
-- Final verdict: **READY** for a separate ownership/integration planning family.
-- Blockers: none from the Packet 6.1.1 verification wall, Packet 6.1.2 ownership matrix, or the root Phase 6 checklist.
-- Handbook-owned/imported now: `handbook-engine`, `handbook-pipeline`.
-- Explicitly deferred handbook-side seams: `handbook-flow`, `handbook-cli`, retained `handbook-compiler`.
+- Final verdict: **NOT READY** for a separate ownership/integration planning family.
+- Named blocker: `handbook-engine` still carries handbook-product assumptions at its current boundary, so the root Phase 6 checklist is not yet satisfied.
+- No production-code regression was found in Packet 6.1.1’s verification wall; the blocker is architectural/readiness truth, not failing runtime proof.
+- Handbook-owned/imported now: `handbook-pipeline`.
+- Handbook-side blocker or deferrals: `handbook-engine` is the blocker; `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` remain explicit handbook-side deferrals.
 - Retained `handbook-compiler` is classified as temporary transition glue rather than a remaining readiness ambiguity.
 - Still deferred: any ownership/integration planning artifact authoring, any code repair, and any actual crate-move or runtime-widening work.
 
