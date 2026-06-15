@@ -8,7 +8,7 @@ Spec reference: [handbook-engine-extraction-phase-6-ownership-and-integration-pl
 - Packet 1 froze the authority chain and hard planning-only scope guard.
 - Packet 2 decides the handbook-owned imported-core boundaries for `handbook-engine` and `handbook-pipeline`.
 - Packet 3 decides the handbook-side deferred boundaries and non-targets for `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`.
-- Packet 4 is intentionally **not started** here.
+- Packet 4 lands only the bounded downstream execution seam map plus the final human review gate.
 - This is still a docs-only, planning-only family; no implementation work is authorized.
 
 ## Objective
@@ -23,6 +23,8 @@ For this landing, success means:
 - each crate has an explicit Substrate posture and import boundary
 - any residual cleanup seam is named honestly instead of being smuggled into the ownership decision
 - Packet 3 names which support surfaces remain deferred rather than pretending every handbook-side seam is already settled
+- Packet 4 names the bounded downstream execution seams without starting them
+- the planning family ends at an explicit human review gate before any execution work
 
 ## Packet Order
 
@@ -48,7 +50,7 @@ Packet 2 makes all of the following explicit:
 
 ### Packet 3: Decide handbook-side deferred boundaries and non-targets
 
-Status: **landed in this change**
+Status: **already landed before this packet**
 
 Packet 3 makes all of the following explicit:
 
@@ -60,9 +62,16 @@ Packet 3 makes all of the following explicit:
 
 ### Packet 4: Define downstream execution seams and review gate
 
-Status: **pending, out of scope here**
+Status: **landed in this change**
 
-Future packet only. Do not start from this landing.
+Packet 4 makes all of the following explicit:
+
+- whether any later `handbook-engine` adapter / boundary-freeze seam is still needed
+- the bounded `handbook-pipeline` boundary cleanup seam
+- the bounded `handbook-flow` ownership clarification seam
+- the bounded retained `handbook-compiler` narrowing seam
+- the bounded CLI shell/support clarification seam
+- the final human review gate that stops the planning family before execution
 
 ## Packet 2 Execution Approach
 
@@ -81,6 +90,15 @@ Future packet only. Do not start from this landing.
 4. record separate Packet 3 boundary text for flow, CLI, and retained compiler without reopening Packet 2 decisions
 5. name the handbook-side support surfaces that remain deferred to later seams
 6. leave Packet 4 downstream execution seams and review-gate design out of scope
+
+## Packet 4 Execution Approach
+
+1. preserve all Packet 1 through 3 ownership calls exactly as already landed
+2. translate the landed Packet 2 and Packet 3 ownership decisions into a bounded downstream seam map only
+3. record the decision focus for each follow-on seam without authoring prompts or approving execution
+4. make explicit that none of those seams start here
+5. make explicit that publication, crates.io, and Substrate consumption remain later human-reviewed decisions
+6. end the planning family at an explicit human review gate before any execution work
 
 ## Packet 2 Verification Outputs Used
 
@@ -142,6 +160,48 @@ Future packet only. Do not start from this landing.
 - later work may narrow or retire the glue, but Packet 3 does not resolve that timing
 - downstream callers should not be told to import through compiler glue as the durable boundary
 
+## Packet 4 Decision Summary
+
+### Optional `handbook-engine` adapter / boundary-freeze seam
+
+- only a later human-reviewed seam if future consumers still need a narrower reviewed adapter or importer-boundary freeze beyond the current public `handbook-engine` surface
+- bounded to deciding whether the current public engine surface is sufficient or whether a narrower adapter / boundary freeze is required
+- not started here
+
+### `handbook-pipeline` boundary cleanup seam
+
+- bounded to defining the reviewed supported-target importer boundary and removing or relocating the remaining compiler-backed fixture/support coupling
+- owns the pipeline-side `template_library` / compiler-backed fixture-support decoupling question for the catalog/runtime wedge, rather than the CLI-shell or retained-compiler ownership split
+- explicitly separate from the Packet 2 ownership call
+- not started here
+
+### `handbook-flow` ownership clarification seam
+
+- bounded to proving or rejecting a reviewed importer contract around the `resolver` / `packet_result` / `budget` family
+- owns only the possible flow-side importer/error-boundary proof around that family; it does not settle CLI rendering, `doctor`, or `setup` shell ownership
+- must stay separate from CLI shell concerns and retained compiler support glue
+- not started here
+
+### Retained `handbook-compiler` narrowing seam
+
+- bounded to later narrowing or retirement of retained compiler glue only after support surfaces have explicit homes and downstream callers no longer need compiler-routed transition helpers
+- owns the later reassignment/retirement of any remaining compiler-routed compatibility adapters, including template-library authoring glue and any non-shell `refusal` / `rendering` helpers that still survive only as transition glue
+- explicitly separate from ownership and from current execution approval
+- not started here
+
+### CLI shell/support clarification seam
+
+- bounded to clarifying which surfaces stay shell-owned in `handbook-cli` and which support helpers, if any, later work may relocate below the shell
+- owns the shell-side split for rendering/output formatting, shell-facing refusal/error presentation, `doctor`, `setup`, prompting, operator wording, and exit-code policy
+- does not make the CLI crate an import target
+- not started here
+
+## Final Human Review Gate
+
+**Review gate wording:** Packet 4 ends this planning family at a human review gate. None of the downstream execution seams above start here, this packet is not execution approval, and no packet-prompt authoring, production edits, crate publication or crates.io work, Substrate consumption, or integration implementation may begin until a human separately reviews this triplet and explicitly approves a later execution packet.
+
+Publication, crates.io, and Substrate consumption remain later human-reviewed decisions rather than automatic consequences of this planning landing.
+
 ## Risks And Mitigations
 
 ### Risk: the engine decision reintroduces the old handbook-product default-layout blocker
@@ -186,6 +246,13 @@ Mitigation:
 - Packet 3 records retained compiler as transition glue that sits above the extracted owner crates
 - Packet 3 leaves narrowing/retirement timing deferred instead of hiding that glue inside a fake “future owner” story
 
+### Risk: later readers mistake Packet 4 planning for execution approval
+
+Mitigation:
+
+- Packet 4 names only bounded downstream seams and says none of them start here
+- Packet 4 ends with an explicit human review gate covering packet prompts, publication, crates.io, Substrate consumption, and integration implementation
+
 ## Exit Condition For This Landing
 
 This landing is complete when:
@@ -197,5 +264,5 @@ This landing is complete when:
 - the pipeline decision reflects the bounded compiler-backed fixture/support coupling truth
 - the pipeline-specific deferred cleanup seam is named explicitly
 - Packet 3 names the support surfaces still deferred to later seams
-- Packet 4 remains pending and out of scope
+- Packet 4 lands only the bounded downstream seam map and the final human review gate
 - the result is ready for orchestration review and still not execution-approved

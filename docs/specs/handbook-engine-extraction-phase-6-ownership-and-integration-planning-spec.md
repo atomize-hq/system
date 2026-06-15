@@ -6,8 +6,9 @@
 - Packet 1 froze the authority chain, root decision rule, verification-time baseline, and hard planning-only scope guard.
 - Packet 2 lands the handbook-owned imported-core boundary decisions for `handbook-engine` and `handbook-pipeline` only.
 - Packet 3 lands the handbook-side deferred-boundary and non-target decisions for `handbook-flow`, `handbook-cli`, and retained `handbook-compiler`.
+- Packet 4 lands only the bounded downstream execution seam map plus the final human review gate for this planning family.
 - This family remains intentionally **docs-only** and **planning-only**.
-- Packet 4 is **not started** here and remains out of scope.
+- None of the downstream seams named by Packet 4 start here, and Packet 4 is **not** execution approval.
 - Packet 1 verification-time repo-truth freeze (pre-landing baseline, not the later landed HEAD):
   - branch: `feat/seam-extraction`
   - pre-landing baseline HEAD: `01b50868599bc55e7680784a9b5b2dace5ab6042`
@@ -45,6 +46,19 @@ Packet 3 must:
 - state why retained `handbook-compiler` is transition glue rather than a future ownership target
 - name the support surfaces that remain deferred to later seams instead of pretending Packet 3 resolves them
 - keep Packet 2’s `handbook-engine` / `handbook-pipeline` decisions intact
+
+## Packet 4 Objective
+
+Define the bounded downstream execution seams that follow from Packets 2 and 3 without starting any of them, and land the explicit human review gate that stops this planning family before execution.
+
+Packet 4 must:
+
+- preserve the Packet 1 through 3 ownership calls exactly
+- name separate bounded follow-on seams for any later `handbook-engine` adapter / boundary-freeze work if still needed, `handbook-pipeline` boundary cleanup, `handbook-flow` ownership clarification, retained `handbook-compiler` narrowing, and CLI shell/support clarification
+- route the deferred `rendering` / `refusal` / `error` / `doctor` / `setup` / `template_library` support surfaces explicitly enough that later work can tell which seam settles which question
+- make explicit that none of those seams start here and that Packet 4 is not execution approval
+- make explicit that crate publication, crates.io, and Substrate consumption remain later human-reviewed decisions
+- end the planning family with an explicit human review gate before any execution work
 
 ## Authority Chain Frozen By Packet 1
 
@@ -194,11 +208,76 @@ Packet 3 leaves all of the following explicit and deferred rather than pretendin
 - Packet 3 keeps Packet 2’s `handbook-engine` and `handbook-pipeline` decisions intact.
 - Packet 3 also preserves the root-plan rule that callers should move directly to `handbook-engine`, `handbook-pipeline`, and `handbook-flow` instead of relying on a compiler facade, while still treating retained `handbook-compiler` as temporary handbook-side transition glue.
 
-## Deferred Later Packets (Not Started Here)
+## Packet 4 Scope Guard
 
-- **Packet 4:** define downstream execution seams and the review gate
+In scope for Packet 4:
 
-That packet is framed here only so the family boundary stays honest; it remains out of scope for this landing.
+- name the bounded downstream execution seams implied by the landed Packet 2 and Packet 3 ownership calls
+- record the entry condition or decision focus for each seam without starting execution
+- land the final human review gate for this planning family
+
+Out of scope for Packet 4:
+
+- starting any downstream seam named here
+- packet-prompt authoring or execution approval
+- any production code edits
+- any crate publication or crates.io planning
+- any Substrate integration or Substrate consumption implementation
+- any CLI redesign, retained-compiler narrowing implementation, or pipeline/flow boundary implementation
+
+## Packet 4 Downstream Execution Seam Map
+
+### Optional `handbook-engine` adapter / boundary-freeze seam (only if later review still needs it)
+
+- **Why this seam exists:** Packet 2 already allows Substrate to import the current public `handbook-engine` surface. A follow-on seam exists only if later human review concludes that consumers still need a narrower reviewed adapter or a more explicit frozen importer boundary for long-term external use.
+- **Bounded focus:** decide whether the current public engine surface is sufficient as the durable imported-core boundary, or whether a narrower reviewed adapter / boundary freeze around canonical artifacts, validation, freshness, and layout-contract surfaces is still needed.
+- **Not started here:** Packet 4 does not create that adapter, freeze that boundary, or bless any new engine importer surface. It only records the seam if later human review chooses to open it.
+
+### `handbook-pipeline` boundary cleanup seam
+
+- **Why this seam exists:** Packet 2 preserved handbook ownership for `handbook-pipeline` but limited durable importing to a thinner reviewed boundary because the live crate still carries bounded compiler-backed fixture/support coupling.
+- **Bounded focus:** define the reviewed supported-target importer boundary and remove or relocate the remaining compiler-backed fixture/support coupling currently evidenced by `crates/pipeline/tests/pipeline_catalog.rs` reaching into `handbook_compiler::author::template_library`.
+- **Deferred-support routing:** this seam owns the pipeline-side `template_library` / compiler-backed fixture-support decoupling question for the catalog/runtime wedge, not the CLI-shell or retained-compiler ownership split.
+- **Not started here:** Packet 4 does not clean up the boundary, decouple the coupling, or authorize Substrate to consume the full current crate surface.
+
+### `handbook-flow` ownership clarification seam
+
+- **Why this seam exists:** Packet 3 kept `handbook-flow` handbook-owned longer-term and required proof before any later planning could bless a narrower import slice.
+- **Bounded focus:** prove or reject a reviewed importer contract around the `resolver`, `packet_result`, and `budget` family without dragging CLI product-shell concerns or retained compiler support glue into the boundary.
+- **Deferred-support routing:** this seam owns only the possible flow-side importer/error-boundary proof around the `resolver` / `packet_result` / `budget` family; it does not settle CLI rendering, `doctor`, or `setup` shell ownership.
+- **Not started here:** Packet 4 does not bless a narrower `handbook-flow` import slice and does not start any flow-boundary implementation.
+
+### Retained `handbook-compiler` narrowing seam
+
+- **Why this seam exists:** Packet 3 kept retained `handbook-compiler` as handbook-side transition glue rather than a durable owner boundary, so any narrowing or retirement work must happen as its own follow-on seam.
+- **Bounded focus:** narrow or retire retained compiler glue only after later work assigns explicit homes to the remaining support adapters and proves downstream callers no longer need compiler-routed compatibility surfaces as transition glue.
+- **Deferred-support routing:** this seam owns the later reassignment/retirement of any remaining compiler-routed compatibility adapters, including template-library authoring glue and any non-shell `refusal` / `rendering` helpers that still survive only as transition glue.
+- **Not started here:** Packet 4 does not narrow retained `handbook-compiler`, retire it, or convert it into an approved execution stream.
+
+### CLI shell/support clarification seam
+
+- **Why this seam exists:** Packet 3 kept `handbook-cli` as the handbook product shell and deferred the exact split of shell-owned versus support/helper surfaces.
+- **Bounded focus:** clarify which surfaces stay shell-owned inside `handbook-cli` and which support helpers, if any, later work may want to relocate below the shell without turning the CLI crate itself into an import target.
+- **Deferred-support routing:** this seam owns the shell-side split for rendering/output formatting, shell-facing refusal/error presentation, `doctor`, `setup`, prompting, operator wording, and exit-code policy.
+- **Not started here:** Packet 4 does not redesign the CLI, split the product shell, or extract support helpers.
+
+## Packet 4 Review Gate
+
+**Review gate wording:** Packet 4 ends this planning family at a human review gate. None of the downstream execution seams above start here, this packet is not execution approval, and no packet-prompt authoring, production edits, crate publication or crates.io work, Substrate consumption, or integration implementation may begin until a human separately reviews this triplet and explicitly approves a later execution packet.
+
+Publication, crates.io, and Substrate consumption therefore remain later human-reviewed decisions rather than consequences of this planning landing.
+
+## Required Verification For Packet 4
+
+```bash
+rg -n "landed in this change|already landed before this packet|rendering|refusal|error|doctor|setup|template_library|review gate|execution approval" docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-*.md
+```
+
+Manual review must also confirm that:
+
+- Packet 1 through 3 ownership calls remain intact after the Packet 4 wording changes
+- the support-surface seam routing is explicit enough for later planning to follow without starting implementation
+- Packet 4 still stops at the human review gate and does not convert any seam into implementation approval
 
 ## Required Verification For Packet 2
 
@@ -235,5 +314,5 @@ cargo check --workspace
 - the pipeline-specific deferred cleanup seam is named explicitly rather than hidden inside the ownership verdict
 - `handbook-flow`, `handbook-cli`, and retained `handbook-compiler` each receive separate Packet 3 boundary text
 - Packet 3 is explicit about which support surfaces remain deferred instead of hand-waving them into a generic “later”
-- Packet 4 remains pending and out of scope
+- Packet 4 lands only the bounded downstream execution seam map and final review gate, without starting any seam
 - the result is ready for orchestration review, but not execution-approved

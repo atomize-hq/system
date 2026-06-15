@@ -6,7 +6,7 @@ Plan reference: [handbook-engine-extraction-phase-6-ownership-and-integration-pl
 
 - Packets 1, 2, and 3 are landed in this task ledger.
 - This ledger remains planning-only and docs-only.
-- Packet 4 is not started here.
+- Packet 4 is landed here as a bounded downstream seam map plus final human review gate only.
 - Packet 1 verification-time repo-truth freeze (pre-landing baseline, not the later landed HEAD):
   - branch: `feat/seam-extraction`
   - pre-landing baseline HEAD: `01b50868599bc55e7680784a9b5b2dace5ab6042`
@@ -94,9 +94,16 @@ Plan reference: [handbook-engine-extraction-phase-6-ownership-and-integration-pl
 
 ## Packet 4: Define Downstream Execution Seams And Review Gate
 
-- [ ] Not started in this landing.
-- [ ] Out of scope until a later explicit packet request.
+- [x] Task: Name the bounded downstream execution seams without starting any of them
+  - Acceptance: The triplet names separate follow-on seams for any later `handbook-engine` adapter / boundary-freeze work if still needed, `handbook-pipeline` boundary cleanup, `handbook-flow` ownership clarification, retained `handbook-compiler` narrowing, and CLI shell/support clarification. The triplet also routes the deferred `rendering` / `refusal` / `error` / `doctor` / `setup` / `template_library` support surfaces explicitly enough that later planning can tell which seam settles which question, while keeping Packet 1 through 3 ownership calls intact and saying plainly that Packet 4 is not execution approval.
+  - Verify: `rg -n "landed in this change|already landed before this packet|rendering|refusal|error|doctor|setup|template_library|review gate|execution approval" docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-*.md`
+  - Completion note: Packet 4 now records five bounded downstream seams only: an optional later `handbook-engine` adapter / boundary-freeze seam if future review still needs it; a `handbook-pipeline` boundary cleanup seam focused on the reviewed importer boundary plus the pipeline-side compiler-backed `template_library` / fixture-support decoupling; a `handbook-flow` ownership clarification seam focused on proving or rejecting a reviewed resolver / packet-result / budget import slice plus any flow-side importer/error-boundary proof; a retained `handbook-compiler` narrowing seam focused on later transition-glue retirement/narrowing after explicit homes exist for compiler-routed compatibility helpers such as template-library authoring glue and non-shell `refusal` / `rendering` adapters; and a CLI shell/support clarification seam focused on shell-owned rendering/output formatting, shell-facing refusal/error presentation, `doctor`, `setup`, prompting, operator wording, and exit-code policy. Packet 1 through 3 decisions remain intact, none of those seams start here, and Packet 4 does not convert any seam into execution approval.
+
+- [x] Task: Land the final human review gate for the planning family
+  - Acceptance: The triplet states that Packet 4 ends the planning family at a human review gate; packet-prompt authoring, production edits, publication, crates.io, Substrate consumption, and integration implementation remain blocked until a human separately reviews the triplet and approves a later execution packet.
+  - Verify: `rg -n "landed in this change|already landed before this packet|review gate|human review gate|execution approval|crates.io|Substrate consumption|packet-prompt authoring" docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-*.md`
+  - Completion note: Packet 4 now ends the planning family at an explicit human review gate and makes publication, crates.io, and Substrate consumption later human-reviewed decisions rather than automatic consequences of this docs landing.
 
 ## Human Review Gate
 
-Do not begin Packet 4, packet-prompt authoring, implementation, production code edits, crate moves, runtime behavior changes, CLI redesign, retained-compiler retirement work, or Substrate integration work from this ledger. Stop at Packet 3 and route the result to orchestration review.
+**Review gate wording:** Packet 4 ends this planning family at a human review gate. None of the downstream execution seams above start here, this packet is not execution approval, and no packet-prompt authoring, production edits, crate publication or crates.io work, Substrate consumption, or integration implementation may begin until a human separately reviews this triplet and explicitly approves a later execution packet.
