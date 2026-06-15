@@ -178,14 +178,14 @@ Packet 4 makes all of the following explicit:
 ### `handbook-flow` ownership clarification seam
 
 - bounded to proving or rejecting a reviewed importer contract around the `resolver` / `packet_result` / `budget` family
-- owns only the possible flow-side importer/error-boundary proof around that family; it does not settle CLI rendering, `doctor`, or `setup` shell ownership
+- owns only the possible flow-side importer/error-boundary proof around that family; it does not settle CLI rendering, `doctor`, or `setup` shell ownership, and it does not own generic non-shell compatibility helpers outside that bounded proof
 - must stay separate from CLI shell concerns and retained compiler support glue
 - not started here
 
 ### Retained `handbook-compiler` narrowing seam
 
 - bounded to later narrowing or retirement of retained compiler glue only after support surfaces have explicit homes and downstream callers no longer need compiler-routed transition helpers
-- owns the later reassignment/retirement of any remaining compiler-routed compatibility adapters, including template-library authoring glue and any non-shell `refusal` / `rendering` helpers that still survive only as transition glue
+- owns the later reassignment/retirement of any remaining compiler-routed compatibility adapters, including template-library authoring glue and any non-shell `refusal` / `rendering` / `error` compatibility helpers that still survive only as transition glue outside the bounded flow importer/error-boundary proof
 - explicitly separate from ownership and from current execution approval
 - not started here
 

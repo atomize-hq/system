@@ -244,14 +244,14 @@ Out of scope for Packet 4:
 
 - **Why this seam exists:** Packet 3 kept `handbook-flow` handbook-owned longer-term and required proof before any later planning could bless a narrower import slice.
 - **Bounded focus:** prove or reject a reviewed importer contract around the `resolver`, `packet_result`, and `budget` family without dragging CLI product-shell concerns or retained compiler support glue into the boundary.
-- **Deferred-support routing:** this seam owns only the possible flow-side importer/error-boundary proof around the `resolver` / `packet_result` / `budget` family; it does not settle CLI rendering, `doctor`, or `setup` shell ownership.
+- **Deferred-support routing:** this seam owns only the possible flow-side importer/error-boundary proof around the `resolver` / `packet_result` / `budget` family; it does not settle CLI rendering, `doctor`, or `setup` shell ownership, and it does not own generic non-shell compatibility helpers outside that bounded proof.
 - **Not started here:** Packet 4 does not bless a narrower `handbook-flow` import slice and does not start any flow-boundary implementation.
 
 ### Retained `handbook-compiler` narrowing seam
 
 - **Why this seam exists:** Packet 3 kept retained `handbook-compiler` as handbook-side transition glue rather than a durable owner boundary, so any narrowing or retirement work must happen as its own follow-on seam.
 - **Bounded focus:** narrow or retire retained compiler glue only after later work assigns explicit homes to the remaining support adapters and proves downstream callers no longer need compiler-routed compatibility surfaces as transition glue.
-- **Deferred-support routing:** this seam owns the later reassignment/retirement of any remaining compiler-routed compatibility adapters, including template-library authoring glue and any non-shell `refusal` / `rendering` helpers that still survive only as transition glue.
+- **Deferred-support routing:** this seam owns the later reassignment/retirement of any remaining compiler-routed compatibility adapters, including template-library authoring glue and any non-shell `refusal` / `rendering` / `error` compatibility helpers that still survive only as transition glue outside the bounded flow importer/error-boundary proof.
 - **Not started here:** Packet 4 does not narrow retained `handbook-compiler`, retire it, or convert it into an approved execution stream.
 
 ### CLI shell/support clarification seam
@@ -270,7 +270,7 @@ Publication, crates.io, and Substrate consumption therefore remain later human-r
 ## Required Verification For Packet 4
 
 ```bash
-rg -n "landed in this change|already landed before this packet|rendering|refusal|error|doctor|setup|template_library|review gate|execution approval" docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-*.md
+rg -n "landed in this change|already landed before this packet|rendering|refusal|error|doctor|setup|template_library|review gate|execution approval" docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-{spec,plan,tasks}.md
 ```
 
 Manual review must also confirm that:
