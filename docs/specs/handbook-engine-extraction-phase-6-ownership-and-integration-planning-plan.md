@@ -34,7 +34,7 @@ Packet 1 recorded the verification-time branch / baseline / dirty-tree posture, 
 
 ### Packet 2: Decide handbook-owned imported-core boundaries
 
-Status: **landed in this change**
+Status: **already landed before this packet**
 
 Packet 2 makes all of the following explicit:
 
