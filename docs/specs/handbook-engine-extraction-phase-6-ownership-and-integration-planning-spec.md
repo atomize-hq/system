@@ -6,11 +6,11 @@
 - This family starts only after the Phase 6 Slice 1 migration-readiness reassessment reached **READY** and Packet 6.1.4 named this triplet as the next planning family.
 - This landing is intentionally **docs-only** and **planning-only**.
 - Packets 2, 3, and 4 are **not started** here and remain out of scope.
-- Current repo-truth freeze for this packet:
+- Packet 1 verification-time repo-truth freeze (pre-landing baseline, not the later landed HEAD):
   - branch: `feat/seam-extraction`
-  - HEAD: `01b50868599bc55e7680784a9b5b2dace5ab6042`
+  - pre-landing baseline HEAD: `01b50868599bc55e7680784a9b5b2dace5ab6042`
   - working tree posture at verification time: dirty only in unrelated local files `AGENTS.md` and `CLAUDE.md`
-- `aa882af42792a250cc02a6740bd1e2123178caff..01b50868599bc55e7680784a9b5b2dace5ab6042` is **docs-only**. The changed paths in that range are all under `docs/specs/`:
+- `aa882af42792a250cc02a6740bd1e2123178caff..01b50868599bc55e7680784a9b5b2dace5ab6042` is the Packet 1 verification-time **docs-only** baseline range. Later Packet 1 docs-only commits may advance HEAD without changing the prerequisite authority truth frozen here. The changed paths in that baseline range are all under `docs/specs/`:
   - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-packet-prompts.md`
   - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-plan.md`
   - `docs/specs/handbook-engine-extraction-phase-6-ownership-and-integration-planning-spec.md`
@@ -23,7 +23,7 @@
 
 ## Packet 1 Objective
 
-Freeze the authority chain, root decision rule, current branch/HEAD truth, and hard scope guard for the new Phase 6 ownership family so later planning packets cannot silently drift back to stale pre-READY assumptions.
+Freeze the authority chain, root decision rule, verification-time branch/pre-landing-baseline truth, and hard scope guard for the new Phase 6 ownership family so later planning packets cannot silently drift back to stale pre-READY assumptions.
 
 This packet does **not** make per-crate ownership decisions yet. It only establishes the current authoritative starting point for that later work.
 
@@ -48,8 +48,8 @@ Packet 1 freezes that rule as the required baseline for this family. Later packe
 
 In scope for Packet 1 only:
 
-- record the current branch, HEAD, and working-tree posture
-- record whether `aa882af... .. HEAD` is docs-only
+- record the verification-time branch, pre-landing baseline HEAD, and working-tree posture
+- record whether the verification-time `aa882af... .. 01b5086` baseline range is docs-only
 - restate the READY prerequisite gate from the Phase 6 reassessment
 - restate the root ownership decision rule
 - state the family's hard planning-only boundaries
@@ -103,8 +103,8 @@ rg -n "READY|Packet 6\.1\.4|ownership-and-integration-planning|default_canonical
 
 ## Success Criteria
 
-- the triplet explicitly records the current branch/HEAD truth and working-tree posture
-- the triplet explicitly records that `aa882af... .. HEAD` is docs-only
+- the triplet explicitly records the verification-time branch/pre-landing-baseline truth and working-tree posture
+- the triplet explicitly records that the verification-time `aa882af... .. 01b5086` baseline range is docs-only
 - the READY Phase 6 Slice 1 reassessment is frozen as the prerequisite gate
 - the root ownership decision rule is restated explicitly
 - Packets 2, 3, and 4 remain clearly out of scope

@@ -11,7 +11,7 @@ Spec reference: [handbook-engine-extraction-phase-6-ownership-and-integration-pl
 
 ## Objective
 
-Establish the current authoritative starting point for the ownership/integration planning family before any crate-by-crate decision work begins.
+Establish the verification-time authoritative starting point for the ownership/integration planning family before any crate-by-crate decision work begins.
 
 For this landing, success means later packets cannot honestly claim stale pre-READY authority, hidden scope expansion, or ambiguous ownership rules.
 
@@ -23,8 +23,8 @@ Status: **landed in this change**
 
 Packet 1 must make all of the following explicit:
 
-- current branch / HEAD / working-tree posture
-- whether `aa882af... .. HEAD` is docs-only
+- verification-time branch / pre-landing baseline HEAD / working-tree posture
+- whether the verification-time `aa882af... .. 01b5086` baseline range is docs-only
 - that Phase 6 Slice 1 is already **READY** and is the prerequisite gate
 - the root ownership decision rule from `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`
 - the planning-only hard boundaries for this family
@@ -50,8 +50,8 @@ Future packet only. Do not start from this landing.
 
 ## Packet 1 Execution Approach
 
-1. verify live branch / HEAD / dirty-tree posture
-2. verify the `aa882af... .. HEAD` delta and whether it is docs-only
+1. verify live branch / pre-landing baseline HEAD / dirty-tree posture
+2. verify the `aa882af... .. 01b5086` baseline delta and whether it is docs-only
 3. verify the prerequisite authority chain across the root plan, slice map, closeout map, and READY reassessment triplet
 4. restate the root ownership rule verbatim enough that later packets cannot miss it
 5. freeze the hard planning-only boundaries and explicitly defer later packets
@@ -60,10 +60,10 @@ Future packet only. Do not start from this landing.
 ## Packet 1 Verification Outputs Used
 
 - `git status --short --branch` -> branch `feat/seam-extraction`; unrelated local dirt in `AGENTS.md` and `CLAUDE.md`
-- `git rev-parse HEAD` -> `01b50868599bc55e7680784a9b5b2dace5ab6042`
-- `git log --oneline --decorate -20` -> current HEAD remains the docs commit `01b5086 Add Phase 6 ownership planning docs and packet prompts`
-- `git diff --stat aa882af42792a250cc02a6740bd1e2123178caff..HEAD` -> nine changed files, all under `docs/specs/`
-- `git diff --name-only aa882af42792a250cc02a6740bd1e2123178caff..HEAD` -> confirms the delta is docs-only
+- `git rev-parse HEAD` -> `01b50868599bc55e7680784a9b5b2dace5ab6042` as the Packet 1 pre-landing verification baseline
+- `git log --oneline --decorate -20` -> the verification-time HEAD was the docs commit `01b5086 Add Phase 6 ownership planning docs and packet prompts`
+- `git diff --stat aa882af42792a250cc02a6740bd1e2123178caff..HEAD` -> the verification-time `aa882af... .. 01b5086` baseline covered nine changed files, all under `docs/specs/`
+- `git diff --name-only aa882af42792a250cc02a6740bd1e2123178caff..HEAD` -> confirms that verification-time baseline delta is docs-only
 - authority `rg` checks -> Phase 6 is the next authoritative step; the reassessment triplet records **READY** and Packet 6.1.4 naming of this family
 
 ## Risks And Mitigations
