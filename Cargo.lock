@@ -317,7 +317,6 @@ dependencies = [
 name = "handbook-pipeline"
 version = "0.1.0"
 dependencies = [
- "handbook-compiler",
  "handbook-engine",
  "libc",
  "serde",

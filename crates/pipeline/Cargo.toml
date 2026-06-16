@@ -17,5 +17,4 @@ sha2 = "0.10"
 time = { version = "0.3", features = ["formatting", "macros"] }
 
 [dev-dependencies]
-handbook-compiler = { path = "../compiler" }
 tempfile = "3"
