@@ -4,13 +4,13 @@ Spec reference: [handbook-engine-extraction-phase-6-handbook-pipeline-boundary-c
 
 ## Objective
 
-Turn the landed Phase 6 Packet 4 `handbook-pipeline` seam map entry into one bounded execution plan, without starting implementation.
+Turn the landed Phase 6 Packet 4 `handbook-pipeline` seam map entry into one bounded implementation packet and one packet-prompt artifact, using the already-approved spec/plan/tasks triplet as the execution authority.
 
 Success for this plan means:
 
-- the reviewed supported-target importer boundary is concrete enough that later packets can implement against it without rediscovering scope
-- the remaining compiler-backed fixture/support coupling is split cleanly into a live evidence ledger, retained compiler context, bounded cleanup target, and explicit non-goals
-- the plan preserves the Phase 6 human-review posture: this triplet is preparation for later implementation approval, not implementation approval itself
+- the reviewed supported-target importer boundary stays concrete enough that implementation does not widen into adjacent seams
+- the remaining compiler-backed fixture/support coupling is closed with the smallest honest proof-source move
+- the packet breakdown, verification wall, and orchestration prompt are explicit enough that implementation can start without another planning loop
 
 ## Major Artifacts
 
@@ -35,11 +35,14 @@ Success for this plan means:
 5. **Explicit non-goals**
    - the explicit non-goals that stop the seam from expanding into retained `handbook-compiler` retirement, broader authoring-stack relocation, or CLI shell/support reassignment
 
-6. **Verification and review gate**
-   - the future implementation verification wall for pipeline and compiler authoring proof
-   - the explicit human review gate that still blocks implementation, packet-prompt authoring for later execution, production edits, publication, crates.io work, Substrate consumption, and integration implementation
+6. **Execution packet and verification wall**
+   - one bounded implementation packet for the catalog fixture/support decoupling seam
+   - the verification wall for pipeline and compiler authoring proof
+   - one packet-specific orchestration prompt that keeps implementation/review/fix/commit work inside that packet
 
-## Order
+## Planning Packet Order Already Landed
+
+The Packet 1 / Packet 2 / Packet 3 sections below are retained as historical planning provenance. Current execution authority begins at **Implementation Order After Approval**.
 
 ### Packet 1: Freeze seam authority and exact boundary question
 
@@ -97,6 +100,23 @@ Output:
 - one explicit stop point for the new triplet
 - one statement that implementation, packet-prompt authoring for later execution, production edits, publication, crates.io work, Substrate consumption, and integration implementation remain blocked until a human separately reviews this triplet and explicitly approves a later execution packet
 
+## Implementation Order After Approval
+
+### Implementation Packet 1: Pipeline Catalog Fixture/Support Decoupling
+
+Why one packet:
+
+- live repo truth shows exactly one pipeline-owned compiler-backed coupling: `crates/pipeline/tests/pipeline_catalog.rs`
+- the narrowest honest fix is to move that proof source under pipeline ownership and remove the now-unneeded compiler-backed dev-dependency
+- the full verification wall already covers the reviewed supported-target wedge, so a second execution packet would mostly restate the same proof without buying additional seam isolation
+
+Output:
+
+- one pipeline-owned test/support proof source for the shipped template defaults needed by `pipeline_catalog`
+- one `pipeline_catalog` test that no longer imports `handbook_compiler::author::template_library`
+- one `crates/pipeline/Cargo.toml` posture that drops `handbook-compiler` from dev-dependencies unless another in-scope pipeline-owned test still requires it and that exception is explicitly documented
+- one full verification run across `pipeline_catalog`, `pipeline_compile`, `pipeline_capture`, `pipeline_handoff`, compiler `author`, and `cargo check --workspace`
+
 ## Risks And Mitigations
 
 ### Risk: the plan accidentally blesses the full current `handbook-pipeline` surface
@@ -127,14 +147,14 @@ Mitigation:
 Mitigation:
 
 - define the required outcome instead of prematurely hard-coding one code move
-- allow either pipeline-owned or compiler-neutral support for the specific shipped template defaults, as long as the result removes the pipeline-side compiler dependency without widening scope
+- choose a pipeline-owned test/support proof source first, and escalate to a compiler-neutral helper only if the packet cannot close honestly without it
 
-### Risk: later work mistakes this triplet for execution approval
+### Risk: the packet removes the compiler-backed proof but leaves the dev-dependency behind
 
 Mitigation:
 
-- preserve the human review gate in the spec, plan, and tasks docs
-- state explicitly that no implementation, publication, crates.io, Substrate consumption, or integration work starts from this triplet alone
+- treat `crates/pipeline/Cargo.toml` as part of the execution packet
+- require `cargo tree -p handbook-pipeline` as packet-local verification rather than relying only on behavioral tests
 
 ## Verification Checkpoints
 
@@ -197,7 +217,7 @@ Suggested verification:
 rg -n "remove or relocate|pipeline catalog/runtime proof|retained handbook-compiler retirement|authoring-stack relocation|CLI shell/support" docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-{spec,plan,tasks}.md
 ```
 
-### Checkpoint 4: Future implementation verification wall and review stop are ready
+### Checkpoint 4: Implementation packet and verification wall are ready
 
 Confirm the triplet records the future implementation proof wall:
 
@@ -210,20 +230,24 @@ cargo test -p handbook-compiler --test author
 cargo check --workspace
 ```
 
-Confirm the triplet also explains why `pipeline_loader`, `pipeline_route_resolution`, and `pipeline_state_store` remain adjacent evidence instead of mandatory seam-specific wall entries: they cover loading/selection and route-state behavior, but live repo truth does not show them importing compiler template-library support, so `pipeline_catalog` remains the only known compiler-backed coupling proof inside this seam-specific wall.
+Confirm the slice also explains why `pipeline_loader`, `pipeline_route_resolution`, and `pipeline_state_store` remain adjacent evidence instead of mandatory seam-specific wall entries: they cover loading/selection and route-state behavior, but live repo truth does not show them importing compiler template-library support, so `pipeline_catalog` remains the only known compiler-backed coupling proof inside this seam-specific wall.
 
-Confirm the triplet also states plainly that it is planning-only and that implementation, packet-prompt authoring for later execution, production edits, publication, crates.io work, Substrate consumption, and integration implementation remain blocked until a human separately reviews this triplet and explicitly approves a later execution packet.
+Confirm the execution packet states all of the following:
+
+- `pipeline_catalog` stops importing compiler-owned template-library support
+- the replacement proof source stays pipeline-owned first: `crates/pipeline/tests/**` before any compiler-neutral escalation
+- `crates/pipeline/Cargo.toml` drops `handbook-compiler` from dev-dependencies unless an in-scope exception is explicitly justified
 
 ## Exit Conditions
 
-This triplet is ready for human review when:
+This slice is ready for implementation when:
 
-- the rationale for planning `handbook-pipeline` next is explicit and grounded in landed Phase 6 docs
-- the reviewed importer boundary is specific enough that later packets can tell what is in and out
-- the Packet 2 freeze distinguishes the live evidence ledger, retained compiler context, bounded cleanup target, and explicit non-goals clearly enough that later packets can remove the coupling without reopening adjacent seams
+- the reviewed importer boundary is specific enough that the packet can tell what is in and out
+- the chosen pipeline-owned proof-source posture is explicit
+- the packet can close the only known compiler-backed coupling without reopening adjacent seams
 - the verification wall covers both pipeline proof and retained compiler authoring non-regression
-- the final stop condition is explicit: this triplet is planning-only and awaits separate human approval before implementation
+- the packet prompt is ready to orchestrate implementation/review/fix/commit work without inventing new scope
 
-## Human Review Gate
+## Approved Implementation Boundary
 
-This triplet is planning-only and stops at review. Implementation, packet-prompt authoring for later execution, production edits, publication, crates.io work, Substrate consumption, and integration implementation remain blocked until a human separately reviews this triplet and explicitly approves a later execution packet.
+The separate human review gate for this slice has been satisfied. Implementation is now authorized only for the bounded packet described above plus its packet-prompt artifact. Publication, crates.io work, Substrate consumption, and broader integration implementation remain out of scope.

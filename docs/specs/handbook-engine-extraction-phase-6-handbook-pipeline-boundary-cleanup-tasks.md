@@ -6,7 +6,8 @@ Plan reference: [handbook-engine-extraction-phase-6-handbook-pipeline-boundary-c
 
 - Phase 6 ownership/integration planning Packet 2 already states that `handbook-pipeline` remains handbook-owned and that Substrate should import only through a thinner reviewed supported-target boundary rather than the full current public re-export surface.
 - Phase 6 ownership/integration planning Packet 4 already names this seam as: the `handbook-pipeline` boundary cleanup seam, owned by the reviewed importer-boundary question plus the pipeline-side `template_library` / compiler-backed fixture-support decoupling question for the catalog/runtime wedge.
-- The Phase 6 human review gate remains in force: this new triplet does not itself approve implementation.
+- Separate human review has now approved this seam for bounded implementation. Execution must stay inside the implementation packet below and must not widen into publication, crates.io work, Substrate consumption, or adjacent Phase 6 seams.
+- The completed Packet 1 / Packet 2 / Packet 3 sections below remain as historical planning provenance. Current execution authority begins at **Implementation Packet 1**.
 
 ## Packet 1: Freeze The Seam Boundary
 
@@ -51,6 +52,30 @@ Plan reference: [handbook-engine-extraction-phase-6-handbook-pipeline-boundary-c
   - Files: `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-tasks.md`
   - Completion note: Packet 3 now ends at an explicit **Human Review Gate** in all three docs. The stop condition is quote-ready and says that implementation, packet-prompt authoring for later execution, production edits, publication, crates.io work, Substrate consumption, and integration implementation remain blocked until a human separately reviews this triplet and explicitly approves a later execution packet.
 
-## Human Review Gate
+## Implementation Packet 1: Pipeline Catalog Fixture/Support Decoupling
 
-This triplet is planning-only and stops at review. Implementation, packet-prompt authoring for later execution, production edits, publication, crates.io work, Substrate consumption, and integration implementation remain blocked until a human separately reviews this triplet and explicitly approves a later execution packet.
+- [ ] Task: Move the `pipeline_catalog` proof off compiler-owned template-library support
+  - Acceptance: `crates/pipeline/tests/pipeline_catalog.rs` no longer imports `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`. The `stage_library_inputs_remain_the_authoritative_declarative_source` assertion uses a pipeline-owned test/support fixture or literal source rooted in the declared stage-library contract rather than compiler-owned authoring helpers.
+  - Verify: `rg -n "handbook_compiler::author::template_library|resolve_shipped_template_library|TemplateLibraryRequest|TemplateLibrarySelection" crates/pipeline/tests crates/pipeline/src && cargo test -p handbook-pipeline --test pipeline_catalog`
+  - Files: `crates/pipeline/tests/pipeline_catalog.rs`, optionally `crates/pipeline/tests/support/**`, optionally `crates/pipeline/src/**`
+
+- [ ] Task: Remove the pipeline package's compiler-backed proof dependency if decoupling leaves no remaining in-scope need
+  - Acceptance: `crates/pipeline/Cargo.toml` no longer lists `handbook-compiler` under `[dev-dependencies]`, unless another pipeline-owned test still requires it and that requirement is explicitly documented before the packet can close. `cargo tree -p handbook-pipeline` therefore no longer shows `handbook-compiler` as a dev-dependency in the normal packet path.
+  - Verify: `cargo tree -p handbook-pipeline && cargo test -p handbook-pipeline --test pipeline_catalog`
+  - Files: `crates/pipeline/Cargo.toml`, any pipeline test/support files touched by the proof rewrite
+
+- [ ] Task: Prove the reviewed supported-target wedge stays stable after the proof decoupling
+  - Acceptance: `pipeline_catalog`, `pipeline_compile`, `pipeline_capture`, `pipeline_handoff`, compiler `author`, and `cargo check --workspace` all pass without widening into CLI/setup ownership, flow proof, retained `handbook-compiler` retirement, publication, crates.io work, or Substrate integration implementation.
+  - Verify: `cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_compile && cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff && cargo test -p handbook-compiler --test author && cargo check --workspace`
+  - Files: verification only, plus only the packet-local files above if a narrow repair is required
+
+## Final Slice Verification
+
+- [ ] Task: Run the full boundary-cleanup verification wall after Implementation Packet 1 lands
+  - Acceptance: the only known pipeline-owned compiler-backed coupling is gone, the pipeline package no longer carries the now-unneeded compiler dev-dependency unless explicitly justified, the reviewed supported-target wedge remains stable, and no adjacent-seam leakage appears.
+  - Verify: `cargo tree -p handbook-pipeline && cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_compile && cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff && cargo test -p handbook-compiler --test author && cargo check --workspace`
+  - Files: verification only
+
+## Wider-Seam Guardrail
+
+Stop after the bounded implementation packet above lands review-clean. Do not widen this slice into retained `handbook-compiler` retirement, CLI shell/support reassignment, publication, crates.io work, Substrate consumption, or broader integration implementation without separate authority.
