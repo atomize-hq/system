@@ -9,7 +9,7 @@ Turn the landed Phase 6 Packet 4 `handbook-pipeline` seam map entry into one bou
 Success for this plan means:
 
 - the reviewed supported-target importer boundary is concrete enough that later packets can implement against it without rediscovering scope
-- the remaining compiler-backed fixture/support coupling is described precisely enough that later packets can remove or relocate it without widening into adjacent seams
+- the remaining compiler-backed fixture/support coupling is split cleanly into a live evidence ledger, retained compiler context, bounded cleanup target, and explicit non-goals
 - the plan preserves the Phase 6 human-review posture: this triplet is preparation for later implementation approval, not implementation approval itself
 
 ## Major Artifacts
@@ -19,16 +19,23 @@ Success for this plan means:
    - the explicit statement that the full current public re-export surface is not the durable importer contract
    - the explicit statement that `setup` stays outside this seam’s reviewed importer boundary
 
-2. **Coupling evidence ledger**
+2. **Live evidence ledger**
    - the concrete `pipeline_catalog` import path into compiler template-library support
-   - the retained compiler re-export path that makes that coupling possible today
+   - the explicit statement that `cargo tree -p handbook-pipeline` still shows `handbook-compiler` as a dev-dependency rather than a runtime owner
    - any additional bounded pipeline test/support surfaces that must be considered before implementation starts
 
-3. **Cleanup strategy**
-   - the minimum acceptable future implementation shape for removing or relocating the pipeline-side compiler-backed fixture/support coupling
-   - the explicit non-goals that stop the seam from expanding into CLI shell/support clarification or retained compiler narrowing
+3. **Retained compiler context**
+   - the retained compiler re-export path that makes the `pipeline_catalog` coupling possible today
+   - the statement that `crates/compiler/src/template_library.rs` remains the live implementation home for the shipped-template support currently reached by the pipeline test
 
-4. **Verification and review gate**
+4. **Bounded cleanup target**
+   - the quote-ready target: later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof
+   - the minimum acceptable future implementation shape for removing or relocating that bounded coupling
+
+5. **Explicit non-goals**
+   - the explicit non-goals that stop the seam from expanding into retained `handbook-compiler` retirement, broader authoring-stack relocation, or CLI shell/support reassignment
+
+6. **Verification and review gate**
    - the future implementation verification wall for pipeline and compiler authoring proof
    - the explicit human review gate that still blocks implementation, publication, crates.io work, Substrate consumption, and integration execution
 
@@ -67,9 +74,10 @@ Why second:
 
 Output:
 
-- one explicit evidence ledger centered on `crates/pipeline/tests/pipeline_catalog.rs`
-- one explicit retained-compiler context statement covering `crates/compiler/src/lib.rs`, `crates/compiler/src/author/mod.rs`, and `crates/compiler/src/template_library.rs`
-- one bounded cleanup target: stop pipeline catalog/runtime proof from depending on compiler-owned template-library support
+- one explicit **live evidence ledger** centered on `crates/pipeline/tests/pipeline_catalog.rs`, including the exact import of `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`
+- one explicit **retained compiler context** statement covering `crates/compiler/src/lib.rs`, `crates/compiler/src/author/mod.rs`, and `crates/compiler/src/template_library.rs`
+- one explicit **bounded cleanup target**: later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof
+- one explicit **non-goals** list that keeps retained `handbook-compiler` retirement, broader authoring-stack relocation, and CLI shell/support reassignment out of this seam
 
 ### Packet 3: Choose the allowed cleanup shape and verification wall
 
@@ -143,8 +151,8 @@ Mitigation:
 Confirm:
 
 - `crates/pipeline/src/lib.rs` still exposes the broader current public surface
-- `pipeline_catalog.rs` still imports compiler template-library support
-- `handbook-pipeline` still carries the bounded compiler edge only as a dev-dependency
+- `pipeline_catalog.rs` still imports `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`
+- `handbook-pipeline` still carries the bounded compiler edge only as a dev-dependency rather than a runtime owner
 
 Suggested verification:
 
@@ -186,13 +194,15 @@ Confirm the triplet states all of the following:
 
 - `pipeline_catalog` coupling is the concrete cleanup target
 - pipeline-side `template_library` / compiler-backed fixture-support decoupling belongs to this seam
-- CLI shell/support clarification stays out
-- retained `handbook-compiler` narrowing stays out
+- later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof
+- retained `handbook-compiler` retirement stays out
+- broader authoring-stack relocation stays out
+- CLI shell/support reassignment stays out
 
 Suggested verification:
 
 ```bash
-rg -n "pipeline_catalog|template_library|compiler-backed fixture/support coupling|CLI shell/support clarification|retained handbook-compiler narrowing|out of scope" docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-{spec,plan,tasks}.md
+rg -n "remove or relocate|pipeline catalog/runtime proof|retained handbook-compiler retirement|authoring-stack relocation|CLI shell/support" docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-{spec,plan,tasks}.md
 ```
 
 ### Checkpoint 4: Future implementation verification wall is ready
@@ -214,6 +224,6 @@ This triplet is ready for human review when:
 
 - the rationale for planning `handbook-pipeline` next is explicit and grounded in landed Phase 6 docs
 - the reviewed importer boundary is specific enough that later packets can tell what is in and out
-- the pipeline-side compiler-backed fixture/support coupling target is specific enough that later packets can remove it without reopening adjacent seams
+- the Packet 2 freeze distinguishes the live evidence ledger, retained compiler context, bounded cleanup target, and explicit non-goals clearly enough that later packets can remove the coupling without reopening adjacent seams
 - the verification wall covers both pipeline proof and retained compiler authoring non-regression
 - the final stop condition is explicit: this triplet is planning-only and awaits separate human approval before implementation

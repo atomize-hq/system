@@ -15,8 +15,8 @@ Plan one downstream seam only: the `handbook-pipeline` boundary cleanup seam nam
 This triplet must define, in docs only:
 
 - the reviewed supported-target importer boundary that Packet 2 said is the only durable `handbook-pipeline` import posture
-- the specific compiler-backed fixture/support coupling that still prevents the full current `handbook-pipeline` crate surface from being blessed as the durable importer contract
-- the bounded follow-on work needed to remove or relocate that coupling without widening into CLI shell/support clarification, `handbook-flow` importer-proof work, retained `handbook-compiler` narrowing, or optional `handbook-engine` boundary-freeze work
+- the live evidence ledger and retained compiler context for the specific compiler-backed fixture/support coupling that still prevents the full current `handbook-pipeline` crate surface from being blessed as the durable importer contract
+- the bounded cleanup target and explicit non-goals needed to remove or relocate that coupling without widening into CLI shell/support clarification, `handbook-flow` importer-proof work, retained `handbook-compiler` narrowing, or optional `handbook-engine` boundary-freeze work
 
 This triplet is planning-only. It does **not** authorize implementation, packet-prompt authoring, production edits, crate publication, crates.io work, Substrate consumption, or integration implementation.
 
@@ -141,14 +141,33 @@ Out of scope:
 - crate publication, crates.io work, Substrate consumption approval, or integration implementation
 - packet-prompt authoring
 
-## Current Repo-Truth Evidence
+## Packet 2 Freeze: Evidence Ledger And Cleanup Target
+
+### Live evidence ledger
 
 - `crates/pipeline/src/lib.rs` currently re-exports a broad surface that includes catalog/loading/selection helpers, compile/capture/handoff helpers, route-state helpers, and `setup`.
 - Packet 2 already decided that Substrate must **not** consume that full current surface as the durable boundary; only a thinner reviewed supported-target wedge is approved.
-- `cargo tree -p handbook-pipeline` shows `handbook-engine` as the runtime dependency and `handbook-compiler` as a dev-dependency, so the remaining compiler edge is bounded support coupling rather than runtime center-of-gravity inversion.
 - `crates/pipeline/tests/pipeline_catalog.rs` still imports `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`.
+- `cargo tree -p handbook-pipeline` still shows `handbook-compiler` as a dev-dependency rather than a runtime owner, so the remaining compiler edge is bounded support coupling rather than runtime center-of-gravity inversion.
 - `cargo test -p handbook-pipeline --test pipeline_catalog` passes today, which means the current coupling is live repo truth rather than dead code.
-- `crates/compiler/src/lib.rs` and `crates/compiler/src/author/mod.rs` show that template-library support still sits inside retained compiler-owned support surfaces today.
+
+### Retained compiler context
+
+- `crates/compiler/src/author/mod.rs` still owns the path-based authoring hook via `#[path = "../template_library.rs"] pub mod template_library;`.
+- `crates/compiler/src/lib.rs` still re-exports `author::template_library::{resolve_shipped_template_library, resolve_template_library, ...}`, which is why pipeline tests can currently reach shipped-template support through retained compiler-owned surfaces.
+- `crates/compiler/src/template_library.rs` remains the live implementation home for `resolve_shipped_template_library`, `TemplateLibraryRequest`, and `TemplateLibrarySelection`.
+
+### Bounded cleanup target
+
+- Later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof.
+- That target stays intentionally narrow: the goal is to decouple pipeline catalog/runtime proof from compiler-owned template-library support without changing the Packet 2 rule that only the reviewed supported-target wedge, not the full crate surface, is the durable importer contract.
+
+### Explicit non-goals
+
+- Do not widen this seam into retained `handbook-compiler` retirement.
+- Do not widen this seam into broader authoring-stack relocation.
+- Do not widen this seam into CLI shell/support reassignment.
+- Do not treat this seam as approval to reopen the optional `handbook-engine` boundary-freeze seam or the separate `handbook-flow` importer-proof seam.
 
 ## Boundary Freeze This Seam Must Produce
 
@@ -176,11 +195,13 @@ This seam must **not** silently expand that reviewed supported-target importer b
 - CLI/product-shell helpers stay outside this boundary
 - compiler-routed compatibility helpers stay outside this boundary unless they are the minimum temporary bridge required to remove the specific `pipeline_catalog` coupling this seam owns
 
-### Coupling cleanup target
+### Bounded cleanup target
 
 This seam must plan the removal or relocation of the remaining compiler-backed fixture/support coupling that currently exists because `pipeline_catalog` reaches into compiler template-library support.
 
-The cleanup target is intentionally narrower than “move template_library out of compiler everywhere.” The seam succeeds only if later packets can make `handbook-pipeline` catalog/runtime proof independent from compiler-owned template-library support **without** widening into the full retained-compiler narrowing seam.
+Later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof.
+
+The cleanup target is intentionally narrower than “move template_library out of compiler everywhere.” The seam succeeds only if later packets can make `handbook-pipeline` catalog/runtime proof independent from compiler-owned template-library support **without** widening into retained `handbook-compiler` retirement, broader authoring-stack relocation, or CLI shell/support reassignment.
 
 Acceptable future implementation postures may include a pipeline-owned or compiler-neutral source for the specific shipped template defaults that `pipeline_catalog` needs, but this triplet does not authorize or require a full authoring-stack relocation.
 
@@ -209,8 +230,9 @@ Acceptable future implementation postures may include a pipeline-owned or compil
 - The triplet preserves the landed Packet 2 and Packet 4 boundary language instead of replacing it with new generic wording.
 - The triplet freezes a concrete reviewed importer boundary for `handbook-pipeline` that is narrower than the full current public re-export surface.
 - The triplet explicitly states that `setup` stays out of this reviewed importer boundary and remains routed to the CLI shell/support seam.
-- The triplet records the live compiler-backed fixture/support coupling in `crates/pipeline/tests/pipeline_catalog.rs`.
-- The triplet plans a bounded cleanup path that removes or relocates that coupling without widening into retained `handbook-compiler` narrowing.
+- The triplet distinguishes a live evidence ledger, retained compiler context, bounded cleanup target, and explicit non-goals for Packet 2.
+- The triplet records the live compiler-backed fixture/support coupling in `crates/pipeline/tests/pipeline_catalog.rs` and the retained compiler context that currently exposes it.
+- The triplet plans a bounded cleanup path that removes or relocates that coupling without widening into retained `handbook-compiler` retirement, broader authoring-stack relocation, or CLI shell/support reassignment.
 - The triplet includes a future implementation verification wall and an explicit human review gate.
 
 ## Open Questions

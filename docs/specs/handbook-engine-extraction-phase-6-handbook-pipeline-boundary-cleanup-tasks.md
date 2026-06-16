@@ -24,15 +24,17 @@ Plan reference: [handbook-engine-extraction-phase-6-handbook-pipeline-boundary-c
 
 ## Packet 2: Freeze The Coupling Evidence Ledger And Cleanup Target
 
-- [ ] Task: Record the live compiler-backed fixture/support coupling evidence
-  - Acceptance: The triplet explicitly records that `crates/pipeline/tests/pipeline_catalog.rs` imports `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`, and that `cargo tree -p handbook-pipeline` still shows `handbook-compiler` only as a dev-dependency rather than a runtime owner.
+- [x] Task: Record the live compiler-backed fixture/support coupling evidence
+  - Acceptance: The triplet explicitly labels a **live evidence ledger** and a **retained compiler context**. It records that `crates/pipeline/tests/pipeline_catalog.rs` imports `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`, and that `cargo tree -p handbook-pipeline` still shows `handbook-compiler` only as a dev-dependency rather than a runtime owner.
   - Verify: `rg -n "resolve_shipped_template_library|TemplateLibraryRequest|TemplateLibrarySelection" crates/pipeline/tests/pipeline_catalog.rs && cargo tree -p handbook-pipeline`
-  - Files: `crates/pipeline/tests/pipeline_catalog.rs`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-tasks.md`
+  - Files: `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-tasks.md`
+  - Completion note: Packet 2 now freezes the live evidence ledger around the exact `pipeline_catalog` import and the dev-dependency-only `cargo tree -p handbook-pipeline` result, then separates the retained compiler context into the `crates/compiler/src/lib.rs`, `crates/compiler/src/author/mod.rs`, and `crates/compiler/src/template_library.rs` surfaces that currently expose that support.
 
-- [ ] Task: Freeze the bounded cleanup target without widening into retained compiler narrowing
-  - Acceptance: The triplet states that later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof, but does not plan wholesale retained `handbook-compiler` retirement, broader authoring-stack relocation, or CLI shell/support reassignment.
+- [x] Task: Freeze the bounded cleanup target without widening into retained compiler narrowing
+  - Acceptance: The triplet explicitly labels a **bounded cleanup target** and **explicit non-goals**. It states that later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof, but does not plan wholesale retained `handbook-compiler` retirement, broader authoring-stack relocation, or CLI shell/support reassignment.
   - Verify: `rg -n "remove or relocate|pipeline catalog/runtime proof|retained handbook-compiler retirement|authoring-stack relocation|CLI shell/support" docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-{spec,plan,tasks}.md`
   - Files: `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-spec.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-plan.md`, `docs/specs/handbook-engine-extraction-phase-6-handbook-pipeline-boundary-cleanup-tasks.md`
+  - Completion note: Packet 2 now freezes the cleanup target as “Later implementation must remove or relocate the pipeline-side compiler-backed fixture/support dependency needed by pipeline catalog/runtime proof,” and pairs that sentence with an explicit non-goals list that keeps retained `handbook-compiler` retirement, broader authoring-stack relocation, and CLI shell/support reassignment out of scope.
 
 ## Packet 3: Prepare Future Implementation Verification And Stop At Review
 
