@@ -18,6 +18,7 @@ This file does not replace the root extraction plan. It is the companion decompo
 - The extracted workspace shape is live in code: `crates/engine`, `crates/pipeline`, `crates/flow`, and `crates/cli` are the real owner layers, with `crates/compiler` retained only as the reviewed narrow compatibility/support seam.
 - The current runtime wedge remains intentionally bounded while pipeline/stage truth comes from declarative catalog inputs and the retained default consumer stays code-owned and validated.
 - Phase 6 in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` is now the next authoritative step.
+- All Phase 1–5 and Phase 6 slice/packet artifacts have been archived under `docs/specs/archive/`. See `docs/specs/archive/README.md` for the archive index. Historical file paths referenced below should be resolved relative to the archive subdirectories.
 
 ## Authority And Assumptions
 

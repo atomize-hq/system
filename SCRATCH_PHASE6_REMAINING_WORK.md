@@ -17,7 +17,7 @@
 - [ ] Make the durable boundary decision: narrower public facade vs. documented frozen subset of the current public surface
 - [ ] Record the decision and close out the slice
 
-### 2. Docs hygiene / archive pass
+### 2. Docs hygiene / archive pass — DONE
 
 - Keep active: `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`, `docs/specs/handbook-engine-extraction-slice-map.md`, `docs/specs/handbook-engine-extraction-closeout-four-set-map.md`
 - Archive: all landed Phase 1–5 slice triplets, all old packet-prompt artifacts for landed work, the Phase 6 Slice 6.1 packet artifacts, likely the current Phase 6 packet-prompt artifacts, possibly the current Phase 6 planning triplets after lifting still-valid conclusions

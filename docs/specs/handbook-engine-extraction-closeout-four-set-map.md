@@ -38,6 +38,7 @@ The residual truths that remain explicit after closeout are:
 - handbook-product default layout contracts still exist as defaults, but reusable internals now consume reviewed typed contracts instead of scattered literals
 - `handbook-compiler` remains a narrow compatibility/support seam rather than the implementation center
 - Phase 6 in `HANDBOOK_ENGINE_EXTRACTION_PLAN.md` is now the next authoritative step
+- All Phase 1–5 and Phase 6 slice/packet artifacts have been archived under `docs/specs/archive/`. See `docs/specs/archive/README.md` for the archive index. Historical file paths referenced in this map should be resolved relative to the archive subdirectories.
 
 ---
 
