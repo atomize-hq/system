@@ -290,3 +290,43 @@ This slice is approved only for the bounded implementation packet and prompt art
 
 - Does any current `handbook-pipeline` export outside the reviewed supported-target wedge still need temporary transitional documentation, or can this triplet treat the non-reviewed remainder simply as out of boundary?
 - Current live repo truth says `pipeline_loader`, `pipeline_route_resolution`, and `pipeline_state_store` cover adjacent loading/selection and route-state behavior without importing compiler template-library support; if a later repo change introduces another compiler-backed pipeline test beyond `pipeline_catalog`, add it to the bounded evidence ledger before implementation starts.
+
+---
+
+## Durable Boundary Decision (Recorded 2026-06-17)
+
+After the implementation packet landed and the full verification wall passed, the durable boundary decision for `handbook-pipeline` is:
+
+**Documented frozen subset of the current public surface.**
+
+### Rationale
+
+1. The technical blocker (compiler-backed dev-dependency) is gone. The public surface is clean.
+2. The existing module structure already maps naturally to the reviewed importer boundary.
+3. A narrower facade module would be premature: no Substrate consumer exists yet to drive the facade shape with real import evidence.
+4. When Substrate actually starts importing, if the surface needs narrowing, a facade can be added then with consumer-driven evidence rather than speculative guessing now.
+
+### Inside the durable Substrate import contract
+
+The current public re-exports from these modules:
+
+- `pipeline` — catalog loading, selection, rendering, stage compile definitions
+- `pipeline_capture` — capture preview, apply, render, refusal
+- `pipeline_compile` — compile stages, runtime context, explain/payload rendering
+- `pipeline_handoff` — emit, validate, render handoff bundles
+- `pipeline_route` — resolve pipeline routes, route variables
+- `route_state` — route state load, persist, audit, route basis
+
+Plus `pipeline_contract_version()`.
+
+### Outside the durable Substrate import contract
+
+- `setup` — thin re-export of route-state reset helpers (`apply_runtime_state_reset`, `plan_runtime_state_reset`, `preview_runtime_state_reset`, `reset_runtime_state_tree`, `RuntimeStateResetPlan`). Used by CLI and compiler, not by Substrate. Routed to the CLI shell/support seam.
+- `declarative_roots` — path constants and helpers for `core/pipelines`, `core/profiles`, `core/runners`. Currently `pub mod` but used only internally by pipeline modules. Not part of the Substrate import contract.
+- `layout`, `repo_file_access`, `stage_10_feature_spec_provenance` — already `mod` (private), correctly internal.
+
+### What this means for future work
+
+- The current public surface is the frozen subset. No code change is needed to make it the durable boundary.
+- If a future Substrate consumer needs a narrower facade, that work is explicitly deferred to the actual import/adoption plan (Lane D).
+- The `setup` module should not be consumed by Substrate. If Substrate later needs reset functionality, that should be a separate decision routed through the CLI shell/support seam.

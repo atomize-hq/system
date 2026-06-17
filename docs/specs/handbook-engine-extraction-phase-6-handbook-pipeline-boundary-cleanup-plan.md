@@ -251,3 +251,38 @@ This slice is ready for implementation when:
 ## Approved Implementation Boundary
 
 The separate human review gate for this slice has been satisfied. Implementation is now authorized only for the bounded packet described above plus its packet-prompt artifact. Publication, crates.io work, Substrate consumption, and broader integration implementation remain out of scope.
+
+---
+
+## Durable Boundary Decision (Recorded 2026-06-17)
+
+The durable `handbook-pipeline` Substrate import boundary is a **documented frozen subset of the current public surface**.
+
+No narrower facade module is introduced at this time. Rationale:
+
+- the technical blocker (compiler-backed dev-dependency) is gone and the verification wall passes
+- the existing module structure already maps naturally to the reviewed importer boundary
+- a facade would be premature without a real Substrate consumer to drive its shape
+- if a facade is needed later, the actual import/adoption plan (Lane D) can introduce one with consumer-driven evidence
+
+### Frozen in-boundary modules (Substrate import contract)
+
+- `pipeline` — catalog loading, selection, rendering, stage compile definitions
+- `pipeline_capture` — capture preview, apply, render, refusal
+- `pipeline_compile` — compile stages, runtime context, explain/payload rendering
+- `pipeline_handoff` — emit, validate, render handoff bundles
+- `pipeline_route` — resolve pipeline routes, route variables
+- `route_state` — route state load, persist, audit, route basis
+- `pipeline_contract_version()`
+
+### Frozen out-of-boundary modules
+
+- `setup` — route-state reset helpers (CLI/compiler only, not Substrate)
+- `declarative_roots` — path constants (internal-only, not Substrate)
+- `layout`, `repo_file_access`, `stage_10_feature_spec_provenance` — already private
+
+### Deferred to Lane D (Final Substrate import plan)
+
+- actual facade introduction if consumer evidence warrants it
+- publication / crates.io decisions
+- Substrate consumption implementation

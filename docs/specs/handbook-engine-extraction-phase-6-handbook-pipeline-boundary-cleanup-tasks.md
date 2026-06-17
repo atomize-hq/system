@@ -54,28 +54,55 @@ Plan reference: [handbook-engine-extraction-phase-6-handbook-pipeline-boundary-c
 
 ## Implementation Packet 1: Pipeline Catalog Fixture/Support Decoupling
 
-- [ ] Task: Move the `pipeline_catalog` proof off compiler-owned template-library support
+- [x] Task: Move the `pipeline_catalog` proof off compiler-owned template-library support
   - Acceptance: `crates/pipeline/tests/pipeline_catalog.rs` no longer imports `handbook_compiler::author::template_library::{resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection}`. The `stage_library_inputs_remain_the_authoritative_declarative_source` assertion uses a pipeline-owned test/support fixture or literal source rooted in the declared stage-library contract rather than compiler-owned authoring helpers.
   - Verify: `rg -n "handbook_compiler::author::template_library|resolve_shipped_template_library|TemplateLibraryRequest|TemplateLibrarySelection" crates/pipeline/tests crates/pipeline/src && cargo test -p handbook-pipeline --test pipeline_catalog`
   - Files: `crates/pipeline/tests/pipeline_catalog.rs`, optionally `crates/pipeline/tests/support/**`, optionally `crates/pipeline/src/**`
+  - Completion note: Landed in commit `2dfb9b7` ("Decouple pipeline catalog proof from compiler fixtures"). The `stage_library_inputs_remain_the_authoritative_declarative_source` test now asserts against pipeline-owned literal `CompileStageInput` paths rooted in declared stage-library contract files (`core/library/charter/*.md`, `core/library/environment_inventory/*.md`) instead of importing compiler-owned `template_library` support. Verification wall passed on 2026-06-17: 14 tests passed, 0 failed, and `rg` confirms zero `handbook_compiler` imports in pipeline tests/src.
 
-- [ ] Task: Remove the pipeline package's compiler-backed proof dependency if decoupling leaves no remaining in-scope need
+- [x] Task: Remove the pipeline package's compiler-backed proof dependency if decoupling leaves no remaining in-scope need
   - Acceptance: `crates/pipeline/Cargo.toml` no longer lists `handbook-compiler` under `[dev-dependencies]`, unless another pipeline-owned test still requires it and that requirement is explicitly documented before the packet can close. `cargo tree -p handbook-pipeline` therefore no longer shows `handbook-compiler` as a dev-dependency in the normal packet path.
   - Verify: `cargo tree -p handbook-pipeline && cargo test -p handbook-pipeline --test pipeline_catalog`
   - Files: `crates/pipeline/Cargo.toml`, any pipeline test/support files touched by the proof rewrite
+  - Completion note: Landed in commit `2dfb9b7`. `crates/pipeline/Cargo.toml` no longer lists `handbook-compiler` under `[dev-dependencies]`. `cargo tree -p handbook-pipeline` confirms zero `handbook-compiler` dependency (runtime or dev). No other pipeline-owned test requires it.
 
-- [ ] Task: Prove the reviewed supported-target wedge stays stable after the proof decoupling
+- [x] Task: Prove the reviewed supported-target wedge stays stable after the proof decoupling
   - Acceptance: `pipeline_catalog`, `pipeline_compile`, `pipeline_capture`, `pipeline_handoff`, compiler `author`, and `cargo check --workspace` all pass without widening into CLI/setup ownership, flow proof, retained `handbook-compiler` retirement, publication, crates.io work, or Substrate integration implementation.
   - Verify: `cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_compile && cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff && cargo test -p handbook-compiler --test author && cargo check --workspace`
   - Files: verification only, plus only the packet-local files above if a narrow repair is required
+  - Completion note: Full verification wall passed on 2026-06-17. Results: `pipeline_catalog` 14 passed, `pipeline_compile` 21 passed, `pipeline_capture` 45 passed, `pipeline_handoff` 8 passed, compiler `author` 59 passed, `cargo check --workspace` clean. No adjacent-seam leakage.
 
 ## Final Slice Verification
 
-- [ ] Task: Run the full boundary-cleanup verification wall after Implementation Packet 1 lands
+- [x] Task: Run the full boundary-cleanup verification wall after Implementation Packet 1 lands
   - Acceptance: the only known pipeline-owned compiler-backed coupling is gone, the pipeline package no longer carries the now-unneeded compiler dev-dependency unless explicitly justified, the reviewed supported-target wedge remains stable, and no adjacent-seam leakage appears.
   - Verify: `cargo tree -p handbook-pipeline && cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_compile && cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff && cargo test -p handbook-compiler --test author && cargo check --workspace`
   - Files: verification only
+  - Completion note: Verification wall run on 2026-06-17. All checks pass. `cargo tree -p handbook-pipeline` shows zero `handbook-compiler` (runtime or dev). `pipeline_catalog` (14), `pipeline_compile` (21), `pipeline_capture` (45), `pipeline_handoff` (8), compiler `author` (59) all pass. `cargo check --workspace` clean. No adjacent-seam leakage detected.
 
 ## Wider-Seam Guardrail
 
 Stop after the bounded implementation packet above lands review-clean. Do not widen this slice into retained `handbook-compiler` retirement, CLI shell/support reassignment, publication, crates.io work, Substrate consumption, or broader integration implementation without separate authority.
+
+---
+
+## Durable Boundary Decision (Recorded 2026-06-17)
+
+- [x] Task: Make the durable boundary decision — narrower public facade vs. documented frozen subset
+  - Decision: **documented frozen subset of the current public surface**.
+  - Rationale: the technical blocker is gone, the module structure maps naturally to the reviewed boundary, and a facade would be premature without a real Substrate consumer. If a facade is needed later, Lane D (Final Substrate import plan) can introduce one with consumer-driven evidence.
+  - In-boundary modules: `pipeline`, `pipeline_capture`, `pipeline_compile`, `pipeline_handoff`, `pipeline_route`, `route_state`, plus `pipeline_contract_version()`.
+  - Out-of-boundary modules: `setup` (CLI/compiler only), `declarative_roots` (internal), and the already-private `layout`/`repo_file_access`/`stage_10_feature_spec_provenance`.
+  - Recorded in: spec, plan, and tasks docs for this triplet.
+
+## Slice Closeout
+
+This slice is now **review-clean and complete**:
+
+- All planning packets (1–3) landed.
+- Implementation Packet 1 landed in commit `2dfb9b7`.
+- Full verification wall passed on 2026-06-17.
+- Durable boundary decision recorded.
+- No unchecked tasks remain.
+
+This slice does not authorize publication, crates.io work, Substrate consumption, or broader integration implementation. Those remain deferred to Lane D.
