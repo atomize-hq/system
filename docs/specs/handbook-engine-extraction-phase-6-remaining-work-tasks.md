@@ -221,7 +221,7 @@ Spec reference: [handbook-engine-extraction-phase-6-remaining-work-spec.md](./ha
 
 ### Packet 6.D.1: Write Import/Adoption Plan
 
-- [ ] Task: Write the phased import plan for engine + pipeline + flow
+- [x] Task: Write the phased import plan for engine + pipeline + flow
   - Acceptance: A standalone doc at `docs/specs/handbook-substrate-import-adoption-plan.md` records:
     - Import order: engine first (no intra-workspace deps), then pipeline (depends on engine), then flow (depends on engine)
     - Rationale for the phased order
@@ -238,6 +238,7 @@ Spec reference: [handbook-engine-extraction-phase-6-remaining-work-spec.md](./ha
       - No feature flags needed; edition/resolver/sha2/libc/serde all compatible
   - Verify: Doc exists and is consistent with the three crate surfaces and the Lane B consumer contract.
   - Files: `docs/specs/handbook-substrate-import-adoption-plan.md`
+  - Completion note (2026-06-18): `docs/specs/handbook-substrate-import-adoption-plan.md` is present in repo truth and records the phased import order, per-crate boundary posture, adapter/facade assessment, per-phase verification gates, and resolved Substrate-side constraints. Live review confirmed consistency with `crates/{engine,pipeline,flow}/src/lib.rs`, the Lane A frozen-boundary status in the remaining-work spec, the Lane B consumer contract in `docs/specs/handbook-flow-import-boundary-consumer-contract.md`, and the root plan's migration-gate posture.
 
 ### Packet 6.D.2: Human Review Gate
 
@@ -245,6 +246,7 @@ Spec reference: [handbook-engine-extraction-phase-6-remaining-work-spec.md](./ha
   - Acceptance: The plan has been reviewed by a human engineer who confirms it is consistent with live crate surfaces, frozen boundaries, and the root plan's migration gate. Any review feedback is addressed.
   - Verify: Human sign-off recorded in this tasks doc.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-remaining-work-tasks.md` (completion note)
+  - Review-prep note (2026-06-18): Packet 6.D.1 is verified as review-ready. Human sign-off is still pending; this packet stops at review preparation and does not record approval on behalf of a human reviewer.
 
 ---
 
@@ -266,6 +268,6 @@ Those remain outside Phase 6 scope and require separate authority.
 | Lane | Status | Blocks Lane D? |
 |------|--------|----------------|
 | A | Closed (2026-06-17) | N/A — done |
-| B | Pending | Yes |
+| B | Closed (Packet 6.B.4 recorded) | No |
 | C | Deferred (optional) | No |
-| D | Pending (after B) | — |
+| D | 6.D.1 complete; 6.D.2 human review pending | — |
