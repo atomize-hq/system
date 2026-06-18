@@ -69,6 +69,139 @@ Spec reference: [handbook-engine-extraction-phase-6-remaining-work-spec.md](./ha
   - Verify: Run each command, perform and record the required source inspection, and record pass/fail for both the broader surface proof and the supporting grep spot-check.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-remaining-work-tasks.md` (completion notes)
 
+#### Packet 6.B.4 completion notes
+
+- Pre-wall packet verification: **PASS**
+  - **Packet 6.B.1** verified complete from `docs/specs/handbook-flow-import-boundary-consumer-contract.md` preserving the Packet 6.B.1 evidence section, including the dependency-tree evidence, coupling-exclusion evidence, transitive dependency table, and preserved pre-cleanup shell-leakage provenance.
+  - **Packet 6.B.2** verified complete from the same contract doc's `Packet 6.B.2 Cleanup Outcome Reference`, plus live source inspection showing `PacketDecisionSummary.ready_next_safe_action` is now `ReadyPacketNextSafeAction`, `ResolverNextSafeAction` remains typed, and final shell wording is caller-owned in CLI/compiler rendering.
+  - **Packet 6.B.3** verified complete because the contract doc status is `Packet: 6.B.3 — Formalize Consumer Contract`, and the documented frozen surface still matches the live `crates/flow/src/{lib,budget,packet_result,resolver}.rs` exports inspected for this packet.
+
+- `cargo tree -p handbook-flow`: **PASS**
+  - Exact output:
+    ```text
+    handbook-flow v0.1.0 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+    └── handbook-engine v0.1.0 (/Users/spensermcconnell/__Active_Code/system/crates/engine)
+        ├── libc v0.2.184
+        ├── serde v1.0.228
+        │   ├── serde_core v1.0.228
+        │   └── serde_derive v1.0.228 (proc-macro)
+        │       ├── proc-macro2 v1.0.106
+        │       │   └── unicode-ident v1.0.24
+        │       ├── quote v1.0.45
+        │       │   └── proc-macro2 v1.0.106 (*)
+        │       └── syn v2.0.117
+        │           ├── proc-macro2 v1.0.106 (*)
+        │           ├── quote v1.0.45 (*)
+        │           └── unicode-ident v1.0.24
+        ├── serde_yaml_bw v2.5.4
+        │   ├── base64 v0.22.1
+        │   ├── indexmap v2.13.1
+        │   │   ├── equivalent v1.0.2
+        │   │   └── hashbrown v0.16.1
+        │   ├── itoa v1.0.18
+        │   ├── num-traits v0.2.19
+        │   │   [build-dependencies]
+        │   │   └── autocfg v1.5.0
+        │   ├── regex v1.12.3
+        │   │   ├── aho-corasick v1.1.4
+        │   │   │   └── memchr v2.8.0
+        │   │   ├── memchr v2.8.0
+        │   │   ├── regex-automata v0.4.14
+        │   │   │   ├── aho-corasick v1.1.4 (*)
+        │   │   │   ├── memchr v2.8.0
+        │   │   │   └── regex-syntax v0.8.10
+        │   │   └── regex-syntax v0.8.10
+        │   ├── saphyr-parser-bw v0.0.611
+        │   │   ├── arraydeque v0.5.1
+        │   │   ├── smallvec v1.15.1
+        │   │   └── thiserror v2.0.18
+        │   │       └── thiserror-impl v2.0.18 (proc-macro)
+        │   │           ├── proc-macro2 v1.0.106 (*)
+        │   │           ├── quote v1.0.45 (*)
+        │   │           └── syn v2.0.117 (*)
+        │   ├── serde v1.0.228 (*)
+        │   ├── unsafe-libyaml-norway v0.2.15
+        │   └── zmij v1.0.21
+        └── sha2 v0.10.9
+            ├── cfg-if v1.0.4
+            ├── cpufeatures v0.2.17
+            │   └── libc v0.2.184
+            └── digest v0.10.7
+                ├── block-buffer v0.10.4
+                │   └── generic-array v0.14.7
+                │       └── typenum v1.19.0
+                │       [build-dependencies]
+                │       └── version_check v0.9.5
+                └── crypto-common v0.1.7
+                    ├── generic-array v0.14.7 (*)
+                    └── typenum v1.19.0
+    [dev-dependencies]
+    └── tempfile v3.27.0
+        ├── fastrand v2.4.1
+        ├── getrandom v0.4.2
+        │   ├── cfg-if v1.0.4
+        │   └── libc v0.2.184
+        ├── once_cell v1.21.4
+        └── rustix v1.1.4
+            ├── bitflags v2.11.0
+            ├── errno v0.3.14
+            │   └── libc v0.2.184
+            └── libc v0.2.184
+    ```
+  - Result: only `handbook-engine` appears as the intra-workspace dependency.
+
+- `rg -n "handbook_compiler|handbook_cli|handbook_pipeline" crates/flow/src/ crates/flow/tests/`: **PASS**
+  - Exact output: `(no matches; stdout empty; rg exit code 1)`
+
+- Public `handbook-flow` source inspection against the Packet 6.B.3 consumer contract: **PASS**
+  - `crates/flow/src/lib.rs` re-exports only `budget`, `packet_result`, and `resolver` symbols, plus `flow_contract_version()` delegating to `handbook_engine::workspace_contract_version()`.
+  - `crates/flow/src/budget.rs` exposes typed budget outcomes and `NextSafeAction::ReduceCanonicalArtifactSize { canonical_repo_relative_path }`; no public rendered shell command strings remain.
+  - `crates/flow/src/packet_result.rs` keeps ready-path action semantics typed via `ReadyPacketNextSafeAction::{InspectProof, Generate, RunDoctor}` and `PacketDecisionSummary.ready_next_safe_action: ReadyPacketNextSafeAction`; the remaining `summary_line: String` is a flow-owned status summary, not caller-shell rendering.
+  - `crates/flow/src/resolver.rs` keeps refusal/blocker actions typed via `ResolverNextSafeAction` variants with typed payloads (`packet_id`, `canonical_repo_relative_path`) and uses `next_safe_action_for_ready_packet(...) -> ReadyPacketNextSafeAction`; the remaining public `summary: String` fields on `ResolverRefusal` and `ResolverBlocker` are status/diagnostic summaries, not final shell/product-shell command copy.
+  - Conclusion: no final shell-owned/operator-facing command copy remains on the public `handbook-flow` surface. Remaining next-action/status semantics are typed and machine-readable where action routing matters, and the remaining summary strings stay within the Packet 6.B.3 contract as flow-owned status text rather than shell-rendered instructions.
+
+- `rg -n 'run \`doctor\`|handbook inspect --packet|handbook generate --packet|handbook setup' crates/flow/src/`: **PASS**
+  - Exact output: `(no matches; stdout empty; rg exit code 1)`
+  - Supporting evidence only; not used as the sole proof.
+
+- `cargo test -p handbook-flow`: **PASS**
+  - Result summary:
+    ```text
+    running 11 tests
+    test flow_resolver_blocks_missing_system_root_with_typed_refusal ... ok
+    test flow_resolver_prioritizes_system_root_missing_over_live_execution_refusal ... ok
+    test flow_resolver_refuses_when_budget_is_exhausted ... ok
+    test flow_resolver_refuses_required_artifact_malformed_path_read_error ... ok
+    test flow_resolver_refuses_symlinked_canonical_artifact_as_non_canonical_input ... ok
+    test flow_resolver_refuses_live_execution_packets_without_fixture_backing ... ok
+    test flow_resolver_summarizes_optional_sources_when_budget_demands_it ... ok
+    test flow_resolver_blocks_optional_artifact_read_error_without_refusal ... ok
+    test flow_resolver_builds_ready_planning_packet_body ... ok
+    test flow_resolver_excludes_optional_sources_when_total_budget_demands_it ... ok
+    test flow_resolver_builds_fixture_context_for_execution_demo_packets ... ok
+
+    test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+    ```
+
+- `cargo check --workspace`: **PASS**
+  - Exact output:
+    ```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+    ```
+
+- `cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings`: **PASS**
+  - Exact output:
+    ```text
+    Checking handbook-flow v0.1.0 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+    Checking handbook-compiler v0.1.0 (/Users/spensermcconnell/__Active_Code/system/crates/compiler)
+    Checking handbook-cli v0.1.0 (/Users/spensermcconnell/__Active_Code/system/crates/cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.72s
+    ```
+
+- Packet 6.B.4 scope note:
+  - Only this completion-notes subsection was updated in this packet.
+  - No production code, Lane C, Lane D, publication work, or Substrate integration surfaces were changed.
+
 ---
 
 ## Lane C: Engine Optional Boundary Freeze (Optional — Currently Deferred)
