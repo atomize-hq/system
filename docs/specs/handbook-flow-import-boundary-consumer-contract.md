@@ -16,7 +16,7 @@
 #### `git status --short --branch`
 
 ```text
-## feat/seam-extraction...origin/feat/seam-extraction [ahead 1]
+## feat/seam-extraction...origin/feat/seam-extraction [ahead 2]
 ```
 
 #### `cargo tree -p handbook-flow`
@@ -113,6 +113,9 @@ Exit status: `1` (zero matches).
   - `sed -n '1,220p' crates/flow/src/budget.rs`
   - `sed -n '518,590p' crates/cli/src/rendering.rs`
   - `sed -n '315,360p' crates/compiler/src/rendering/shared.rs`
+- Additional live review-fix verification recorded for the ready-path passthrough claim:
+  - `sed -n '1,60p' crates/compiler/src/rendering/shared.rs`
+  - `rg -n "ready_next_safe_action|packet\.decision_summary\.ready_next_safe_action" crates/compiler/src/rendering/shared.rs crates/compiler/src/rendering/inspect.rs crates/cli/src/rendering.rs`
 - Additional resolver/engine coverage recorded for this Packet 6.B.1 review fix:
   - `sed -n '1,120p' crates/flow/src/resolver.rs`
   - `sed -n '400,470p' crates/flow/src/resolver.rs`
@@ -264,7 +267,9 @@ Every cross-crate type/function reference observed in `crates/flow/src/{resolver
    - `ResolverNextSafeAction` publicly exposes `RunSetup`, `RunSetupInit`, `RunSetupRefresh`, `RunGenerate`, and `RunDoctor` in `crates/flow/src/resolver.rs:79-106`.
    - `next_safe_action_for_ready_packet()` returns final user-facing command strings such as `run \`doctor\`` and `run \`handbook inspect --packet ...\` for proof` in `crates/flow/src/resolver.rs:1079-1098`.
    - `PacketDecisionSummary.ready_next_safe_action: String` keeps that final rendered shell copy on the public flow surface in `crates/flow/src/packet_result.rs:69-74`.
-   - `crates/cli/src/rendering.rs:526-585` and `crates/compiler/src/rendering/shared.rs:315-360` already render typed `NextSafeAction` values into final shell wording for refusal/blocker cases, but both still pass through `packet.decision_summary.ready_next_safe_action.clone()` for ready packets. That is the residual shell-owned seam Packet 6.B.2 must move out of `handbook-flow`.
+   - The recorded ready-path passthrough lives in the live ranges used for this fix: `sed -n '518,590p' crates/cli/src/rendering.rs` plus the recorded grep hit at `crates/cli/src/rendering.rs:540`, and `sed -n '1,60p' crates/compiler/src/rendering/shared.rs` plus the recorded grep hit at `crates/compiler/src/rendering/shared.rs:42`, both of which return `packet.decision_summary.ready_next_safe_action.clone()` for ready packets.
+   - The separately recorded refusal/blocker shell-wording helpers remain in `sed -n '518,590p' crates/cli/src/rendering.rs` and `sed -n '315,360p' crates/compiler/src/rendering/shared.rs`, where typed `NextSafeAction` values are rendered into final shell wording for non-ready paths.
+   - Together those recorded live ranges show the remaining shell-owned seam honestly: CLI/compiler already own typed refusal/blocker rendering, but ready packets still pass through the final `ready_next_safe_action` shell copy coming from `handbook-flow`. That is the residual seam Packet 6.B.2 must move out of `handbook-flow`.
    - setup-starter-template handling still participates in resolver packet logic via `matches_setup_starter_template` branches in `crates/flow/src/resolver.rs:802-804` and `866-872`.
 7. **Typed semantics vs final shell wording:** the typed/machine-readable side of the flow surface still consists of enums and categories such as `ResolverNextSafeAction`, `ResolverBlockerCategory`, `ResolverRefusalCategory`, `PacketSelectionStatus`, and the budget/result enums. The final shell-owned/operator-facing side is the rendered command/copy string surface: `next_safe_action_for_ready_packet()` in `resolver.rs` plus `PacketDecisionSummary.ready_next_safe_action: String` in `packet_result.rs`.
 8. **Honest conclusion for Packet 6.B.1 evidence:** the live source proves absence of extra crate imports/coupling to `handbook_cli`, `handbook_compiler`, and `handbook_pipeline`, and it proves resolver/budget/packet-result implementation dependencies stay within `handbook_engine` + std + flow-local types. It does **not** prove full exclusion of doctor/setup/CLI concerns from the public or observable `handbook-flow` surface, because the public flow result still carries final rendered shell wording via `ready_next_safe_action`, even though CLI/compiler already own most typed-next-action rendering for refusal/blocker paths.
