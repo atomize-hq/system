@@ -83,6 +83,70 @@ fn default_declarative_root_helper_preserves_existing_loader_behavior() {
 }
 
 #[test]
+fn non_default_stage_roots_are_not_yet_adopted_by_loader_validation() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let roots = handbook_product_pipeline_declarative_roots();
+    let imported_stage_roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
+        roots.pipeline_root_relative(),
+        roots.profile_root_relative(),
+        roots.runner_root_relative(),
+        ".substrate/handbook/core/stages",
+    );
+
+    write_stage_with_front_matter(
+        repo_root,
+        &imported_stage_roots.stage_file("00_base.md"),
+        r#"id: stage.00_base
+title: Imported Stage
+slug: imported-stage
+capabilities:
+  - implement
+"#,
+    );
+    write_file(
+        &repo_root.join(roots.pipeline_file("imported-stage-root.yaml")),
+        &format!(
+            r#"---
+kind: pipeline
+id: pipeline.imported_stage_root
+version: 0.1.0
+title: "Imported Stage Root"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: {}
+"#,
+            imported_stage_roots.stage_file("00_base.md")
+        ),
+    );
+
+    let err = load_pipeline_definition(&repo_root, roots.pipeline_file("imported-stage-root.yaml"))
+        .expect_err("non-default stage root should still be rejected in Packet 1.1");
+
+    match err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::OutsideStageDirectory,
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, ".substrate/handbook/core/stages/00_base.md");
+        }
+        other => panic!("expected stage-directory refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
     let repo_root = repo_root();
 

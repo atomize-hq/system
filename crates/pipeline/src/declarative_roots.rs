@@ -10,6 +10,12 @@ pub const PROFILES_ROOT_DISPLAY: &str = "core/profiles/";
 pub const RUNNERS_ROOT_DISPLAY: &str = "core/runners/";
 pub const STAGES_ROOT_DISPLAY: &str = "core/stages/";
 
+/// Public owner for declarative repo-relative path roots.
+///
+/// Packet 1.1 keeps this contract bounded to path ownership and explicit
+/// handbook-product defaults. Catalog discovery, pipeline loading, and stage
+/// validation still follow the existing handbook-product `core/**` behavior
+/// until Packet 1.2 adopts the active contract structurally.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PipelineDeclarativeRootsContract {
     pipeline_root_relative: &'static str,
@@ -96,6 +102,8 @@ pub const HANDBOOK_PRODUCT_PIPELINE_DECLARATIVE_ROOTS: PipelineDeclarativeRootsC
         STAGES_ROOT,
     );
 
+/// Explicit handbook-product defaults for the current supported loader/catalog
+/// boundary.
 pub fn handbook_product_declarative_roots() -> &'static PipelineDeclarativeRootsContract {
     &HANDBOOK_PRODUCT_PIPELINE_DECLARATIVE_ROOTS
 }

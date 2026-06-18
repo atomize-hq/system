@@ -18,7 +18,7 @@ fn repo_root() -> PathBuf {
 }
 
 #[test]
-fn declarative_root_contract_preserves_handbook_defaults_and_can_model_import_roots() {
+fn declarative_root_contract_preserves_handbook_defaults_and_derives_non_default_paths() {
     let defaults = handbook_product_pipeline_declarative_roots();
     assert_eq!(defaults.pipeline_root_relative(), "core/pipelines");
     assert_eq!(defaults.profile_root_relative(), "core/profiles");
@@ -47,6 +47,10 @@ fn declarative_root_contract_preserves_handbook_defaults_and_can_model_import_ro
     assert_eq!(
         imported.runner_file("codex-cli"),
         ".substrate/handbook/core/runners/codex-cli.md"
+    );
+    assert_eq!(
+        imported.stage_file("00_base.md"),
+        ".substrate/handbook/core/stages/00_base.md"
     );
     assert!(imported.is_profile_file(
         ".substrate/handbook/core/profiles/python-uv/commands.yaml",
