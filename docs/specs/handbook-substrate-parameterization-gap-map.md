@@ -29,6 +29,22 @@ The goal of this note is to separate four questions:
 
 This is a repo-truth note, not an implementation plan.
 
+## Intent and how to use this note
+
+The intent of this document is to make the Substrate-handbook objective explicit:
+
+- handbook should be able to live under a Substrate-owned namespace such as `.substrate/handbook/**`
+- future implementation work should close the remaining parameterization gaps needed to support that layout honestly
+- the gap list here should be used to inform and scope that work, so future packets/slices can target the remaining seams deliberately instead of rediscovering them piecemeal
+
+This document is therefore meant to support:
+
+- planning and sequencing future implementation work
+- deciding which gaps are structural import blockers versus secondary cleanup
+- checking whether a proposed packet actually moves the repo toward the `.substrate/handbook/**` objective
+
+It is **not** itself the execution plan, authority triplet, or implementation checklist for landing every change. It is an input artifact that should inform that later work.
+
 ## Exhaustiveness status
 
 This note is now split into two layers:
