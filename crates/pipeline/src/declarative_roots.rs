@@ -109,7 +109,7 @@ pub fn handbook_product_declarative_roots() -> &'static PipelineDeclarativeRoots
 }
 
 pub fn pipeline_root() -> &'static Path {
-    Path::new(PIPELINES_ROOT)
+    handbook_product_declarative_roots().pipeline_root()
 }
 
 pub fn runner_root() -> &'static Path {
@@ -117,7 +117,7 @@ pub fn runner_root() -> &'static Path {
 }
 
 pub fn profile_root() -> &'static Path {
-    Path::new(PROFILES_ROOT)
+    handbook_product_declarative_roots().profile_root()
 }
 
 pub fn stage_root() -> &'static Path {

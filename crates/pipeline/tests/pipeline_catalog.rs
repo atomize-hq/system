@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use handbook_pipeline::declarative_roots::{pipeline_root, profile_root};
 use handbook_pipeline::pipeline::SupportedTargetRegistry;
 use handbook_pipeline::{
     handbook_product_pipeline_declarative_roots, load_pipeline_catalog,
@@ -24,6 +25,8 @@ fn declarative_root_contract_preserves_handbook_defaults_and_derives_non_default
     assert_eq!(defaults.profile_root_relative(), "core/profiles");
     assert_eq!(defaults.runner_root_relative(), "core/runners");
     assert_eq!(defaults.stage_root_relative(), "core/stages");
+    assert_eq!(pipeline_root(), defaults.pipeline_root());
+    assert_eq!(profile_root(), defaults.profile_root());
     assert_eq!(
         defaults.pipeline_file("foundation.yaml"),
         "core/pipelines/foundation.yaml"
