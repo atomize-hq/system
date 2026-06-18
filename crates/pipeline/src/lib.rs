@@ -10,17 +10,19 @@ pub mod route_state;
 pub mod setup;
 mod stage_10_feature_spec_provenance;
 
+pub use declarative_roots::PipelineDeclarativeRootsContract;
 pub use pipeline::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
-    load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
-    render_pipeline_show, resolve_pipeline_only_selector, resolve_pipeline_selector,
-    supported_route_state_variables, ActivationClause, ActivationConditionSet, ActivationOperator,
-    ActivationValidationError, CompileStageDefinition, CompileStageGating, CompileStageInput,
-    CompileStageInputs, CompileStageLoadError, CompileStageOutput, CompileStageOutputs,
-    CompileStageVariable, PipelineBody, PipelineCatalog, PipelineCatalogEntry,
-    PipelineCatalogError, PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition,
-    PipelineHeader, PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError,
-    PipelineSelection, PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
+    handbook_product_pipeline_declarative_roots, load_pipeline_catalog,
+    load_pipeline_catalog_metadata, load_pipeline_definition, load_pipeline_selection_metadata,
+    load_stage_compile_definition, render_pipeline_list, render_pipeline_show,
+    resolve_pipeline_only_selector, resolve_pipeline_selector, supported_route_state_variables,
+    ActivationClause, ActivationConditionSet, ActivationOperator, ActivationValidationError,
+    CompileStageDefinition, CompileStageGating, CompileStageInput, CompileStageInputs,
+    CompileStageLoadError, CompileStageOutput, CompileStageOutputs, CompileStageVariable,
+    PipelineBody, PipelineCatalog, PipelineCatalogEntry, PipelineCatalogError,
+    PipelineCatalogStageEntry, PipelineDefaults, PipelineDefinition, PipelineHeader,
+    PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
+    PipelineStage, PipelineValidationError, StageActivation, StageCatalogEntry,
     StageFileValidationError,
 };
 pub use pipeline_capture::{

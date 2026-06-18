@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 
 use handbook_pipeline::pipeline::SupportedTargetRegistry;
 use handbook_pipeline::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
-    load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
-    render_pipeline_show, CompileStageInput, PipelineCatalogError, PipelineLoadError,
-    PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
-    PipelineValidationError,
+    handbook_product_pipeline_declarative_roots, load_pipeline_catalog,
+    load_pipeline_catalog_metadata, load_pipeline_definition, load_pipeline_selection_metadata,
+    load_stage_compile_definition, render_pipeline_list, render_pipeline_show, CompileStageInput,
+    PipelineCatalogError, PipelineDeclarativeRootsContract, PipelineLoadError, PipelineLookupError,
+    PipelineMetadataSelectionError, PipelineSelection, PipelineValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -15,6 +15,43 @@ fn repo_root() -> PathBuf {
         .join("../..")
         .canonicalize()
         .expect("repo root")
+}
+
+#[test]
+fn declarative_root_contract_preserves_handbook_defaults_and_can_model_import_roots() {
+    let defaults = handbook_product_pipeline_declarative_roots();
+    assert_eq!(defaults.pipeline_root_relative(), "core/pipelines");
+    assert_eq!(defaults.profile_root_relative(), "core/profiles");
+    assert_eq!(defaults.runner_root_relative(), "core/runners");
+    assert_eq!(defaults.stage_root_relative(), "core/stages");
+    assert_eq!(
+        defaults.pipeline_file("foundation.yaml"),
+        "core/pipelines/foundation.yaml"
+    );
+    assert_eq!(defaults.stage_file("00_base.md"), "core/stages/00_base.md");
+
+    let imported = PipelineDeclarativeRootsContract::from_paths(
+        ".substrate/handbook/core/pipelines",
+        ".substrate/handbook/core/profiles",
+        ".substrate/handbook/core/runners",
+        ".substrate/handbook/core/stages",
+    );
+    assert_eq!(
+        imported.pipeline_file("foundation.yaml"),
+        ".substrate/handbook/core/pipelines/foundation.yaml"
+    );
+    assert_eq!(
+        imported.profile_file("python-uv", "profile.yaml"),
+        ".substrate/handbook/core/profiles/python-uv/profile.yaml"
+    );
+    assert_eq!(
+        imported.runner_file("codex-cli"),
+        ".substrate/handbook/core/runners/codex-cli.md"
+    );
+    assert!(imported.is_profile_file(
+        ".substrate/handbook/core/profiles/python-uv/commands.yaml",
+        "python-uv"
+    ));
 }
 
 #[test]

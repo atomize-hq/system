@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
-    StageFileValidationError,
+    handbook_product_pipeline_declarative_roots, load_pipeline_definition, ActivationOperator,
+    PipelineLoadError, PipelineValidationError, StageFileValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -65,6 +65,21 @@ fn foundation_pipeline_loads_with_deterministic_stage_order() {
     assert_eq!(activation.when.clauses.len(), 1);
     assert_eq!(activation.when.clauses[0].variable, "needs_project_context");
     assert!(activation.when.clauses[0].value);
+}
+
+#[test]
+fn default_declarative_root_helper_preserves_existing_loader_behavior() {
+    let repo_root = repo_root();
+    let roots = handbook_product_pipeline_declarative_roots();
+
+    let definition = load_pipeline_definition(&repo_root, roots.pipeline_file("foundation.yaml"))
+        .expect("load pipeline through explicit default roots");
+
+    assert_eq!(definition.header.id, "pipeline.foundation");
+    assert_eq!(
+        definition.body.stages[0].file,
+        roots.stage_file("00_base.md")
+    );
 }
 
 #[test]

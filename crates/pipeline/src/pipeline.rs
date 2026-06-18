@@ -1,4 +1,6 @@
-use crate::declarative_roots::pipeline_root;
+use crate::declarative_roots::{
+    handbook_product_declarative_roots, pipeline_root, PipelineDeclarativeRootsContract,
+};
 use crate::repo_file_access::{
     CompilerWorkspace, NormalizedRepoRelativePath, RepoRelativeFileAccessError,
 };
@@ -1166,6 +1168,10 @@ pub fn load_pipeline_catalog_metadata(
     repo_root: impl AsRef<Path>,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
     load_pipeline_metadata_catalog_index(repo_root.as_ref())
+}
+
+pub fn handbook_product_pipeline_declarative_roots() -> &'static PipelineDeclarativeRootsContract {
+    handbook_product_declarative_roots()
 }
 
 pub fn load_pipeline_selection_metadata(
