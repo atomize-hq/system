@@ -55,6 +55,9 @@
   - `baseline_validation`
   - `canonical_artifacts`
   - `freshness`
+- Public canonical layout contract re-exports:
+  - `default_canonical_layout_contract()`
+  - `CanonicalLayoutContract`
 - Public version functions:
   - `workspace_contract_version()`
   - `engine_contract_version()`
@@ -155,7 +158,7 @@
 
 | Crate | Frozen boundary for first-wave import | Posture |
 |---|---|---|
-| `handbook-engine` | Current public surface: `artifact_manifest`, `author`, `baseline_validation`, `canonical_artifacts`, `freshness`, `workspace_contract_version()`, `engine_contract_version()` | Working boundary now; Lane C deferred |
+| `handbook-engine` | Current public surface: `artifact_manifest`, `author`, `baseline_validation`, `canonical_artifacts`, `freshness`, `default_canonical_layout_contract()`, `CanonicalLayoutContract`, `workspace_contract_version()`, `engine_contract_version()` | Working boundary now; Lane C deferred |
 | `handbook-pipeline` | Documented frozen subset: `pipeline`, `pipeline_capture`, `pipeline_compile`, `pipeline_handoff`, `pipeline_route`, `route_state`, `pipeline_contract_version()` | Closed in Lane A; import-ready at the documented subset |
 | `handbook-flow` | Lane B consumer contract: cleaned `resolver` + `budget` + `packet_result` surface with typed semantics only where contract-approved and final shell copy moved out of boundary | Import-ready after Lane B contract + verification wall |
 
