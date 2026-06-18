@@ -16,7 +16,7 @@
 #### `git status --short --branch`
 
 ```text
-## feat/seam-extraction...origin/feat/seam-extraction
+## feat/seam-extraction...origin/feat/seam-extraction [ahead 1]
 ```
 
 #### `cargo tree -p handbook-flow`
@@ -113,11 +113,16 @@ Exit status: `1` (zero matches).
   - `sed -n '1,220p' crates/flow/src/budget.rs`
   - `sed -n '518,590p' crates/cli/src/rendering.rs`
   - `sed -n '315,360p' crates/compiler/src/rendering/shared.rs`
+- Additional resolver/engine coverage recorded for this Packet 6.B.1 review fix:
+  - `sed -n '1,120p' crates/flow/src/resolver.rs`
+  - `sed -n '400,470p' crates/flow/src/resolver.rs`
+  - `sed -n '1,240p' crates/engine/src/lib.rs`
 - Supplemental live cross-checks used to keep the evidence honest:
   - `sed -n '1,260p' crates/flow/src/lib.rs`
-  - `sed -n '1,240p' crates/engine/src/lib.rs`
   - `sed -n '1060,1110p' crates/flow/src/resolver.rs`
   - `rg -n 'run \`doctor\`|handbook inspect --packet|handbook generate --packet|handbook setup|matches_setup_starter_template|next_safe_action_for_ready_packet|ready_next_safe_action' crates/flow/src/resolver.rs crates/flow/src/packet_result.rs crates/cli/src/rendering.rs crates/compiler/src/rendering/shared.rs`
+
+Resolver symbol coverage used below is anchored to the recorded live ranges: `sed -n '1,120p' crates/flow/src/resolver.rs` covers `C04_RESULT_VERSION`, `ResolverRefusalCategory`, `ResolverSubjectRef`, and the `handbook_engine` imports; `sed -n '70,210p' crates/flow/src/resolver.rs` covers `ResolverNextSafeAction`, `ResolverRefusal`, `ResolverBlockerCategory`, and `ResolverBlocker`; `sed -n '400,470p' crates/flow/src/resolver.rs` covers `ResolveRequest`, `PacketSelectionStatus`, `PacketSelection`, `ResolverResult`, and the `resolve(...)` entrypoint; `sed -n '1060,1110p' crates/flow/src/resolver.rs` is retained only for the ready-path shell-wording cross-check.
 
 ### Import-surface inventory from `crates/flow/src/lib.rs`
 
