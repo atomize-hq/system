@@ -12,7 +12,7 @@
 - **Lane B:** treated as complete for this planning artifact based on live evidence in:
   - `docs/specs/handbook-flow-import-boundary-consumer-contract.md` (`Status: Packet 6.B.3`, cleaned frozen surface, caller-owned rendering out of boundary)
   - `docs/specs/handbook-engine-extraction-phase-6-remaining-work-tasks.md` (`Packet 6.B.4 completion notes`, including PASS results for the dependency proof, coupling proof, public-surface inspection, tests, workspace check, fmt, and clippy)
-- **Lane C:** deferred. `handbook-engine`'s current public surface is the working boundary unless a later Substrate consumer proves a narrower facade is needed.
+- **Lane C:** deferred. `handbook-engine`'s full current public surface in `crates/engine/src/lib.rs` is the working boundary unless a later Substrate consumer proves a narrower facade is needed.
 
 ## Substrate-side constraints to lock before import
 
@@ -49,18 +49,21 @@
 
 **Frozen boundary to adopt**
 
-- Public modules:
-  - `artifact_manifest`
-  - `author`
-  - `baseline_validation`
-  - `canonical_artifacts`
-  - `freshness`
-- Public canonical layout contract re-exports:
-  - `default_canonical_layout_contract()`
-  - `CanonicalLayoutContract`
-- Public version functions:
-  - `workspace_contract_version()`
-  - `engine_contract_version()`
+- Treat the **full current public surface exposed by `crates/engine/src/lib.rs`** as the working boundary for first-wave import.
+- That public surface currently includes:
+  - public modules:
+    - `artifact_manifest`
+    - `author`
+    - `baseline_validation`
+    - `canonical_artifacts`
+    - `freshness`
+  - crate-root re-exports from those modules (the public artifact-manifest, authoring, baseline-validation, canonical-artifact, and freshness functions/types exposed by `lib.rs`)
+  - public canonical layout contract re-exports:
+    - `default_canonical_layout_contract()`
+    - `CanonicalLayoutContract`
+  - public version functions:
+    - `workspace_contract_version()`
+    - `engine_contract_version()`
 
 **Substrate verification gate after Phase 1**
 
@@ -158,9 +161,19 @@
 
 | Crate | Frozen boundary for first-wave import | Posture |
 |---|---|---|
-| `handbook-engine` | Current public surface: `artifact_manifest`, `author`, `baseline_validation`, `canonical_artifacts`, `freshness`, `default_canonical_layout_contract()`, `CanonicalLayoutContract`, `workspace_contract_version()`, `engine_contract_version()` | Working boundary now; Lane C deferred |
+| `handbook-engine` | Full public surface of `crates/engine/src/lib.rs`: public modules `artifact_manifest`, `author`, `baseline_validation`, `canonical_artifacts`, `freshness`; their crate-root re-exports; `default_canonical_layout_contract()`, `CanonicalLayoutContract`, `workspace_contract_version()`, `engine_contract_version()` | Working boundary now; Lane C deferred |
 | `handbook-pipeline` | Documented frozen subset: `pipeline`, `pipeline_capture`, `pipeline_compile`, `pipeline_handoff`, `pipeline_route`, `route_state`, `pipeline_contract_version()` | Closed in Lane A; import-ready at the documented subset |
 | `handbook-flow` | Lane B consumer contract: cleaned `resolver` + `budget` + `packet_result` surface with typed semantics only where contract-approved and final shell copy moved out of boundary | Import-ready after Lane B contract + verification wall |
+
+## Architectural ownership decision by crate
+
+- **Overall Phase 6 ownership outcome:** keep **architectural ownership in handbook for all three crates** and have Substrate adopt them via the recommended workspace-member/path integration shape. The integration shape is a packaging choice for import, not an ownership transfer.
+- **`handbook-engine`: handbook remains the architectural owner.**
+  - Rationale: the Phase 6 decision rule says to move a crate only if its center of gravity becomes substrate-specific. This plan keeps engine as a reusable handbook-owned contract surface that Substrate consumes directly rather than absorbing the CLI shell.
+- **`handbook-pipeline`: handbook remains the architectural owner.**
+  - Rationale: Lane A already froze the reusable import boundary, and this plan recommends importing that crate as-is rather than moving its architecture into Substrate. Nothing in the current evidence shows a substrate-specific center of gravity that would justify ownership transfer.
+- **`handbook-flow`: handbook remains the architectural owner for this plan.**
+  - Rationale: Lane B made the flow surface importable by freezing the typed consumer contract and moving final shell wording out of boundary, but the root-plan rule still weighs against transfer until substrate-specific pressure is proven. For Packet 6.D.2, Substrate is the consumer/importer, not the architectural owner.
 
 ## Adapter/facade assessment
 
@@ -168,7 +181,7 @@
 
 ### Evidence basis
 
-- **Engine:** current public surface is already narrow enough to act as the working boundary, and Lane C is explicitly deferred rather than required.
+- **Engine:** the full current public surface exposed by `crates/engine/src/lib.rs` is the accepted working boundary, and Lane C is explicitly deferred rather than required.
 - **Pipeline:** the archived Lane A closeout records a deliberate decision for a **documented frozen subset of the current public surface**, not a new facade. Its rationale is that the technical blocker is gone, the module structure already maps to the reviewed import contract, and a facade would be premature without a real Substrate consumer.
 - **Flow:** Lane B already performed the only required boundary-shaping work by moving final shell copy out of the flow import surface and freezing the consumer contract around typed semantics plus caller-owned rendering.
 
