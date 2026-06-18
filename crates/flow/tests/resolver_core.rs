@@ -1,8 +1,8 @@
 use handbook_engine::CanonicalArtifactKind;
 use handbook_flow::{
     resolve, BudgetDisposition, BudgetPolicy, PacketSectionMode, PacketSelectionStatus,
-    PacketVariant, ResolveRequest, ResolverNextSafeAction, ResolverRefusalCategory,
-    ResolverSubjectRef,
+    PacketVariant, ReadyPacketNextSafeAction, ResolveRequest, ResolverNextSafeAction,
+    ResolverRefusalCategory, ResolverSubjectRef,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -234,7 +234,7 @@ fn flow_resolver_builds_ready_planning_packet_body() {
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `handbook inspect --packet planning.packet` for proof"
+        ReadyPacketNextSafeAction::InspectProof
     );
 }
 
@@ -574,6 +574,6 @@ fn flow_resolver_builds_fixture_context_for_execution_demo_packets() {
     assert_eq!(fixture_context.fixture_lineage.len(), 4);
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof"
+        ReadyPacketNextSafeAction::InspectProof
     );
 }

@@ -5,6 +5,7 @@ use crate::budget::{
 use crate::packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
     PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
+    ReadyPacketNextSafeAction,
 };
 use handbook_engine::{
     baseline_artifact_validation_for_path, default_canonical_layout_contract,
@@ -693,8 +694,7 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
         )
     };
 
-    let ready_next_safe_action =
-        next_safe_action_for_ready_packet(request.packet_id, variant, fixture_context.as_ref());
+    let ready_next_safe_action = next_safe_action_for_ready_packet(variant);
 
     PacketResult {
         packet_id: request.packet_id.to_string(),
@@ -1076,26 +1076,12 @@ fn fixture_context_for(
     })
 }
 
-fn next_safe_action_for_ready_packet(
-    packet_id: &str,
-    variant: PacketVariant,
-    fixture_context: Option<&PacketFixtureContext>,
-) -> String {
+fn next_safe_action_for_ready_packet(variant: PacketVariant) -> ReadyPacketNextSafeAction {
     match variant {
-        PacketVariant::ExecutionLive => "run `doctor`".to_string(),
-        PacketVariant::Planning => {
-            format!("run `handbook inspect --packet {packet_id}` for proof")
+        PacketVariant::Planning | PacketVariant::ExecutionDemo => {
+            ReadyPacketNextSafeAction::InspectProof
         }
-        PacketVariant::ExecutionDemo => {
-            if let Some(context) = fixture_context {
-                format!(
-                    "run `handbook inspect --packet {packet_id} --fixture-set {}` for proof",
-                    context.fixture_set_id
-                )
-            } else {
-                format!("run `handbook inspect --packet {packet_id}` for proof")
-            }
-        }
+        PacketVariant::ExecutionLive => ReadyPacketNextSafeAction::RunDoctor,
     }
 }
 

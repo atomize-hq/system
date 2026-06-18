@@ -6,7 +6,7 @@ use crate::{
 use handbook_flow::{
     BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction, PacketBodyNote,
     PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection, PacketSectionMode,
-    PacketSelectionStatus, PacketSourceSummary, PacketVariant,
+    PacketSelectionStatus, PacketSourceSummary, PacketVariant, ReadyPacketNextSafeAction,
 };
 
 pub fn push_line(output: &mut String, line: impl AsRef<str>) {
@@ -39,10 +39,39 @@ pub fn render_next_safe_action_from_model(
     }
 
     if packet.is_ready() {
-        return packet.decision_summary.ready_next_safe_action.clone();
+        return render_ready_packet_next_safe_action(packet);
     }
 
     "run `doctor`".to_string()
+}
+
+pub fn render_ready_packet_next_safe_action(packet: &PacketResult) -> String {
+    match packet.decision_summary.ready_next_safe_action {
+        ReadyPacketNextSafeAction::InspectProof => {
+            if let Some(context) = packet.fixture_context.as_ref() {
+                format!(
+                    "run `handbook inspect --packet {} --fixture-set {}` for proof",
+                    packet.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!(
+                    "run `handbook inspect --packet {}` for proof",
+                    packet.packet_id
+                )
+            }
+        }
+        ReadyPacketNextSafeAction::Generate => {
+            if let Some(context) = packet.fixture_context.as_ref() {
+                format!(
+                    "run `handbook generate --packet {} --fixture-set {}`",
+                    packet.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!("run `handbook generate --packet {}`", packet.packet_id)
+            }
+        }
+        ReadyPacketNextSafeAction::RunDoctor => "run `doctor`".to_string(),
+    }
 }
 
 pub fn render_packet_variant(variant: PacketVariant) -> &'static str {

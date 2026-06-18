@@ -5,7 +5,7 @@ use super::shared::{
     render_budget_reason, render_next_safe_action_from_model, render_outcome,
     render_refusal_category, render_subject_ref,
 };
-use handbook_flow::PacketVariant;
+use handbook_flow::ReadyPacketNextSafeAction;
 
 pub fn render_inspect(model: &RenderOutputModel) -> String {
     let inspect_model = inspect_model(model);
@@ -173,20 +173,6 @@ fn inspect_model(model: &RenderOutputModel) -> RenderOutputModel {
     inspect_model
 }
 
-fn inspect_ready_next_safe_action(model: &RenderOutputModel) -> String {
-    match model.packet_result.variant {
-        PacketVariant::Planning | PacketVariant::ExecutionLive => {
-            format!("run `handbook generate --packet {}`", model.packet_id)
-        }
-        PacketVariant::ExecutionDemo => {
-            if let Some(context) = model.packet_result.fixture_context.as_ref() {
-                format!(
-                    "run `handbook generate --packet {} --fixture-set {}`",
-                    model.packet_id, context.fixture_set_id
-                )
-            } else {
-                format!("run `handbook generate --packet {}`", model.packet_id)
-            }
-        }
-    }
+fn inspect_ready_next_safe_action(_model: &RenderOutputModel) -> ReadyPacketNextSafeAction {
+    ReadyPacketNextSafeAction::Generate
 }

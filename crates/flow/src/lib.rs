@@ -11,6 +11,7 @@ pub use budget::{
 pub use packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
     PacketSection, PacketSectionMode, PacketSourceSummary, PacketVariant,
+    ReadyPacketNextSafeAction,
 };
 pub use resolver::{
     resolve, PacketSelection, PacketSelectionStatus, ResolveRequest, ResolverBlocker,

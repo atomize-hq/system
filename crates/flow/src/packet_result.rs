@@ -64,6 +64,13 @@ pub struct PacketFixtureContext {
     pub fixture_lineage: Vec<PacketSourceSummary>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadyPacketNextSafeAction {
+    InspectProof,
+    Generate,
+    RunDoctor,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacketDecisionSummary {
     pub packet_status: PacketSelectionStatus,
@@ -71,7 +78,7 @@ pub struct PacketDecisionSummary {
     pub budget_reason: BudgetReason,
     pub decision_log_entries: usize,
     pub summary_line: String,
-    pub ready_next_safe_action: String,
+    pub ready_next_safe_action: ReadyPacketNextSafeAction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

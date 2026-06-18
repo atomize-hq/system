@@ -2,7 +2,7 @@ use handbook_compiler::{render_next_safe_action_value, resolve, BlockerCategory}
 use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
 use handbook_flow::{
     BudgetDisposition, BudgetPolicy, PacketSectionMode, PacketSelectionStatus, PacketVariant,
-    ResolveRequest,
+    ReadyPacketNextSafeAction, ResolveRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -734,7 +734,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `handbook inspect --packet planning.packet` for proof"
+        ReadyPacketNextSafeAction::InspectProof
     );
     assert!(
         result
@@ -888,7 +888,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof"
+        ReadyPacketNextSafeAction::InspectProof
     );
 }
 

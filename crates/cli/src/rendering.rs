@@ -328,22 +328,10 @@ fn inspect_model(
     inspect_model
 }
 
-fn inspect_ready_next_safe_action(model: &handbook_compiler::RenderOutputModel) -> String {
-    match model.packet_result.variant {
-        handbook_flow::PacketVariant::Planning | handbook_flow::PacketVariant::ExecutionLive => {
-            format!("run `handbook generate --packet {}`", model.packet_id)
-        }
-        handbook_flow::PacketVariant::ExecutionDemo => {
-            if let Some(context) = model.packet_result.fixture_context.as_ref() {
-                format!(
-                    "run `handbook generate --packet {} --fixture-set {}`",
-                    model.packet_id, context.fixture_set_id
-                )
-            } else {
-                format!("run `handbook generate --packet {}`", model.packet_id)
-            }
-        }
-    }
+fn inspect_ready_next_safe_action(
+    _model: &handbook_compiler::RenderOutputModel,
+) -> handbook_flow::ReadyPacketNextSafeAction {
+    handbook_flow::ReadyPacketNextSafeAction::Generate
 }
 
 fn render_markdown_body(output: &mut String, model: &handbook_compiler::RenderOutputModel) {
@@ -537,10 +525,39 @@ fn render_next_safe_action_from_model(
     }
 
     if packet.is_ready() {
-        return packet.decision_summary.ready_next_safe_action.clone();
+        return render_ready_packet_next_safe_action(packet);
     }
 
     "run `doctor`".to_string()
+}
+
+fn render_ready_packet_next_safe_action(packet: &handbook_flow::PacketResult) -> String {
+    match packet.decision_summary.ready_next_safe_action {
+        handbook_flow::ReadyPacketNextSafeAction::InspectProof => {
+            if let Some(context) = packet.fixture_context.as_ref() {
+                format!(
+                    "run `handbook inspect --packet {} --fixture-set {}` for proof",
+                    packet.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!(
+                    "run `handbook inspect --packet {}` for proof",
+                    packet.packet_id
+                )
+            }
+        }
+        handbook_flow::ReadyPacketNextSafeAction::Generate => {
+            if let Some(context) = packet.fixture_context.as_ref() {
+                format!(
+                    "run `handbook generate --packet {} --fixture-set {}`",
+                    packet.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!("run `handbook generate --packet {}`", packet.packet_id)
+            }
+        }
+        handbook_flow::ReadyPacketNextSafeAction::RunDoctor => "run `doctor`".to_string(),
+    }
 }
 
 fn render_next_safe_action_value(action: &handbook_compiler::NextSafeAction) -> String {

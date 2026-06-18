@@ -2,12 +2,13 @@ use super::model::RenderOutputModel;
 use super::shared::{
     json_string, render_blocker_category, render_budget_disposition,
     render_budget_next_safe_action, render_budget_reason, render_canonical_artifact_kind,
-    render_packet_status, render_packet_variant, render_refusal_category,
+    render_packet_status, render_packet_variant, render_ready_packet_next_safe_action,
+    render_refusal_category,
 };
 use crate::{ArtifactPresence, Blocker, Refusal, SubjectRef};
 use handbook_flow::{
-    PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
-    PacketSection, PacketSectionMode, PacketSourceSummary,
+    PacketBodyNote, PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection,
+    PacketSectionMode, PacketSourceSummary,
 };
 use std::fmt::Write;
 
@@ -115,9 +116,7 @@ fn render_packet_result_json(packet: &PacketResult) -> String {
     output.push_str(&render_packet_notes_json(&packet.notes));
     output.push_str(",\n");
     output.push_str("    \"decision_summary\": ");
-    output.push_str(&render_packet_decision_summary_json(
-        &packet.decision_summary,
-    ));
+    output.push_str(&render_packet_decision_summary_json(packet));
     output.push_str(",\n");
     output.push_str("    \"sections\": ");
     output.push_str(&render_packet_sections_json(&packet.sections));
@@ -197,7 +196,8 @@ fn render_packet_notes_json(notes: &[PacketBodyNote]) -> String {
     output
 }
 
-fn render_packet_decision_summary_json(summary: &PacketDecisionSummary) -> String {
+fn render_packet_decision_summary_json(packet: &PacketResult) -> String {
+    let summary = &packet.decision_summary;
     let mut output = String::from("{\n");
     write_line(
         &mut output,
@@ -238,7 +238,7 @@ fn render_packet_decision_summary_json(summary: &PacketDecisionSummary) -> Strin
         &mut output,
         3,
         "\"ready_next_safe_action\":",
-        &json_string(&summary.ready_next_safe_action),
+        &json_string(&render_ready_packet_next_safe_action(packet)),
         false,
     );
     output.push_str("    }");
