@@ -1,5 +1,133 @@
 # Handbook Flow Import-Boundary Consumer Contract
 
+## Status
+
+- Packet: **6.B.3 — Formalize Consumer Contract**.
+- Scope: `handbook-flow` import-boundary contract only; no production-code changes are part of this document.
+- Contract basis: live cleaned source inspected on **2026-06-17** in `crates/flow/src/{lib,budget,packet_result,resolver}.rs`, plus the caller-owned rendering seams in `crates/cli/src/rendering.rs` and `crates/compiler/src/rendering/shared.rs`.
+- Provenance: the preserved **Packet 6.B.1** evidence section remains below for audit history. Where that preserved evidence describes the pre-cleanup shell-leakage state, the contract sections above it are the current authority because they reflect the post-**6.B.2** live source.
+
+## Packet 6.B.2 Cleanup Outcome Reference
+
+Live source now reflects the narrow cleanup required before freezing this contract:
+
+- `rg -n 'run \`doctor\`|handbook inspect --packet|handbook generate --packet|handbook setup' crates/flow/src/` returned zero matches, so `handbook-flow` no longer exposes final shell command strings or product-shell wording directly from `crates/flow/src/`.
+- `crates/flow/src/packet_result.rs` now keeps ready-path next-step semantics typed as `ReadyPacketNextSafeAction`, and `PacketDecisionSummary.ready_next_safe_action` is that enum rather than a rendered `String`.
+- `crates/flow/src/resolver.rs` still exposes typed refusal/blocker semantics through `ResolverNextSafeAction`, `ResolverRefusalCategory`, `ResolverBlockerCategory`, and `PacketSelectionStatus`.
+- `crates/cli/src/rendering.rs` and `crates/compiler/src/rendering/shared.rs` now own final shell wording by rendering those typed flow-side enums into operator-facing copy.
+- `flow_contract_version() -> &'static str` delegates to `handbook_engine::workspace_contract_version()`.
+
+## Frozen Consumer Boundary
+
+### Public re-export surface from `crates/flow/src/lib.rs`
+
+- `budget`: `evaluate_budget`, `BudgetDisposition`, `BudgetOutcome`, `BudgetPolicy`, `BudgetReason`, `BudgetTarget`, `NextSafeAction`
+- `packet_result`: `PacketBodyNote`, `PacketBodyNoteKind`, `PacketDecisionSummary`, `PacketFixtureContext`, `PacketResult`, `PacketSection`, `PacketSectionMode`, `PacketSourceSummary`, `PacketVariant`, `ReadyPacketNextSafeAction`
+- `resolver`: `resolve`, `PacketSelection`, `PacketSelectionStatus`, `ResolveRequest`, `ResolverBlocker`, `ResolverBlockerCategory`, `ResolverNextSafeAction`, `ResolverRefusal`, `ResolverRefusalCategory`, `ResolverResult`, `ResolverSubjectRef`, `C04_RESULT_VERSION`
+- `flow_contract_version() -> &'static str`
+
+### Exact public symbols and allowed transitive type dependencies
+
+#### `budget`
+
+| Exact public symbol | Transitive type dependencies | Boundary result |
+|---|---|---|
+| `BudgetDisposition` | self only | flow-local only |
+| `BudgetReason` | self only | flow-local only |
+| `NextSafeAction` | `&'static str` payload in `ReduceCanonicalArtifactSize` | std + flow-local only |
+| `BudgetTarget` | `&'static str`, `u64` | std + flow-local only |
+| `BudgetOutcome` | `BudgetDisposition`, `BudgetReason`, `Vec<BudgetTarget>`, `Option<NextSafeAction>` | std + flow-local only |
+| `BudgetPolicy` | `Option<u64>` fields | std + flow-local only |
+| `evaluate_budget(artifacts: &[CanonicalArtifactIdentity], policy: BudgetPolicy) -> BudgetOutcome` | `CanonicalArtifactIdentity`, `ArtifactPresence` from `handbook_engine`; `BudgetPolicy`, `BudgetOutcome` from flow | engine-public + std + flow-local only |
+
+#### `packet_result`
+
+| Exact public symbol | Transitive type dependencies | Boundary result |
+|---|---|---|
+| `PacketVariant` | self only | flow-local only |
+| `PacketVariant::as_str(self) -> &'static str` | `PacketVariant`, `&'static str` | std + flow-local only |
+| `PacketSourceSummary` | `CanonicalArtifactKind`, `ArtifactPresence` from `handbook_engine`; `&'static str`, `bool`, `Option<u64>`, `Option<String>` | engine-public + std only |
+| `PacketBodyNoteKind` | self only | flow-local only |
+| `PacketSectionMode` | self only | flow-local only |
+| `PacketBodyNote` | `PacketBodyNoteKind`, `String` | std + flow-local only |
+| `PacketSection` | `CanonicalArtifactKind` from `handbook_engine`; `&'static str`, `String`, `PacketSectionMode` | engine-public + std + flow-local only |
+| `PacketFixtureContext` | `String`, `Vec<PacketSourceSummary>` | engine-public + std + flow-local only |
+| `ReadyPacketNextSafeAction` | self only | flow-local only |
+| `PacketDecisionSummary` | `PacketSelectionStatus`, `BudgetDisposition`, `BudgetReason`, `usize`, `String`, `ReadyPacketNextSafeAction` | std + flow-local only |
+| `PacketResult` | `String`, `PacketVariant`, `Option<PacketFixtureContext>`, `Vec<PacketSourceSummary>`, `Vec<PacketBodyNote>`, `PacketDecisionSummary`, `Vec<PacketSection>` | engine-public + std + flow-local only |
+| `PacketResult::is_ready(&self) -> bool` | `PacketDecisionSummary.packet_status`, `PacketSelectionStatus`, `bool` | std + flow-local only |
+
+#### `resolver`
+
+| Exact public symbol | Transitive type dependencies | Boundary result |
+|---|---|---|
+| `C04_RESULT_VERSION` | `&'static str` | std only |
+| `ResolverRefusalCategory` | self only | flow-local only |
+| `ResolverSubjectRef` | `CanonicalArtifactKind` from `handbook_engine`; `&'static str`, `String`, `Option<String>` | engine-public + std + flow-local only |
+| `ResolverNextSafeAction` | `&'static str` payloads for canonical paths and packet ids | std + flow-local only |
+| `ResolverRefusal` | `ResolverRefusalCategory`, `String`, `ResolverSubjectRef`, `ResolverNextSafeAction` | engine-public + std + flow-local only |
+| `ResolverBlockerCategory` | self only | flow-local only |
+| `ResolverBlocker` | `ResolverBlockerCategory`, `ResolverSubjectRef`, `String`, `ResolverNextSafeAction` | engine-public + std + flow-local only |
+| `ResolveRequest` | `BudgetPolicy`, `&'static str` | std + flow-local only |
+| `PacketSelectionStatus` | self only | flow-local only |
+| `PacketSelection` | `String`, `PacketSelectionStatus` | std + flow-local only |
+| `ResolverResult` | `String`, `u32`, `PacketResult`, `Vec<String>`, `BudgetOutcome`, `PacketSelection`, `Option<ResolverRefusal>`, `Vec<ResolverBlocker>` | engine-public + std + flow-local only |
+| `resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<ResolverResult, ManifestError>` | `AsRef<Path>`, `Path` from `std`; `ResolveRequest`, `ResolverResult` from flow; `ManifestError` from `handbook_engine` | engine-public + std + flow-local only |
+
+### In-boundary typed semantics after Packet 6.B.2
+
+The following semantics remain explicitly in boundary because they are typed, machine-readable result data rather than final shell copy:
+
+- `PacketSelectionStatus::{Selected, Blocked}` remains the packet-level readiness status.
+- `ReadyPacketNextSafeAction::{InspectProof, Generate, RunDoctor}` remains the ready-path action enum.
+- `ResolverNextSafeAction::{RunSetup, RunSetupInit, RunSetupRefresh, RunAuthorCharter, RunAuthorProjectContext, RunAuthorEnvironmentInventory, CreateSystemRoot { canonical_repo_relative_path }, EnsureSystemRootIsDirectory { canonical_repo_relative_path }, RemoveSystemRootSymlink { canonical_repo_relative_path }, CreateCanonicalArtifact { canonical_repo_relative_path }, FillCanonicalArtifact { canonical_repo_relative_path }, ReduceCanonicalArtifactSize { canonical_repo_relative_path }, RunGenerate { packet_id }, RunDoctor}` remains the refusal/blocker action enum.
+- `ResolverRefusalCategory`, `ResolverBlockerCategory`, `BudgetDisposition`, `BudgetReason`, `PacketVariant`, and `NextSafeAction` remain typed classifiers or typed budget actions.
+- `PacketDecisionSummary.summary_line: String` remains in boundary as flow-owned status summary text, but it is not the shell-command rendering seam that Packet 6.B.2 removed.
+
+### Explicitly out of boundary
+
+The following responsibilities are now explicitly outside the frozen `handbook-flow` import boundary:
+
+- Rendering `ReadyPacketNextSafeAction` into operator-facing strings such as `run \`handbook inspect --packet ...\` for proof`, `run \`handbook generate --packet ...\``, and `run \`doctor\``.
+- Rendering `ResolverNextSafeAction` into operator-facing recovery strings such as `run \`handbook setup\``, `run \`handbook setup refresh\``, `run \`handbook author ...\``, and `run \`handbook generate --packet ...\``.
+- CLI/compiler-specific wording choices, status labels, fallback shell phrasing, and fixture-aware command assembly.
+- Any shell/product-surface copy that depends on presentation context rather than typed flow-state semantics.
+
+Current caller-owned rendering seams observed during this packet:
+
+- `crates/cli/src/rendering.rs`
+- `crates/compiler/src/rendering/shared.rs`
+
+### Version contract
+
+- `flow_contract_version() -> &'static str` delegates directly to `handbook_engine::workspace_contract_version()`.
+- At the inspected live source, `handbook_engine::workspace_contract_version()` returns `"C-02"`, so `handbook-flow` inherits the workspace contract version instead of defining an independent flow-only version constant.
+
+### Verification references used for this contract
+
+Commands run during Packet 6.B.3 verification:
+
+- `git status --short --branch`
+- `sed -n '1,220p' docs/specs/handbook-flow-import-boundary-consumer-contract.md`
+- `rg -n "pub (fn|struct|enum|type|const)" crates/flow/src/resolver.rs crates/flow/src/budget.rs crates/flow/src/packet_result.rs`
+- `rg -n "flow_contract_version" crates/flow/src/`
+- `sed -n '1,260p' crates/flow/src/lib.rs`
+- `sed -n '1,220p' crates/flow/src/budget.rs`
+- `sed -n '1,200p' crates/flow/src/packet_result.rs`
+- `sed -n '1,620p' crates/flow/src/resolver.rs`
+- `sed -n '620,1120p' crates/flow/src/resolver.rs`
+- `sed -n '1,120p' crates/compiler/src/rendering/shared.rs`
+- `sed -n '500,620p' crates/cli/src/rendering.rs`
+- `sed -n '860,980p' crates/cli/src/rendering.rs`
+- `rg -n 'run \`doctor\`|handbook inspect --packet|handbook generate --packet|handbook setup' crates/flow/src/`
+- `cargo tree -p handbook-flow`
+- `cargo test -p handbook-flow`
+- `cargo check --workspace`
+
+## Evidence preservation note
+
+The following `## Evidence` section is preserved from **Packet 6.B.1** as historical provenance. It intentionally captures the pre-6.B.2 evidence state, including the then-live shell-leakage observations. The contract sections above are the current post-cleanup authority.
+
 ## Evidence
 
 ### Packet scope
