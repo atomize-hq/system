@@ -208,7 +208,9 @@ Spec reference: [handbook-engine-extraction-phase-6-remaining-work-spec.md](./ha
 
 ### Packet 6.C.1: Defer Or Activate (Decision Task)
 
-- [ ] Task: Record Lane C deferral decision
+- [x] Task: Record Lane C deferral decision
+  - Decision: Lane C is deferred. `handbook-engine`'s current public surface is the working boundary for the Phase 6 remaining-work seam.
+  - Rationale: The spec keeps Lane C optional and only activates it if a stricter publishable API / narrower engine surface is later needed. If Lane D's import plan shows that the current engine public surface is too broad for Substrate adoption, Lane C can be activated then; otherwise the current engine public surface remains the accepted working boundary.
   - Acceptance: The tasks doc explicitly records that Lane C is deferred — engine's current public surface is the working boundary. If later review (e.g., from Lane D's import plan) indicates a narrower surface is needed, Lane C can be activated at that time.
   - Verify: This section states "deferred" with rationale.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-remaining-work-tasks.md`
