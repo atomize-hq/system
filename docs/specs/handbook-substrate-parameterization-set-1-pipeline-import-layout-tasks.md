@@ -8,24 +8,24 @@ Spec reference: [handbook-substrate-parameterization-set-1-pipeline-import-layou
 
 ## Packet 1.1: Declarative Root Contract And Owner Boundary
 
-- [ ] Task: Introduce the supported public/import-facing declarative root contract
+- [x] Task: Introduce the supported public/import-facing declarative root contract
   - Acceptance: `handbook-pipeline` has a typed declarative root owner that can represent non-default pipeline/profile/runner/stage roots, and handbook-product defaults remain available through an explicit default helper instead of being the only model.
   - Verify: Source inspection of `crates/pipeline/src/declarative_roots.rs` and `crates/pipeline/src/lib.rs`; `cargo test -p handbook-pipeline --test pipeline_catalog`.
   - Files: `crates/pipeline/src/declarative_roots.rs`, `crates/pipeline/src/lib.rs`, `crates/pipeline/tests/pipeline_catalog.rs`
 
-- [ ] Task: Adopt the declarative contract in root-owner helpers without changing default behavior
+- [x] Task: Adopt the declarative contract in root-owner helpers without changing default behavior
   - Acceptance: root derivation for pipeline/profile/runner/stage access no longer depends on raw repo-level literals at the ownership boundary; the default helper still preserves handbook-product behavior for existing callers/tests.
   - Verify: `cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_loader`
   - Files: `crates/pipeline/src/declarative_roots.rs`, `crates/pipeline/src/pipeline.rs`, `crates/pipeline/tests/pipeline_loader.rs`
 
 ## Packet 1.2: Stage-Root Discovery And Validation Adoption
 
-- [ ] Task: Move supported stage-source ownership onto the active declarative contract
+- [x] Task: Move supported stage-source ownership onto the active declarative contract
   - Acceptance: supported stage-source path derivation no longer depends on raw `core/stages/**` literals as unowned structural truth; stage-root behavior is derived from the active declarative contract.
   - Verify: `cargo test -p handbook-pipeline --test pipeline_catalog && cargo test -p handbook-pipeline --test pipeline_compile && cargo test -p handbook-pipeline --test pipeline_route_resolution`
   - Files: `crates/pipeline/src/pipeline.rs`, `crates/pipeline/tests/pipeline_catalog.rs`, `crates/pipeline/tests/pipeline_compile.rs`, `crates/pipeline/tests/pipeline_route_resolution.rs`
 
-- [ ] Task: Adopt contract-driven stage discovery and inseparable path validation
+- [x] Task: Adopt contract-driven stage discovery and inseparable path validation
   - Acceptance: stage discovery no longer hardcodes `Path::new("core/stages")`, and the stage/pipeline path validation logic derives in-scope root checks from the active contract where structural correctness requires it. Broader wording-only cleanup remains deferred to Set 3.
   - Verify: `cargo test -p handbook-pipeline --test pipeline_loader && cargo test -p handbook-pipeline --test pipeline_compile`
   - Files: `crates/pipeline/src/pipeline.rs`, `crates/pipeline/tests/pipeline_loader.rs`, `crates/pipeline/tests/pipeline_compile.rs`
