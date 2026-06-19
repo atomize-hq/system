@@ -2,7 +2,10 @@ use crate::declarative_roots::{
     profile_file as profile_repo_file, profile_root, runner_file as runner_repo_file, runner_root,
     PROFILES_ROOT_DISPLAY, RUNNERS_ROOT_DISPLAY,
 };
-use crate::layout::{PipelineStorageLayoutContract, RepoLayoutRoot};
+use crate::layout::{
+    handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
+    RepoLayoutRoot,
+};
 use crate::pipeline::{
     load_selected_pipeline_definition, supported_route_state_variables, PipelineDefinition,
 };
@@ -723,12 +726,25 @@ pub fn load_trusted_pipeline_session(
     repo_root: impl AsRef<Path>,
     pipeline: &PipelineDefinition,
 ) -> Result<TrustedPipelineSession, TrustedPipelineSessionRefusal> {
+    load_trusted_pipeline_session_with_storage_layout(
+        repo_root,
+        pipeline,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn load_trusted_pipeline_session_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    pipeline: &PipelineDefinition,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<TrustedPipelineSession, TrustedPipelineSessionRefusal> {
     let repo_root = repo_root.as_ref();
     let supported_variables = supported_route_state_variables(pipeline);
-    let state = load_route_state_with_supported_variables(
+    let state = load_route_state_with_supported_variables_and_storage_layout(
         repo_root,
         &pipeline.header.id,
         &supported_variables,
+        storage_layout,
     )
     .map_err(|err| classify_trusted_pipeline_session_read_error(&pipeline.header.id, err))?;
     let route_basis = state.route_basis.clone().ok_or_else(|| {

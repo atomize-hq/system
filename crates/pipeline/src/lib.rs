@@ -64,7 +64,8 @@ pub use pipeline_route::{
 pub use route_state::{
     build_route_basis, effective_route_basis_run, load_route_state,
     load_route_state_with_storage_layout, load_route_state_with_supported_variables,
-    load_route_state_with_supported_variables_and_storage_layout, persist_route_basis,
+    load_route_state_with_supported_variables_and_storage_layout,
+    load_trusted_pipeline_session_with_storage_layout, persist_route_basis,
     persist_route_basis_with_storage_layout, plan_runtime_state_reset_with_storage_layout,
     preview_runtime_state_reset_with_storage_layout, reset_runtime_state_tree_with_storage_layout,
     route_state_path_with_storage_layout, set_route_state, set_route_state_with_storage_layout,
