@@ -141,6 +141,10 @@ stages:
         } => {
             assert_eq!(stage_id, "stage.00_base");
             assert_eq!(file, ".substrate/handbook/core/stages/00_base.md");
+            assert_eq!(
+                StageFileValidationError::OutsideStageDirectory.to_string(),
+                format!("must live under `{}/`", roots.stage_root_relative())
+            );
         }
         other => panic!("expected stage-directory refusal, got {other:?}"),
     }
@@ -535,8 +539,9 @@ fn richer_root_pipeline_yaml_is_refused_as_out_of_scope_shape() {
 
     match err {
         PipelineLoadError::UnsupportedPipelinePath { path, reason } => {
+            let roots = handbook_product_pipeline_declarative_roots();
             assert_eq!(path, Path::new("pipeline.yaml"));
-            assert!(reason.contains("core/pipelines/"));
+            assert!(reason.contains(&format!("{}/", roots.pipeline_root_relative())));
         }
         other => panic!("expected unsupported path refusal, got {other:?}"),
     }

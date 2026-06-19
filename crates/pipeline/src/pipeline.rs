@@ -9,6 +9,7 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_BASE_STAGE_FILE_NAME: &str = "00_base.md";
@@ -2388,7 +2389,7 @@ impl fmt::Display for StageFileValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             StageFileValidationError::OutsideStageDirectory => {
-                write!(f, "must live under `core/stages/`")
+                f.write_str(stage_file_outside_directory_reason())
             }
             StageFileValidationError::WrongExtension => {
                 write!(f, "must use the `.md` extension")
@@ -2416,6 +2417,46 @@ impl fmt::Display for ActivationValidationError {
             }
         }
     }
+}
+
+fn configured_stage_root_display() -> &'static str {
+    static DISPLAY: OnceLock<String> = OnceLock::new();
+    DISPLAY
+        .get_or_init(|| format!("{}/", handbook_product_declarative_roots().stage_root_relative()))
+        .as_str()
+}
+
+fn configured_pipeline_root_display() -> &'static str {
+    static DISPLAY: OnceLock<String> = OnceLock::new();
+    DISPLAY
+        .get_or_init(|| format!("{}/", handbook_product_declarative_roots().pipeline_root_relative()))
+        .as_str()
+}
+
+fn stage_file_outside_directory_reason() -> &'static str {
+    static REASON: OnceLock<String> = OnceLock::new();
+    REASON
+        .get_or_init(|| format!("must live under `{}`", configured_stage_root_display()))
+        .as_str()
+}
+
+fn pipeline_yaml_root_reason() -> &'static str {
+    static REASON: OnceLock<String> = OnceLock::new();
+    REASON
+        .get_or_init(|| format!("pipeline YAML must live under `{}`", configured_pipeline_root_display()))
+        .as_str()
+}
+
+fn pipeline_yaml_extension_reason() -> &'static str {
+    static REASON: OnceLock<String> = OnceLock::new();
+    REASON
+        .get_or_init(|| {
+            format!(
+                "pipeline YAML must use the `.yaml` extension under `{}`",
+                configured_pipeline_root_display()
+            )
+        })
+        .as_str()
 }
 
 fn validate_pipeline_definition(
@@ -2558,7 +2599,8 @@ fn validate_stage_file(
         })?;
     let file_path_view = Path::new(file_path.as_str());
 
-    if !file_path_view.starts_with(Path::new("core/stages")) {
+    let active_roots = handbook_product_declarative_roots();
+    if !file_path_view.starts_with(active_roots.stage_root()) {
         return Err(PipelineLoadError::Validation {
             path: path.to_path_buf(),
             error: PipelineValidationError::InvalidStageFile {
@@ -2771,17 +2813,18 @@ fn validate_pipeline_repo_relative_path(
         })?;
     let relative_path_view = Path::new(relative_path.as_str());
 
-    if !relative_path_view.starts_with(pipeline_root()) {
+    let active_roots = handbook_product_declarative_roots();
+    if !relative_path_view.starts_with(active_roots.pipeline_root()) {
         return Err(PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
-            reason: "pipeline YAML must live under `core/pipelines/`",
+            reason: pipeline_yaml_root_reason(),
         });
     }
 
     if relative_path_view.extension().and_then(|ext| ext.to_str()) != Some("yaml") {
         return Err(PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
-            reason: "pipeline YAML must use the `.yaml` extension under `core/pipelines/`",
+            reason: pipeline_yaml_extension_reason(),
         });
     }
 
