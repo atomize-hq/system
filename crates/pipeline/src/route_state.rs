@@ -2,7 +2,7 @@ use crate::declarative_roots::{
     profile_file as profile_repo_file, profile_root, runner_file as runner_repo_file, runner_root,
     PROFILES_ROOT_DISPLAY, RUNNERS_ROOT_DISPLAY,
 };
-use crate::layout::RepoLayoutRoot;
+use crate::layout::{PipelineStorageLayoutContract, RepoLayoutRoot};
 use crate::pipeline::{
     load_selected_pipeline_definition, supported_route_state_variables, PipelineDefinition,
 };
@@ -454,6 +454,26 @@ pub fn load_route_state(
     load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory)
 }
 
+pub fn load_route_state_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    pipeline_id: impl AsRef<str>,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<RouteState, RouteStateReadError> {
+    let repo_root = repo_root.as_ref();
+    let pipeline_id = pipeline_id.as_ref();
+    let state_path = route_state_path_with_storage_layout(repo_root, pipeline_id, storage_layout)
+        .map_err(|reason| RouteStateReadError::InvalidPipelineId {
+        pipeline_id: pipeline_id.to_string(),
+        reason,
+    })?;
+    let run_inventory =
+        load_run_inventory(repo_root).map_err(|err| RouteStateReadError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory)
+}
+
 pub fn load_route_state_with_supported_variables(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -468,6 +488,32 @@ pub fn load_route_state_with_supported_variables(
     })?;
     let run_inventory =
         load_run_inventory(repo_root.as_ref()).map_err(|err| RouteStateReadError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    load_route_state_at_path(
+        &state_path,
+        pipeline_id,
+        Some(supported_variables),
+        &run_inventory,
+    )
+}
+
+pub fn load_route_state_with_supported_variables_and_storage_layout(
+    repo_root: impl AsRef<Path>,
+    pipeline_id: impl AsRef<str>,
+    supported_variables: &BTreeSet<String>,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<RouteState, RouteStateReadError> {
+    let repo_root = repo_root.as_ref();
+    let pipeline_id = pipeline_id.as_ref();
+    let state_path = route_state_path_with_storage_layout(repo_root, pipeline_id, storage_layout)
+        .map_err(|reason| RouteStateReadError::InvalidPipelineId {
+        pipeline_id: pipeline_id.to_string(),
+        reason,
+    })?;
+    let run_inventory =
+        load_run_inventory(repo_root).map_err(|err| RouteStateReadError::ReadFailure {
             path: err.path,
             source: err.source,
         })?;
@@ -564,6 +610,103 @@ pub fn set_route_state(
     state.revision = state.revision.saturating_add(1);
     mutation.apply(&mut state);
     state.run.repo_root = Some(derived_repo_root(repo_root.as_ref()));
+    state.audit.push(RouteStateAuditEntry {
+        revision: state.revision,
+        field_path: mutation.field_path(),
+        value: mutation.value(),
+    });
+    trim_audit_history(&mut state.audit);
+
+    persist_route_state(&state_path, &state)?;
+
+    Ok(RouteStateMutationOutcome::Applied(Box::new(state)))
+}
+
+pub fn set_route_state_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    pipeline_id: impl AsRef<str>,
+    supported_variables: impl IntoIterator<Item = impl AsRef<str>>,
+    mutation: RouteStateMutation,
+    expected_revision: u64,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<RouteStateMutationOutcome, RouteStateStoreError> {
+    let repo_root = repo_root.as_ref();
+    let pipeline_id = pipeline_id.as_ref();
+    validate_pipeline_id(pipeline_id).map_err(|reason| {
+        RouteStateStoreError::InvalidPipelineId {
+            pipeline_id: pipeline_id.to_string(),
+            reason,
+        }
+    })?;
+
+    let supported_variables = normalize_supported_variables(supported_variables)?;
+    let run_inventory =
+        load_run_inventory(repo_root).map_err(|err| RouteStateStoreError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    validate_mutation(&mutation, &supported_variables, &run_inventory)?;
+
+    let state_path = route_state_path_with_storage_layout(repo_root, pipeline_id, storage_layout)
+        .map_err(|reason| RouteStateStoreError::InvalidPipelineId {
+        pipeline_id: pipeline_id.to_string(),
+        reason,
+    })?;
+    ensure_state_parent_dir(&state_path).map_err(|source| RouteStateStoreError::ReadFailure {
+        path: state_path.clone(),
+        source,
+    })?;
+
+    let _lock = acquire_advisory_lock(&state_path)?;
+    let mut state = match load_route_state_at_path(
+        &state_path,
+        pipeline_id,
+        Some(&supported_variables),
+        &run_inventory,
+    ) {
+        Ok(state) => state,
+        Err(RouteStateReadError::MalformedState { reason, .. }) => {
+            return Ok(RouteStateMutationOutcome::Refused(
+                RouteStateMutationRefusal::MalformedState { reason },
+            ));
+        }
+        Err(RouteStateReadError::InvalidPipelineId {
+            pipeline_id,
+            reason,
+        }) => {
+            return Err(RouteStateStoreError::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            });
+        }
+        Err(RouteStateReadError::ReadFailure { path, source }) => {
+            return Err(RouteStateStoreError::ReadFailure { path, source });
+        }
+    };
+
+    if let RouteStateMutation::RoutingVariable { variable, .. } = &mutation {
+        if !supported_variables.contains(variable) {
+            return Ok(RouteStateMutationOutcome::Refused(
+                RouteStateMutationRefusal::UnsupportedVariable {
+                    variable: variable.clone(),
+                },
+            ));
+        }
+    }
+
+    if state.revision != expected_revision {
+        return Ok(RouteStateMutationOutcome::Refused(
+            RouteStateMutationRefusal::RevisionConflict {
+                expected_revision,
+                actual_revision: state.revision,
+            },
+        ));
+    }
+
+    state.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
+    state.revision = state.revision.saturating_add(1);
+    mutation.apply(&mut state);
+    state.run.repo_root = Some(derived_repo_root(repo_root));
     state.audit.push(RouteStateAuditEntry {
         revision: state.revision,
         field_path: mutation.field_path(),
@@ -1001,6 +1144,104 @@ pub fn persist_route_basis(
             pipeline_id: pipeline_id.to_string(),
             reason,
         }
+    })?;
+    ensure_state_parent_dir(&state_path).map_err(|source| RouteStateStoreError::ReadFailure {
+        path: state_path.clone(),
+        source,
+    })?;
+
+    let run_inventory =
+        load_run_inventory(repo_root).map_err(|err| RouteStateStoreError::ReadFailure {
+            path: err.path,
+            source: err.source,
+        })?;
+    let _lock = acquire_advisory_lock(&state_path)?;
+    let mut state = match load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory) {
+        Ok(state) => state,
+        Err(RouteStateReadError::MalformedState { reason, .. }) => {
+            return Ok(RouteBasisPersistOutcome::Refused(
+                RouteBasisPersistRefusal::MalformedState { reason },
+            ));
+        }
+        Err(RouteStateReadError::InvalidPipelineId {
+            pipeline_id,
+            reason,
+        }) => {
+            return Err(RouteStateStoreError::InvalidPipelineId {
+                pipeline_id,
+                reason,
+            });
+        }
+        Err(RouteStateReadError::ReadFailure { path, source }) => {
+            return Err(RouteStateStoreError::ReadFailure { path, source });
+        }
+    };
+
+    let pipeline = load_selected_pipeline_definition(repo_root, pipeline_id).map_err(|err| {
+        RouteStateStoreError::InvalidMutation {
+            reason: format!(
+                "failed to load selected pipeline definition for route_basis persistence: {err}"
+            ),
+        }
+    })?;
+    let effective_run = effective_route_basis_run(repo_root, &pipeline, &state);
+    state = normalized_state_for_persistence(&state, repo_root);
+    if state.revision != route_basis.state_revision {
+        return Ok(RouteBasisPersistOutcome::Refused(
+            RouteBasisPersistRefusal::RevisionConflict {
+                expected_revision: route_basis.state_revision,
+                actual_revision: state.revision,
+            },
+        ));
+    }
+    if state.routing != route_basis.routing
+        || state.refs != route_basis.refs
+        || effective_run != normalize_route_basis_run(&route_basis.run)
+    {
+        return Ok(RouteBasisPersistOutcome::Refused(
+            RouteBasisPersistRefusal::MalformedState {
+                reason: "route_basis snapshot does not match the current route-state surfaces"
+                    .to_string(),
+            },
+        ));
+    }
+
+    let canonical_route_basis = rebuild_canonical_route_basis(repo_root, &pipeline, &state)
+        .map_err(|reason| RouteStateStoreError::InvalidMutation {
+            reason: format!("failed to rebuild canonical route_basis during persistence: {reason}"),
+        })?;
+    if let Some(reason) = route_basis_mismatch_reason(&route_basis, &canonical_route_basis) {
+        return Ok(RouteBasisPersistOutcome::Refused(
+            RouteBasisPersistRefusal::MalformedState { reason },
+        ));
+    }
+
+    state.schema_version = ROUTE_STATE_SCHEMA_VERSION.to_string();
+    state.route_basis = Some(canonical_route_basis);
+    persist_route_state(&state_path, &state)?;
+
+    Ok(RouteBasisPersistOutcome::Applied(Box::new(state)))
+}
+
+pub fn persist_route_basis_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    pipeline_id: impl AsRef<str>,
+    route_basis: RouteBasis,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<RouteBasisPersistOutcome, RouteStateStoreError> {
+    let repo_root = repo_root.as_ref();
+    let pipeline_id = pipeline_id.as_ref();
+    validate_pipeline_id(pipeline_id).map_err(|reason| {
+        RouteStateStoreError::InvalidPipelineId {
+            pipeline_id: pipeline_id.to_string(),
+            reason,
+        }
+    })?;
+
+    let state_path = route_state_path_with_storage_layout(repo_root, pipeline_id, storage_layout)
+        .map_err(|reason| RouteStateStoreError::InvalidPipelineId {
+        pipeline_id: pipeline_id.to_string(),
+        reason,
     })?;
     ensure_state_parent_dir(&state_path).map_err(|source| RouteStateStoreError::ReadFailure {
         path: state_path.clone(),
@@ -1974,14 +2215,45 @@ pub fn route_state_path(repo_root: &Path, pipeline_id: &str) -> Result<PathBuf, 
     Ok(repo_root.join(route_state_relative_path.as_str()))
 }
 
+pub fn route_state_path_with_storage_layout(
+    repo_root: &Path,
+    pipeline_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PathBuf, &'static str> {
+    validate_pipeline_id(pipeline_id)?;
+    let route_state_relative_path = RepoLayoutRoot::with_contract(repo_root, storage_layout)
+        .runtime_state()
+        .route_state_relative_path(pipeline_id);
+    Ok(repo_root.join(route_state_relative_path.as_str()))
+}
+
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn preview_runtime_state_reset(repo_root: &Path) -> Result<Vec<String>, String> {
     plan_runtime_state_reset(repo_root).map(|plan| plan.paths)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+pub fn preview_runtime_state_reset_with_storage_layout(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<Vec<String>, String> {
+    plan_runtime_state_reset_with_storage_layout(repo_root, storage_layout).map(|plan| plan.paths)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, String> {
     let plan = plan_runtime_state_reset(repo_root)?;
+    let reset_paths = plan.paths.clone();
+    apply_runtime_state_reset(&plan)?;
+    Ok(reset_paths)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn reset_runtime_state_tree_with_storage_layout(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<Vec<String>, String> {
+    let plan = plan_runtime_state_reset_with_storage_layout(repo_root, storage_layout)?;
     let reset_paths = plan.paths.clone();
     apply_runtime_state_reset(&plan)?;
     Ok(reset_paths)
@@ -2015,6 +2287,81 @@ enum RuntimeStateResetEntryKind {
 pub fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
     let workspace = CompilerWorkspace::new(repo_root);
     let runtime_state = RepoLayoutRoot::new(repo_root).runtime_state();
+    let state_root = runtime_state.state_root();
+    let state_root_relative = runtime_state.state_root_relative();
+    let state_root_dir = match workspace.trusted_directory(&state_root) {
+        Ok(directory) => directory,
+        Err(RepoRelativeDirectoryAccessError::Missing(_)) => {
+            return Ok(RuntimeStateResetPlan {
+                entries: Vec::new(),
+                paths: Vec::new(),
+            });
+        }
+        Err(RepoRelativeDirectoryAccessError::SymlinkNotAllowed(path)) => {
+            return Err(format!(
+                "runtime state root `{state_root_relative}` cannot be reset through symlink {}",
+                path.display()
+            ));
+        }
+        Err(RepoRelativeDirectoryAccessError::NotDirectory(path)) => {
+            return Err(format!(
+                "runtime state root `{state_root_relative}` is not a directory at {}",
+                path.display()
+            ));
+        }
+        Err(RepoRelativeDirectoryAccessError::ReadFailure { path, source }) => {
+            return Err(format!(
+                "failed to inspect runtime state root `{state_root_relative}` at {}: {source}",
+                path.display()
+            ));
+        }
+    };
+    let mut entries = fs::read_dir(state_root_dir.absolute_path())
+        .map_err(|source| {
+            format!(
+                "failed to read runtime state root `{state_root_relative}` at {}: {source}",
+                state_root_dir.absolute_path().display()
+            )
+        })?
+        .map(|entry| {
+            entry.and_then(|entry| {
+                let relative_path = Path::new(state_root.as_str()).join(entry.file_name());
+                workspace
+                    .normalize_repo_relative_path(&relative_path)
+                    .map_err(std::io::Error::other)
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| {
+            format!(
+                "failed to enumerate runtime state root `{state_root_relative}` at {}: {source}",
+                state_root_dir.absolute_path().display()
+            )
+        })?;
+    entries.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+
+    let mut reset_entries = Vec::new();
+    for entry in entries {
+        collect_runtime_state_reset_entry(&workspace, &entry, &mut reset_entries)?;
+    }
+
+    let mut reset_paths = reset_entries
+        .iter()
+        .map(|entry| entry.display_path.clone())
+        .collect::<Vec<_>>();
+    reset_paths.sort();
+    Ok(RuntimeStateResetPlan {
+        entries: reset_entries,
+        paths: reset_paths,
+    })
+}
+
+pub fn plan_runtime_state_reset_with_storage_layout(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<RuntimeStateResetPlan, String> {
+    let workspace = CompilerWorkspace::new(repo_root);
+    let runtime_state = RepoLayoutRoot::with_contract(repo_root, storage_layout).runtime_state();
     let state_root = runtime_state.state_root();
     let state_root_relative = runtime_state.state_root_relative();
     let state_root_dir = match workspace.trusted_directory(&state_root) {

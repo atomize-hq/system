@@ -8,9 +8,13 @@ use std::time::Duration;
 
 use handbook_pipeline::{
     build_route_basis, effective_route_basis_run, load_pipeline_definition, load_route_state,
-    load_route_state_with_supported_variables, persist_route_basis, resolve_pipeline_route,
+    load_route_state_with_storage_layout, load_route_state_with_supported_variables,
+    load_route_state_with_supported_variables_and_storage_layout, persist_route_basis,
+    persist_route_basis_with_storage_layout, plan_runtime_state_reset_with_storage_layout,
+    resolve_pipeline_route,
     route_state::{load_trusted_pipeline_session, TrustedPipelineSessionRefusal},
-    set_route_state, supported_route_state_variables, RouteBasisPersistOutcome,
+    route_state_path_with_storage_layout, set_route_state, set_route_state_with_storage_layout,
+    supported_route_state_variables, PipelineStorageLayoutContract, RouteBasisPersistOutcome,
     RouteBasisPersistRefusal, RouteBasisStageStatus, RouteState, RouteStateMutation,
     RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
     RouteStateStoreError, RouteStateValue, RouteVariables, ROUTE_STATE_AUDIT_LIMIT,
@@ -70,6 +74,16 @@ fn state_path(repo_root: &Path, pipeline_id: &str) -> PathBuf {
         .join("state")
         .join("pipeline")
         .join(format!("{pipeline_id}.yaml"))
+}
+
+fn custom_storage_layout() -> PipelineStorageLayoutContract {
+    PipelineStorageLayoutContract::from_paths(
+        ".substrate/handbook/state",
+        ".substrate/handbook/state/pipeline",
+        ".substrate/handbook/state/pipeline/stage_capture",
+        ".substrate/handbook/state/pipeline/capture",
+        ".substrate/handbook/artifacts/handoff/feature_slice",
+    )
 }
 
 fn lock_path(state_path: &Path) -> PathBuf {
@@ -757,6 +771,136 @@ fn missing_state_loads_as_empty_and_round_trips_mixed_fields() {
 
     let loaded = load_route_state(repo_root, pipeline_id).expect("loaded state");
     assert_eq!(loaded, state);
+}
+
+#[test]
+fn custom_storage_layout_route_state_round_trips_through_public_entry_points() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let pipeline_id = "pipeline.route_state";
+    let storage_layout = custom_storage_layout();
+    let custom_state_path =
+        route_state_path_with_storage_layout(repo_root, pipeline_id, storage_layout)
+            .expect("custom state path");
+    seed_run_inventory(repo_root);
+
+    let empty = load_route_state_with_storage_layout(repo_root, pipeline_id, storage_layout)
+        .expect("empty state");
+    assert_eq!(empty, RouteState::empty(pipeline_id));
+
+    let outcome = set_route_state_with_storage_layout(
+        repo_root,
+        pipeline_id,
+        ["needs_project_context"],
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: true,
+        },
+        0,
+        storage_layout,
+    )
+    .expect("routing mutation");
+    let state = match outcome {
+        RouteStateMutationOutcome::Applied(state) => *state,
+        other => panic!("expected success, got {other:?}"),
+    };
+
+    assert_eq!(state.routing.get("needs_project_context"), Some(&true));
+    assert!(custom_state_path.exists());
+    assert!(!state_path(repo_root, pipeline_id).exists());
+
+    let loaded = load_route_state_with_storage_layout(repo_root, pipeline_id, storage_layout)
+        .expect("loaded state");
+    assert_eq!(loaded, state);
+}
+
+#[test]
+fn custom_storage_layout_route_basis_persists_under_custom_state_root() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let storage_layout = custom_storage_layout();
+    let definition = load_pipeline_definition(&repo_root, "core/pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let supported_variables = supported_route_state_variables(&definition);
+    let state = load_route_state_with_supported_variables_and_storage_layout(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+        storage_layout,
+    )
+    .expect("state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("route");
+    let route_basis = build_route_basis(&repo_root, &definition, &state, &route).expect("basis");
+
+    let outcome = persist_route_basis_with_storage_layout(
+        &repo_root,
+        &definition.header.id,
+        route_basis.clone(),
+        storage_layout,
+    )
+    .expect("persist");
+    let custom_state_path =
+        route_state_path_with_storage_layout(&repo_root, &definition.header.id, storage_layout)
+            .expect("custom state path");
+
+    match outcome {
+        RouteBasisPersistOutcome::Applied(state) => {
+            assert_eq!(state.route_basis.as_ref(), Some(&route_basis));
+        }
+        RouteBasisPersistOutcome::Refused(refusal) => {
+            panic!("expected route basis persist to apply, got {refusal:?}")
+        }
+    }
+    assert!(custom_state_path.exists());
+    assert!(!state_path(&repo_root, &definition.header.id).exists());
+
+    let reloaded = load_route_state_with_supported_variables_and_storage_layout(
+        &repo_root,
+        &definition.header.id,
+        &supported_variables,
+        storage_layout,
+    )
+    .expect("reloaded state");
+    assert_eq!(reloaded.route_basis.as_ref(), Some(&route_basis));
+}
+
+#[test]
+fn custom_storage_layout_runtime_state_reset_scopes_to_custom_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let storage_layout = custom_storage_layout();
+    let custom_state_file = repo_root
+        .join(".substrate")
+        .join("handbook")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.route_state.yaml");
+    let default_state_file = repo_root
+        .join(".handbook")
+        .join("state")
+        .join("pipeline")
+        .join("pipeline.route_state.yaml");
+    write_file(&custom_state_file, "custom");
+    write_file(&default_state_file, "default");
+
+    let plan =
+        plan_runtime_state_reset_with_storage_layout(repo_root, storage_layout).expect("plan");
+
+    assert!(plan
+        .paths()
+        .iter()
+        .any(|path| path == ".substrate/handbook/state/pipeline/pipeline.route_state.yaml"));
+    assert!(plan
+        .paths()
+        .iter()
+        .all(|path| path.starts_with(".substrate/handbook/state")));
+    assert!(!plan
+        .paths()
+        .iter()
+        .any(|path| path.starts_with(".handbook/state")));
 }
 
 #[test]
