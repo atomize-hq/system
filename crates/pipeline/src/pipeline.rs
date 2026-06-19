@@ -1,5 +1,6 @@
 use crate::declarative_roots::{
-    handbook_product_declarative_roots, pipeline_root, PipelineDeclarativeRootsContract,
+    handbook_product_declarative_roots, pipeline_root, stage_root,
+    PipelineDeclarativeRootsContract,
 };
 use crate::repo_file_access::{
     CompilerWorkspace, NormalizedRepoRelativePath, RepoRelativeFileAccessError,
@@ -10,22 +11,14 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
-const SUPPORTED_BASE_STAGE_SOURCE_PATH: &str = "core/stages/00_base.md";
-const SUPPORTED_COMPILE_STAGE_SOURCE_PATH: &str = "core/stages/10_feature_spec.md";
-const SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS: &[&str] = &[
-    "core/stages/04_charter_inputs.md",
-    "core/stages/05_charter_synthesize.md",
-    "core/stages/06_project_context_interview.md",
-    "core/stages/07_foundation_pack.md",
-    SUPPORTED_COMPILE_STAGE_SOURCE_PATH,
-];
-const SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS: &[&str] = &[
-    SUPPORTED_BASE_STAGE_SOURCE_PATH,
-    "core/stages/04_charter_inputs.md",
-    "core/stages/05_charter_synthesize.md",
-    "core/stages/06_project_context_interview.md",
-    "core/stages/07_foundation_pack.md",
-    SUPPORTED_COMPILE_STAGE_SOURCE_PATH,
+const SUPPORTED_BASE_STAGE_FILE_NAME: &str = "00_base.md";
+const SUPPORTED_COMPILE_STAGE_FILE_NAME: &str = "10_feature_spec.md";
+const SUPPORTED_CAPTURE_STAGE_FILE_NAMES: &[&str] = &[
+    "04_charter_inputs.md",
+    "05_charter_synthesize.md",
+    "06_project_context_interview.md",
+    "07_foundation_pack.md",
+    SUPPORTED_COMPILE_STAGE_FILE_NAME,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -349,17 +342,24 @@ struct SupportedTargetTopology {
 fn resolve_supported_target_topology(
     catalog: &PipelineCatalog,
 ) -> Result<SupportedTargetTopology, SupportedTargetRegistryLoadError> {
+    let roots = handbook_product_declarative_roots();
+    let supported_pipeline_stage_source_paths = supported_pipeline_stage_source_paths(roots);
+    let supported_compile_stage_source_path = supported_compile_stage_source_path(roots);
+    let supported_base_stage_source_path = supported_base_stage_source_path(roots);
+    let supported_capture_stage_source_paths = supported_capture_stage_source_paths(roots);
     let mut pipeline_candidates = catalog
         .pipelines
         .values()
-        .filter(|pipeline| supported_pipeline_stage_shape_matches(pipeline))
+        .filter(|pipeline| {
+            supported_pipeline_stage_shape_matches(pipeline, &supported_pipeline_stage_source_paths)
+        })
         .collect::<Vec<_>>();
 
     if pipeline_candidates.is_empty() {
         return Err(
             SupportedTargetRegistryLoadError::MissingCatalogBackedPipelineShape {
                 required_stage_source_paths: supported_stage_source_paths(
-                    SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS,
+                    &supported_pipeline_stage_source_paths,
                 ),
             },
         );
@@ -380,24 +380,26 @@ fn resolve_supported_target_topology(
     let compile_stage_id = pipeline
         .stages
         .iter()
-        .find(|stage| stage_source_path_matches(stage, SUPPORTED_COMPILE_STAGE_SOURCE_PATH))
+        .find(|stage| stage_source_path_matches(stage, &supported_compile_stage_source_path))
         .map(|stage| stage.stage_id.clone())
         .ok_or_else(
             || SupportedTargetRegistryLoadError::MissingCatalogBackedCompileStage {
                 pipeline_id: pipeline.definition.header.id.clone(),
-                required_stage_source_path: SUPPORTED_COMPILE_STAGE_SOURCE_PATH.to_string(),
+                required_stage_source_path: supported_compile_stage_source_path
+                    .display()
+                    .to_string(),
             },
         )?;
 
     if !pipeline
         .stages
         .iter()
-        .any(|stage| stage_source_path_matches(stage, SUPPORTED_BASE_STAGE_SOURCE_PATH))
+        .any(|stage| stage_source_path_matches(stage, &supported_base_stage_source_path))
     {
         return Err(
             SupportedTargetRegistryLoadError::MissingCatalogBackedBaseStage {
                 pipeline_id: pipeline.definition.header.id.clone(),
-                required_stage_source_path: SUPPORTED_BASE_STAGE_SOURCE_PATH.to_string(),
+                required_stage_source_path: supported_base_stage_source_path.display().to_string(),
             },
         );
     }
@@ -405,15 +407,17 @@ fn resolve_supported_target_topology(
     let capture_stage_ids = pipeline
         .stages
         .iter()
-        .filter(|stage| supported_capture_stage_source_path_matches(stage))
+        .filter(|stage| {
+            supported_capture_stage_source_path_matches(stage, &supported_capture_stage_source_paths)
+        })
         .map(|stage| stage.stage_id.clone())
         .collect::<Vec<_>>();
-    if capture_stage_ids.len() != SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS.len() {
+    if capture_stage_ids.len() != supported_capture_stage_source_paths.len() {
         return Err(
             SupportedTargetRegistryLoadError::MissingCatalogBackedCaptureStages {
                 pipeline_id: pipeline.definition.header.id.clone(),
                 required_stage_source_paths: supported_stage_source_paths(
-                    SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS,
+                    &supported_capture_stage_source_paths,
                 ),
             },
         );
@@ -443,29 +447,60 @@ fn resolve_supported_target_topology(
     })
 }
 
-fn supported_pipeline_stage_shape_matches(pipeline: &PipelineCatalogEntry) -> bool {
-    pipeline.stages.len() == SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS.len()
+fn supported_pipeline_stage_shape_matches(
+    pipeline: &PipelineCatalogEntry,
+    expected_stage_source_paths: &[PathBuf],
+) -> bool {
+    pipeline.stages.len() == expected_stage_source_paths.len()
         && pipeline
             .stages
             .iter()
-            .zip(SUPPORTED_PIPELINE_STAGE_SOURCE_PATHS.iter())
+            .zip(expected_stage_source_paths.iter())
             .all(|(stage, expected)| stage_source_path_matches(stage, expected))
 }
 
-fn supported_capture_stage_source_path_matches(stage: &PipelineCatalogStageEntry) -> bool {
-    SUPPORTED_CAPTURE_STAGE_SOURCE_PATHS
+fn supported_capture_stage_source_path_matches(
+    stage: &PipelineCatalogStageEntry,
+    expected_stage_source_paths: &[PathBuf],
+) -> bool {
+    expected_stage_source_paths
         .iter()
         .any(|expected| stage_source_path_matches(stage, expected))
 }
 
-fn stage_source_path_matches(stage: &PipelineCatalogStageEntry, expected: &str) -> bool {
-    stage.source_path == Path::new(expected)
+fn stage_source_path_matches(stage: &PipelineCatalogStageEntry, expected: &Path) -> bool {
+    stage.source_path == expected
 }
 
-fn supported_stage_source_paths(expected_paths: &[&str]) -> Vec<String> {
+fn supported_stage_source_paths(expected_paths: &[PathBuf]) -> Vec<String> {
     expected_paths
         .iter()
-        .map(|path| (*path).to_string())
+        .map(|path| path.display().to_string())
+        .collect()
+}
+
+fn supported_base_stage_source_path(roots: &PipelineDeclarativeRootsContract) -> PathBuf {
+    PathBuf::from(roots.stage_file(SUPPORTED_BASE_STAGE_FILE_NAME))
+}
+
+fn supported_compile_stage_source_path(roots: &PipelineDeclarativeRootsContract) -> PathBuf {
+    PathBuf::from(roots.stage_file(SUPPORTED_COMPILE_STAGE_FILE_NAME))
+}
+
+fn supported_capture_stage_source_paths(
+    roots: &PipelineDeclarativeRootsContract,
+) -> Vec<PathBuf> {
+    SUPPORTED_CAPTURE_STAGE_FILE_NAMES
+        .iter()
+        .map(|file_name| PathBuf::from(roots.stage_file(file_name)))
+        .collect()
+}
+
+fn supported_pipeline_stage_source_paths(
+    roots: &PipelineDeclarativeRootsContract,
+) -> Vec<PathBuf> {
+    std::iter::once(supported_base_stage_source_path(roots))
+        .chain(supported_capture_stage_source_paths(roots))
         .collect()
 }
 
@@ -1774,7 +1809,7 @@ fn load_stage_catalog(
     repo_root: &Path,
 ) -> Result<std::collections::BTreeMap<PathBuf, StageCatalogEntry>, PipelineCatalogError> {
     let mut out = std::collections::BTreeMap::new();
-    for stage_path in discover_repo_relative_files(repo_root, Path::new("core/stages"), "md")? {
+    for stage_path in discover_repo_relative_files(repo_root, stage_root(), "md")? {
         let full_path = repo_root.join(&stage_path);
         let Some(front_matter) =
             load_stage_front_matter(repo_root, &stage_path).map_err(|err| match err {
