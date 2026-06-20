@@ -32,20 +32,20 @@ Spec reference: [handbook-substrate-parameterization-set-1-pipeline-import-layou
 
 ## Packet 1.3: Public Pipeline Storage Layout Injection
 
-- [ ] Task: Promote the storage layout contract to the supported public/import-facing boundary
+- [x] Task: Promote the storage layout contract to the supported public/import-facing boundary
   - Acceptance: downstream importers can access a supported `PipelineStorageLayoutContract` and an explicit handbook-product default helper through the crate boundary; containment validation for runtime-state-owned paths remains enforced.
-  - Verify: Source inspection of `crates/pipeline/src/layout.rs` and `crates/pipeline/src/lib.rs`; `cargo test -p handbook-pipeline --test pipeline_state_store`
-  - Files: `crates/pipeline/src/layout.rs`, `crates/pipeline/src/lib.rs`, `crates/pipeline/tests/pipeline_state_store.rs`
+  - Verify: Source inspection of `crates/pipeline/src/layout.rs`, `crates/pipeline/src/lib.rs`, and `crates/pipeline/tests/pipeline_storage_layout_contract.rs`; `cargo test -p handbook-pipeline --test pipeline_storage_layout_contract && cargo test -p handbook-pipeline --test pipeline_state_store`
+  - Files: `crates/pipeline/src/layout.rs`, `crates/pipeline/src/lib.rs`, `crates/pipeline/tests/pipeline_storage_layout_contract.rs`, `crates/pipeline/tests/pipeline_state_store.rs`
 
-- [ ] Task: Adopt the public storage contract in route-state entry points
+- [x] Task: Adopt the public storage contract in route-state entry points
   - Acceptance: route-state persistence behavior can honor non-default storage roots through the supported contract boundary without crate-private access, while default handbook-product behavior stays unchanged.
   - Verify: `cargo test -p handbook-pipeline --test pipeline_state_store`
   - Files: `crates/pipeline/src/layout.rs`, `crates/pipeline/src/route_state.rs`, `crates/pipeline/tests/pipeline_state_store.rs`
 
-- [ ] Task: Adopt the public storage contract in capture and handoff entry points
+- [x] Task: Adopt the public storage contract in capture and handoff entry points
   - Acceptance: capture provenance/cache behavior and handoff bundle behavior can honor non-default storage roots through the supported contract boundary, with handbook-product defaults preserved through the explicit default helper.
   - Verify: `cargo test -p handbook-pipeline --test pipeline_capture && cargo test -p handbook-pipeline --test pipeline_handoff`
-  - Files: `crates/pipeline/src/layout.rs`, `crates/pipeline/src/pipeline_capture.rs`, `crates/pipeline/src/pipeline_handoff.rs`, `crates/pipeline/tests/pipeline_capture.rs`, `crates/pipeline/tests/pipeline_handoff.rs`
+  - Files: `crates/pipeline/src/layout.rs`, `crates/pipeline/src/pipeline_capture.rs`, `crates/pipeline/src/pipeline_compile.rs`, `crates/pipeline/src/pipeline_handoff.rs`, `crates/pipeline/tests/pipeline_capture.rs`, `crates/pipeline/tests/pipeline_handoff.rs`
 
 ## Packet 1.4: Final Set Proof
 
