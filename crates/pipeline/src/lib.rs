@@ -29,8 +29,11 @@ pub use pipeline::{
     StageFileValidationError,
 };
 pub use pipeline_capture::{
-    apply_cached_pipeline_capture, apply_pipeline_capture, capture_pipeline_output,
-    load_pipeline_capture_cache_entry, preview_pipeline_capture,
+    apply_cached_pipeline_capture, apply_cached_pipeline_capture_with_storage_layout,
+    apply_pipeline_capture, apply_pipeline_capture_with_storage_layout,
+    capture_pipeline_output, capture_pipeline_output_with_storage_layout,
+    load_pipeline_capture_cache_entry, load_pipeline_capture_cache_entry_with_storage_layout,
+    preview_pipeline_capture, preview_pipeline_capture_with_storage_layout,
     render_pipeline_capture_apply_result, render_pipeline_capture_preview,
     render_pipeline_capture_refusal, PipelineCaptureApplyResult, PipelineCaptureCacheEntry,
     PipelineCapturePlan, PipelineCapturePreview, PipelineCaptureRefusal,

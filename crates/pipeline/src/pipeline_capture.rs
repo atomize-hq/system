@@ -1,4 +1,7 @@
-use crate::layout::RepoLayoutRoot;
+use crate::layout::{
+    handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
+    RepoLayoutRoot,
+};
 use crate::pipeline::{
     load_selected_pipeline_definition, load_stage_compile_definition,
     supported_route_state_variables, CompileStageDefinition, PipelineDefinition,
@@ -182,6 +185,18 @@ pub fn preview_pipeline_capture(
     repo_root: impl AsRef<Path>,
     request: &PipelineCaptureRequest,
 ) -> Result<PipelineCapturePreview, PipelineCaptureRefusal> {
+    preview_pipeline_capture_with_storage_layout(
+        repo_root,
+        request,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn preview_pipeline_capture_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    request: &PipelineCaptureRequest,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineCapturePreview, PipelineCaptureRefusal> {
     let repo_root = repo_root.as_ref();
     let plan = build_capture_plan(
         repo_root,
@@ -189,7 +204,7 @@ pub fn preview_pipeline_capture(
         &request.stage_selector,
         &request.input,
     )?;
-    persist_capture_cache(repo_root, &plan)?;
+    persist_capture_cache(repo_root, &plan, storage_layout)?;
     Ok(PipelineCapturePreview { plan })
 }
 
@@ -197,6 +212,18 @@ pub fn capture_pipeline_output(
     repo_root: impl AsRef<Path>,
     request: &PipelineCaptureRequest,
 ) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
+    capture_pipeline_output_with_storage_layout(
+        repo_root,
+        request,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn capture_pipeline_output_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    request: &PipelineCaptureRequest,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
     let repo_root = repo_root.as_ref();
     let plan = build_capture_plan(
         repo_root,
@@ -204,17 +231,29 @@ pub fn capture_pipeline_output(
         &request.stage_selector,
         &request.input,
     )?;
-    apply_capture_plan(repo_root, &plan)
+    apply_capture_plan(repo_root, &plan, storage_layout)
 }
 
 pub fn apply_pipeline_capture(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
 ) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
+    apply_pipeline_capture_with_storage_layout(
+        repo_root,
+        capture_id,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn apply_pipeline_capture_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
     let repo_root = repo_root.as_ref();
-    let cache_entry = load_capture_cache(repo_root, capture_id)?;
-    apply_capture_plan(repo_root, &cache_entry.plan).inspect(|_| {
-        let _ = delete_capture_cache(repo_root, capture_id);
+    let cache_entry = load_capture_cache(repo_root, capture_id, storage_layout)?;
+    apply_capture_plan(repo_root, &cache_entry.plan, storage_layout).inspect(|_| {
+        let _ = delete_capture_cache(repo_root, capture_id, storage_layout);
     })
 }
 
@@ -222,14 +261,38 @@ pub fn apply_cached_pipeline_capture(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
 ) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
-    apply_pipeline_capture(repo_root, capture_id)
+    apply_cached_pipeline_capture_with_storage_layout(
+        repo_root,
+        capture_id,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn apply_cached_pipeline_capture_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
+    apply_pipeline_capture_with_storage_layout(repo_root, capture_id, storage_layout)
 }
 
 pub fn load_pipeline_capture_cache_entry(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
 ) -> Result<PipelineCaptureCacheEntry, PipelineCaptureRefusal> {
-    load_capture_cache(repo_root.as_ref(), capture_id)
+    load_pipeline_capture_cache_entry_with_storage_layout(
+        repo_root,
+        capture_id,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn load_pipeline_capture_cache_entry_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineCaptureCacheEntry, PipelineCaptureRefusal> {
+    load_capture_cache(repo_root.as_ref(), capture_id, storage_layout)
 }
 
 pub fn render_pipeline_capture_preview(preview: &PipelineCapturePreview) -> String {
@@ -562,6 +625,7 @@ fn build_capture_plan(
 fn apply_capture_plan(
     repo_root: &Path,
     plan: &PipelineCapturePlan,
+    storage_layout: PipelineStorageLayoutContract,
 ) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
     let supported_variables =
         supported_route_state_variables_for_plan(repo_root, &plan.target.pipeline_id)?;
@@ -734,9 +798,11 @@ fn apply_capture_plan(
         Some(next_state.revision)
     };
     if let Some(provenance) = stage_10_capture_provenance.as_ref() {
-        if let Err(summary) =
-            persist_stage_10_feature_spec_capture_provenance(repo_root, provenance)
-        {
+        if let Err(summary) = persist_stage_10_feature_spec_capture_provenance_with_storage_layout(
+            repo_root,
+            provenance,
+            storage_layout,
+        ) {
             rollback_snapshots(repo_root, &snapshots);
             return Err(PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::StatePersistenceFailure,
@@ -937,8 +1003,11 @@ fn canonicalize_capture_plan_for_apply(
 fn persist_capture_cache(
     repo_root: &Path,
     plan: &PipelineCapturePlan,
+    storage_layout: PipelineStorageLayoutContract,
 ) -> Result<(), PipelineCaptureRefusal> {
-    let cache_path = capture_cache_path(repo_root, &plan.capture_id).map_err(|reason| {
+    let cache_path =
+        capture_cache_path_with_storage_layout(repo_root, &plan.capture_id, storage_layout)
+            .map_err(|reason| {
         PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::CacheFailure,
             summary: reason,
@@ -986,6 +1055,7 @@ fn persist_capture_cache(
 fn load_capture_cache(
     repo_root: &Path,
     capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
 ) -> Result<PipelineCaptureCacheEntry, PipelineCaptureRefusal> {
     validate_capture_id(capture_id).map_err(|reason| PipelineCaptureRefusal {
         classification: PipelineCaptureRefusalClassification::MissingCaptureId,
@@ -994,8 +1064,12 @@ fn load_capture_cache(
         stage_id: None,
         recovery: "retry with the capture id printed by `pipeline capture --preview`".to_string(),
     })?;
-    let cache_relative_path =
-        capture_cache_repo_relative_path(repo_root, capture_id).map_err(|reason| {
+    let cache_relative_path = capture_cache_repo_relative_path_with_storage_layout(
+        repo_root,
+        capture_id,
+        storage_layout,
+    )
+    .map_err(|reason| {
             PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::MissingCaptureId,
                 summary: reason,
@@ -1145,8 +1219,12 @@ fn classify_capture_cache_read_failure(
     }
 }
 
-fn delete_capture_cache(repo_root: &Path, capture_id: &str) -> Result<(), String> {
-    let cache_path = capture_cache_path(repo_root, capture_id)?;
+fn delete_capture_cache(
+    repo_root: &Path,
+    capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<(), String> {
+    let cache_path = capture_cache_path_with_storage_layout(repo_root, capture_id, storage_layout)?;
     match fs::remove_file(&cache_path) {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -1157,20 +1235,58 @@ fn delete_capture_cache(repo_root: &Path, capture_id: &str) -> Result<(), String
     }
 }
 
+#[cfg(test)]
 fn capture_cache_path(repo_root: &Path, capture_id: &str) -> Result<PathBuf, String> {
-    let relative_path = capture_cache_repo_relative_path(repo_root, capture_id)?;
+    capture_cache_path_with_storage_layout(
+        repo_root,
+        capture_id,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+fn capture_cache_path_with_storage_layout(
+    repo_root: &Path,
+    capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PathBuf, String> {
+    let relative_path =
+        capture_cache_repo_relative_path_with_storage_layout(repo_root, capture_id, storage_layout)?;
     resolve_repo_relative_write_path(repo_root, relative_path.as_str())
         .map_err(|err| format_cache_path_error(relative_path.as_str(), err))
 }
 
-fn capture_cache_repo_relative_path(
+fn capture_cache_repo_relative_path_with_storage_layout(
     repo_root: &Path,
     capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
 ) -> Result<NormalizedRepoRelativePath, String> {
     validate_capture_id(capture_id)?;
-    Ok(RepoLayoutRoot::new(repo_root)
+    Ok(RepoLayoutRoot::with_contract(repo_root, storage_layout)
         .capture_provenance()
         .capture_cache_relative_path(capture_id))
+}
+
+fn persist_stage_10_feature_spec_capture_provenance_with_storage_layout(
+    repo_root: &Path,
+    provenance: &Stage10FeatureSpecCaptureProvenance,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<(), String> {
+    if storage_layout == *handbook_product_pipeline_storage_layout_contract() {
+        return persist_stage_10_feature_spec_capture_provenance(repo_root, provenance);
+    }
+
+    let provenance_path = RepoLayoutRoot::with_contract(repo_root, storage_layout)
+        .capture_provenance()
+        .stage_capture_provenance_relative_path(&provenance.pipeline_id, &provenance.stage_id);
+    let bytes = serde_json::to_vec_pretty(provenance)
+        .map_err(|err| format!("failed to serialize stage-10 capture provenance: {err}"))?;
+    write_repo_relative_bytes(repo_root, provenance_path.as_str(), &bytes).map_err(|err| {
+        format!(
+            "failed to persist stage-10 capture provenance at `{}`: {}",
+            provenance_path.as_str(),
+            format_repo_relative_mutation_error(provenance_path.as_str(), err)
+        )
+    })
 }
 
 fn validate_capture_id(capture_id: &str) -> Result<(), String> {
