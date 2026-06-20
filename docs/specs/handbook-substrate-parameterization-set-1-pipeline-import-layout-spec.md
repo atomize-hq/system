@@ -25,7 +25,7 @@ This set closes the biggest remaining structural import gap by addressing three 
 2. **Stage-root ownership** is currently fixed to repo-level `core/stages/**` across supported-target assumptions, discovery, and validation.
 3. **Pipeline storage layout** already exists as a typed internal contract, but it is not yet available through a supported public/import-facing seam.
 
-The goal is **not** to eliminate every handbook-product default literal everywhere in the crate. The goal is to establish the honest reusable import-facing boundary needed for `.substrate/handbook/**`, while explicitly bounding any remaining handbook-product defaults that stay as product-default behavior.
+The goal is **not** to eliminate every handbook-product default literal everywhere in the crate. The goal is to establish the honest reusable import-facing boundary needed for `.substrate/handbook/**`, while explicitly bounding any remaining handbook-product defaults that stay as product-default behavior. For Packet 1.2 specifically, removing a literal alone is insufficient: discovery and validation behavior must adopt the active contract as runtime truth.
 
 ## Tech Stack
 
@@ -152,6 +152,7 @@ This set is implemented as four sequential packets inside one set triplet:
 
 2. **Packet 1.2 — Stage-Root Discovery And Validation Adoption**
    - Move supported stage-source assumptions, stage discovery, and inseparable stage/pipeline path validation onto the active contract.
+   - This packet is not complete while loader validation still codifies rejection of non-default stage roots; the proof must flip to positive contract-driven acceptance.
    - Primary verification:
      - `cargo test -p handbook-pipeline --test pipeline_catalog`
      - `cargo test -p handbook-pipeline --test pipeline_loader`
@@ -200,7 +201,7 @@ This set is implemented as four sequential packets inside one set triplet:
 ## Success Criteria
 
 1. `handbook-pipeline` exposes a supported declarative layout seam that can represent non-default pipeline/profile/runner/stage roots.
-2. Supported stage-source assumptions, stage discovery, and inseparable path validation no longer depend on raw repo-level `core/stages/**` ownership.
+2. Supported stage-source assumptions, stage discovery, and inseparable path validation no longer depend on raw repo-level `core/stages/**` ownership or handbook-product default roots as active truth.
 3. `handbook-pipeline` exposes a supported public/import-facing storage layout seam for runtime state, stage-capture provenance, capture cache, and handoff bundle roots.
 4. Route-state, capture, and handoff entry points can honor the import-facing storage layout seam without downstream callers reaching into crate-private implementation details.
 5. Handbook-product defaults remain available only as explicit default helpers or explicitly bounded product-default behavior.

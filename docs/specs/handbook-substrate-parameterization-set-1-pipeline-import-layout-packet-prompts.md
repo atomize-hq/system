@@ -138,14 +138,16 @@ Hard rules:
 - If review finds issues, spawn a fresh GPT-5.4 subagent on high to fix them.
 - Every fix subagent prompt must begin with `/goal ` and must explicitly use $incremental-implementation.
 - After each accepted fix round that changes files, commit before dispatching the next fresh review subagent.
+- Preserve unrelated local edits, including any dirt already present in `AGENTS.md` and `CLAUDE.md`.
 - Before editing any production symbol in `crates/pipeline/src/pipeline.rs`, run GitNexus impact analysis first and report the blast radius. If GitNexus says the index is stale, run `npx gitnexus analyze` first. If the blast radius is HIGH or CRITICAL, stop and report it before editing.
 - Before every commit, run GitNexus detect-changes and verify the affected scope matches Packet 1.2 only.
 - Stay inside Packet 1.2 scope.
 
 Packet 1.2 scope:
-- Replace raw structural ownership of `core/stages/**` with contract-driven behavior in supported-target/source-path derivation.
-- Drive stage discovery from the active stage root instead of `Path::new("core/stages")`.
+- Replace raw structural ownership of `core/stages/**` and handbook-product default-root truth with contract-driven behavior in supported-target/source-path derivation and catalog discovery.
+- Drive stage discovery from the active stage root instead of handbook-product default discovery behavior.
 - Update stage/pipeline path validation only where the active contract must be used for structural correctness.
+- Remove or replace the old loader proof that codifies rejection of non-default stage roots, and replace it with positive contract-driven acceptance coverage.
 - Update only the minimal tests needed for Packet 1.2.
 - Expected files:
   - crates/pipeline/src/pipeline.rs
@@ -168,19 +170,21 @@ Implementation subagent prompt requirements:
 - Tell the subagent to use $incremental-implementation.
 - Require live verification with:
   - `git status --short --branch`
+  - `npx gitnexus status`
   - `sed -n '1,260p' crates/pipeline/src/declarative_roots.rs`
-  - `sed -n '1,260p' crates/pipeline/src/pipeline.rs`
+  - `sed -n '1,320p' crates/pipeline/src/pipeline.rs`
   - `cargo test -p handbook-pipeline --test pipeline_catalog`
   - `cargo test -p handbook-pipeline --test pipeline_loader`
   - `cargo test -p handbook-pipeline --test pipeline_compile`
   - `cargo test -p handbook-pipeline --test pipeline_route_resolution`
 - Require the implementation to:
   - verify Packet 1.1 landed first
-  - run GitNexus impact analysis before editing production symbols and report the blast radius
-  - move supported stage-source assumptions and stage discovery onto the active declarative contract
+  - run `npx gitnexus analyze` if `npx gitnexus status` reports a stale index, then run GitNexus impact analysis before editing production symbols and report the blast radius
+  - move supported stage-source assumptions and discovery onto the active declarative contract rather than handbook-product default roots
   - update only the validation/refusal behavior that is inseparable from the structural root change
+  - remove or replace the old loader proof that codifies rejection of non-default stage roots with positive proof for contract-driven acceptance
   - avoid widening into broader wording cleanup or storage-layout work
-  - stop after Packet 1.2 acceptance is met and report touched files, impact-analysis results, verification run, and residual risks
+  - stop after Packet 1.2 acceptance is met and report touched files, impact-analysis results, verification run, residual risks, and the exact commit hash/message if one is created
 
 Review subagent prompt requirements:
 - Begin with `/goal Review Set 1 Packet 1.2: Stage-Root Discovery And Validation Adoption`.
@@ -188,7 +192,8 @@ Review subagent prompt requirements:
 - Require findings-first review across correctness, readability, architecture, security, and performance.
 - Require the reviewer to check:
   - whether stage-root behavior is truly contract-driven rather than just renamed literals
-  - whether supported-target/source-path ownership is still bounded and not widened into a new platform
+  - whether handbook-product default roots are still acting as active truth in discovery or validation
+  - whether the old loader blocker semantics were actually removed and replaced with positive proof
   - whether validation changes stayed inseparable from the structural seam instead of drifting into Set 3 cleanup
   - whether scope leaked beyond `pipeline.rs` + the targeted tests
 - Require severity labels and explicit callouts for false proof, widened scope, or incomplete adoption.

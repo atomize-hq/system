@@ -127,7 +127,7 @@ stages:
     );
 
     let definition = handbook_pipeline::pipeline::load_pipeline_definition_with_roots(
-        &repo_root,
+        repo_root,
         &imported_stage_roots,
         roots.pipeline_file("imported-stage-root.yaml"),
     )
@@ -172,7 +172,7 @@ stages:
     );
 
     let err = handbook_pipeline::pipeline::load_pipeline_definition_with_roots(
-        &repo_root,
+        repo_root,
         &imported_stage_roots,
         roots.pipeline_file("imported-stage-root-refusal.yaml"),
     )

@@ -19,19 +19,11 @@ No packet in this set is parallel-safe by default. Each packet builds on the con
 
 ## Current State (live repo truth)
 
-- `crates/pipeline/src/declarative_roots.rs` hardcodes:
-  - `core/pipelines`
-  - `core/profiles`
-  - `core/runners`
-- `crates/pipeline/src/pipeline.rs` still contains:
-  - supported stage-source path constants rooted at `core/stages/**`
-  - stage discovery rooted at `Path::new("core/stages")`
-  - validation/refusal logic that still names `core/stages/` and `core/pipelines/`
-- `crates/pipeline/src/layout.rs` already contains a typed storage contract, but:
-  - `PipelineStorageLayoutContract` is `pub(crate)`
-  - downstream importers cannot use it through the supported public boundary
-- `crates/pipeline/src/lib.rs` currently exposes the frozen functional boundary, but not a supported import-facing declarative/storage contract story.
-- The current frozen boundary from Lane A remains valid; this set makes that boundary honestly importable under a Substrate-owned layout.
+- `crates/pipeline/src/declarative_roots.rs` now exposes a supported declarative-root contract plus an explicit handbook-product default helper.
+- `crates/pipeline/src/layout.rs` now exposes a supported storage-layout contract plus an explicit handbook-product default helper.
+- `crates/pipeline/src/pipeline.rs` now has import-facing `*_with_roots` discovery and validation entry points for the Packet 1.2 seam, while handbook-product helpers remain as explicit default behavior.
+- `crates/pipeline/tests/pipeline_loader.rs` now proves positive non-default-stage-root acceptance through explicit declarative roots instead of codifying rejection semantics.
+- Packets 1.1, 1.2, and 1.3 now appear landed; Packet 1.4 can run as the final proof seam.
 
 ## Components
 
@@ -132,11 +124,16 @@ The crate has a coherent declarative-layout contract story before stage discover
 
 Move stage-source assumptions, discovery, and inseparable validation logic onto the active declarative contract.
 
+### Closeout status (live repo truth, 2026-06-20)
+
+Packet 1.2 was reopened briefly to clear a false-complete state, then re-landed. The import-facing discovery / validation paths now accept explicit active roots, and the old rejection-only loader proof is gone. Packet 1.4 may proceed without reopening Packet 1.2 again unless the final proof wall finds new contradictory evidence.
+
 ### Work
 
-- remove raw structural ownership of `core/stages/**` from supported-target derivation
-- drive stage discovery from the active stage root instead of `Path::new("core/stages")`
+- remove raw structural ownership of `core/stages/**` and handbook-product default-root truth from supported-target derivation and catalog discovery
+- drive stage discovery from the active stage root instead of handbook-product default discovery behavior
 - update stage/pipeline root validation where the root must derive from the active contract
+- replace the current loader proof that codifies rejection of non-default stage roots with positive contract-driven acceptance proof
 - keep broader wording-only cleanup deferred to Set 3
 
 ### Verification checkpoint
@@ -150,7 +147,7 @@ cargo test -p handbook-pipeline --test pipeline_route_resolution
 
 ### Exit condition
 
-The crate's stage-root behavior is structurally contract-driven rather than repo-literal-driven.
+The crate's stage-root behavior is structurally contract-driven rather than handbook-product-default-driven, and the old non-default-stage-root rejection semantics are gone from the Packet 1.2 proof surface.
 
 ## Packet 1.3 — Public Pipeline Storage Layout Injection
 

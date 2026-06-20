@@ -1087,12 +1087,13 @@ stages:
                 PipelineValidationError::InvalidStageFile {
                     stage_id,
                     file,
-                    reason: StageFileValidationError::OutsideStageDirectory,
+                    reason: StageFileValidationError::OutsideStageDirectory { stage_root },
                 },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
             assert_eq!(file, "README.md");
+            assert_eq!(stage_root, "core/stages");
         }
         other => panic!("expected stage-directory refusal, got {other:?}"),
     }
