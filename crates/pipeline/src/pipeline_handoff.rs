@@ -1,25 +1,31 @@
 use crate::declarative_roots::{is_canonical_declarative_path, DECLARATIVE_ROOT};
-use crate::layout::RepoLayoutRoot;
+use crate::layout::{
+    handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
+    RepoLayoutRoot,
+};
 use crate::pipeline::{
     load_selected_pipeline_definition, supported_route_state_variables, SupportedHandoffTarget,
     SupportedTargetRegistry,
 };
 use crate::pipeline_compile::{
-    compile_pipeline_stage, PipelineCompileDocument, PipelineCompileDocumentKind,
-    PipelineCompileDocumentStatus, PipelineCompileRefusal, PipelineCompileRefusalClassification,
-    PipelineCompileResult,
+    compile_pipeline_stage_with_runtime_and_storage_layout, PipelineCompileDocument,
+    PipelineCompileDocumentKind, PipelineCompileDocumentStatus, PipelineCompileRefusal,
+    PipelineCompileRefusalClassification, PipelineCompileResult, PipelineCompileRuntimeContext,
 };
 use crate::repo_file_access::{
     normalize_repo_relative_path, read_repo_relative_string, sha256_repo_relative_file,
     write_repo_relative_bytes, RepoRelativeFileAccessError, RepoRelativeMutationError,
 };
 use crate::route_state::{
-    load_route_state_with_supported_variables, rebuild_canonical_route_basis, RouteStateReadError,
+    load_route_state_with_supported_variables,
+    load_route_state_with_supported_variables_and_storage_layout, rebuild_canonical_route_basis,
+    RouteStateReadError,
 };
 use crate::stage_10_feature_spec_provenance::{
     build_stage_10_feature_spec_capture_provenance, load_stage_10_feature_spec_capture_provenance,
     route_basis_fingerprint_sha256, sha256_hex,
-    validate_stage_10_feature_spec_capture_provenance_match, FEATURE_SPEC_ARTIFACT_PATH,
+    validate_stage_10_feature_spec_capture_provenance_match, Stage10FeatureSpecCaptureProvenance,
+    FEATURE_SPEC_ARTIFACT_PATH, STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION,
 };
 use handbook_engine::{ArtifactManifest, ArtifactPresence, ManifestInputs};
 use serde::{Deserialize, Serialize};
@@ -222,15 +228,29 @@ pub fn emit_pipeline_handoff_bundle(
     repo_root: impl AsRef<Path>,
     request: &PipelineHandoffEmitRequest,
 ) -> Result<PipelineHandoffEmitResult, PipelineHandoffRefusal> {
+    emit_pipeline_handoff_bundle_with_storage_layout(
+        repo_root,
+        request,
+        *handbook_product_pipeline_storage_layout_contract(),
+    )
+}
+
+pub fn emit_pipeline_handoff_bundle_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    request: &PipelineHandoffEmitRequest,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineHandoffEmitResult, PipelineHandoffRefusal> {
     let repo_root = repo_root.as_ref();
     let registry = load_supported_handoff_target_registry_for_emit(repo_root)?;
     let supported_target = supported_handoff_target(&registry);
     validate_supported_consumer(&supported_target, &request.consumer_selector)?;
 
-    let compile_result = compile_pipeline_stage(
+    let compile_result = compile_pipeline_stage_with_runtime_and_storage_layout(
         repo_root,
         &request.pipeline_selector,
         &supported_target.stage_id,
+        &PipelineCompileRuntimeContext::default(),
+        storage_layout,
     )
     .map_err(|refusal| map_compile_refusal(refusal, request.consumer_selector.trim()))?;
     validate_supported_compile_target(
@@ -281,7 +301,13 @@ pub fn emit_pipeline_handoff_bundle(
         consumer_id: Some(supported_target.consumer_id.clone()),
         recovery: stage_10_provenance_recovery(&supported_target.stage_id),
     })?;
-    let stored_capture_provenance = load_stage_10_feature_spec_capture_provenance(repo_root)
+    let stored_capture_provenance =
+        load_stage_10_feature_spec_capture_provenance_for_storage_layout(
+            repo_root,
+            &compile_result.target.pipeline_id,
+            &compile_result.target.stage_id,
+            storage_layout,
+        )
         .map_err(|reason| PipelineHandoffRefusal {
             classification: PipelineHandoffRefusalClassification::InvalidProvenance,
             summary: reason,
@@ -302,7 +328,7 @@ pub fn emit_pipeline_handoff_bundle(
     })?;
 
     let feature_id = derive_feature_id(&feature_spec_body, &feature_spec_sha256);
-    let bundle_root = RepoLayoutRoot::new(repo_root)
+    let bundle_root = RepoLayoutRoot::with_contract(repo_root, storage_layout)
         .handoff_bundle()
         .feature_slice_bundle_root(&feature_id)
         .as_str()
@@ -462,6 +488,54 @@ pub fn emit_pipeline_handoff_bundle(
         bundle_root,
         written_files: writes,
     })
+}
+
+fn load_stage_10_feature_spec_capture_provenance_for_storage_layout(
+    repo_root: &Path,
+    pipeline_id: &str,
+    stage_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<Stage10FeatureSpecCaptureProvenance, String> {
+    if storage_layout == *handbook_product_pipeline_storage_layout_contract() {
+        return load_stage_10_feature_spec_capture_provenance(repo_root);
+    }
+
+    let provenance_path = RepoLayoutRoot::with_contract(repo_root, storage_layout)
+        .capture_provenance()
+        .stage_capture_provenance_relative_path(pipeline_id, stage_id);
+    let body = read_repo_relative_string(repo_root, provenance_path.as_str()).map_err(|err| {
+        format!(
+            "stage-10 capture provenance is missing or unreadable at `{}`: {}",
+            provenance_path.as_str(),
+            format_repo_file_access_error(&err)
+        )
+    })?;
+    let provenance: Stage10FeatureSpecCaptureProvenance =
+        serde_json::from_str(&body).map_err(|err| {
+            format!(
+                "stage-10 capture provenance at `{}` is not valid JSON: {err}",
+                provenance_path.as_str()
+            )
+        })?;
+    if provenance.schema_version != STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION {
+        return Err(format!(
+            "stage-10 capture provenance schema_version `{}` does not match expected `{}`",
+            provenance.schema_version, STAGE_10_FEATURE_SPEC_CAPTURE_PROVENANCE_SCHEMA_VERSION
+        ));
+    }
+    if provenance.pipeline_id != pipeline_id || provenance.stage_id != stage_id {
+        return Err(format!(
+            "stage-10 capture provenance target `{}` + `{}` does not match fresh compile `{}` + `{}`",
+            provenance.pipeline_id, provenance.stage_id, pipeline_id, stage_id
+        ));
+    }
+    if provenance.feature_spec_path != FEATURE_SPEC_ARTIFACT_PATH {
+        return Err(format!(
+            "stage-10 capture provenance feature_spec_path `{}` does not match expected `{}`",
+            provenance.feature_spec_path, FEATURE_SPEC_ARTIFACT_PATH
+        ));
+    }
+    Ok(provenance)
 }
 
 pub fn validate_pipeline_handoff_bundle(
@@ -625,6 +699,175 @@ pub fn validate_pipeline_handoff_bundle(
     }
 
     validate_canonical_provenance(repo_root, &manifest)?;
+
+    Ok(PipelineHandoffValidatedBundle {
+        manifest,
+        read_allowlist,
+    })
+}
+
+pub fn validate_pipeline_handoff_bundle_with_storage_layout(
+    repo_root: impl AsRef<Path>,
+    bundle_root: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineHandoffValidatedBundle, PipelineHandoffValidationFailure> {
+    let repo_root = repo_root.as_ref();
+    let registry = load_supported_handoff_target_registry_for_validation(repo_root)?;
+    let bundle_root = bundle_root.trim();
+    let normalized_bundle_root = normalize_repo_relative_path(bundle_root).map_err(|reason| {
+        PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+            summary: format!("bundle root `{bundle_root}` is invalid: {reason}"),
+        }
+    })?;
+
+    let manifest = read_bundle_json::<PipelineHandoffManifest>(
+        repo_root,
+        &bundle_repo_relative_path(bundle_root, "handoff_manifest.json"),
+        "handoff manifest",
+    )?;
+    validate_supported_manifest_target(&registry, &manifest)?;
+    let normalized_manifest_bundle_root =
+        normalize_bundle_root_from_metadata("handoff manifest", &manifest.bundle_root)?;
+    if normalized_bundle_root != normalized_manifest_bundle_root {
+        return Err(PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+            summary: format!(
+                "requested bundle root `{}` does not match handoff manifest bundle_root `{}`",
+                normalized_bundle_root, normalized_manifest_bundle_root
+            ),
+        });
+    }
+
+    let read_allowlist = read_bundle_json::<PipelineHandoffReadAllowlist>(
+        repo_root,
+        &bundle_repo_relative_path(bundle_root, "read_allowlist.json"),
+        "read allowlist",
+    )?;
+    if read_allowlist.schema_version != READ_ALLOWLIST_SCHEMA_VERSION {
+        return Err(PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+            summary: format!(
+                "read allowlist schema_version `{}` does not match expected `{}`",
+                read_allowlist.schema_version, READ_ALLOWLIST_SCHEMA_VERSION
+            ),
+        });
+    }
+    let normalized_allowlist_bundle_root =
+        normalize_bundle_root_from_metadata("read allowlist", &read_allowlist.bundle_root)?;
+    if normalized_allowlist_bundle_root != normalized_manifest_bundle_root
+        || read_allowlist.pipeline_id != manifest.pipeline_id
+        || read_allowlist.consumer_id != manifest.consumer_id
+        || read_allowlist.feature_id != manifest.feature_id
+        || read_allowlist.repo_reread_allowed
+    {
+        return Err(PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+            summary: "read allowlist metadata does not match the handoff manifest".to_string(),
+        });
+    }
+
+    read_bundle_json::<PipelineHandoffScorecardMetadata>(
+        repo_root,
+        &bundle_repo_relative_path(bundle_root, "scorecard/metadata.json"),
+        "scorecard metadata",
+    )?;
+    read_repo_relative_string(
+        repo_root,
+        &bundle_repo_relative_path(bundle_root, "trust_matrix.md"),
+    )
+    .map_err(|err| PipelineHandoffValidationFailure {
+        classification: PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+        summary: format!(
+            "trust matrix is missing or unreadable: {}",
+            format_repo_file_access_error(&err)
+        ),
+    })?;
+
+    let allow_read_paths = read_allowlist
+        .allow_read_paths
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for required in required_bundle_read_paths(&manifest) {
+        if !allow_read_paths.contains(&required) {
+            return Err(PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+                summary: format!("read allowlist is missing required bundle path `{required}`"),
+            });
+        }
+    }
+
+    for input in &manifest.inputs {
+        let expected_trust_class =
+            expected_trust_class_for_source(&input.source_path).map_err(|summary| {
+                PipelineHandoffValidationFailure {
+                    classification:
+                        PipelineHandoffValidationFailureClassification::TrustClassMismatch,
+                    summary,
+                }
+            })?;
+        if input.trust_class != expected_trust_class {
+            return Err(PipelineHandoffValidationFailure {
+                classification: PipelineHandoffValidationFailureClassification::TrustClassMismatch,
+                summary: format!(
+                    "input `{}` trust class `{}` does not match expected `{}`",
+                    input.source_path, input.trust_class, expected_trust_class
+                ),
+            });
+        }
+        let expected_prefix = format!("inputs/{}/", input.trust_class.bundle_segment());
+        if !input.bundle_path.starts_with(&expected_prefix) {
+            return Err(PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::TrustClassMismatch,
+                summary: format!(
+                    "input `{}` bundle path `{}` does not match trust-class prefix `{expected_prefix}`",
+                    input.source_path, input.bundle_path
+                ),
+            });
+        }
+        if !allow_read_paths.contains(&input.bundle_path) {
+            return Err(PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
+                summary: format!(
+                    "read allowlist is missing input bundle path `{}`",
+                    input.bundle_path
+                ),
+            });
+        }
+
+        let bundle_file = bundle_repo_relative_path(bundle_root, &input.bundle_path);
+        let bundle_sha256 = sha256_repo_relative_file(repo_root, &bundle_file).map_err(|err| {
+            PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::TamperedDerivedInput,
+                summary: format!(
+                    "bundle input `{}` is missing or unreadable: {}",
+                    input.bundle_path,
+                    format_repo_file_access_error(&err)
+                ),
+            }
+        })?;
+        if bundle_sha256 != input.sha256 {
+            return Err(PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::TamperedDerivedInput,
+                summary: format!(
+                    "bundle input `{}` sha256 `{bundle_sha256}` does not match manifest `{}`",
+                    input.bundle_path, input.sha256
+                ),
+            });
+        }
+    }
+
+    validate_canonical_provenance_with_storage_layout(repo_root, &manifest, storage_layout)?;
 
     Ok(PipelineHandoffValidatedBundle {
         manifest,
@@ -974,6 +1217,124 @@ fn validate_canonical_provenance(
         repo_root,
         &manifest.pipeline_id,
         &supported_variables,
+    )
+    .map_err(|err| PipelineHandoffValidationFailure {
+        classification: PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+        summary: format!(
+            "failed to reload route state during validation: {}",
+            format_route_state_read_error(&err)
+        ),
+    })?;
+    let current_basis =
+        rebuild_canonical_route_basis(repo_root, &pipeline, &state).map_err(|reason| {
+            PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+                summary: format!(
+                    "failed to rebuild canonical route basis during validation: {reason}"
+                ),
+            }
+        })?;
+    let current_route_basis_fingerprint =
+        route_basis_fingerprint_sha256(&current_basis).map_err(|reason| {
+            PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+                summary: format!("failed to fingerprint current route basis: {reason}"),
+            }
+        })?;
+    if current_basis.state_revision != manifest.route_basis.state_revision
+        || current_route_basis_fingerprint != manifest.route_basis.fingerprint_sha256
+    {
+        return Err(PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+            summary: format!(
+                "route basis revision/hash {}/{} no longer match bundle {}/{}",
+                current_basis.state_revision,
+                current_route_basis_fingerprint,
+                manifest.route_basis.state_revision,
+                manifest.route_basis.fingerprint_sha256
+            ),
+        });
+    }
+
+    Ok(())
+}
+
+fn validate_canonical_provenance_with_storage_layout(
+    repo_root: &Path,
+    manifest: &PipelineHandoffManifest,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<(), PipelineHandoffValidationFailure> {
+    let current_manifest = ArtifactManifest::generate(repo_root, ManifestInputs::default())
+        .map_err(|err| PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+            summary: format!("failed to recompute canonical artifact provenance: {err}"),
+        })?;
+    if current_manifest.freshness.fingerprint_sha256
+        != manifest.canonical_provenance.manifest_fingerprint_sha256
+    {
+        return Err(PipelineHandoffValidationFailure {
+            classification:
+                PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+            summary: format!(
+                "canonical manifest fingerprint `{}` no longer matches bundle `{}`",
+                current_manifest.freshness.fingerprint_sha256,
+                manifest.canonical_provenance.manifest_fingerprint_sha256
+            ),
+        });
+    }
+
+    let current_artifacts = current_manifest
+        .artifacts
+        .into_iter()
+        .filter_map(|artifact| {
+            artifact
+                .content_sha256
+                .map(|sha256| (artifact.relative_path.to_string(), sha256))
+        })
+        .collect::<BTreeMap<_, _>>();
+    for expected in &manifest.canonical_provenance.artifact_fingerprints {
+        let Some(current_sha256) = current_artifacts.get(&expected.path) else {
+            return Err(PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+                summary: format!(
+                    "canonical artifact `{}` is missing from the current repo provenance",
+                    expected.path
+                ),
+            });
+        };
+        if current_sha256 != &expected.sha256 {
+            return Err(PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+                summary: format!(
+                    "canonical artifact `{}` sha256 `{current_sha256}` does not match bundle `{}`",
+                    expected.path, expected.sha256
+                ),
+            });
+        }
+    }
+
+    let pipeline =
+        load_selected_pipeline_definition(repo_root, &manifest.pipeline_id).map_err(|err| {
+            PipelineHandoffValidationFailure {
+                classification:
+                    PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,
+                summary: format!(
+                    "failed to reload selected pipeline definition during validation: {err}"
+                ),
+            }
+        })?;
+    let supported_variables = supported_route_state_variables(&pipeline);
+    let state = load_route_state_with_supported_variables_and_storage_layout(
+        repo_root,
+        &manifest.pipeline_id,
+        &supported_variables,
+        storage_layout,
     )
     .map_err(|err| PipelineHandoffValidationFailure {
         classification: PipelineHandoffValidationFailureClassification::StaleCanonicalProvenance,

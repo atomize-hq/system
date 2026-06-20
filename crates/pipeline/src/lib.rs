@@ -30,13 +30,12 @@ pub use pipeline::{
 };
 pub use pipeline_capture::{
     apply_cached_pipeline_capture, apply_cached_pipeline_capture_with_storage_layout,
-    apply_pipeline_capture, apply_pipeline_capture_with_storage_layout,
-    capture_pipeline_output, capture_pipeline_output_with_storage_layout,
-    load_pipeline_capture_cache_entry, load_pipeline_capture_cache_entry_with_storage_layout,
-    preview_pipeline_capture, preview_pipeline_capture_with_storage_layout,
-    render_pipeline_capture_apply_result, render_pipeline_capture_preview,
-    render_pipeline_capture_refusal, PipelineCaptureApplyResult, PipelineCaptureCacheEntry,
-    PipelineCapturePlan, PipelineCapturePreview, PipelineCaptureRefusal,
+    apply_pipeline_capture, apply_pipeline_capture_with_storage_layout, capture_pipeline_output,
+    capture_pipeline_output_with_storage_layout, load_pipeline_capture_cache_entry,
+    load_pipeline_capture_cache_entry_with_storage_layout, preview_pipeline_capture,
+    preview_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
+    render_pipeline_capture_preview, render_pipeline_capture_refusal, PipelineCaptureApplyResult,
+    PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCapturePreview, PipelineCaptureRefusal,
     PipelineCaptureRefusalClassification, PipelineCaptureRequest, PipelineCaptureStateEffect,
     PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCaptureTarget,
     PipelineCaptureWrite, PipelineCaptureWriteIntent, PIPELINE_CAPTURE_CACHE_SCHEMA_VERSION,
@@ -50,8 +49,9 @@ pub use pipeline_compile::{
     PipelineCompileVariable, PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
 };
 pub use pipeline_handoff::{
-    emit_pipeline_handoff_bundle, render_pipeline_handoff_emit_result,
-    render_pipeline_handoff_refusal, validate_pipeline_handoff_bundle,
+    emit_pipeline_handoff_bundle, emit_pipeline_handoff_bundle_with_storage_layout,
+    render_pipeline_handoff_emit_result, render_pipeline_handoff_refusal,
+    validate_pipeline_handoff_bundle, validate_pipeline_handoff_bundle_with_storage_layout,
     PipelineHandoffCanonicalArtifactFingerprint, PipelineHandoffCanonicalProvenance,
     PipelineHandoffEmitRequest, PipelineHandoffEmitResult, PipelineHandoffFallbackMetadata,
     PipelineHandoffFeatureSpecCompileProvenance, PipelineHandoffInput, PipelineHandoffManifest,
