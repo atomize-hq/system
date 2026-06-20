@@ -141,6 +141,66 @@ stages:
 }
 
 #[test]
+fn explicit_roots_surface_the_active_stage_root_in_stage_directory_refusals() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let roots = handbook_product_pipeline_declarative_roots();
+    let imported_stage_roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
+        roots.pipeline_root_relative(),
+        roots.profile_root_relative(),
+        roots.runner_root_relative(),
+        ".substrate/handbook/core/stages",
+    );
+
+    write_file(
+        &repo_root.join(roots.pipeline_file("imported-stage-root-refusal.yaml")),
+        r#"---
+kind: pipeline
+id: pipeline.imported_stage_root_refusal
+version: 0.1.0
+title: "Imported Stage Root Refusal"
+description: "header"
+---
+defaults:
+  runner: codex-cli
+  profile: python-uv
+  enable_complexity: false
+stages:
+  - id: stage.00_base
+    file: README.md
+"#,
+    );
+
+    let err = handbook_pipeline::pipeline::load_pipeline_definition_with_roots(
+        &repo_root,
+        &imported_stage_roots,
+        roots.pipeline_file("imported-stage-root-refusal.yaml"),
+    )
+    .expect_err("outside active stage root");
+
+    match &err {
+        PipelineLoadError::Validation {
+            error:
+                PipelineValidationError::InvalidStageFile {
+                    stage_id,
+                    file,
+                    reason: StageFileValidationError::OutsideStageDirectory { stage_root },
+                },
+            ..
+        } => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "README.md");
+            assert_eq!(*stage_root, ".substrate/handbook/core/stages");
+        }
+        other => panic!("expected stage-directory refusal, got {other:?}"),
+    }
+
+    let rendered = err.to_string();
+    assert!(rendered.contains("must live under `.substrate/handbook/core/stages/`"));
+    assert!(!rendered.contains("must live under `core/stages/`"));
+}
+
+#[test]
 fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
     let repo_root = repo_root();
 
@@ -1161,12 +1221,13 @@ stages:
                 PipelineValidationError::InvalidStageFile {
                     stage_id,
                     file,
-                    reason: StageFileValidationError::OutsideStageDirectory,
+                    reason: StageFileValidationError::OutsideStageDirectory { stage_root },
                 },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
             assert_eq!(file, "README.md");
+            assert_eq!(stage_root, "core/stages");
         }
         other => panic!("expected stage-directory refusal, got {other:?}"),
     }

@@ -2572,7 +2572,7 @@ pub enum PipelineValidationError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StageFileValidationError {
-    OutsideStageDirectory,
+    OutsideStageDirectory { stage_root: &'static str },
     WrongExtension,
     Missing,
     NotRegularFile,
@@ -2937,8 +2937,8 @@ impl fmt::Display for PipelineValidationError {
 impl fmt::Display for StageFileValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StageFileValidationError::OutsideStageDirectory => {
-                f.write_str(stage_file_outside_directory_reason())
+            StageFileValidationError::OutsideStageDirectory { stage_root } => {
+                f.write_str(&stage_file_outside_directory_reason(stage_root))
             }
             StageFileValidationError::WrongExtension => {
                 write!(f, "must use the `.md` extension")
@@ -2968,18 +2968,6 @@ impl fmt::Display for ActivationValidationError {
     }
 }
 
-fn configured_stage_root_display() -> &'static str {
-    static DISPLAY: OnceLock<String> = OnceLock::new();
-    DISPLAY
-        .get_or_init(|| {
-            format!(
-                "{}/",
-                handbook_product_declarative_roots().stage_root_relative()
-            )
-        })
-        .as_str()
-}
-
 fn configured_pipeline_root_display() -> &'static str {
     static DISPLAY: OnceLock<String> = OnceLock::new();
     DISPLAY
@@ -2992,11 +2980,8 @@ fn configured_pipeline_root_display() -> &'static str {
         .as_str()
 }
 
-fn stage_file_outside_directory_reason() -> &'static str {
-    static REASON: OnceLock<String> = OnceLock::new();
-    REASON
-        .get_or_init(|| format!("must live under `{}`", configured_stage_root_display()))
-        .as_str()
+fn stage_file_outside_directory_reason(stage_root: &str) -> String {
+    format!("must live under `{stage_root}/`")
 }
 
 fn pipeline_yaml_root_reason() -> &'static str {
@@ -3260,7 +3245,9 @@ fn validate_stage_file(
             error: PipelineValidationError::InvalidStageFile {
                 stage_id: stage.id.clone(),
                 file: stage.file.clone(),
-                reason: StageFileValidationError::OutsideStageDirectory,
+                reason: StageFileValidationError::OutsideStageDirectory {
+                    stage_root: active_roots.stage_root_relative(),
+                },
             },
         });
     }
@@ -3334,7 +3321,9 @@ fn validate_stage_file_with_roots(
             error: PipelineValidationError::InvalidStageFile {
                 stage_id: stage.id.clone(),
                 file: stage.file.clone(),
-                reason: StageFileValidationError::OutsideStageDirectory,
+                reason: StageFileValidationError::OutsideStageDirectory {
+                    stage_root: roots.stage_root_relative(),
+                },
             },
         });
     }
