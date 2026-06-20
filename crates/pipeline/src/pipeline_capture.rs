@@ -7,16 +7,20 @@ use crate::pipeline::{
     supported_route_state_variables, CompileStageDefinition, PipelineDefinition,
     SelectedPipelineLoadError, SupportedTargetRegistry,
 };
-use crate::pipeline_compile::{compile_pipeline_stage, PipelineCompileRefusal};
+use crate::pipeline_compile::{
+    compile_pipeline_stage_with_runtime_and_storage_layout, PipelineCompileRefusal,
+    PipelineCompileRuntimeContext,
+};
 use crate::repo_file_access::{
     delete_repo_relative_file, read_bytes_no_follow_path, read_string_no_follow_path,
     resolve_repo_relative_write_path, validate_repo_relative_path, write_repo_relative_bytes,
     NormalizedRepoRelativePath, RepoRelativeMutationError, RepoRelativeWritePathError,
 };
 use crate::route_state::{
-    acquire_advisory_lock, effective_route_basis_run, load_route_state_with_supported_variables,
-    normalize_route_basis_run, normalized_state_for_persistence, persist_route_state,
-    rebuild_canonical_route_basis, route_basis_mismatch_reason, route_state_path, RouteBasis,
+    acquire_advisory_lock, effective_route_basis_run,
+    load_route_state_with_supported_variables_and_storage_layout, normalize_route_basis_run,
+    normalized_state_for_persistence, persist_route_state, rebuild_canonical_route_basis,
+    route_basis_mismatch_reason, route_state_path_with_storage_layout, RouteBasis,
     RouteBasisStageStatus, RouteState, RouteStateAuditEntry, RouteStateReadError, RouteStateValue,
     ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
 };
@@ -203,6 +207,7 @@ pub fn preview_pipeline_capture_with_storage_layout(
         &request.pipeline_selector,
         &request.stage_selector,
         &request.input,
+        storage_layout,
     )?;
     persist_capture_cache(repo_root, &plan, storage_layout)?;
     Ok(PipelineCapturePreview { plan })
@@ -230,6 +235,7 @@ pub fn capture_pipeline_output_with_storage_layout(
         &request.pipeline_selector,
         &request.stage_selector,
         &request.input,
+        storage_layout,
     )?;
     apply_capture_plan(repo_root, &plan, storage_layout)
 }
@@ -405,6 +411,7 @@ fn build_capture_plan(
     pipeline_selector: &str,
     stage_selector: &str,
     input: &str,
+    storage_layout: PipelineStorageLayoutContract,
 ) -> Result<PipelineCapturePlan, PipelineCaptureRefusal> {
     let supported_target_help = SupportedTargetRegistry::load(repo_root)
         .ok()
@@ -470,10 +477,11 @@ fn build_capture_plan(
     validate_supported_capture_target(&registry, &pipeline.header.id, &stage_id)?;
 
     let supported_variables = supported_route_state_variables(&pipeline);
-    let state = load_route_state_with_supported_variables(
+    let state = load_route_state_with_supported_variables_and_storage_layout(
         repo_root,
         &pipeline.header.id,
         &supported_variables,
+        storage_layout,
     )
     .map_err(|err| classify_state_read_refusal(err, &pipeline.header.id, &stage_id))?;
     let route_basis = state
@@ -629,8 +637,9 @@ fn apply_capture_plan(
 ) -> Result<PipelineCaptureApplyResult, PipelineCaptureRefusal> {
     let supported_variables =
         supported_route_state_variables_for_plan(repo_root, &plan.target.pipeline_id)?;
-    let state_path = route_state_path(repo_root, &plan.target.pipeline_id).map_err(|reason| {
-        PipelineCaptureRefusal {
+    let state_path =
+        route_state_path_with_storage_layout(repo_root, &plan.target.pipeline_id, storage_layout)
+            .map_err(|reason| PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::InvalidState,
             summary: format!(
                 "invalid route state pipeline id `{}`: {reason}",
@@ -639,8 +648,7 @@ fn apply_capture_plan(
             pipeline_id: Some(plan.target.pipeline_id.clone()),
             stage_id: Some(plan.target.stage_id.clone()),
             recovery: "fix the pipeline id and retry `pipeline capture`".to_string(),
-        }
-    })?;
+        })?;
     let _lock = acquire_advisory_lock(&state_path).map_err(|err| PipelineCaptureRefusal {
         classification: PipelineCaptureRefusalClassification::InvalidState,
         summary: format!("{err}"),
@@ -660,10 +668,11 @@ fn apply_capture_plan(
                     .to_string(),
             }
         })?;
-    let state = load_route_state_with_supported_variables(
+    let state = load_route_state_with_supported_variables_and_storage_layout(
         repo_root,
         &plan.target.pipeline_id,
         &supported_variables,
+        storage_layout,
     )
     .map_err(|err| {
         classify_state_read_refusal(err, &plan.target.pipeline_id, &plan.target.stage_id)
@@ -744,7 +753,7 @@ fn apply_capture_plan(
         &state,
     )?;
     let stage_10_capture_provenance =
-        build_stage_10_capture_provenance_for_apply(repo_root, &canonical_plan)?;
+        build_stage_10_capture_provenance_for_apply(repo_root, &canonical_plan, storage_layout)?;
 
     let mut snapshots =
         snapshot_targets(repo_root, &canonical_plan).map_err(|summary| PipelineCaptureRefusal {
@@ -826,6 +835,7 @@ fn apply_capture_plan(
 fn build_stage_10_capture_provenance_for_apply(
     repo_root: &Path,
     plan: &PipelineCapturePlan,
+    storage_layout: PipelineStorageLayoutContract,
 ) -> Result<Option<Stage10FeatureSpecCaptureProvenance>, PipelineCaptureRefusal> {
     let registry = load_capture_target_registry(
         repo_root,
@@ -855,9 +865,14 @@ fn build_stage_10_capture_provenance_for_apply(
                 "repair the declared stage outputs and retry `pipeline capture`".to_string(),
         })?;
 
-    let compile_result =
-        compile_pipeline_stage(repo_root, &plan.target.pipeline_id, &plan.target.stage_id)
-            .map_err(classify_stage_10_provenance_compile_refusal)?;
+    let compile_result = compile_pipeline_stage_with_runtime_and_storage_layout(
+        repo_root,
+        &plan.target.pipeline_id,
+        &plan.target.stage_id,
+        &PipelineCompileRuntimeContext::default(),
+        storage_layout,
+    )
+    .map_err(classify_stage_10_provenance_compile_refusal)?;
     let feature_spec_sha256 = sha256_hex(feature_spec_write.content.as_bytes());
     let provenance = build_stage_10_feature_spec_capture_provenance(
         repo_root,
@@ -1007,15 +1022,13 @@ fn persist_capture_cache(
 ) -> Result<(), PipelineCaptureRefusal> {
     let cache_path =
         capture_cache_path_with_storage_layout(repo_root, &plan.capture_id, storage_layout)
-            .map_err(|reason| {
-        PipelineCaptureRefusal {
-            classification: PipelineCaptureRefusalClassification::CacheFailure,
-            summary: reason,
-            pipeline_id: Some(plan.target.pipeline_id.clone()),
-            stage_id: Some(plan.target.stage_id.clone()),
-            recovery: "fix the capture cache path and retry preview".to_string(),
-        }
-    })?;
+            .map_err(|reason| PipelineCaptureRefusal {
+                classification: PipelineCaptureRefusalClassification::CacheFailure,
+                summary: reason,
+                pipeline_id: Some(plan.target.pipeline_id.clone()),
+                stage_id: Some(plan.target.stage_id.clone()),
+                recovery: "fix the capture cache path and retry preview".to_string(),
+            })?;
     if let Some(parent) = cache_path.parent() {
         fs::create_dir_all(parent).map_err(|err| PipelineCaptureRefusal {
             classification: PipelineCaptureRefusalClassification::CacheFailure,
@@ -1064,21 +1077,16 @@ fn load_capture_cache(
         stage_id: None,
         recovery: "retry with the capture id printed by `pipeline capture --preview`".to_string(),
     })?;
-    let cache_relative_path = capture_cache_repo_relative_path_with_storage_layout(
-        repo_root,
-        capture_id,
-        storage_layout,
-    )
-    .map_err(|reason| {
-            PipelineCaptureRefusal {
+    let cache_relative_path =
+        capture_cache_repo_relative_path_with_storage_layout(repo_root, capture_id, storage_layout)
+            .map_err(|reason| PipelineCaptureRefusal {
                 classification: PipelineCaptureRefusalClassification::MissingCaptureId,
                 summary: reason,
                 pipeline_id: None,
                 stage_id: None,
                 recovery: "retry with the capture id printed by `pipeline capture --preview`"
                     .to_string(),
-            }
-        })?;
+            })?;
     let cache_path = resolve_repo_relative_write_path(repo_root, cache_relative_path.as_str())
         .map_err(|source| {
             classify_capture_cache_path_failure(cache_relative_path.as_str(), source)
@@ -1249,8 +1257,11 @@ fn capture_cache_path_with_storage_layout(
     capture_id: &str,
     storage_layout: PipelineStorageLayoutContract,
 ) -> Result<PathBuf, String> {
-    let relative_path =
-        capture_cache_repo_relative_path_with_storage_layout(repo_root, capture_id, storage_layout)?;
+    let relative_path = capture_cache_repo_relative_path_with_storage_layout(
+        repo_root,
+        capture_id,
+        storage_layout,
+    )?;
     resolve_repo_relative_write_path(repo_root, relative_path.as_str())
         .map_err(|err| format_cache_path_error(relative_path.as_str(), err))
 }

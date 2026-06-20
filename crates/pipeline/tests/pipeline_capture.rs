@@ -5,17 +5,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    apply_pipeline_capture, apply_pipeline_capture_with_storage_layout,
-    capture_pipeline_output, compile_pipeline_stage_with_runtime,
-    load_pipeline_capture_cache_entry, load_pipeline_capture_cache_entry_with_storage_layout,
+    apply_pipeline_capture, apply_pipeline_capture_with_storage_layout, capture_pipeline_output,
+    compile_pipeline_stage_with_runtime, load_pipeline_capture_cache_entry,
+    load_pipeline_capture_cache_entry_with_storage_layout, load_route_state_with_storage_layout,
     load_route_state_with_supported_variables, preview_pipeline_capture,
     preview_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
     render_pipeline_capture_preview, render_pipeline_capture_refusal,
-    render_pipeline_compile_explain, render_pipeline_compile_payload, set_route_state,
-    PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
-    PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
-    PipelineCompileRuntimeContext, PipelineStorageLayoutContract, RouteState,
-    RouteStateMutation, RouteStateMutationOutcome,
+    render_pipeline_compile_explain, render_pipeline_compile_payload,
+    route_state_path_with_storage_layout, set_route_state, PipelineCaptureCacheEntry,
+    PipelineCapturePlan, PipelineCaptureRefusalClassification, PipelineCaptureRequest,
+    PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCompileRuntimeContext,
+    PipelineStorageLayoutContract, RouteState, RouteStateMutation, RouteStateMutationOutcome,
 };
 use sha2::{Digest, Sha256};
 
@@ -29,17 +29,19 @@ const STAGE_06_ID: &str = pipeline_proof_corpus_support::STAGE_06_PROJECT_CONTEX
 const STAGE_07_ID: &str = pipeline_proof_corpus_support::STAGE_07_FOUNDATION_PACK_ID;
 const STAGE_10_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
+const CUSTOM_ROUTE_STATE_PATH: &str =
+    ".handbook/custom_state/pipeline/pipeline.foundation_inputs.yaml";
 const STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
     ".handbook/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 const CUSTOM_STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
-    ".handbook/state/pipeline/custom_stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
+    ".handbook/custom_state/pipeline/custom_stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 
 fn custom_capture_storage_layout() -> PipelineStorageLayoutContract {
     PipelineStorageLayoutContract::from_paths(
-        ".handbook/state",
-        ".handbook/state/pipeline",
-        ".handbook/state/pipeline/custom_stage_capture",
-        ".handbook/state/pipeline/custom_capture",
+        ".handbook/custom_state",
+        ".handbook/custom_state/pipeline",
+        ".handbook/custom_state/pipeline/custom_stage_capture",
+        ".handbook/custom_state/pipeline/custom_capture",
         "artifacts/handoff/feature_slice",
     )
 }
@@ -47,10 +49,28 @@ fn custom_capture_storage_layout() -> PipelineStorageLayoutContract {
 fn custom_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBuf {
     repo_root
         .join(".handbook")
-        .join("state")
+        .join("custom_state")
         .join("pipeline")
         .join("custom_capture")
         .join(format!("{capture_id}.yaml"))
+}
+
+fn move_route_state_to_custom_layout(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) -> PathBuf {
+    let default_state_path = pipeline_proof_corpus_support::pipeline_state_path(repo_root);
+    let custom_state_path =
+        route_state_path_with_storage_layout(repo_root, PIPELINE_ID, storage_layout)
+            .expect("custom route state path");
+    fs::create_dir_all(
+        custom_state_path
+            .parent()
+            .expect("custom route state parent"),
+    )
+    .expect("create custom route state parent");
+    fs::rename(&default_state_path, &custom_state_path).expect("move route state to custom layout");
+    custom_state_path
 }
 
 fn stage_04_request(input: String) -> PipelineCaptureRequest {
@@ -539,10 +559,17 @@ fn capture_apply_stage_10_matches_shared_golden_from_completed_external_output()
 }
 
 #[test]
-fn capture_custom_storage_layout_preview_apply_and_cache_entry_use_custom_capture_roots() {
+fn capture_custom_storage_layout_preview_apply_and_cache_entry_use_custom_state_capture_roots() {
     let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
     let storage_layout = custom_capture_storage_layout();
+    let custom_state_path = move_route_state_to_custom_layout(&repo_root, storage_layout);
     let input = stage_10_completed_feature_spec_input();
+
+    let route_state = load_route_state_with_storage_layout(&repo_root, PIPELINE_ID, storage_layout)
+        .expect("load custom route state");
+    assert_eq!(custom_state_path, repo_root.join(CUSTOM_ROUTE_STATE_PATH));
+    assert!(route_state.route_basis.is_some());
+    assert!(!pipeline_proof_corpus_support::pipeline_state_path(&repo_root).exists());
 
     let preview = preview_pipeline_capture_with_storage_layout(
         &repo_root,
@@ -551,8 +578,10 @@ fn capture_custom_storage_layout_preview_apply_and_cache_entry_use_custom_captur
     )
     .expect("preview");
     let custom_cache_path = custom_capture_cache_path(&repo_root, &preview.plan.capture_id);
-    let default_cache_path =
-        pipeline_proof_corpus_support::pipeline_capture_cache_path(&repo_root, &preview.plan.capture_id);
+    let default_cache_path = pipeline_proof_corpus_support::pipeline_capture_cache_path(
+        &repo_root,
+        &preview.plan.capture_id,
+    );
 
     assert!(custom_cache_path.is_file());
     assert!(!default_cache_path.exists());
@@ -575,6 +604,8 @@ fn capture_custom_storage_layout_preview_apply_and_cache_entry_use_custom_captur
     assert_eq!(result.plan.capture_id, preview.plan.capture_id);
     assert!(!custom_cache_path.exists());
     assert!(!repo_root.join(STAGE_10_CAPTURE_PROVENANCE_PATH).exists());
+    assert!(custom_state_path.exists());
+    assert!(!pipeline_proof_corpus_support::pipeline_state_path(&repo_root).exists());
 
     let provenance: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(repo_root.join(CUSTOM_STAGE_10_CAPTURE_PROVENANCE_PATH))

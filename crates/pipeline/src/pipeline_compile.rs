@@ -1,4 +1,7 @@
 use crate::declarative_roots::{is_profile_file, profile_file};
+use crate::layout::{
+    handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
+};
 use crate::pipeline::{
     load_selected_pipeline_definition, load_stage_compile_definition, CompileStageDefinition,
     CompileStageInput, CompileStageLoadError, CompileStageVariable, PipelineDefinition,
@@ -6,8 +9,9 @@ use crate::pipeline::{
 };
 use crate::repo_file_access::{read_repo_relative_string, RepoRelativeFileAccessError};
 use crate::route_state::{
-    load_trusted_pipeline_session, normalize_route_basis_run, RouteBasis, RouteBasisStageReason,
-    RouteBasisStageStatus, TrustedPipelineSessionRefusal, ROUTE_BASIS_REPO_ROOT_SENTINEL,
+    load_trusted_pipeline_session, load_trusted_pipeline_session_with_storage_layout,
+    normalize_route_basis_run, RouteBasis, RouteBasisStageReason, RouteBasisStageStatus,
+    TrustedPipelineSessionRefusal, ROUTE_BASIS_REPO_ROOT_SENTINEL,
 };
 use std::collections::BTreeMap;
 use std::fmt;
@@ -237,6 +241,190 @@ pub fn compile_pipeline_stage_with_runtime(
     let trusted_session = load_trusted_pipeline_session(repo_root, &pipeline).map_err(|err| {
         classify_trusted_pipeline_session_refusal(err, &pipeline.header.id, &stage_id)
     })?;
+    trusted_session
+        .require_active_stage(&stage_id)
+        .map_err(|err| {
+            classify_trusted_pipeline_session_refusal(err, &pipeline.header.id, &stage_id)
+        })?;
+    let route_basis = trusted_session.route_basis;
+
+    let stage_definition = load_stage_compile_definition(repo_root, &pipeline, &stage_id)
+        .map_err(|err| classify_compile_stage_error(err, &pipeline.header.id, &stage_id))?;
+    let work_level = stage_definition
+        .work_level
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "L1".to_string());
+    let variable_values = resolve_compile_variables(
+        &pipeline.header.id,
+        &route_basis,
+        &stage_definition,
+        &work_level,
+        runtime,
+    )?;
+    validate_required_variables(
+        &pipeline.header.id,
+        &stage_id,
+        &stage_definition.inputs.variables,
+        &variable_values,
+    )?;
+    let declared_variables = render_declared_variables(
+        &stage_definition.inputs.variables,
+        &variable_values,
+        &work_level,
+    );
+    let documents = assemble_documents(
+        repo_root,
+        &pipeline.header.id,
+        &stage_definition,
+        &route_basis,
+        &variable_values,
+        &work_level,
+    )?;
+    let outputs = render_outputs(&stage_definition, &variable_values);
+
+    Ok(PipelineCompileResult {
+        target: PipelineCompileTarget {
+            pipeline_id: pipeline.header.id.clone(),
+            stage_id,
+            stage_file: stage_definition.stage.file.clone(),
+            title: stage_definition.title.clone(),
+            description: stage_definition.description.clone(),
+            work_level,
+            tags: stage_definition.tags.clone(),
+        },
+        basis: route_basis,
+        variables: declared_variables,
+        documents,
+        outputs,
+        gating: PipelineCompileGatingSummary {
+            mode: stage_definition.gating.mode.clone(),
+            fail_on: stage_definition.gating.fail_on.clone(),
+            notes: stage_definition.gating.notes.clone(),
+        },
+        stage_body: stage_definition.body.clone(),
+    })
+}
+
+pub(crate) fn compile_pipeline_stage_with_runtime_and_storage_layout(
+    repo_root: impl AsRef<Path>,
+    pipeline_selector: &str,
+    stage_selector: &str,
+    runtime: &PipelineCompileRuntimeContext,
+    storage_layout: PipelineStorageLayoutContract,
+) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
+    if storage_layout == *handbook_product_pipeline_storage_layout_contract() {
+        return compile_pipeline_stage_with_runtime(
+            repo_root,
+            pipeline_selector,
+            stage_selector,
+            runtime,
+        );
+    }
+
+    let repo_root = repo_root.as_ref();
+    let supported_registry = SupportedTargetRegistry::load(repo_root).ok();
+    let canonical_pipeline_id = supported_registry
+        .as_ref()
+        .map(|registry| registry.canonical_compile_pipeline_id().to_string());
+    let canonical_stage_id = supported_registry
+        .as_ref()
+        .map(|registry| registry.canonical_compile_stage_id().to_string());
+    let pipeline = load_selected_pipeline_definition(repo_root, pipeline_selector).map_err(
+        |err| match err {
+            SelectedPipelineLoadError::Lookup(err) => PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::UnsupportedTarget,
+                summary: err.to_string(),
+                pipeline_id: None,
+                stage_id: None,
+                recovery: canonical_pipeline_id
+                    .as_deref()
+                    .map(|pipeline_id| {
+                        format!("retry with the canonical pipeline id `{pipeline_id}`")
+                    })
+                    .unwrap_or_else(|| {
+                        "inspect `pipeline list` for the supported compile pipeline and retry `pipeline compile`"
+                            .to_string()
+                    }),
+            },
+            SelectedPipelineLoadError::Catalog(err) => PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::InvalidDefinition,
+                summary: format!("failed to load selected pipeline definition: {err}"),
+                pipeline_id: None,
+                stage_id: None,
+                recovery: "fix the pipeline/stage definitions and retry `pipeline compile`"
+                    .to_string(),
+            },
+            SelectedPipelineLoadError::Load(err) => PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::InvalidDefinition,
+                summary: format!("failed to load selected pipeline definition: {err}"),
+                pipeline_id: None,
+                stage_id: None,
+                recovery: "fix the pipeline/stage definitions and retry `pipeline compile`"
+                    .to_string(),
+            },
+        },
+    )?;
+
+    let resolved_stage_id =
+        resolve_stage_selector(&pipeline, stage_selector).map_err(|summary| {
+            let recovery = if stage_selector.trim().starts_with("stage.")
+            {
+                "re-run `pipeline resolve` and confirm the selected stage is declared in the pipeline"
+                    .to_string()
+            } else {
+                canonical_stage_id
+                    .as_deref()
+                    .map(|stage_id| format!("retry with the canonical stage id `{stage_id}`"))
+                    .unwrap_or_else(|| {
+                        "inspect the supported compile target and retry `pipeline compile`"
+                            .to_string()
+                    })
+            };
+            PipelineCompileRefusal {
+                classification: PipelineCompileRefusalClassification::UnsupportedTarget,
+                summary,
+                pipeline_id: Some(pipeline.header.id.clone()),
+                stage_id: Some(stage_selector.trim().to_string()),
+                recovery,
+            }
+        })?;
+
+    let registry =
+        SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineCompileRefusal {
+            classification: PipelineCompileRefusalClassification::InvalidDefinition,
+            summary: format!("failed to load supported target registry: {err}"),
+            pipeline_id: Some(pipeline.header.id.clone()),
+            stage_id: Some(resolved_stage_id.clone()),
+            recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
+        })?;
+    let supported_compile_target = registry.compile_target();
+
+    if registry
+        .resolve_compile_target(&pipeline.header.id, &resolved_stage_id)
+        .is_err()
+    {
+        return Err(PipelineCompileRefusal {
+            classification: PipelineCompileRefusalClassification::UnsupportedTarget,
+            summary: format!(
+                "M2 compile currently supports only `{}` + `{}`",
+                supported_compile_target.pipeline.id, supported_compile_target.stage.id
+            ),
+            pipeline_id: Some(pipeline.header.id.clone()),
+            stage_id: Some(resolved_stage_id),
+            recovery: format!(
+                "retry with `pipeline compile --id {} --stage {}`",
+                supported_compile_target.pipeline.id, supported_compile_target.stage.id
+            ),
+        });
+    }
+
+    let stage_id = supported_compile_target.stage.id.clone();
+    let trusted_session =
+        load_trusted_pipeline_session_with_storage_layout(repo_root, &pipeline, storage_layout)
+            .map_err(|err| {
+                classify_trusted_pipeline_session_refusal(err, &pipeline.header.id, &stage_id)
+            })?;
     trusted_session
         .require_active_stage(&stage_id)
         .map_err(|err| {
