@@ -26,13 +26,14 @@ const CUSTOM_STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
 const CUSTOM_HANDOFF_ROOT: &str = "artifacts/custom_handoff/feature_slice";
 
 fn custom_handoff_storage_layout() -> PipelineStorageLayoutContract {
-    PipelineStorageLayoutContract::from_paths(
+    PipelineStorageLayoutContract::try_from_paths(
         ".handbook/custom_state",
         ".handbook/custom_state/pipeline",
         ".handbook/custom_state/pipeline/custom_stage_capture",
         ".handbook/custom_state/pipeline/custom_capture",
         CUSTOM_HANDOFF_ROOT,
     )
+    .expect("custom handoff storage layout should validate")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

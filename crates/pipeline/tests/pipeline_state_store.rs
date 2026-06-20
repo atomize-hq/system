@@ -78,13 +78,14 @@ fn state_path(repo_root: &Path, pipeline_id: &str) -> PathBuf {
 }
 
 fn custom_storage_layout() -> PipelineStorageLayoutContract {
-    PipelineStorageLayoutContract::from_paths(
+    PipelineStorageLayoutContract::try_from_paths(
         ".substrate/handbook/state",
         ".substrate/handbook/state/pipeline",
         ".substrate/handbook/state/pipeline/stage_capture",
         ".substrate/handbook/state/pipeline/capture",
         ".substrate/handbook/artifacts/handoff/feature_slice",
     )
+    .expect("custom storage layout should validate")
 }
 
 fn lock_path(state_path: &Path) -> PathBuf {

@@ -37,13 +37,14 @@ const CUSTOM_STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
     ".handbook/custom_state/pipeline/custom_stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
 
 fn custom_capture_storage_layout() -> PipelineStorageLayoutContract {
-    PipelineStorageLayoutContract::from_paths(
+    PipelineStorageLayoutContract::try_from_paths(
         ".handbook/custom_state",
         ".handbook/custom_state/pipeline",
         ".handbook/custom_state/pipeline/custom_stage_capture",
         ".handbook/custom_state/pipeline/custom_capture",
         "artifacts/handoff/feature_slice",
     )
+    .expect("custom capture storage layout should validate")
 }
 
 fn custom_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBuf {

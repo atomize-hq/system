@@ -90,7 +90,7 @@ impl PipelineStorageLayoutContract {
         }
     }
 
-    pub const fn from_paths(
+    const fn from_paths(
         state_root_relative: &'static str,
         pipeline_dir_relative: &'static str,
         stage_capture_root_relative: &'static str,
@@ -105,6 +105,24 @@ impl PipelineStorageLayoutContract {
             ),
             HandoffBundleLayoutContract::new(feature_slice_root_relative),
         )
+    }
+
+    pub fn try_from_paths(
+        state_root_relative: &'static str,
+        pipeline_dir_relative: &'static str,
+        stage_capture_root_relative: &'static str,
+        capture_cache_root_relative: &'static str,
+        feature_slice_root_relative: &'static str,
+    ) -> Result<Self, String> {
+        let contract = Self::from_paths(
+            state_root_relative,
+            pipeline_dir_relative,
+            stage_capture_root_relative,
+            capture_cache_root_relative,
+            feature_slice_root_relative,
+        );
+        validate_pipeline_storage_layout_contract(contract)?;
+        Ok(contract)
     }
 
     const fn runtime_state(self) -> RuntimeStateLayoutContract {
@@ -440,5 +458,21 @@ mod tests {
                 "expected `{label}` in error, got: {err}"
             );
         }
+    }
+
+    #[test]
+    fn public_constructor_rejects_runtime_state_paths_outside_state_root() {
+        let err = PipelineStorageLayoutContract::try_from_paths(
+            ".custom_handbook/state",
+            ".custom_handbook/pipelines",
+            ".custom_handbook/state/pipelines/stage_capture",
+            ".custom_handbook/state/pipelines/capture_cache",
+            "custom_artifacts/handoff/feature_slice",
+        )
+        .expect_err("public constructor should reject invalid storage layout");
+        assert!(
+            err.contains("pipeline_dir_relative"),
+            "expected pipeline_dir_relative in error, got: {err}"
+        );
     }
 }
