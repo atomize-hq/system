@@ -2,6 +2,10 @@
 name = "handbook-pipeline"
 version = "0.1.0"
 edition = "2021"
+description = "Declarative pipeline loading, route state, compile/capture, and handoff runtime for Handbook."
+repository = "https://github.com/atomize-hq/handbook"
+documentation = "https://docs.rs/handbook-pipeline"
+homepage = "https://github.com/atomize-hq/handbook"
 license = "MIT"
 
 [lib]

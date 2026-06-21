@@ -11,7 +11,7 @@ Spec reference: [handbook-published-crates-and-substrate-consumption-spec.md](./
 ### Packet 1.1: Publish Metadata Baseline
 
 - [ ] Task: Add the first-wave publication metadata to `handbook-engine`, `handbook-pipeline`, and `handbook-flow`
-  - Acceptance: Each manifest contains the agreed publish metadata set for the first wave (`license` already present; remaining fields such as `description`, `repository`, `documentation`, `homepage`, `readme`, `keywords`, `categories` are either added or explicitly deferred by documented decision).
+  - Acceptance: Each manifest contains the agreed publish metadata set for the first wave (`license` already present; first-wave baseline now includes `description`, `repository`, `documentation`, and `homepage`, while `readme`, `keywords`, and `categories` are intentionally deferred to later publication polish).
   - Verify: `cargo package -p handbook-engine --allow-dirty`; `cargo package -p handbook-pipeline --allow-dirty`; `cargo package -p handbook-flow --allow-dirty`
   - Files: `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, `crates/flow/Cargo.toml`, optional shared README/doc files if required
 

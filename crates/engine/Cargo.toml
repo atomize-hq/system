@@ -2,6 +2,10 @@
 name = "handbook-engine"
 version = "0.1.0"
 edition = "2021"
+description = "Canonical artifact, freshness, and structured authoring core for Handbook."
+repository = "https://github.com/atomize-hq/handbook"
+documentation = "https://docs.rs/handbook-engine"
+homepage = "https://github.com/atomize-hq/handbook"
 license = "MIT"
 
 [lib]
