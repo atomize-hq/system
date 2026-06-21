@@ -1119,10 +1119,7 @@ fn next_safe_action_for_ready_packet(variant: PacketVariant) -> ReadyPacketNextS
     }
 }
 
-fn system_root_summary(
-    contract: CanonicalLayoutContract,
-    status: SystemRootStatus,
-) -> String {
+fn system_root_summary(contract: CanonicalLayoutContract, status: SystemRootStatus) -> String {
     let system_root = contract.system_root_relative();
     match status {
         SystemRootStatus::Ok => "canonical root is available".to_string(),

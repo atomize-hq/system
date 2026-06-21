@@ -3009,7 +3009,7 @@ fn cached_pipeline_root_reason(
             .into_boxed_str(),
     );
     let mut guard = reasons.lock().expect("pipeline root reason cache");
-    *guard
+    guard
         .entry((template, pipeline_root))
         .or_insert(leaked_reason)
 }

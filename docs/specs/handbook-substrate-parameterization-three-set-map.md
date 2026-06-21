@@ -169,8 +169,9 @@ Why this order:
 
 ### Status
 
-- **Next set to open**
-- No set-specific triplet has been written yet
+- Implemented and at a reviewed stopping point
+- Set-specific triplet and packet-prompts file are written:
+  - `handbook-substrate-parameterization-set-1-pipeline-import-layout-{spec,plan,tasks,packet-prompts}.md`
 
 ### Proposed Triplet Stem
 
@@ -248,8 +249,9 @@ Do not open Set 2 until Set 1's triplet has reached a reviewed stopping point an
 
 ### Status
 
-- Blocked on Set 1 finishing first
-- No set-specific triplet has been written yet
+- Implemented and at a reviewed stopping point
+- Set-specific triplet and packet-prompts file are written:
+  - `handbook-substrate-parameterization-set-2-flow-canonical-layout-injection-{spec,plan,tasks,packet-prompts}.md`
 
 ### Proposed Triplet Stem
 
@@ -315,8 +317,9 @@ Do not open Set 3 until Set 2's triplet has reached a reviewed stopping point an
 
 ### Status
 
-- Blocked on Sets 1 and 2 finishing first
-- No set-specific triplet has been written yet
+- Implemented and at a reviewed stopping point
+- Set-specific triplet and packet-prompts file are written:
+  - `handbook-substrate-parameterization-set-3-import-surface-honesty-cleanup-{spec,plan,tasks,packet-prompts}.md`
 
 ### Proposed Triplet Stem
 

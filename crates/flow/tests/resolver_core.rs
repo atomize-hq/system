@@ -196,7 +196,10 @@ fn flow_resolver_blocks_missing_system_root_with_typed_refusal() {
         Some(ResolverRefusalCategory::SystemRootMissing)
     );
     assert_eq!(
-        result.refusal.as_ref().map(|refusal| refusal.summary.as_str()),
+        result
+            .refusal
+            .as_ref()
+            .map(|refusal| refusal.summary.as_str()),
         Some("missing canonical root `.handbook`")
     );
 }
