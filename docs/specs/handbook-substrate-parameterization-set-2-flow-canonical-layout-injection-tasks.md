@@ -8,36 +8,36 @@ Spec reference: [handbook-substrate-parameterization-set-2-flow-canonical-layout
 
 ## Packet 2.1: Flow Public API Contract Shape
 
-- [ ] Task: Introduce the supported public flow-facing canonical-layout entrypoint
+- [x] Task: Introduce the supported public flow-facing canonical-layout entrypoint
   - Acceptance: `handbook-flow` exposes a supported public resolver entrypoint that accepts the engine-owned `CanonicalLayoutContract`, and downstream callers no longer need to rely on the default-only `resolve(...)` path to integrate flow under `.substrate/handbook/**`.
   - Verify: Source inspection of `crates/flow/src/lib.rs`, `crates/flow/src/resolver.rs`, and `crates/engine/src/lib.rs`; `cargo test -p handbook-flow --test resolver_core`.
   - Files: `crates/flow/src/resolver.rs`, `crates/flow/src/lib.rs`
 
-- [ ] Task: Preserve handbook-product default behavior as an explicit wrapper instead of the only supported mode
+- [x] Task: Preserve handbook-product default behavior as an explicit wrapper instead of the only supported mode
   - Acceptance: the existing default `resolve(...)` path remains available for handbook-product callers, but it clearly delegates through the new contract-aware seam rather than remaining the only public path. No second layout model or flow-owned alias is introduced.
   - Verify: Source inspection of `crates/flow/src/resolver.rs` and `crates/engine/src/canonical_paths.rs`; `rg -n "resolve_with_contract|CanonicalLayoutContract|default_canonical_layout_contract" crates/flow/src/resolver.rs crates/flow/src/lib.rs crates/engine/src/canonical_paths.rs`.
   - Files: `crates/flow/src/resolver.rs`, `crates/flow/src/lib.rs`
 
 ## Packet 2.2: Resolver Adoption And Test Coverage
 
-- [ ] Task: Adopt the supplied canonical layout contract in resolver loading and contract-dependent fallback/path behavior
+- [x] Task: Adopt the supplied canonical layout contract in resolver loading and contract-dependent fallback/path behavior
   - Acceptance: the supported contract-aware flow path no longer depends on unconditional `CanonicalArtifacts::load(...)`; any contract-dependent fallback/path payloads that would otherwise force default `.handbook/**` behavior now derive from the active engine-owned contract.
   - Verify: Source inspection of `crates/flow/src/resolver.rs` plus `cargo test -p handbook-engine --test canonical_artifacts_ingest && cargo test -p handbook-engine --test baseline_validation && cargo test -p handbook-flow --test resolver_core`.
   - Files: `crates/flow/src/resolver.rs`, `crates/engine/src/canonical_artifacts.rs` (only if a narrow engine-boundary adjustment proves necessary)
 
-- [ ] Task: Update only the inseparable refusal/blocker summary or path surfaces needed for structural honesty
+- [x] Task: Update only the inseparable refusal/blocker summary or path surfaces needed for structural honesty
   - Acceptance: the flow public API no longer reports contract-dependent system-root/path results as if the caller were still using the default `.handbook/**` layout. Broader `.handbook` wording cleanup remains deferred to Set 3.
   - Verify: Source inspection of the refusal/blocker sections in `crates/flow/src/resolver.rs`; `rg -n "canonical \.handbook root|default_canonical_layout_contract\(\)\.system_root_relative\(" crates/flow/src/resolver.rs` cross-checked against the active contract-aware path.
   - Files: `crates/flow/src/resolver.rs`, `crates/flow/tests/resolver_core.rs`
 
-- [ ] Task: Add positive non-default canonical-layout coverage and refresh boundary authority if needed
+- [x] Task: Add positive non-default canonical-layout coverage and refresh boundary authority if needed
   - Acceptance: `crates/flow/tests/resolver_core.rs` proves at least one successful and one blocked/refusal path using a non-default canonical root, and `docs/specs/handbook-flow-import-boundary-consumer-contract.md` is refreshed if the public flow symbol story or dependency story changed.
   - Verify: `cargo test -p handbook-flow --test resolver_core` plus source inspection of `docs/specs/handbook-flow-import-boundary-consumer-contract.md` when touched.
   - Files: `crates/flow/tests/resolver_core.rs`, `docs/specs/handbook-flow-import-boundary-consumer-contract.md`
 
 ## Packet 2.3: Final Set Proof
 
-- [ ] Task: Run the Set 2 verification wall
+- [x] Task: Run the Set 2 verification wall
   - Acceptance: all of the following pass:
     - `cargo test -p handbook-engine --test canonical_artifacts_ingest`
     - `cargo test -p handbook-engine --test baseline_validation`
@@ -49,7 +49,7 @@ Spec reference: [handbook-substrate-parameterization-set-2-flow-canonical-layout
   - Verify: Run each command and record pass/fail in the completion notes below.
   - Files: `docs/specs/handbook-substrate-parameterization-set-2-flow-canonical-layout-injection-tasks.md`
 
-- [ ] Task: Record the residual-default inventory honestly and keep Packet 2.3 proof-only
+- [x] Task: Record the residual-default inventory honestly and keep Packet 2.3 proof-only
   - Acceptance: the completion notes explicitly distinguish:
     - acceptable retained `.handbook` references that are still Set 3 honesty-cleanup territory
     - structural blockers that prove Packet 2.1 or Packet 2.2 must be reopened
