@@ -5,10 +5,8 @@ pub const PIPELINES_ROOT: &str = "core/pipelines";
 pub const PROFILES_ROOT: &str = "core/profiles";
 pub const RUNNERS_ROOT: &str = "core/runners";
 pub const STAGES_ROOT: &str = "core/stages";
-pub const PIPELINES_ROOT_DISPLAY: &str = "core/pipelines/";
 pub const PROFILES_ROOT_DISPLAY: &str = "core/profiles/";
 pub const RUNNERS_ROOT_DISPLAY: &str = "core/runners/";
-pub const STAGES_ROOT_DISPLAY: &str = "core/stages/";
 
 /// Public owner for declarative repo-relative path roots.
 ///
@@ -122,14 +120,6 @@ pub fn profile_root() -> &'static Path {
 
 pub fn stage_root() -> &'static Path {
     handbook_product_declarative_roots().stage_root()
-}
-
-pub fn pipeline_file(file_name: &str) -> String {
-    handbook_product_declarative_roots().pipeline_file(file_name)
-}
-
-pub fn stage_file(file_name: &str) -> String {
-    handbook_product_declarative_roots().stage_file(file_name)
 }
 
 pub fn runner_file(runner_id: &str) -> String {
