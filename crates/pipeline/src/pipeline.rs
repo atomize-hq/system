@@ -8,7 +8,7 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_BASE_STAGE_FILE_NAME: &str = "00_base.md";
@@ -20,11 +20,6 @@ const SUPPORTED_CAPTURE_STAGE_FILE_NAMES: &[&str] = &[
     "07_foundation_pack.md",
     SUPPORTED_COMPILE_STAGE_FILE_NAME,
 ];
-const ACTIVE_PIPELINE_ROOT_REASON: &str =
-    "pipeline YAML must live under the active declarative pipeline root";
-const ACTIVE_PIPELINE_EXTENSION_REASON: &str =
-    "pipeline YAML must use the `.yaml` extension under the active declarative pipeline root";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineDefinition {
     pub source_path: PathBuf,
@@ -2968,44 +2963,55 @@ impl fmt::Display for ActivationValidationError {
     }
 }
 
-fn configured_pipeline_root_display() -> &'static str {
-    static DISPLAY: OnceLock<String> = OnceLock::new();
-    DISPLAY
-        .get_or_init(|| {
-            format!(
-                "{}/",
-                handbook_product_declarative_roots().pipeline_root_relative()
-            )
-        })
-        .as_str()
-}
-
 fn stage_file_outside_directory_reason(stage_root: &str) -> String {
     format!("must live under `{stage_root}/`")
 }
 
 fn pipeline_yaml_root_reason() -> &'static str {
-    static REASON: OnceLock<String> = OnceLock::new();
-    REASON
-        .get_or_init(|| {
-            format!(
-                "pipeline YAML must live under `{}`",
-                configured_pipeline_root_display()
-            )
-        })
-        .as_str()
+    pipeline_yaml_root_reason_for(handbook_product_declarative_roots().pipeline_root_relative())
 }
 
 fn pipeline_yaml_extension_reason() -> &'static str {
-    static REASON: OnceLock<String> = OnceLock::new();
-    REASON
-        .get_or_init(|| {
-            format!(
-                "pipeline YAML must use the `.yaml` extension under `{}`",
-                configured_pipeline_root_display()
-            )
-        })
-        .as_str()
+    pipeline_yaml_extension_reason_for(
+        handbook_product_declarative_roots().pipeline_root_relative(),
+    )
+}
+
+fn pipeline_yaml_root_reason_for(pipeline_root: &'static str) -> &'static str {
+    cached_pipeline_root_reason(pipeline_root, "pipeline YAML must live under `{}`")
+}
+
+fn pipeline_yaml_extension_reason_for(pipeline_root: &'static str) -> &'static str {
+    cached_pipeline_root_reason(
+        pipeline_root,
+        "pipeline YAML must use the `.yaml` extension under `{}`",
+    )
+}
+
+fn cached_pipeline_root_reason(
+    pipeline_root: &'static str,
+    template: &'static str,
+) -> &'static str {
+    static REASONS: OnceLock<Mutex<BTreeMap<(&'static str, &'static str), &'static str>>> =
+        OnceLock::new();
+    let reasons = REASONS.get_or_init(|| Mutex::new(BTreeMap::new()));
+
+    {
+        let guard = reasons.lock().expect("pipeline root reason cache");
+        if let Some(reason) = guard.get(&(template, pipeline_root)) {
+            return reason;
+        }
+    }
+
+    let leaked_reason = Box::leak(
+        template
+            .replace("{}", &format!("{pipeline_root}/"))
+            .into_boxed_str(),
+    );
+    let mut guard = reasons.lock().expect("pipeline root reason cache");
+    *guard
+        .entry((template, pipeline_root))
+        .or_insert(leaked_reason)
 }
 
 fn validate_pipeline_definition(
@@ -3550,14 +3556,14 @@ fn validate_pipeline_repo_relative_path_with_roots(
     if !relative_path_view.starts_with(roots.pipeline_root()) {
         return Err(PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
-            reason: ACTIVE_PIPELINE_ROOT_REASON,
+            reason: pipeline_yaml_root_reason_for(roots.pipeline_root_relative()),
         });
     }
 
     if relative_path_view.extension().and_then(|ext| ext.to_str()) != Some("yaml") {
         return Err(PipelineLoadError::UnsupportedPipelinePath {
             path: path.to_path_buf(),
-            reason: ACTIVE_PIPELINE_EXTENSION_REASON,
+            reason: pipeline_yaml_extension_reason_for(roots.pipeline_root_relative()),
         });
     }
 

@@ -201,6 +201,74 @@ stages:
 }
 
 #[test]
+fn explicit_roots_surface_the_active_pipeline_root_in_pipeline_directory_refusals() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
+        ".substrate/handbook/core/pipelines",
+        "core/profiles",
+        "core/runners",
+        "core/stages",
+    );
+
+    let err = handbook_pipeline::pipeline::load_pipeline_definition_with_roots(
+        repo_root,
+        &roots,
+        "core/pipelines/imported-pipeline-root-refusal.yaml",
+    )
+    .expect_err("outside active pipeline root");
+
+    match err {
+        PipelineLoadError::UnsupportedPipelinePath { path, reason } => {
+            assert_eq!(
+                path,
+                PathBuf::from("core/pipelines/imported-pipeline-root-refusal.yaml")
+            );
+            assert_eq!(
+                reason,
+                "pipeline YAML must live under `.substrate/handbook/core/pipelines/`"
+            );
+        }
+        other => panic!("expected unsupported pipeline path refusal, got {other:?}"),
+    }
+}
+
+#[test]
+fn explicit_roots_surface_the_active_pipeline_root_in_extension_refusals() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
+        ".substrate/handbook/core/pipelines",
+        "core/profiles",
+        "core/runners",
+        "core/stages",
+    );
+
+    let err = handbook_pipeline::pipeline::load_pipeline_definition_with_roots(
+        repo_root,
+        &roots,
+        ".substrate/handbook/core/pipelines/imported-pipeline-root-refusal.txt",
+    )
+    .expect_err("wrong extension under active pipeline root");
+
+    match err {
+        PipelineLoadError::UnsupportedPipelinePath { path, reason } => {
+            assert_eq!(
+                path,
+                PathBuf::from(
+                    ".substrate/handbook/core/pipelines/imported-pipeline-root-refusal.txt"
+                )
+            );
+            assert_eq!(
+                reason,
+                "pipeline YAML must use the `.yaml` extension under `.substrate/handbook/core/pipelines/`"
+            );
+        }
+        other => panic!("expected unsupported pipeline path refusal, got {other:?}"),
+    }
+}
+
+#[test]
 fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
     let repo_root = repo_root();
 
