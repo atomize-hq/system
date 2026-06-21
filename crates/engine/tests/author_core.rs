@@ -269,3 +269,21 @@ fn environment_inventory_validation_is_engine_owned() {
     validate_environment_inventory_markdown(&expected_environment_inventory_markdown("None"))
         .expect("canonical environment inventory markdown should validate");
 }
+
+#[test]
+fn handbook_product_authoring_defaults_remain_explicitly_bounded() {
+    assert_eq!(
+        DEFAULT_EXCEPTION_RECORD_LOCATION,
+        ".handbook/charter/CHARTER.md#exceptions"
+    );
+
+    handbook_engine::author::validate_synthesized_environment_inventory_markdown(
+        &expected_environment_inventory_markdown(
+            "`.handbook/project_context/PROJECT_CONTEXT.md`",
+        ),
+        handbook_engine::author::EnvironmentInventoryValidationExpectations::for_optional_project_context(
+            true,
+        ),
+    )
+    .expect("handbook-product environment inventory defaults should remain explicit");
+}

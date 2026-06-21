@@ -200,7 +200,7 @@ impl<'repo> CanonicalLayout<'repo> {
     pub(crate) fn system_root(self) -> NormalizedRepoRelativePath {
         self.workspace()
             .normalize_repo_relative(self.system_root_relative())
-            .expect("canonical .handbook root should stay repo-relative")
+            .expect("canonical system root should stay repo-relative")
     }
 
     pub(crate) fn artifact_relative_path(self, kind: CanonicalArtifactKind) -> &'static str {

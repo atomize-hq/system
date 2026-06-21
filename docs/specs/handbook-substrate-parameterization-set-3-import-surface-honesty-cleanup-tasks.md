@@ -32,7 +32,7 @@ Spec reference: [handbook-substrate-parameterization-set-3-import-surface-honest
 
 ## Packet 3.3: Engine Residual Default Bounding And Final Proof
 
-- [ ] Task: Clean or explicitly bound engine-side residual default references that affect the import-target contract story
+- [x] Task: Clean or explicitly bound engine-side residual default references that affect the import-target contract story
   - Acceptance: engine import-target surfaces either derive contract-sensitive user-visible defaults from the active canonical layout contract or explicitly bound the remaining `.handbook/**` references as handbook-product authoring/default behavior outside the reusable import promise.
   - Verify: Source inspection of `crates/engine/src/canonical_artifacts.rs`, `crates/engine/src/canonical_paths.rs`, and `crates/engine/src/author/*.rs` plus `cargo test -p handbook-engine --test canonical_artifacts_ingest && cargo test -p handbook-engine --test baseline_validation && cargo test -p handbook-engine --test author_core`.
   - Files: `crates/engine/src/canonical_artifacts.rs`, `crates/engine/src/canonical_paths.rs`, `crates/engine/src/author/charter_core.rs`, `crates/engine/src/author/environment_inventory_core.rs`, `crates/engine/tests/author_core.rs`
@@ -57,24 +57,28 @@ Spec reference: [handbook-substrate-parameterization-set-3-import-surface-honest
 #### Packet 3.3 completion notes
 
 - Verification wall:
-  - PENDING — `cargo test -p handbook-flow --test resolver_core`
-  - PENDING — `cargo test -p handbook-flow`
-  - PENDING — `cargo test -p handbook-pipeline --test pipeline_catalog`
-  - PENDING — `cargo test -p handbook-pipeline --test pipeline_loader`
-  - PENDING — `cargo test -p handbook-pipeline --test pipeline_compile`
-  - PENDING — `cargo test -p handbook-pipeline --test pipeline_route_resolution`
-  - PENDING — `cargo test -p handbook-engine --test canonical_artifacts_ingest`
-  - PENDING — `cargo test -p handbook-engine --test baseline_validation`
-  - PENDING — `cargo test -p handbook-engine --test author_core`
-  - PENDING — `cargo check --workspace`
-  - PENDING — `cargo fmt --all -- --check`
-  - PENDING — `cargo clippy --workspace --all-targets -- -D warnings`
+  - PASS — `cargo test -p handbook-flow --test resolver_core`
+  - PASS — `cargo test -p handbook-flow`
+  - PASS — `cargo test -p handbook-pipeline --test pipeline_catalog`
+  - PASS — `cargo test -p handbook-pipeline --test pipeline_loader`
+  - PASS — `cargo test -p handbook-pipeline --test pipeline_compile`
+  - PASS — `cargo test -p handbook-pipeline --test pipeline_route_resolution`
+  - PASS — `cargo test -p handbook-engine --test canonical_artifacts_ingest`
+  - PASS — `cargo test -p handbook-engine --test baseline_validation`
+  - PASS — `cargo test -p handbook-engine --test author_core`
+  - PASS — `cargo check --workspace`
+  - FAIL — `cargo fmt --all -- --check` (reran after `rustfmt` on Packet 3.3 files; remaining workspace drift is outside Packet 3.3 in `crates/flow/src/resolver.rs:1119` and `crates/flow/tests/resolver_core.rs:196`)
+  - FAIL — `cargo clippy --workspace --all-targets -- -D warnings` (`clippy::explicit_auto_deref` at `crates/pipeline/src/pipeline.rs:3012`; outside Packet 3.3 scope)
 - Final bounded-default inventory:
-  - PENDING — record acceptable retained handbook-product defaults that remain explicitly bounded inside the import-target crates.
-  - PENDING — record any misleading residual defaults that prove Packet 3.1 or Packet 3.2 must be revisited before closeout.
-  - PENDING — record any engine-side defaults intentionally kept outside the reusable import promise.
+  - Removed misleading engine import-facing default wording: `ArtifactIngestError` no longer hardcodes `.handbook` in canonical system-root display text.
+  - Acceptable retained handbook-product defaults inside the import-target crates:
+    - `crates/engine/src/canonical_paths.rs` keeps `DEFAULT_CANONICAL_LAYOUT_CONTRACT` and the derived `CANONICAL_*` constants as the explicit handbook-product default owner for callers that choose the default layout; non-default callers still flow through `CanonicalLayoutContract`.
+    - `crates/engine/src/author/charter_core.rs` keeps `DEFAULT_EXCEPTION_RECORD_LOCATION` as a handbook-product default for engine-authored charter markdown, explicitly bounded as code-owned authoring behavior rather than reusable import-contract truth.
+    - `crates/engine/src/author/environment_inventory_core.rs` keeps the handbook-product canonical-file / project-context reference lines as engine-owned synthesized-markdown validation defaults, explicitly bounded outside the reusable import promise.
+  - No remaining engine-side misleading defaults were found that require reopening Packet 3.1 or Packet 3.2; the remaining engine `.handbook/**` hits are explicit default-owner or authoring-only surfaces, not active import-facing contract claims.
+  - Packet 3.3 proof is still blocked on out-of-scope workspace hygiene failures in `handbook-flow` / `handbook-pipeline`, so this packet should not be marked fully closed until those pre-existing `fmt` / `clippy` failures are resolved or explicitly waived.
 - Proof-only rule:
-  - If verification reveals unfinished structural work from Set 1 or Set 2, stop and reopen the relevant earlier set explicitly instead of silently turning Packet 3.3 into a structural repair sink.
+  - Respected. Packet 3.3 stayed inside engine residual default bounding plus proof-note closeout; no CLI/compiler cleanup or earlier-set structural redesign was folded into this packet.
 
 ---
 

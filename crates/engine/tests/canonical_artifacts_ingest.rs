@@ -1,6 +1,6 @@
 use handbook_engine::{
-    setup_starter_template_bytes, ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind,
-    CanonicalArtifacts, CanonicalLayoutContract, SystemRootStatus,
+    setup_starter_template_bytes, ArtifactIngestError, ArtifactIngestIssueKind, ArtifactPresence,
+    CanonicalArtifactKind, CanonicalArtifacts, CanonicalLayoutContract, SystemRootStatus,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -43,6 +43,30 @@ fn runtime_only_state_does_not_establish_system_root() {
     assert_eq!(
         artifacts.feature_spec.identity.presence,
         ArtifactPresence::Missing
+    );
+}
+
+#[test]
+fn system_root_error_display_is_contract_neutral() {
+    let system_root = std::path::PathBuf::from(".custom_handbook");
+
+    assert_eq!(
+        ArtifactIngestError::SystemRootMissing {
+            system_root: system_root.clone(),
+        }
+        .to_string(),
+        "missing canonical system root at .custom_handbook"
+    );
+    assert_eq!(
+        ArtifactIngestError::SystemRootNotDir {
+            system_root: system_root.clone(),
+        }
+        .to_string(),
+        "canonical system root is not a directory: .custom_handbook"
+    );
+    assert_eq!(
+        ArtifactIngestError::SystemRootSymlinkNotAllowed { system_root }.to_string(),
+        "canonical system root must not be a symlink: .custom_handbook"
     );
 }
 

@@ -346,18 +346,18 @@ impl std::fmt::Display for ArtifactIngestError {
             ArtifactIngestError::SystemRootMissing { system_root } => {
                 write!(
                     f,
-                    "missing canonical .handbook root at {}",
+                    "missing canonical system root at {}",
                     system_root.display()
                 )
             }
             ArtifactIngestError::SystemRootNotDir { system_root } => write!(
                 f,
-                "canonical .handbook root is not a directory: {}",
+                "canonical system root is not a directory: {}",
                 system_root.display()
             ),
             ArtifactIngestError::SystemRootSymlinkNotAllowed { system_root } => write!(
                 f,
-                "canonical .handbook root must not be a symlink: {}",
+                "canonical system root must not be a symlink: {}",
                 system_root.display()
             ),
             ArtifactIngestError::RequiredArtifactMissing { kind, path } => write!(

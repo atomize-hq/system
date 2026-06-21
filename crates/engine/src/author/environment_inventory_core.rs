@@ -1,3 +1,6 @@
+// These literals remain handbook-product authoring defaults for engine-owned
+// markdown synthesis and validation. They are intentionally code-owned and do
+// not describe the reusable import-layout contract.
 const CANONICAL_ENVIRONMENT_INVENTORY_PATH: &str =
     ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md";
 const LEGACY_NON_CANONICAL_PATH_CLAIMS: [&str; 3] = [

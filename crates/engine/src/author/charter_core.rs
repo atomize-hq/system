@@ -2,7 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
-pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = ".handbook/charter/CHARTER.md#exceptions";
+const HANDBOOK_PRODUCT_EXCEPTION_RECORD_LOCATION: &str = ".handbook/charter/CHARTER.md#exceptions";
+
+/// Handbook-product default for engine-authored charter markdown. This
+/// intentionally remains code-owned and does not define the reusable
+/// import-layout contract.
+pub const DEFAULT_EXCEPTION_RECORD_LOCATION: &str = HANDBOOK_PRODUCT_EXCEPTION_RECORD_LOCATION;
 const CHARTER_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 const REQUIRED_CHARTER_TOP_LEVEL_HEADINGS: [&str; 12] = [
     "## What this is",
