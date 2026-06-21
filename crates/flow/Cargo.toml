@@ -3,9 +3,9 @@ name = "handbook-flow"
 version = "0.1.0"
 edition = "2021"
 description = "Resolver, packet-result, and budget runtime surfaces for Handbook."
-repository = "https://github.com/atomize-hq/handbook"
+repository = "https://github.com/atomize-hq/system.git"
 documentation = "https://docs.rs/handbook-flow"
-homepage = "https://github.com/atomize-hq/handbook"
+homepage = "https://github.com/atomize-hq/system.git"
 license = "MIT"
 
 [lib]
