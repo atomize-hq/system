@@ -56,7 +56,7 @@ Packet 1.1 scope:
 
 Out of scope:
 - Packet 1.2 dependency versioning
-- Packet 1.3 publish dry-runs
+- Lane 3 staged dry-runs / real publication
 - Any `lib.rs` public API narrowing
 - Any real crates.io publish step
 - Any substrate repo changes
@@ -73,9 +73,7 @@ Implementation subagent prompt requirements:
   - `sed -n '1,120p' crates/pipeline/Cargo.toml`
   - `sed -n '1,120p' crates/flow/Cargo.toml`
   - `cargo package -p handbook-engine --allow-dirty`
-  - `cargo package -p handbook-pipeline --allow-dirty`
-  - `cargo package -p handbook-flow --allow-dirty`
-- Require the implementation to add only the metadata needed for first-wave publication readiness, stop if a non-metadata blocker appears, and report exact files touched and packaging results.
+- Require the implementation to add only the metadata needed for first-wave publication readiness, stop if a non-metadata blocker appears, and report exact files touched plus the engine packaging result.
 
 Review subagent prompt requirements:
 - Begin with `/goal Review Packet 1.1: Publish Metadata Baseline`.
@@ -121,7 +119,8 @@ Hard rules:
 - Before every commit, run GitNexus detect-changes and confirm the affected scope matches Packet 1.2 only.
 
 Packet 1.2 scope:
-- Update only the publishable internal dependency declarations needed so `cargo package` no longer fails because `handbook-engine` lacks a dependency version in pipeline/flow packaging.
+- Update only the publishable internal dependency declarations needed so pre-release `cargo package` no longer fails because `handbook-engine` lacks a dependency version in pipeline/flow packaging.
+- Treat later crates.io-resolution failure for unpublished `handbook-engine` as a Lane 3 concern, not as an in-scope Packet 1.2 blocker.
 - Files expected in scope:
   - crates/pipeline/Cargo.toml
   - crates/flow/Cargo.toml
@@ -129,7 +128,7 @@ Packet 1.2 scope:
 
 Out of scope:
 - Publish metadata baseline beyond what Packet 1.1 already handled
-- Dry-run publication wall beyond the two packet acceptance checks
+- Lane 3 staged dry-runs / real publication
 - Public API narrowing in any `lib.rs`
 - Real crates.io publication
 - Any substrate repo changes
@@ -145,7 +144,7 @@ Implementation subagent prompt requirements:
   - `sed -n '1,120p' crates/flow/Cargo.toml`
   - `cargo package -p handbook-pipeline --allow-dirty`
   - `cargo package -p handbook-flow --allow-dirty`
-- Require the implementation to adopt the minimal publishable dependency form, rerun both `cargo package` commands after the change, and report exact before/after results.
+- Require the implementation to adopt the minimal publishable dependency form, rerun both `cargo package` commands after the change, and report the exact before/after failure mode so the session can distinguish a resolved missing-version error from the later crates.io-resolution blocker.
 
 Review subagent prompt requirements:
 - Begin with `/goal Review Packet 1.2: Convert handbook internal dependencies to publishable versioned declarations`.
@@ -164,72 +163,8 @@ Commit policy:
 - Commit messages must clearly describe versioned internal dependency hardening.
 
 Stop conditions:
-- Stop once Packet 1.2 is review-clean, committed, and `cargo package -p handbook-pipeline --allow-dirty` plus `cargo package -p handbook-flow --allow-dirty` both pass.
-- Stop and report blocked if honest completion requires dry-run publication, API narrowing, or substrate-side changes.
-```
-
----
-
-## Packet 1.3 Prompt — Publish Dry-Run Wall
-
-```text
-/goal Orchestrate Packet 1.3: Pass the publish dry-run wall for handbook-engine, handbook-pipeline, and handbook-flow in /Users/spensermcconnell/__Active_Code/system.
-
-Mission:
-- Land only Packet 1.3 from the published-crate readiness tasks doc.
-- Use the spec/plan/tasks trio as authority.
-- Treat this as one packaging-verification seam: make all three crates pass `cargo publish --dry-run` honestly.
-
-Hard rules:
-- Do not implement, review, or fix the packet in the orchestration session yourself.
-- Spawn a fresh GPT-5.4 high implementation subagent using $incremental-implementation in a `/goal` prompt.
-- Commit implementation before review.
-- Spawn a fresh GPT-5.4 high review subagent using $code-review-and-quality in a `/goal` prompt.
-- If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation.
-- Before every commit, run GitNexus detect-changes and confirm the affected scope matches Packet 1.3 only.
-
-Packet 1.3 scope:
-- Resolve only the remaining package-content / metadata / manifest issues needed for:
-  - `cargo publish --dry-run -p handbook-engine`
-  - `cargo publish --dry-run -p handbook-pipeline`
-  - `cargo publish --dry-run -p handbook-flow`
-- Keep the seam tightly bounded to dry-run readiness.
-
-Out of scope:
-- Real crates.io publication
-- Public API narrowing unless the dry-run reveals a packaging blocker that cannot be deferred and still stays within Packet 1.3 authority
-- Substrate repo changes
-- Release automation or CI work
-
-Implementation subagent prompt requirements:
-- Begin with `/goal Land Packet 1.3: Pass the publish dry-run wall for handbook-engine, handbook-pipeline, and handbook-flow`.
-- Tell the subagent to use $incremental-implementation.
-- Require live verification with:
-  - `git status --short --branch`
-  - `cargo publish --dry-run -p handbook-engine`
-  - `cargo publish --dry-run -p handbook-pipeline`
-  - `cargo publish --dry-run -p handbook-flow`
-- Require the implementation to address only the blockers surfaced by the dry-runs, rerun all three dry-runs after changes, and report exact pass/fail results.
-
-Review subagent prompt requirements:
-- Begin with `/goal Review Packet 1.3: Pass the publish dry-run wall`.
-- Tell the subagent to use $code-review-and-quality.
-- Require special attention to whether all three dry-runs actually passed, whether any workaround weakens publication honesty, and whether scope stayed inside dry-run readiness rather than jumping ahead to real publish or substrate integration.
-- Require severity labels.
-
-Fix loop:
-- If review is clean, stop and report Packet 1.3 complete.
-- If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation constrained to Packet 1.3 findings only.
-- Commit accepted fixes before re-review.
-
-Commit policy:
-- Commit after implementation if clean.
-- Commit after each accepted fix round.
-- Commit messages must clearly describe publish dry-run readiness.
-
-Stop conditions:
-- Stop once Packet 1.3 is review-clean, committed, and all three dry-runs pass.
-- Stop and report blocked if honest completion requires real crates.io publication, broader API redesign, or substrate-side changes.
+- Stop once Packet 1.2 is review-clean, committed, and `crates/pipeline/Cargo.toml` plus `crates/flow/Cargo.toml` use the minimal publishable dependency form while any remaining `cargo package` failure is limited to later crates.io resolution of unpublished `handbook-engine`.
+- Stop and report blocked if honest completion requires API narrowing, release-session dry-runs, or substrate-side changes.
 ```
 
 ---
@@ -405,9 +340,8 @@ Implementation subagent prompt requirements:
   - `sed -n '1,260p' docs/specs/handbook-flow-import-boundary-consumer-contract.md`
   - `sed -n '1,120p' crates/flow/src/lib.rs`
   - `cargo test -p handbook-flow`
-  - `cargo publish --dry-run -p handbook-flow`
 - Require GitNexus impact analysis before production edits if any flow symbol change is proposed.
-- Require the implementation to keep changes minimal, refresh docs only if needed, and report whether the packet landed as docs-only or code-plus-docs.
+- Require the implementation to keep changes minimal, refresh docs only if needed, and report whether the packet landed as docs-only or code-plus-docs while keeping any remaining dry-run dependency on published `handbook-engine` explicitly out of scope for this lane.
 
 Review subagent prompt requirements:
 - Begin with `/goal Review Packet 2.3: Revalidate handbook-flow as a publishable API`.
@@ -475,7 +409,7 @@ Implementation subagent prompt requirements:
 Review subagent prompt requirements:
 - Begin with `/goal Review Packet 3.1: Record the first-wave release contract and checklist`.
 - Tell the subagent to use $code-review-and-quality.
-- Require focus on whether the release contract is executable, honest, consistent with live manifest truth, and sufficiently specific to drive Packet 3.2 without guessing.
+- Require focus on whether the release contract is executable, honest, consistent with live manifest truth, and sufficiently specific to drive the staged dry-run / publish sequence in Packet 3.2 without guessing.
 - Require severity labels.
 
 Fix loop:
@@ -489,35 +423,37 @@ Commit policy:
 - Commit messages must clearly describe the first-wave release contract/checklist.
 
 Stop conditions:
-- Stop once Packet 3.1 is review-clean, committed, and the release contract is durable enough to execute Packet 3.2 without ambiguity.
+- Stop once Packet 3.1 is review-clean, committed, and the release contract is durable enough to execute the staged dry-run / publish sequence in Packet 3.2 without ambiguity.
 - Stop and report blocked if honest completion requires making real publication decisions that are not yet approved.
 ```
 
 ---
 
-## Packet 3.2 Prompt — Real crates.io Publication
+## Packet 3.2 Prompt — Staged Dry-Run + Real crates.io Publication
 
 ```text
-/goal Orchestrate Packet 3.2: Publish handbook-engine, handbook-pipeline, and handbook-flow to crates.io in the approved first-wave order.
+/goal Orchestrate Packet 3.2: Execute the staged first-wave release for handbook-engine, handbook-pipeline, and handbook-flow to crates.io in the approved order.
 
 Mission:
 - Land only Packet 3.2 from the published-crate readiness tasks doc.
 - Use the published-crate readiness spec/plan/tasks trio plus the Packet 3.1 release contract/checklist as authority.
-- Treat this as one high-stakes release seam: perform the actual crates.io publication only if the dry-run wall is green and explicit human authorization to publish is present in the current session.
+- Treat this as one high-stakes release seam: run the staged dry-run / publish order honestly, including the fact that dependent-crate dry-runs only become meaningful after the published `handbook-engine` version is resolvable from crates.io.
 
 Hard rules:
 - Do not implement, review, or fix the packet in the orchestration session yourself.
 - Spawn a fresh GPT-5.4 high implementation subagent using $incremental-implementation in a `/goal` prompt.
 - Commit any pre-publish checklist/doc updates before review.
 - Spawn a fresh GPT-5.4 high review subagent using $code-review-and-quality in a `/goal` prompt.
-- If review finds issues before publication, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation.
+- If review finds issues before or after publication, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation.
 - Before every commit in `system`, run GitNexus detect-changes and confirm the affected scope matches Packet 3.2 only.
 - If explicit human authorization to run real `cargo publish` is not present in the fresh session, the orchestration agent must stop and report blocked rather than publishing.
 
 Packet 3.2 scope:
-- Execute the approved publish order for the three crates.
-- Record exact published versions and any release notes/checklist evidence needed for downstream consumers.
-- Keep the seam tightly bounded to first-wave publication.
+- Run `cargo publish --dry-run -p handbook-engine`.
+- Publish `handbook-engine`.
+- Wait until the published `handbook-engine` version is resolvable from crates.io.
+- Then run dependent dry-runs for `handbook-pipeline` and `handbook-flow`, and publish them in the approved order.
+- Record exact dry-run and publish evidence needed for downstream consumers.
 
 Out of scope:
 - Broad release automation / CI
@@ -526,22 +462,24 @@ Out of scope:
 - API redesign that should have been handled in earlier packets
 
 Implementation subagent prompt requirements:
-- Begin with `/goal Land Packet 3.2: Publish handbook-engine, handbook-pipeline, and handbook-flow to crates.io in the approved first-wave order`.
+- Begin with `/goal Land Packet 3.2: Execute the staged first-wave release for handbook-engine, handbook-pipeline, and handbook-flow`.
 - Tell the subagent to use $incremental-implementation.
 - Require live verification with:
   - `git status --short --branch`
   - the Packet 3.1 release contract/checklist
   - `cargo publish --dry-run -p handbook-engine`
+- Require the implementation subagent to confirm explicit human authorization to perform real crates.io publication remains present.
+- Require the implementation subagent to stop if engine dry-run fails, stop if publication is not explicitly authorized, publish `handbook-engine` first, confirm the chosen engine version is resolvable from crates.io, then run and record:
   - `cargo publish --dry-run -p handbook-pipeline`
   - `cargo publish --dry-run -p handbook-flow`
-- Require the implementation subagent to confirm explicit human authorization to perform real crates.io publication remains present.
-- Require the implementation subagent to publish in the approved order only if that authorization exists and all dry-runs are green.
-- Require the implementation subagent to record exact versions and publish outcomes.
+  - `cargo publish -p handbook-pipeline`
+  - `cargo publish -p handbook-flow`
+- Require the implementation subagent to report exact dry-run / publish outputs and any index-resolution waiting or retry behavior.
 
 Review subagent prompt requirements:
-- Begin with `/goal Review Packet 3.2: Publish handbook-engine, handbook-pipeline, and handbook-flow to crates.io`.
+- Begin with `/goal Review Packet 3.2: Execute the staged first-wave release for handbook-engine, handbook-pipeline, and handbook-flow`.
 - Tell the subagent to use $code-review-and-quality.
-- Require focus on whether the release contract was followed exactly, whether the published versions are coherent, whether any failure was handled honestly, and whether scope stayed inside first-wave publication.
+- Require focus on whether real publication was properly authorized, whether the staged order was followed exactly, whether dependent dry-runs happened only after engine resolution, whether the recorded published versions are accurate, and whether the session stayed inside the first-wave publication seam.
 - Require severity labels.
 
 Fix loop:
@@ -552,11 +490,11 @@ Fix loop:
 Commit policy:
 - Commit any checklist/doc changes before and after publication as needed.
 - Commit after each accepted fix round.
-- Commit messages must clearly describe first-wave crates.io publication evidence.
+- Commit messages must clearly describe the staged first-wave crates.io release evidence.
 
 Stop conditions:
-- Stop once Packet 3.2 is review-clean and the published versions are recorded honestly.
-- Stop and report blocked if explicit publish authorization is missing or if the dry-run wall is not green.
+- Stop once Packet 3.2 is review-clean and the staged dry-run / publish evidence is recorded honestly.
+- Stop and report blocked if engine dry-run fails, publication is not authorized, the published engine version does not become resolvable for dependent dry-runs, or crates.io behavior contradicts the recorded release contract.
 ```
 
 ---

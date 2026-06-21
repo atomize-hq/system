@@ -6,28 +6,23 @@ Spec reference: [handbook-published-crates-and-substrate-consumption-spec.md](./
 
 ---
 
-## Lane 1: Manifest + Packaging Hardening
+## Lane 1: Manifest Hardening
 
 ### Packet 1.1: Publish Metadata Baseline
 
-- [ ] Task: Add the first-wave publication metadata to `handbook-engine`, `handbook-pipeline`, and `handbook-flow`
+- [x] Task: Add the first-wave publication metadata to `handbook-engine`, `handbook-pipeline`, and `handbook-flow`
   - Acceptance: Each manifest contains the agreed publish metadata set for the first wave (`license` already present; first-wave baseline now includes `description`, `repository`, `documentation`, and `homepage`, while `readme`, `keywords`, and `categories` are intentionally deferred to later publication polish).
-  - Verify: `cargo package -p handbook-engine --allow-dirty`; `cargo package -p handbook-pipeline --allow-dirty`; `cargo package -p handbook-flow --allow-dirty`
+  - Verify: Source inspection of `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, and `crates/flow/Cargo.toml`; `cargo package -p handbook-engine --allow-dirty`
   - Files: `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, `crates/flow/Cargo.toml`, optional shared README/doc files if required
 
 ### Packet 1.2: Versioned Intra-Workspace Dependencies
 
-- [ ] Task: Convert publishable internal dependencies from path-only declarations to versioned publishable declarations
-  - Acceptance: `handbook-pipeline` and `handbook-flow` depend on `handbook-engine` using a publishable dependency form (for example `version + path` during local development), and `cargo package` no longer fails on missing dependency versions.
-  - Verify: `cargo package -p handbook-pipeline --allow-dirty`; `cargo package -p handbook-flow --allow-dirty`
+- [x] Task: Convert publishable internal dependencies from path-only declarations to versioned publishable declarations
+  - Acceptance: `handbook-pipeline` and `handbook-flow` depend on `handbook-engine` using a publishable dependency form (`version + path` during local development), and pre-release `cargo package` no longer fails because `handbook-engine` lacks a dependency version. Any remaining dependent-crate failure at this stage must be the later release-sequencing condition that the chosen `handbook-engine` version is not yet resolvable from crates.io.
+  - Verify: Source inspection of `crates/pipeline/Cargo.toml` and `crates/flow/Cargo.toml`; `cargo package -p handbook-pipeline --allow-dirty`; `cargo package -p handbook-flow --allow-dirty`
   - Files: `crates/pipeline/Cargo.toml`, `crates/flow/Cargo.toml`
 
-### Packet 1.3: Publish Dry-Run Wall
-
-- [ ] Task: Pass the publish dry-run wall for all three crates
-  - Acceptance: `handbook-engine`, `handbook-pipeline`, and `handbook-flow` all pass `cargo publish --dry-run` from live repo truth.
-  - Verify: `cargo publish --dry-run -p handbook-engine`; `cargo publish --dry-run -p handbook-pipeline`; `cargo publish --dry-run -p handbook-flow`
-  - Files: manifests and any package-content / metadata files required by the dry-runs
+Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolved package / dry-run proof into Lane 3 rather than treating it as a manifest-only blocker.
 
 ---
 
@@ -50,8 +45,8 @@ Spec reference: [handbook-published-crates-and-substrate-consumption-spec.md](./
 ### Packet 2.3: Flow Published-Surface Revalidation
 
 - [ ] Task: Revalidate `handbook-flow` as a publishable API after manifest/versioning changes
-  - Acceptance: The cleaned flow consumer contract still matches the live published surface, and no publish-specific blocker remains beyond the already-documented typed boundary.
-  - Verify: Source inspection of `crates/flow/src/lib.rs`; `cargo test -p handbook-flow`; `cargo publish --dry-run -p handbook-flow`
+  - Acceptance: The cleaned flow consumer contract still matches the live published surface, and no publish-surface blocker remains beyond the already-documented typed boundary plus the later release-sequencing requirement that `handbook-engine` be published/resolvable for dependent dry-runs.
+  - Verify: Source inspection of `crates/flow/src/lib.rs`; `cargo test -p handbook-flow`
   - Files: `crates/flow/src/lib.rs` only if required, plus any consumer-contract doc refresh needed for honesty
 
 ---
@@ -61,15 +56,15 @@ Spec reference: [handbook-published-crates-and-substrate-consumption-spec.md](./
 ### Packet 3.1: Release Contract + Checklist
 
 - [ ] Task: Record the first-wave release contract for engine → pipeline → flow
-  - Acceptance: A durable doc/checklist records the release order, chosen versioning policy, dependency pin semantics, dry-run prerequisites, and the evidence required before the first real publish.
-  - Verify: Human review of the checklist against the live manifests and boundary docs.
+  - Acceptance: A durable doc/checklist records the release order, chosen versioning policy, dependency pin semantics, the staged dry-run sequence (`engine` prepublish dry-run, then dependent dry-runs only after the published engine version is resolvable), and the evidence required before each real publish step.
+  - Verify: Human review of the checklist against the live manifests, current packageability truth, and boundary docs.
   - Files: `docs/specs/handbook-published-crates-and-substrate-consumption-*.md` or a dedicated release-checklist doc if needed
 
-### Packet 3.2: Real crates.io Publication
+### Packet 3.2: Staged Dry-Run + Real crates.io Publication
 
-- [ ] Task: Publish `handbook-engine`, `handbook-pipeline`, and `handbook-flow` to crates.io in the approved order
-  - Acceptance: All three crates are published at the approved coordinated versions, and the published versions match the release contract.
-  - Verify: Successful `cargo publish` results recorded for each crate; published versions visible in crates.io metadata / cargo index resolution.
+- [ ] Task: Execute the staged first-wave release for `handbook-engine`, `handbook-pipeline`, and `handbook-flow` in the approved order
+  - Acceptance: `handbook-engine` passes `cargo publish --dry-run` and is published first; once that published version is resolvable from crates.io, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` and are then published in the approved order; the published versions match the release contract.
+  - Verify: `cargo publish --dry-run -p handbook-engine`; successful `cargo publish -p handbook-engine`; successful dependent dry-runs for `handbook-pipeline` and `handbook-flow` after engine resolution; successful `cargo publish -p handbook-pipeline`; successful `cargo publish -p handbook-flow`; published versions visible in crates.io metadata / cargo index resolution.
   - Files: manifests/version files and any release notes/checklist artifacts needed to record the publish event
 
 ---
@@ -114,7 +109,7 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 
 | Lane | Status | Blocks published consumption? |
 |------|--------|-------------------------------|
-| 1 | Not started | Yes |
+| 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
 | 2 | Not started | Yes |
 | 3 | Not started | Yes |
 | 4 | Not started | — |

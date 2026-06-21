@@ -18,8 +18,8 @@ Produce the single navigable planning authority for the remaining work required 
 This follow-on exists because live repo truth now shows a real gap between the completed Phase 6 import-planning posture and actual publication / published-consumption readiness:
 
 - `cargo package -p handbook-engine --allow-dirty` currently passes.
-- `cargo package -p handbook-pipeline --allow-dirty` currently fails because `handbook-engine` is still declared as a **path-only** dependency with no version.
-- `cargo package -p handbook-flow --allow-dirty` currently fails for the same reason.
+- `handbook-pipeline` and `handbook-flow` now declare `handbook-engine` in publishable local-development form (`version + path`).
+- `cargo package -p handbook-pipeline --allow-dirty` and `cargo package -p handbook-flow --allow-dirty` no longer fail on a **missing dependency version**; they now fail because Cargo resolves `handbook-engine` through the crates.io index during packaging, and that crate version is not yet published/resolvable there.
 - `crates/pipeline/src/lib.rs` still publicly exposes items outside the documented frozen subset (`declarative_roots`, `setup`, and layout re-exports), so the published API surface is broader than the Phase 6 contract.
 - `docs/specs/handbook-substrate-import-adoption-plan.md` still recommends **workspace-member/path dependency** consumption, which is intentionally different from the published-crate consumption target for this follow-on.
 
@@ -51,11 +51,15 @@ cargo test -p handbook-pipeline --test pipeline_handoff
 cargo test -p handbook-flow
 cargo test -p handbook-compiler --test author
 
-# packaging / publish readiness in system
+# manifest hardening / packageability signals in system
 cargo package -p handbook-engine --allow-dirty
 cargo package -p handbook-pipeline --allow-dirty
 cargo package -p handbook-flow --allow-dirty
+
+# staged release-session verification in system
+# handbook-engine dry-run can run before any real publication
 cargo publish --dry-run -p handbook-engine
+# handbook-pipeline and handbook-flow dry-runs require a published/resolvable handbook-engine version
 cargo publish --dry-run -p handbook-pipeline
 cargo publish --dry-run -p handbook-flow
 
@@ -126,10 +130,15 @@ Conventions:
 
 ## Testing Strategy
 
-- **System repo publish readiness wall**
+- **System repo manifest-hardening wall**
   - all existing workspace verification remains green
-  - each crate passes `cargo package`
-  - each crate passes `cargo publish --dry-run`
+  - `handbook-engine` passes `cargo package`
+  - `handbook-pipeline` and `handbook-flow` use explicit publishable `version + path` dependencies on `handbook-engine`
+  - if `cargo package` still fails for `handbook-pipeline` or `handbook-flow` before release execution, the remaining failure must be registry resolution of unpublished `handbook-engine`, not a missing dependency version
+
+- **Release-session dry-run wall**
+  - `handbook-engine` passes `cargo publish --dry-run` before the first real publish
+  - `handbook-pipeline` and `handbook-flow` pass `cargo publish --dry-run` only after the chosen `handbook-engine` version is published and resolvable from crates.io
   - source inspection confirms published APIs match the intended boundary contracts, especially for `handbook-pipeline`
 
 - **Published boundary validation**
@@ -145,7 +154,7 @@ Conventions:
 ## Boundaries
 
 - **Always:**
-  - Ground every claim in live repo truth (`cargo package`, `cargo publish --dry-run`, source inspection, downstream `cargo check`/`cargo test`) before recording it.
+  - Ground every claim in live repo truth (`cargo package`, staged `cargo publish --dry-run`, source inspection, downstream `cargo check`/`cargo test`) before recording it.
   - Keep the first-wave published set to `handbook-engine`, `handbook-pipeline`, and `handbook-flow` only.
   - Keep the published API physically aligned with the reviewed boundary contract; docs-only narrowing is not enough for publication.
   - Preserve unrelated local dirt, especially `AGENTS.md` and `CLAUDE.md`, while landing this follow-on.
@@ -165,13 +174,14 @@ Conventions:
 
 ## Success Criteria
 
-1. `handbook-engine`, `handbook-pipeline`, and `handbook-flow` all pass `cargo package` and `cargo publish --dry-run` from the `system` repo.
-2. The three manifests contain the publish-required metadata and coordinated internal dependency versioning needed for crates.io publication.
+1. The three manifests contain the publish-required metadata and coordinated internal dependency versioning needed for crates.io publication.
+2. `handbook-engine` passes `cargo package`, and `handbook-pipeline` / `handbook-flow` no longer have any manifest-only packaging blocker beyond later crates.io resolution of `handbook-engine`.
 3. `handbook-pipeline`'s actual public Rust surface matches the intended frozen first-wave boundary instead of exposing extra public modules/re-exports by accident.
 4. `handbook-flow` keeps the cleaned consumer contract intact on the published surface: typed semantics in-boundary, final shell wording out-of-boundary.
-5. The publication order, versioning policy, and dry-run/publish verification wall are recorded as a durable authority that future sessions can execute without guessing.
-6. Substrate consumes the three crates via published crates.io versions and passes its verification wall without falling back to sibling path dependencies.
-7. The resulting docs clearly separate:
+5. The publication order, staged dry-run sequence, and publish verification wall are recorded as a durable authority that future sessions can execute without guessing.
+6. The first-wave release session proves `cargo publish --dry-run` / `cargo publish` in an honest staged order: engine first, then dependent crates only after the published engine version is resolvable.
+7. Substrate consumes the three crates via published crates.io versions and passes its verification wall without falling back to sibling path dependencies.
+8. The resulting docs clearly separate:
    - architectural ownership (still handbook-owned)
    - publication readiness in `system`
    - downstream published-crate consumption in `substrate`

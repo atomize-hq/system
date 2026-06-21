@@ -7,7 +7,7 @@ Spec reference: [handbook-published-crates-and-substrate-consumption-spec.md](./
 This follow-on is a four-lane execution sequence:
 
 ```text
-Lane 1: Manifest + packaging hardening in system
+Lane 1: Manifest hardening in system
     ↓
 Lane 2: Physical public-boundary hardening in system
     ↓
@@ -17,41 +17,42 @@ Lane 4: Published-crate consumption in substrate
 ```
 
 The order is intentional:
-- publication metadata and dependency versioning must exist before dry-runs can pass
+- publication metadata and dependency versioning must exist before the release session can stage dry-runs and publication honestly
 - physical public-surface hardening must land before publication, otherwise crates.io would freeze the wrong API
+- dependent-crate dry-runs are registry-resolved checks, so they belong with the staged release choreography after `handbook-engine` publication, not as Packet 1.2 acceptance
 - actual publication must happen before downstream substrate can honestly prove published-crate consumption
 
-## Lane 1: Manifest + Packaging Hardening
+## Lane 1: Manifest Hardening
 
 ### Goal
 
-Make the three crate manifests structurally publishable.
+Make the three crate manifests structurally publishable and remove manifest-only blockers.
 
 ### Current State (live repo truth, 2026-06-21)
 
-- `handbook-engine` packages successfully, but Cargo warns that the manifest has no description/documentation/homepage/repository metadata.
-- `handbook-pipeline` fails `cargo package` because `handbook-engine` is declared as `path = "../engine"` with no version.
-- `handbook-flow` fails `cargo package` for the same reason.
-- The Phase 6 docs already landed `license = "MIT"`, so the license prerequisite is no longer the blocker.
+- The first-wave metadata baseline is now present in `handbook-engine`, `handbook-pipeline`, and `handbook-flow`.
+- `handbook-engine` packages successfully.
+- `handbook-pipeline` and `handbook-flow` now declare `handbook-engine` as `version + path` during local development.
+- `cargo package -p handbook-pipeline --allow-dirty` and `cargo package -p handbook-flow --allow-dirty` no longer fail on a missing dependency version; the remaining failure is that `handbook-engine` is not yet published/resolvable from the crates.io index.
 
 ### Components
 
 1. **Manifest metadata hardening**
-   - add the minimum metadata needed for first-wave publication
-   - decide whether readme/homepage/documentation URLs are required now or can stay minimal
+   - keep the minimum metadata needed for first-wave publication honest
+   - defer optional publication polish (`readme`, `keywords`, `categories`) unless a later packet explicitly pulls it in
 
 2. **Versioned internal dependency contract**
-   - convert intra-workspace handbook dependencies to publishable `version + path` declarations
-   - record the coordinated versioning policy for the first release wave
+   - keep intra-workspace handbook dependencies in publishable `version + path` form
+   - treat removal of the missing-version failure as the Packet 1.2 completion condition
 
-3. **Packaging wall**
-   - all three crates must pass `cargo package`
-   - all three crates must pass `cargo publish --dry-run`
+3. **Registry-resolved release proof handoff**
+   - do not require dependent-crate dry-runs or successful dependent packaging as a standalone Lane 1 proof
+   - carry the remaining crates.io-resolution proof into Lane 3's staged release choreography
 
 ### Risks
 
-- Cargo packaging may surface missing metadata, package-content surprises, or publish-specific dependency issues not visible in workspace builds.
-- If internal version coordination is sloppy, the first release wave may publish an incoherent set of crate versions.
+- Cargo packaging can still surface real manifest or package-content issues, so Lane 1 must distinguish manifest blockers from later registry-resolution blockers honestly.
+- If internal version coordination drifts from the release contract, the first release wave may publish an incoherent set of crate versions.
 
 ### Verification Checkpoint
 
@@ -59,10 +60,12 @@ Make the three crate manifests structurally publishable.
 cargo package -p handbook-engine --allow-dirty
 cargo package -p handbook-pipeline --allow-dirty
 cargo package -p handbook-flow --allow-dirty
-cargo publish --dry-run -p handbook-engine
-cargo publish --dry-run -p handbook-pipeline
-cargo publish --dry-run -p handbook-flow
 ```
+
+Interpretation:
+- `handbook-engine` should pass.
+- `handbook-pipeline` and `handbook-flow` may still fail before release execution, but only because Cargo cannot yet resolve the published `handbook-engine` version from crates.io.
+- A missing dependency version is no longer an acceptable failure mode after Packet 1.2.
 
 ## Lane 2: Physical Public-Boundary Hardening
 
@@ -87,7 +90,8 @@ Make the actual published Rust surfaces match the intended supported contract.
    - or activate the optional engine boundary freeze before publication
 
 3. **Flow publication revalidation**
-   - confirm that the publishable flow surface still matches the cleaned consumer contract once manifests and versions are publication-ready
+   - confirm that the publishable flow surface still matches the cleaned consumer contract once manifest hardening lands
+   - keep registry-resolved dry-run proof for flow in Lane 3 rather than this lane
 
 ### Risks
 
@@ -126,23 +130,28 @@ Define and execute the first crates.io release wave without guessing.
    - define engine → pipeline → flow publish order
    - define the dependency pin policy (`version`, exact pin, or compatible range) for intra-wave coordination
 
-2. **Dry-run wall**
-   - after Lane 1 + Lane 2 land, all three crates pass `cargo publish --dry-run`
+2. **Staged dry-run sequence**
+   - run `cargo publish --dry-run -p handbook-engine` before the first real publish
+   - publish `handbook-engine`
+   - wait until the chosen `handbook-engine` version is resolvable from crates.io
+   - then run `cargo publish --dry-run -p handbook-pipeline` and `cargo publish --dry-run -p handbook-flow`
 
 3. **Real publication step**
-   - publish `handbook-engine`
-   - then `handbook-pipeline`
+   - publish `handbook-pipeline`
    - then `handbook-flow`
    - record exact published versions and any release notes/checklist items needed for downstream consumers
 
 ### Risks
 
-- crates.io publication is irreversible for each version, so dry-run evidence must be complete before the real publish step.
-- If engine publishes but pipeline/flow still fail dry-run or depend on the wrong engine version, the release train becomes inconsistent.
+- crates.io publication is irreversible for each version, so the release contract must define the staged dry-run / publish order explicitly.
+- If the crates.io index lags after engine publication, the dependent dry-runs may fail transiently even when the manifests are correct.
+- If pipeline/flow depend on the wrong engine version, the release train becomes inconsistent.
 
 ### Verification Checkpoint
 
-- Human review of the publish checklist and dry-run evidence before the first real `cargo publish`.
+- Human review of the publish checklist before the first real `cargo publish`.
+- `cargo publish --dry-run -p handbook-engine` succeeds before engine publication.
+- After engine publication, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` only once the published engine version is resolvable.
 - After publication, crates.io versions must match the documented release contract.
 
 ## Lane 4: Published-Crate Consumption in Substrate
@@ -192,20 +201,20 @@ cargo tree -p handbook-flow
 ## Cross-Lane Dependencies
 
 ```text
-Lane 1 (publishable manifests) ─────► Lane 2 (publishable public surfaces)
-Lane 2 (boundary hardening) ────────► Lane 3 (dry-run + publish)
-Lane 3 (real publish) ──────────────► Lane 4 (published-crate substrate consumption)
+Lane 1 (manifest hardening) ───────► Lane 2 (publishable public surfaces)
+Lane 1 + Lane 2 ───────────────────► Lane 3 (release contract → staged dry-runs → publish)
+Lane 3 (real publish) ─────────────► Lane 4 (published-crate substrate consumption)
 ```
 
 Notes:
-- Lane 2 can start some review work in parallel with Lane 1, but real dry-runs should wait until both are done.
+- Lane 2 can start some review work in parallel with Lane 1, but the release-session dry-runs should wait until both lanes are done.
 - Lane 4 should not claim success until Lane 3 has produced real published versions.
 
 ## Execution Summary
 
 | Lane | Status | Blocks next lane? | Est. effort |
 |------|--------|-------------------|-------------|
-| 1 | Not started | Yes | One focused system-repo session |
+| 1 | Packets 1.1-1.2 landed; remaining proof handed to Lane 3 | Yes | Mostly already landed docs/manifests |
 | 2 | Not started | Yes | One or more system-repo sessions |
-| 3 | Not started | Yes | One release session after dry-runs are green |
+| 3 | Not started | Yes | One staged release session after Lane 2 is green |
 | 4 | Not started | — | One substrate integration session |
