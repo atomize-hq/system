@@ -202,11 +202,13 @@ fn ingest_issue_for_path(
 fn build_required_baseline_blockers(
     manifest: &ArtifactManifest,
     baseline_validations: &[BaselineArtifactValidation],
+    contract: CanonicalLayoutContract,
 ) -> Vec<ResolverBlocker> {
     build_baseline_blockers(
         manifest,
         baseline_validations,
         BaselineBlockerScope::RequiredOnly,
+        contract,
     )
 }
 
@@ -214,6 +216,7 @@ fn build_baseline_blockers(
     manifest: &ArtifactManifest,
     baseline_validations: &[BaselineArtifactValidation],
     scope: BaselineBlockerScope,
+    contract: CanonicalLayoutContract,
 ) -> Vec<ResolverBlocker> {
     let mut blockers = Vec::new();
 
@@ -243,7 +246,7 @@ fn build_baseline_blockers(
             subject: ResolverSubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "missing canonical handbook root".to_string(),
+            summary: system_root_summary(contract, SystemRootStatus::Missing),
             next_safe_action: ResolverNextSafeAction::RunSetup,
         }),
         SystemRootStatus::NotDir => blockers.push(ResolverBlocker {
@@ -251,7 +254,7 @@ fn build_baseline_blockers(
             subject: ResolverSubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "canonical handbook root is not a directory".to_string(),
+            summary: system_root_summary(contract, SystemRootStatus::NotDir),
             next_safe_action: ResolverNextSafeAction::RunSetup,
         }),
         SystemRootStatus::SymlinkNotAllowed => blockers.push(ResolverBlocker {
@@ -259,7 +262,7 @@ fn build_baseline_blockers(
             subject: ResolverSubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "canonical handbook root must not be a symlink".to_string(),
+            summary: system_root_summary(contract, SystemRootStatus::SymlinkNotAllowed),
             next_safe_action: ResolverNextSafeAction::RunSetup,
         }),
     }
@@ -676,16 +679,13 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
     } else {
         Vec::new()
     };
-    let mut fixture_context = fixture_context_for(
+    let fixture_context = fixture_context_for(
         repo_root,
         request.packet_id,
         artifacts,
         baseline_validations,
+        contract,
     );
-    if let Some(context) = fixture_context.as_mut() {
-        context.fixture_basis_root =
-            fixture_basis_root_for(contract, context.fixture_set_id.as_str());
-    }
 
     let summary_line = if selection_status == PacketSelectionStatus::Selected {
         let fixture_suffix = fixture_context
@@ -1079,6 +1079,7 @@ fn fixture_context_for(
     packet_id: &str,
     artifacts: &CanonicalArtifacts,
     baseline_validations: &[BaselineArtifactValidation],
+    contract: CanonicalLayoutContract,
 ) -> Option<PacketFixtureContext> {
     if packet_variant_for(packet_id) != PacketVariant::ExecutionDemo {
         return None;
@@ -1102,11 +1103,9 @@ fn fixture_context_for(
         return None;
     }
 
-    let fixture_basis_root = format!("tests/fixtures/execution_demo/{fixture_set_id}/.handbook/");
-
     Some(PacketFixtureContext {
+        fixture_basis_root: fixture_basis_root_for(contract, fixture_set_id.as_str()),
         fixture_set_id,
-        fixture_basis_root,
         fixture_lineage: present_fixture_sources_for(artifacts, baseline_validations),
     })
 }
@@ -1117,6 +1116,23 @@ fn next_safe_action_for_ready_packet(variant: PacketVariant) -> ReadyPacketNextS
             ReadyPacketNextSafeAction::InspectProof
         }
         PacketVariant::ExecutionLive => ReadyPacketNextSafeAction::RunDoctor,
+    }
+}
+
+fn system_root_summary(
+    contract: CanonicalLayoutContract,
+    status: SystemRootStatus,
+) -> String {
+    let system_root = contract.system_root_relative();
+    match status {
+        SystemRootStatus::Ok => "canonical root is available".to_string(),
+        SystemRootStatus::Missing => format!("missing canonical root `{system_root}`"),
+        SystemRootStatus::NotDir => {
+            format!("canonical root `{system_root}` is not a directory")
+        }
+        SystemRootStatus::SymlinkNotAllowed => {
+            format!("canonical root `{system_root}` must not be a symlink")
+        }
     }
 }
 
@@ -1224,7 +1240,7 @@ fn compute_refusal(
         SystemRootStatus::Missing => {
             return Some(ResolverRefusal {
                 category: ResolverRefusalCategory::SystemRootMissing,
-                summary: "missing canonical handbook root".to_string(),
+                summary: system_root_summary(contract, SystemRootStatus::Missing),
                 broken_subject: ResolverSubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -1234,7 +1250,7 @@ fn compute_refusal(
         SystemRootStatus::NotDir => {
             return Some(ResolverRefusal {
                 category: ResolverRefusalCategory::SystemRootNotDir,
-                summary: "canonical handbook root is not a directory".to_string(),
+                summary: system_root_summary(contract, SystemRootStatus::NotDir),
                 broken_subject: ResolverSubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -1244,7 +1260,7 @@ fn compute_refusal(
         SystemRootStatus::SymlinkNotAllowed => {
             return Some(ResolverRefusal {
                 category: ResolverRefusalCategory::SystemRootSymlinkNotAllowed,
-                summary: "canonical handbook root must not be a symlink".to_string(),
+                summary: system_root_summary(contract, SystemRootStatus::SymlinkNotAllowed),
                 broken_subject: ResolverSubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -1419,7 +1435,7 @@ fn compute_blockers(
     request: &ResolveRequest,
     contract: CanonicalLayoutContract,
 ) -> Vec<ResolverBlocker> {
-    let mut blockers = build_required_baseline_blockers(manifest, baseline_validations);
+    let mut blockers = build_required_baseline_blockers(manifest, baseline_validations, contract);
 
     if blockers.is_empty() {
         for artifact in &manifest.artifacts {
