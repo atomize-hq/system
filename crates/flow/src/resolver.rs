@@ -243,7 +243,7 @@ fn build_baseline_blockers(
             subject: ResolverSubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "missing canonical .handbook root".to_string(),
+            summary: "missing canonical handbook root".to_string(),
             next_safe_action: ResolverNextSafeAction::RunSetup,
         }),
         SystemRootStatus::NotDir => blockers.push(ResolverBlocker {
@@ -251,7 +251,7 @@ fn build_baseline_blockers(
             subject: ResolverSubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "canonical .handbook root is not a directory".to_string(),
+            summary: "canonical handbook root is not a directory".to_string(),
             next_safe_action: ResolverNextSafeAction::RunSetup,
         }),
         SystemRootStatus::SymlinkNotAllowed => blockers.push(ResolverBlocker {
@@ -259,7 +259,7 @@ fn build_baseline_blockers(
             subject: ResolverSubjectRef::Policy {
                 policy_id: "system_root",
             },
-            summary: "canonical .handbook root must not be a symlink".to_string(),
+            summary: "canonical handbook root must not be a symlink".to_string(),
             next_safe_action: ResolverNextSafeAction::RunSetup,
         }),
     }

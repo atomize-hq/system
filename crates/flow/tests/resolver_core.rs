@@ -216,6 +216,15 @@ fn flow_resolver_blocks_missing_non_default_system_root_without_default_wording(
         "custom-contract system-root refusal should not fall back to default wording: {:?}",
         refusal.summary
     );
+    assert!(result.blockers.iter().any(|blocker| {
+        blocker.category == handbook_flow::ResolverBlockerCategory::SystemRootMissing
+            && blocker.summary == "missing canonical handbook root"
+            && !blocker.summary.contains(".handbook")
+            && blocker.subject == ResolverSubjectRef::Policy {
+                policy_id: "system_root",
+            }
+            && blocker.next_safe_action == ResolverNextSafeAction::RunSetup
+    }));
 }
 
 #[test]
