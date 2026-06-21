@@ -700,3 +700,56 @@ fn flow_resolver_builds_fixture_context_for_execution_demo_packets() {
         ReadyPacketNextSafeAction::InspectProof
     );
 }
+
+#[test]
+fn flow_resolver_builds_honest_fixture_context_for_non_default_execution_demo_contracts() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().join("tests/fixtures/execution_demo/custom");
+
+    write_file(
+        &root.join(custom_handbook_path("charter/CHARTER.md")),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(custom_handbook_path("project_context/PROJECT_CONTEXT.md")),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(custom_handbook_path("environment_inventory/ENVIRONMENT_INVENTORY.md")),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(custom_handbook_path("feature_spec/FEATURE_SPEC.md")),
+        b"demo feature body",
+    );
+
+    let result = resolve_with_contract(
+        &root,
+        ResolveRequest {
+            packet_id: "execution.demo.packet",
+            ..ResolveRequest::default()
+        },
+        non_default_contract(),
+    )
+    .expect("resolve");
+
+    assert!(result.packet_result.is_ready());
+    let fixture_context = result
+        .packet_result
+        .fixture_context
+        .as_ref()
+        .expect("fixture context");
+    assert_eq!(fixture_context.fixture_set_id, "custom");
+    assert_eq!(
+        fixture_context.fixture_basis_root,
+        "tests/fixtures/execution_demo/custom/.custom_handbook/"
+    );
+    assert_eq!(fixture_context.fixture_lineage.len(), 4);
+    assert!(
+        result
+            .packet_result
+            .sections
+            .iter()
+            .all(|section| section.canonical_repo_relative_path.starts_with(".custom_handbook/"))
+    );
+}

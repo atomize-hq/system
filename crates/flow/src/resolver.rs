@@ -599,6 +599,7 @@ pub fn resolve_with_contract(
 
     let packet_result = build_packet_result(BuildPacketResultInput {
         repo_root,
+        contract,
         request: &request,
         artifacts: &canonical_artifacts,
         manifest: &manifest,
@@ -630,6 +631,7 @@ pub fn resolve_with_contract(
 
 struct BuildPacketResultInput<'a> {
     repo_root: &'a Path,
+    contract: CanonicalLayoutContract,
     request: &'a ResolveRequest,
     artifacts: &'a CanonicalArtifacts,
     manifest: &'a ArtifactManifest,
@@ -645,6 +647,7 @@ struct BuildPacketResultInput<'a> {
 fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
     let BuildPacketResultInput {
         repo_root,
+        contract,
         request,
         artifacts,
         manifest,
@@ -673,12 +676,16 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
     } else {
         Vec::new()
     };
-    let fixture_context = fixture_context_for(
+    let mut fixture_context = fixture_context_for(
         repo_root,
         request.packet_id,
         artifacts,
         baseline_validations,
     );
+    if let Some(context) = fixture_context.as_mut() {
+        context.fixture_basis_root =
+            fixture_basis_root_for(contract, context.fixture_set_id.as_str());
+    }
 
     let summary_line = if selection_status == PacketSelectionStatus::Selected {
         let fixture_suffix = fixture_context
@@ -1057,6 +1064,16 @@ fn summarize_artifact(artifact: &CanonicalArtifact) -> String {
     format!(
         "budget summary: full contents omitted for {} ({} bytes, sha256={})",
         artifact.identity.relative_path, byte_len, sha256
+    )
+}
+
+fn fixture_basis_root_for(
+    contract: CanonicalLayoutContract,
+    fixture_set_id: &str,
+) -> String {
+    format!(
+        "tests/fixtures/execution_demo/{fixture_set_id}/{}/",
+        contract.system_root_relative()
     )
 }
 
