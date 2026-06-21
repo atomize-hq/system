@@ -554,7 +554,13 @@ pub fn resolve_with_contract(
         }
     }
 
-    let refusal = compute_refusal(&manifest, &baseline_validations, &budget_outcome, &request);
+    let refusal = compute_refusal(
+        &manifest,
+        &baseline_validations,
+        &budget_outcome,
+        &request,
+        contract,
+    );
     if let Some(refusal) = &refusal {
         decision_log_entries.push(format!(
             "refusal category={:?} broken_subject={:?} next_safe_action={:?}",
@@ -562,7 +568,13 @@ pub fn resolve_with_contract(
         ));
     }
 
-    let blockers = compute_blockers(&manifest, &baseline_validations, &budget_outcome, &request);
+    let blockers = compute_blockers(
+        &manifest,
+        &baseline_validations,
+        &budget_outcome,
+        &request,
+        contract,
+    );
     for blocker in &blockers {
         decision_log_entries.push(format!(
             "blocker category={:?} subject={:?} next_safe_action={:?}",
@@ -1191,13 +1203,14 @@ fn compute_refusal(
     baseline_validations: &[BaselineArtifactValidation],
     budget_outcome: &BudgetOutcome,
     request: &ResolveRequest,
+    contract: CanonicalLayoutContract,
 ) -> Option<ResolverRefusal> {
     match manifest.system_root_status {
         SystemRootStatus::Ok => {}
         SystemRootStatus::Missing => {
             return Some(ResolverRefusal {
                 category: ResolverRefusalCategory::SystemRootMissing,
-                summary: "missing canonical .handbook root".to_string(),
+                summary: "missing canonical handbook root".to_string(),
                 broken_subject: ResolverSubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -1207,7 +1220,7 @@ fn compute_refusal(
         SystemRootStatus::NotDir => {
             return Some(ResolverRefusal {
                 category: ResolverRefusalCategory::SystemRootNotDir,
-                summary: "canonical .handbook root is not a directory".to_string(),
+                summary: "canonical handbook root is not a directory".to_string(),
                 broken_subject: ResolverSubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -1217,7 +1230,7 @@ fn compute_refusal(
         SystemRootStatus::SymlinkNotAllowed => {
             return Some(ResolverRefusal {
                 category: ResolverRefusalCategory::SystemRootSymlinkNotAllowed,
-                summary: "canonical .handbook root must not be a symlink".to_string(),
+                summary: "canonical handbook root must not be a symlink".to_string(),
                 broken_subject: ResolverSubjectRef::Policy {
                     policy_id: "system_root",
                 },
@@ -1304,7 +1317,7 @@ fn compute_refusal(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => default_canonical_layout_contract().system_root_relative(),
+            None => contract.system_root_relative(),
         };
 
         return Some(ResolverRefusal {
@@ -1390,6 +1403,7 @@ fn compute_blockers(
     baseline_validations: &[BaselineArtifactValidation],
     budget_outcome: &BudgetOutcome,
     request: &ResolveRequest,
+    contract: CanonicalLayoutContract,
 ) -> Vec<ResolverBlocker> {
     let mut blockers = build_required_baseline_blockers(manifest, baseline_validations);
 
@@ -1460,7 +1474,7 @@ fn compute_blockers(
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
             }) => *canonical_repo_relative_path,
-            None => default_canonical_layout_contract().system_root_relative(),
+            None => contract.system_root_relative(),
         };
 
         blockers.push(ResolverBlocker {

@@ -4,7 +4,7 @@
 
 - Packet: **6.B.3 — Formalize Consumer Contract**.
 - Scope: `handbook-flow` import-boundary contract only; no production-code changes are part of this document.
-- Contract basis: live cleaned source inspected on **2026-06-17** in `crates/flow/src/{lib,budget,packet_result,resolver}.rs`, plus the caller-owned rendering seams in `crates/cli/src/rendering.rs` and `crates/compiler/src/rendering/shared.rs`.
+- Contract basis: live cleaned source inspected on **2026-06-20** in `crates/flow/src/{lib,budget,packet_result,resolver}.rs`, plus the caller-owned rendering seams in `crates/cli/src/rendering.rs` and `crates/compiler/src/rendering/shared.rs`.
 - Provenance: the preserved **Packet 6.B.1** evidence section remains below for audit history. Where that preserved evidence describes the pre-cleanup shell-leakage state, the contract sections above it are the current authority because they reflect the post-**6.B.2** live source.
 
 ## Packet 6.B.2 Cleanup Outcome Reference
@@ -14,6 +14,7 @@ Live source now reflects the narrow cleanup required before freezing this contra
 - `rg -n 'run \`doctor\`|handbook inspect --packet|handbook generate --packet|handbook setup' crates/flow/src/` returned zero matches, so `handbook-flow` no longer exposes final shell command strings or product-shell wording directly from `crates/flow/src/`.
 - `crates/flow/src/packet_result.rs` now keeps ready-path next-step semantics typed as `ReadyPacketNextSafeAction`, and `PacketDecisionSummary.ready_next_safe_action` is that enum rather than a rendered `String`.
 - `crates/flow/src/resolver.rs` still exposes typed refusal/blocker semantics through `ResolverNextSafeAction`, `ResolverRefusalCategory`, `ResolverBlockerCategory`, and `PacketSelectionStatus`.
+- `crates/flow/src/resolver.rs` now also exposes the additive `resolve_with_contract(...)` import-facing seam so downstream callers can supply the engine-owned `CanonicalLayoutContract` without relying on the default handbook-product root.
 - `crates/cli/src/rendering.rs` and `crates/compiler/src/rendering/shared.rs` now own final shell wording by rendering those typed flow-side enums into operator-facing copy.
 - `flow_contract_version() -> &'static str` delegates to `handbook_engine::workspace_contract_version()`.
 
@@ -23,7 +24,7 @@ Live source now reflects the narrow cleanup required before freezing this contra
 
 - `budget`: `evaluate_budget`, `BudgetDisposition`, `BudgetOutcome`, `BudgetPolicy`, `BudgetReason`, `BudgetTarget`, `NextSafeAction`
 - `packet_result`: `PacketBodyNote`, `PacketBodyNoteKind`, `PacketDecisionSummary`, `PacketFixtureContext`, `PacketResult`, `PacketSection`, `PacketSectionMode`, `PacketSourceSummary`, `PacketVariant`, `ReadyPacketNextSafeAction`
-- `resolver`: `resolve`, `PacketSelection`, `PacketSelectionStatus`, `ResolveRequest`, `ResolverBlocker`, `ResolverBlockerCategory`, `ResolverNextSafeAction`, `ResolverRefusal`, `ResolverRefusalCategory`, `ResolverResult`, `ResolverSubjectRef`, `C04_RESULT_VERSION`
+- `resolver`: `resolve`, `resolve_with_contract`, `PacketSelection`, `PacketSelectionStatus`, `ResolveRequest`, `ResolverBlocker`, `ResolverBlockerCategory`, `ResolverNextSafeAction`, `ResolverRefusal`, `ResolverRefusalCategory`, `ResolverResult`, `ResolverSubjectRef`, `C04_RESULT_VERSION`
 - `flow_contract_version() -> &'static str`
 
 ### Exact public symbols and allowed transitive type dependencies
@@ -73,6 +74,7 @@ Live source now reflects the narrow cleanup required before freezing this contra
 | `PacketSelection` | `String`, `PacketSelectionStatus` | std + flow-local only |
 | `ResolverResult` | `String`, `u32`, `PacketResult`, `Vec<String>`, `BudgetOutcome`, `PacketSelection`, `Option<ResolverRefusal>`, `Vec<ResolverBlocker>` | engine-public + std + flow-local only |
 | `resolve(repo_root: impl AsRef<Path>, request: ResolveRequest) -> Result<ResolverResult, ManifestError>` | `AsRef<Path>`, `Path` from `std`; `ResolveRequest`, `ResolverResult` from flow; `ManifestError` from `handbook_engine` | engine-public + std + flow-local only |
+| `resolve_with_contract(repo_root: impl AsRef<Path>, request: ResolveRequest, contract: CanonicalLayoutContract) -> Result<ResolverResult, ManifestError>` | `AsRef<Path>`, `Path` from `std`; `ResolveRequest`, `ResolverResult` from flow; `CanonicalLayoutContract`, `ManifestError` from `handbook_engine` | engine-public + std + flow-local only |
 
 ### In-boundary typed semantics after Packet 6.B.2
 

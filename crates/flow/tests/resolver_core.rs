@@ -1,8 +1,8 @@
 use handbook_engine::CanonicalArtifactKind;
 use handbook_flow::{
-    resolve, BudgetDisposition, BudgetPolicy, PacketSectionMode, PacketSelectionStatus,
-    PacketVariant, ReadyPacketNextSafeAction, ResolveRequest, ResolverNextSafeAction,
-    ResolverRefusalCategory, ResolverSubjectRef,
+    resolve, resolve_with_contract, BudgetDisposition, BudgetPolicy, PacketSectionMode,
+    PacketSelectionStatus, PacketVariant, ReadyPacketNextSafeAction, ResolveRequest,
+    ResolverNextSafeAction, ResolverRefusalCategory, ResolverSubjectRef,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -160,6 +160,24 @@ fn oversized_valid_project_context_markdown() -> String {
     format!("{}\n{}", valid_project_context_markdown(), "x".repeat(256))
 }
 
+fn non_default_contract() -> handbook_engine::CanonicalLayoutContract {
+    handbook_engine::CanonicalLayoutContract::from_paths(
+        ".custom_handbook",
+        ".custom_handbook/charter",
+        ".custom_handbook/charter/CHARTER.md",
+        ".custom_handbook/project_context",
+        ".custom_handbook/project_context/PROJECT_CONTEXT.md",
+        ".custom_handbook/environment_inventory",
+        ".custom_handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
+        ".custom_handbook/feature_spec",
+        ".custom_handbook/feature_spec/FEATURE_SPEC.md",
+    )
+}
+
+fn custom_handbook_path(relative: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(".custom_handbook").join(relative)
+}
+
 #[test]
 fn flow_resolver_blocks_missing_system_root_with_typed_refusal() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -176,6 +194,27 @@ fn flow_resolver_blocks_missing_system_root_with_typed_refusal() {
     assert_eq!(
         result.refusal.as_ref().map(|refusal| refusal.category),
         Some(ResolverRefusalCategory::SystemRootMissing)
+    );
+}
+
+#[test]
+fn flow_resolver_blocks_missing_non_default_system_root_without_default_wording() {
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    let result = resolve_with_contract(
+        dir.path(),
+        ResolveRequest::default(),
+        non_default_contract(),
+    )
+    .expect("resolve");
+
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(refusal.category, ResolverRefusalCategory::SystemRootMissing);
+    assert_eq!(refusal.summary, "missing canonical handbook root");
+    assert!(
+        !refusal.summary.contains(".handbook"),
+        "custom-contract system-root refusal should not fall back to default wording: {:?}",
+        refusal.summary
     );
 }
 
@@ -235,6 +274,44 @@ fn flow_resolver_builds_ready_planning_packet_body() {
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
         ReadyPacketNextSafeAction::InspectProof
+    );
+}
+
+#[test]
+fn flow_resolver_builds_ready_planning_packet_body_with_non_default_contract() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(custom_handbook_path("charter/CHARTER.md")),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(custom_handbook_path("project_context/PROJECT_CONTEXT.md")),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(custom_handbook_path("feature_spec/FEATURE_SPEC.md")),
+        b"feature spec body",
+    );
+
+    let result = resolve_with_contract(root, ResolveRequest::default(), non_default_contract())
+        .expect("resolve");
+
+    assert!(result.packet_result.is_ready());
+    assert_eq!(result.packet_result.variant, PacketVariant::Planning);
+    assert_eq!(result.packet_result.included_sources.len(), 3);
+    assert_eq!(
+        result.packet_result.sections[0].canonical_repo_relative_path,
+        ".custom_handbook/charter/CHARTER.md"
+    );
+    assert_eq!(
+        result.packet_result.sections[1].canonical_repo_relative_path,
+        ".custom_handbook/project_context/PROJECT_CONTEXT.md"
+    );
+    assert_eq!(
+        result.packet_result.sections[2].canonical_repo_relative_path,
+        ".custom_handbook/feature_spec/FEATURE_SPEC.md"
     );
 }
 
@@ -438,6 +515,43 @@ fn flow_resolver_refuses_when_budget_is_exhausted() {
         refusal.next_safe_action,
         ResolverNextSafeAction::ReduceCanonicalArtifactSize { .. }
     ));
+}
+
+#[test]
+fn flow_resolver_budget_refusal_uses_non_default_contract_paths() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    write_file(
+        &root.join(custom_handbook_path("charter/CHARTER.md")),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_file(
+        &root.join(custom_handbook_path("feature_spec/FEATURE_SPEC.md")),
+        b"feature spec that is longer than one byte",
+    );
+
+    let result = resolve_with_contract(
+        root,
+        ResolveRequest {
+            budget_policy: BudgetPolicy {
+                max_total_bytes: None,
+                max_per_artifact_bytes: Some(1),
+            },
+            packet_id: "planning.packet",
+        },
+        non_default_contract(),
+    )
+    .expect("resolve");
+
+    let refusal = result.refusal.expect("refusal");
+    assert_eq!(refusal.category, ResolverRefusalCategory::BudgetRefused);
+    assert_eq!(
+        refusal.next_safe_action,
+        ResolverNextSafeAction::ReduceCanonicalArtifactSize {
+            canonical_repo_relative_path: ".custom_handbook/charter/CHARTER.md",
+        }
+    );
 }
 
 #[test]
