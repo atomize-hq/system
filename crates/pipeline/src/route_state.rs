@@ -2,10 +2,7 @@ use crate::declarative_roots::{
     profile_file as profile_repo_file, profile_root, runner_file as runner_repo_file, runner_root,
     PROFILES_ROOT_DISPLAY, RUNNERS_ROOT_DISPLAY,
 };
-use crate::layout::{
-    handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
-    RepoLayoutRoot,
-};
+use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
     load_selected_pipeline_definition, supported_route_state_variables, PipelineDefinition,
 };
@@ -25,6 +22,10 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+pub use crate::layout::{
+    handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
+};
 
 pub const ROUTE_STATE_SCHEMA_VERSION: &str = "m2-pipeline-state-v3";
 const LEGACY_ROUTE_STATE_SCHEMA_VERSION: &str = "m1-pipeline-state-v2";

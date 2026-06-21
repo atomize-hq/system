@@ -4,11 +4,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    build_route_basis, load_pipeline_definition, load_route_state_with_supported_variables,
-    persist_route_basis, resolve_pipeline_route, set_route_state, supported_route_state_variables,
-    PipelineCompileRefusal, PipelineCompileRefusalClassification, ResolvedPipelineRoute,
-    RouteBasisPersistOutcome, RouteStageReason, RouteState, RouteStateMutation,
-    RouteStateMutationOutcome, RouteStateRun, RouteVariables,
+    pipeline::{load_pipeline_definition, supported_route_state_variables},
+    pipeline_compile::{PipelineCompileRefusal, PipelineCompileRefusalClassification},
+    pipeline_route::{
+        resolve_pipeline_route, ResolvedPipelineRoute, RouteStageReason, RouteVariables,
+    },
+    route_state::{
+        build_route_basis, load_route_state_with_supported_variables, persist_route_basis,
+        set_route_state, RouteBasisPersistOutcome, RouteState, RouteStateMutation,
+        RouteStateMutationOutcome, RouteStateRun,
+    },
 };
 
 pub const FOUNDATION_INPUTS_PIPELINE_ID: &str = "pipeline.foundation_inputs";
@@ -122,7 +127,7 @@ pub fn pipeline_capture_cache_path(repo_root: &Path, capture_id: &str) -> PathBu
 pub fn load_foundation_inputs_definition(
     repo_root: &Path,
 ) -> (
-    handbook_pipeline::PipelineDefinition,
+    handbook_pipeline::pipeline::PipelineDefinition,
     std::collections::BTreeSet<String>,
 ) {
     let definition = load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")

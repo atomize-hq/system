@@ -7,19 +7,21 @@ use std::thread;
 use std::time::Duration;
 
 use handbook_pipeline::{
-    build_route_basis, effective_route_basis_run, load_pipeline_definition, load_route_state,
-    load_route_state_with_storage_layout, load_route_state_with_supported_variables,
-    load_route_state_with_supported_variables_and_storage_layout,
-    load_trusted_pipeline_session_with_storage_layout, persist_route_basis,
-    persist_route_basis_with_storage_layout, plan_runtime_state_reset_with_storage_layout,
-    resolve_pipeline_route,
-    route_state::{load_trusted_pipeline_session, TrustedPipelineSessionRefusal},
-    route_state_path_with_storage_layout, set_route_state, set_route_state_with_storage_layout,
-    supported_route_state_variables, PipelineStorageLayoutContract, RouteBasisPersistOutcome,
-    RouteBasisPersistRefusal, RouteBasisStageStatus, RouteState, RouteStateMutation,
-    RouteStateMutationOutcome, RouteStateMutationRefusal, RouteStateReadError,
-    RouteStateStoreError, RouteStateValue, RouteVariables, ROUTE_STATE_AUDIT_LIMIT,
-    ROUTE_STATE_SCHEMA_VERSION,
+    pipeline::{load_pipeline_definition, supported_route_state_variables},
+    pipeline_route::{resolve_pipeline_route, RouteVariables},
+    route_state::{
+        build_route_basis, effective_route_basis_run, load_route_state,
+        load_route_state_with_storage_layout, load_route_state_with_supported_variables,
+        load_route_state_with_supported_variables_and_storage_layout,
+        load_trusted_pipeline_session, load_trusted_pipeline_session_with_storage_layout,
+        persist_route_basis, persist_route_basis_with_storage_layout,
+        plan_runtime_state_reset_with_storage_layout, route_state_path_with_storage_layout,
+        set_route_state, set_route_state_with_storage_layout, PipelineStorageLayoutContract,
+        RouteBasisPersistOutcome, RouteBasisPersistRefusal, RouteBasisStageStatus, RouteState,
+        RouteStateMutation, RouteStateMutationOutcome, RouteStateMutationRefusal,
+        RouteStateReadError, RouteStateStoreError, RouteStateValue, TrustedPipelineSessionRefusal,
+        ROUTE_STATE_AUDIT_LIMIT, ROUTE_STATE_SCHEMA_VERSION,
+    },
 };
 
 fn write_file(path: &Path, contents: &str) {
@@ -143,7 +145,7 @@ fn route_basis_defaults_runner_and_profile_into_run_snapshot() {
     assert_eq!(route_basis.run.profile.as_deref(), Some("python-uv"));
     assert_eq!(
         route_basis.run.repo_root.as_deref(),
-        Some(handbook_pipeline::ROUTE_BASIS_REPO_ROOT_SENTINEL)
+        Some(handbook_pipeline::route_state::ROUTE_BASIS_REPO_ROOT_SENTINEL)
     );
     assert_eq!(
         route_basis.run,
@@ -194,7 +196,7 @@ fn persist_route_basis_accepts_defaulted_run_snapshot_against_unset_state_run() 
                     .route_basis
                     .as_ref()
                     .and_then(|basis| basis.run.repo_root.as_deref()),
-                Some(handbook_pipeline::ROUTE_BASIS_REPO_ROOT_SENTINEL)
+                Some(handbook_pipeline::route_state::ROUTE_BASIS_REPO_ROOT_SENTINEL)
             );
         }
         RouteBasisPersistOutcome::Refused(refusal) => {
@@ -418,11 +420,11 @@ fn trusted_pipeline_session_normalizes_repo_root_and_refuses_inactive_stage() {
     let session = load_trusted_pipeline_session(&repo_root, &definition).expect("trusted session");
     assert_eq!(
         session.route_state.run.repo_root.as_deref(),
-        Some(handbook_pipeline::ROUTE_BASIS_REPO_ROOT_SENTINEL)
+        Some(handbook_pipeline::route_state::ROUTE_BASIS_REPO_ROOT_SENTINEL)
     );
     assert_eq!(
         session.route_basis.run.repo_root.as_deref(),
-        Some(handbook_pipeline::ROUTE_BASIS_REPO_ROOT_SENTINEL)
+        Some(handbook_pipeline::route_state::ROUTE_BASIS_REPO_ROOT_SENTINEL)
     );
 
     let err = session
@@ -531,7 +533,7 @@ fn persist_route_basis_refuses_forged_route_status() {
         .iter_mut()
         .find(|stage| stage.stage_id == "stage.10_feature_spec")
         .expect("stage.10_feature_spec");
-    forged_stage.status = handbook_pipeline::RouteBasisStageStatus::Active;
+    forged_stage.status = handbook_pipeline::route_state::RouteBasisStageStatus::Active;
     forged_stage.reason = None;
 
     let outcome = persist_route_basis(&repo_root, &definition.header.id, route_basis)
@@ -579,7 +581,7 @@ fn build_route_basis_refuses_symlinked_runner_file() {
     let err = build_route_basis(&repo_root, &definition, &state, &route).expect_err("basis error");
 
     match &err {
-        handbook_pipeline::RouteBasisBuildError::ReadFailure { path, .. } => {
+        handbook_pipeline::route_state::RouteBasisBuildError::ReadFailure { path, .. } => {
             assert_eq!(path, &runner_file);
         }
         other => panic!("expected read failure, got {other:?}"),
@@ -618,7 +620,7 @@ fn build_route_basis_refuses_incomplete_default_profile_pack() {
     let err = build_route_basis(&repo_root, &definition, &state, &route).expect_err("basis error");
 
     match &err {
-        handbook_pipeline::RouteBasisBuildError::IncompleteSelectedProfilePack {
+        handbook_pipeline::route_state::RouteBasisBuildError::IncompleteSelectedProfilePack {
             profile_id,
             missing_files,
             ..
@@ -916,11 +918,11 @@ fn custom_storage_layout_trusted_session_loads_route_basis_from_custom_root() {
     assert_eq!(session.pipeline_id, definition.header.id);
     assert_eq!(
         session.route_state.run.repo_root.as_deref(),
-        Some(handbook_pipeline::ROUTE_BASIS_REPO_ROOT_SENTINEL)
+        Some(handbook_pipeline::route_state::ROUTE_BASIS_REPO_ROOT_SENTINEL)
     );
     assert_eq!(
         session.route_basis.run.repo_root.as_deref(),
-        Some(handbook_pipeline::ROUTE_BASIS_REPO_ROOT_SENTINEL)
+        Some(handbook_pipeline::route_state::ROUTE_BASIS_REPO_ROOT_SENTINEL)
     );
 }
 

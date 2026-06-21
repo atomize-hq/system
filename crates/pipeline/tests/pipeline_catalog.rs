@@ -1,9 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use handbook_pipeline::declarative_roots::{pipeline_root, profile_root};
 use handbook_pipeline::pipeline::SupportedTargetRegistry;
-use handbook_pipeline::{
+use handbook_pipeline::pipeline::{
     handbook_product_pipeline_declarative_roots, load_pipeline_catalog,
     load_pipeline_catalog_metadata, load_pipeline_definition, load_pipeline_selection_metadata,
     load_stage_compile_definition, render_pipeline_list, render_pipeline_show, CompileStageInput,
@@ -25,8 +24,8 @@ fn declarative_root_contract_preserves_handbook_defaults_and_derives_non_default
     assert_eq!(defaults.profile_root_relative(), "core/profiles");
     assert_eq!(defaults.runner_root_relative(), "core/runners");
     assert_eq!(defaults.stage_root_relative(), "core/stages");
-    assert_eq!(pipeline_root(), defaults.pipeline_root());
-    assert_eq!(profile_root(), defaults.profile_root());
+    assert_eq!(defaults.pipeline_root(), Path::new("core/pipelines"));
+    assert_eq!(defaults.profile_root(), Path::new("core/profiles"));
     assert_eq!(
         defaults.pipeline_file("foundation.yaml"),
         "core/pipelines/foundation.yaml"
@@ -951,7 +950,7 @@ stages:
         load_stage_compile_definition(root, &unrelated_pipeline, "stage.99_unrelated")
             .expect_err("unrelated stage compile definition should be broken");
     match broken_stage_err {
-        handbook_pipeline::CompileStageLoadError::ParseFrontMatter { .. } => {}
+        handbook_pipeline::pipeline::CompileStageLoadError::ParseFrontMatter { .. } => {}
         other => panic!("expected compile front-matter parse refusal, got {other:?}"),
     }
 

@@ -1,4 +1,4 @@
-use handbook_pipeline::{
+use handbook_pipeline::route_state::{
     handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
 };
 

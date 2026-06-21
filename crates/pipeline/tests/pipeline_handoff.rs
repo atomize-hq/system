@@ -5,13 +5,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    capture_pipeline_output, capture_pipeline_output_with_storage_layout,
-    emit_pipeline_handoff_bundle, emit_pipeline_handoff_bundle_with_storage_layout,
-    route_state_path_with_storage_layout, validate_pipeline_handoff_bundle,
-    validate_pipeline_handoff_bundle_with_storage_layout, PipelineCaptureRequest,
-    PipelineHandoffEmitRequest, PipelineHandoffManifest, PipelineHandoffRefusalClassification,
-    PipelineHandoffTrustClass, PipelineHandoffValidatedBundle,
-    PipelineHandoffValidationFailureClassification, PipelineStorageLayoutContract,
+    pipeline_capture::{
+        capture_pipeline_output, capture_pipeline_output_with_storage_layout,
+        PipelineCaptureRequest,
+    },
+    pipeline_handoff::{
+        emit_pipeline_handoff_bundle, emit_pipeline_handoff_bundle_with_storage_layout,
+        validate_pipeline_handoff_bundle, validate_pipeline_handoff_bundle_with_storage_layout,
+        PipelineHandoffEmitRequest, PipelineHandoffManifest, PipelineHandoffRefusalClassification,
+        PipelineHandoffTrustClass, PipelineHandoffValidatedBundle,
+        PipelineHandoffValidationFailureClassification,
+    },
+    route_state::{route_state_path_with_storage_layout, PipelineStorageLayoutContract},
 };
 
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;

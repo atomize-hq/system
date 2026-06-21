@@ -5,29 +5,32 @@ use std::fs;
 use std::path::Path;
 
 use handbook_pipeline::{
-    build_route_basis, compile_pipeline_stage, compile_pipeline_stage_with_runtime,
-    load_pipeline_definition, load_route_state_with_supported_variables, persist_route_basis,
-    render_pipeline_compile_explain, render_pipeline_compile_payload, resolve_pipeline_route,
-    set_route_state, supported_route_state_variables, PipelineCompileDocumentStatus,
-    PipelineCompileRefusalClassification, PipelineCompileRuntimeContext, RouteBasisPersistOutcome,
-    RouteStateMutation, RouteStateMutationOutcome, RouteVariables,
+    pipeline::{load_pipeline_definition, supported_route_state_variables, PipelineDefinition},
+    pipeline_compile::{
+        compile_pipeline_stage, compile_pipeline_stage_with_runtime,
+        render_pipeline_compile_explain, render_pipeline_compile_payload,
+        PipelineCompileDocumentStatus, PipelineCompileRefusalClassification,
+        PipelineCompileRuntimeContext,
+    },
+    pipeline_route::{resolve_pipeline_route, RouteVariables},
+    route_state::{
+        build_route_basis, load_route_state_with_supported_variables, persist_route_basis,
+        set_route_state, RouteBasisPersistOutcome, RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 
 const PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const STAGE_ID: &str = "stage.10_feature_spec";
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
 
-fn pipeline_definition(repo_root: &Path) -> handbook_pipeline::PipelineDefinition {
+fn pipeline_definition(repo_root: &Path) -> PipelineDefinition {
     load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture")
 }
 
 fn supported_variables(
     repo_root: &Path,
-) -> (
-    handbook_pipeline::PipelineDefinition,
-    std::collections::BTreeSet<String>,
-) {
+) -> (PipelineDefinition, std::collections::BTreeSet<String>) {
     let definition = pipeline_definition(repo_root);
     let supported_variables = supported_route_state_variables(&definition);
     (definition, supported_variables)

@@ -5,10 +5,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    capture_pipeline_output, emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle,
-    PipelineCaptureRequest, PipelineHandoffEmitRequest, PipelineHandoffManifest,
-    PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
-    PipelineHandoffValidatedBundle, PipelineHandoffValidationFailureClassification,
+    pipeline_capture::{capture_pipeline_output, PipelineCaptureRequest},
+    pipeline_handoff::{
+        emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle, PipelineHandoffEmitRequest,
+        PipelineHandoffManifest, PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
+        PipelineHandoffValidatedBundle, PipelineHandoffValidationFailureClassification,
+    },
 };
 
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;

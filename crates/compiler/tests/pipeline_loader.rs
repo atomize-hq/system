@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use handbook_pipeline::{
+use handbook_pipeline::pipeline::{
     load_pipeline_definition, ActivationOperator, ActivationValidationError, PipelineLoadError,
     PipelineValidationError, StageFileValidationError,
 };

@@ -33,7 +33,7 @@ fn pipeline_list() -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_pipeline::load_pipeline_catalog_metadata(&repo_root) {
+    let catalog = match handbook_pipeline::pipeline::load_pipeline_catalog_metadata(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -41,7 +41,10 @@ fn pipeline_list() -> ExitCode {
         }
     };
 
-    println!("{}", handbook_pipeline::render_pipeline_list(&catalog));
+    println!(
+        "{}",
+        handbook_pipeline::pipeline::render_pipeline_list(&catalog)
+    );
     ExitCode::SUCCESS
 }
 
@@ -55,20 +58,23 @@ fn pipeline_show(args: PipelineShowArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let selection = match handbook_pipeline::load_pipeline_selection_metadata(&repo_root, &args.id)
-    {
-        Ok(selection) => selection,
-        Err(handbook_pipeline::PipelineMetadataSelectionError::Catalog(err)) => {
-            println!("REFUSED: pipeline catalog error: {err}");
-            return ExitCode::from(1);
-        }
-        Err(handbook_pipeline::PipelineMetadataSelectionError::Lookup(err)) => {
-            println!("{}", render_pipeline_selector_refusal(err));
-            return ExitCode::from(1);
-        }
-    };
+    let selection =
+        match handbook_pipeline::pipeline::load_pipeline_selection_metadata(&repo_root, &args.id) {
+            Ok(selection) => selection,
+            Err(handbook_pipeline::pipeline::PipelineMetadataSelectionError::Catalog(err)) => {
+                println!("REFUSED: pipeline catalog error: {err}");
+                return ExitCode::from(1);
+            }
+            Err(handbook_pipeline::pipeline::PipelineMetadataSelectionError::Lookup(err)) => {
+                println!("{}", render_pipeline_selector_refusal(err));
+                return ExitCode::from(1);
+            }
+        };
 
-    println!("{}", handbook_pipeline::render_pipeline_show(&selection));
+    println!(
+        "{}",
+        handbook_pipeline::pipeline::render_pipeline_show(&selection)
+    );
     ExitCode::SUCCESS
 }
 
@@ -82,7 +88,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_pipeline::load_pipeline_catalog(&repo_root) {
+    let catalog = match handbook_pipeline::pipeline::load_pipeline_catalog(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -90,17 +96,18 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let pipeline = match handbook_pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
-        Ok(pipeline) => pipeline,
-        Err(err) => {
-            println!("{}", render_pipeline_selector_refusal(err));
-            return ExitCode::from(1);
-        }
-    };
+    let pipeline =
+        match handbook_pipeline::pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
+            Ok(pipeline) => pipeline,
+            Err(err) => {
+                println!("{}", render_pipeline_selector_refusal(err));
+                return ExitCode::from(1);
+            }
+        };
 
     let supported_variables =
-        handbook_pipeline::supported_route_state_variables(&pipeline.definition);
-    let state = match handbook_pipeline::load_route_state_with_supported_variables(
+        handbook_pipeline::pipeline::supported_route_state_variables(&pipeline.definition);
+    let state = match handbook_pipeline::route_state::load_route_state_with_supported_variables(
         &repo_root,
         &pipeline.definition.header.id,
         &supported_variables,
@@ -112,24 +119,27 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    let route_variables = match handbook_pipeline::RouteVariables::new(state.routing.clone()) {
-        Ok(variables) => variables,
-        Err(err) => {
-            println!("REFUSED: malformed route state variables: {err}");
-            return ExitCode::from(1);
-        }
-    };
-
-    let route =
-        match handbook_pipeline::resolve_pipeline_route(&pipeline.definition, &route_variables) {
-            Ok(route) => route,
+    let route_variables =
+        match handbook_pipeline::pipeline_route::RouteVariables::new(state.routing.clone()) {
+            Ok(variables) => variables,
             Err(err) => {
-                println!("REFUSED: route resolution error: {err}");
+                println!("REFUSED: malformed route state variables: {err}");
                 return ExitCode::from(1);
             }
         };
 
-    let route_basis = match handbook_pipeline::build_route_basis(
+    let route = match handbook_pipeline::pipeline_route::resolve_pipeline_route(
+        &pipeline.definition,
+        &route_variables,
+    ) {
+        Ok(route) => route,
+        Err(err) => {
+            println!("REFUSED: route resolution error: {err}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let route_basis = match handbook_pipeline::route_state::build_route_basis(
         &repo_root,
         &pipeline.definition,
         &state,
@@ -142,13 +152,13 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         }
     };
 
-    match handbook_pipeline::persist_route_basis(
+    match handbook_pipeline::route_state::persist_route_basis(
         &repo_root,
         &pipeline.definition.header.id,
         route_basis,
     ) {
-        Ok(handbook_pipeline::RouteBasisPersistOutcome::Applied(_)) => {}
-        Ok(handbook_pipeline::RouteBasisPersistOutcome::Refused(refusal)) => {
+        Ok(handbook_pipeline::route_state::RouteBasisPersistOutcome::Applied(_)) => {}
+        Ok(handbook_pipeline::route_state::RouteBasisPersistOutcome::Refused(refusal)) => {
             println!("REFUSED: route basis persistence refused: {refusal}");
             return ExitCode::from(1);
         }
@@ -163,7 +173,11 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         render_pipeline_resolve_output(
             &pipeline.definition.header.id,
             &state,
-            &handbook_pipeline::effective_route_basis_run(&repo_root, &pipeline.definition, &state),
+            &handbook_pipeline::route_state::effective_route_basis_run(
+                &repo_root,
+                &pipeline.definition,
+                &state
+            ),
             &route,
         )
     );
@@ -180,17 +194,21 @@ fn pipeline_compile(args: PipelineCompileArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    match handbook_pipeline::compile_pipeline_stage(&repo_root, &args.id, &args.stage) {
+    match handbook_pipeline::pipeline_compile::compile_pipeline_stage(
+        &repo_root,
+        &args.id,
+        &args.stage,
+    ) {
         Ok(result) => {
             if args.explain {
                 println!(
                     "{}",
-                    handbook_pipeline::render_pipeline_compile_explain(&result)
+                    handbook_pipeline::pipeline_compile::render_pipeline_compile_explain(&result)
                 );
             } else {
                 println!(
                     "{}",
-                    handbook_pipeline::render_pipeline_compile_payload(&result)
+                    handbook_pipeline::pipeline_compile::render_pipeline_compile_payload(&result)
                 );
             }
             ExitCode::SUCCESS
@@ -217,18 +235,25 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
 
     match args.command {
         Some(PipelineCaptureCommand::Apply(apply_args)) => {
-            match handbook_pipeline::apply_pipeline_capture(&repo_root, &apply_args.capture_id) {
+            match handbook_pipeline::pipeline_capture::apply_pipeline_capture(
+                &repo_root,
+                &apply_args.capture_id,
+            ) {
                 Ok(result) => {
                     println!(
                         "{}",
-                        handbook_pipeline::render_pipeline_capture_apply_result(&result)
+                        handbook_pipeline::pipeline_capture::render_pipeline_capture_apply_result(
+                            &result
+                        )
                     );
                     ExitCode::SUCCESS
                 }
                 Err(refusal) => {
                     println!(
                         "{}",
-                        handbook_pipeline::render_pipeline_capture_refusal(&refusal, None, None)
+                        handbook_pipeline::pipeline_capture::render_pipeline_capture_refusal(
+                            &refusal, None, None
+                        )
                     );
                     ExitCode::from(1)
                 }
@@ -250,25 +275,29 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                     return ExitCode::from(1);
                 }
             };
-            let request = handbook_pipeline::PipelineCaptureRequest {
+            let request = handbook_pipeline::pipeline_capture::PipelineCaptureRequest {
                 pipeline_selector: pipeline_id.to_string(),
                 stage_selector: stage_id.to_string(),
                 input: stdin,
             };
 
             if args.preview {
-                match handbook_pipeline::preview_pipeline_capture(&repo_root, &request) {
+                match handbook_pipeline::pipeline_capture::preview_pipeline_capture(
+                    &repo_root, &request,
+                ) {
                     Ok(preview) => {
                         println!(
                             "{}",
-                            handbook_pipeline::render_pipeline_capture_preview(&preview)
+                            handbook_pipeline::pipeline_capture::render_pipeline_capture_preview(
+                                &preview
+                            )
                         );
                         ExitCode::SUCCESS
                     }
                     Err(refusal) => {
                         println!(
                             "{}",
-                            handbook_pipeline::render_pipeline_capture_refusal(
+                            handbook_pipeline::pipeline_capture::render_pipeline_capture_refusal(
                                 &refusal,
                                 Some(pipeline_id),
                                 Some(stage_id),
@@ -278,18 +307,20 @@ fn pipeline_capture(args: PipelineCaptureArgs) -> ExitCode {
                     }
                 }
             } else {
-                match handbook_pipeline::capture_pipeline_output(&repo_root, &request) {
+                match handbook_pipeline::pipeline_capture::capture_pipeline_output(
+                    &repo_root, &request,
+                ) {
                     Ok(result) => {
                         println!(
                             "{}",
-                            handbook_pipeline::render_pipeline_capture_apply_result(&result)
+                            handbook_pipeline::pipeline_capture::render_pipeline_capture_apply_result(&result)
                         );
                         ExitCode::SUCCESS
                     }
                     Err(refusal) => {
                         println!(
                             "{}",
-                            handbook_pipeline::render_pipeline_capture_refusal(
+                            handbook_pipeline::pipeline_capture::render_pipeline_capture_refusal(
                                 &refusal,
                                 Some(pipeline_id),
                                 Some(stage_id),
@@ -322,10 +353,10 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
                 Err(err) => {
                     println!(
                             "{}",
-                            handbook_pipeline::render_pipeline_handoff_refusal(
-                                &handbook_pipeline::PipelineHandoffRefusal {
+                            handbook_pipeline::pipeline_handoff::render_pipeline_handoff_refusal(
+                                &handbook_pipeline::pipeline_handoff::PipelineHandoffRefusal {
                                     classification:
-                                        handbook_pipeline::PipelineHandoffRefusalClassification::InvalidState,
+                                        handbook_pipeline::pipeline_handoff::PipelineHandoffRefusalClassification::InvalidState,
                                     summary: format!(
                                         "failed to load supported target registry: {err}"
                                     ),
@@ -340,7 +371,7 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
                     return ExitCode::from(1);
                 }
             };
-            let request = handbook_pipeline::PipelineHandoffEmitRequest {
+            let request = handbook_pipeline::pipeline_handoff::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
                 producer_command: pipeline_help::render_supported_handoff_emit_command(
@@ -348,11 +379,15 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
                 ),
                 producer_version: RELEASE_VERSION.to_string(),
             };
-            match handbook_pipeline::emit_pipeline_handoff_bundle(&repo_root, &request) {
+            match handbook_pipeline::pipeline_handoff::emit_pipeline_handoff_bundle(
+                &repo_root, &request,
+            ) {
                 Ok(result) => {
                     println!(
                         "{}",
-                        handbook_pipeline::render_pipeline_handoff_emit_result(&result)
+                        handbook_pipeline::pipeline_handoff::render_pipeline_handoff_emit_result(
+                            &result
+                        )
                     );
                     ExitCode::SUCCESS
                 }
@@ -369,12 +404,12 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
 }
 
 fn render_pipeline_handoff_refusal(
-    refusal: &handbook_pipeline::PipelineHandoffRefusal,
+    refusal: &handbook_pipeline::pipeline_handoff::PipelineHandoffRefusal,
     supported_target: &handbook_pipeline::pipeline::SupportedHandoffTarget,
 ) -> String {
     let mut refusal = refusal.clone();
     if refusal.classification
-        == handbook_pipeline::PipelineHandoffRefusalClassification::UnsupportedTarget
+        == handbook_pipeline::pipeline_handoff::PipelineHandoffRefusalClassification::UnsupportedTarget
         && refusal.recovery == "retry with the supported handoff emit command"
     {
         refusal.recovery = format!(
@@ -382,7 +417,7 @@ fn render_pipeline_handoff_refusal(
             pipeline_help::render_supported_handoff_emit_command(supported_target)
         );
     }
-    handbook_pipeline::render_pipeline_handoff_refusal(&refusal)
+    handbook_pipeline::pipeline_handoff::render_pipeline_handoff_refusal(&refusal)
 }
 
 fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
@@ -395,7 +430,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_pipeline::load_pipeline_catalog(&repo_root) {
+    let catalog = match handbook_pipeline::pipeline::load_pipeline_catalog(&repo_root) {
         Ok(catalog) => catalog,
         Err(err) => {
             println!("REFUSED: pipeline catalog error: {err}");
@@ -403,27 +438,29 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
         }
     };
 
-    let pipeline = match handbook_pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
-        Ok(pipeline) => pipeline,
-        Err(err) => {
-            println!("{}", render_pipeline_selector_refusal(err));
-            return ExitCode::from(1);
-        }
-    };
+    let pipeline =
+        match handbook_pipeline::pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
+            Ok(pipeline) => pipeline,
+            Err(err) => {
+                println!("{}", render_pipeline_selector_refusal(err));
+                return ExitCode::from(1);
+            }
+        };
 
     let supported_variables =
-        handbook_pipeline::supported_route_state_variables(&pipeline.definition);
-    let current_state = match handbook_pipeline::load_route_state_with_supported_variables(
-        &repo_root,
-        &pipeline.definition.header.id,
-        &supported_variables,
-    ) {
-        Ok(state) => state,
-        Err(err) => {
-            println!("REFUSED: {err}");
-            return ExitCode::from(1);
-        }
-    };
+        handbook_pipeline::pipeline::supported_route_state_variables(&pipeline.definition);
+    let current_state =
+        match handbook_pipeline::route_state::load_route_state_with_supported_variables(
+            &repo_root,
+            &pipeline.definition.header.id,
+            &supported_variables,
+        ) {
+            Ok(state) => state,
+            Err(err) => {
+                println!("REFUSED: {err}");
+                return ExitCode::from(1);
+            }
+        };
 
     let mutation = match parse_route_state_mutation(&args) {
         Ok(mutation) => mutation,
@@ -434,7 +471,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     let expected_revision = args.expected_revision.unwrap_or(current_state.revision);
-    let outcome = match handbook_pipeline::set_route_state(
+    let outcome = match handbook_pipeline::route_state::set_route_state(
         &repo_root,
         &pipeline.definition.header.id,
         supported_variables,
@@ -449,22 +486,22 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
 
     match outcome {
-        handbook_pipeline::RouteStateMutationOutcome::Applied(state) => {
+        handbook_pipeline::route_state::RouteStateMutationOutcome::Applied(state) => {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
                     &pipeline.definition.header.id,
-                    handbook_pipeline::RouteStateMutationOutcome::Applied(state),
+                    handbook_pipeline::route_state::RouteStateMutationOutcome::Applied(state),
                 )
             );
             ExitCode::SUCCESS
         }
-        handbook_pipeline::RouteStateMutationOutcome::Refused(refusal) => {
+        handbook_pipeline::route_state::RouteStateMutationOutcome::Refused(refusal) => {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
                     &pipeline.definition.header.id,
-                    handbook_pipeline::RouteStateMutationOutcome::Refused(refusal),
+                    handbook_pipeline::route_state::RouteStateMutationOutcome::Refused(refusal),
                 )
             );
             ExitCode::from(1)
@@ -472,18 +509,20 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     }
 }
 
-fn render_pipeline_selector_refusal(err: handbook_pipeline::PipelineLookupError) -> String {
+fn render_pipeline_selector_refusal(
+    err: handbook_pipeline::pipeline::PipelineLookupError,
+) -> String {
     match err {
-        handbook_pipeline::PipelineLookupError::AmbiguousSelector { selector, matches } => {
+        handbook_pipeline::pipeline::PipelineLookupError::AmbiguousSelector { selector, matches } => {
             format!(
                 "REFUSED: ambiguous selector `{selector}` matched multiple canonical ids: {}\nNEXT SAFE ACTION: use the full canonical id or rename the conflicting ids",
                 matches.join(", ")
             )
         }
-        handbook_pipeline::PipelineLookupError::UnknownSelector { selector } => format!(
+        handbook_pipeline::pipeline::PipelineLookupError::UnknownSelector { selector } => format!(
             "REFUSED: unknown pipeline selector `{selector}`; use a canonical id or `pipeline list` to inspect available inventory\nNEXT SAFE ACTION: run `pipeline list` and retry with the full canonical id"
         ),
-        handbook_pipeline::PipelineLookupError::UnsupportedSelector { selector, reason } => {
+        handbook_pipeline::pipeline::PipelineLookupError::UnsupportedSelector { selector, reason } => {
             let next_safe_action = if reason.contains("raw file paths are evidence only") {
                 "use `pipeline list` to inspect available inventory and retry with a canonical pipeline or stage id"
             } else {
@@ -498,7 +537,7 @@ fn render_pipeline_selector_refusal(err: handbook_pipeline::PipelineLookupError)
 }
 
 fn render_pipeline_compile_refusal(
-    refusal: handbook_pipeline::PipelineCompileRefusal,
+    refusal: handbook_pipeline::pipeline_compile::PipelineCompileRefusal,
     requested_pipeline_id: &str,
     requested_stage_id: &str,
 ) -> String {
@@ -530,42 +569,42 @@ fn render_pipeline_compile_refusal(
 }
 
 fn render_pipeline_compile_refusal_classification(
-    classification: handbook_pipeline::PipelineCompileRefusalClassification,
+    classification: handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification,
 ) -> &'static str {
     match classification {
-        handbook_pipeline::PipelineCompileRefusalClassification::UnsupportedTarget => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::UnsupportedTarget => {
             "unsupported_target"
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::InvalidDefinition => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InvalidDefinition => {
             "invalid_definition"
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
-        handbook_pipeline::PipelineCompileRefusalClassification::MissingRouteBasis => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InvalidState => "invalid_state",
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MissingRouteBasis => {
             "missing_route_basis"
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MalformedRouteBasis => {
             "malformed_route_basis"
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::StaleRouteBasis => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::StaleRouteBasis => {
             "stale_route_basis"
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
-        handbook_pipeline::PipelineCompileRefusalClassification::MissingRequiredInput => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InactiveStage => "inactive_stage",
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MissingRequiredInput => {
             "missing_required_input"
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::EmptyRequiredInput => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::EmptyRequiredInput => {
             "empty_required_input"
         }
     }
 }
 
 fn render_pipeline_compile_next_safe_action(
-    refusal: &handbook_pipeline::PipelineCompileRefusal,
+    refusal: &handbook_pipeline::pipeline_compile::PipelineCompileRefusal,
     pipeline_id: &str,
     stage_id: &str,
 ) -> String {
     match refusal.classification {
-        handbook_pipeline::PipelineCompileRefusalClassification::UnsupportedTarget => {
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::UnsupportedTarget => {
             if refusal
                 .recovery
                 .trim()
@@ -578,12 +617,12 @@ fn render_pipeline_compile_next_safe_action(
                 refusal.recovery.trim().to_string()
             }
         }
-        handbook_pipeline::PipelineCompileRefusalClassification::MissingRouteBasis
-        | handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis
-        | handbook_pipeline::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MissingRouteBasis
+        | handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MalformedRouteBasis
+        | handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::StaleRouteBasis => format!(
             "run `handbook pipeline resolve --id {pipeline_id}` and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
-        handbook_pipeline::PipelineCompileRefusalClassification::InactiveStage => format!(
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InactiveStage => format!(
             "run `handbook pipeline resolve --id {pipeline_id}`, adjust route state if needed, and then retry `handbook pipeline compile --id {pipeline_id} --stage {stage_id}`"
         ),
         _ => format!(
@@ -595,7 +634,7 @@ fn render_pipeline_compile_next_safe_action(
 
 fn parse_route_state_mutation(
     args: &PipelineStateSetArgs,
-) -> Result<handbook_pipeline::RouteStateMutation, String> {
+) -> Result<handbook_pipeline::route_state::RouteStateMutation, String> {
     match (&args.var, &args.field) {
         (Some(value), None) => parse_route_state_var_assignment(value),
         (None, Some(value)) => parse_route_state_field_assignment(value),
@@ -606,7 +645,7 @@ fn parse_route_state_mutation(
 
 fn parse_route_state_var_assignment(
     value: &str,
-) -> Result<handbook_pipeline::RouteStateMutation, String> {
+) -> Result<handbook_pipeline::route_state::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((name, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --var in name=value form".to_string());
@@ -628,15 +667,17 @@ fn parse_route_state_var_assignment(
         }
     };
 
-    Ok(handbook_pipeline::RouteStateMutation::RoutingVariable {
-        variable: name.to_string(),
-        value: parsed_value,
-    })
+    Ok(
+        handbook_pipeline::route_state::RouteStateMutation::RoutingVariable {
+            variable: name.to_string(),
+            value: parsed_value,
+        },
+    )
 }
 
 fn parse_route_state_field_assignment(
     value: &str,
-) -> Result<handbook_pipeline::RouteStateMutation, String> {
+) -> Result<handbook_pipeline::route_state::RouteStateMutation, String> {
     let trimmed = value.trim();
     let Some((field_path, raw_value)) = trimmed.split_once('=') else {
         return Err("expected --field in field.path=value form".to_string());
@@ -652,17 +693,17 @@ fn parse_route_state_field_assignment(
     }
 
     match field_path {
-        "run.runner" => Ok(handbook_pipeline::RouteStateMutation::RunRunner {
+        "run.runner" => Ok(handbook_pipeline::route_state::RouteStateMutation::RunRunner {
             value: raw_value.to_string(),
         }),
-        "run.profile" => Ok(handbook_pipeline::RouteStateMutation::RunProfile {
+        "run.profile" => Ok(handbook_pipeline::route_state::RouteStateMutation::RunProfile {
             value: raw_value.to_string(),
         }),
-        "refs.charter_ref" => Ok(handbook_pipeline::RouteStateMutation::RefCharterRef {
+        "refs.charter_ref" => Ok(handbook_pipeline::route_state::RouteStateMutation::RefCharterRef {
             value: raw_value.to_string(),
         }),
         "refs.project_context_ref" => {
-            Ok(handbook_pipeline::RouteStateMutation::RefProjectContextRef {
+            Ok(handbook_pipeline::route_state::RouteStateMutation::RefProjectContextRef {
                 value: raw_value.to_string(),
             })
         }
@@ -674,9 +715,9 @@ fn parse_route_state_field_assignment(
 
 fn render_pipeline_resolve_output(
     pipeline_id: &str,
-    state: &handbook_pipeline::RouteState,
-    effective_run: &handbook_pipeline::RouteStateRun,
-    route: &handbook_pipeline::ResolvedPipelineRoute,
+    state: &handbook_pipeline::route_state::RouteState,
+    effective_run: &handbook_pipeline::route_state::RouteStateRun,
+    route: &handbook_pipeline::pipeline_route::ResolvedPipelineRoute,
 ) -> String {
     let mut out = String::new();
     out.push_str("OUTCOME: RESOLVED\n");
@@ -729,20 +770,22 @@ fn render_optional_route_basis_field(out: &mut String, name: &str, value: Option
     }
 }
 
-fn render_route_stage_reason(reason: &handbook_pipeline::RouteStageReason) -> String {
+fn render_route_stage_reason(
+    reason: &handbook_pipeline::pipeline_route::RouteStageReason,
+) -> String {
     match reason {
-        handbook_pipeline::RouteStageReason::SkippedActivationFalse {
+        handbook_pipeline::pipeline_route::RouteStageReason::SkippedActivationFalse {
             unsatisfied_variables,
             ..
         } => format!(
             "activation evaluated false for variables: {}",
             unsatisfied_variables.join(", ")
         ),
-        handbook_pipeline::RouteStageReason::NextMissingRouteVariables {
+        handbook_pipeline::pipeline_route::RouteStageReason::NextMissingRouteVariables {
             missing_variables,
             ..
         } => format!("missing route variables: {}", missing_variables.join(", ")),
-        handbook_pipeline::RouteStageReason::BlockedByUnresolvedStage {
+        handbook_pipeline::pipeline_route::RouteStageReason::BlockedByUnresolvedStage {
             upstream_stage_id,
             upstream_status,
         } => format!(
@@ -755,11 +798,11 @@ fn render_route_stage_reason(reason: &handbook_pipeline::RouteStageReason) -> St
 
 fn render_pipeline_state_set_output(
     pipeline_id: &str,
-    outcome: handbook_pipeline::RouteStateMutationOutcome,
+    outcome: handbook_pipeline::route_state::RouteStateMutationOutcome,
 ) -> String {
     let mut out = String::new();
     match outcome {
-        handbook_pipeline::RouteStateMutationOutcome::Applied(state) => {
+        handbook_pipeline::route_state::RouteStateMutationOutcome::Applied(state) => {
             let state = *state;
             out.push_str("OUTCOME: APPLIED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
@@ -784,7 +827,7 @@ fn render_pipeline_state_set_output(
             render_optional_state_field(&mut out, "profile", state.run.profile.as_deref());
             render_optional_state_field(&mut out, "repo_root", state.run.repo_root.as_deref());
         }
-        handbook_pipeline::RouteStateMutationOutcome::Refused(refusal) => {
+        handbook_pipeline::route_state::RouteStateMutationOutcome::Refused(refusal) => {
             out.push_str("OUTCOME: REFUSED\n");
             out.push_str(&format!("PIPELINE: {pipeline_id}\n"));
             out.push_str(&format!("REASON: {}\n", refusal));

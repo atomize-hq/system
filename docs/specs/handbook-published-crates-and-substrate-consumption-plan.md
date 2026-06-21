@@ -77,7 +77,7 @@ Make the actual published Rust surfaces match the intended supported contract.
 
 - `handbook-flow` already has an explicit consumer contract and cleaned public surface.
 - `handbook-engine` currently looks narrow enough, but the Phase 6 docs still treated a stricter engine freeze as optional.
-- `handbook-pipeline` is not yet physically aligned with the documented frozen subset: `crates/pipeline/src/lib.rs` still publicly exposes `declarative_roots`, `setup`, and layout re-exports even though those are documented as out-of-boundary for first-wave import.
+- `handbook-pipeline` is now physically aligned with the documented frozen subset: `crates/pipeline/src/lib.rs` exposes only the approved first-wave modules plus `pipeline_contract_version()`, and callers/tests now consume those items through the approved module paths.
 
 ### Components
 
@@ -215,6 +215,6 @@ Notes:
 | Lane | Status | Blocks next lane? | Est. effort |
 |------|--------|-------------------|-------------|
 | 1 | Packets 1.1-1.2 landed; remaining proof handed to Lane 3 | Yes | Mostly already landed docs/manifests |
-| 2 | Not started | Yes | One or more system-repo sessions |
+| 2 | Packet 2.1 landed; Packets 2.2-2.3 remain | Yes | One or more system-repo sessions |
 | 3 | Not started | Yes | One staged release session after Lane 2 is green |
 | 4 | Not started | — | One substrate integration session |

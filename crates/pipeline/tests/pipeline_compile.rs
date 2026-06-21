@@ -5,28 +5,31 @@ use std::fs;
 use std::path::Path;
 
 use handbook_pipeline::{
-    build_route_basis, compile_pipeline_stage, compile_pipeline_stage_with_runtime,
-    load_pipeline_definition, load_route_state_with_supported_variables, persist_route_basis,
-    render_pipeline_compile_explain, render_pipeline_compile_payload, resolve_pipeline_route,
-    set_route_state, supported_route_state_variables, PipelineCompileRuntimeContext,
-    RouteBasisPersistOutcome, RouteStateMutation, RouteStateMutationOutcome, RouteVariables,
+    pipeline::{load_pipeline_definition, supported_route_state_variables, PipelineDefinition},
+    pipeline_compile::{
+        compile_pipeline_stage, compile_pipeline_stage_with_runtime,
+        render_pipeline_compile_explain, render_pipeline_compile_payload,
+        PipelineCompileRuntimeContext,
+    },
+    pipeline_route::{resolve_pipeline_route, RouteVariables},
+    route_state::{
+        build_route_basis, load_route_state_with_supported_variables, persist_route_basis,
+        set_route_state, RouteBasisPersistOutcome, RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 
 const PIPELINE_ID: &str = "pipeline.foundation_inputs";
 const STAGE_ID: &str = "stage.10_feature_spec";
 const FIXED_NOW_UTC: &str = "2026-01-28T18:35:10Z";
 
-fn pipeline_definition(repo_root: &Path) -> handbook_pipeline::PipelineDefinition {
+fn pipeline_definition(repo_root: &Path) -> PipelineDefinition {
     load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
         .expect("pipeline fixture")
 }
 
 fn supported_variables(
     repo_root: &Path,
-) -> (
-    handbook_pipeline::PipelineDefinition,
-    std::collections::BTreeSet<String>,
-) {
+) -> (PipelineDefinition, std::collections::BTreeSet<String>) {
     let definition = pipeline_definition(repo_root);
     let supported_variables = supported_route_state_variables(&definition);
     (definition, supported_variables)
@@ -321,7 +324,7 @@ fn compile_refuses_malformed_selected_pipeline_definition() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::InvalidDefinition
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InvalidDefinition
     );
     assert!(err.summary.contains("selected pipeline definition"));
 }
@@ -340,7 +343,7 @@ fn compile_refuses_malformed_selected_stage_definition() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::InvalidDefinition
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InvalidDefinition
     );
     assert!(err.summary.contains("must declare kind `stage`"));
 }
@@ -356,7 +359,7 @@ fn compile_refuses_missing_required_artifact() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::MissingRequiredInput
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MissingRequiredInput
     );
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
 }
@@ -380,7 +383,7 @@ fn compile_refuses_symlinked_required_artifact() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::InvalidState
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InvalidState
     );
     assert!(err.summary.contains("artifacts/base/BASE_CONTEXT.md"));
     assert!(!err.summary.contains("outside-secret"));
@@ -451,7 +454,7 @@ fn compile_refuses_when_required_variable_is_missing() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::MissingRequiredInput
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MissingRequiredInput
     );
     assert!(err
         .summary
@@ -477,7 +480,7 @@ fn compile_succeeds_when_optional_artifacts_are_absent() {
         result.documents.iter().any(|document| {
             document.path == "artifacts/project_context/PROJECT_CONTEXT.md"
                 && document.status
-                    == handbook_pipeline::PipelineCompileDocumentStatus::MissingOptional
+                    == handbook_pipeline::pipeline_compile::PipelineCompileDocumentStatus::MissingOptional
         }),
         "expected optional project-context artifact to be marked missing"
     );
@@ -575,7 +578,7 @@ fn compile_refuses_stage_not_declared_in_pipeline() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::UnsupportedTarget
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::UnsupportedTarget
     );
     assert!(err.summary.contains("unknown stage selector"));
     assert!(err.summary.contains("stage.10_feature_spec"));
@@ -651,7 +654,7 @@ fn compile_refuses_malformed_route_basis() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MalformedRouteBasis
     );
     assert!(err.summary.contains("route_basis"));
     assert!(err.recovery.contains("pipeline resolve"));
@@ -670,7 +673,7 @@ fn compile_keeps_non_route_basis_unknown_top_level_keys_as_invalid_state() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::InvalidState
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::InvalidState
     );
     assert_eq!(err.pipeline_id.as_deref(), Some(PIPELINE_ID));
     assert_eq!(err.stage_id.as_deref(), Some(STAGE_ID));
@@ -705,7 +708,7 @@ fn compile_refuses_forged_route_basis_status() {
 
     assert_eq!(
         err.classification,
-        handbook_pipeline::PipelineCompileRefusalClassification::MalformedRouteBasis
+        handbook_pipeline::pipeline_compile::PipelineCompileRefusalClassification::MalformedRouteBasis
     );
     pipeline_proof_corpus_support::assert_compile_refusal_matches_shared_golden(
         &err,

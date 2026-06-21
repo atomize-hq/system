@@ -20,7 +20,7 @@ This follow-on exists because live repo truth now shows a real gap between the c
 - `cargo package -p handbook-engine --allow-dirty` currently passes.
 - `handbook-pipeline` and `handbook-flow` now declare `handbook-engine` in publishable local-development form (`version + path`).
 - `cargo package -p handbook-pipeline --allow-dirty` and `cargo package -p handbook-flow --allow-dirty` no longer fail on a **missing dependency version**; they now fail because Cargo resolves `handbook-engine` through the crates.io index during packaging, and that crate version is not yet published/resolvable there.
-- `crates/pipeline/src/lib.rs` still publicly exposes items outside the documented frozen subset (`declarative_roots`, `setup`, and layout re-exports), so the published API surface is broader than the Phase 6 contract.
+- `crates/pipeline/src/lib.rs` now physically exposes only the documented first-wave boundary modules plus `pipeline_contract_version()`, so the published API no longer includes `declarative_roots`, `setup`, or layout re-exports at the crate root.
 - `docs/specs/handbook-substrate-import-adoption-plan.md` still recommends **workspace-member/path dependency** consumption, which is intentionally different from the published-crate consumption target for this follow-on.
 
 ## Tech Stack
@@ -109,7 +109,6 @@ handbook-engine = { version = "0.1.0", path = "../engine" }
 ```rust
 // publish only the boundary we intend to support
 mod declarative_roots;
-mod setup;
 pub mod pipeline;
 pub mod pipeline_capture;
 pub mod pipeline_compile;
@@ -117,7 +116,6 @@ pub mod pipeline_handoff;
 pub mod pipeline_route;
 pub mod route_state;
 
-pub use pipeline::{load_pipeline_catalog, PipelineCatalog};
 pub fn pipeline_contract_version() -> &'static str {
     handbook_engine::workspace_contract_version()
 }

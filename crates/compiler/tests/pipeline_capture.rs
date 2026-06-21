@@ -5,15 +5,21 @@ use std::fs;
 use std::path::Path;
 
 use handbook_pipeline::{
-    apply_pipeline_capture, capture_pipeline_output, compile_pipeline_stage_with_runtime,
-    load_pipeline_capture_cache_entry, load_route_state_with_supported_variables,
-    preview_pipeline_capture, render_pipeline_capture_apply_result,
-    render_pipeline_capture_preview, render_pipeline_capture_refusal,
-    render_pipeline_compile_explain, render_pipeline_compile_payload, set_route_state,
-    PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
-    PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
-    PipelineCompileRuntimeContext, RouteBasis, RouteState, RouteStateMutation,
-    RouteStateMutationOutcome,
+    pipeline_capture::{
+        apply_pipeline_capture, capture_pipeline_output, load_pipeline_capture_cache_entry,
+        preview_pipeline_capture, render_pipeline_capture_apply_result,
+        render_pipeline_capture_preview, render_pipeline_capture_refusal,
+        PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
+        PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
+    },
+    pipeline_compile::{
+        compile_pipeline_stage_with_runtime, render_pipeline_compile_explain,
+        render_pipeline_compile_payload, PipelineCompileRuntimeContext,
+    },
+    route_state::{
+        load_route_state_with_supported_variables, set_route_state, RouteBasis, RouteState,
+        RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 use sha2::{Digest, Sha256};
 

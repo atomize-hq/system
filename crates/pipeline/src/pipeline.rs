@@ -1,6 +1,4 @@
-use crate::declarative_roots::{
-    handbook_product_declarative_roots, pipeline_root, stage_root, PipelineDeclarativeRootsContract,
-};
+use crate::declarative_roots::{handbook_product_declarative_roots, pipeline_root, stage_root};
 use crate::repo_file_access::{
     CompilerWorkspace, NormalizedRepoRelativePath, RepoRelativeFileAccessError,
 };
@@ -9,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
+
+pub use crate::declarative_roots::PipelineDeclarativeRootsContract;
 
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_BASE_STAGE_FILE_NAME: &str = "00_base.md";

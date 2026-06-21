@@ -2,11 +2,19 @@
 mod pipeline_proof_corpus_support;
 
 use handbook_pipeline::{
-    effective_route_basis_run, load_pipeline_definition, load_route_state_with_supported_variables,
-    resolve_pipeline_route, set_route_state, supported_route_state_variables, ActivationClause,
-    ActivationConditionSet, ActivationOperator, PipelineBody, PipelineDefaults, PipelineDefinition,
-    PipelineHeader, PipelineStage, RouteEvaluationError, RouteStageReason, RouteStageStatus,
-    RouteStateMutation, RouteStateMutationOutcome, RouteVariables, StageActivation,
+    pipeline::{
+        load_pipeline_definition, supported_route_state_variables, ActivationClause,
+        ActivationConditionSet, ActivationOperator, PipelineBody, PipelineDefaults,
+        PipelineDefinition, PipelineHeader, PipelineStage, StageActivation,
+    },
+    pipeline_route::{
+        resolve_pipeline_route, RouteEvaluationError, RouteStageReason, RouteStageStatus,
+        RouteVariables,
+    },
+    route_state::{
+        effective_route_basis_run, load_route_state_with_supported_variables, set_route_state,
+        RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 use std::path::PathBuf;
 

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use handbook_pipeline::{
+use handbook_pipeline::pipeline::{
     handbook_product_pipeline_declarative_roots, load_pipeline_definition, ActivationOperator,
     PipelineLoadError, PipelineValidationError, StageFileValidationError,
 };
@@ -87,12 +87,13 @@ fn explicit_roots_allow_loader_validation_to_accept_non_default_stage_roots() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let roots = handbook_product_pipeline_declarative_roots();
-    let imported_stage_roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
-        roots.pipeline_root_relative(),
-        roots.profile_root_relative(),
-        roots.runner_root_relative(),
-        ".substrate/handbook/core/stages",
-    );
+    let imported_stage_roots =
+        handbook_pipeline::pipeline::PipelineDeclarativeRootsContract::from_paths(
+            roots.pipeline_root_relative(),
+            roots.profile_root_relative(),
+            roots.runner_root_relative(),
+            ".substrate/handbook/core/stages",
+        );
 
     write_stage_with_front_matter(
         repo_root,
@@ -145,12 +146,13 @@ fn explicit_roots_surface_the_active_stage_root_in_stage_directory_refusals() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
     let roots = handbook_product_pipeline_declarative_roots();
-    let imported_stage_roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
-        roots.pipeline_root_relative(),
-        roots.profile_root_relative(),
-        roots.runner_root_relative(),
-        ".substrate/handbook/core/stages",
-    );
+    let imported_stage_roots =
+        handbook_pipeline::pipeline::PipelineDeclarativeRootsContract::from_paths(
+            roots.pipeline_root_relative(),
+            roots.profile_root_relative(),
+            roots.runner_root_relative(),
+            ".substrate/handbook/core/stages",
+        );
 
     write_file(
         &repo_root.join(roots.pipeline_file("imported-stage-root-refusal.yaml")),
@@ -204,7 +206,7 @@ stages:
 fn explicit_roots_surface_the_active_pipeline_root_in_pipeline_directory_refusals() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
+    let roots = handbook_pipeline::pipeline::PipelineDeclarativeRootsContract::from_paths(
         ".substrate/handbook/core/pipelines",
         "core/profiles",
         "core/runners",
@@ -237,7 +239,7 @@ fn explicit_roots_surface_the_active_pipeline_root_in_pipeline_directory_refusal
 fn explicit_roots_surface_the_active_pipeline_root_in_extension_refusals() {
     let dir = tempfile::tempdir().expect("tempdir");
     let repo_root = dir.path();
-    let roots = handbook_pipeline::PipelineDeclarativeRootsContract::from_paths(
+    let roots = handbook_pipeline::pipeline::PipelineDeclarativeRootsContract::from_paths(
         ".substrate/handbook/core/pipelines",
         "core/profiles",
         "core/runners",
@@ -1758,7 +1760,7 @@ stages:
                 PipelineValidationError::InvalidActivation {
                     stage_id,
                     reason:
-                        handbook_pipeline::ActivationValidationError::EmptyConditionList {
+                        handbook_pipeline::pipeline::ActivationValidationError::EmptyConditionList {
                             operator: ActivationOperator::Any,
                         },
                 },

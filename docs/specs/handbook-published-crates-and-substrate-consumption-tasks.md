@@ -30,7 +30,7 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 
 ### Packet 2.1: Pipeline Published API Freeze
 
-- [ ] Task: Narrow `handbook-pipeline`'s public Rust surface to the documented frozen first-wave boundary
+- [x] Task: Narrow `handbook-pipeline`'s public Rust surface to the documented frozen first-wave boundary
   - Acceptance: `crates/pipeline/src/lib.rs` publicly exposes only the approved first-wave boundary (`pipeline`, `pipeline_capture`, `pipeline_compile`, `pipeline_handoff`, `pipeline_route`, `route_state`, `pipeline_contract_version()`), unless a consciously approved follow-on updates the contract docs to widen that surface.
   - Verify: Source inspection of `crates/pipeline/src/lib.rs`; `cargo check --workspace`; `cargo test -p handbook-pipeline --test pipeline_catalog`; `cargo test -p handbook-pipeline --test pipeline_compile`; `cargo test -p handbook-pipeline --test pipeline_capture`; `cargo test -p handbook-pipeline --test pipeline_handoff`
   - Files: `crates/pipeline/src/lib.rs`, any newly needed internal-only modules/tests, and any authority docs that must be refreshed for honesty
@@ -110,6 +110,6 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 | Lane | Status | Blocks published consumption? |
 |------|--------|-------------------------------|
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
-| 2 | Not started | Yes |
+| 2 | Packet 2.1 landed; Packets 2.2-2.3 remain | Yes |
 | 3 | Not started | Yes |
 | 4 | Not started | — |

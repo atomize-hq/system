@@ -5,17 +5,24 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    apply_pipeline_capture, apply_pipeline_capture_with_storage_layout, capture_pipeline_output,
-    compile_pipeline_stage_with_runtime, load_pipeline_capture_cache_entry,
-    load_pipeline_capture_cache_entry_with_storage_layout, load_route_state_with_storage_layout,
-    load_route_state_with_supported_variables, preview_pipeline_capture,
-    preview_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
-    render_pipeline_capture_preview, render_pipeline_capture_refusal,
-    render_pipeline_compile_explain, render_pipeline_compile_payload,
-    route_state_path_with_storage_layout, set_route_state, PipelineCaptureCacheEntry,
-    PipelineCapturePlan, PipelineCaptureRefusalClassification, PipelineCaptureRequest,
-    PipelineCaptureStateUpdate, PipelineCaptureStateValue, PipelineCompileRuntimeContext,
-    PipelineStorageLayoutContract, RouteState, RouteStateMutation, RouteStateMutationOutcome,
+    pipeline_capture::{
+        apply_pipeline_capture, apply_pipeline_capture_with_storage_layout,
+        capture_pipeline_output, load_pipeline_capture_cache_entry,
+        load_pipeline_capture_cache_entry_with_storage_layout, preview_pipeline_capture,
+        preview_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
+        render_pipeline_capture_preview, render_pipeline_capture_refusal,
+        PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
+        PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
+    },
+    pipeline_compile::{
+        compile_pipeline_stage_with_runtime, render_pipeline_compile_explain,
+        render_pipeline_compile_payload, PipelineCompileRuntimeContext,
+    },
+    route_state::{
+        load_route_state_with_storage_layout, load_route_state_with_supported_variables,
+        route_state_path_with_storage_layout, set_route_state, PipelineStorageLayoutContract,
+        RouteState, RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 use sha2::{Digest, Sha256};
 
@@ -184,7 +191,7 @@ fn capture_next_safe_action(rendered: &str) -> &str {
 fn apply_mutation(repo_root: &Path, mutation: RouteStateMutation) {
     let (definition, supported_variables) =
         pipeline_proof_corpus_support::load_foundation_inputs_definition(repo_root);
-    let state = handbook_pipeline::load_route_state_with_supported_variables(
+    let state = handbook_pipeline::route_state::load_route_state_with_supported_variables(
         repo_root,
         PIPELINE_ID,
         &supported_variables,
@@ -266,7 +273,7 @@ fn rewrite_tampered_capture_cache(
     cache_entry.capture_id
 }
 
-fn route_basis_sha256(route_basis: &handbook_pipeline::RouteBasis) -> String {
+fn route_basis_sha256(route_basis: &handbook_pipeline::route_state::RouteBasis) -> String {
     let bytes = serde_json::to_vec(route_basis).expect("serialize route basis");
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
