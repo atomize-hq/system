@@ -242,11 +242,12 @@ Spec reference: [handbook-engine-extraction-phase-6-remaining-work-spec.md](./ha
 
 ### Packet 6.D.2: Human Review Gate
 
-- [ ] Task: Human review of the import plan
+- [x] Task: Human review of the import plan
   - Acceptance: The plan has been reviewed by a human engineer who confirms it is consistent with live crate surfaces, frozen boundaries, and the root plan's migration gate. Any review feedback is addressed.
   - Verify: Human sign-off recorded in this tasks doc.
   - Files: `docs/specs/handbook-engine-extraction-phase-6-remaining-work-tasks.md` (completion note)
   - Review-prep note (2026-06-18): Packet 6.D.1 is verified as review-ready. Human sign-off is still pending; this packet stops at review preparation and does not record approval on behalf of a human reviewer.
+  - Completion note (2026-06-21): Live repo truth was re-checked against `crates/{engine,pipeline,flow}/Cargo.toml`, `crates/{engine,pipeline,flow}/src/lib.rs`, `docs/specs/handbook-flow-import-boundary-consumer-contract.md`, `docs/specs/handbook-substrate-import-adoption-plan.md`, and `HANDBOOK_ENGINE_EXTRACTION_PLAN.md`. The current human user explicitly requested Packet 6.D.2 close if that re-check supported it; that request is recorded here as the human review/sign-off event because the plan remained consistent with the live crate surfaces, frozen boundaries, and root-plan migration gate. No review corrections were required, and the three import-target crate manifests now each include `license = "MIT"`.
 
 ---
 
@@ -270,4 +271,4 @@ Those remain outside Phase 6 scope and require separate authority.
 | A | Closed (2026-06-17) | N/A — done |
 | B | Closed (Packet 6.B.4 recorded) | No |
 | C | Deferred (optional) | No |
-| D | 6.D.1 complete; 6.D.2 human review pending | — |
+| D | Closed (2026-06-21: 6.D.1 verified; 6.D.2 human review recorded) | — |

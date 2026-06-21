@@ -4,7 +4,8 @@
 
 - Packet: **6.D.1 — Write Import/Adoption Plan**
 - Scope: planning artifact only for importing `handbook-engine`, `handbook-pipeline`, and `handbook-flow` into Substrate.
-- Non-scope: no Substrate import execution, no production-code edits, no Lane B/Lane C implementation, no CLI/compiler/publication work.
+- Non-scope: no Substrate import execution, no Lane B/Lane C implementation beyond already-landed repo-truth prerequisites, no CLI/compiler/publication work.
+- Live re-check for Packet 6.D.2 (2026-06-21): `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, and `crates/flow/Cargo.toml` now each include `license = "MIT"`, and this plan still matches the current crate surfaces plus the frozen Lane A / Lane B boundaries.
 
 ## Prerequisite posture
 
@@ -16,9 +17,9 @@
 
 ## Substrate-side constraints to lock before import
 
-1. **License fields before import**
-   - Add `license = "MIT"` to the `Cargo.toml` files for `handbook-engine`, `handbook-pipeline`, and `handbook-flow` before importing them into Substrate.
-   - Rationale: the Phase 6 remaining-work spec records that Substrate's `deny.toml` performs license checks.
+1. **License fields (now satisfied in live repo truth)**
+   - Verified on 2026-06-21: `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, and `crates/flow/Cargo.toml` each include `license = "MIT"`.
+   - Rationale: Substrate's `deny.toml` performs license checks, so this pre-import requirement must stay true for downstream integration.
 
 2. **Workspace-member integration pattern**
    - Recommended decision: import the three crates as **Substrate workspace members using path dependencies**, not as external git/crates.io dependencies.

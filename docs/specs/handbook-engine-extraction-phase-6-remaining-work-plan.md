@@ -109,7 +109,7 @@ Write the actual import/adoption plan for `handbook-engine` + `handbook-pipeline
 4. **Import verification gate** — what checks Substrate must pass after importing each crate. This is a planning statement, not execution.
 
 5. **Substrate-side constraints** — resolved from live repo inspection (2026-06-17):
-   - **License field**: Add `license = "MIT"` to the three import-target crate `Cargo.toml` files before import. Substrate's `deny.toml` runs license checks.
+   - **License field**: Verified on 2026-06-21 — the three import-target crate `Cargo.toml` files now each include `license = "MIT"`, satisfying Substrate's `deny.toml` license check prerequisite.
    - **Workspace integration**: Decide whether handbook crates become Substrate workspace members (current pattern: `path = "../sibling"`) or external path/git dependencies.
    - **YAML crate divergence**: `serde_yaml_bw` (handbook) vs `serde_yaml` (substrate) — both coexist; `deny.toml` `multiple-versions = "warn"` won't block. Record decision: keep both, or migrate as follow-up.
    - **No feature flags needed**: Handbook crates have no Cargo features.
@@ -176,6 +176,6 @@ Lane C is parallel-safe with Lane B but not blocking for Lane D
 | Lane | Status | Blocks Lane D? | Est. effort |
 |------|--------|----------------|-------------|
 | A | Closed (2026-06-17) | N/A — done | — |
-| B | Next | Yes | Multiple packets: evidence + cleanup + contract + verification |
-| C | Optional | No (if deferred) | One session if activated |
-| D | After B | — | One session: plan doc + human review |
+| B | Closed (Packet 6.B.4 recorded) | No | Multiple packets: evidence + cleanup + contract + verification |
+| C | Deferred | No (if deferred) | One session if activated |
+| D | Closed (2026-06-21: plan + human review) | — | One session: plan doc + human review |

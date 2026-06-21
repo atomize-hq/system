@@ -6,8 +6,8 @@ Produce the single navigable planning authority for the remaining Phase 6 handbo
 
 The three live decisions are:
 1. **handbook-engine** — required import target and import-ready now. No remaining technical blocker.
-2. **handbook-pipeline** — required import target; boundary frozen (documented frozen subset of current public surface, closed 2026-06-17). Import-ready pending Lane D adoption plan.
-3. **handbook-flow** — required import target; the crate/type dependency boundary is already clean, but Lane B must remove the remaining shell-owned/operator-facing copy from the flow import surface before the stable consumer contract is formalized and frozen.
+2. **handbook-pipeline** — required import target; boundary frozen (documented frozen subset of current public surface, closed 2026-06-17). Import-ready at the documented boundary, with the Lane D adoption plan now recorded.
+3. **handbook-flow** — required import target; the Lane B consumer contract is formalized and the verification wall is recorded as passing. Import-ready at the documented flow boundary; actual Substrate import execution remains out of scope.
 
 The two execution lanes are:
 - **Lane B: Flow required-import boundary cleanup + contract freeze** — prove the clean crate/type boundary, capture the remaining shell-owned/operator-facing leakage still visible on the import surface, land the narrow cleanup packet that moves that final shell copy out of `handbook-flow` while keeping CLI as the only product shell, then formalize and freeze the stable consumer contract.
@@ -123,7 +123,7 @@ pub fn pipeline_contract_version() -> &'static str {
   - **Packet 6.B.2** is the narrow production cleanup seam: remove the final shell-owned/operator-facing copy from `handbook-flow`'s import surface while preserving typed next-action/status semantics where they remain useful machine-readable flow results.
   - **Packet 6.B.3** formalizes the consumer contract after the cleanup lands and explicitly distinguishes in-boundary typed semantics from out-of-boundary shell rendering/copy ownership.
   - **Packet 6.B.4** runs the verification wall: dependency proof, zero extra-crate coupling proof, source-inspection proof that no final shell-owned/operator-facing copy remains on the public `handbook-flow` surface, a supporting literal-string grep spot-check in `crates/flow/src/`, tests, workspace check, fmt, and clippy.
-- **Lane D (import plan):** No code changes. Verification is human review of the plan against the three import-target crate surfaces and the frozen pipeline/flow boundaries.
+- **Lane D (import plan):** Verification is human review of the plan against the three import-target crate surfaces and the frozen pipeline/flow boundaries, plus live confirmation that `crates/{engine,pipeline,flow}/Cargo.toml` include `license = "MIT"`.
 - **Lane C (optional):** If activated, follows the same proof-and-freeze pattern as Lane B but for engine. Not currently activated.
 
 ## Boundaries
@@ -165,6 +165,7 @@ pub fn pipeline_contract_version() -> &'static str {
      - Identifies any adapter or facade requirements (or explicitly states none are needed).
      - States the verification gate for the import step itself.
    - The plan is a planning artifact — it does not execute the import.
+   - The three import-target crate manifests include `license = "MIT"`, satisfying the documented pre-import license requirement.
 
 3. **Lane C — Engine optional boundary freeze:**
    - Remains optional. If not activated, the spec explicitly records that engine's current surface is the working boundary and Lane C is deferred.
@@ -183,7 +184,7 @@ Substrate repo: `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate`
 | Edition | `2021` | `2021` | ✅ Compatible |
 | Rust version | Not pinned | `1.89.0` (rust-toolchain.toml + rust-version) | ✅ Compatible — handbook crates build on 1.89 |
 | Resolver | `2` | `2` | ✅ Compatible |
-| License | Not specified | `MIT` | ⚠️ Handbook crates need a license field added before import (Substrate's `deny.toml` checks licenses) |
+| License | `MIT` in `crates/{engine,pipeline,flow}/Cargo.toml` | `MIT` | ✅ Compatible — the documented pre-import license requirement is already satisfied |
 | `serde_yaml` | `serde_yaml_bw = "2.5.4"` (different crate) | `serde_yaml = "0.9"` | ⚠️ Different YAML implementations. Not a conflict (different crate names), but Substrate will carry both. `deny.toml` has `multiple-versions = "warn"` — won't block. |
 | `sha2` | `0.10` | `0.10` (workspace dep) | ✅ Same version |
 | `libc` | `0.2` | `0.2` | ✅ Same version |
@@ -195,7 +196,7 @@ Substrate repo: `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate`
 
 **Constraints Lane D must address:**
 
-1. **License field**: Add `license = "MIT"` (or matching) to the three import-target crate `Cargo.toml` files before import. Substrate's `deny.toml` runs license checks.
+1. **License field**: Verified on 2026-06-21 — the three import-target crate `Cargo.toml` files now each include `license = "MIT"`, satisfying Substrate's `deny.toml` license check prerequisite.
 2. **Workspace integration**: Decide whether handbook crates become Substrate workspace members (like `crates/common`, `crates/shell`) or external path/git dependencies. Current Substrate pattern is workspace members with `path = "../sibling"`.
 3. **YAML crate divergence**: `serde_yaml_bw` (handbook) vs `serde_yaml` (substrate) — both will coexist. Not a blocker but Lane D should record the decision: keep both, or migrate handbook crates to `serde_yaml` as a follow-up.
 4. **No feature flags needed**: Handbook crates have no Cargo features. No feature-gate compatibility concern.
@@ -204,5 +205,5 @@ Substrate repo: `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate`
 
 1. ✅ **Consumer contract as standalone doc** — approved by human. Will be `docs/specs/handbook-flow-import-boundary-consumer-contract.md`.
 2. ✅ **Phased rollout (engine first)** — approved by human. Engine has no intra-workspace deps, so it imports cleanly first.
-3. ✅ **Substrate-side constraints** — resolved above. The main action items are: add license fields, decide workspace integration pattern, and record the YAML crate divergence decision.
+3. ✅ **Substrate-side constraints** — resolved above. The license fields are now landed in repo truth; the remaining plan-level decisions are the workspace integration pattern recommendation and the recorded YAML divergence posture.
 4. ✅ **Lane B direction** — approved by human. Do the narrow production cleanup seam before contract formalization; do not narrow the authority to pretend shell-owned flow copy is already acceptable.

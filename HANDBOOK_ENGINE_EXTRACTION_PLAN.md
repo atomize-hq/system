@@ -18,7 +18,7 @@ Current status:
 - Phases 1 through 5 are complete in live repo truth, including the Phase 1 Slice 1.5, Phase 2 Slice 2.4, refreshed Phase 4 Slice 4.5, and Phase 5 Slice 5.3 closeout work
 - `handbook-engine`, `handbook-pipeline`, `handbook-flow`, and `handbook-cli` are now the real implementation layers; `handbook-compiler` remains only the reviewed narrow compatibility/support seam
 - the current runtime scope remains intentionally bounded to the reviewed wedge; pipeline/stage truth is catalog-backed and the retained default consumer stays code-owned and validated
-- Phase 6 migration-readiness reassessment is now the next authoritative step; do not start ownership/import planning outside Phase 6
+- Phase 6 migration-readiness reassessment is complete in live repo truth: Lane B is closed, the Lane D import/adoption plan is written and human-reviewed, and `crates/{engine,pipeline,flow}/Cargo.toml` now each include `license = "MIT"`; actual Substrate import execution remains outside this repo's Phase 6 scope
 
 ## Objective
 
@@ -351,16 +351,16 @@ Goal:
 
 Checklist:
 
-- [ ] confirm `handbook-engine` is reusable without handbook-product assumptions
-- [ ] confirm `handbook-pipeline` is either reusable as-is or intentionally stays external for now
-- [ ] confirm `handbook-flow` is either reusable as-is or intentionally stays handbook-owned longer than engine/pipeline
-- [ ] confirm Substrate should consume engine surfaces rather than absorb the CLI shell
-- [ ] decide per crate whether handbook remains the architectural owner or whether Substrate becomes the owner
-- [ ] write the migration/import plan only after the extraction prerequisites are truly complete
+- [x] confirm `handbook-engine` is reusable without handbook-product assumptions
+- [x] confirm `handbook-pipeline` is reusable at the documented frozen subset
+- [x] confirm `handbook-flow` is reusable at the cleaned consumer-contract boundary
+- [x] confirm Substrate should consume engine surfaces rather than absorb the CLI shell
+- [x] decide per crate that handbook remains the architectural owner for the first import wave
+- [x] write and human-review the migration/import plan after the extraction prerequisites are complete
 
 Exit criteria:
 
-- the repo is ready for a separate ownership and integration plan
+- the repo now has a reviewed ownership/integration plan; actual Substrate import execution remains a separate downstream step
 
 ### Final ownership decision rule
 
@@ -379,11 +379,11 @@ Questions to answer for each crate:
 - would substrate-specific pressure distort the crate if handbook kept owning it?
 - would moving it into Substrate create a cleaner dependency graph, or create hidden coupling?
 
-Current bias:
+Final Phase 6 ownership outcome:
 
-- `handbook-engine`: likely handbook-owned and imported by Substrate
-- `handbook-pipeline`: depends on whether it remains truly generic after parameterization
-- `handbook-flow`: least clear; likely stays handbook-owned longer until its real center of gravity is proven
+- `handbook-engine`: handbook-owned and imported by Substrate
+- `handbook-pipeline`: handbook-owned and imported by Substrate at the documented frozen subset
+- `handbook-flow`: handbook-owned and imported by Substrate at the cleaned consumer-contract boundary
 
 ## Initial Module Classification
 
