@@ -95,6 +95,8 @@ cargo tree -p handbook-flow
   Cargo.toml and affected member manifests → published dependency declarations for handbook crates
   downstream adapter / consumer call sites → only the files needed to consume the published crate surfaces
   verification artifacts / docs            → evidence that published-crate consumption works in live repo truth
+/Users/spensermcconnell/.codex/worktrees/
+  substrate-published-consumption-*        → dedicated downstream execution worktrees for Packet 4.2+ source-touching / verification work; keep the main substrate checkout untouched once worktree execution begins
 ```
 
 ## Code Style
@@ -148,6 +150,7 @@ Conventions:
 
 - **Substrate published-consumption wall**
   - Substrate depends on published crate versions, not sibling path/workspace-member dependencies
+  - downstream source-touching Packet 4.2+ work runs in a dedicated substrate worktree branched from the current substrate tip, not in the main `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` checkout
   - Substrate builds and tests cleanly against the published versions
   - any needed adapter/rendering ownership remains in Substrate rather than leaking back into published handbook crate surfaces
 
@@ -158,6 +161,7 @@ Conventions:
   - Keep the first-wave published set to `handbook-engine`, `handbook-pipeline`, and `handbook-flow` only.
   - Keep the published API physically aligned with the reviewed boundary contract; docs-only narrowing is not enough for publication.
   - Preserve unrelated local dirt, especially `AGENTS.md` and `CLAUDE.md`, while landing this follow-on.
+  - For downstream substrate source-touching / verification packets after Packet 4.1, create or reuse a dedicated worktree under `/Users/spensermcconnell/.codex/worktrees/` and keep the main substrate checkout out of the write path.
 
 - **Ask first:**
   - Publishing to crates.io for real.

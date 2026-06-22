@@ -78,23 +78,26 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 
 ### Packet 4.1: Downstream Dependency Wiring
 
-- [ ] Task: Replace the path/workspace-member adoption assumption with published-crate dependency wiring in Substrate
+- [x] Task: Replace the path/workspace-member adoption assumption with published-crate dependency wiring in Substrate
+  - Status (2026-06-22): landed in Substrate commit `017aaec75` (`feat: wire substrate to published handbook crate pins`). The root workspace now pins `handbook-engine`, `handbook-pipeline`, and `handbook-flow` to exact `=0.1.1` versions, `crates/shell/Cargo.toml` consumes them via `workspace = true`, and `Cargo.lock` resolves all three from crates.io.
   - Acceptance: The relevant Substrate manifests depend on the exact published `=` versions recorded by Packet 3.2 for `handbook-engine`, `handbook-pipeline`, and `handbook-flow`, rather than sibling path dependencies for this first-wave seam.
-  - Verify: Source inspection of `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.toml` and affected member manifests; `cargo tree -p handbook-engine`; `cargo tree -p handbook-pipeline`; `cargo tree -p handbook-flow`
-  - Files: `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.toml`, affected member `Cargo.toml` files
+  - Verify: Source inspection of `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.toml`, `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/crates/shell/Cargo.toml`, and `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.lock`; `cargo tree -p handbook-engine`; `cargo tree -p handbook-pipeline`; `cargo tree -p handbook-flow`
+  - Files: `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.toml`, `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/crates/shell/Cargo.toml`, `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.lock`
 
 ### Packet 4.2: Downstream Consumer Adaptation
 
 - [ ] Task: Update only the Substrate call sites/adapters needed to consume the published crate boundaries
-  - Acceptance: Substrate uses the published handbook crate APIs without relying on sibling path behavior, leaked shell wording, or out-of-boundary pipeline internals.
-  - Verify: `cargo check --workspace`; targeted source inspection of the touched adapter/call sites
+  - Execution note: create a fresh dedicated Substrate worktree under `/Users/spensermcconnell/.codex/worktrees/` from the current Substrate tip before any Packet 4.2 source edits; do not edit the main `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` checkout directly.
+  - Acceptance: Substrate uses the published handbook crate APIs without relying on sibling path behavior, leaked shell wording, or out-of-boundary pipeline internals, and the Packet 4.2 edits remain confined to the dedicated worktree plus the discovered adapter/call-site files.
+  - Verify: `cargo check --workspace` from the dedicated Packet 4.2 worktree; targeted source inspection of the touched adapter/call sites
   - Files: only the affected downstream adapter / consumer files discovered during implementation
 
 ### Packet 4.3: Substrate Verification Wall
 
 - [ ] Task: Pass the full downstream published-consumption verification wall
-  - Acceptance: Substrate builds, lints, and tests successfully against the published crate versions, and no fallback path dependency remains in the first-wave consumption path.
-  - Verify: `cargo check --workspace`; `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo tree -p handbook-engine`; `cargo tree -p handbook-pipeline`; `cargo tree -p handbook-flow`
+  - Execution note: reuse the dedicated Packet 4.2 Substrate worktree if it exists; otherwise create a fresh dedicated worktree under `/Users/spensermcconnell/.codex/worktrees/` before running the verification/fix loop.
+  - Acceptance: Substrate builds, lints, and tests successfully against the published crate versions from the dedicated downstream worktree, and no fallback path dependency remains in the first-wave consumption path.
+  - Verify: `cargo check --workspace`; `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace`; `cargo tree -p handbook-engine`; `cargo tree -p handbook-pipeline`; `cargo tree -p handbook-flow` — all from the dedicated downstream worktree
   - Files: downstream manifests, adapter/call-site files, and any substrate-side evidence docs needed to record the landing honestly
 
 ---
@@ -117,4 +120,4 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
 | 2 | Packets 2.1-2.3 landed | Yes |
 | 3 | Packets 3.1-3.2 complete; first-wave crates published at `0.1.1` | No |
-| 4 | Not started | — |
+| 4 | Packet 4.1 landed; Packet 4.2 next in dedicated worktree | — |

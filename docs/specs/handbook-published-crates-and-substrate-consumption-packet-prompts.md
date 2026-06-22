@@ -571,6 +571,7 @@ Mission:
 - Land only Packet 4.2 from the published-crate readiness tasks doc.
 - Use the `system` spec/plan/tasks trio, the published versions, and the already-landed Packet 4.1 manifest wiring as authority.
 - Treat this as one narrow downstream code seam: adapt only the Substrate call sites/adapters needed to consume the published boundaries honestly.
+- Before any source edits, create a fresh dedicated Substrate worktree under `/Users/spensermcconnell/.codex/worktrees/` from the current Substrate tip and do all Packet 4.2 work there.
 - Obey any AGENTS/CLAUDE instructions present in the target `substrate` repo.
 
 Hard rules:
@@ -581,6 +582,7 @@ Hard rules:
 - If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation.
 - Before editing production symbols in `substrate`, obey that repo's impact-analysis / safety requirements first.
 - Before every commit, obey the target repo's change-detection requirements and confirm the affected scope matches Packet 4.2 only.
+- Do not edit the main `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` checkout after worktree setup begins; preserve unrelated local dirt there.
 
 Packet 4.2 scope:
 - Update only the downstream call sites/adapters needed to consume the published handbook crate APIs.
@@ -595,9 +597,11 @@ Out of scope:
 Implementation subagent prompt requirements:
 - Begin with `/goal Land Packet 4.2: Update Substrate call sites/adapters to consume the published handbook crate boundaries`.
 - Tell the subagent to use $incremental-implementation.
-- Require the subagent to start in `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` and read repo-local instructions first.
+- Require the subagent to start in `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate`, read repo-local instructions first, then create a fresh timestamped worktree/branch under `/Users/spensermcconnell/.codex/worktrees/` from `HEAD` (for example, `git worktree add -b packet-4-2-<timestamp> /Users/spensermcconnell/.codex/worktrees/substrate-packet-4-2-<timestamp> HEAD`).
+- Require the subagent to report the exact worktree path and branch name it created and to run all subsequent commands only inside that worktree.
 - Require live verification with:
-  - `git status --short --branch`
+  - `git status --short --branch` in the main checkout before worktree creation
+  - `git status --short --branch` in the dedicated worktree after creation
   - the specific manifests and source files affected by Packet 4.1
   - `cargo check --workspace`
 - Require the implementation to touch only the discovered adapter/call-site files needed for honest published-crate consumption and to report exact files changed.
@@ -605,12 +609,13 @@ Implementation subagent prompt requirements:
 Review subagent prompt requirements:
 - Begin with `/goal Review Packet 4.2: Update Substrate call sites/adapters to consume the published handbook crate boundaries`.
 - Tell the subagent to use $code-review-and-quality.
+- Require the review subagent to run in the exact Packet 4.2 worktree path returned by the implementation subagent, not in the main substrate checkout.
 - Require focus on whether Substrate now consumes only the published boundary, whether rendering ownership remains in the caller where required, and whether the adaptation stayed narrowly scoped.
 - Require severity labels.
 
 Fix loop:
 - If review is clean, stop and report Packet 4.2 complete.
-- If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation constrained to those findings.
+- If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation constrained to those findings and require it to work in the same dedicated Packet 4.2 worktree.
 - Commit accepted fixes before re-review.
 
 Commit policy:
@@ -634,6 +639,7 @@ Mission:
 - Land only Packet 4.3 from the published-crate readiness tasks doc.
 - Use the `system` spec/plan/tasks trio plus the landed Packet 4.1 / 4.2 downstream changes as authority.
 - Treat this as one downstream verification seam: prove that Substrate builds, lints, tests, and resolves dependency trees cleanly against the published handbook crate versions without path fallbacks.
+- Reuse the dedicated Packet 4.2 Substrate worktree if it exists; otherwise create a fresh dedicated worktree under `/Users/spensermcconnell/.codex/worktrees/` before running the verification / fix loop.
 - Obey any AGENTS/CLAUDE instructions present in the target `substrate` repo.
 
 Hard rules:
@@ -643,6 +649,7 @@ Hard rules:
 - Spawn a fresh GPT-5.4 high review subagent using $code-review-and-quality in a `/goal` prompt.
 - If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation.
 - Before every commit, obey the target repo's change-detection requirements and confirm the affected scope matches Packet 4.3 only.
+- Do not turn the main `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` checkout into the execution target for Packet 4.3.
 
 Packet 4.3 scope:
 - Run and record the full downstream verification wall:
@@ -663,19 +670,21 @@ Out of scope:
 Implementation subagent prompt requirements:
 - Begin with `/goal Land Packet 4.3: Pass the full Substrate verification wall against published handbook crates`.
 - Tell the subagent to use $incremental-implementation.
-- Require the subagent to start in `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` and read repo-local instructions first.
+- Require the subagent to start in `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate`, read repo-local instructions first, then either reuse the Packet 4.2 worktree or create a fresh timestamped worktree/branch under `/Users/spensermcconnell/.codex/worktrees/` from `HEAD`.
+- Require the subagent to report the exact worktree path and branch name it is using and to run all verification/fix commands there.
 - Require live verification with the full wall listed above.
 - Require the implementation to keep fixes minimal, report exact failing commands before changes and exact pass/fail results after changes, and explicitly confirm whether any path fallback remains.
 
 Review subagent prompt requirements:
 - Begin with `/goal Review Packet 4.3: Pass the full Substrate verification wall against published handbook crates`.
 - Tell the subagent to use $code-review-and-quality.
+- Require the review subagent to run in the same dedicated downstream worktree used by the implementation subagent.
 - Require focus on whether the verification wall truly passed, whether fixes stayed minimal and bounded, and whether published-crate consumption remained intact without path fallbacks.
 - Require severity labels.
 
 Fix loop:
 - If review is clean, stop and report Packet 4.3 complete.
-- If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation constrained to those findings.
+- If review finds issues, spawn a fresh GPT-5.4 high fix subagent using $incremental-implementation constrained to those findings and require it to work in the same dedicated downstream worktree.
 - Commit accepted fixes before re-review.
 
 Commit policy:

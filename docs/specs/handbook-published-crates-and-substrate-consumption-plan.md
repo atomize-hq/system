@@ -181,6 +181,8 @@ Replace the current path/workspace-member consumption assumption with honest pro
 
 - The current Phase 6 adoption plan intentionally recommends workspace-member/path dependency consumption.
 - That is valid for the Phase 6 plan, but it is not proof of published-crate consumption readiness.
+- Packet 4.1 has now landed in Substrate: the root workspace pins `handbook-engine`, `handbook-pipeline`, and `handbook-flow` to exact published `=0.1.1` versions, `crates/shell/Cargo.toml` consumes them through `workspace = true`, and `Cargo.lock` resolves all three from crates.io.
+- The main `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` checkout may carry unrelated local work, so downstream source-touching Packet 4.2+ execution should move into a dedicated worktree branched from the current Substrate tip rather than editing the main checkout directly.
 
 ### Components
 
@@ -188,11 +190,15 @@ Replace the current path/workspace-member consumption assumption with honest pro
    - update Substrate manifests to depend on the exact published handbook crate versions from crates.io using `=` pins recorded by Packet 3.2
    - remove any fallback to sibling path dependencies for this seam
 
-2. **Consumer adaptation**
+2. **Execution isolation**
+   - create or reuse a dedicated Substrate worktree under `/Users/spensermcconnell/.codex/worktrees/` for Packet 4.2+ source-touching / verification work
+   - branch the worktree from the current Substrate tip and keep the main checkout preserved for unrelated local work
+
+3. **Consumer adaptation**
    - update only the downstream call sites / adapters needed to use the published boundaries
    - keep rendering and product-shell wording in Substrate where the published flow contract expects caller ownership
 
-3. **Downstream verification wall**
+4. **Downstream verification wall**
    - build, lint, and test Substrate against the published crate versions
    - confirm no path dependency remains in the first-wave consumption path
 
@@ -203,7 +209,7 @@ Replace the current path/workspace-member consumption assumption with honest pro
 
 ### Verification Checkpoint
 
-Run in `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate`:
+Run in the dedicated Packet 4.2+/4.3 Substrate worktree, not the main `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate` checkout:
 
 ```bash
 cargo check --workspace
@@ -234,4 +240,4 @@ Notes:
 | 1 | Packets 1.1-1.2 landed; remaining proof handed to Lane 3 | Yes | Mostly already landed docs/manifests |
 | 2 | Packets 2.1-2.3 landed | Yes | Lane complete; release work moves to Lane 3 |
 | 3 | Packets 3.1-3.2 complete; `handbook-engine`, `handbook-pipeline`, and `handbook-flow` are published at `0.1.1` | No | Lane complete; Lane 4 can now consume the published crates |
-| 4 | Not started | — | One substrate integration session |
+| 4 | Packet 4.1 landed; Packet 4.2+ should continue in a dedicated substrate worktree | — | One substrate integration worktree plus review/fix loop |
