@@ -21,6 +21,7 @@ This follow-on exists because live repo truth now shows a real gap between the c
 - `handbook-pipeline` and `handbook-flow` now declare `handbook-engine` in publishable local-development form (`version + path`).
 - `cargo package -p handbook-pipeline --allow-dirty` and `cargo package -p handbook-flow --allow-dirty` no longer fail on a **missing dependency version**; they now fail because Cargo resolves `handbook-engine` through the crates.io index during packaging, and that crate version is not yet published/resolvable there.
 - `crates/pipeline/src/lib.rs` now physically exposes only the documented first-wave boundary modules plus `pipeline_contract_version()`, so the published API no longer includes `declarative_roots`, `setup`, or layout re-exports at the crate root.
+- `crates/engine/src/lib.rs`, `cargo test -p handbook-engine`, and `cargo package -p handbook-engine --allow-dirty` confirm that the current engine public surface is acceptable as the first published API, so no narrower engine-only freeze is required before the first release wave.
 - `docs/specs/handbook-substrate-import-adoption-plan.md` still recommends **workspace-member/path dependency** consumption, which is intentionally different from the published-crate consumption target for this follow-on.
 
 ## Tech Stack
@@ -142,7 +143,7 @@ Conventions:
 - **Published boundary validation**
   - `handbook-pipeline` must physically narrow its public API to the documented frozen subset before publication, unless the boundary doc is explicitly widened by approved follow-on authority
   - `handbook-flow` must continue to expose only typed semantics on its published surface; final shell/operator wording stays out of boundary
-  - `handbook-engine` either keeps its current surface as the accepted published API or gets an explicit optional freeze if publication review reveals a real need
+  - `handbook-engine` keeps its current `crates/engine/src/lib.rs` surface as the accepted first published API; activate a narrower engine-freeze follow-on only if release review or a real downstream consumer later proves a concrete need
 
 - **Substrate published-consumption wall**
   - Substrate depends on published crate versions, not sibling path/workspace-member dependencies
@@ -188,5 +189,4 @@ Conventions:
 
 1. Should Substrate pin exact versions (`=x.y.z`) for the first-wave adoption, or use compatible semver ranges (`^x.y.z`) with a lockfile update?
 2. Which manifest metadata fields are required for the first publication wave beyond `license` — e.g. `repository`, `homepage`, `documentation`, `description`, `readme`, `keywords`, `categories`?
-3. Is `handbook-engine`'s current public surface acceptable as the first published API, or should the optional engine boundary freeze activate before publication?
-4. Should the first implementation wave include a minimal manual release checklist only, or also add repo-owned publish automation?
+3. Should the first implementation wave include a minimal manual release checklist only, or also add repo-owned publish automation?

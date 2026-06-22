@@ -37,10 +37,11 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 
 ### Packet 2.2: Engine Published Surface Decision
 
-- [ ] Task: Decide whether `handbook-engine`'s current public surface is the accepted first published API
-  - Acceptance: Either (a) the current engine public surface is explicitly confirmed as the first published API with no code change, or (b) a narrow engine-freeze packet lands and the authority docs are updated accordingly.
-  - Verify: Source inspection of `crates/engine/src/lib.rs`; `cargo test -p handbook-engine`; any consumer-contract doc written for the chosen decision
-  - Files: `crates/engine/src/lib.rs` only if narrowing is required; otherwise the relevant authority docs
+- [x] Task: Decide whether `handbook-engine`'s current public surface is the accepted first published API
+  - Decision (2026-06-22): accept the current `crates/engine/src/lib.rs` surface as the first published API; no narrower engine-freeze follow-on is required for this packet.
+  - Acceptance: Option (a) is chosen: the current engine public surface is explicitly confirmed as the first published API with no code change. If release review or a real downstream consumer later proves a concrete need for a narrower engine boundary, open that as a separate follow-on instead of widening Packet 2.2.
+  - Verify: Source inspection of `crates/engine/src/lib.rs`; `cargo test -p handbook-engine`; `cargo package -p handbook-engine --allow-dirty`; refreshed Packet 2.2 authority docs
+  - Files: `docs/specs/handbook-published-crates-and-substrate-consumption-spec.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md`
 
 ### Packet 2.3: Flow Published-Surface Revalidation
 
@@ -110,6 +111,6 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 | Lane | Status | Blocks published consumption? |
 |------|--------|-------------------------------|
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
-| 2 | Packet 2.1 landed; Packets 2.2-2.3 remain | Yes |
+| 2 | Packets 2.1-2.2 landed; Packet 2.3 remains | Yes |
 | 3 | Not started | Yes |
 | 4 | Not started | — |

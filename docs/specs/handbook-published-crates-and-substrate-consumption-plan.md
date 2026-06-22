@@ -76,7 +76,7 @@ Make the actual published Rust surfaces match the intended supported contract.
 ### Current State (live repo truth, 2026-06-21)
 
 - `handbook-flow` already has an explicit consumer contract and cleaned public surface.
-- `handbook-engine` currently looks narrow enough, but the Phase 6 docs still treated a stricter engine freeze as optional.
+- Source inspection of `crates/engine/src/lib.rs`, `cargo test -p handbook-engine`, and `cargo package -p handbook-engine --allow-dirty` confirm that the current engine surface is the accepted first published API, so Packet 2.2 does not require an engine-code change.
 - `handbook-pipeline` is now physically aligned with the documented frozen subset: `crates/pipeline/src/lib.rs` exposes only the approved first-wave modules plus `pipeline_contract_version()`, and callers/tests now consume those items through the approved module paths.
 
 ### Components
@@ -86,8 +86,8 @@ Make the actual published Rust surfaces match the intended supported contract.
    - if a broader API is truly needed, update the authority docs explicitly instead of silently publishing the broader surface
 
 2. **Engine publication posture decision**
-   - either confirm the current engine surface is the accepted first published API
-   - or activate the optional engine boundary freeze before publication
+   - Packet 2.2 decision: keep the current `crates/engine/src/lib.rs` surface as the accepted first published API
+   - only activate a narrower engine-freeze follow-on if release review or a real downstream consumer later proves a concrete need
 
 3. **Flow publication revalidation**
    - confirm that the publishable flow surface still matches the cleaned consumer contract once manifest hardening lands
@@ -215,6 +215,6 @@ Notes:
 | Lane | Status | Blocks next lane? | Est. effort |
 |------|--------|-------------------|-------------|
 | 1 | Packets 1.1-1.2 landed; remaining proof handed to Lane 3 | Yes | Mostly already landed docs/manifests |
-| 2 | Packet 2.1 landed; Packets 2.2-2.3 remain | Yes | One or more system-repo sessions |
+| 2 | Packets 2.1-2.2 landed; Packet 2.3 remains | Yes | One more system-repo session |
 | 3 | Not started | Yes | One staged release session after Lane 2 is green |
 | 4 | Not started | — | One substrate integration session |
