@@ -57,10 +57,11 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 
 ### Packet 3.1: Release Contract + Checklist
 
-- [ ] Task: Record the first-wave release contract for engine → pipeline → flow
+- [x] Task: Record the first-wave release contract for engine → pipeline → flow
+  - Decision (2026-06-22): Packet 3.1 lands as docs-only via `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, which fixes the first-wave train at coordinated `0.1.0` unless a pre-publish blocker forces a full-train bump before any real publish, approves the `handbook-engine` → `handbook-pipeline` → `handbook-flow` order, keeps the Packet 1.2 `version + path` manifest contract in `system`, and requires exact downstream pins for the first Substrate published-consumption proof.
   - Acceptance: A durable doc/checklist records the release order, chosen versioning policy, dependency pin semantics, the staged dry-run sequence (`engine` prepublish dry-run, then dependent dry-runs only after the published engine version is resolvable), and the evidence required before each real publish step.
-  - Verify: Human review of the checklist against the live manifests, current packageability truth, and boundary docs.
-  - Files: `docs/specs/handbook-published-crates-and-substrate-consumption-*.md` or a dedicated release-checklist doc if needed
+  - Verify: Human review of the checklist against the live manifests, current packageability truth, and boundary docs; source inspection of `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, and `crates/flow/Cargo.toml`; `cargo package -p handbook-engine --allow-dirty`; `cargo package -p handbook-pipeline --allow-dirty`; `cargo package -p handbook-flow --allow-dirty`
+  - Files: `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-spec.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md`
 
 ### Packet 3.2: Staged Dry-Run + Real crates.io Publication
 
@@ -113,5 +114,5 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 |------|--------|-------------------------------|
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
 | 2 | Packets 2.1-2.3 landed | Yes |
-| 3 | Not started | Yes |
+| 3 | Packet 3.1 landed; Packet 3.2 pending real release execution | Yes |
 | 4 | Not started | — |

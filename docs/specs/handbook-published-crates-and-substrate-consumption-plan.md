@@ -124,18 +124,26 @@ Plus required source inspection of:
 
 Define and execute the first crates.io release wave without guessing.
 
+### Current State (live repo truth, 2026-06-22)
+
+- Packet 3.1 is now the recorded release-contract/checklist authority in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`.
+- The current coordinated manifest version across `handbook-engine`, `handbook-pipeline`, and `handbook-flow` is `0.1.0`.
+- `handbook-pipeline` and `handbook-flow` both still depend on `handbook-engine` via the Packet 1.2 publishable `version + path` form.
+- `cargo package -p handbook-engine --allow-dirty` passes, while `handbook-pipeline` and `handbook-flow` still fail only on crates.io resolution of unpublished `handbook-engine`.
+
 ### Components
 
 1. **Release contract**
-   - choose the versioning scheme for the first wave
-   - define engine → pipeline → flow publish order
-   - define the dependency pin policy (`version`, exact pin, or compatible range) for intra-wave coordination
+   - the first wave targets a coordinated `0.1.0` train unless a pre-publish blocker forces a full-train bump before any real publish
+   - the approved order is `handbook-engine` → `handbook-pipeline` → `handbook-flow`
+   - `system` keeps the approved `version + path` manifest contract for `handbook-engine`; downstream Substrate adoption should use exact published pins for the first-wave proof
 
 2. **Staged dry-run sequence**
    - run `cargo publish --dry-run -p handbook-engine` before the first real publish
    - publish `handbook-engine`
    - wait until the chosen `handbook-engine` version is resolvable from crates.io
    - then run `cargo publish --dry-run -p handbook-pipeline` and `cargo publish --dry-run -p handbook-flow`
+   - require both dependent dry-runs to pass before any dependent real publish begins
 
 3. **Real publication step**
    - publish `handbook-pipeline`
@@ -153,6 +161,7 @@ Define and execute the first crates.io release wave without guessing.
 - Human review of the publish checklist before the first real `cargo publish`.
 - `cargo publish --dry-run -p handbook-engine` succeeds before engine publication.
 - After engine publication, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` only once the published engine version is resolvable.
+- Both dependent dry-runs pass before `handbook-pipeline` or `handbook-flow` is really published.
 - After publication, crates.io versions must match the documented release contract.
 
 ## Lane 4: Published-Crate Consumption in Substrate
@@ -217,5 +226,5 @@ Notes:
 |------|--------|-------------------|-------------|
 | 1 | Packets 1.1-1.2 landed; remaining proof handed to Lane 3 | Yes | Mostly already landed docs/manifests |
 | 2 | Packets 2.1-2.3 landed | Yes | Lane complete; release work moves to Lane 3 |
-| 3 | Not started | Yes | One staged release session after Lane 2 is green |
+| 3 | Packet 3.1 landed; Packet 3.2 release execution remains | Yes | One staged release session after Lane 2 is green |
 | 4 | Not started | — | One substrate integration session |

@@ -138,6 +138,7 @@ Conventions:
 - **Release-session dry-run wall**
   - `handbook-engine` passes `cargo publish --dry-run` before the first real publish
   - `handbook-pipeline` and `handbook-flow` pass `cargo publish --dry-run` only after the chosen `handbook-engine` version is published and resolvable from crates.io
+  - both dependent dry-runs pass before either dependent real publish begins
   - source inspection confirms published APIs match the intended boundary contracts, especially for `handbook-pipeline`
 
 - **Published boundary validation**
@@ -185,8 +186,10 @@ Conventions:
    - publication readiness in `system`
    - downstream published-crate consumption in `substrate`
 
-## Open Questions
+## Packet 3.1 Resolution Notes
 
-1. Should Substrate pin exact versions (`=x.y.z`) for the first-wave adoption, or use compatible semver ranges (`^x.y.z`) with a lockfile update?
-2. Which manifest metadata fields are required for the first publication wave beyond `license` — e.g. `repository`, `homepage`, `documentation`, `description`, `readme`, `keywords`, `categories`?
-3. Should the first implementation wave include a minimal manual release checklist only, or also add repo-owned publish automation?
+- The first-wave release contract now lives in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`.
+- Packet 3.1 resolves the earlier release-contract questions as follows:
+  1. the first real train targets coordinated `0.1.0` versions unless a pre-publish blocker forces a full-train bump before any real publish
+  2. `system` keeps the Packet 1.2 `version + path` dependency form for `handbook-engine`, while Packet 4 should use exact published pins in Substrate for the first-wave adoption proof
+  3. the first release wave uses a minimal manual checklist, not new release automation / CI
