@@ -60,12 +60,33 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
         ));
     }
 
+    let mut children = fs::read_dir(&state_root_path)
+        .map_err(|source| {
+            format!(
+                "failed to read runtime state root `{RUNTIME_STATE_ROOT_RELATIVE}` at {}: {source}",
+                state_root_path.display()
+            )
+        })?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| {
+            format!(
+                "failed to enumerate runtime state root `{RUNTIME_STATE_ROOT_RELATIVE}` at {}: {source}",
+                state_root_path.display()
+            )
+        })?;
+    children.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
+
     let mut reset_entries = Vec::new();
-    collect_runtime_state_reset_entries(
-        &state_root_path,
-        RUNTIME_STATE_ROOT_RELATIVE,
-        &mut reset_entries,
-    )?;
+    for child in children {
+        let child_file_name = child.file_name();
+        let child_name = child_file_name.to_string_lossy();
+        let child_display_path = format!("{RUNTIME_STATE_ROOT_RELATIVE}/{child_name}");
+        collect_runtime_state_reset_entries(
+            &child.path(),
+            &child_display_path,
+            &mut reset_entries,
+        )?;
+    }
 
     let mut reset_paths = reset_entries
         .iter()
