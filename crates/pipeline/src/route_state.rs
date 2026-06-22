@@ -458,6 +458,7 @@ pub fn load_route_state(
     load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory)
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_route_state_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -626,6 +627,7 @@ pub fn set_route_state(
     Ok(RouteStateMutationOutcome::Applied(Box::new(state)))
 }
 
+#[allow(dead_code)]
 pub(crate) fn set_route_state_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -1240,6 +1242,7 @@ pub fn persist_route_basis(
     Ok(RouteBasisPersistOutcome::Applied(Box::new(state)))
 }
 
+#[allow(dead_code)]
 pub(crate) fn persist_route_basis_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
@@ -2249,7 +2252,7 @@ pub(crate) fn preview_runtime_state_reset(repo_root: &Path) -> Result<Vec<String
     plan_runtime_state_reset(repo_root).map(|plan| plan.paths)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 pub(crate) fn preview_runtime_state_reset_with_storage_layout(
     repo_root: &Path,
     storage_layout: PipelineStorageLayoutContract,
@@ -2265,7 +2268,7 @@ pub(crate) fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, 
     Ok(reset_paths)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 pub(crate) fn reset_runtime_state_tree_with_storage_layout(
     repo_root: &Path,
     storage_layout: PipelineStorageLayoutContract,
@@ -2283,6 +2286,7 @@ pub(crate) struct RuntimeStateResetPlan {
 }
 
 impl RuntimeStateResetPlan {
+    #[allow(dead_code)]
     pub(crate) fn paths(&self) -> &[String] {
         &self.paths
     }
@@ -2373,6 +2377,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
     })
 }
 
+#[allow(dead_code)]
 pub(crate) fn plan_runtime_state_reset_with_storage_layout(
     repo_root: &Path,
     storage_layout: PipelineStorageLayoutContract,

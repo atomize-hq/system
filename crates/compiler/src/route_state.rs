@@ -74,7 +74,7 @@ pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateR
                 state_root_path.display()
             )
         })?;
-    children.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
+    children.sort_by_key(|child| child.file_name());
 
     let mut reset_entries = Vec::new();
     for child in children {
@@ -161,7 +161,7 @@ fn collect_runtime_state_reset_entries(
                     path.display()
                 )
             })?;
-        children.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
+        children.sort_by_key(|child| child.file_name());
 
         for child in children {
             let child_file_name = child.file_name();

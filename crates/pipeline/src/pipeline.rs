@@ -214,6 +214,7 @@ impl SupportedTargetRegistry {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn load_with_roots(
         repo_root: impl AsRef<Path>,
         roots: &PipelineDeclarativeRootsContract,
@@ -527,6 +528,7 @@ fn resolve_supported_target_topology(
     })
 }
 
+#[allow(dead_code)]
 fn resolve_supported_target_topology_with_roots(
     catalog: &PipelineCatalog,
     roots: &PipelineDeclarativeRootsContract,
@@ -1386,6 +1388,7 @@ pub fn load_pipeline_catalog(
     load_pipeline_catalog_with_mode(repo_root, PipelineLoadMode::RouteAware)
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_pipeline_catalog_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
@@ -1403,6 +1406,7 @@ pub fn load_pipeline_catalog_metadata(
     load_pipeline_metadata_catalog_index(repo_root.as_ref())
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_pipeline_catalog_metadata_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
@@ -1410,6 +1414,7 @@ pub(crate) fn load_pipeline_catalog_metadata_with_roots(
     load_pipeline_metadata_catalog_index_with_roots(repo_root.as_ref(), roots)
 }
 
+#[allow(dead_code)]
 pub(crate) fn handbook_product_pipeline_declarative_roots(
 ) -> &'static PipelineDeclarativeRootsContract {
     handbook_product_declarative_roots()
@@ -1626,6 +1631,7 @@ fn load_pipeline_catalog_with_mode(
     Ok(PipelineCatalog { pipelines, stages })
 }
 
+#[allow(dead_code)]
 fn load_pipeline_catalog_with_mode_and_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,
@@ -1769,6 +1775,7 @@ fn load_pipeline_metadata_catalog_index(
     Ok(PipelineCatalog { pipelines, stages })
 }
 
+#[allow(dead_code)]
 fn load_pipeline_metadata_catalog_index_with_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,
@@ -2216,6 +2223,7 @@ fn load_stage_catalog(
     Ok(out)
 }
 
+#[allow(dead_code)]
 fn load_stage_catalog_with_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,
@@ -2360,12 +2368,14 @@ fn discover_repo_relative_files(
     Ok(out)
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 enum CatalogDiscoveryKind {
     Pipelines,
     Stages,
 }
 
+#[allow(dead_code)]
 fn discover_repo_relative_files_with_kind(
     repo_root: &Path,
     relative_dir: &Path,
@@ -2592,6 +2602,7 @@ pub fn load_pipeline_definition(
     load_pipeline_definition_with_mode(repo_root, pipeline_path, PipelineLoadMode::RouteAware)
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_pipeline_definition_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
@@ -2697,6 +2708,7 @@ fn load_pipeline_definition_with_mode(
     })
 }
 
+#[allow(dead_code)]
 fn load_pipeline_definition_with_mode_and_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,
@@ -3104,6 +3116,7 @@ fn validate_pipeline_definition(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn validate_pipeline_definition_with_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,
@@ -3304,6 +3317,7 @@ fn invalid_stage_file_error(
     }
 }
 
+#[allow(dead_code)]
 fn validate_stage_file_with_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,
@@ -3540,6 +3554,7 @@ fn validate_pipeline_repo_relative_path(
     Ok(relative_path)
 }
 
+#[allow(dead_code)]
 fn validate_pipeline_repo_relative_path_with_roots(
     repo_root: &Path,
     roots: &PipelineDeclarativeRootsContract,

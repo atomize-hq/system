@@ -90,6 +90,7 @@ impl PipelineStorageLayoutContract {
         }
     }
 
+    #[allow(dead_code)]
     const fn from_paths(
         state_root_relative: &'static str,
         pipeline_dir_relative: &'static str,
@@ -107,6 +108,7 @@ impl PipelineStorageLayoutContract {
         )
     }
 
+    #[allow(dead_code)]
     pub(crate) fn try_from_paths(
         state_root_relative: &'static str,
         pipeline_dir_relative: &'static str,

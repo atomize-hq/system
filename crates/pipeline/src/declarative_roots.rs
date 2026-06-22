@@ -69,6 +69,7 @@ impl PipelineDeclarativeRootsContract {
         Path::new(self.stage_root_relative())
     }
 
+    #[allow(dead_code)]
     pub fn pipeline_file(self, file_name: &str) -> String {
         format!("{}/{file_name}", self.pipeline_root_relative())
     }

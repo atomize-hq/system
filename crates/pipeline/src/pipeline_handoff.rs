@@ -706,6 +706,7 @@ pub fn validate_pipeline_handoff_bundle(
     })
 }
 
+#[allow(dead_code)]
 pub(crate) fn validate_pipeline_handoff_bundle_with_storage_layout(
     repo_root: impl AsRef<Path>,
     bundle_root: &str,
@@ -1262,6 +1263,7 @@ fn validate_canonical_provenance(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn validate_canonical_provenance_with_storage_layout(
     repo_root: &Path,
     manifest: &PipelineHandoffManifest,
