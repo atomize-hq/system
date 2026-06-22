@@ -45,7 +45,8 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 
 ### Packet 2.3: Flow Published-Surface Revalidation
 
-- [ ] Task: Revalidate `handbook-flow` as a publishable API after manifest/versioning changes
+- [x] Task: Revalidate `handbook-flow` as a publishable API after manifest/versioning changes
+  - Decision (2026-06-22): the current `crates/flow/src/lib.rs` surface still matches the cleaned consumer contract after the publish-metadata / versioned-dependency hardening in `crates/flow/Cargo.toml`, so Packet 2.3 lands as docs-only.
   - Acceptance: The cleaned flow consumer contract still matches the live published surface, and no publish-surface blocker remains beyond the already-documented typed boundary plus the later release-sequencing requirement that `handbook-engine` be published/resolvable for dependent dry-runs.
   - Verify: Source inspection of `crates/flow/src/lib.rs`; `cargo test -p handbook-flow`
   - Files: `crates/flow/src/lib.rs` only if required, plus any consumer-contract doc refresh needed for honesty
@@ -111,6 +112,6 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 | Lane | Status | Blocks published consumption? |
 |------|--------|-------------------------------|
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
-| 2 | Packets 2.1-2.2 landed; Packet 2.3 remains | Yes |
+| 2 | Packets 2.1-2.3 landed | Yes |
 | 3 | Not started | Yes |
 | 4 | Not started | — |

@@ -3,6 +3,7 @@
 ## Status
 
 - Packet: **6.B.3 — Formalize Consumer Contract**.
+- Revalidated for **Packet 2.3 — Flow Published-Surface Revalidation** on **2026-06-22** after the publish-metadata / versioned-dependency hardening in `crates/flow/Cargo.toml`; `crates/flow/src/lib.rs` still exposes the same cleaned typed boundary and `cargo test -p handbook-flow` remains green.
 - Scope: `handbook-flow` import-boundary contract only; no production-code changes are part of this document.
 - Contract basis: live cleaned source inspected on **2026-06-20** in `crates/flow/src/{lib,budget,packet_result,resolver}.rs`, plus the caller-owned rendering seams in `crates/cli/src/rendering.rs` and `crates/compiler/src/rendering/shared.rs`.
 - Provenance: the preserved **Packet 6.B.1** evidence section remains below for audit history. Where that preserved evidence describes the pre-cleanup shell-leakage state, the contract sections above it are the current authority because they reflect the post-**6.B.2** live source.
@@ -125,6 +126,15 @@ Commands run during Packet 6.B.3 verification:
 - `cargo tree -p handbook-flow`
 - `cargo test -p handbook-flow`
 - `cargo check --workspace`
+
+Additional commands run during Packet 2.3 revalidation on 2026-06-22:
+
+- `git status --short --branch`
+- `sed -n '1,260p' docs/specs/handbook-flow-import-boundary-consumer-contract.md`
+- `sed -n '1,220p' crates/flow/Cargo.toml`
+- `rg -n "pub (fn|struct|enum|type|const)" crates/flow/src/resolver.rs crates/flow/src/budget.rs crates/flow/src/packet_result.rs`
+- `sed -n '1,220p' crates/flow/src/lib.rs`
+- `cargo test -p handbook-flow`
 
 ## Evidence preservation note
 
