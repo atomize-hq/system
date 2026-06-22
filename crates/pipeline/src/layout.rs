@@ -71,7 +71,7 @@ impl HandoffBundleLayoutContract {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PipelineStorageLayoutContract {
+pub(crate) struct PipelineStorageLayoutContract {
     runtime_state: RuntimeStateLayoutContract,
     capture_storage: CaptureStorageLayoutContract,
     handoff_bundle: HandoffBundleLayoutContract,
@@ -107,7 +107,7 @@ impl PipelineStorageLayoutContract {
         )
     }
 
-    pub fn try_from_paths(
+    pub(crate) fn try_from_paths(
         state_root_relative: &'static str,
         pipeline_dir_relative: &'static str,
         stage_capture_root_relative: &'static str,
@@ -148,7 +148,8 @@ pub(crate) const HANDBOOK_PRODUCT_PIPELINE_STORAGE_LAYOUT: PipelineStorageLayout
         HandoffBundleLayoutContract::new("artifacts/handoff/feature_slice"),
     );
 
-pub fn handbook_product_pipeline_storage_layout_contract() -> &'static PipelineStorageLayoutContract
+pub(crate) fn handbook_product_pipeline_storage_layout_contract(
+) -> &'static PipelineStorageLayoutContract
 {
     &HANDBOOK_PRODUCT_PIPELINE_STORAGE_LAYOUT
 }

@@ -5,18 +5,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    pipeline_capture::{
-        capture_pipeline_output, capture_pipeline_output_with_storage_layout,
-        PipelineCaptureRequest,
-    },
+    pipeline_capture::{capture_pipeline_output, PipelineCaptureRequest},
     pipeline_handoff::{
-        emit_pipeline_handoff_bundle, emit_pipeline_handoff_bundle_with_storage_layout,
-        validate_pipeline_handoff_bundle, validate_pipeline_handoff_bundle_with_storage_layout,
-        PipelineHandoffEmitRequest, PipelineHandoffManifest, PipelineHandoffRefusalClassification,
-        PipelineHandoffTrustClass, PipelineHandoffValidatedBundle,
+        emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle, PipelineHandoffEmitRequest,
+        PipelineHandoffManifest, PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
+        PipelineHandoffValidatedBundle,
         PipelineHandoffValidationFailureClassification,
     },
-    route_state::{route_state_path_with_storage_layout, PipelineStorageLayoutContract},
 };
 
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;
@@ -24,23 +19,6 @@ const STAGE_ID: &str = pipeline_proof_corpus_support::STAGE_10_FEATURE_SPEC_ID;
 const CONSUMER_ID: &str = "feature-slice-decomposer";
 const STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
     ".handbook/state/pipeline/stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
-const CUSTOM_ROUTE_STATE_PATH: &str =
-    ".handbook/custom_state/pipeline/pipeline.foundation_inputs.yaml";
-const CUSTOM_STAGE_10_CAPTURE_PROVENANCE_PATH: &str =
-    ".handbook/custom_state/pipeline/custom_stage_capture/pipeline.foundation_inputs.stage.10_feature_spec.json";
-const CUSTOM_HANDOFF_ROOT: &str = "artifacts/custom_handoff/feature_slice";
-
-fn custom_handoff_storage_layout() -> PipelineStorageLayoutContract {
-    PipelineStorageLayoutContract::try_from_paths(
-        ".handbook/custom_state",
-        ".handbook/custom_state/pipeline",
-        ".handbook/custom_state/pipeline/custom_stage_capture",
-        ".handbook/custom_state/pipeline/custom_capture",
-        CUSTOM_HANDOFF_ROOT,
-    )
-    .expect("custom handoff storage layout should validate")
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TestConsumerRefusalClassification {
     UndeclaredRepoReread,
@@ -89,21 +67,6 @@ fn capture_feature_spec(repo_root: &Path) {
         ),
     };
     capture_pipeline_output(repo_root, &request).expect("capture feature spec");
-}
-
-fn capture_feature_spec_with_storage_layout(
-    repo_root: &Path,
-    storage_layout: PipelineStorageLayoutContract,
-) {
-    let request = PipelineCaptureRequest {
-        pipeline_selector: PIPELINE_ID.to_string(),
-        stage_selector: STAGE_ID.to_string(),
-        input: pipeline_proof_corpus_support::read_committed_model_output(
-            "stage_10_feature_spec.md",
-        ),
-    };
-    capture_pipeline_output_with_storage_layout(repo_root, &request, storage_layout)
-        .expect("capture feature spec with custom storage layout");
 }
 
 fn emit_valid_bundle(
@@ -163,24 +126,6 @@ fn copy_dir_all(source: &Path, dest: &Path) {
             });
         }
     }
-}
-
-fn move_route_state_to_custom_layout(
-    repo_root: &Path,
-    storage_layout: PipelineStorageLayoutContract,
-) -> PathBuf {
-    let default_state_path = pipeline_proof_corpus_support::pipeline_state_path(repo_root);
-    let custom_state_path =
-        route_state_path_with_storage_layout(repo_root, PIPELINE_ID, storage_layout)
-            .expect("custom route state path");
-    fs::create_dir_all(
-        custom_state_path
-            .parent()
-            .expect("custom route state parent"),
-    )
-    .expect("create custom route state parent");
-    fs::rename(&default_state_path, &custom_state_path).expect("move route state to custom layout");
-    custom_state_path
 }
 
 fn test_consumer_read_bundle_path(
@@ -315,70 +260,6 @@ fn handoff_emit_refuses_missing_or_corrupt_stage_10_capture_provenance() {
             refusal.summary
         );
     }
-}
-
-#[test]
-fn handoff_emit_with_storage_layout_reads_custom_capture_provenance_and_writes_custom_bundle_root()
-{
-    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_10_capture_ready_repo();
-    install_canonical_inputs(&repo_root);
-
-    let storage_layout = custom_handoff_storage_layout();
-    let custom_state_path = move_route_state_to_custom_layout(&repo_root, storage_layout);
-    assert_eq!(
-        custom_state_path,
-        repo_root.join(CUSTOM_ROUTE_STATE_PATH),
-        "route-state should move under the custom runtime-state root"
-    );
-
-    capture_feature_spec_with_storage_layout(&repo_root, storage_layout);
-    assert!(
-        !repo_root.join(STAGE_10_CAPTURE_PROVENANCE_PATH).exists(),
-        "default stage-10 provenance path should stay unused for the custom storage layout"
-    );
-    assert!(
-        repo_root
-            .join(CUSTOM_STAGE_10_CAPTURE_PROVENANCE_PATH)
-            .exists(),
-        "custom stage-10 provenance should persist under the custom capture root"
-    );
-
-    let result = emit_pipeline_handoff_bundle_with_storage_layout(
-        &repo_root,
-        &PipelineHandoffEmitRequest {
-            pipeline_selector: PIPELINE_ID.to_string(),
-            consumer_selector: CONSUMER_ID.to_string(),
-            producer_command: format!(
-                "handbook pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
-            ),
-            producer_version: "test-suite".to_string(),
-        },
-        storage_layout,
-    )
-    .expect("emit handoff bundle with custom storage layout");
-
-    assert_eq!(result.manifest.bundle_root, result.bundle_root);
-    assert!(
-        result.bundle_root.starts_with(CUSTOM_HANDOFF_ROOT),
-        "custom handoff bundle root should stay under {CUSTOM_HANDOFF_ROOT}, got {}",
-        result.bundle_root
-    );
-
-    let validated = validate_pipeline_handoff_bundle_with_storage_layout(
-        &repo_root,
-        &result.bundle_root,
-        storage_layout,
-    )
-    .expect("validate custom-root handoff bundle");
-    assert_eq!(validated.manifest.bundle_root, result.bundle_root);
-    assert_eq!(validated.read_allowlist.bundle_root, result.bundle_root);
-    assert!(
-        result
-            .written_files
-            .iter()
-            .all(|path| path.starts_with(&result.bundle_root)),
-        "all emitted bundle files should stay within the custom handoff root"
-    );
 }
 
 #[test]

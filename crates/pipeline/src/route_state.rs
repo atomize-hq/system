@@ -23,7 +23,7 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub use crate::layout::{
+use crate::layout::{
     handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
 };
 
@@ -458,7 +458,7 @@ pub fn load_route_state(
     load_route_state_at_path(&state_path, pipeline_id, None, &run_inventory)
 }
 
-pub fn load_route_state_with_storage_layout(
+pub(crate) fn load_route_state_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
     storage_layout: PipelineStorageLayoutContract,
@@ -503,7 +503,7 @@ pub fn load_route_state_with_supported_variables(
     )
 }
 
-pub fn load_route_state_with_supported_variables_and_storage_layout(
+pub(crate) fn load_route_state_with_supported_variables_and_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
     supported_variables: &BTreeSet<String>,
@@ -626,7 +626,7 @@ pub fn set_route_state(
     Ok(RouteStateMutationOutcome::Applied(Box::new(state)))
 }
 
-pub fn set_route_state_with_storage_layout(
+pub(crate) fn set_route_state_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
     supported_variables: impl IntoIterator<Item = impl AsRef<str>>,
@@ -734,7 +734,7 @@ pub fn load_trusted_pipeline_session(
     )
 }
 
-pub fn load_trusted_pipeline_session_with_storage_layout(
+pub(crate) fn load_trusted_pipeline_session_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline: &PipelineDefinition,
     storage_layout: PipelineStorageLayoutContract,
@@ -1240,7 +1240,7 @@ pub fn persist_route_basis(
     Ok(RouteBasisPersistOutcome::Applied(Box::new(state)))
 }
 
-pub fn persist_route_basis_with_storage_layout(
+pub(crate) fn persist_route_basis_with_storage_layout(
     repo_root: impl AsRef<Path>,
     pipeline_id: impl AsRef<str>,
     route_basis: RouteBasis,
@@ -2232,7 +2232,7 @@ pub fn route_state_path(repo_root: &Path, pipeline_id: &str) -> Result<PathBuf, 
     Ok(repo_root.join(route_state_relative_path.as_str()))
 }
 
-pub fn route_state_path_with_storage_layout(
+pub(crate) fn route_state_path_with_storage_layout(
     repo_root: &Path,
     pipeline_id: &str,
     storage_layout: PipelineStorageLayoutContract,
@@ -2245,12 +2245,12 @@ pub fn route_state_path_with_storage_layout(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub fn preview_runtime_state_reset(repo_root: &Path) -> Result<Vec<String>, String> {
+pub(crate) fn preview_runtime_state_reset(repo_root: &Path) -> Result<Vec<String>, String> {
     plan_runtime_state_reset(repo_root).map(|plan| plan.paths)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub fn preview_runtime_state_reset_with_storage_layout(
+pub(crate) fn preview_runtime_state_reset_with_storage_layout(
     repo_root: &Path,
     storage_layout: PipelineStorageLayoutContract,
 ) -> Result<Vec<String>, String> {
@@ -2258,7 +2258,7 @@ pub fn preview_runtime_state_reset_with_storage_layout(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, String> {
+pub(crate) fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, String> {
     let plan = plan_runtime_state_reset(repo_root)?;
     let reset_paths = plan.paths.clone();
     apply_runtime_state_reset(&plan)?;
@@ -2266,7 +2266,7 @@ pub fn reset_runtime_state_tree(repo_root: &Path) -> Result<Vec<String>, String>
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub fn reset_runtime_state_tree_with_storage_layout(
+pub(crate) fn reset_runtime_state_tree_with_storage_layout(
     repo_root: &Path,
     storage_layout: PipelineStorageLayoutContract,
 ) -> Result<Vec<String>, String> {
@@ -2277,13 +2277,13 @@ pub fn reset_runtime_state_tree_with_storage_layout(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RuntimeStateResetPlan {
+pub(crate) struct RuntimeStateResetPlan {
     entries: Vec<RuntimeStateResetEntry>,
     paths: Vec<String>,
 }
 
 impl RuntimeStateResetPlan {
-    pub fn paths(&self) -> &[String] {
+    pub(crate) fn paths(&self) -> &[String] {
         &self.paths
     }
 }
@@ -2301,7 +2301,7 @@ enum RuntimeStateResetEntryKind {
     Dir,
 }
 
-pub fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
+pub(crate) fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPlan, String> {
     let workspace = CompilerWorkspace::new(repo_root);
     let runtime_state = RepoLayoutRoot::new(repo_root).runtime_state();
     let state_root = runtime_state.state_root();
@@ -2373,7 +2373,7 @@ pub fn plan_runtime_state_reset(repo_root: &Path) -> Result<RuntimeStateResetPla
     })
 }
 
-pub fn plan_runtime_state_reset_with_storage_layout(
+pub(crate) fn plan_runtime_state_reset_with_storage_layout(
     repo_root: &Path,
     storage_layout: PipelineStorageLayoutContract,
 ) -> Result<RuntimeStateResetPlan, String> {
@@ -2448,7 +2448,7 @@ pub fn plan_runtime_state_reset_with_storage_layout(
     })
 }
 
-pub fn apply_runtime_state_reset(plan: &RuntimeStateResetPlan) -> Result<(), String> {
+pub(crate) fn apply_runtime_state_reset(plan: &RuntimeStateResetPlan) -> Result<(), String> {
     for entry in &plan.entries {
         match entry.kind {
             RuntimeStateResetEntryKind::File => {

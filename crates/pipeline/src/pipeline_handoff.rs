@@ -235,7 +235,7 @@ pub fn emit_pipeline_handoff_bundle(
     )
 }
 
-pub fn emit_pipeline_handoff_bundle_with_storage_layout(
+pub(crate) fn emit_pipeline_handoff_bundle_with_storage_layout(
     repo_root: impl AsRef<Path>,
     request: &PipelineHandoffEmitRequest,
     storage_layout: PipelineStorageLayoutContract,
@@ -706,7 +706,7 @@ pub fn validate_pipeline_handoff_bundle(
     })
 }
 
-pub fn validate_pipeline_handoff_bundle_with_storage_layout(
+pub(crate) fn validate_pipeline_handoff_bundle_with_storage_layout(
     repo_root: impl AsRef<Path>,
     bundle_root: &str,
     storage_layout: PipelineStorageLayoutContract,

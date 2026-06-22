@@ -8,7 +8,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-pub use crate::declarative_roots::PipelineDeclarativeRootsContract;
+use crate::declarative_roots::PipelineDeclarativeRootsContract;
 
 const SUPPORTED_CONSUMER_TARGET_ID: &str = "feature-slice-decomposer";
 const SUPPORTED_BASE_STAGE_FILE_NAME: &str = "00_base.md";
@@ -214,7 +214,7 @@ impl SupportedTargetRegistry {
         })
     }
 
-    pub fn load_with_roots(
+    pub(crate) fn load_with_roots(
         repo_root: impl AsRef<Path>,
         roots: &PipelineDeclarativeRootsContract,
     ) -> Result<Self, SupportedTargetRegistryLoadError> {
@@ -1386,7 +1386,7 @@ pub fn load_pipeline_catalog(
     load_pipeline_catalog_with_mode(repo_root, PipelineLoadMode::RouteAware)
 }
 
-pub fn load_pipeline_catalog_with_roots(
+pub(crate) fn load_pipeline_catalog_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
@@ -1403,14 +1403,15 @@ pub fn load_pipeline_catalog_metadata(
     load_pipeline_metadata_catalog_index(repo_root.as_ref())
 }
 
-pub fn load_pipeline_catalog_metadata_with_roots(
+pub(crate) fn load_pipeline_catalog_metadata_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
     load_pipeline_metadata_catalog_index_with_roots(repo_root.as_ref(), roots)
 }
 
-pub fn handbook_product_pipeline_declarative_roots() -> &'static PipelineDeclarativeRootsContract {
+pub(crate) fn handbook_product_pipeline_declarative_roots(
+) -> &'static PipelineDeclarativeRootsContract {
     handbook_product_declarative_roots()
 }
 
@@ -2591,7 +2592,7 @@ pub fn load_pipeline_definition(
     load_pipeline_definition_with_mode(repo_root, pipeline_path, PipelineLoadMode::RouteAware)
 }
 
-pub fn load_pipeline_definition_with_roots(
+pub(crate) fn load_pipeline_definition_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
     pipeline_path: impl AsRef<Path>,

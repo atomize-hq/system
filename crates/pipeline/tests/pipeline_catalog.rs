@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 
 use handbook_pipeline::pipeline::SupportedTargetRegistry;
 use handbook_pipeline::pipeline::{
-    handbook_product_pipeline_declarative_roots, load_pipeline_catalog,
-    load_pipeline_catalog_metadata, load_pipeline_definition, load_pipeline_selection_metadata,
-    load_stage_compile_definition, render_pipeline_list, render_pipeline_show, CompileStageInput,
-    PipelineCatalogError, PipelineDeclarativeRootsContract, PipelineLoadError, PipelineLookupError,
-    PipelineMetadataSelectionError, PipelineSelection, PipelineValidationError,
+    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
+    load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
+    render_pipeline_show, CompileStageInput, PipelineCatalogError, PipelineLoadError,
+    PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
+    PipelineValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -15,49 +15,6 @@ fn repo_root() -> PathBuf {
         .join("../..")
         .canonicalize()
         .expect("repo root")
-}
-
-#[test]
-fn declarative_root_contract_preserves_handbook_defaults_and_derives_non_default_paths() {
-    let defaults = handbook_product_pipeline_declarative_roots();
-    assert_eq!(defaults.pipeline_root_relative(), "core/pipelines");
-    assert_eq!(defaults.profile_root_relative(), "core/profiles");
-    assert_eq!(defaults.runner_root_relative(), "core/runners");
-    assert_eq!(defaults.stage_root_relative(), "core/stages");
-    assert_eq!(defaults.pipeline_root(), Path::new("core/pipelines"));
-    assert_eq!(defaults.profile_root(), Path::new("core/profiles"));
-    assert_eq!(
-        defaults.pipeline_file("foundation.yaml"),
-        "core/pipelines/foundation.yaml"
-    );
-    assert_eq!(defaults.stage_file("00_base.md"), "core/stages/00_base.md");
-
-    let imported = PipelineDeclarativeRootsContract::from_paths(
-        ".substrate/handbook/core/pipelines",
-        ".substrate/handbook/core/profiles",
-        ".substrate/handbook/core/runners",
-        ".substrate/handbook/core/stages",
-    );
-    assert_eq!(
-        imported.pipeline_file("foundation.yaml"),
-        ".substrate/handbook/core/pipelines/foundation.yaml"
-    );
-    assert_eq!(
-        imported.profile_file("python-uv", "profile.yaml"),
-        ".substrate/handbook/core/profiles/python-uv/profile.yaml"
-    );
-    assert_eq!(
-        imported.runner_file("codex-cli"),
-        ".substrate/handbook/core/runners/codex-cli.md"
-    );
-    assert_eq!(
-        imported.stage_file("00_base.md"),
-        ".substrate/handbook/core/stages/00_base.md"
-    );
-    assert!(imported.is_profile_file(
-        ".substrate/handbook/core/profiles/python-uv/commands.yaml",
-        "python-uv"
-    ));
 }
 
 #[test]
@@ -759,62 +716,6 @@ fn supported_target_registry_derives_current_pipeline_and_stage_wedge_from_catal
         ]
     );
     assert!(!registry.supports_capture_target(&compile_target.pipeline.id, "stage.00_base"));
-}
-
-#[test]
-fn explicit_roots_drive_catalog_discovery_and_supported_target_derivation() {
-    let source_root = repo_root();
-    let dir = tempfile::tempdir().expect("tempdir");
-    let root = dir.path();
-    let roots = PipelineDeclarativeRootsContract::from_paths(
-        "core/pipelines",
-        "core/profiles",
-        "core/runners",
-        ".substrate/handbook/core/stages",
-    );
-
-    copy_tree(
-        &source_root.join("core/stages"),
-        &root.join(roots.stage_root_relative()),
-    );
-
-    let imported_pipeline =
-        fs::read_to_string(source_root.join("core/pipelines/foundation_inputs.yaml"))
-            .expect("read source pipeline")
-            .replace("core/stages/", &format!("{}/", roots.stage_root_relative()));
-    write_file(
-        &root.join(roots.pipeline_file("foundation_inputs.yaml")),
-        &imported_pipeline,
-    );
-
-    let catalog = handbook_pipeline::pipeline::load_pipeline_catalog_with_roots(root, &roots)
-        .expect("catalog should discover stages from the explicit stage root");
-    assert_eq!(catalog.pipeline_count(), 1);
-    assert!(catalog.stage_count() >= 6);
-
-    let stage = catalog
-        .resolve_selector("stage.10_feature_spec")
-        .expect("stage selection");
-    match stage {
-        PipelineSelection::Stage(stage) => {
-            assert_eq!(
-                stage.source_path,
-                PathBuf::from(roots.stage_file("10_feature_spec.md"))
-            );
-        }
-        other => panic!("expected stage selection, got {other:?}"),
-    }
-
-    let registry = SupportedTargetRegistry::load_with_roots(root, &roots)
-        .expect("supported target registry should follow explicit stage roots");
-    assert_eq!(
-        registry.compile_target().stage.source_path,
-        PathBuf::from(roots.stage_file("10_feature_spec.md"))
-    );
-    assert_eq!(
-        registry.compile_target().pipeline.id,
-        "pipeline.foundation_inputs"
-    );
 }
 
 #[test]

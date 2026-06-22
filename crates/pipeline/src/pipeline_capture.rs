@@ -196,7 +196,7 @@ pub fn preview_pipeline_capture(
     )
 }
 
-pub fn preview_pipeline_capture_with_storage_layout(
+pub(crate) fn preview_pipeline_capture_with_storage_layout(
     repo_root: impl AsRef<Path>,
     request: &PipelineCaptureRequest,
     storage_layout: PipelineStorageLayoutContract,
@@ -224,7 +224,7 @@ pub fn capture_pipeline_output(
     )
 }
 
-pub fn capture_pipeline_output_with_storage_layout(
+pub(crate) fn capture_pipeline_output_with_storage_layout(
     repo_root: impl AsRef<Path>,
     request: &PipelineCaptureRequest,
     storage_layout: PipelineStorageLayoutContract,
@@ -251,7 +251,7 @@ pub fn apply_pipeline_capture(
     )
 }
 
-pub fn apply_pipeline_capture_with_storage_layout(
+pub(crate) fn apply_pipeline_capture_with_storage_layout(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
     storage_layout: PipelineStorageLayoutContract,
@@ -274,7 +274,7 @@ pub fn apply_cached_pipeline_capture(
     )
 }
 
-pub fn apply_cached_pipeline_capture_with_storage_layout(
+pub(crate) fn apply_cached_pipeline_capture_with_storage_layout(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
     storage_layout: PipelineStorageLayoutContract,
@@ -293,7 +293,7 @@ pub fn load_pipeline_capture_cache_entry(
     )
 }
 
-pub fn load_pipeline_capture_cache_entry_with_storage_layout(
+pub(crate) fn load_pipeline_capture_cache_entry_with_storage_layout(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
     storage_layout: PipelineStorageLayoutContract,

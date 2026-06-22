@@ -1,12 +1,12 @@
 use std::path::Path;
 
-pub const DECLARATIVE_ROOT: &str = "core";
-pub const PIPELINES_ROOT: &str = "core/pipelines";
-pub const PROFILES_ROOT: &str = "core/profiles";
-pub const RUNNERS_ROOT: &str = "core/runners";
-pub const STAGES_ROOT: &str = "core/stages";
-pub const PROFILES_ROOT_DISPLAY: &str = "core/profiles/";
-pub const RUNNERS_ROOT_DISPLAY: &str = "core/runners/";
+pub(crate) const DECLARATIVE_ROOT: &str = "core";
+pub(crate) const PIPELINES_ROOT: &str = "core/pipelines";
+pub(crate) const PROFILES_ROOT: &str = "core/profiles";
+pub(crate) const RUNNERS_ROOT: &str = "core/runners";
+pub(crate) const STAGES_ROOT: &str = "core/stages";
+pub(crate) const PROFILES_ROOT_DISPLAY: &str = "core/profiles/";
+pub(crate) const RUNNERS_ROOT_DISPLAY: &str = "core/runners/";
 
 /// Public owner for declarative repo-relative path roots.
 ///
@@ -15,7 +15,7 @@ pub const RUNNERS_ROOT_DISPLAY: &str = "core/runners/";
 /// validation still follow the existing handbook-product `core/**` behavior
 /// until Packet 1.2 adopts the active contract structurally.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PipelineDeclarativeRootsContract {
+pub(crate) struct PipelineDeclarativeRootsContract {
     pipeline_root_relative: &'static str,
     profile_root_relative: &'static str,
     runner_root_relative: &'static str,
@@ -92,7 +92,7 @@ impl PipelineDeclarativeRootsContract {
     }
 }
 
-pub const HANDBOOK_PRODUCT_PIPELINE_DECLARATIVE_ROOTS: PipelineDeclarativeRootsContract =
+pub(crate) const HANDBOOK_PRODUCT_PIPELINE_DECLARATIVE_ROOTS: PipelineDeclarativeRootsContract =
     PipelineDeclarativeRootsContract::from_paths(
         PIPELINES_ROOT,
         PROFILES_ROOT,
@@ -102,38 +102,38 @@ pub const HANDBOOK_PRODUCT_PIPELINE_DECLARATIVE_ROOTS: PipelineDeclarativeRootsC
 
 /// Explicit handbook-product defaults for the current supported loader/catalog
 /// boundary.
-pub fn handbook_product_declarative_roots() -> &'static PipelineDeclarativeRootsContract {
+pub(crate) fn handbook_product_declarative_roots() -> &'static PipelineDeclarativeRootsContract {
     &HANDBOOK_PRODUCT_PIPELINE_DECLARATIVE_ROOTS
 }
 
-pub fn pipeline_root() -> &'static Path {
+pub(crate) fn pipeline_root() -> &'static Path {
     handbook_product_declarative_roots().pipeline_root()
 }
 
-pub fn runner_root() -> &'static Path {
+pub(crate) fn runner_root() -> &'static Path {
     handbook_product_declarative_roots().runner_root()
 }
 
-pub fn profile_root() -> &'static Path {
+pub(crate) fn profile_root() -> &'static Path {
     handbook_product_declarative_roots().profile_root()
 }
 
-pub fn stage_root() -> &'static Path {
+pub(crate) fn stage_root() -> &'static Path {
     handbook_product_declarative_roots().stage_root()
 }
 
-pub fn runner_file(runner_id: &str) -> String {
+pub(crate) fn runner_file(runner_id: &str) -> String {
     handbook_product_declarative_roots().runner_file(runner_id)
 }
 
-pub fn profile_file(profile_id: &str, file_name: &str) -> String {
+pub(crate) fn profile_file(profile_id: &str, file_name: &str) -> String {
     handbook_product_declarative_roots().profile_file(profile_id, file_name)
 }
 
-pub fn is_profile_file(path: &str, profile_id: &str) -> bool {
+pub(crate) fn is_profile_file(path: &str, profile_id: &str) -> bool {
     handbook_product_declarative_roots().is_profile_file(path, profile_id)
 }
 
-pub fn is_canonical_declarative_path(path: &str) -> bool {
+pub(crate) fn is_canonical_declarative_path(path: &str) -> bool {
     path == DECLARATIVE_ROOT || path.starts_with("core/")
 }
