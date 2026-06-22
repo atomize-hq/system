@@ -58,7 +58,7 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 ### Packet 3.1: Release Contract + Checklist
 
 - [x] Task: Record the first-wave release contract for engine → pipeline → flow
-  - Decision (2026-06-22): Packet 3.1 lands as docs-only via `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, which fixes the first-wave train at coordinated `0.1.0` unless a pre-publish blocker forces a full-train bump before any real publish, approves the `handbook-engine` → `handbook-pipeline` → `handbook-flow` order, keeps the Packet 1.2 `version + path` manifest contract in `system`, and requires exact downstream pins for the first Substrate published-consumption proof.
+  - Decision (2026-06-22): Packet 3.1 lands as docs-only via `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, which fixes the first-wave train at coordinated `0.1.0` unless a real pre-publish crate/manifest/boundary fix forces a full-train bump before any real publish, approves the `handbook-engine` → `handbook-pipeline` → `handbook-flow` order, keeps the Packet 1.2 `version + path` manifest contract in `system`, requires exact downstream `=` pins for the first Substrate published-consumption proof, and names the checklist as the Packet 3.2 execution-evidence ledger.
   - Acceptance: A durable doc/checklist records the release order, chosen versioning policy, dependency pin semantics, the staged dry-run sequence (`engine` prepublish dry-run, then dependent dry-runs only after the published engine version is resolvable), and the evidence required before each real publish step.
   - Verify: Human review of the checklist against the live manifests, current packageability truth, and boundary docs; source inspection of `crates/engine/Cargo.toml`, `crates/pipeline/Cargo.toml`, and `crates/flow/Cargo.toml`; `cargo package -p handbook-engine --allow-dirty`; `cargo package -p handbook-pipeline --allow-dirty`; `cargo package -p handbook-flow --allow-dirty`
   - Files: `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-spec.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md`, `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md`
@@ -66,9 +66,9 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 ### Packet 3.2: Staged Dry-Run + Real crates.io Publication
 
 - [ ] Task: Execute the staged first-wave release for `handbook-engine`, `handbook-pipeline`, and `handbook-flow` in the approved order
-  - Acceptance: `handbook-engine` passes `cargo publish --dry-run` and is published first; once that published version is resolvable from crates.io, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` and are then published in the approved order; the published versions match the release contract.
+  - Acceptance: `handbook-engine` passes `cargo publish --dry-run` and is published first; once that published version is resolvable from crates.io, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` and are then published in the approved order; the published versions match the release contract; the release-candidate commit hash, dry-run outputs, real publish outputs, final published versions, and any partial-wave stop state are recorded in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` before plan/tasks status are refreshed.
   - Verify: `cargo publish --dry-run -p handbook-engine`; successful `cargo publish -p handbook-engine`; successful dependent dry-runs for `handbook-pipeline` and `handbook-flow` after engine resolution; successful `cargo publish -p handbook-pipeline`; successful `cargo publish -p handbook-flow`; published versions visible in crates.io metadata / cargo index resolution.
-  - Files: manifests/version files and any release notes/checklist artifacts needed to record the publish event
+  - Files: release-candidate manifests/version fields as needed for the chosen train; `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` for execution evidence; `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` and `...-tasks.md` for post-evidence status/handoff refresh only
 
 ---
 
@@ -77,7 +77,7 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 ### Packet 4.1: Downstream Dependency Wiring
 
 - [ ] Task: Replace the path/workspace-member adoption assumption with published-crate dependency wiring in Substrate
-  - Acceptance: The relevant Substrate manifests depend on crates.io versions of `handbook-engine`, `handbook-pipeline`, and `handbook-flow` rather than sibling path dependencies for this first-wave seam.
+  - Acceptance: The relevant Substrate manifests depend on the exact published `=` versions recorded by Packet 3.2 for `handbook-engine`, `handbook-pipeline`, and `handbook-flow`, rather than sibling path dependencies for this first-wave seam.
   - Verify: Source inspection of `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.toml` and affected member manifests; `cargo tree -p handbook-engine`; `cargo tree -p handbook-pipeline`; `cargo tree -p handbook-flow`
   - Files: `/Users/spensermcconnell/__Active_Code/atomize-hq/substrate/Cargo.toml`, affected member `Cargo.toml` files
 

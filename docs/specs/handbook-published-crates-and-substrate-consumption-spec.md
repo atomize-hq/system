@@ -190,6 +190,8 @@ Conventions:
 
 - The first-wave release contract now lives in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`.
 - Packet 3.1 resolves the earlier release-contract questions as follows:
-  1. the first real train targets coordinated `0.1.0` versions unless a pre-publish blocker forces a full-train bump before any real publish
-  2. `system` keeps the Packet 1.2 `version + path` dependency form for `handbook-engine`, while Packet 4 should use exact published pins in Substrate for the first-wave adoption proof
-  3. the first release wave uses a minimal manual checklist, not new release automation / CI
+  1. the first real train targets coordinated `0.1.0` versions, and Packet 3.2 may keep that train only while the release-candidate crate sources/manifests stay unchanged and any blocker is transient/operator-only rather than a publishable-crate fix
+  2. if a real pre-publish blocker requires changing any first-wave crate manifest, source, or publish-relevant boundary before the first real publish, abandon `0.1.0`, bump all three crates together to the next shared version (`0.1.1` by default unless a higher semver bump is intentionally required), and rerun the release checklist from the start
+  3. `system` keeps the Packet 1.2 `version + path` dependency form for `handbook-engine`, while Packet 4 should use exact published `=` pins in Substrate for the first-wave adoption proof
+  4. Packet 3.2 must record its release-candidate commit, dry-run outputs, real publish outputs, final published versions, and any partial-wave stop state in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, then mirror status/handoff updates in the plan/tasks docs
+  5. the first release wave uses a minimal manual checklist, not new release automation / CI

@@ -26,8 +26,11 @@ This document records the manual release contract that Packet 3.2 must execute. 
   - `handbook-engine`
   - `handbook-pipeline`
   - `handbook-flow`
+- Packet 3.2 may keep the coordinated `0.1.0` train only when the release-candidate crate sources/manifests stay unchanged and the blocker is transient/operator-only rather than a publishable-crate fix.
+- Keeping `0.1.0` is still allowed for cases like crates.io index lag before engine publication, auth/token issues, operator interruption, or docs-only/evidence-note corrections that do not change any first-wave crate manifest, source, or publish-relevant boundary.
+- If a real release-blocking fix is discovered **before any real publish happens** and that fix changes any first-wave crate manifest, source, or publish-relevant boundary, abandon `0.1.0`, bump all three crates together to the next coordinated version, and rerun the full Packet 3.2 checklist from the start.
+- For this first-wave seam, **next coordinated version** means one shared semver literal across all three crates and both `handbook-engine` dependency literals in `handbook-pipeline` / `handbook-flow`; the default successor to an abandoned `0.1.0` train is `0.1.1` unless the approved fix intentionally requires a higher semver bump.
 - Packet 3.2 must record the exact published versions in the release evidence.
-- If a release-blocking fix is discovered **before any real publish happens**, bump all three crates together to the next coordinated version and rerun the full Packet 3.2 checklist from the start.
 - If a release-blocking fix is discovered **after `handbook-engine` has already been published**, stop and record the partial state honestly instead of improvising a mixed or split first-wave train inside Packet 3.2.
 
 ### 2. Approved Publish Order
@@ -67,6 +70,22 @@ Rules:
 - If Packet 3.2 bumps the coordinated release train before the first real publish, Packet 4.1 should use the exact published replacement versions instead.
 - Substrate should refresh its lockfile after wiring those exact pins and should not fall back to sibling path dependencies for the first published-consumption proof.
 
+### 4. Packet 3.2 Recording Authorities
+
+- `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` is the **execution-evidence authority** for Packet 3.2. Record all release-candidate and publish evidence here.
+- `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md` is the **packet/lane status mirror**. Update it only after the checklist contains the execution evidence or stop-state record.
+- `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` is the **cross-lane handoff/status mirror**. Update it only after the checklist contains the execution evidence or stop-state record.
+
+Packet 3.2 must use those docs as follows:
+
+| Evidence item | Required authority doc |
+|---|---|
+| release-candidate commit hash | `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` |
+| engine + dependent dry-run outputs | `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` |
+| real publish outputs / terminal proof | `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` |
+| final published versions and Packet 4.1 pin handoff | `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, then mirror status in `...-plan.md` and `...-tasks.md` |
+| partial-wave stop state if the release halts midstream | `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`, then mirror status in `...-plan.md` and `...-tasks.md` |
+
 ## Required Evidence Before Any Real Publish
 
 Packet 3.2 must treat each item below as required evidence, not implied truth.
@@ -78,7 +97,7 @@ Packet 3.2 must treat each item below as required evidence, not implied truth.
   - `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md`
   - `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md`
   - this release checklist
-- [ ] Confirm the release-candidate commit is explicit and recorded before any real publish.
+- [ ] Confirm the release-candidate commit is explicit and recorded **in this checklist** before any real publish.
 - [ ] Reconfirm the manifest versions for all three crates are still the same coordinated train version.
 - [ ] Reconfirm `handbook-pipeline` and `handbook-flow` still use the approved `version + path` dependency form against `handbook-engine`.
 - [ ] Reconfirm the current packageability truth on the exact release-candidate commit:
@@ -124,7 +143,7 @@ Packet 3.2 must treat each item below as required evidence, not implied truth.
   cargo publish --dry-run -p handbook-engine
   ```
 
-- [ ] Record the dry-run command output as evidence.
+- [ ] Record the dry-run command output **in this checklist** as evidence.
 - [ ] Do not perform a real publish unless the engine dry-run succeeds and explicit human authorization for real crates.io publication is still present in the Packet 3.2 session.
 
 ### C. Engine Publish + Resolution Gate
@@ -135,7 +154,7 @@ Packet 3.2 must treat each item below as required evidence, not implied truth.
   cargo publish -p handbook-engine
   ```
 
-- [ ] Record the published version and the terminal proof for that publish.
+- [ ] Record the published version and the terminal proof for that publish **in this checklist**.
 - [ ] Wait for the published engine version to become resolvable from crates.io before treating dependent dry-runs as meaningful.
 - [ ] The known pre-release failure mode:
 
@@ -154,7 +173,7 @@ Packet 3.2 must treat each item below as required evidence, not implied truth.
   cargo publish --dry-run -p handbook-flow
   ```
 
-- [ ] Record both dry-run outputs.
+- [ ] Record both dry-run outputs **in this checklist**.
 - [ ] Both dependent dry-runs must succeed before any dependent real publish begins.
 - [ ] If either dry-run fails for a reason other than the transient unresolved-index condition above, stop Packet 3.2 and fix or re-plan before any dependent real publish.
 
@@ -172,15 +191,22 @@ Packet 3.2 must treat each item below as required evidence, not implied truth.
   cargo publish -p handbook-flow
   ```
 
-- [ ] Record exact published versions and terminal evidence for both commands.
-- [ ] If `handbook-pipeline` publishes but `handbook-flow` cannot be honestly published afterward, record the partial state honestly and stop; do not claim the first wave is complete.
+- [ ] Record exact published versions and terminal evidence for both commands **in this checklist**.
+- [ ] If `handbook-pipeline` publishes but `handbook-flow` cannot be honestly published afterward, record the partial state honestly **in this checklist** and stop; do not claim the first wave is complete.
 
 ### F. Post-Publish Recording
 
-- [ ] Record the final published train versions in the authority docs.
-- [ ] Record the exact dry-run / publish command evidence used for Packet 3.2.
-- [ ] Record any crates.io index lag or operator notes that mattered during the staged release.
-- [ ] Hand forward the exact published versions to Packet 4.1 as the only approved downstream pin targets.
+- [ ] Record the final published train versions in this checklist.
+- [ ] Record the exact dry-run / publish command evidence used for Packet 3.2 in this checklist.
+- [ ] Record any crates.io index lag or operator notes that mattered during the staged release in this checklist.
+- [ ] Hand forward the exact published `=` versions from this checklist to Packet 4.1 as the only approved downstream pin targets.
+- [ ] After this checklist is complete, mirror the final Lane 3 / Lane 4 status in `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` and `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md`.
+
+### G. Partial-Wave Stop Record
+
+- [ ] If the wave stops after any real publish, add a stop-state note to this checklist before leaving the session.
+- [ ] Record: last successful crate publish, published version(s), failing next step, relevant terminal output, whether the issue was transient or a real release blocker, and the exact resume point.
+- [ ] Mirror that partial-publish status into `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` and `docs/specs/handbook-published-crates-and-substrate-consumption-tasks.md` only after the checklist stop-state note exists.
 
 ## Honest Status Language
 

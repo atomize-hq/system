@@ -134,9 +134,11 @@ Define and execute the first crates.io release wave without guessing.
 ### Components
 
 1. **Release contract**
-   - the first wave targets a coordinated `0.1.0` train unless a pre-publish blocker forces a full-train bump before any real publish
+   - the first wave targets a coordinated `0.1.0` train, and Packet 3.2 may keep that train only while the release-candidate crate sources/manifests stay unchanged and any blocker is transient/operator-only rather than a publishable-crate fix
+   - if a real pre-publish blocker requires changing any first-wave crate manifest, source, or publish-relevant boundary before the first real publish, abandon `0.1.0`, bump all three crates together to the next shared version (`0.1.1` by default unless a higher semver bump is intentionally required), and rerun the checklist from the start
    - the approved order is `handbook-engine` → `handbook-pipeline` → `handbook-flow`
-   - `system` keeps the approved `version + path` manifest contract for `handbook-engine`; downstream Substrate adoption should use exact published pins for the first-wave proof
+   - Packet 3.2 records all execution evidence in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md`; `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` and `...-tasks.md` only mirror status/handoff after that evidence exists
+   - `system` keeps the approved `version + path` manifest contract for `handbook-engine`; downstream Substrate adoption should use the exact published `=` pins recorded by Packet 3.2 for the first-wave proof
 
 2. **Staged dry-run sequence**
    - run `cargo publish --dry-run -p handbook-engine` before the first real publish
@@ -178,7 +180,7 @@ Replace the current path/workspace-member consumption assumption with honest pro
 ### Components
 
 1. **Downstream dependency wiring**
-   - update Substrate manifests to depend on the published handbook crate versions from crates.io
+   - update Substrate manifests to depend on the exact published handbook crate versions from crates.io using `=` pins recorded by Packet 3.2
    - remove any fallback to sibling path dependencies for this seam
 
 2. **Consumer adaptation**
