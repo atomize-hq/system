@@ -65,9 +65,9 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 
 ### Packet 3.2: Staged Dry-Run + Real crates.io Publication
 
-- [ ] Task: Execute the staged first-wave release for `handbook-engine`, `handbook-pipeline`, and `handbook-flow` in the approved order
+- [x] Task: Execute the staged first-wave release for `handbook-engine`, `handbook-pipeline`, and `handbook-flow` in the approved order
   - Decision (2026-06-22): initial Packet 3.2 execution on crate-source commit `5c5bf437168b47c9ab749aee5307a190841502d8` proved the engine dry-run but exposed a failing `cargo fmt --all -- --check` gate before any real publish. Removing that blocker required changing first-wave crate source, so the coordinated train was bumped to `0.1.1` per the release contract and the blocker-removal crate-source commit became `b88086ae58a66c8d9c6adf71e98a9555ee5c6e9a`.
-  - Status: publish-ready on `0.1.1`; `cargo fmt --all -- --check`, `cargo check --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, the targeted test wall, and `cargo publish --dry-run -p handbook-engine` now pass on `b88086a`; no real crates have been published yet, no crates.io resolution wait/retry has started yet, and dependent dry-runs remain intentionally deferred until after real `handbook-engine` publication.
+  - Status: published on `0.1.1`; `cargo publish -p handbook-engine`, `cargo publish --dry-run -p handbook-pipeline`, `cargo publish --dry-run -p handbook-flow`, `cargo publish -p handbook-pipeline`, and `cargo publish -p handbook-flow` all succeeded, and `cargo search` now shows `handbook-engine`, `handbook-pipeline`, and `handbook-flow` at `0.1.1`.
   - Acceptance: `handbook-engine` passes `cargo publish --dry-run` and is published first; once that published version is resolvable from crates.io, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` and are then published in the approved order; the published versions match the release contract; the release-candidate commit hash, dry-run outputs, real publish outputs, final published versions, and any partial-wave stop state are recorded in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` before plan/tasks status are refreshed.
   - Verify: `cargo publish --dry-run -p handbook-engine`; successful `cargo publish -p handbook-engine`; successful dependent dry-runs for `handbook-pipeline` and `handbook-flow` after engine resolution; successful `cargo publish -p handbook-pipeline`; successful `cargo publish -p handbook-flow`; published versions visible in crates.io metadata / cargo index resolution.
   - Files: release-candidate manifests/version fields as needed for the chosen train; `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` for execution evidence; `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` and `...-tasks.md` for post-evidence status/handoff refresh only
@@ -116,5 +116,5 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 |------|--------|-------------------------------|
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
 | 2 | Packets 2.1-2.3 landed | Yes |
-| 3 | Packet 3.1 landed; Packet 3.2 is publish-ready on coordinated `0.1.1` and awaiting real release execution | Yes |
+| 3 | Packets 3.1-3.2 complete; first-wave crates published at `0.1.1` | No |
 | 4 | Not started | — |

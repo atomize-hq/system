@@ -611,6 +611,338 @@ warning: aborting upload due to dry run
 - Explicit human authorization for real crates.io publication remains present in the parent Packet 3.2 session message, but as of this pre-publish evidence update no real `cargo publish` has run yet.
 - Real publish sequence remains the same: `handbook-engine` first, then wait for crates.io resolution, then dependent dry-runs, then `handbook-pipeline`, then `handbook-flow`.
 
+### Real Publication Sequence on Coordinated `0.1.1` (2026-06-22)
+
+- Explicit human authorization for real crates.io publication was reconfirmed from the parent Packet 3.2 session message immediately before the first real publish.
+- The published crate-source train remained the coordinated `0.1.1` release candidate from `b88086ae58a66c8d9c6adf71e98a9555ee5c6e9a`.
+
+#### Engine Publish
+
+`cargo publish -p handbook-engine`
+
+```text
+    Updating crates.io index
+   Packaging handbook-engine v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/engine)
+    Updating crates.io index
+    Packaged 20 files, 229.5KiB (41.1KiB compressed)
+   Verifying handbook-engine v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/engine)
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling version_check v0.9.5
+   Compiling typenum v1.19.0
+   Compiling serde_core v1.0.228
+   Compiling memchr v2.8.0
+   Compiling libc v0.2.184
+   Compiling thiserror v2.0.18
+   Compiling autocfg v1.5.0
+   Compiling serde v1.0.228
+   Compiling regex-syntax v0.8.10
+   Compiling zmij v1.0.21
+   Compiling generic-array v0.14.7
+   Compiling num-traits v0.2.19
+   Compiling aho-corasick v1.1.4
+   Compiling hashbrown v0.16.1
+   Compiling equivalent v1.0.2
+   Compiling smallvec v1.15.1
+   Compiling arraydeque v0.5.1
+   Compiling indexmap v2.13.1
+   Compiling unsafe-libyaml-norway v0.2.15
+   Compiling cfg-if v1.0.4
+   Compiling base64 v0.22.1
+   Compiling regex-automata v0.4.14
+   Compiling itoa v1.0.18
+   Compiling syn v2.0.117
+   Compiling cpufeatures v0.2.17
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling regex v1.12.3
+   Compiling thiserror-impl v2.0.18
+   Compiling serde_derive v1.0.228
+   Compiling saphyr-parser-bw v0.0.611
+   Compiling serde_yaml_bw v2.5.4
+   Compiling handbook-engine v0.1.1 (/Users/spensermcconnell/__Active_Code/system/target/package/handbook-engine-0.1.1)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.93s
+   Uploading handbook-engine v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/engine)
+    Uploaded handbook-engine v0.1.1 to registry `crates-io`
+note: waiting for handbook-engine v0.1.1 to be available at registry `crates-io`.
+You may press ctrl-c to skip waiting; the crate should be available shortly.
+   Published handbook-engine v0.1.1 at registry `crates-io`
+```
+
+#### Dependent Dry-Run Gate After Engine Publication
+
+`cargo publish --dry-run -p handbook-pipeline`
+
+```text
+    Updating crates.io index
+   Packaging handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/pipeline)
+    Updating crates.io index
+    Packaged 24 files, 833.4KiB (115.5KiB compressed)
+   Verifying handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/pipeline)
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling typenum v1.19.0
+   Compiling version_check v0.9.5
+   Compiling memchr v2.8.0
+   Compiling serde_core v1.0.228
+   Compiling thiserror v2.0.18
+   Compiling zmij v1.0.21
+   Compiling libc v0.2.184
+   Compiling autocfg v1.5.0
+   Compiling regex-syntax v0.8.10
+   Compiling serde v1.0.228
+   Compiling generic-array v0.14.7
+   Compiling num-traits v0.2.19
+   Compiling aho-corasick v1.1.4
+   Compiling itoa v1.0.18
+   Compiling arraydeque v0.5.1
+   Compiling smallvec v1.15.1
+   Compiling hashbrown v0.16.1
+   Compiling equivalent v1.0.2
+   Compiling powerfmt v0.2.0
+   Compiling time-core v0.1.8
+   Compiling indexmap v2.13.1
+   Compiling num-conv v0.2.1
+   Compiling base64 v0.22.1
+   Compiling regex-automata v0.4.14
+   Compiling syn v2.0.117
+   Compiling serde_json v1.0.149
+   Compiling cfg-if v1.0.4
+   Compiling unsafe-libyaml-norway v0.2.15
+   Compiling time-macros v0.2.27
+   Compiling deranged v0.5.8
+   Compiling cpufeatures v0.2.17
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling time v0.3.47
+   Compiling regex v1.12.3
+   Compiling thiserror-impl v2.0.18
+   Compiling serde_derive v1.0.228
+   Compiling saphyr-parser-bw v0.0.611
+   Compiling serde_yaml_bw v2.5.4
+   Compiling handbook-engine v0.1.1
+   Compiling handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/target/package/handbook-pipeline-0.1.1)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.38s
+   Uploading handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/pipeline)
+warning: aborting upload due to dry run
+```
+
+`cargo publish --dry-run -p handbook-flow`
+
+```text
+    Updating crates.io index
+   Packaging handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+    Updating crates.io index
+    Packaged 9 files, 102.1KiB (18.5KiB compressed)
+   Verifying handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling typenum v1.19.0
+   Compiling version_check v0.9.5
+   Compiling libc v0.2.184
+   Compiling serde_core v1.0.228
+   Compiling memchr v2.8.0
+   Compiling thiserror v2.0.18
+   Compiling autocfg v1.5.0
+   Compiling regex-syntax v0.8.10
+   Compiling serde v1.0.228
+   Compiling zmij v1.0.21
+   Compiling generic-array v0.14.7
+   Compiling aho-corasick v1.1.4
+   Compiling num-traits v0.2.19
+   Compiling arraydeque v0.5.1
+   Compiling hashbrown v0.16.1
+   Compiling syn v2.0.117
+   Compiling equivalent v1.0.2
+   Compiling smallvec v1.15.1
+   Compiling indexmap v2.13.1
+   Compiling regex-automata v0.4.14
+   Compiling itoa v1.0.18
+   Compiling base64 v0.22.1
+   Compiling cfg-if v1.0.4
+   Compiling unsafe-libyaml-norway v0.2.15
+   Compiling cpufeatures v0.2.17
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling thiserror-impl v2.0.18
+   Compiling serde_derive v1.0.228
+   Compiling regex v1.12.3
+   Compiling saphyr-parser-bw v0.0.611
+   Compiling serde_yaml_bw v2.5.4
+   Compiling handbook-engine v0.1.1
+   Compiling handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/target/package/handbook-flow-0.1.1)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.73s
+   Uploading handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+warning: aborting upload due to dry run
+```
+
+#### Dependent Publishes
+
+`cargo publish -p handbook-pipeline`
+
+```text
+    Updating crates.io index
+   Packaging handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/pipeline)
+    Updating crates.io index
+    Packaged 24 files, 833.4KiB (115.5KiB compressed)
+   Verifying handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/pipeline)
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling version_check v0.9.5
+   Compiling typenum v1.19.0
+   Compiling memchr v2.8.0
+   Compiling serde_core v1.0.228
+   Compiling libc v0.2.184
+   Compiling thiserror v2.0.18
+   Compiling autocfg v1.5.0
+   Compiling zmij v1.0.21
+   Compiling serde v1.0.228
+   Compiling itoa v1.0.18
+   Compiling generic-array v0.14.7
+   Compiling regex-syntax v0.8.10
+   Compiling num-traits v0.2.19
+   Compiling aho-corasick v1.1.4
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.1
+   Compiling arraydeque v0.5.1
+   Compiling smallvec v1.15.1
+   Compiling syn v2.0.117
+   Compiling serde_json v1.0.149
+   Compiling unsafe-libyaml-norway v0.2.15
+   Compiling indexmap v2.13.1
+   Compiling base64 v0.22.1
+   Compiling cfg-if v1.0.4
+   Compiling time-core v0.1.8
+   Compiling powerfmt v0.2.0
+   Compiling regex-automata v0.4.14
+   Compiling num-conv v0.2.1
+   Compiling deranged v0.5.8
+   Compiling time-macros v0.2.27
+   Compiling cpufeatures v0.2.17
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling time v0.3.47
+   Compiling thiserror-impl v2.0.18
+   Compiling serde_derive v1.0.228
+   Compiling regex v1.12.3
+   Compiling saphyr-parser-bw v0.0.611
+   Compiling serde_yaml_bw v2.5.4
+   Compiling handbook-engine v0.1.1
+   Compiling handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/target/package/handbook-pipeline-0.1.1)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.39s
+   Uploading handbook-pipeline v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/pipeline)
+    Uploaded handbook-pipeline v0.1.1 to registry `crates-io`
+note: waiting for handbook-pipeline v0.1.1 to be available at registry `crates-io`.
+You may press ctrl-c to skip waiting; the crate should be available shortly.
+   Published handbook-pipeline v0.1.1 at registry `crates-io`
+```
+
+`cargo publish -p handbook-flow`
+
+```text
+    Updating crates.io index
+   Packaging handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+    Updating crates.io index
+    Packaged 9 files, 102.1KiB (18.5KiB compressed)
+   Verifying handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling typenum v1.19.0
+   Compiling version_check v0.9.5
+   Compiling libc v0.2.184
+   Compiling autocfg v1.5.0
+   Compiling memchr v2.8.0
+   Compiling thiserror v2.0.18
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling zmij v1.0.21
+   Compiling regex-syntax v0.8.10
+   Compiling generic-array v0.14.7
+   Compiling num-traits v0.2.19
+   Compiling aho-corasick v1.1.4
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.1
+   Compiling arraydeque v0.5.1
+   Compiling smallvec v1.15.1
+   Compiling indexmap v2.13.1
+   Compiling cfg-if v1.0.4
+   Compiling unsafe-libyaml-norway v0.2.15
+   Compiling itoa v1.0.18
+   Compiling base64 v0.22.1
+   Compiling regex-automata v0.4.14
+   Compiling syn v2.0.117
+   Compiling cpufeatures v0.2.17
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling regex v1.12.3
+   Compiling thiserror-impl v2.0.18
+   Compiling serde_derive v1.0.228
+   Compiling saphyr-parser-bw v0.0.611
+   Compiling serde_yaml_bw v2.5.4
+   Compiling handbook-engine v0.1.1
+   Compiling handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/target/package/handbook-flow-0.1.1)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.81s
+   Uploading handbook-flow v0.1.1 (/Users/spensermcconnell/__Active_Code/system/crates/flow)
+    Uploaded handbook-flow v0.1.1 to registry `crates-io`
+note: waiting for handbook-flow v0.1.1 to be available at registry `crates-io`.
+You may press ctrl-c to skip waiting; the crate should be available shortly.
+   Published handbook-flow v0.1.1 at registry `crates-io`
+```
+
+#### Published-Metadata / Index-Visibility Proof
+
+`cargo search handbook-engine --limit 1`
+
+```text
+handbook-engine = "0.1.1"    # Canonical artifact, freshness, and structured authoring core for Handbook.
+note: to learn more about a package, run `cargo info <name>`
+```
+
+`cargo search handbook-pipeline --limit 1`
+
+```text
+handbook-pipeline = "0.1.1"    # Declarative pipeline loading, route state, compile/capture, and handoff runtime for Handbook.
+note: to learn more about a package, run `cargo info <name>`
+```
+
+`cargo search handbook-flow --limit 1`
+
+```text
+handbook-flow = "0.1.1"    # Resolver, packet-result, and budget runtime surfaces for Handbook.
+note: to learn more about a package, run `cargo info <name>`
+```
+
+#### Final Packet 3.2 Recording
+
+- Final published train versions:
+  - `handbook-engine = "0.1.1"`
+  - `handbook-pipeline = "0.1.1"`
+  - `handbook-flow = "0.1.1"`
+- Packet 4.1 handoff pins:
+  - `handbook-engine = "=0.1.1"`
+  - `handbook-pipeline = "=0.1.1"`
+  - `handbook-flow = "=0.1.1"`
+- crates.io waiting / retry notes:
+  - Cargo's built-in publish wait triggered for all three real publishes until the registry reported the uploaded version as published.
+  - No manual crates.io retry loop was needed for engine resolution; the first dependent dry-run after engine publication successfully resolved `handbook-engine v0.1.1`.
+  - One local wrapper command aborted after a successful first pipeline dry-run because of a zsh `PIPESTATUS` handling mistake; the dry-run was rerun cleanly with the correct shell behavior. This was an operator-script issue, not a crates.io resolution failure.
+- Packet 3.2 is now **published**.
+
 ## Honest Status Language
 
 Use these labels precisely:
