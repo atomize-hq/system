@@ -1,6 +1,6 @@
 [package]
 name = "handbook-flow"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Resolver, packet-result, and budget runtime surfaces for Handbook."
 repository = "https://github.com/atomize-hq/system.git"
@@ -13,7 +13,7 @@ name = "handbook_flow"
 path = "src/lib.rs"
 
 [dependencies]
-handbook-engine = { version = "0.1.0", path = "../engine" }
+handbook-engine = { version = "0.1.1", path = "../engine" }
 
 [dev-dependencies]
 tempfile = "3"

@@ -167,11 +167,7 @@ fn collect_runtime_state_reset_entries(
             let child_file_name = child.file_name();
             let child_name = child_file_name.to_string_lossy();
             let child_display_path = format!("{display_path}/{child_name}");
-            collect_runtime_state_reset_entries(
-                &child.path(),
-                &child_display_path,
-                reset_entries,
-            )?;
+            collect_runtime_state_reset_entries(&child.path(), &child_display_path, reset_entries)?;
         }
 
         reset_entries.push(RuntimeStateResetEntry {

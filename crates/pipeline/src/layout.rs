@@ -151,8 +151,7 @@ pub(crate) const HANDBOOK_PRODUCT_PIPELINE_STORAGE_LAYOUT: PipelineStorageLayout
     );
 
 pub(crate) fn handbook_product_pipeline_storage_layout_contract(
-) -> &'static PipelineStorageLayoutContract
-{
+) -> &'static PipelineStorageLayoutContract {
     &HANDBOOK_PRODUCT_PIPELINE_STORAGE_LAYOUT
 }
 

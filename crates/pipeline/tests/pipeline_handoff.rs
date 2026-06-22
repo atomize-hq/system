@@ -9,8 +9,7 @@ use handbook_pipeline::{
     pipeline_handoff::{
         emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle, PipelineHandoffEmitRequest,
         PipelineHandoffManifest, PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
-        PipelineHandoffValidatedBundle,
-        PipelineHandoffValidationFailureClassification,
+        PipelineHandoffValidatedBundle, PipelineHandoffValidationFailureClassification,
     },
 };
 

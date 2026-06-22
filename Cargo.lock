@@ -296,7 +296,7 @@ dependencies = [
 
 [[package]]
 name = "handbook-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "libc",
  "serde",
@@ -307,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "handbook-flow"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "handbook-engine",
  "tempfile",
@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "handbook-pipeline"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "handbook-engine",
  "libc",
