@@ -130,6 +130,7 @@ Define and execute the first crates.io release wave without guessing.
 - The current coordinated manifest version across `handbook-engine`, `handbook-pipeline`, and `handbook-flow` is `0.1.0`.
 - `handbook-pipeline` and `handbook-flow` both still depend on `handbook-engine` via the Packet 1.2 publishable `version + path` form.
 - `cargo package -p handbook-engine --allow-dirty` passes, while `handbook-pipeline` and `handbook-flow` still fail only on crates.io resolution of unpublished `handbook-engine`.
+- Packet 3.2 execution was attempted on release-candidate crate-source commit `5c5bf437168b47c9ab749aee5307a190841502d8`: `cargo publish --dry-run -p handbook-engine` passed, but the session stopped before any real publish because the required pre-publish verification wall failed at `cargo fmt --all -- --check` on pre-existing formatting drift in `crates/compiler/src/route_state.rs`, `crates/pipeline/src/layout.rs`, `crates/pipeline/tests/pipeline_capture.rs`, and `crates/pipeline/tests/pipeline_handoff.rs`.
 
 ### Components
 
@@ -162,6 +163,7 @@ Define and execute the first crates.io release wave without guessing.
 
 - Human review of the publish checklist before the first real `cargo publish`.
 - `cargo publish --dry-run -p handbook-engine` succeeds before engine publication.
+- The release-candidate verification wall must be green before any real publish; current live blocker is the failing `cargo fmt --all -- --check` noted in the checklist evidence.
 - After engine publication, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` only once the published engine version is resolvable.
 - Both dependent dry-runs pass before `handbook-pipeline` or `handbook-flow` is really published.
 - After publication, crates.io versions must match the documented release contract.
@@ -228,5 +230,5 @@ Notes:
 |------|--------|-------------------|-------------|
 | 1 | Packets 1.1-1.2 landed; remaining proof handed to Lane 3 | Yes | Mostly already landed docs/manifests |
 | 2 | Packets 2.1-2.3 landed | Yes | Lane complete; release work moves to Lane 3 |
-| 3 | Packet 3.1 landed; Packet 3.2 release execution remains | Yes | One staged release session after Lane 2 is green |
+| 3 | Packet 3.1 landed; Packet 3.2 is blocked pre-publish on `cargo fmt --all -- --check` after the engine dry-run passed | Yes | Resume the staged release only after the preflight wall is honestly green |
 | 4 | Not started | — | One substrate integration session |

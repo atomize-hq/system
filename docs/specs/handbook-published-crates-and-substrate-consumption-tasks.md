@@ -66,6 +66,8 @@ Lane 1 stop: after Packets 1.1 and 1.2 land, move any remaining registry-resolve
 ### Packet 3.2: Staged Dry-Run + Real crates.io Publication
 
 - [ ] Task: Execute the staged first-wave release for `handbook-engine`, `handbook-pipeline`, and `handbook-flow` in the approved order
+  - Decision (2026-06-22): attempted Packet 3.2 execution on release-candidate crate-source commit `5c5bf437168b47c9ab749aee5307a190841502d8`; `cargo publish --dry-run -p handbook-engine` passed, but the packet stopped before any real publish because the required pre-publish verification wall failed at `cargo fmt --all -- --check` on pre-existing formatting drift in `crates/compiler/src/route_state.rs`, `crates/pipeline/src/layout.rs`, `crates/pipeline/tests/pipeline_capture.rs`, and `crates/pipeline/tests/pipeline_handoff.rs`.
+  - Status: blocked pre-publish; no crates were published, no crates.io index-resolution wait/retry began, and dependent dry-runs for `handbook-pipeline` / `handbook-flow` did not start.
   - Acceptance: `handbook-engine` passes `cargo publish --dry-run` and is published first; once that published version is resolvable from crates.io, `handbook-pipeline` and `handbook-flow` both pass `cargo publish --dry-run` and are then published in the approved order; the published versions match the release contract; the release-candidate commit hash, dry-run outputs, real publish outputs, final published versions, and any partial-wave stop state are recorded in `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` before plan/tasks status are refreshed.
   - Verify: `cargo publish --dry-run -p handbook-engine`; successful `cargo publish -p handbook-engine`; successful dependent dry-runs for `handbook-pipeline` and `handbook-flow` after engine resolution; successful `cargo publish -p handbook-pipeline`; successful `cargo publish -p handbook-flow`; published versions visible in crates.io metadata / cargo index resolution.
   - Files: release-candidate manifests/version fields as needed for the chosen train; `docs/specs/handbook-published-crates-and-substrate-consumption-release-checklist.md` for execution evidence; `docs/specs/handbook-published-crates-and-substrate-consumption-plan.md` and `...-tasks.md` for post-evidence status/handoff refresh only
@@ -114,5 +116,5 @@ Stop after the three crates are honestly publish-ready, published, and consumed 
 |------|--------|-------------------------------|
 | 1 | Packet 1.1 + 1.2 landed; remaining proof moved to Lane 3 | Yes |
 | 2 | Packets 2.1-2.3 landed | Yes |
-| 3 | Packet 3.1 landed; Packet 3.2 pending real release execution | Yes |
+| 3 | Packet 3.1 landed; Packet 3.2 blocked pre-publish on the required fmt check after engine dry-run success | Yes |
 | 4 | Not started | — |
