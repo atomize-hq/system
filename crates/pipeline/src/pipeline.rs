@@ -139,7 +139,9 @@ pub struct SupportedTargetRegistry {
 }
 
 impl SupportedTargetRegistry {
-    pub fn load(repo_root: impl AsRef<Path>) -> Result<Self, SupportedTargetRegistryLoadError> {
+    pub(crate) fn load(
+        repo_root: impl AsRef<Path>,
+    ) -> Result<Self, SupportedTargetRegistryLoadError> {
         let repo_root = repo_root.as_ref();
         let catalog = load_pipeline_catalog_metadata(repo_root)
             .map_err(SupportedTargetRegistryLoadError::Catalog)?;
@@ -1382,7 +1384,7 @@ enum PipelineLoadMode {
     RouteAware,
 }
 
-pub fn load_pipeline_catalog(
+pub(crate) fn load_pipeline_catalog(
     repo_root: impl AsRef<Path>,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
     load_pipeline_catalog_with_mode(repo_root, PipelineLoadMode::RouteAware)
