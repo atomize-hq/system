@@ -36,6 +36,18 @@ No packet is parallel-safe by default because each later packet depends on the o
 - `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md` now locks the true objective: Substrate needs the full reusable `handbook-pipeline` capability set, but implementation must expose the minimum reviewed public surface needed to provide it.
 - The `9b83` Substrate notes remain useful for long-term provider-boundary thinking, but they are non-canonical and should only be cited as stale design context.
 
+## Active Authority Routing
+
+For fresh sessions, use this order:
+
+1. `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md` for exact objective, exact intent, and set sequencing.
+2. The active Set 1 triplet in `/Users/spensermcconnell/__Active_Code/system/docs/specs/` for the live evidence matrix, the settled Set 2 boundary-shape decision, and Packet 1.1–1.4 status.
+3. `/Users/spensermcconnell/__Active_Code/system/HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` for audit evidence only when it does not conflict with the MAP plus the active Set 1 triplet.
+4. `/Users/spensermcconnell/__Active_Code/system/docs/specs/archive/` as provenance only.
+5. The `9b83` Substrate notes as stale, non-canonical provider-boundary context only.
+
+This Packet 1.3 plan is complete only when that routing is obvious without having to diff archive history by hand.
+
 ## Components
 
 ### 1. Evidence reconciliation matrix

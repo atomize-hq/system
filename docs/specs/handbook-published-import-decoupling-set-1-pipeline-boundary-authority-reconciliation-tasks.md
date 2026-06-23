@@ -6,6 +6,20 @@ Spec reference: [handbook-published-import-decoupling-set-1-pipeline-boundary-au
 
 ---
 
+## Active authority route for this seam
+
+Use the following order during Set 1 execution:
+
+1. `docs/specs/MAP.md` for exact objective, exact intent, and set sequencing
+2. the active Set 1 triplet for live packet status and acceptance
+3. `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` for audit evidence/provenance only
+4. `docs/specs/archive/` for provenance only
+5. the `9b83` Substrate docs for stale, non-canonical context only
+
+If those sources disagree, the MAP plus the active Set 1 triplet control active planning.
+
+---
+
 ## Packet 1.1: Current-State Evidence Matrix
 
 - [x] Task: Record a side-by-side claim matrix for the MAP, audit, Packet 4.2 proof, archived parameterization docs, archived published-boundary docs, and live crate source
@@ -77,15 +91,25 @@ Spec reference: [handbook-published-import-decoupling-set-1-pipeline-boundary-au
 
 ## Packet 1.3: Active Authority Reconciliation
 
-- [ ] Task: Create active superseding authority without rewriting archived history
+- [x] Task: Create active superseding authority without rewriting archived history
   - Acceptance: A fresh session can use `docs/specs/MAP.md` plus the active Set 1 triplet as the main authority for this seam, while the archive remains provenance only. If the root audit needs an explicit supersession note, that note must point at the MAP and active Set 1 triplet rather than trying to retroactively clean every archived claim.
   - Verify: Source inspection of `docs/specs/MAP.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-*.md`; optional source inspection of `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`; `rg -n "docs/specs/MAP.md|supersede|superseded|archive|provenance" docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-*.md HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-plan.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`, optionally `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`
 
-- [ ] Task: Bound the `9b83` Substrate notes as stale but useful non-authority context
+- [x] Task: Bound the `9b83` Substrate notes as stale but useful non-authority context
   - Acceptance: The active Set 1 docs preserve the useful long-term provider-boundary takeaways from `/Users/spensermcconnell/.codex/worktrees/9b83/substrate/docs/` while clearly labeling them as non-canonical and subordinate to live `system` repo truth.
   - Verify: `rg -n "non-canonical|stale|9b83|provider boundary|context" docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-*.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-plan.md`
+
+### Packet 1.3 completion notes
+
+- Status: complete on 2026-06-23
+- Active-authority result:
+  - `docs/specs/MAP.md` plus the active Set 1 triplet are now the explicit main authority for this seam
+  - `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` remains useful audit evidence, but not stronger execution authority than the MAP plus active Set 1 docs
+  - `docs/specs/archive/` remains provenance only
+- `9b83` context result:
+  - the stale `9b83` Substrate notes remain citeable only as non-canonical provider-boundary context subordinate to live `system` repo truth
 
 ---
 

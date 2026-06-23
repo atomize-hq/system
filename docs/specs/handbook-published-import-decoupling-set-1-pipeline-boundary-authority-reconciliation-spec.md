@@ -12,6 +12,18 @@
    - **Set 2:** minimal public capability boundary for `handbook-pipeline`
    - **Set 3:** published-consumer proof + Substrate proof + guard rails
 
+## Active Authority Routing For Fresh Sessions
+
+Use the authority stack in this order:
+
+1. `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md` for exact objective, exact intent, and set sequencing.
+2. This active Set 1 triplet for the live Set 1 decision, acceptance wall, and packet status.
+3. `/Users/spensermcconnell/__Active_Code/system/HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` as audit evidence and provenance input only.
+4. `/Users/spensermcconnell/__Active_Code/system/docs/specs/archive/` as provenance only, not execution authority.
+5. `/Users/spensermcconnell/.codex/worktrees/9b83/substrate/docs/` as stale, non-canonical provider-boundary context only.
+
+For active planning, any contradiction between archive-era docs and the MAP plus this Set 1 triplet is resolved in favor of the MAP plus this Set 1 triplet.
+
 ## Objective
 
 Create the first active planning set required after the 2026-06-23 audit invalidated the claim that the full `handbook-engine` / `handbook-flow` / `handbook-pipeline` decoupling story is already honest.

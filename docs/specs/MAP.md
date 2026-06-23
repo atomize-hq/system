@@ -7,6 +7,28 @@ Related downstream proof/worktree: `/Users/spensermcconnell/.codex/worktrees/sub
 
 ---
 
+## ACTIVE AUTHORITY STACK FOR THIS SEAM
+
+Use the following authority order for the handbook published-import decoupling workstream:
+
+1. `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md`
+   - root authority for exact objective, exact intent, and set sequencing
+2. the active Set 1 triplet under `/Users/spensermcconnell/__Active_Code/system/docs/specs/`
+   - `handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`
+   - `handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-plan.md`
+   - `handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`
+   - current execution authority for Set 1 details and acceptance
+3. `/Users/spensermcconnell/__Active_Code/system/HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`
+   - freshness evidence and provenance input, not stronger authority than this MAP plus the active Set 1 triplet
+4. `/Users/spensermcconnell/__Active_Code/system/docs/specs/archive/`
+   - provenance only; do not treat archive docs as active execution authority
+5. `/Users/spensermcconnell/.codex/worktrees/9b83/substrate/docs/`
+   - stale, non-canonical context only; may inform provider-boundary thinking but must not overrule live `system` repo truth
+
+If any older document conflicts with this MAP plus the active Set 1 triplet, treat the older document as superseded for active planning.
+
+---
+
 ## EXACT OBJECTIVE
 
 Substrate must be able to consume **all reusable handbook capabilities it actually needs**, including the full reusable `handbook-pipeline` capability set, through a **reviewed, stable, published boundary**.
@@ -328,4 +350,3 @@ Keep a seam private if:
 ## NORTH STAR SENTENCE
 
 > Give Substrate the full reusable handbook capability it truly needs through the smallest reviewed public boundary that preserves the intended ownership split and avoids accidental exposure of handbook-only internals.
-
