@@ -238,7 +238,81 @@ Use an explicit contradiction-and-decision style anchored to the MAP objective a
 ## Set 1 conclusion
 
 Set 2 must implement the full reusable `handbook-pipeline` capability Substrate needs, but it must expose only the smallest reviewed API that provides that capability.
-```
+
+## Packet 1.2 decision — Set 2 boundary shape and target
+
+### Requirement lock
+
+The required capability is now fixed for the active Set 1 authority:
+
+- Substrate must be able to use the full reusable `handbook-pipeline` capability it actually needs through a reviewed published boundary.
+- That requirement includes declarative-root control, stage-root-aware catalog/loading behavior, and storage-layout control for route state, capture, and handoff paths.
+- Packet 4.2 does **not** satisfy that requirement because it proves only a narrow published `engine + flow` seam built around `handbook_flow::resolve_with_contract(...)` plus `handbook_engine::default_canonical_layout_contract()`.
+- Packet 4.2 does **not** import `handbook-pipeline`, does **not** exercise public declarative-root control, and does **not** exercise public storage-layout control.
+
+### Boundary-shape decision
+
+Set 2 should satisfy the requirement through a **narrower public façade**, not through wholesale direct promotion of the private `declarative_roots` and `layout` modules.
+
+Why this is the narrowest honest shape:
+
+1. The current private modules mix the required downstream contracts with handbook-product defaults, nested helper structs, repo-path plumbing, and convenience helpers that describe one implementation shape rather than the true downstream capability contract.
+2. Live source already shows a likely façade route: the crate has existing public pipeline-facing entrypoints plus private `*_with_roots` / `*_with_storage_layout` seams behind them.
+3. Direct module promotion would expose more implementation detail than the MAP allows, while a façade can expose the required typed control surface without freezing internal helper ownership.
+
+### Narrowest stable Set 2 boundary shape
+
+Set 2 should target exactly this stable public boundary shape:
+
+1. **Public declarative-roots contract surface**
+   - one reviewed public contract type for pipeline/profile/runner/stage repo-relative roots
+   - validated constructor and stable read accessors
+   - optional public default getter for handbook's own product defaults when useful as a baseline
+2. **Public storage-layout contract surface**
+   - one reviewed public contract type for state/capture/handoff repo-relative roots
+   - validated constructor and stable read accessors
+   - optional public default getter for handbook's own product defaults when useful as a baseline
+3. **Public contract-aware entrypoints on existing public pipeline surfaces**
+   - catalog / selection loading through explicit declarative roots
+   - compile / capture / handoff / route-state operations through explicit storage-layout contracts
+   - no requirement to make the raw `layout` or `declarative_roots` modules themselves public if a smaller re-exported façade can carry the contract
+4. **Only the typed results/errors required by those entrypoints**
+   - keep capability-facing result types public where downstream consumers must handle them
+   - keep implementation-only helper types private
+
+### What must stay private in Set 2
+
+Set 2 should keep the following private unless live proof later shows they are strictly required:
+
+- `RepoLayoutRoot`
+- `RuntimeStateLayoutContract`
+- `CaptureStorageLayoutContract`
+- `HandoffBundleLayoutContract`
+- handbook-product default constants that only describe handbook's own repo shape
+- repo/file/path plumbing helpers
+- stage-source constants and other implementation-only loading details
+- product-shell wording and CLI/product-only behavior
+
+### Set 2 acceptance wall
+
+Set 2 is only honest if all of the following are true:
+
+1. **Implementation boundary wall**
+   - `crates/pipeline/src/lib.rs` exposes the chosen façade intentionally
+   - touched public surfaces stay limited to the contract owners plus the existing public pipeline modules that need contract-aware entrypoints
+   - the change does not rely on making the entire private modules public just to reach a small number of types/functions
+2. **External published-consumer wall**
+   - a scratch consumer using published `handbook-pipeline` can construct non-default declarative-root and/or storage-layout contracts through the public boundary
+   - that consumer can execute at least one representative catalog/loading path and one representative storage-layout-aware path through public APIs only
+   - no proof step is allowed to import `handbook_pipeline::layout::*`, `handbook_pipeline::declarative_roots::*`, or other private-module paths
+3. **Downstream revalidation input wall**
+   - the Set 2 handoff must explicitly preserve that Packet 4.2 remains only an `engine + flow` proof
+   - any future Substrate adoption of the Set 2 boundary must run in a dedicated Substrate worktree and must prove Substrate still owns wording and downstream runtime behavior
+   - Set 2 does not get to claim downstream adoption merely because the new public boundary exists
+4. **Guard-rail wall**
+   - docs and tests must distinguish `public façade works` from `private internals remain reachable only inside handbook`
+   - do not call Set 2 complete based only on internal tests, default-contract behavior, or sibling-path access
+   - do not widen into CLI/compiler/product-shell redesign while chasing the boundary
 
 Conventions for this set:
 
@@ -316,7 +390,7 @@ This set is docs-only, but it still has a proof wall. The verification strategy 
 
 ## Open Questions
 
-1. Should Set 2 expose the required `handbook-pipeline` capability through direct module/type promotion, or through a narrower façade that preserves the same capability with less public surface?
-2. Which currently private typed seams are truly required for full Substrate capability, and which are merely one current implementation route that should stay private behind a narrower API?
+1. Which existing public pipeline entrypoints are the smallest first Set 2 surface that still provides the full required capability without reopening later packets?
+2. Which currently private typed seams are truly required for full Substrate capability, and which are merely one current implementation route that should stay private behind the façade?
 3. Is the intended downstream consumer shape a direct Substrate call site, a reviewed provider/context boundary, or both?
 4. Does the team want the archived parameterization docs to be formally superseded by the new active Set 1 triplet, or should Set 1 also produce a short explicit supersession note?

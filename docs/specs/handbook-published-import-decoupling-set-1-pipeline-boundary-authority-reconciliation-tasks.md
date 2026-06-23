@@ -38,15 +38,38 @@ Spec reference: [handbook-published-import-decoupling-set-1-pipeline-boundary-au
 
 ## Packet 1.2: Boundary-Shape Decision And Set 2 Target
 
-- [ ] Task: Lock the requirement that Set 2 must deliver the full reusable `handbook-pipeline` capability Substrate needs through a reviewed published boundary
+- [x] Task: Lock the requirement that Set 2 must deliver the full reusable `handbook-pipeline` capability Substrate needs through a reviewed published boundary
   - Acceptance: The active Set 1 authority explicitly states that this capability is a requirement from `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md`, not an optional future branch, and explains why Packet 4.2 does not yet satisfy it.
   - Verify: Human review of the Set 1 triplet after the Packet 1.1 matrix is complete; `rg -n "full reusable|minimum reviewed public surface|Packet 4.2|Set 2|handbook-pipeline" docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-*.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-plan.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`
 
-- [ ] Task: Define the exact Set 2 acceptance wall for the minimal public capability boundary
+- [x] Task: Define the exact Set 2 acceptance wall for the minimal public capability boundary
   - Acceptance: Set 1 leaves behind exact Set 2 proof requirements, including required source surfaces, required external-consumer proof, required downstream Substrate revalidation inputs, and the minimum guard rails needed to prevent another false-complete state while preserving the MAP rule of minimum unnecessary public surface.
   - Verify: Source inspection of the Set 1 triplet; `rg -n "Set 2|external-consumer|guard rail|Substrate|pipeline|minim|Expose capabilities, not guts" docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-*.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-plan.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`
+
+### Packet 1.2 completion notes
+
+- Status: complete on 2026-06-23
+- Decision: Set 2 will expose a narrower public façade, not wholesale direct promotion of the private `declarative_roots` / `layout` modules.
+- Requirement lock:
+  - full reusable `handbook-pipeline` capability for Substrate remains mandatory active authority work
+  - Packet 4.2 remains valid only as narrow published `engine + flow` proof
+- Stable Set 2 target:
+  - public declarative-roots contract surface
+  - public storage-layout contract surface
+  - contract-aware entrypoints on the existing public pipeline surfaces
+  - only the typed results/errors downstream must actually handle
+- Keep private by default:
+  - `RepoLayoutRoot`
+  - nested storage-layout helper structs
+  - handbook-product default constants and repo/file/path plumbing
+  - product-shell wording and CLI/product-only behavior
+- Set 2 acceptance wall:
+  - published `handbook-pipeline` consumer can construct non-default contracts through public APIs only
+  - published consumer can exercise representative catalog/loading plus storage-layout-aware behavior without private-module imports
+  - Packet 4.2 stays classified as `engine + flow` proof only
+  - downstream Substrate adoption remains a later dedicated-worktree proof, not something Packet 1.2 or Set 2 may overclaim
 
 ---
 

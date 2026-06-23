@@ -153,6 +153,19 @@ Decide what Set 2 is actually supposed to build without reopening the MAP object
 - explicitly carry forward the MAP principle: expose capabilities, not guts
 - capture open questions that still require human review rather than burying them in implementation
 
+### Decision captured on 2026-06-23
+
+- **Requirement lock:** full reusable `handbook-pipeline` capability for Substrate remains mandatory active authority work; Packet 4.2 stays classified as published `engine + flow` proof only.
+- **Chosen boundary shape:** Set 2 should expose a narrower public façade, not wholesale direct promotion of `declarative_roots` or `layout`.
+- **Why:** the live private modules mix required downstream contracts with handbook-product defaults, nested helper structs, and repo-layout plumbing; a façade can expose capability without freezing those internals publicly.
+- **Exact Set 2 target:**
+  - public declarative-roots contract surface
+  - public storage-layout contract surface
+  - contract-aware entrypoints on the existing public pipeline surfaces
+  - only the typed results/errors that downstream consumers must actually handle
+- **Keep private:** `RepoLayoutRoot`, nested storage-layout helper structs, default-only product constants, repo/file/path plumbing, and product-shell/CLI-only behavior.
+- **Acceptance wall:** Set 2 is only honest when a published `handbook-pipeline` consumer can construct non-default contracts and exercise representative catalog/loading plus storage-layout-aware behavior through public APIs only, while downstream Substrate adoption remains a later dedicated-worktree proof.
+
 ### Verification checkpoint
 
 ```bash
