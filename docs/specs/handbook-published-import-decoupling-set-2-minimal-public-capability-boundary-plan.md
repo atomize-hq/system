@@ -220,6 +220,13 @@ Packet 2.5 is done only when:
 - the retained/dropped matrix still matches the landed API
 - Set 2 closeout notes do not overclaim Set 3 work
 
+### Packet 2.5 closeout status (2026-06-23)
+
+- `tools/proof/handbook_pipeline_minimal_boundary.sh` now proves the packaged `handbook-pipeline` release-candidate boundary from an isolated temp workspace rather than a sibling path dependency.
+- The external consumer fixture constructs non-default declarative-roots and storage-layout contracts, then exercises retained metadata/definition, route-state, capture, and handoff families through public APIs only.
+- Set 2 remains closed only at the packaged-boundary level. Set 3 still owns released-crate proof, downstream Substrate proof, and guard rails.
+- Packet 4.2 remains classified as `engine + flow` proof only, and no downstream Substrate source-touching proof occurred in this set.
+
 ## Sequential vs Parallel Notes
 
 - **Not parallel-safe by default:** Packets 2.1–2.5 share public API names, crate exports, and proof assumptions.

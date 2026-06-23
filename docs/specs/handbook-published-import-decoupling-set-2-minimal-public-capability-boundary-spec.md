@@ -365,6 +365,13 @@ Set 2 is successful only when all of the following are true:
 8. A release-candidate external consumer proof exercises every retained capability family from outside the crate source tree using only public APIs.
 9. The Set 2 closeout notes explicitly preserve that downstream Substrate source-touching proof is a Set 3 responsibility.
 
+## Packet 2.5 closeout note (2026-06-23)
+
+- The Set 2 release-candidate proof now lives in `tools/proof/handbook_pipeline_minimal_boundary.sh` plus `tests/fixtures/external_consumers/handbook_pipeline_minimal_boundary/`.
+- That proof uses the packaged `handbook-pipeline` artifact, copies the proof corpus into an isolated temp workspace, constructs non-default declarative-roots and storage-layout contracts, and exercises retained metadata/definition, route-state, capture, and handoff capability families through public APIs only.
+- This closes Set 2's packaged-boundary proof wall only. It does **not** claim released-crate proof, downstream Substrate source-touching proof, or Set 3 guard-rail completion.
+- Packet 4.2 remains only `handbook-engine` + `handbook-flow` proof. No downstream Substrate source-touching `handbook-pipeline` proof happened inside Set 2.
+
 ## Open Questions
 
 1. Should the Set 2 closeout proof be satisfied by packaged release-candidate artifacts alone, or should the workstream require an immediately published version before Set 2 can close? This spec assumes packaged release-candidate proof is enough for Set 2 and reserves final released-crate proof for Set 3.

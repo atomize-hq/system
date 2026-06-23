@@ -104,15 +104,22 @@ If those sources disagree, the MAP plus the Set 1 triplet plus this Set 2 triple
 
 ## Packet 2.5: Release-Candidate External Proof + Closeout
 
-- [ ] Task: Add a release-candidate external consumer proof that exercises every retained capability family through public APIs only
+- [x] Task: Add a release-candidate external consumer proof that exercises every retained capability family through public APIs only
   - Acceptance: A packaged external consumer constructs non-default declarative-roots and storage-layout contracts, exercises retained metadata/definition, route-state, capture, and handoff capability families, and does so without private module imports, sibling-path accidents, or direct source-tree reach-in.
   - Verify: `cargo package -p handbook-pipeline --allow-dirty`; `cargo publish --dry-run -p handbook-pipeline`; `bash tools/proof/handbook_pipeline_minimal_boundary.sh`
   - Files: `tools/proof/handbook_pipeline_minimal_boundary.sh`, `tests/fixtures/external_consumers/handbook_pipeline_minimal_boundary/Cargo.toml`, `tests/fixtures/external_consumers/handbook_pipeline_minimal_boundary/src/main.rs`, optionally a small fixture README or helper file under the same proof directory
 
-- [ ] Task: Close Set 2 honestly and preserve the Set 3 handoff boundary
+- [x] Task: Close Set 2 honestly and preserve the Set 3 handoff boundary
   - Acceptance: Set 2 closeout notes confirm the landed public boundary still matches the retained/dropped matrix, the release-candidate external proof passed, Packet 4.2 remains only `engine + flow` proof, and downstream Substrate source-touching proof plus released-crate proof still belong to Set 3.
   - Verify: `cargo check --workspace`; source inspection of the Set 2 triplet after implementation; `rg -n "Packet 4.2|Set 3|released|downstream|retained/dropped|public boundary" docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-*.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-spec.md`, `docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-plan.md`, `docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-tasks.md`
+
+### Packet 2.5 closeout note (2026-06-23)
+
+- The release-candidate proof is now the packaged-crate harness at `tools/proof/handbook_pipeline_minimal_boundary.sh`.
+- It proves the retained Set 2 boundary through public APIs only and keeps the proof repo + packaged dependency isolated from sibling-path or direct source-tree dependency accidents.
+- Packet 4.2 remains only `engine + flow` proof.
+- Set 3 still owns released-crate proof, downstream Substrate source-touching proof, and guard rails.
 
 ---
 

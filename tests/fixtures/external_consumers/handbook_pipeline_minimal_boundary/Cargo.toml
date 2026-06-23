@@ -1,0 +1,8 @@
+[package]
+name = "handbook-pipeline-minimal-boundary-proof"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+handbook-pipeline = { path = "__HANDBOOK_PIPELINE_PACKAGE_PATH__" }
