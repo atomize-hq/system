@@ -7,6 +7,7 @@ use crate::{
     pipeline_help,
     shell_shared::{discover_managed_repo_root, read_stdin},
 };
+use std::path::Path;
 use std::process::ExitCode;
 
 pub(super) fn run(args: PipelineArgs) -> ExitCode {
@@ -88,28 +89,19 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_pipeline::pipeline::load_pipeline_catalog(&repo_root) {
-        Ok(catalog) => catalog,
-        Err(err) => {
-            println!("REFUSED: pipeline catalog error: {err}");
+    let pipeline = match load_selected_pipeline_for_cli(&repo_root, &args.id) {
+        Ok(pipeline) => pipeline,
+        Err(refusal) => {
+            println!("{refusal}");
             return ExitCode::from(1);
         }
     };
 
-    let pipeline =
-        match handbook_pipeline::pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
-            Ok(pipeline) => pipeline,
-            Err(err) => {
-                println!("{}", render_pipeline_selector_refusal(err));
-                return ExitCode::from(1);
-            }
-        };
-
     let supported_variables =
-        handbook_pipeline::pipeline::supported_route_state_variables(&pipeline.definition);
+        handbook_pipeline::pipeline::supported_route_state_variables(&pipeline);
     let state = match handbook_pipeline::route_state::load_route_state_with_supported_variables(
         &repo_root,
-        &pipeline.definition.header.id,
+        &pipeline.header.id,
         &supported_variables,
     ) {
         Ok(state) => state,
@@ -129,7 +121,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
         };
 
     let route = match handbook_pipeline::pipeline_route::resolve_pipeline_route(
-        &pipeline.definition,
+        &pipeline,
         &route_variables,
     ) {
         Ok(route) => route,
@@ -140,10 +132,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     };
 
     let route_basis = match handbook_pipeline::route_state::build_route_basis(
-        &repo_root,
-        &pipeline.definition,
-        &state,
-        &route,
+        &repo_root, &pipeline, &state, &route,
     ) {
         Ok(route_basis) => route_basis,
         Err(err) => {
@@ -154,7 +143,7 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
 
     match handbook_pipeline::route_state::persist_route_basis(
         &repo_root,
-        &pipeline.definition.header.id,
+        &pipeline.header.id,
         route_basis,
     ) {
         Ok(handbook_pipeline::route_state::RouteBasisPersistOutcome::Applied(_)) => {}
@@ -171,12 +160,10 @@ fn pipeline_resolve(args: PipelineSelectorArgs) -> ExitCode {
     println!(
         "{}",
         render_pipeline_resolve_output(
-            &pipeline.definition.header.id,
+            &pipeline.header.id,
             &state,
             &handbook_pipeline::route_state::effective_route_basis_run(
-                &repo_root,
-                &pipeline.definition,
-                &state
+                &repo_root, &pipeline, &state
             ),
             &route,
         )
@@ -346,20 +333,19 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
 
     match args.command {
         PipelineHandoffCommand::Emit(emit_args) => {
-            let supported_target = match handbook_pipeline::pipeline::SupportedTargetRegistry::load(
+            let supported_target = match pipeline_help::load_supported_pipeline_help_target(
                 &repo_root,
             ) {
-                Ok(registry) => registry.handoff_target(),
-                Err(err) => {
+                Some(target) => target,
+                None => {
                     println!(
                             "{}",
                             handbook_pipeline::pipeline_handoff::render_pipeline_handoff_refusal(
                                 &handbook_pipeline::pipeline_handoff::PipelineHandoffRefusal {
                                     classification:
                                         handbook_pipeline::pipeline_handoff::PipelineHandoffRefusalClassification::InvalidState,
-                                    summary: format!(
-                                        "failed to load supported target registry: {err}"
-                                    ),
+                                    summary: "failed to load supported handoff target from public pipeline metadata"
+                                        .to_string(),
                                     pipeline_id: None,
                                     consumer_id: None,
                                     recovery:
@@ -371,12 +357,11 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
                     return ExitCode::from(1);
                 }
             };
+            let supported_handoff_command = supported_target.handoff_emit_command();
             let request = handbook_pipeline::pipeline_handoff::PipelineHandoffEmitRequest {
                 pipeline_selector: emit_args.id,
                 consumer_selector: emit_args.consumer,
-                producer_command: pipeline_help::render_supported_handoff_emit_command(
-                    &supported_target,
-                ),
+                producer_command: supported_handoff_command.clone(),
                 producer_version: RELEASE_VERSION.to_string(),
             };
             match handbook_pipeline::pipeline_handoff::emit_pipeline_handoff_bundle(
@@ -394,7 +379,7 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
                 Err(refusal) => {
                     println!(
                         "{}",
-                        render_pipeline_handoff_refusal(&refusal, &supported_target)
+                        render_pipeline_handoff_refusal(&refusal, &supported_handoff_command)
                     );
                     ExitCode::from(1)
                 }
@@ -405,17 +390,14 @@ fn pipeline_handoff(args: PipelineHandoffArgs) -> ExitCode {
 
 fn render_pipeline_handoff_refusal(
     refusal: &handbook_pipeline::pipeline_handoff::PipelineHandoffRefusal,
-    supported_target: &handbook_pipeline::pipeline::SupportedHandoffTarget,
+    supported_handoff_command: &str,
 ) -> String {
     let mut refusal = refusal.clone();
     if refusal.classification
         == handbook_pipeline::pipeline_handoff::PipelineHandoffRefusalClassification::UnsupportedTarget
         && refusal.recovery == "retry with the supported handoff emit command"
     {
-        refusal.recovery = format!(
-            "retry with `{}`",
-            pipeline_help::render_supported_handoff_emit_command(supported_target)
-        );
+        refusal.recovery = format!("retry with `{supported_handoff_command}`");
     }
     handbook_pipeline::pipeline_handoff::render_pipeline_handoff_refusal(&refusal)
 }
@@ -430,29 +412,20 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    let catalog = match handbook_pipeline::pipeline::load_pipeline_catalog(&repo_root) {
-        Ok(catalog) => catalog,
-        Err(err) => {
-            println!("REFUSED: pipeline catalog error: {err}");
+    let pipeline = match load_selected_pipeline_for_cli(&repo_root, &args.id) {
+        Ok(pipeline) => pipeline,
+        Err(refusal) => {
+            println!("{refusal}");
             return ExitCode::from(1);
         }
     };
 
-    let pipeline =
-        match handbook_pipeline::pipeline::resolve_pipeline_only_selector(&catalog, &args.id) {
-            Ok(pipeline) => pipeline,
-            Err(err) => {
-                println!("{}", render_pipeline_selector_refusal(err));
-                return ExitCode::from(1);
-            }
-        };
-
     let supported_variables =
-        handbook_pipeline::pipeline::supported_route_state_variables(&pipeline.definition);
+        handbook_pipeline::pipeline::supported_route_state_variables(&pipeline);
     let current_state =
         match handbook_pipeline::route_state::load_route_state_with_supported_variables(
             &repo_root,
-            &pipeline.definition.header.id,
+            &pipeline.header.id,
             &supported_variables,
         ) {
             Ok(state) => state,
@@ -473,7 +446,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
     let expected_revision = args.expected_revision.unwrap_or(current_state.revision);
     let outcome = match handbook_pipeline::route_state::set_route_state(
         &repo_root,
-        &pipeline.definition.header.id,
+        &pipeline.header.id,
         supported_variables,
         mutation,
         expected_revision,
@@ -490,7 +463,7 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
-                    &pipeline.definition.header.id,
+                    &pipeline.header.id,
                     handbook_pipeline::route_state::RouteStateMutationOutcome::Applied(state),
                 )
             );
@@ -500,11 +473,29 @@ fn pipeline_state_set(args: PipelineStateSetArgs) -> ExitCode {
             println!(
                 "{}",
                 render_pipeline_state_set_output(
-                    &pipeline.definition.header.id,
+                    &pipeline.header.id,
                     handbook_pipeline::route_state::RouteStateMutationOutcome::Refused(refusal),
                 )
             );
             ExitCode::from(1)
+        }
+    }
+}
+
+fn load_selected_pipeline_for_cli(
+    repo_root: &Path,
+    selector: &str,
+) -> Result<handbook_pipeline::pipeline::PipelineDefinition, String> {
+    match handbook_pipeline::pipeline::load_selected_pipeline_definition(repo_root, selector) {
+        Ok(pipeline) => Ok(pipeline),
+        Err(handbook_pipeline::pipeline::SelectedPipelineLoadError::Lookup(err)) => {
+            Err(render_pipeline_selector_refusal(err))
+        }
+        Err(handbook_pipeline::pipeline::SelectedPipelineLoadError::Catalog(err)) => {
+            Err(format!("REFUSED: pipeline catalog error: {err}"))
+        }
+        Err(handbook_pipeline::pipeline::SelectedPipelineLoadError::Load(err)) => {
+            Err(format!("REFUSED: pipeline definition error: {err}"))
         }
     }
 }

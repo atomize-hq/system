@@ -5,8 +5,8 @@ use handbook_compiler::{
     resolve_shipped_template_library, TemplateLibraryRequest, TemplateLibrarySelection,
 };
 use handbook_pipeline::pipeline::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
-    load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
+    load_pipeline_catalog_metadata, load_pipeline_definition, load_pipeline_selection_metadata,
+    load_selected_pipeline_definition, load_stage_compile_definition, render_pipeline_list,
     render_pipeline_show, CompileStageInput, PipelineCatalogError, PipelineLoadError,
     PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
     PipelineValidationError,
@@ -404,25 +404,26 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_catalog(root).expect_err("route-aware catalog should refuse");
+    let err = load_selected_pipeline_definition(root, "pipeline.drift")
+        .expect_err("selected pipeline load should refuse");
 
     match err {
-        PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
+        handbook_pipeline::pipeline::SelectedPipelineLoadError::Load(
             PipelineLoadError::Validation {
                 error: PipelineValidationError::ActivationDrift { stage_id, file, .. },
                 ..
-            } => {
-                assert_eq!(stage_id, "stage.00_base");
-                assert_eq!(file, "core/stages/00_base.md");
-            }
-            other => panic!("expected activation-drift validation, got {other:?}"),
-        },
-        other => panic!("expected pipeline-load catalog refusal, got {other:?}"),
+            },
+        ) => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "core/stages/00_base.md");
+        }
+        other => panic!("expected selected-pipeline activation-drift refusal, got {other:?}"),
     }
 }
 
 #[test]
-fn metadata_catalog_ignores_unused_broken_stage_files_but_strict_catalog_still_refuses() {
+fn metadata_catalog_ignores_unused_broken_stage_files_and_selected_definition_loads_supported_pipeline(
+) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -476,18 +477,14 @@ stages:
     assert!(list.contains("PIPELINE: pipeline.foundation"));
     assert!(!list.contains("stage.bad_unused"));
 
-    let err = load_pipeline_catalog(root).expect_err("strict catalog should refuse");
-    match err {
-        PipelineCatalogError::StageKindMismatch { path, actual } => {
-            assert_eq!(path, root.join("core/stages/99_bad_unused.md"));
-            assert_eq!(actual, "nonsense");
-        }
-        other => panic!("expected stage-kind-mismatch refusal, got {other:?}"),
-    }
+    let definition = load_selected_pipeline_definition(root, "pipeline.foundation")
+        .expect("selected pipeline definition should still load");
+    assert_eq!(definition.header.id, "pipeline.foundation");
 }
 
 #[test]
-fn metadata_catalog_ignores_unrelated_broken_pipeline_but_strict_catalog_still_refuses() {
+fn metadata_catalog_ignores_unrelated_broken_pipeline_and_selected_definition_loads_supported_pipeline(
+) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -545,19 +542,9 @@ stages:
     assert!(catalog.resolve_selector("pipeline.foundation").is_ok());
     assert!(catalog.resolve_selector("pipeline.bad/path").is_err());
 
-    let err = load_pipeline_catalog(root).expect_err("strict catalog should refuse");
-    match err {
-        PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
-            PipelineLoadError::Validation {
-                error: PipelineValidationError::InvalidCanonicalId { value, .. },
-                ..
-            } => {
-                assert_eq!(value, "pipeline.bad/path");
-            }
-            other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
-        },
-        other => panic!("expected pipeline-load refusal, got {other:?}"),
-    }
+    let definition = load_selected_pipeline_definition(root, "pipeline.foundation")
+        .expect("selected pipeline definition should still load");
+    assert_eq!(definition.header.id, "pipeline.foundation");
 }
 
 #[test]

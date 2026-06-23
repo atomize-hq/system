@@ -3,9 +3,9 @@ use crate::layout::{
     RepoLayoutRoot,
 };
 use crate::pipeline::{
-    load_selected_pipeline_definition, load_stage_compile_definition,
-    supported_route_state_variables, CompileStageDefinition, PipelineDefinition,
-    SelectedPipelineLoadError, SupportedTargetRegistry,
+    handbook_product_pipeline_declarative_roots, load_selected_pipeline_definition,
+    load_stage_compile_definition, supported_route_state_variables, CompileStageDefinition,
+    PipelineDefinition, SelectedPipelineLoadError, SupportedTargetRegistry,
 };
 use crate::pipeline_compile::{
     compile_pipeline_stage_with_runtime_and_storage_layout, PipelineCompileRefusal,
@@ -413,9 +413,12 @@ fn build_capture_plan(
     input: &str,
     storage_layout: PipelineStorageLayoutContract,
 ) -> Result<PipelineCapturePlan, PipelineCaptureRefusal> {
-    let supported_target_help = SupportedTargetRegistry::load(repo_root)
-        .ok()
-        .map(|registry| supported_capture_target_help(&registry));
+    let supported_target_help = SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .ok()
+    .map(|registry| supported_capture_target_help(&registry));
     let pipeline = load_selected_pipeline_definition(repo_root, pipeline_selector).map_err(
         |err| match err {
             SelectedPipelineLoadError::Lookup(err) => PipelineCaptureRefusal {
@@ -2122,7 +2125,11 @@ fn load_capture_target_registry(
     pipeline_id: Option<&str>,
     stage_id: Option<&str>,
 ) -> Result<SupportedTargetRegistry, PipelineCaptureRefusal> {
-    SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineCaptureRefusal {
+    SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .map_err(|err| PipelineCaptureRefusal {
         classification: PipelineCaptureRefusalClassification::InvalidDefinition,
         summary: format!("failed to load supported target registry: {err}"),
         pipeline_id: pipeline_id.map(str::to_string),

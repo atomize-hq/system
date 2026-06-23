@@ -1,5 +1,9 @@
 use crate::shell_shared::discover_managed_repo_root;
 use clap::Command;
+use handbook_pipeline::pipeline::{
+    load_pipeline_catalog_metadata, PipelineCatalog, PipelineCatalogEntry,
+};
+use std::path::Path;
 
 pub(crate) const SUPPORTED_CAPTURE_HELP_SUMMARY: &str =
     "Capture one supported stage output and materialize declared artifact and repo-mirror files for the supported pipeline stages.";
@@ -10,6 +14,16 @@ pub(crate) const SUPPORTED_HANDOFF_HELP_SUMMARY: &str =
 pub(crate) const SUPPORTED_HANDOFF_EMIT_HELP_SUMMARY: &str = SUPPORTED_HANDOFF_HELP_SUMMARY;
 pub(crate) const SUPPORTED_HANDOFF_HELP_EXAMPLES: &str =
     "Examples are loaded from the current managed repo when supported target metadata is available.";
+const SUPPORTED_HANDOFF_CONSUMER_ID: &str = "feature-slice-decomposer";
+const SUPPORTED_BASE_STAGE_PATH: &str = "core/stages/00_base.md";
+const SUPPORTED_COMPILE_STAGE_PATH: &str = "core/stages/10_feature_spec.md";
+const SUPPORTED_CAPTURE_STAGE_PATHS: &[&str] = &[
+    "core/stages/04_charter_inputs.md",
+    "core/stages/05_charter_synthesize.md",
+    "core/stages/06_project_context_interview.md",
+    "core/stages/07_foundation_pack.md",
+    SUPPORTED_COMPILE_STAGE_PATH,
+];
 
 #[derive(Debug, Clone)]
 struct PipelineHelpText {
@@ -17,6 +31,20 @@ struct PipelineHelpText {
     capture_examples: String,
     handoff_summary: String,
     handoff_examples: String,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SupportedPipelineHelpTarget {
+    pub(crate) pipeline_id: String,
+    pub(crate) compile_stage_id: String,
+    pub(crate) capture_stage_ids: Vec<String>,
+    pub(crate) consumer_id: String,
+}
+
+impl SupportedPipelineHelpTarget {
+    pub(crate) fn handoff_emit_command(&self) -> String {
+        render_supported_handoff_emit_command(&self.pipeline_id, &self.consumer_id)
+    }
 }
 
 pub(crate) fn apply_dynamic_pipeline_help(command: Command) -> Command {
@@ -48,54 +76,117 @@ pub(crate) fn apply_dynamic_pipeline_help(command: Command) -> Command {
 }
 
 pub(crate) fn render_supported_handoff_emit_command(
-    target: &handbook_pipeline::pipeline::SupportedHandoffTarget,
+    pipeline_id: &str,
+    consumer_id: &str,
 ) -> String {
     format!(
         "handbook pipeline handoff emit --id {} --consumer {}",
-        target.pipeline_id, target.consumer_id
+        pipeline_id, consumer_id
     )
+}
+
+pub(crate) fn load_supported_pipeline_help_target(
+    repo_root: &Path,
+) -> Option<SupportedPipelineHelpTarget> {
+    let catalog = load_pipeline_catalog_metadata(repo_root).ok()?;
+    derive_supported_pipeline_help_target(&catalog)
 }
 
 fn load_dynamic_pipeline_help() -> Option<PipelineHelpText> {
     let cwd = std::env::current_dir().ok()?;
     let repo_root = discover_managed_repo_root(&cwd);
-    let registry = handbook_pipeline::pipeline::SupportedTargetRegistry::load(&repo_root).ok()?;
-    let compile_target = registry.compile_target();
-    let pipeline_id = compile_target.pipeline.id.clone();
-    let compile_stage_id = compile_target.stage.id.clone();
-    let capture_stage_ids = registry
-        .stages()
-        .filter(|stage| registry.supports_capture_target(&pipeline_id, &stage.id))
-        .map(|stage| stage.id.clone())
-        .collect::<Vec<_>>();
-    let first_capture_stage_id = capture_stage_ids.first()?.clone();
-    let preview_stage_id = capture_stage_ids
+    let target = load_supported_pipeline_help_target(&repo_root)?;
+    let first_capture_stage_id = target.capture_stage_ids.first()?.clone();
+    let preview_stage_id = target
+        .capture_stage_ids
         .iter()
         .rev()
-        .find(|stage_id| *stage_id != &compile_stage_id)
+        .find(|stage_id| *stage_id != &target.compile_stage_id)
         .cloned()
         .unwrap_or_else(|| first_capture_stage_id.clone());
-    let rendered_stage_list = capture_stage_ids
+    let rendered_stage_list = target
+        .capture_stage_ids
         .iter()
         .map(|stage_id| format!("`{stage_id}`"))
         .collect::<Vec<_>>();
-    let handoff_target = registry.handoff_target();
-    let handoff_command = render_supported_handoff_emit_command(&handoff_target);
+    let handoff_command = target.handoff_emit_command();
 
     Some(PipelineHelpText {
         capture_summary: format!(
-            "Capture one supported stage output and materialize declared artifact and repo-mirror files for `{pipeline_id}` stages {}",
+            "Capture one supported stage output and materialize declared artifact and repo-mirror files for `{}` stages {}",
+            target.pipeline_id,
             render_human_stage_list(&rendered_stage_list)
         ),
         capture_examples: format!(
-            "Examples:\n  handbook pipeline capture --id {pipeline_id} --stage {first_capture_stage_id}\n  handbook pipeline capture --id {pipeline_id} --stage {preview_stage_id} --preview\n  handbook pipeline capture --id {pipeline_id} --stage {compile_stage_id} < /tmp/FEATURE_SPEC.md\n  handbook pipeline capture apply --capture-id <capture-id>"
+            "Examples:\n  handbook pipeline capture --id {} --stage {first_capture_stage_id}\n  handbook pipeline capture --id {} --stage {preview_stage_id} --preview\n  handbook pipeline capture --id {} --stage {} < /tmp/FEATURE_SPEC.md\n  handbook pipeline capture apply --capture-id <capture-id>",
+            target.pipeline_id,
+            target.pipeline_id,
+            target.pipeline_id,
+            target.compile_stage_id,
         ),
         handoff_summary: format!(
             "Emit one bounded handoff bundle for `{}` -> `{}`",
-            handoff_target.pipeline_id, handoff_target.consumer_id
+            target.pipeline_id, target.consumer_id
         ),
         handoff_examples: format!("Example:\n  {handoff_command}"),
     })
+}
+
+fn derive_supported_pipeline_help_target(
+    catalog: &PipelineCatalog,
+) -> Option<SupportedPipelineHelpTarget> {
+    let mut matches = catalog
+        .pipelines()
+        .filter(|pipeline| supported_pipeline_stage_shape_matches(pipeline))
+        .collect::<Vec<_>>();
+    let pipeline = matches.pop()?;
+    if !matches.is_empty() {
+        return None;
+    }
+
+    let compile_stage_id = pipeline
+        .stages
+        .iter()
+        .find(|stage| stage.source_path == Path::new(SUPPORTED_COMPILE_STAGE_PATH))
+        .map(|stage| stage.stage_id.clone())?;
+    let capture_stage_ids = pipeline
+        .stages
+        .iter()
+        .filter(|stage| {
+            SUPPORTED_CAPTURE_STAGE_PATHS
+                .iter()
+                .any(|expected| stage.source_path == Path::new(expected))
+        })
+        .map(|stage| stage.stage_id.clone())
+        .collect::<Vec<_>>();
+    if capture_stage_ids.len() != SUPPORTED_CAPTURE_STAGE_PATHS.len() {
+        return None;
+    }
+
+    Some(SupportedPipelineHelpTarget {
+        pipeline_id: pipeline.definition.header.id.clone(),
+        compile_stage_id,
+        capture_stage_ids,
+        consumer_id: SUPPORTED_HANDOFF_CONSUMER_ID.to_string(),
+    })
+}
+
+fn supported_pipeline_stage_shape_matches(pipeline: &PipelineCatalogEntry) -> bool {
+    const SUPPORTED_PIPELINE_STAGE_PATHS: &[&str] = &[
+        SUPPORTED_BASE_STAGE_PATH,
+        "core/stages/04_charter_inputs.md",
+        "core/stages/05_charter_synthesize.md",
+        "core/stages/06_project_context_interview.md",
+        "core/stages/07_foundation_pack.md",
+        SUPPORTED_COMPILE_STAGE_PATH,
+    ];
+
+    pipeline.stages.len() == SUPPORTED_PIPELINE_STAGE_PATHS.len()
+        && pipeline
+            .stages
+            .iter()
+            .zip(SUPPORTED_PIPELINE_STAGE_PATHS.iter())
+            .all(|(stage, expected)| stage.source_path == Path::new(expected))
 }
 
 fn render_human_stage_list(stage_ids: &[String]) -> String {

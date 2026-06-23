@@ -1,11 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use handbook_pipeline::pipeline::SupportedTargetRegistry;
 use handbook_pipeline::pipeline::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata,
-    load_pipeline_catalog_metadata_with_roots, load_pipeline_definition,
-    load_pipeline_selection_metadata, load_pipeline_selection_metadata_with_roots,
+    load_pipeline_catalog_metadata, load_pipeline_catalog_metadata_with_roots,
+    load_pipeline_definition, load_pipeline_selection_metadata,
+    load_pipeline_selection_metadata_with_roots, load_selected_pipeline_definition,
     load_stage_compile_definition, render_pipeline_list, render_pipeline_show, CompileStageInput,
     PipelineCatalogError, PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError,
     PipelineSelection, PipelineValidationError,
@@ -463,25 +462,26 @@ stages:
 "#,
     );
 
-    let err = load_pipeline_catalog(root).expect_err("route-aware catalog should refuse");
+    let err = load_selected_pipeline_definition(root, "pipeline.drift")
+        .expect_err("selected pipeline load should refuse");
 
     match err {
-        PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
+        handbook_pipeline::pipeline::SelectedPipelineLoadError::Load(
             PipelineLoadError::Validation {
                 error: PipelineValidationError::ActivationDrift { stage_id, file, .. },
                 ..
-            } => {
-                assert_eq!(stage_id, "stage.00_base");
-                assert_eq!(file, "core/stages/00_base.md");
-            }
-            other => panic!("expected activation-drift validation, got {other:?}"),
-        },
-        other => panic!("expected pipeline-load catalog refusal, got {other:?}"),
+            },
+        ) => {
+            assert_eq!(stage_id, "stage.00_base");
+            assert_eq!(file, "core/stages/00_base.md");
+        }
+        other => panic!("expected selected-pipeline activation-drift refusal, got {other:?}"),
     }
 }
 
 #[test]
-fn metadata_catalog_ignores_unused_broken_stage_files_but_strict_catalog_still_refuses() {
+fn metadata_catalog_ignores_unused_broken_stage_files_and_selected_definition_loads_supported_pipeline(
+) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -535,18 +535,14 @@ stages:
     assert!(list.contains("PIPELINE: pipeline.foundation"));
     assert!(!list.contains("stage.bad_unused"));
 
-    let err = load_pipeline_catalog(root).expect_err("strict catalog should refuse");
-    match err {
-        PipelineCatalogError::StageKindMismatch { path, actual } => {
-            assert_eq!(path, root.join("core/stages/99_bad_unused.md"));
-            assert_eq!(actual, "nonsense");
-        }
-        other => panic!("expected stage-kind-mismatch refusal, got {other:?}"),
-    }
+    let definition = load_selected_pipeline_definition(root, "pipeline.foundation")
+        .expect("selected pipeline definition should still load");
+    assert_eq!(definition.header.id, "pipeline.foundation");
 }
 
 #[test]
-fn metadata_catalog_ignores_unrelated_broken_pipeline_but_strict_catalog_still_refuses() {
+fn metadata_catalog_ignores_unrelated_broken_pipeline_and_selected_definition_loads_supported_pipeline(
+) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -604,19 +600,9 @@ stages:
     assert!(catalog.resolve_selector("pipeline.foundation").is_ok());
     assert!(catalog.resolve_selector("pipeline.bad/path").is_err());
 
-    let err = load_pipeline_catalog(root).expect_err("strict catalog should refuse");
-    match err {
-        PipelineCatalogError::PipelineLoad { source, .. } => match source.as_ref() {
-            PipelineLoadError::Validation {
-                error: PipelineValidationError::InvalidCanonicalId { value, .. },
-                ..
-            } => {
-                assert_eq!(value, "pipeline.bad/path");
-            }
-            other => panic!("expected invalid-canonical-id refusal, got {other:?}"),
-        },
-        other => panic!("expected pipeline-load refusal, got {other:?}"),
-    }
+    let definition = load_selected_pipeline_definition(root, "pipeline.foundation")
+        .expect("selected pipeline definition should still load");
+    assert_eq!(definition.header.id, "pipeline.foundation");
 }
 
 #[test]
@@ -763,30 +749,22 @@ stages:
 }
 
 #[test]
-fn supported_target_registry_derives_current_pipeline_and_stage_wedge_from_catalog_truth() {
-    let registry = SupportedTargetRegistry::load(repo_root()).expect("supported target registry");
+fn metadata_selection_derives_current_pipeline_and_stage_wedge_from_catalog_truth() {
+    let selection = load_pipeline_selection_metadata(repo_root(), "pipeline.foundation_inputs")
+        .expect("foundation_inputs selection");
+    let PipelineSelection::Pipeline(pipeline) = selection else {
+        panic!("expected pipeline selection");
+    };
 
+    assert_eq!(pipeline.definition.header.id, "pipeline.foundation_inputs");
     assert_eq!(
-        registry.canonical_compile_pipeline_id(),
-        "pipeline.foundation_inputs"
-    );
-    assert_eq!(
-        registry.canonical_compile_stage_id(),
-        "stage.10_feature_spec"
-    );
-
-    let compile_target = registry.compile_target();
-    assert_eq!(compile_target.pipeline.id, "pipeline.foundation_inputs");
-    assert_eq!(compile_target.stage.id, "stage.10_feature_spec");
-
-    let capture_stage_ids = registry
-        .stages()
-        .filter(|stage| registry.supports_capture_target(&compile_target.pipeline.id, &stage.id))
-        .map(|stage| stage.id.clone())
-        .collect::<Vec<_>>();
-    assert_eq!(
-        capture_stage_ids,
+        pipeline
+            .stages
+            .iter()
+            .map(|stage| stage.stage_id.clone())
+            .collect::<Vec<_>>(),
         vec![
+            "stage.00_base".to_string(),
             "stage.04_charter_inputs".to_string(),
             "stage.05_charter_synthesize".to_string(),
             "stage.06_project_context_interview".to_string(),
@@ -794,11 +772,10 @@ fn supported_target_registry_derives_current_pipeline_and_stage_wedge_from_catal
             "stage.10_feature_spec".to_string(),
         ]
     );
-    assert!(!registry.supports_capture_target(&compile_target.pipeline.id, "stage.00_base"));
 }
 
 #[test]
-fn supported_target_registry_refuses_foundation_inputs_shape_that_widens_beyond_packet_wedge() {
+fn metadata_selection_reflects_foundation_inputs_shape_that_widens_beyond_packet_wedge() {
     let source_root = repo_root();
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -861,18 +838,32 @@ stages:
 "#,
     );
 
-    let err = SupportedTargetRegistry::load(root).expect_err("extra capture stage must refuse");
-    match err {
-        handbook_pipeline::pipeline::SupportedTargetRegistryLoadError::MissingCatalogBackedPipelineShape {
-            ..
-        } => {}
-        other => panic!("expected bounded-pipeline-shape refusal, got {other:?}"),
-    }
+    let selection = load_pipeline_selection_metadata(root, "pipeline.foundation_inputs")
+        .expect("foundation_inputs selection");
+    let PipelineSelection::Pipeline(pipeline) = selection else {
+        panic!("expected pipeline selection");
+    };
+
+    assert_eq!(
+        pipeline
+            .stages
+            .iter()
+            .map(|stage| stage.stage_id.clone())
+            .collect::<Vec<_>>(),
+        vec![
+            "stage.00_base".to_string(),
+            "stage.04_charter_inputs".to_string(),
+            "stage.05_charter_synthesize".to_string(),
+            "stage.06_project_context_interview".to_string(),
+            "stage.07_foundation_pack".to_string(),
+            "stage.11_extra_capture".to_string(),
+            "stage.10_feature_spec".to_string(),
+        ]
+    );
 }
 
 #[test]
-fn supported_target_registry_ignores_unrelated_compile_broken_pipeline_during_topology_resolution()
-{
+fn metadata_selection_ignores_unrelated_compile_broken_pipeline_during_selection() {
     let source_root = repo_root();
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -934,15 +925,26 @@ stages:
         other => panic!("expected compile front-matter parse refusal, got {other:?}"),
     }
 
-    let registry = SupportedTargetRegistry::load(root)
-        .expect("supported target registry should ignore unrelated broken pipeline");
+    let selection = load_pipeline_selection_metadata(root, "pipeline.foundation_inputs")
+        .expect("foundation_inputs selection should ignore unrelated broken pipeline");
+    let PipelineSelection::Pipeline(pipeline) = selection else {
+        panic!("expected pipeline selection");
+    };
+    assert_eq!(pipeline.definition.header.id, "pipeline.foundation_inputs");
     assert_eq!(
-        registry.canonical_compile_pipeline_id(),
-        "pipeline.foundation_inputs"
-    );
-    assert_eq!(
-        registry.canonical_compile_stage_id(),
-        "stage.10_feature_spec"
+        pipeline
+            .stages
+            .iter()
+            .map(|stage| stage.stage_id.clone())
+            .collect::<Vec<_>>(),
+        vec![
+            "stage.00_base".to_string(),
+            "stage.04_charter_inputs".to_string(),
+            "stage.05_charter_synthesize".to_string(),
+            "stage.06_project_context_interview".to_string(),
+            "stage.07_foundation_pack".to_string(),
+            "stage.10_feature_spec".to_string(),
+        ]
     );
 }
 

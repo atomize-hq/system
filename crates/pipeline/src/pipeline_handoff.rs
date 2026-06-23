@@ -4,8 +4,8 @@ use crate::layout::{
     RepoLayoutRoot,
 };
 use crate::pipeline::{
-    load_selected_pipeline_definition, supported_route_state_variables, SupportedHandoffTarget,
-    SupportedTargetRegistry,
+    handbook_product_pipeline_declarative_roots, load_selected_pipeline_definition,
+    supported_route_state_variables, SupportedHandoffTarget, SupportedTargetRegistry,
 };
 use crate::pipeline_compile::{
     compile_pipeline_stage_with_runtime_and_storage_layout, PipelineCompileDocument,
@@ -927,7 +927,11 @@ fn render_pipeline_handoff_refusal_classification(
 fn load_supported_handoff_target_registry_for_emit(
     repo_root: &Path,
 ) -> Result<SupportedTargetRegistry, PipelineHandoffRefusal> {
-    SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineHandoffRefusal {
+    SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .map_err(|err| PipelineHandoffRefusal {
         classification: PipelineHandoffRefusalClassification::InvalidState,
         summary: format!("failed to load supported target registry: {err}"),
         pipeline_id: None,
@@ -940,7 +944,11 @@ fn load_supported_handoff_target_registry_for_emit(
 fn load_supported_handoff_target_registry_for_validation(
     repo_root: &Path,
 ) -> Result<SupportedTargetRegistry, PipelineHandoffValidationFailure> {
-    SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineHandoffValidationFailure {
+    SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .map_err(|err| PipelineHandoffValidationFailure {
         classification: PipelineHandoffValidationFailureClassification::MissingOrCorruptProvenance,
         summary: format!("failed to load supported target registry: {err}"),
     })

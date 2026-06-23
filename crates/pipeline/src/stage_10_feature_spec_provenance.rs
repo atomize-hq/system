@@ -1,6 +1,7 @@
 use crate::layout::RepoLayoutRoot;
 use crate::pipeline::{
-    load_selected_pipeline_definition, load_stage_compile_definition, SupportedTargetRegistry,
+    handbook_product_pipeline_declarative_roots, load_selected_pipeline_definition,
+    load_stage_compile_definition, SupportedTargetRegistry,
 };
 use crate::pipeline_compile::{render_pipeline_compile_payload, PipelineCompileResult};
 use crate::repo_file_access::{
@@ -245,8 +246,11 @@ fn stage_10_feature_spec_capture_provenance_path(
 fn load_stage_10_supported_target_registry(
     repo_root: &Path,
 ) -> Result<SupportedTargetRegistry, String> {
-    SupportedTargetRegistry::load(repo_root)
-        .map_err(|err| format!("failed to load supported target registry: {err}"))
+    SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .map_err(|err| format!("failed to load supported target registry: {err}"))
 }
 
 fn validate_stage_10_supported_target(

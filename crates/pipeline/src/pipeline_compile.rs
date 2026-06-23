@@ -3,9 +3,10 @@ use crate::layout::{
     handbook_product_pipeline_storage_layout_contract, PipelineStorageLayoutContract,
 };
 use crate::pipeline::{
-    load_selected_pipeline_definition, load_stage_compile_definition, CompileStageDefinition,
-    CompileStageInput, CompileStageLoadError, CompileStageVariable, PipelineDefinition,
-    SelectedPipelineLoadError, SupportedTargetRegistry,
+    handbook_product_pipeline_declarative_roots, load_selected_pipeline_definition,
+    load_stage_compile_definition, CompileStageDefinition, CompileStageInput,
+    CompileStageLoadError, CompileStageVariable, PipelineDefinition, SelectedPipelineLoadError,
+    SupportedTargetRegistry,
 };
 use crate::repo_file_access::{read_repo_relative_string, RepoRelativeFileAccessError};
 use crate::route_state::{
@@ -141,7 +142,11 @@ pub fn compile_pipeline_stage_with_runtime(
     runtime: &PipelineCompileRuntimeContext,
 ) -> Result<PipelineCompileResult, PipelineCompileRefusal> {
     let repo_root = repo_root.as_ref();
-    let supported_registry = SupportedTargetRegistry::load(repo_root).ok();
+    let supported_registry = SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .ok();
     let canonical_pipeline_id = supported_registry
         .as_ref()
         .map(|registry| registry.canonical_compile_pipeline_id().to_string());
@@ -208,14 +213,17 @@ pub fn compile_pipeline_stage_with_runtime(
             }
         })?;
 
-    let registry =
-        SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineCompileRefusal {
-            classification: PipelineCompileRefusalClassification::InvalidDefinition,
-            summary: format!("failed to load supported target registry: {err}"),
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(resolved_stage_id.clone()),
-            recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
-        })?;
+    let registry = SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .map_err(|err| PipelineCompileRefusal {
+        classification: PipelineCompileRefusalClassification::InvalidDefinition,
+        summary: format!("failed to load supported target registry: {err}"),
+        pipeline_id: Some(pipeline.header.id.clone()),
+        stage_id: Some(resolved_stage_id.clone()),
+        recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
+    })?;
     let supported_compile_target = registry.compile_target();
 
     if registry
@@ -323,7 +331,11 @@ pub(crate) fn compile_pipeline_stage_with_runtime_and_storage_layout(
     }
 
     let repo_root = repo_root.as_ref();
-    let supported_registry = SupportedTargetRegistry::load(repo_root).ok();
+    let supported_registry = SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .ok();
     let canonical_pipeline_id = supported_registry
         .as_ref()
         .map(|registry| registry.canonical_compile_pipeline_id().to_string());
@@ -390,14 +402,17 @@ pub(crate) fn compile_pipeline_stage_with_runtime_and_storage_layout(
             }
         })?;
 
-    let registry =
-        SupportedTargetRegistry::load(repo_root).map_err(|err| PipelineCompileRefusal {
-            classification: PipelineCompileRefusalClassification::InvalidDefinition,
-            summary: format!("failed to load supported target registry: {err}"),
-            pipeline_id: Some(pipeline.header.id.clone()),
-            stage_id: Some(resolved_stage_id.clone()),
-            recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
-        })?;
+    let registry = SupportedTargetRegistry::load_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+    )
+    .map_err(|err| PipelineCompileRefusal {
+        classification: PipelineCompileRefusalClassification::InvalidDefinition,
+        summary: format!("failed to load supported target registry: {err}"),
+        pipeline_id: Some(pipeline.header.id.clone()),
+        stage_id: Some(resolved_stage_id.clone()),
+        recovery: "fix the pipeline/stage definitions and retry `pipeline compile`".to_string(),
+    })?;
     let supported_compile_target = registry.compile_target();
 
     if registry
