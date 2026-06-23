@@ -115,7 +115,7 @@ If those sources disagree, the MAP plus the active Set 1 triplet control active 
 
 ## Packet 1.4: Final Set Proof And Handoff
 
-- [ ] Task: Run the Set 1 docs-only proof wall and record the completion state honestly
+- [x] Task: Run the Set 1 docs-only proof wall and record the completion state honestly
   - Acceptance: The final Set 1 notes confirm:
     - `docs/specs/MAP.md` remains the governing objective/intent authority,
     - live code still matches the boundary claims recorded in Set 1,
@@ -125,7 +125,7 @@ If those sources disagree, the MAP plus the active Set 1 triplet control active 
   - Verify: `cargo check --workspace`; `git diff -- docs/specs/MAP.md docs/specs HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`; source inspection of the final Set 1 triplet
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`, optionally `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`
 
-- [ ] Task: Record the explicit Set 2 and Set 3 stop boundaries
+- [x] Task: Record the explicit Set 2 and Set 3 stop boundaries
   - Acceptance: The Set 1 completion notes name what Set 2 and Set 3 may do and what they must not silently widen into, especially:
     - no CLI/compiler/product-shell redesign,
     - no claiming Packet 4.2 proved pipeline adoption,
@@ -151,18 +151,32 @@ Stop after Set 1 produces a reconciled active authority, a concrete Set 2 proof 
 
 ## Packet 1.4 completion notes
 
-- Status: pending
+- Status: complete on 2026-06-23
 - MAP alignment status:
-  - pending
+  - `docs/specs/MAP.md` remains the governing objective/intent authority for this seam.
+  - The active Set 1 triplet still matches the MAP requirement that Substrate needs full reusable `handbook-pipeline` capability, but only through the minimum reviewed public surface required to provide it.
 - Evidence matrix status:
-  - pending
+  - Packet 1.1 through Packet 1.3 outputs remain internally consistent with the final Set 1 closeout review.
+  - Packet 4.2 remains classified only as a narrow published `engine + flow` proof, not as `handbook-pipeline` adoption proof.
 - External-consumer proof status:
-  - pending
+  - PASS rerun — a scratch crates.io consumer compiled against `handbook-engine = "=0.1.1"` plus `handbook-flow = "=0.1.1"` using `CanonicalLayoutContract` and `resolve_with_contract(...)`.
+  - FAIL AS EXPECTED rerun — a scratch crates.io consumer depending on `handbook-pipeline = "=0.1.1"` still fails to import `handbook_pipeline::layout::PipelineStorageLayoutContract`.
+  - Failure classification remains current published-boundary truth, with `error[E0603]: module 'layout' is private`.
+  - `cargo check --workspace` passed during the Packet 1.4 proof rerun.
 - Boundary-shape decision status:
-  - pending
+  - Set 2 remains bound to a narrower public façade rather than wholesale promotion of the private `declarative_roots` / `layout` modules.
+  - Set 2 may expose only the bounded candidate contract-aware pipeline surface already recorded in Packet 1.2, plus the minimum typed contracts/results/errors/outputs the selected external consumer must actually construct, inspect, or handle.
+  - Set 2 must not silently widen into CLI/compiler/product-shell redesign, claim Packet 4.2 already proved pipeline adoption, treat internal parameterization as public-boundary proof without an external consumer, or overexpose internals when a narrower façade can provide the same capability.
 - Active-authority reconciliation status:
-  - pending
+  - The active execution authority remains `docs/specs/MAP.md` plus the active Set 1 triplet; the audit stays evidence/provenance only, archive docs stay provenance only, and `9b83` Substrate notes stay stale non-canonical context only.
+  - The final Packet 1.4 review did not require reopening Packet 1.1, 1.2, or 1.3.
 - Set 2 handoff status:
-  - pending
+  - Stable start point confirmed: Set 2 may implement the minimum reviewed public `handbook-pipeline` boundary needed for declarative-root control, stage-root-aware pipeline behavior, and storage layout control for route-state, capture, and handoff.
+  - Stable stop boundary confirmed: no Set 2 progress counts until the active Set 2 authority selects the intended external consumer shape and records a retained/dropped justification matrix for every candidate public function path plus every new public contract/result/error/output type proposed for exposure.
+  - Downstream Substrate source-touching proof remains later dedicated-worktree work and must not be silently pulled into Set 2 closeout.
 - Set 3 proof/guard-rail handoff status:
-  - pending
+  - Stable proof wall confirmed: Set 3 must prove the Set 2 boundary through both a real published external consumer and a real downstream Substrate proof.
+  - Set 3 must also guard against reclassifying internal-only parameterization as public-boundary success, against claiming `engine + flow` proof is enough for pipeline adoption, and against overexposing handbook-only internals while chasing downstream capability.
+- Docs-only closeout status:
+  - Current Packet 1.4 working tree review stayed docs-only.
+  - The current branch-local Set 1 change evidence is docs-only: `git diff-tree --no-commit-id --name-only -r HEAD` lists only `docs/specs/MAP.md` and the active Set 1 spec/plan/tasks files, and `git diff -- docs/specs/MAP.md docs/specs HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` was empty at closeout.
