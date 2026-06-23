@@ -19,7 +19,7 @@ This set is complete only when the landed API matches the retained/dropped matri
 - `PipelineDeclarativeRootsContract` exists but is still `pub(crate)` in `crates/pipeline/src/declarative_roots.rs`.
 - `PipelineStorageLayoutContract` exists but is still `pub(crate)` in `crates/pipeline/src/layout.rs`.
 - Declarative-root-aware variants such as `load_pipeline_catalog_with_roots(...)` and `load_pipeline_definition_with_roots(...)` exist only as `pub(crate)` helpers.
-- `SupportedTargetRegistry::load(...)` and route-aware `load_pipeline_catalog(...)` are still public in live repo truth and still have direct in-repo callers across CLI, pipeline internals, and tests.
+- `SupportedTargetRegistry::load(...)` and route-aware `load_pipeline_catalog(...)` are now clamped to `pub(crate)`/internal, and the in-repo callers for those dropped seams have been migrated to the retained/public alternatives.
 - Storage-layout-aware variants such as `load_route_state_with_storage_layout(...)`, `set_route_state_with_storage_layout(...)`, `preview_pipeline_capture_with_storage_layout(...)`, and `emit_pipeline_handoff_bundle_with_storage_layout(...)` exist only as `pub(crate)` helpers.
 - Selector-based contract-aware variants do not yet exist for all retained declarative-root capabilities.
 - Current published `handbook-pipeline = 0.1.1` still fails external imports of layout/declarative-root control seams.
