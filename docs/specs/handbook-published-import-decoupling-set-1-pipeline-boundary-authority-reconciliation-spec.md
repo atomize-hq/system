@@ -188,6 +188,35 @@ cargo check --manifest-path "$TMPDIR/Cargo.toml"
     → stale but useful non-authority context on provider boundaries and why reusable capability should flow through a reviewed boundary instead of broad direct internal coupling
 ```
 
+## Packet 1.1 Current-State Evidence Matrix
+
+This section is the active Packet 1.1 evidence wall for Set 1. It records the current-state claims that matter for execution against the MAP objective and intent.
+
+### Side-by-side claim matrix
+
+| Source | Concrete claim | MAP alignment / conflict | Live code / published truth | Verdict |
+|---|---|---|---|---|
+| `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md` | Success requires the full reusable `handbook-pipeline` capability Substrate needs through a reviewed published boundary; `engine + flow` proof alone does not count as pipeline completion. | Governing active authority for both exact objective and exact intent. | Live source still keeps the key `handbook-pipeline` declarative-root and layout seams private, so the MAP objective is not yet met. | **Keep as root authority.** |
+| `/Users/spensermcconnell/__Active_Code/system/HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` | `handbook-engine` and `handbook-flow` are real published seams, but `handbook-pipeline` is not yet a verified public import seam and the docs currently overstate that boundary. | Aligns directly with the MAP proof and boundary checks. | Reconfirmed by live source inspection plus the positive `engine + flow` compile and the negative `pipeline` compile against crates.io `=0.1.1`. | **Keep as current-state audit input.** |
+| `/Users/spensermcconnell/__Active_Code/system/docs/ideas/handbook-substrate-packet-4-2-proof-findings.md` | Packet 4.2 proved honest published consumption of `handbook-engine` + `handbook-flow` through a narrow Substrate seam, but did **not** prove `handbook-pipeline` adoption or final architecture. | Aligns with the MAP only when kept narrow; conflicts only if misread as full pipeline-capability proof. | The live proof seam uses `handbook_flow::resolve_with_contract(...)` plus `handbook_engine::default_canonical_layout_contract()` and does not consume `handbook-pipeline`. | **Keep, but classify as `engine + flow` proof only.** |
+| `/Users/spensermcconnell/__Active_Code/system/docs/specs/archive/handbook-substrate-parameterization-set-1-pipeline-import-layout-tasks.md` | The declarative-root and storage-layout seams are already supported public/import-facing boundaries and no structural import blockers remain. | Conflicts with the MAP proof check because published-consumer verification for those seams is missing and live crates.io behavior disproves the claim. | `crates/pipeline/src/lib.rs` keeps `declarative_roots` and `layout` private, `PipelineDeclarativeRootsContract` is `pub(crate)`, `PipelineStorageLayoutContract` is `pub(crate)`, and an external consumer hits `error[E0603]: module 'layout' is private`. | **Superseded by live published truth.** |
+| `/Users/spensermcconnell/__Active_Code/system/docs/specs/archive/handbook-published-crates-and-substrate-consumption-spec.md` | The first-wave published `handbook-pipeline` boundary is intentionally a frozen subset that excludes `declarative_roots` and `layout`. | Partially aligns: it honors the MAP “minimum unnecessary public surface” rule, but it is narrower than the MAP capability objective for full Substrate pipeline needs. | Reconfirmed by the live crate root (`mod declarative_roots; mod layout;`) and by the negative external-consumer compile against crates.io `handbook-pipeline = "=0.1.1"`. | **Keep as first-wave publication truth, not as completion authority.** |
+| Live `handbook-flow` / `handbook-engine` public surface (`crates/flow/src/lib.rs`, `crates/flow/src/resolver.rs`) | `handbook_flow::resolve_with_contract(...)` and `handbook_engine::CanonicalLayoutContract` form a real typed published seam for downstream consumers. | Aligns with the MAP proof check for a narrow seam, but only partially satisfies the overall objective because it does not expose the required reusable pipeline capability. | The external scratch crate depending on crates.io `handbook-engine = "=0.1.1"` and `handbook-flow = "=0.1.1"` compiled successfully. | **Keep as proven narrow seam.** |
+| Live `handbook-pipeline` source (`crates/pipeline/src/lib.rs`, `crates/pipeline/src/declarative_roots.rs`, `crates/pipeline/src/layout.rs`) | The declarative-root and storage-layout control seams remain implementation-private in the published crate. | Aligns with the MAP gap statement and conflicts with any claim that the pipeline public boundary is already complete. | `lib.rs` keeps `declarative_roots` and `layout` private; `PipelineDeclarativeRootsContract` and `PipelineStorageLayoutContract` are still `pub(crate)`; crates.io import of `handbook_pipeline::layout::PipelineStorageLayoutContract` fails with `E0603`. | **Treat as the governing Set 2 gap.** |
+
+### Reproduced external-consumer proofs
+
+| Proof | Published dependencies | Outcome | Classification |
+|---|---|---|---|
+| Positive narrow seam proof | `handbook-engine = "=0.1.1"`, `handbook-flow = "=0.1.1"` | `cargo check --manifest-path "$TMPDIR/Cargo.toml"` passed for a scratch crate importing `handbook_engine::CanonicalLayoutContract` and `handbook_flow::{resolve_with_contract, ResolveRequest}`. | Real published-consumer proof for the narrow `engine + flow` seam. |
+| Negative pipeline seam proof | `handbook-pipeline = "=0.1.1"` | `cargo check --manifest-path "$TMPDIR/Cargo.toml"` failed for `use handbook_pipeline::layout::PipelineStorageLayoutContract;` with `error[E0603]: module 'layout' is private`. | Current published-boundary truth, not a transient environment failure. |
+
+### Packet 1.1 conclusion
+
+- The current published boundary **does** prove a real `handbook-engine` + `handbook-flow` consumer seam.
+- The current published boundary **does not** prove a reusable `handbook-pipeline` consumer seam for declarative-root or storage-layout control.
+- Set 2 therefore remains required to expose the minimum reviewed public capability surface that satisfies the MAP objective without overexposing internals.
+
 ## Code Style
 
 Use an explicit contradiction-and-decision style anchored to the MAP objective and intent.

@@ -8,15 +8,31 @@ Spec reference: [handbook-published-import-decoupling-set-1-pipeline-boundary-au
 
 ## Packet 1.1: Current-State Evidence Matrix
 
-- [ ] Task: Record a side-by-side claim matrix for the MAP, audit, Packet 4.2 proof, archived parameterization docs, archived published-boundary docs, and live crate source
+- [x] Task: Record a side-by-side claim matrix for the MAP, audit, Packet 4.2 proof, archived parameterization docs, archived published-boundary docs, and live crate source
   - Acceptance: The active Set 1 docs contain an explicit matrix that shows, for each source, the specific claim it makes about the published boundary, how that claim aligns or conflicts with `/Users/spensermcconnell/__Active_Code/system/docs/specs/MAP.md`, and whether live code/published behavior validates, narrows, or invalidates that claim.
   - Verify: Source inspection of `docs/specs/MAP.md`, `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md`, `docs/ideas/handbook-substrate-packet-4-2-proof-findings.md`, `crates/pipeline/src/lib.rs`, `crates/pipeline/src/declarative_roots.rs`, `crates/pipeline/src/layout.rs`, and the relevant archived docs; `rg -n "frozen subset|public/import-facing|declarative_roots|layout|Packet 4.2|Expose capabilities, not guts" docs/specs/MAP.md docs/specs/archive/ HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md docs/ideas/handbook-substrate-packet-4-2-proof-findings.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-plan.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`, optionally `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` if a completion note is required
 
-- [ ] Task: Reproduce the external-consumer proofs that distinguish the proven `engine + flow` seam from the still-private `pipeline` seam
+- [x] Task: Reproduce the external-consumer proofs that distinguish the proven `engine + flow` seam from the still-private `pipeline` seam
   - Acceptance: Set 1 records one successful compile against crates.io `handbook-engine = "=0.1.1"` + `handbook-flow = "=0.1.1"` and one failing compile against crates.io `handbook-pipeline = "=0.1.1"` importing `handbook_pipeline::layout::PipelineStorageLayoutContract`, with the failure classified as current truth rather than as a transient environment issue.
   - Verify: Run the temp-crate `cargo check` commands from the spec exactly; capture the success for `engine + flow` and the `E0603: module layout is private` failure for `pipeline`.
   - Files: `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-spec.md`, `docs/specs/handbook-published-import-decoupling-set-1-pipeline-boundary-authority-reconciliation-tasks.md`
+
+### Packet 1.1 completion notes
+
+- Status: complete on 2026-06-23
+- Evidence matrix: recorded in the active Set 1 spec and summarized in the active Set 1 plan
+- Positive proof:
+  - PASS — crates.io scratch consumer compiled with `handbook-engine = "=0.1.1"` + `handbook-flow = "=0.1.1"`
+  - Confirmed imports: `handbook_engine::CanonicalLayoutContract` and `handbook_flow::{resolve_with_contract, ResolveRequest}`
+- Negative proof:
+  - FAIL AS EXPECTED — crates.io scratch consumer depending on `handbook-pipeline = "=0.1.1"` failed to import `handbook_pipeline::layout::PipelineStorageLayoutContract`
+  - Failure classification: current published-boundary truth
+  - Failure text: `error[E0603]: module 'layout' is private`
+- Packet 1.1 conclusion:
+  - `engine + flow` are proven published-consumer seams
+  - `handbook-pipeline` declarative-root and storage-layout control are still private at crates.io `0.1.1`
+  - Packet 4.2 remains valid only as a narrow `engine + flow` downstream proof, not as pipeline-adoption proof
 
 ---
 

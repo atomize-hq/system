@@ -110,6 +110,16 @@ Turn the current disagreement into a bounded matrix of exact claims versus live 
 - reproduce the negative `pipeline` external-consumer proof
 - record which archived docs make which stronger/weaker boundary claims
 
+### Evidence baseline captured on 2026-06-23
+
+| Area | Current truth | Packet 1.1 implication |
+|---|---|---|
+| MAP objective | Full reusable `handbook-pipeline` capability is required; minimum unnecessary public surface remains the intent. | Packet 1.1 must reject any “`engine + flow` is enough” reading. |
+| Positive published seam | A scratch crate depending on crates.io `handbook-engine = "=0.1.1"` + `handbook-flow = "=0.1.1"` compiled successfully using `CanonicalLayoutContract` plus `resolve_with_contract(...)`. | Keep Packet 4.2 classified as honest narrow published-consumption proof. |
+| Negative published seam | A scratch crate depending on crates.io `handbook-pipeline = "=0.1.1"` failed to import `handbook_pipeline::layout::PipelineStorageLayoutContract` with `error[E0603]: module 'layout' is private`. | Treat the pipeline seam as still private in current published truth. |
+| Live pipeline source | `crates/pipeline/src/lib.rs` keeps `declarative_roots` and `layout` private; the corresponding contract types remain `pub(crate)`. | Supersede archive claims that describe those seams as already import-facing. |
+| Archived published-boundary doc | The first-wave published boundary intentionally froze a narrower subset that excludes `declarative_roots` and `layout`. | Keep as provenance for why crates.io `0.1.1` is narrow, not as evidence that the MAP objective is complete. |
+
 ### Verification checkpoint
 
 ```bash
@@ -123,6 +133,11 @@ cargo check --workspace
 ### Exit condition
 
 The repo has an explicit “claim -> MAP alignment -> live truth -> status” matrix instead of only prose disagreement.
+
+Packet 1.1 is complete only when the active Set 1 docs also clearly distinguish:
+
+- the **proven** published `engine + flow` seam, and
+- the **still-private** `handbook-pipeline` seam that Set 2 must expose minimally.
 
 ## Packet 1.2 — Boundary-Shape Decision And Set 2 Target
 
