@@ -262,23 +262,26 @@ Why this is the narrowest honest shape:
 
 ### Bounded first-wave candidate proof surface
 
-Set 2 should use the following candidate public boundary as Packet 1.2's concrete first-wave proof wall. Packet 1.2 does **not** yet claim that every listed public path is the settled minimum reviewed surface; Set 2 must justify each retained path against a named MAP-required downstream capability and intended external consumer shape, or shrink the surface explicitly. Set 2 may **not** widen beyond this candidate surface without reopening Set 1 authority.
+Set 2 should use the following candidate public boundary as Packet 1.2's concrete first-wave proof wall. Before any Set 2 implementation progress can count, Set 2 must first select the intended external consumer shape and create a retained/dropped justification matrix covering every candidate public function path in this first-wave surface plus every new public contract/result/error/output type it proposes to expose. Packet 1.2 does **not** yet claim that every listed public path is the settled minimum reviewed surface; Set 2 must justify each retained path against a named MAP-required downstream capability and intended external consumer shape, or shrink the surface explicitly. Set 2 may **not** widen beyond this candidate surface without reopening Set 1 authority.
 
 1. **Public declarative-roots contract surface**
    - one reviewed public contract type for pipeline/profile/runner/stage repo-relative roots
    - validated constructor and stable read accessors
+   - any new public declarative-roots contract type must appear in the retained/dropped justification matrix with capability and consumer-shape justification before implementation progress can count
    - handbook-product default helpers/constants stay private unless a later external-consumer proof names a concrete need for a public baseline helper
 2. **Public storage-layout contract surface**
    - one reviewed public contract type for state/capture/handoff repo-relative roots
    - validated constructor and stable read accessors
+   - any new public storage-layout contract type must appear in the retained/dropped justification matrix with capability and consumer-shape justification before implementation progress can count
    - handbook-product default helpers/constants stay private unless a later external-consumer proof names a concrete need for a public baseline helper
 3. **Public contract-aware entrypoints on existing public pipeline surfaces**
    - **declarative-root candidate entrypoint set:** `handbook_pipeline::pipeline::SupportedTargetRegistry::load`, `handbook_pipeline::pipeline::load_pipeline_catalog`, `handbook_pipeline::pipeline::load_pipeline_catalog_metadata`, `handbook_pipeline::pipeline::load_pipeline_selection_metadata`, `handbook_pipeline::pipeline::load_pipeline_definition`, and `handbook_pipeline::pipeline::load_selected_pipeline_definition` as the bounded first-wave proof surface for MAP-required declarative-root control plus stage-root-aware catalog/loading behavior
    - **storage-layout candidate entrypoint set:** `handbook_pipeline::route_state::load_route_state`, `handbook_pipeline::route_state::set_route_state`, `handbook_pipeline::route_state::load_trusted_pipeline_session`, `handbook_pipeline::route_state::persist_route_basis`, `handbook_pipeline::pipeline_capture::preview_pipeline_capture`, `handbook_pipeline::pipeline_capture::capture_pipeline_output`, `handbook_pipeline::pipeline_capture::apply_pipeline_capture`, `handbook_pipeline::pipeline_capture::load_pipeline_capture_cache_entry`, `handbook_pipeline::pipeline_handoff::emit_pipeline_handoff_bundle`, and `handbook_pipeline::pipeline_handoff::validate_pipeline_handoff_bundle` as the bounded first-wave proof surface for MAP-required route-state, capture, and handoff storage-layout control
    - Set 2 must mark each retained candidate path as justified-for-capability or dropped-as-unnecessary once it fixes the intended consumer shape
    - no requirement to make the raw `layout` or `declarative_roots` modules themselves public if a smaller re-exported façade can carry the contract
-4. **Only the typed results/errors required by those entrypoints**
-   - keep capability-facing result types public where downstream consumers must handle them
+4. **Only the typed public contracts/results/errors/outputs required by those entrypoints**
+   - keep capability-facing public contract/result/error/output types public only where downstream consumers must construct, inspect, or handle them
+   - apply the same retained-with-justification vs dropped-as-unnecessary rule to every new public contract/result/error/output type, not just to function paths
    - keep implementation-only helper types private
 
 ### What must stay private in Set 2
@@ -298,22 +301,27 @@ Set 2 should keep the following private unless live proof later shows they are s
 
 Set 2 is only honest if all of the following are true:
 
-1. **Implementation boundary wall**
+1. **Mandatory start gate**
+   - no Set 2 implementation progress counts until the active Set 2 authority names the intended external consumer shape as a direct Substrate call site, a reviewed provider/context boundary, or both
+   - no Set 2 implementation progress counts until the active Set 2 authority includes a retained/dropped justification matrix covering every candidate public function path in the bounded first-wave proof surface plus every new public contract/result/error/output type proposed for exposure
+   - every retained matrix row must name the MAP-required capability it serves plus why the selected external consumer shape needs that exact public path or public type
+   - every dropped matrix row must say whether the item stays private as implementation detail, stays private because a narrower already-retained seam covers the capability, or is removed as unnecessary
+2. **Implementation boundary wall**
    - `crates/pipeline/src/lib.rs` exposes the chosen façade intentionally
    - touched public surfaces stay limited to the contract owners plus this bounded candidate first-wave source-owner surface: `crates/pipeline/src/pipeline.rs::{SupportedTargetRegistry::load, load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_selection_metadata, load_pipeline_definition, load_selected_pipeline_definition}`, `crates/pipeline/src/route_state.rs::{load_route_state, set_route_state, load_trusted_pipeline_session, persist_route_basis}`, `crates/pipeline/src/pipeline_capture.rs::{preview_pipeline_capture, capture_pipeline_output, apply_pipeline_capture, load_pipeline_capture_cache_entry}`, and `crates/pipeline/src/pipeline_handoff.rs::{emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle}`
-   - Set 2 must either justify each retained path against declarative-root control, stage-root-aware catalog/loading, route-state control, capture control, or handoff control for the intended external consumer shape, or shrink the public proof surface and say why
+   - Set 2 may retain a public function path or public contract/result/error/output type only when the retained/dropped matrix maps it to declarative-root control, stage-root-aware catalog/loading, route-state control, capture control, or handoff control for the selected external consumer shape; otherwise Set 2 must shrink the public proof surface and say why
    - Set 2 may not widen beyond that candidate source-owner surface without reopening Set 1 authority
    - the change does not rely on making the entire private modules public just to reach a small number of types/functions
-2. **External published-consumer wall**
+3. **External published-consumer wall**
    - a scratch consumer using published `handbook-pipeline` can construct non-default declarative-root and/or storage-layout contracts through the public boundary
    - that consumer proves enough of the bounded candidate public paths above to cover declarative-root control, stage-root-aware catalog/loading, route-state control, capture control, and handoff control through public APIs only; if fewer paths are sufficient, Set 2 must shrink the candidate surface explicitly rather than freezing unused extras as public contract
-   - the proof/handoff must label every candidate path as retained-with-justification or dropped-as-unnecessary so the minimum reviewed surface is explicit
+   - the proof/handoff must label every candidate public function path and every new public contract/result/error/output type as retained-with-justification or dropped-as-unnecessary so the minimum reviewed surface is explicit end-to-end
    - no proof step is allowed to import `handbook_pipeline::layout::*`, `handbook_pipeline::declarative_roots::*`, or other private-module paths
-3. **Downstream revalidation input wall**
+4. **Downstream revalidation input wall**
    - the Set 2 handoff must explicitly preserve that Packet 4.2 remains only an `engine + flow` proof
    - any future Substrate adoption of the Set 2 boundary must run in a dedicated Substrate worktree and must prove Substrate still owns wording and downstream runtime behavior
    - Set 2 does not get to claim downstream adoption merely because the new public boundary exists
-4. **Guard-rail wall**
+5. **Guard-rail wall**
    - docs and tests must distinguish `public façade works` from `private internals remain reachable only inside handbook`
    - do not call Set 2 complete based only on internal tests, default-contract behavior, or sibling-path access
    - do not widen into CLI/compiler/product-shell redesign while chasing the boundary
