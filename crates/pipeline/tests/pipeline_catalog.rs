@@ -3,18 +3,58 @@ use std::path::{Path, PathBuf};
 
 use handbook_pipeline::pipeline::SupportedTargetRegistry;
 use handbook_pipeline::pipeline::{
-    load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_definition,
-    load_pipeline_selection_metadata, load_stage_compile_definition, render_pipeline_list,
-    render_pipeline_show, CompileStageInput, PipelineCatalogError, PipelineLoadError,
-    PipelineLookupError, PipelineMetadataSelectionError, PipelineSelection,
-    PipelineValidationError,
+    load_pipeline_catalog, load_pipeline_catalog_metadata,
+    load_pipeline_catalog_metadata_with_roots, load_pipeline_definition,
+    load_pipeline_selection_metadata, load_pipeline_selection_metadata_with_roots,
+    load_stage_compile_definition, render_pipeline_list, render_pipeline_show, CompileStageInput,
+    PipelineCatalogError, PipelineLoadError, PipelineLookupError, PipelineMetadataSelectionError,
+    PipelineSelection, PipelineValidationError,
 };
+use handbook_pipeline::PipelineDeclarativeRootsContract;
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
         .expect("repo root")
+}
+
+fn install_custom_declarative_roots_fixture(root: &Path) -> PipelineDeclarativeRootsContract {
+    let source_root = repo_root();
+    copy_tree(
+        &source_root.join("core/pipelines"),
+        &root.join("custom/core/pipelines"),
+    );
+    copy_tree(
+        &source_root.join("core/profiles"),
+        &root.join("custom/core/profiles"),
+    );
+    copy_tree(
+        &source_root.join("core/runners"),
+        &root.join("custom/core/runners"),
+    );
+    copy_tree(
+        &source_root.join("core/stages"),
+        &root.join("custom/core/stages"),
+    );
+
+    for entry in fs::read_dir(root.join("custom/core/pipelines")).expect("pipeline dir") {
+        let path = entry.expect("pipeline entry").path();
+        let contents = fs::read_to_string(&path).expect("read pipeline fixture");
+        fs::write(
+            &path,
+            contents.replace("file: core/stages/", "file: custom/core/stages/"),
+        )
+        .expect("rewrite stage roots");
+    }
+
+    PipelineDeclarativeRootsContract::try_from_paths(
+        "custom/core/pipelines",
+        "custom/core/profiles",
+        "custom/core/runners",
+        "custom/core/stages",
+    )
+    .expect("custom declarative roots")
 }
 
 #[test]
@@ -237,6 +277,45 @@ audit:
         entries_before,
         "catalog loading and rendering must not create or mutate route state"
     );
+}
+
+#[test]
+fn metadata_catalog_and_selection_support_custom_declarative_roots_via_public_facade() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    let roots = install_custom_declarative_roots_fixture(root);
+
+    let catalog = load_pipeline_catalog_metadata_with_roots(root, &roots)
+        .expect("catalog through public custom-root facade");
+    assert_eq!(catalog.pipeline_count(), 4);
+    assert!(catalog.stage_count() >= 8);
+
+    let pipeline = load_pipeline_selection_metadata_with_roots(root, &roots, "foundation_inputs")
+        .expect("pipeline selection through public custom-root facade");
+    match pipeline {
+        PipelineSelection::Pipeline(pipeline) => {
+            assert_eq!(pipeline.definition.header.id, "pipeline.foundation_inputs");
+            assert_eq!(
+                pipeline.definition.source_path,
+                PathBuf::from("custom/core/pipelines/foundation_inputs.yaml")
+            );
+        }
+        other => panic!("expected pipeline selection, got {other:?}"),
+    }
+
+    let stage =
+        load_pipeline_selection_metadata_with_roots(root, &roots, "stage.07_foundation_pack")
+            .expect("stage selection through public custom-root facade");
+    match stage {
+        PipelineSelection::Stage(stage) => {
+            assert_eq!(stage.id, "stage.07_foundation_pack");
+            assert_eq!(
+                stage.source_path,
+                PathBuf::from("custom/core/stages/07_foundation_pack.md")
+            );
+        }
+        other => panic!("expected stage selection, got {other:?}"),
+    }
 }
 
 #[test]

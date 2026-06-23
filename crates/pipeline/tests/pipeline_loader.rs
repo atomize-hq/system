@@ -1,9 +1,12 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::pipeline::{
-    load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
-    StageFileValidationError,
+    load_pipeline_definition, load_pipeline_definition_with_roots,
+    load_selected_pipeline_definition_with_roots, ActivationOperator, PipelineLoadError,
+    PipelineValidationError, StageFileValidationError,
 };
+use handbook_pipeline::PipelineDeclarativeRootsContract;
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -24,6 +27,63 @@ fn write_stage_with_front_matter(repo_root: &Path, relative_path: &str, front_ma
         &repo_root.join(relative_path),
         &format!("---\n{front_matter_body}---\n# stage body\n"),
     );
+}
+
+fn copy_tree(src: &Path, dst: &Path) {
+    fs::create_dir_all(dst).expect("mkdirs");
+
+    for entry in fs::read_dir(src).expect("read dir") {
+        let entry = entry.expect("dir entry");
+        let file_type = entry.file_type().expect("file type");
+        let target = dst.join(entry.file_name());
+
+        if file_type.is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else if file_type.is_file() {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).expect("mkdirs");
+            }
+            fs::copy(entry.path(), &target).expect("copy file");
+        }
+    }
+}
+
+fn install_custom_declarative_roots_fixture(root: &Path) -> PipelineDeclarativeRootsContract {
+    let source_root = repo_root();
+    copy_tree(
+        &source_root.join("core/pipelines"),
+        &root.join("custom/core/pipelines"),
+    );
+    copy_tree(
+        &source_root.join("core/profiles"),
+        &root.join("custom/core/profiles"),
+    );
+    copy_tree(
+        &source_root.join("core/runners"),
+        &root.join("custom/core/runners"),
+    );
+    copy_tree(
+        &source_root.join("core/stages"),
+        &root.join("custom/core/stages"),
+    );
+
+    for entry in fs::read_dir(root.join("custom/core/pipelines")).expect("pipeline dir") {
+        let path = entry.expect("pipeline entry").path();
+        let contents = fs::read_to_string(&path).expect("read pipeline fixture");
+        fs::write(
+            &path,
+            contents.replace("file: core/stages/", "file: custom/core/stages/"),
+        )
+        .expect("rewrite stage roots");
+    }
+
+    PipelineDeclarativeRootsContract::try_from_paths(
+        "custom/core/pipelines",
+        "custom/core/profiles",
+        "custom/core/runners",
+        "custom/core/stages",
+    )
+    .expect("custom declarative roots")
 }
 
 #[test]
@@ -84,6 +144,36 @@ fn foundation_inputs_pipeline_parses_pipeline_entry_activation_only() {
     assert!(activation.when.clauses[0].value);
     assert_eq!(activation.when.clauses[1].variable, "charter_gaps_detected");
     assert!(activation.when.clauses[1].value);
+}
+
+#[test]
+fn pipeline_definition_loaders_support_custom_declarative_roots_via_public_facade() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+    let roots = install_custom_declarative_roots_fixture(repo_root);
+
+    let definition = load_pipeline_definition_with_roots(
+        repo_root,
+        &roots,
+        "custom/core/pipelines/foundation_inputs.yaml",
+    )
+    .expect("direct definition load through public custom-root facade");
+    assert_eq!(definition.header.id, "pipeline.foundation_inputs");
+    assert_eq!(
+        definition.source_path,
+        PathBuf::from("custom/core/pipelines/foundation_inputs.yaml")
+    );
+    assert_eq!(definition.body.stages[0].id, "stage.00_base");
+
+    let selected =
+        load_selected_pipeline_definition_with_roots(repo_root, &roots, "foundation_inputs")
+            .expect("selected definition load through public custom-root facade");
+    assert_eq!(selected.header.id, "pipeline.foundation_inputs");
+    assert_eq!(
+        selected.source_path,
+        PathBuf::from("custom/core/pipelines/foundation_inputs.yaml")
+    );
+    assert_eq!(selected.body.stages[4].id, "stage.07_foundation_pack");
 }
 
 #[test]

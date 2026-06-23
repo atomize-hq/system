@@ -1406,8 +1406,7 @@ pub fn load_pipeline_catalog_metadata(
     load_pipeline_metadata_catalog_index(repo_root.as_ref())
 }
 
-#[allow(dead_code)]
-pub(crate) fn load_pipeline_catalog_metadata_with_roots(
+pub fn load_pipeline_catalog_metadata_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
@@ -1424,8 +1423,20 @@ pub fn load_pipeline_selection_metadata(
     repo_root: impl AsRef<Path>,
     selector: &str,
 ) -> Result<PipelineSelection, PipelineMetadataSelectionError> {
+    load_pipeline_selection_metadata_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+        selector,
+    )
+}
+
+pub fn load_pipeline_selection_metadata_with_roots(
+    repo_root: impl AsRef<Path>,
+    roots: &PipelineDeclarativeRootsContract,
+    selector: &str,
+) -> Result<PipelineSelection, PipelineMetadataSelectionError> {
     let repo_root = repo_root.as_ref();
-    let catalog = load_pipeline_catalog_metadata(repo_root)
+    let catalog = load_pipeline_catalog_metadata_with_roots(repo_root, roots)
         .map_err(PipelineMetadataSelectionError::Catalog)?;
 
     match resolve_pipeline_selector(&catalog, selector) {
@@ -1443,7 +1454,7 @@ pub fn load_pipeline_selection_metadata(
         Err(PipelineLookupError::UnknownSelector { .. }) => {}
     }
 
-    if let Some(err) = find_selected_pipeline_metadata_error(repo_root, selector)
+    if let Some(err) = find_selected_pipeline_metadata_error_with_roots(repo_root, roots, selector)
         .map_err(PipelineMetadataSelectionError::Catalog)?
     {
         return Err(PipelineMetadataSelectionError::Catalog(err));
@@ -1532,14 +1543,27 @@ pub fn load_selected_pipeline_definition(
     repo_root: impl AsRef<Path>,
     selector: &str,
 ) -> Result<PipelineDefinition, SelectedPipelineLoadError> {
+    load_selected_pipeline_definition_with_roots(
+        repo_root,
+        handbook_product_pipeline_declarative_roots(),
+        selector,
+    )
+}
+
+pub fn load_selected_pipeline_definition_with_roots(
+    repo_root: impl AsRef<Path>,
+    roots: &PipelineDeclarativeRootsContract,
+    selector: &str,
+) -> Result<PipelineDefinition, SelectedPipelineLoadError> {
     let repo_root = repo_root.as_ref();
-    let catalog =
-        load_pipeline_catalog_metadata(repo_root).map_err(SelectedPipelineLoadError::Catalog)?;
+    let catalog = load_pipeline_catalog_metadata_with_roots(repo_root, roots)
+        .map_err(SelectedPipelineLoadError::Catalog)?;
     let pipeline = match resolve_pipeline_only_selector(&catalog, selector) {
         Ok(pipeline) => pipeline,
         Err(err @ PipelineLookupError::UnknownSelector { .. }) => {
-            if let Some(metadata_err) = find_selected_pipeline_metadata_error(repo_root, selector)
-                .map_err(SelectedPipelineLoadError::Catalog)?
+            if let Some(metadata_err) =
+                find_selected_pipeline_metadata_error_with_roots(repo_root, roots, selector)
+                    .map_err(SelectedPipelineLoadError::Catalog)?
             {
                 return Err(SelectedPipelineLoadError::Catalog(metadata_err));
             }
@@ -1548,7 +1572,7 @@ pub fn load_selected_pipeline_definition(
         Err(err) => return Err(SelectedPipelineLoadError::Lookup(err)),
     };
 
-    load_pipeline_definition(repo_root, &pipeline.definition.source_path)
+    load_pipeline_definition_with_roots(repo_root, roots, &pipeline.definition.source_path)
         .map_err(SelectedPipelineLoadError::Load)
 }
 
@@ -1921,13 +1945,20 @@ fn load_stage_catalog_entry_for_reference(
     })
 }
 
-fn find_selected_pipeline_metadata_error(
+fn find_selected_pipeline_metadata_error_with_roots(
     repo_root: &Path,
+    roots: &PipelineDeclarativeRootsContract,
     selector: &str,
 ) -> Result<Option<PipelineCatalogError>, PipelineCatalogError> {
-    for pipeline_path in discover_repo_relative_files(repo_root, pipeline_root(), "yaml")? {
-        let definition = match load_pipeline_definition_with_mode(
+    for pipeline_path in discover_repo_relative_files_with_kind(
+        repo_root,
+        roots.pipeline_root(),
+        "yaml",
+        CatalogDiscoveryKind::Pipelines,
+    )? {
+        let definition = match load_pipeline_definition_with_mode_and_roots(
             repo_root,
+            roots,
             &pipeline_path,
             PipelineLoadMode::MetadataOnly,
         ) {
@@ -2602,8 +2633,7 @@ pub fn load_pipeline_definition(
     load_pipeline_definition_with_mode(repo_root, pipeline_path, PipelineLoadMode::RouteAware)
 }
 
-#[allow(dead_code)]
-pub(crate) fn load_pipeline_definition_with_roots(
+pub fn load_pipeline_definition_with_roots(
     repo_root: impl AsRef<Path>,
     roots: &PipelineDeclarativeRootsContract,
     pipeline_path: impl AsRef<Path>,
