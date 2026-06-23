@@ -267,14 +267,14 @@ Set 2 should target exactly this stable public boundary shape:
 1. **Public declarative-roots contract surface**
    - one reviewed public contract type for pipeline/profile/runner/stage repo-relative roots
    - validated constructor and stable read accessors
-   - optional public default getter for handbook's own product defaults when useful as a baseline
+   - handbook-product default helpers/constants stay private unless a later external-consumer proof names a concrete need for a public baseline helper
 2. **Public storage-layout contract surface**
    - one reviewed public contract type for state/capture/handoff repo-relative roots
    - validated constructor and stable read accessors
-   - optional public default getter for handbook's own product defaults when useful as a baseline
+   - handbook-product default helpers/constants stay private unless a later external-consumer proof names a concrete need for a public baseline helper
 3. **Public contract-aware entrypoints on existing public pipeline surfaces**
-   - catalog / selection loading through explicit declarative roots
-   - compile / capture / handoff / route-state operations through explicit storage-layout contracts
+   - **declarative-root entrypoint set:** `handbook_pipeline::pipeline::SupportedTargetRegistry::load`, `handbook_pipeline::pipeline::load_pipeline_catalog`, `handbook_pipeline::pipeline::load_pipeline_catalog_metadata`, `handbook_pipeline::pipeline::load_pipeline_selection_metadata`, `handbook_pipeline::pipeline::load_pipeline_definition`, and `handbook_pipeline::pipeline::load_selected_pipeline_definition`
+   - **storage-layout entrypoint set:** `handbook_pipeline::route_state::load_route_state`, `handbook_pipeline::route_state::set_route_state`, `handbook_pipeline::route_state::load_trusted_pipeline_session`, `handbook_pipeline::route_state::persist_route_basis`, `handbook_pipeline::pipeline_capture::preview_pipeline_capture`, `handbook_pipeline::pipeline_capture::capture_pipeline_output`, `handbook_pipeline::pipeline_capture::apply_pipeline_capture`, `handbook_pipeline::pipeline_capture::load_pipeline_capture_cache_entry`, `handbook_pipeline::pipeline_handoff::emit_pipeline_handoff_bundle`, and `handbook_pipeline::pipeline_handoff::validate_pipeline_handoff_bundle`
    - no requirement to make the raw `layout` or `declarative_roots` modules themselves public if a smaller re-exported façade can carry the contract
 4. **Only the typed results/errors required by those entrypoints**
    - keep capability-facing result types public where downstream consumers must handle them
@@ -299,11 +299,11 @@ Set 2 is only honest if all of the following are true:
 
 1. **Implementation boundary wall**
    - `crates/pipeline/src/lib.rs` exposes the chosen façade intentionally
-   - touched public surfaces stay limited to the contract owners plus the existing public pipeline modules that need contract-aware entrypoints
+   - touched public surfaces stay limited to the contract owners plus these exact first-wave source-owner paths: `crates/pipeline/src/pipeline.rs::{SupportedTargetRegistry::load, load_pipeline_catalog, load_pipeline_catalog_metadata, load_pipeline_selection_metadata, load_pipeline_definition, load_selected_pipeline_definition}`, `crates/pipeline/src/route_state.rs::{load_route_state, set_route_state, load_trusted_pipeline_session, persist_route_basis}`, `crates/pipeline/src/pipeline_capture.rs::{preview_pipeline_capture, capture_pipeline_output, apply_pipeline_capture, load_pipeline_capture_cache_entry}`, and `crates/pipeline/src/pipeline_handoff.rs::{emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle}`
    - the change does not rely on making the entire private modules public just to reach a small number of types/functions
 2. **External published-consumer wall**
    - a scratch consumer using published `handbook-pipeline` can construct non-default declarative-root and/or storage-layout contracts through the public boundary
-   - that consumer can execute at least one representative catalog/loading path and one representative storage-layout-aware path through public APIs only
+   - that consumer proves the exact first-wave public paths above rather than representative stand-ins: the declarative-root proof must cover the `handbook_pipeline::pipeline::*` entrypoint set, and the storage-layout proof must cover the `handbook_pipeline::route_state::*`, `handbook_pipeline::pipeline_capture::*`, and `handbook_pipeline::pipeline_handoff::*` entrypoint sets named above
    - no proof step is allowed to import `handbook_pipeline::layout::*`, `handbook_pipeline::declarative_roots::*`, or other private-module paths
 3. **Downstream revalidation input wall**
    - the Set 2 handoff must explicitly preserve that Packet 4.2 remains only an `engine + flow` proof
@@ -390,7 +390,6 @@ This set is docs-only, but it still has a proof wall. The verification strategy 
 
 ## Open Questions
 
-1. Which existing public pipeline entrypoints are the smallest first Set 2 surface that still provides the full required capability without reopening later packets?
-2. Which currently private typed seams are truly required for full Substrate capability, and which are merely one current implementation route that should stay private behind the façade?
-3. Is the intended downstream consumer shape a direct Substrate call site, a reviewed provider/context boundary, or both?
-4. Does the team want the archived parameterization docs to be formally superseded by the new active Set 1 triplet, or should Set 1 also produce a short explicit supersession note?
+1. Which currently private typed seams are truly required for full Substrate capability, and which are merely one current implementation route that should stay private behind the façade?
+2. Is the intended downstream consumer shape a direct Substrate call site, a reviewed provider/context boundary, or both?
+3. Does the team want the archived parameterization docs to be formally superseded by the new active Set 1 triplet, or should Set 1 also produce a short explicit supersession note?

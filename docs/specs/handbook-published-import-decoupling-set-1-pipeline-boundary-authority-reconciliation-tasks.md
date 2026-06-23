@@ -56,18 +56,18 @@ Spec reference: [handbook-published-import-decoupling-set-1-pipeline-boundary-au
   - full reusable `handbook-pipeline` capability for Substrate remains mandatory active authority work
   - Packet 4.2 remains valid only as narrow published `engine + flow` proof
 - Stable Set 2 target:
-  - public declarative-roots contract surface
-  - public storage-layout contract surface
-  - contract-aware entrypoints on the existing public pipeline surfaces
+  - public declarative-roots contract surface, with first-wave public proof bound to `handbook_pipeline::pipeline::SupportedTargetRegistry::load`, `handbook_pipeline::pipeline::load_pipeline_catalog`, `handbook_pipeline::pipeline::load_pipeline_catalog_metadata`, `handbook_pipeline::pipeline::load_pipeline_selection_metadata`, `handbook_pipeline::pipeline::load_pipeline_definition`, and `handbook_pipeline::pipeline::load_selected_pipeline_definition`
+  - public storage-layout contract surface, with first-wave public proof bound to `handbook_pipeline::route_state::{load_route_state, set_route_state, load_trusted_pipeline_session, persist_route_basis}`, `handbook_pipeline::pipeline_capture::{preview_pipeline_capture, capture_pipeline_output, apply_pipeline_capture, load_pipeline_capture_cache_entry}`, and `handbook_pipeline::pipeline_handoff::{emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle}`
+  - contract-aware entrypoints on those exact existing public pipeline surfaces
   - only the typed results/errors downstream must actually handle
 - Keep private by default:
   - `RepoLayoutRoot`
   - nested storage-layout helper structs
-  - handbook-product default constants and repo/file/path plumbing
+  - handbook-product default helpers/constants unless later external-consumer proof names a concrete need, plus repo/file/path plumbing
   - product-shell wording and CLI/product-only behavior
 - Set 2 acceptance wall:
   - published `handbook-pipeline` consumer can construct non-default contracts through public APIs only
-  - published consumer can exercise representative catalog/loading plus storage-layout-aware behavior without private-module imports
+  - published consumer must prove those exact `handbook_pipeline::pipeline::*`, `handbook_pipeline::route_state::*`, `handbook_pipeline::pipeline_capture::*`, and `handbook_pipeline::pipeline_handoff::*` paths without private-module imports
   - Packet 4.2 stays classified as `engine + flow` proof only
   - downstream Substrate adoption remains a later dedicated-worktree proof, not something Packet 1.2 or Set 2 may overclaim
 

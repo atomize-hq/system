@@ -159,12 +159,12 @@ Decide what Set 2 is actually supposed to build without reopening the MAP object
 - **Chosen boundary shape:** Set 2 should expose a narrower public façade, not wholesale direct promotion of `declarative_roots` or `layout`.
 - **Why:** the live private modules mix required downstream contracts with handbook-product defaults, nested helper structs, and repo-layout plumbing; a façade can expose capability without freezing those internals publicly.
 - **Exact Set 2 target:**
-  - public declarative-roots contract surface
-  - public storage-layout contract surface
-  - contract-aware entrypoints on the existing public pipeline surfaces
+  - public declarative-roots contract surface, with first-wave public proof bound to `handbook_pipeline::pipeline::SupportedTargetRegistry::load`, `handbook_pipeline::pipeline::load_pipeline_catalog`, `handbook_pipeline::pipeline::load_pipeline_catalog_metadata`, `handbook_pipeline::pipeline::load_pipeline_selection_metadata`, `handbook_pipeline::pipeline::load_pipeline_definition`, and `handbook_pipeline::pipeline::load_selected_pipeline_definition`
+  - public storage-layout contract surface, with first-wave public proof bound to `handbook_pipeline::route_state::{load_route_state, set_route_state, load_trusted_pipeline_session, persist_route_basis}`, `handbook_pipeline::pipeline_capture::{preview_pipeline_capture, capture_pipeline_output, apply_pipeline_capture, load_pipeline_capture_cache_entry}`, and `handbook_pipeline::pipeline_handoff::{emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle}`
+  - contract-aware entrypoints on those exact existing public pipeline surfaces
   - only the typed results/errors that downstream consumers must actually handle
-- **Keep private:** `RepoLayoutRoot`, nested storage-layout helper structs, default-only product constants, repo/file/path plumbing, and product-shell/CLI-only behavior.
-- **Acceptance wall:** Set 2 is only honest when a published `handbook-pipeline` consumer can construct non-default contracts and exercise representative catalog/loading plus storage-layout-aware behavior through public APIs only, while downstream Substrate adoption remains a later dedicated-worktree proof.
+- **Keep private:** `RepoLayoutRoot`, nested storage-layout helper structs, handbook-product default helpers/constants unless later external-consumer proof names a concrete need, repo/file/path plumbing, and product-shell/CLI-only behavior.
+- **Acceptance wall:** Set 2 is only honest when a published `handbook-pipeline` consumer can construct non-default contracts and prove those exact `handbook_pipeline::pipeline::*`, `handbook_pipeline::route_state::*`, `handbook_pipeline::pipeline_capture::*`, and `handbook_pipeline::pipeline_handoff::*` paths through public APIs only, while downstream Substrate adoption remains a later dedicated-worktree proof.
 
 ### Verification checkpoint
 
