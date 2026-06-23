@@ -2,12 +2,14 @@
 mod pipeline_proof_corpus_support;
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
+    pipeline::load_pipeline_definition,
     pipeline_capture::{
         apply_pipeline_capture, capture_pipeline_output, load_pipeline_capture_cache_entry,
-        preview_pipeline_capture, render_pipeline_capture_apply_result,
+        preview_pipeline_capture, preview_pipeline_capture_with_storage_layout,
+        apply_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
         render_pipeline_capture_preview, render_pipeline_capture_refusal,
         PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
         PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
@@ -16,10 +18,14 @@ use handbook_pipeline::{
         compile_pipeline_stage_with_runtime, render_pipeline_compile_explain,
         render_pipeline_compile_payload, PipelineCompileRuntimeContext,
     },
+    pipeline_route::{resolve_pipeline_route, RouteVariables},
     route_state::{
-        load_route_state_with_supported_variables, set_route_state, RouteState, RouteStateMutation,
+        build_route_basis, load_route_state_with_storage_layout,
+        load_route_state_with_supported_variables, persist_route_basis_with_storage_layout,
+        set_route_state, RouteBasisPersistOutcome, RouteState, RouteStateMutation,
         RouteStateMutationOutcome,
     },
+    PipelineStorageLayoutContract,
 };
 use sha2::{Digest, Sha256};
 
@@ -130,6 +136,57 @@ fn stage_10_compile_explain(repo_root: &Path) -> String {
 
 fn stage_10_completed_feature_spec_input() -> String {
     pipeline_proof_corpus_support::read_committed_model_output("stage_10_feature_spec.md")
+}
+
+fn custom_storage_layout() -> PipelineStorageLayoutContract {
+    PipelineStorageLayoutContract::try_from_paths(
+        ".custom_handbook/state",
+        ".custom_handbook/state/pipelines",
+        ".custom_handbook/state/pipelines/stage_capture",
+        ".custom_handbook/state/pipelines/capture_cache",
+        "custom_artifacts/handoff/feature_slice",
+    )
+    .expect("valid custom storage layout")
+}
+
+fn custom_capture_cache_path(
+    repo_root: &Path,
+    capture_id: &str,
+    storage_layout: PipelineStorageLayoutContract,
+) -> PathBuf {
+    repo_root
+        .join(storage_layout.capture_cache_root_relative())
+        .join(format!("{capture_id}.yaml"))
+}
+
+fn persist_custom_stage_05_route_basis(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) {
+    let definition = load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let state = load_route_state_with_storage_layout(repo_root, PIPELINE_ID, storage_layout)
+        .expect("initial custom state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("resolve route");
+    let route_basis = build_route_basis(repo_root, &definition, &state, &route).expect("basis");
+
+    match persist_route_basis_with_storage_layout(
+        repo_root,
+        PIPELINE_ID,
+        route_basis,
+        storage_layout,
+    )
+    .expect("persist custom route basis")
+    {
+        RouteBasisPersistOutcome::Applied(_) => {}
+        RouteBasisPersistOutcome::Refused(refusal) => {
+            panic!("expected custom route basis persist to apply, got {refusal:?}")
+        }
+    }
 }
 
 fn normalize_capture_id(output: &str, capture_id: &str) -> String {
@@ -1749,5 +1806,45 @@ fn capture_apply_refuses_unsupported_stage_id_from_tampered_cache_without_side_e
         )
         .exists(),
         "refused apply should keep the tampered cache entry for inspection"
+    );
+}
+
+#[test]
+fn custom_storage_layout_preview_and_apply_use_public_capture_facade() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_stage_05_capture_ready_repo();
+    let storage_layout = custom_storage_layout();
+    persist_custom_stage_05_route_basis(&repo_root, storage_layout);
+
+    let preview = preview_pipeline_capture_with_storage_layout(
+        &repo_root,
+        &stage_05_request(stage_05_capture_input()),
+        storage_layout,
+    )
+    .expect("preview with custom storage layout");
+    let custom_cache_path =
+        custom_capture_cache_path(&repo_root, &preview.plan.capture_id, storage_layout);
+
+    assert!(custom_cache_path.exists(), "custom capture cache path should exist");
+    assert!(
+        !pipeline_proof_corpus_support::pipeline_capture_cache_path(
+            &repo_root,
+            &preview.plan.capture_id
+        )
+        .exists(),
+        "default capture cache root should remain unused"
+    );
+
+    let result = apply_pipeline_capture_with_storage_layout(
+        &repo_root,
+        &preview.plan.capture_id,
+        storage_layout,
+    )
+    .expect("apply with custom storage layout");
+
+    assert_eq!(result.plan.target.pipeline_id, PIPELINE_ID);
+    assert_eq!(result.plan.target.stage_id, STAGE_05_ID);
+    assert!(
+        !custom_cache_path.exists(),
+        "apply should consume the custom capture cache entry"
     );
 }

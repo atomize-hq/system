@@ -5,12 +5,25 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
-    pipeline_capture::{capture_pipeline_output, PipelineCaptureRequest},
+    pipeline_capture::{
+        apply_pipeline_capture_with_storage_layout, preview_pipeline_capture_with_storage_layout,
+        PipelineCaptureRequest,
+    },
     pipeline_handoff::{
-        emit_pipeline_handoff_bundle, validate_pipeline_handoff_bundle, PipelineHandoffEmitRequest,
-        PipelineHandoffManifest, PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
+        emit_pipeline_handoff_bundle, emit_pipeline_handoff_bundle_with_storage_layout,
+        validate_pipeline_handoff_bundle, validate_pipeline_handoff_bundle_with_storage_layout,
+        PipelineHandoffEmitRequest, PipelineHandoffManifest,
+        PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
         PipelineHandoffValidatedBundle, PipelineHandoffValidationFailureClassification,
     },
+    pipeline::load_pipeline_definition,
+    pipeline_route::{resolve_pipeline_route, RouteVariables},
+    route_state::{
+        build_route_basis, load_route_state_with_storage_layout,
+        persist_route_basis_with_storage_layout, set_route_state_with_storage_layout,
+        RouteBasisPersistOutcome, RouteStateMutation, RouteStateMutationOutcome,
+    },
+    PipelineStorageLayoutContract,
 };
 
 const PIPELINE_ID: &str = pipeline_proof_corpus_support::FOUNDATION_INPUTS_PIPELINE_ID;
@@ -65,7 +78,129 @@ fn capture_feature_spec(repo_root: &Path) {
             "stage_10_feature_spec.md",
         ),
     };
-    capture_pipeline_output(repo_root, &request).expect("capture feature spec");
+    handbook_pipeline::pipeline_capture::capture_pipeline_output(repo_root, &request)
+        .expect("capture feature spec");
+}
+
+fn custom_storage_layout() -> PipelineStorageLayoutContract {
+    PipelineStorageLayoutContract::try_from_paths(
+        ".custom_handbook/state",
+        ".custom_handbook/state/pipelines",
+        ".custom_handbook/state/pipelines/stage_capture",
+        ".custom_handbook/state/pipelines/capture_cache",
+        "custom_artifacts/handoff/feature_slice",
+    )
+    .expect("valid custom storage layout")
+}
+
+fn custom_stage_10_capture_provenance_path(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) -> PathBuf {
+    repo_root
+        .join(storage_layout.stage_capture_root_relative())
+        .join(format!("{PIPELINE_ID}.{STAGE_ID}.json"))
+}
+
+fn apply_custom_state_mutation(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+    mutation: RouteStateMutation,
+) {
+    let (_, supported_variables) =
+        pipeline_proof_corpus_support::load_foundation_inputs_definition(repo_root);
+    let state = load_route_state_with_storage_layout(repo_root, PIPELINE_ID, storage_layout)
+        .expect("load custom route state");
+    let outcome = set_route_state_with_storage_layout(
+        repo_root,
+        PIPELINE_ID,
+        supported_variables.iter().map(String::as_str),
+        mutation,
+        state.revision,
+        storage_layout,
+    )
+    .expect("set custom route state");
+    match outcome {
+        RouteStateMutationOutcome::Applied(_) => {}
+        RouteStateMutationOutcome::Refused(refusal) => {
+            panic!("expected custom route-state mutation to apply, got {refusal:?}")
+        }
+    }
+}
+
+fn persist_custom_stage_10_route_basis(
+    repo_root: &Path,
+    storage_layout: PipelineStorageLayoutContract,
+) {
+    apply_custom_state_mutation(
+        repo_root,
+        storage_layout,
+        RouteStateMutation::RunRunner {
+            value: "codex-cli".to_string(),
+        },
+    );
+    apply_custom_state_mutation(
+        repo_root,
+        storage_layout,
+        RouteStateMutation::RunProfile {
+            value: "python-uv".to_string(),
+        },
+    );
+    apply_custom_state_mutation(
+        repo_root,
+        storage_layout,
+        RouteStateMutation::RefCharterRef {
+            value: "artifacts/charter/CHARTER.md".to_string(),
+        },
+    );
+    apply_custom_state_mutation(
+        repo_root,
+        storage_layout,
+        RouteStateMutation::RefProjectContextRef {
+            value: "artifacts/project_context/PROJECT_CONTEXT.md".to_string(),
+        },
+    );
+    apply_custom_state_mutation(
+        repo_root,
+        storage_layout,
+        RouteStateMutation::RoutingVariable {
+            variable: "needs_project_context".to_string(),
+            value: false,
+        },
+    );
+    apply_custom_state_mutation(
+        repo_root,
+        storage_layout,
+        RouteStateMutation::RoutingVariable {
+            variable: "charter_gaps_detected".to_string(),
+            value: false,
+        },
+    );
+
+    let definition = load_pipeline_definition(repo_root, "core/pipelines/foundation_inputs.yaml")
+        .expect("pipeline fixture");
+    let state = load_route_state_with_storage_layout(repo_root, PIPELINE_ID, storage_layout)
+        .expect("reload custom route state");
+    let route = resolve_pipeline_route(
+        &definition,
+        &RouteVariables::new(state.routing.clone()).expect("route variables"),
+    )
+    .expect("resolve route");
+    let route_basis = build_route_basis(repo_root, &definition, &state, &route).expect("basis");
+
+    match persist_route_basis_with_storage_layout(
+        repo_root,
+        PIPELINE_ID,
+        route_basis,
+        storage_layout,
+    )
+    .expect("persist custom route basis")
+    {
+        RouteBasisPersistOutcome::Applied(_) => {}
+        RouteBasisPersistOutcome::Refused(refusal) => {
+            panic!("expected custom route basis persist to apply, got {refusal:?}")
+        }
+    }
 }
 
 fn emit_valid_bundle(
@@ -411,4 +546,66 @@ fn test_consumer_refuses_undeclared_repo_reread_outside_bundle_allowlist() {
         "{}",
         refusal.summary
     );
+}
+
+#[test]
+fn custom_storage_layout_emit_and_validate_use_public_handoff_facade() {
+    let (_dir, repo_root) = pipeline_proof_corpus_support::install_foundation_inputs_repo();
+    let storage_layout = custom_storage_layout();
+    install_canonical_inputs(&repo_root);
+    persist_custom_stage_10_route_basis(&repo_root, storage_layout);
+
+    let preview = preview_pipeline_capture_with_storage_layout(
+        &repo_root,
+        &PipelineCaptureRequest {
+            pipeline_selector: PIPELINE_ID.to_string(),
+            stage_selector: STAGE_ID.to_string(),
+            input: pipeline_proof_corpus_support::read_committed_model_output(
+                "stage_10_feature_spec.md",
+            ),
+        },
+        storage_layout,
+    )
+    .expect("preview custom stage-10 capture");
+    apply_pipeline_capture_with_storage_layout(&repo_root, &preview.plan.capture_id, storage_layout)
+        .expect("apply custom stage-10 capture");
+
+    let custom_provenance_path = custom_stage_10_capture_provenance_path(&repo_root, storage_layout);
+    assert!(
+        custom_provenance_path.exists(),
+        "custom stage-capture provenance path should exist"
+    );
+    assert!(
+        !repo_root.join(STAGE_10_CAPTURE_PROVENANCE_PATH).exists(),
+        "default stage-capture provenance root should remain unused"
+    );
+
+    let result = emit_pipeline_handoff_bundle_with_storage_layout(
+        &repo_root,
+        &PipelineHandoffEmitRequest {
+            pipeline_selector: PIPELINE_ID.to_string(),
+            consumer_selector: CONSUMER_ID.to_string(),
+            producer_command: format!(
+                "handbook pipeline handoff emit --id {PIPELINE_ID} --consumer {CONSUMER_ID}"
+            ),
+            producer_version: "test-suite".to_string(),
+        },
+        storage_layout,
+    )
+    .expect("emit handoff bundle with custom storage layout");
+    assert!(
+        result
+            .bundle_root
+            .starts_with(storage_layout.feature_slice_root_relative()),
+        "custom handoff root should be used: {}",
+        result.bundle_root
+    );
+
+    let validated = validate_pipeline_handoff_bundle_with_storage_layout(
+        &repo_root,
+        &result.bundle_root,
+        storage_layout,
+    )
+    .expect("validate handoff bundle with custom storage layout");
+    assert_eq!(validated.manifest.bundle_root, result.bundle_root);
 }

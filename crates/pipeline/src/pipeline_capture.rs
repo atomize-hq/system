@@ -196,7 +196,7 @@ pub fn preview_pipeline_capture(
     )
 }
 
-pub(crate) fn preview_pipeline_capture_with_storage_layout(
+pub fn preview_pipeline_capture_with_storage_layout(
     repo_root: impl AsRef<Path>,
     request: &PipelineCaptureRequest,
     storage_layout: PipelineStorageLayoutContract,
@@ -251,7 +251,7 @@ pub fn apply_pipeline_capture(
     )
 }
 
-pub(crate) fn apply_pipeline_capture_with_storage_layout(
+pub fn apply_pipeline_capture_with_storage_layout(
     repo_root: impl AsRef<Path>,
     capture_id: &str,
     storage_layout: PipelineStorageLayoutContract,
