@@ -179,4 +179,4 @@ Stop after Set 1 produces a reconciled active authority, a concrete Set 2 proof 
   - Set 3 must also guard against reclassifying internal-only parameterization as public-boundary success, against claiming `engine + flow` proof is enough for pipeline adoption, and against overexposing handbook-only internals while chasing downstream capability.
 - Docs-only closeout status:
   - Current Packet 1.4 working tree review stayed docs-only.
-  - The current branch-local Set 1 change evidence is docs-only: `git diff-tree --no-commit-id --name-only -r HEAD` lists only `docs/specs/MAP.md` and the active Set 1 spec/plan/tasks files, and `git diff -- docs/specs/MAP.md docs/specs HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` was empty at closeout.
+  - The final Set 1 closeout commit pair (`013e108`, `41bfcca`) was docs-only: together they touched only `docs/specs/MAP.md` and the active Set 1 spec/plan/tasks files, and `git diff -- docs/specs/MAP.md docs/specs HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` was empty at closeout.
