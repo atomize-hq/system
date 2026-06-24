@@ -174,6 +174,14 @@ Packet 3.4 is done only when:
 - active docs cannot honestly overclaim `handbook-pipeline` proof by pointing only at Packet 4.2
 - Set 3 closeout language satisfies the MAP intent and does not silently widen scope
 
+### Packet 3.4 closeout status (2026-06-23)
+
+- The repo-local rerun rails now live in `justfile` as `just handbook_pipeline_released_proof` and `just handbook_published_import_set3_guardrails`; both default to the exact released version `handbook-pipeline 0.1.2`, and the second target re-runs the released external proof before checking proof-classification language.
+- The released-proof rail remains path-fallback-hostile because it delegates to `tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2`, whose fixture uses an exact crates.io dependency only and whose harness fails if `cargo metadata` resolves `handbook-pipeline` from a path or from this source tree.
+- The truth-classification rail now requires the active docs to keep all three proof tiers named explicitly: Set 2 packaged proof, Set 3 released external proof, and Set 3 downstream Substrate proof.
+- Packet 4.2 remains explicitly `engine + flow` only, while Packet 3.3 remains the only downstream `handbook-pipeline 0.1.2` proof and stays tied to the exact seam `crates/shell/src/execution/prompt_fulfillment.rs` in the dedicated worktree `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135`.
+- Honest closeout line: the MAP objective is now satisfied through a reviewed, stable, published boundary because `handbook-pipeline 0.1.2` passed a real published external proof, passed one real dedicated-worktree downstream Substrate proof, kept the ownership split intact, and did so without widening the public surface beyond the Set 2 retained/dropped matrix.
+
 ## Sequential vs Parallel Notes
 
 - **Not parallel-safe by default:** Packets 3.1–3.4 share the same published version target, proof classification language, and downstream seam assumptions.

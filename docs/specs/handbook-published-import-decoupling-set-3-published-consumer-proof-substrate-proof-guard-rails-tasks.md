@@ -108,20 +108,33 @@ If those sources disagree, the MAP plus the active Set 1 triplet plus the active
 
 ## Packet 3.4: Guard Rails + Honest Closeout
 
-- [ ] Task: Add release/update guard rails that re-run the released-boundary proof and reject path-fallback proof
+- [x] Task: Add release/update guard rails that re-run the released-boundary proof and reject path-fallback proof
   - Acceptance: The repo has a rerunnable guard rail that verifies the released external consumer proof against the exact published version and fails if proof falls back to sibling-path or source-tree dependency accidents.
-  - Verify: `bash tools/proof/handbook_pipeline_released_boundary.sh --version <published_version>`; any added wrapper or CI-local command used to invoke it
-  - Files: `tools/proof/handbook_pipeline_released_boundary.sh`, optionally `justfile` or a tightly scoped CI/release helper if needed, and any small fixture helper files required for the released proof
+  - Verify: `bash tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2`; `just handbook_pipeline_released_proof`; `just handbook_published_import_set3_guardrails`
+  - Files: `tools/proof/handbook_pipeline_released_boundary.sh`, `justfile`
 
-- [ ] Task: Add truth-classification guard rails so Packet 4.2 cannot be mistaken for `handbook-pipeline` proof
+- [x] Task: Add truth-classification guard rails so Packet 4.2 cannot be mistaken for `handbook-pipeline` proof
   - Acceptance: Active docs and any added verification rails explicitly distinguish `engine + flow` proof from `handbook-pipeline` proof and fail closeout if that distinction is lost.
-  - Verify: `rg -n "engine \+ flow|handbook-pipeline proof|Packet 4\.2" docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-*.md docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-*.md`
-  - Files: `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-spec.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-plan.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-tasks.md`, optionally a narrow verification helper if needed
+  - Verify: `just handbook_published_import_set3_guardrails`; `rg -n "engine \+ flow|handbook-pipeline proof|Packet 4\.2|Set 2 packaged proof|Set 3 released external proof|Set 3 downstream Substrate proof" docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-*.md docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-*.md`
+  - Files: `justfile`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-spec.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-plan.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-tasks.md`
 
-- [ ] Task: Close Set 3 honestly against the MAP objective and exact intent
+- [x] Task: Close Set 3 honestly against the MAP objective and exact intent
   - Acceptance: Closeout notes confirm a real published external proof passed, a real dedicated-worktree downstream Substrate proof passed, no new public surface was added outside the Set 2 matrix, Packet 4.2 remains `engine + flow` only, and the full MAP objective is now satisfied through a reviewed stable published boundary.
-  - Verify: source inspection of the Set 3 triplet; `rg -n "published external proof|downstream Substrate proof|minimum unnecessary public surface|engine \+ flow|MAP objective" docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-*.md`
+  - Verify: source inspection of the Set 3 triplet; `rg -n "published external proof|downstream Substrate proof|minimum unnecessary public surface|engine \+ flow|MAP objective|reviewed, stable, published boundary" docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-*.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-spec.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-plan.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-tasks.md`, optionally `HANDBOOK_PUBLISHED_IMPORT_DECOUPLING_AUDIT_2026-06-23.md` only if a final audit addendum is required
+
+### Packet 3.4 closeout status (2026-06-23)
+
+- Added the rerunnable repo-local guard rails in `justfile`:
+  - `just handbook_pipeline_released_proof` re-runs `bash tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2`
+  - `just handbook_published_import_set3_guardrails` re-runs the same released proof and then checks that the active docs still name Set 2 packaged proof, Set 3 released external proof, Set 3 downstream Substrate proof, and Packet 4.2 as `engine + flow` only
+- These rails remain honest because the underlying released-proof harness rejects path dependencies and source-tree fallback before any proof run can count.
+- Final Set 3 closeout remains intentionally narrow:
+  - released external proof passed against `handbook-pipeline 0.1.2`
+  - downstream Substrate proof passed once, in the dedicated worktree seam `crates/shell/src/execution/prompt_fulfillment.rs`
+  - no new public surface was added beyond the Set 2 retained/dropped matrix
+  - Packet 4.2 remains `engine + flow` only
+  - the MAP objective is satisfied through a reviewed, stable, published boundary rather than packaged-only or sibling-path-local proof
 
 ---
 

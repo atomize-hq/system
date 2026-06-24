@@ -302,6 +302,21 @@ Set 3 is complete only when all of the following are true:
 - The released external consumer proof `bash tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2` passed against the published registry artifact, confirming that the Set 2 retained boundary is now real at the released-crate tier.
 - Set 2 packaged proof and Set 3 released proof remain explicitly distinct tiers, and Packet 4.2 remains classified only as `engine + flow` proof.
 
+## Packet 3.4 closeout note (2026-06-23)
+
+- The rerunnable Set 3 release/update rails now live in `/Users/spensermcconnell/__Active_Code/system/justfile` as `just handbook_pipeline_released_proof` and `just handbook_published_import_set3_guardrails`.
+- Those rails intentionally keep `handbook-pipeline 0.1.2` as the exact released-proof default and re-run the released external proof through `/Users/spensermcconnell/__Active_Code/system/tools/proof/handbook_pipeline_released_boundary.sh`, so future update work must prove the real crates.io boundary again rather than rely on sibling paths or source-tree accidents.
+- The truth-classification rail requires the active Set 3 docs to preserve all three proof tiers by name:
+  - Set 2 packaged proof
+  - Set 3 released external proof
+  - Set 3 downstream Substrate proof
+- Packet 4.2 remains baseline context only and remains explicitly classified only as `engine + flow` proof; it is not a `handbook-pipeline` proof and cannot satisfy Set 3 by itself.
+- Honest closeout scope:
+  - real published external proof passed against `handbook-pipeline 0.1.2`
+  - real dedicated-worktree downstream Substrate proof passed against that same published version in `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135/crates/shell/src/execution/prompt_fulfillment.rs`
+  - no new public surface was added beyond the Set 2 retained/dropped matrix
+  - the MAP objective is now satisfied through a reviewed, stable, published boundary that preserves handbook-owned typed mechanics and Substrate-owned wording/runtime behavior
+
 ## Open Questions
 
 1. Should the downstream Set 3 proof reuse the current dedicated worktree at `/Users/spensermcconnell/.codex/worktrees/substrate-packet-4-2-20260622-133054` if it stays isolated and clean, or should it start from a fresh dedicated worktree?
