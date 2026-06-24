@@ -18,4 +18,6 @@ handbook_published_import_set3_guardrails version="0.1.2":
   rg -n 'Set 2 packaged proof' docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-{spec,plan,tasks}.md
   rg -n 'Set 3 released external proof' docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-{spec,plan,tasks}.md
   rg -n 'Set 3 downstream Substrate proof' docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-{spec,plan,tasks}.md
-  rg -n 'Packet 4\.2 remains (explicitly classified only as|classified only as|only as|`engine \+ flow` only)' docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-*.md docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-*.md
+  rg -n 'MAP objective is now satisfied through a reviewed, stable, published boundary' docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-{spec,plan,tasks}.md
+  rg -n 'Packet 4\.2 remains explicitly `engine \+ flow` only' docs/specs/MAP.md docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-{spec,plan,tasks}.md
+  ! rg -n 'not yet|current gap|routing toward closure|gap is still open|not yet a verified public import seam' docs/specs/MAP.md

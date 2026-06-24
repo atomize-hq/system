@@ -1,9 +1,9 @@
 # MAP: Handbook Published-Import Decoupling for Substrate
 
-Status: active  
+Status: complete (Set 3 closeout landed 2026-06-23)  
 Scope: handbook published-boundary work needed for real Substrate consumption  
 Primary repo: `/Users/spensermcconnell/__Active_Code/system`  
-Related downstream proof/worktree: `/Users/spensermcconnell/.codex/worktrees/substrate-packet-4-2-20260622-133054`  
+Related downstream proof/worktree: `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135`  
 
 ---
 
@@ -109,14 +109,16 @@ As of 2026-06-23, the honest state is:
 
 - `handbook-engine` is published and externally consumable
 - `handbook-flow` is published and externally consumable
-- Substrate has a real published-consumption proof for a narrow `engine + flow` seam
-- `handbook-pipeline` is **not yet** a verified public import seam for the full reusable capability Substrate needs
+- `handbook-pipeline 0.1.2` is published and externally consumable through the reviewed Set 2 boundary
+- Set 3 has a real published external proof against `handbook-pipeline 0.1.2`
+- Set 3 has one real dedicated-worktree downstream Substrate proof against that same published version
+- Packet 4.2 remains explicitly `engine + flow` only; it is baseline context, not `handbook-pipeline` proof
 
-The key current gap is:
+The honest closeout line is:
 
-> Substrate needs the reusable `handbook-pipeline` capability set, but the current published surface still keeps the key declarative-root and layout-control seams private.
+> The MAP objective is now satisfied through a reviewed, stable, published boundary: Substrate can consume the reusable `handbook-pipeline` capability it actually needs through the released `handbook-pipeline 0.1.2` surface, with published external proof, one real downstream Substrate proof, preserved ownership split, and no public-surface widening beyond the Set 2 retained/dropped matrix.
 
-That is the gap this map is routing toward closure.
+Packet 4.2 still does **not** satisfy this MAP by itself, because it remains only an `engine + flow` proof.
 
 ---
 
