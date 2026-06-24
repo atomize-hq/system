@@ -21,7 +21,7 @@ This set is not about designing a broader API. The active public surface was alr
 - The archived Set 3 parameterization docs remain provenance only and should not control the active packet structure.
 - The active Packet 3.3 downstream proof worktree is `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135` on branch `packet-3-3-20260623-213135`.
 - That dedicated worktree now resolves `handbook-engine v0.1.1`, `handbook-flow v0.1.1`, and `handbook-pipeline v0.1.2`, with no `[patch.crates-io]` or sibling-path fallback in its Cargo manifests.
-- The chosen downstream proof seam is `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135/crates/shell/src/execution/prompt_fulfillment.rs`, where Substrate-owned prompt composition now injects handbook planning advisory text through published `handbook-pipeline` public APIs only.
+- The chosen downstream proof seam is `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135/crates/shell/src/execution/prompt_fulfillment.rs`, where the Substrate-owned prompt composer contains a handbook-backed advisory path that uses published `handbook-pipeline` public APIs only when a downstream repo actually provides `.handbook/core/...` content.
 
 ## Intended Consumer Shape For Set 3
 
@@ -139,13 +139,15 @@ Packet 3.3 is done only when:
 ### Packet 3.3 closeout status (2026-06-23)
 
 - The downstream proof stayed inside the dedicated worktree `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135`; the main Substrate checkout remained untouched.
-- The exact downstream proof seam is `crates/shell/src/execution/prompt_fulfillment.rs`, specifically the Substrate-owned host-toolbox prompt composer that now discovers handbook planning context through published `handbook-pipeline 0.1.2` APIs.
+- The exact downstream proof seam is `crates/shell/src/execution/prompt_fulfillment.rs`, specifically the Substrate-owned host-toolbox prompt composer path that, when a downstream repo supplies `.handbook/core/...`, discovers handbook planning context through published `handbook-pipeline 0.1.2` APIs.
 - The worktree root manifest now pins `handbook-pipeline = "=0.1.2"` while leaving `handbook-engine = "=0.1.1"` and `handbook-flow = "=0.1.1"` unchanged; `cargo tree -p handbook-pipeline` resolves `v0.1.2` and the manifests contain no `[patch.crates-io]` override.
+- The checked-out dedicated worktree itself contains no `.handbook`, so its ambient runtime still follows the non-handbook branch; Packet 3.3 does not claim otherwise.
+- The positive downstream execution proof is `cargo test -p shell compose_prompt_with_host_toolbox_contract_adds_ready_handbook_pipeline_advisory -- --nocapture`, which creates a temporary handbook-backed repo fixture and executes the production prompt-fulfillment seam inside Substrate against the published crate.
 - The downstream seam keeps final wording and runtime behavior Substrate-owned: handbook only contributes typed catalog/definition discovery, while Substrate still renders the advisory copy and decides when it appears.
 - Downstream capability map:
   - consumed now: declarative-root contract construction for the repo-owned `.handbook/core/...` layout; metadata browse via `load_pipeline_catalog_metadata_with_roots(...)`; selector resolution via `load_pipeline_selection_metadata_with_roots(...)`; selected definition load via `load_selected_pipeline_definition_with_roots(...)`
   - externally proved but unused downstream now: direct definition load by explicit repo-relative path; route-state storage-layout control; capture storage-layout control; handoff storage-layout control
-- Why this is enough for Packet 3.3: Substrate's actual needs in this seam are planning-context discovery and selection, not route-state/capture/handoff mutation. The broader retained families remain real on crates.io because Packet 3.2 already proved them externally; Packet 3.3 only claims the narrower family Substrate actually consumes here.
+- Why this is enough for Packet 3.3: Substrate's actual needs in this seam are planning-context discovery and selection when a downstream repo provides handbook content, not route-state/capture/handoff mutation. The broader retained families remain real on crates.io because Packet 3.2 already proved them externally; Packet 3.3 only claims the narrower family Substrate actually consumes here.
 
 ## Packet 3.4 — Guard Rails + Honest Closeout
 

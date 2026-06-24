@@ -261,12 +261,16 @@ Set 3 is complete only when all of the following are true:
 
 - Dedicated downstream proof worktree: `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135`
 - Exact downstream proof seam: `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135/crates/shell/src/execution/prompt_fulfillment.rs`
-  - Substrate's host-toolbox prompt composer now injects handbook planning advisory text through published `handbook-pipeline` public APIs only
+  - Packet 3.3 proves the Substrate-owned host-toolbox prompt composer through targeted downstream tests in that worktree: when a repo root contains `.handbook/core/...`, the production prompt-fulfillment seam loads handbook planning context through published `handbook-pipeline` public APIs only
 - Exact published-version proof for the worktree:
   - root manifest pins `handbook-pipeline = "=0.1.2"`
   - `cargo tree -p handbook-pipeline` resolves `handbook-pipeline v0.1.2`
   - `cargo tree -p handbook-engine` and `cargo tree -p handbook-flow` remain at `v0.1.1`
   - no `[patch.crates-io]` or sibling-path handbook override exists in the worktree manifests
+- Current checkout truth:
+  - the checked-out dedicated worktree itself contains no `.handbook` tree, so its ambient runtime path stays on the non-handbook branch unless a downstream repo actually supplies handbook content
+  - Packet 3.3 therefore does **not** claim that this checkout renders handbook advisory text by default
+  - the positive downstream proof is the targeted shell test `compose_prompt_with_host_toolbox_contract_adds_ready_handbook_pipeline_advisory`, which creates a temporary repo fixture with `.handbook/core/...` and executes the real production seam against published `handbook-pipeline 0.1.2`
 - Downstream capability map for this seam:
   - consumed now:
     - declarative-root contract construction for Substrate's repo-owned `.handbook/core/...` layout
@@ -279,7 +283,7 @@ Set 3 is complete only when all of the following are true:
     - capture storage-layout control
     - handoff storage-layout control
 - Why this satisfies Substrate's actual needs here:
-  - the chosen seam only needs published handbook planning discovery + selection so Substrate can ground prompt fulfillment against repo-owned handbook context
+  - the chosen seam only needs published handbook planning discovery + selection so Substrate can ground prompt fulfillment when a downstream repo provides handbook content under the Substrate-owned `.handbook/core/...` layout
   - the broader route-state/capture/handoff families remain real on crates.io because Packet 3.2 already proved them externally, but this packet does not overclaim that Substrate uses them in the chosen seam
 - Ownership split preserved:
   - handbook owns typed catalog/selection/definition mechanics

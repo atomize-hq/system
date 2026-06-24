@@ -74,7 +74,7 @@ If those sources disagree, the MAP plus the active Set 1 triplet plus the active
 
 - [x] Task: Implement only the smallest downstream seam needed to prove real `handbook-pipeline` capability
   - Acceptance: The chosen Substrate seam uses published `handbook-pipeline` public APIs only, does not rely on sibling-path fallback or private internals, and keeps final wording/runtime behavior owned by Substrate.
-  - Verify: `cargo check --workspace` in the dedicated Substrate worktree, plus the targeted downstream proof command(s) selected for the seam
+  - Verify: `cargo check --workspace` in the dedicated Substrate worktree, plus the targeted downstream proof command(s) selected for the seam, including an execution of the positive handbook-backed path rather than only the no-handbook branch
   - Files: one narrow downstream file group in the dedicated worktree, ideally no more than ~5 files, plus tightly related tests if needed for honest proof
 
 - [x] Task: Record an explicit downstream capability map instead of overclaiming full family usage
@@ -86,20 +86,21 @@ If those sources disagree, the MAP plus the active Set 1 triplet plus the active
 
 - Dedicated downstream worktree used: `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135` on branch `packet-3-3-20260623-213135`.
 - Exact downstream proof seam chosen: `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135/crates/shell/src/execution/prompt_fulfillment.rs`
-  - the Substrate-owned host-toolbox prompt composer now injects handbook planning advisory text through published `handbook-pipeline` APIs only
+  - the Substrate-owned host-toolbox prompt composer contains the production handbook-backed advisory path; Packet 3.3 proves that path through targeted downstream tests rather than by claiming the checked-out worktree itself is handbook-backed
 - Exact version pin result:
   - root worktree manifest now pins `handbook-pipeline = "=0.1.2"`
   - `cargo tree -p handbook-pipeline` resolves `handbook-pipeline v0.1.2`
   - `cargo tree -p handbook-engine` and `cargo tree -p handbook-flow` remain at `v0.1.1`
   - the worktree manifests contain no `[patch.crates-io]` override or sibling-path dependency for handbook crates
 - Targeted downstream proof runs:
-  - `cargo test -p shell compose_prompt_with_host_toolbox_contract -- --nocapture` passed
+  - the checked-out worktree contains no `.handbook`, so ambient runtime in that checkout still takes the non-handbook branch
+  - `cargo test -p shell compose_prompt_with_host_toolbox_contract_adds_ready_handbook_pipeline_advisory -- --nocapture` passed; it creates a temporary `.handbook/core/...` repo fixture and executes the production prompt-fulfillment seam through published `handbook-pipeline 0.1.2`
   - `cargo check --workspace` passed in the dedicated worktree
 - Downstream capability map:
   - consumed now: declarative-root contract construction for `.handbook/core/...`; metadata browse; selector resolution; selected definition load
   - externally proved / unused downstream now: direct definition load by explicit repo-relative path; route-state storage-layout; capture storage-layout; handoff storage-layout
 - Packet 3.3 claim boundary:
-  - this packet proves a narrow Substrate planning-context seam only
+  - this packet proves a narrow Substrate planning-context seam only, under a handbook-backed repo fixture that executes the real downstream production path
   - Packet 4.2 remains `engine + flow` only
   - Packet 3.4 still owns release/update guard rails and final Set 3 closeout
 
