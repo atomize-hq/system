@@ -16,7 +16,7 @@ This set is not about designing a broader API. The active public surface was alr
   - `handbook-engine v0.1.1`
   - `handbook-flow v0.1.1`
   - `handbook-pipeline v0.1.1`
-- The current downstream proof seam in `/Users/spensermcconnell/.codex/worktrees/substrate-packet-4-2-20260622-133054/crates/shell/src/execution/prompt_fulfillment.rs` imports only `handbook_engine` + `handbook_flow`; it does **not** yet prove `handbook-pipeline` adoption.
+- The current downstream proof seam in `/Users/spensermcconnell/.codex/worktrees/substrate-packet-4-2-20260622-133054/crates/shell/src/execution/prompt_fulfillment.rs` imports only `handbook_engine` + `handbook_flow`; it proves the Packet 4.2 baseline only, not `handbook-pipeline` adoption.
 - `cargo publish --dry-run -p handbook-pipeline` passes in `system`, but crates.io still already contains `handbook-pipeline 0.1.1`, so Set 3 needs a new released version before released-consumer proof can honestly count.
 - The archived Set 3 parameterization docs remain provenance only and should not control the active packet structure.
 - The active Packet 3.3 downstream proof worktree is `/Users/spensermcconnell/.codex/worktrees/substrate-packet-3-3-20260623-213135` on branch `packet-3-3-20260623-213135`.

@@ -2,7 +2,7 @@
 
 ## Assumptions I'm Making
 
-1. Set 2 is complete only at the **packaged-boundary** level: the retained `handbook-pipeline` public boundary exists in live source and the packaged external proof passed locally on 2026-06-23, but that does **not** yet count as released-crate proof or downstream Substrate proof.
+1. Set 2 is complete only at the **packaged-boundary** level: the retained `handbook-pipeline` public boundary exists in live source and the packaged external proof passed locally on 2026-06-23, but that packaged proof remains a lower tier than the released-crate proof and downstream Substrate proof required for Set 3 closeout.
 2. The currently published crates.io `handbook-pipeline = 0.1.1` does **not** contain the full Set 2 public boundary. The Set 2 packaged proof exercises `PipelineDeclarativeRootsContract`, `PipelineStorageLayoutContract`, the retained metadata/definition `*_with_roots` entrypoints, and the retained route-state/capture/handoff `*_with_storage_layout` entrypoints, but that proof landed only in the current unpublished `handbook-pipeline` source/package. Set 3 must therefore route through a newly published version before released-consumer proof can count as complete.
 3. Set 3 may touch both `/Users/spensermcconnell/__Active_Code/system` and a dedicated Substrate worktree under `/Users/spensermcconnell/.codex/worktrees/`, but the active execution authority for the workstream remains the `system` repo docs.
 4. Set 3 must **not** widen the public surface beyond the Set 2 retained/dropped matrix unless the active authority is explicitly reopened first.
