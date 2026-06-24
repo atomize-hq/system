@@ -1,6 +1,6 @@
 [package]
 name = "handbook-pipeline"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Declarative pipeline loading, route state, compile/capture, and handoff runtime for Handbook."
 repository = "https://github.com/atomize-hq/system.git"

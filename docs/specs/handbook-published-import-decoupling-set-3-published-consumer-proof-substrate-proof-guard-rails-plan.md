@@ -103,6 +103,12 @@ Packet 3.2 is done only when:
 - the proof does not import private-module paths or use path-based dependency accidents
 - the docs still distinguish Set 2 packaged proof from Set 3 released proof
 
+### Packet 3.2 closeout status (2026-06-23)
+
+- `cargo publish -p handbook-pipeline --allow-dirty` published `handbook-pipeline 0.1.2` to crates.io as the smallest honest released target for the Set 2 boundary.
+- `bash tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2` then passed against the published registry artifact, so the released external consumer proof is now complete for Packet 3.2.
+- The Packet 3.2 result remains tightly scoped: released proof is complete, Set 2 packaged proof stays a separate lower tier, and Packet 4.2 remains `engine + flow` only.
+
 ## Packet 3.3 — Downstream Substrate Published-Boundary Proof
 
 ### Goal

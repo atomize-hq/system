@@ -42,20 +42,26 @@ If those sources disagree, the MAP plus the active Set 1 triplet plus the active
 
 ## Packet 3.2: Published Crates.io Proof
 
-- [ ] Task: Publish the first crates.io version that actually contains the Set 2 `handbook-pipeline` boundary
+- [x] Task: Publish the first crates.io version that actually contains the Set 2 `handbook-pipeline` boundary
   - Acceptance: The selected crate version is published to crates.io, `cargo publish --dry-run -p handbook-pipeline` passes first, and the released version is the one the proof harness will consume exactly.
   - Verify: `cargo publish --dry-run -p handbook-pipeline`; actual `cargo publish -p handbook-pipeline` run after approval; optional `cargo search handbook-pipeline --limit 5`
   - Files: `crates/pipeline/Cargo.toml`, any tightly required version-coupled workspace manifests only if needed for the publish target, and the active Set 3 docs if they must record the final published version
 
-- [ ] Task: Prove the released external consumer passes against the exact published version
+- [x] Task: Prove the released external consumer passes against the exact published version
   - Acceptance: The released external consumer proof passes against the real published version, constructs non-default contracts through public APIs only, and exercises the retained capability families without private-module imports.
   - Verify: `bash tools/proof/handbook_pipeline_released_boundary.sh --version <published_version>`
   - Files: `tools/proof/handbook_pipeline_released_boundary.sh`, `tests/fixtures/external_consumers/handbook_pipeline_released_boundary/Cargo.toml`, `tests/fixtures/external_consumers/handbook_pipeline_released_boundary/src/main.rs`, optionally a small README under the same proof directory if needed for exact-version usage
 
-- [ ] Task: Record honest released-proof classification and preserve Packet 4.2 boundaries
+- [x] Task: Record honest released-proof classification and preserve Packet 4.2 boundaries
   - Acceptance: Active docs clearly distinguish Set 2 packaged proof from Set 3 released proof, and explicitly keep Packet 4.2 classified only as `engine + flow` proof.
   - Verify: `rg -n "packaged proof|released proof|engine \+ flow|Packet 4\.2" docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-*.md docs/specs/handbook-published-import-decoupling-set-2-minimal-public-capability-boundary-*.md`
   - Files: `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-spec.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-plan.md`, `docs/specs/handbook-published-import-decoupling-set-3-published-consumer-proof-substrate-proof-guard-rails-tasks.md`
+
+### Packet 3.2 closeout status (2026-06-23)
+
+- `cargo publish -p handbook-pipeline --allow-dirty` published `handbook-pipeline 0.1.2` to crates.io.
+- `bash tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2` passed against the published registry artifact.
+- Packet 3.2 now closes with released proof complete while keeping Set 2 packaged proof distinct and Packet 4.2 classified only as `engine + flow` proof.
 
 ---
 

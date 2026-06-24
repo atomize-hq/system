@@ -264,6 +264,12 @@ Set 3 is complete only when all of the following are true:
 - `handbook-pipeline 0.1.1` is insufficient for released proof because crates.io already contains that version while the retained Set 2 boundary exercised by the packaged proof exists only in the current unpublished `handbook-pipeline` source/package.
 - The smallest honest publish target for Packet 3.2 is `handbook-pipeline 0.1.2` only. Packet 3.1 found no evidence that `handbook-engine` or `handbook-flow` require a coordinated version train: `cargo publish --dry-run -p handbook-pipeline` still verifies against the existing `handbook-engine 0.1.1` dependency, the released-proof fixture imports `handbook-pipeline` only, and Packet 4.2 remains classified only as `engine + flow` proof.
 
+## Packet 3.2 closeout note (2026-06-23)
+
+- The released-proof gate is now satisfied by a real crates.io release: `cargo publish -p handbook-pipeline --allow-dirty` published `handbook-pipeline 0.1.2`.
+- The released external consumer proof `bash tools/proof/handbook_pipeline_released_boundary.sh --version 0.1.2` passed against the published registry artifact, confirming that the Set 2 retained boundary is now real at the released-crate tier.
+- Set 2 packaged proof and Set 3 released proof remain explicitly distinct tiers, and Packet 4.2 remains classified only as `engine + flow` proof.
+
 ## Open Questions
 
 1. Should the downstream Set 3 proof reuse the current dedicated worktree at `/Users/spensermcconnell/.codex/worktrees/substrate-packet-4-2-20260622-133054` if it stays isolated and clean, or should it start from a fresh dedicated worktree?
