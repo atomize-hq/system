@@ -2,18 +2,15 @@ use crate::canonical_artifacts::{
     canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
     CanonicalArtifacts, SystemRootStatus, CANONICAL_ARTIFACT_ORDER,
 };
-use crate::repo_file_access::{
-    resolve_repo_relative_write_path, write_repo_relative_bytes, RepoRelativeMutationError,
-    RepoRelativeWritePathError,
-};
+use crate::layout::CanonicalLayout;
+use crate::repo_file_access::{resolve_repo_relative_write_path, write_repo_relative_bytes};
 use crate::route_state::{
     apply_runtime_state_reset, plan_runtime_state_reset, RuntimeStateResetPlan,
 };
+use crate::setup_shell::{self, SetupMutationRefusalCopy, SetupRequestRefusalCopy};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
-
-const HANDBOOK_DOCTOR_COMMAND: &str = "handbook doctor";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SetupMode {
@@ -134,23 +131,27 @@ pub fn run_setup(
 
     if let Some(reset_plan) = &planned.reset_plan {
         apply_runtime_state_reset(reset_plan).map_err(|reason| {
-            setup_mutation_refusal(
+            setup_shell::mutation_refusal(
                 request.mode,
-                reason,
-                "runtime-state target under `.handbook/state/**`",
+                SetupMutationRefusalCopy::RuntimeStateTarget { reason },
             )
         })?;
     }
 
     let post_setup_artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
+        setup_shell::mutation_refusal(
+            request.mode,
+            SetupMutationRefusalCopy::CanonicalRootLoad {
+                error: err.to_string(),
+            },
+        )
     })?;
     let disposition = setup_disposition(&post_setup_artifacts);
 
     Ok(SetupOutcome {
         plan: planned.plan,
         disposition,
-        next_safe_action: setup_next_safe_action(disposition),
+        next_safe_action: setup_shell::next_safe_action(disposition),
     })
 }
 
@@ -159,8 +160,14 @@ fn build_setup_execution_plan(
     request: &SetupRequest,
 ) -> Result<SetupExecutionPlan, SetupRefusal> {
     let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_mutation_refusal(request.mode, err.to_string(), "canonical `.handbook` root")
+        setup_shell::mutation_refusal(
+            request.mode,
+            SetupMutationRefusalCopy::CanonicalRootLoad {
+                error: err.to_string(),
+            },
+        )
     })?;
+    let canonical_layout = CanonicalLayout::new(repo_root);
     let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
     validate_request(&artifacts, request, resolved_mode)?;
 
@@ -179,6 +186,7 @@ fn build_setup_execution_plan(
         .filter(|descriptor| descriptor.setup_scaffolded)
         .map(|descriptor| {
             plan_starter_action(
+                canonical_layout,
                 repo_root,
                 &artifacts,
                 &ingest_issue_paths,
@@ -192,10 +200,9 @@ fn build_setup_execution_plan(
 
     let reset_plan = if request.reset_state {
         Some(plan_runtime_state_reset(repo_root).map_err(|reason| {
-            setup_mutation_refusal(
+            setup_shell::mutation_refusal(
                 request.mode,
-                reason,
-                "runtime-state target under `.handbook/state/**`",
+                SetupMutationRefusalCopy::RuntimeStateTarget { reason },
             )
         })?)
     } else {
@@ -265,55 +272,37 @@ fn validate_request(
 ) -> Result<(), SetupRefusal> {
     match resolved_mode {
         SetupMode::Auto => {
-            return Err(setup_refusal(
-                SetupRefusalKind::InvalidRequest,
-                "setup mode must resolve to init or refresh",
-                "setup request",
-                "retry `handbook setup`",
+            return Err(setup_shell::request_refusal(
+                SetupRequestRefusalCopy::UnresolvedMode,
             ));
         }
         SetupMode::Init => {
             if request.rewrite || request.reset_state {
-                return Err(setup_refusal(
-                    SetupRefusalKind::InvalidRequest,
-                    "setup init does not accept refresh-only flags; retry without --rewrite or --reset-state",
-                    "setup request",
-                    "retry `handbook setup init` without --rewrite or --reset-state",
+                return Err(setup_shell::request_refusal(
+                    SetupRequestRefusalCopy::InitWithRefreshFlags,
                 ));
             }
             if artifacts.system_root_status == SystemRootStatus::Ok {
-                return Err(setup_refusal(
-                    SetupRefusalKind::AlreadyInitialized,
-                    "canonical .handbook root already exists; use `handbook setup refresh` instead",
-                    "canonical `.handbook` root",
-                    "run `handbook setup refresh`",
+                return Err(setup_shell::request_refusal(
+                    SetupRequestRefusalCopy::AlreadyInitialized,
                 ));
             }
         }
         SetupMode::Refresh => match artifacts.system_root_status {
             SystemRootStatus::Ok => {}
             SystemRootStatus::Missing => {
-                return Err(setup_refusal(
-                    SetupRefusalKind::MissingCanonicalRoot,
-                    "canonical .handbook root is missing; run `handbook setup init` first",
-                    "canonical `.handbook` root",
-                    "run `handbook setup`",
+                return Err(setup_shell::request_refusal(
+                    SetupRequestRefusalCopy::MissingCanonicalRoot,
                 ));
             }
             SystemRootStatus::NotDir => {
-                return Err(setup_refusal(
-                    SetupRefusalKind::InvalidCanonicalRoot,
-                    "canonical .handbook root is invalid; run `handbook setup` to re-establish it",
-                    "canonical `.handbook` root",
-                    "run `handbook setup`",
+                return Err(setup_shell::request_refusal(
+                    SetupRequestRefusalCopy::InvalidCanonicalRoot,
                 ));
             }
             SystemRootStatus::SymlinkNotAllowed => {
-                return Err(setup_refusal(
-                    SetupRefusalKind::InvalidCanonicalRoot,
-                    "canonical .handbook root must not be a symlink; run `handbook setup` to re-establish it",
-                    "canonical `.handbook` root",
-                    "run `handbook setup`",
+                return Err(setup_shell::request_refusal(
+                    SetupRequestRefusalCopy::SymlinkCanonicalRoot,
                 ));
             }
         },
@@ -322,7 +311,9 @@ fn validate_request(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn plan_starter_action(
+    canonical_layout: CanonicalLayout<'_>,
     repo_root: &Path,
     artifacts: &CanonicalArtifacts,
     ingest_issue_paths: &BTreeSet<&'static str>,
@@ -331,6 +322,8 @@ fn plan_starter_action(
     rewrite: bool,
     repair_invalid_root: bool,
 ) -> Result<PlannedStarterAction, SetupRefusal> {
+    let relative_path = canonical_layout.artifact_relative_path(descriptor.kind);
+    debug_assert_eq!(relative_path, descriptor.relative_path);
     let artifact = match descriptor.kind {
         crate::CanonicalArtifactKind::Charter => &artifacts.charter,
         crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
@@ -345,19 +338,19 @@ fn plan_starter_action(
         return Ok(PlannedStarterAction {
             action: SetupAction {
                 label: SetupActionLabel::Preserved,
-                path: descriptor.relative_path.to_string(),
+                path: relative_path.to_string(),
             },
             mutation: None,
         });
     }
 
-    if (ingest_issue_paths.contains(descriptor.relative_path)
+    if (ingest_issue_paths.contains(relative_path)
         || matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
         || rewrite
         || resolved_mode == SetupMode::Init)
         && !repair_invalid_root
     {
-        validate_write_target(repo_root, descriptor.relative_path, resolved_mode)?;
+        validate_write_target(repo_root, relative_path, resolved_mode)?;
     }
 
     let label = if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
@@ -371,10 +364,10 @@ fn plan_starter_action(
     Ok(PlannedStarterAction {
         action: SetupAction {
             label,
-            path: descriptor.relative_path.to_string(),
+            path: relative_path.to_string(),
         },
         mutation: Some(PlannedMutation::Write {
-            path: descriptor.relative_path,
+            path: relative_path,
             bytes: setup_starter_template_bytes(descriptor.kind),
         }),
     })
@@ -388,10 +381,12 @@ fn validate_write_target(
     resolve_repo_relative_write_path(repo_root, relative_path)
         .map(|_| ())
         .map_err(|err| {
-            setup_mutation_refusal(
+            setup_shell::mutation_refusal(
                 mode,
-                format_repo_write_path_error(relative_path, err),
-                "setup-owned starter-file write target",
+                SetupMutationRefusalCopy::StarterWriteTargetPath {
+                    path: relative_path,
+                    error: err,
+                },
             )
         })
 }
@@ -405,28 +400,27 @@ fn apply_mutation(
         PlannedMutation::RepairInvalidSystemRoot => repair_invalid_system_root(repo_root, mode),
         PlannedMutation::Write { path, bytes } => write_repo_relative_bytes(repo_root, path, bytes)
             .map_err(|err| {
-                setup_mutation_refusal(
+                setup_shell::mutation_refusal(
                     mode,
-                    format_repo_mutation_error(path, err),
-                    "setup-owned starter-file write target",
+                    SetupMutationRefusalCopy::StarterWriteTargetMutation { path, error: err },
                 )
             }),
     }
 }
 
 fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), SetupRefusal> {
-    let system_root = repo_root.join(".handbook");
+    let canonical_layout = CanonicalLayout::new(repo_root);
+    let system_root = repo_root.join(canonical_layout.system_root_relative());
     let metadata = match fs::symlink_metadata(&system_root) {
         Ok(metadata) => metadata,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(source) => {
-            return Err(setup_mutation_refusal(
+            return Err(setup_shell::mutation_refusal(
                 mode,
-                format!(
-                    "failed to inspect canonical `.handbook` root at {}: {source}",
-                    system_root.display()
-                ),
-                "canonical `.handbook` root",
+                SetupMutationRefusalCopy::CanonicalRootInspect {
+                    path: system_root.clone(),
+                    error: source,
+                },
             ));
         }
     };
@@ -436,47 +430,14 @@ fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), S
     }
 
     fs::remove_file(&system_root).map_err(|source| {
-        setup_mutation_refusal(
+        setup_shell::mutation_refusal(
             mode,
-            format!(
-                "failed to remove invalid canonical `.handbook` root at {}: {source}",
-                system_root.display()
-            ),
-            "canonical `.handbook` root",
+            SetupMutationRefusalCopy::CanonicalRootRepair {
+                path: system_root,
+                error: source,
+            },
         )
     })
-}
-
-fn setup_refusal(
-    kind: SetupRefusalKind,
-    summary: impl Into<String>,
-    broken_subject: impl Into<String>,
-    next_safe_action: impl Into<String>,
-) -> SetupRefusal {
-    SetupRefusal {
-        kind,
-        summary: summary.into(),
-        broken_subject: broken_subject.into(),
-        next_safe_action: next_safe_action.into(),
-    }
-}
-
-fn setup_mutation_refusal(
-    mode: SetupMode,
-    summary: impl Into<String>,
-    broken_subject: impl Into<String>,
-) -> SetupRefusal {
-    let rerun_command = match mode {
-        SetupMode::Auto | SetupMode::Init => "handbook setup",
-        SetupMode::Refresh => "handbook setup refresh",
-    };
-
-    setup_refusal(
-        SetupRefusalKind::MutationRefused,
-        summary,
-        broken_subject,
-        format!("repair the blocked target and rerun `{rerun_command}`"),
-    )
 }
 
 fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
@@ -484,14 +445,6 @@ fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
         SetupDisposition::Scaffolded
     } else {
         SetupDisposition::Ready
-    }
-}
-
-fn setup_next_safe_action(disposition: SetupDisposition) -> String {
-    match disposition {
-        SetupDisposition::Ready | SetupDisposition::Scaffolded => {
-            format!("run `{HANDBOOK_DOCTOR_COMMAND}`")
-        }
     }
 }
 
@@ -521,7 +474,13 @@ fn artifact_for_kind(
 fn artifact_order_index_for_path(path: &str) -> usize {
     CANONICAL_ARTIFACT_ORDER
         .iter()
-        .position(|kind| kind.relative_path() == path)
+        .position(|kind| {
+            canonical_artifact_descriptors()
+                .iter()
+                .find(|descriptor| descriptor.kind == *kind)
+                .map(|descriptor| descriptor.relative_path == path)
+                .unwrap_or(false)
+        })
         .unwrap_or(usize::MAX)
 }
 
@@ -531,79 +490,5 @@ fn action_rank(action: &SetupAction) -> usize {
         SetupActionLabel::Preserved => 1,
         SetupActionLabel::Rewritten => 2,
         SetupActionLabel::Reset => 3,
-    }
-}
-
-fn format_repo_mutation_error(path: &str, err: RepoRelativeMutationError) -> String {
-    match err {
-        RepoRelativeMutationError::InvalidPath(reason) => {
-            format!("write target `{path}` is invalid: {reason}")
-        }
-        RepoRelativeMutationError::ParentNotDirectory(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a directory",
-                found.display()
-            )
-        }
-        RepoRelativeMutationError::NotRegularFile(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a regular file target",
-                found.display()
-            )
-        }
-        RepoRelativeMutationError::SymlinkNotAllowed(found) => {
-            format!(
-                "write target `{path}` cannot be written through symlink {}",
-                found.display()
-            )
-        }
-        RepoRelativeMutationError::ReadFailure {
-            path: found,
-            source,
-        }
-        | RepoRelativeMutationError::WriteFailure {
-            path: found,
-            source,
-        } => {
-            format!(
-                "failed to mutate write target `{path}` at {}: {source}",
-                found.display()
-            )
-        }
-    }
-}
-
-fn format_repo_write_path_error(path: &str, err: RepoRelativeWritePathError) -> String {
-    match err {
-        RepoRelativeWritePathError::InvalidPath(reason) => {
-            format!("write target `{path}` is invalid: {reason}")
-        }
-        RepoRelativeWritePathError::ParentNotDirectory(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a directory",
-                found.display()
-            )
-        }
-        RepoRelativeWritePathError::NotRegularFile(found) => {
-            format!(
-                "write target `{path}` cannot be written because {} is not a regular file target",
-                found.display()
-            )
-        }
-        RepoRelativeWritePathError::SymlinkNotAllowed(found) => {
-            format!(
-                "write target `{path}` cannot be written through symlink {}",
-                found.display()
-            )
-        }
-        RepoRelativeWritePathError::ReadFailure {
-            path: found,
-            source,
-        } => {
-            format!(
-                "failed to inspect write target `{path}` at {}: {source}",
-                found.display()
-            )
-        }
     }
 }

@@ -1,0 +1,22 @@
+[package]
+name = "handbook-engine"
+version = "0.1.1"
+edition = "2021"
+description = "Canonical artifact, freshness, and structured authoring core for Handbook."
+repository = "https://github.com/atomize-hq/system.git"
+documentation = "https://docs.rs/handbook-engine"
+homepage = "https://github.com/atomize-hq/system.git"
+license = "MIT"
+
+[lib]
+name = "handbook_engine"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_yaml_bw = "2.5.4"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"

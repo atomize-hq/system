@@ -3,6 +3,7 @@ use crate::baseline_validation::{
 };
 use crate::blocker::{build_doctor_blockers, C04_RESULT_VERSION};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus};
+use crate::doctor_shell;
 use crate::refusal::{NextSafeAction, SubjectRef};
 use crate::{ArtifactManifest, Blocker, ManifestInputs};
 use serde::Serialize;
@@ -91,12 +92,12 @@ fn baseline_checklist(artifacts: &CanonicalArtifacts) -> Vec<DoctorChecklistItem
             let next_safe_action =
                 artifact_next_safe_action(artifacts.system_root_status, &validation, status);
             DoctorChecklistItem {
-                artifact_label: doctor_artifact_label(validation.kind),
+                artifact_label: doctor_shell::artifact_label(validation.kind),
                 subject: SubjectRef::CanonicalArtifact {
                     kind: validation.kind,
                     canonical_repo_relative_path: validation.canonical_repo_relative_path,
                 },
-                author_command: doctor_author_command(validation.kind),
+                author_command: doctor_shell::author_command(validation.kind),
                 kind: validation.kind,
                 canonical_repo_relative_path: validation.canonical_repo_relative_path,
                 status,
@@ -198,26 +199,4 @@ fn classify_doctor_status(
     }
 
     DoctorBaselineStatus::Scaffolded
-}
-
-fn doctor_artifact_label(kind: CanonicalArtifactKind) -> &'static str {
-    match kind {
-        CanonicalArtifactKind::Charter => "CHARTER",
-        CanonicalArtifactKind::ProjectContext => "PROJECT_CONTEXT",
-        CanonicalArtifactKind::EnvironmentInventory => "ENVIRONMENT_INVENTORY",
-        CanonicalArtifactKind::FeatureSpec => "FEATURE_SPEC",
-    }
-}
-
-fn doctor_author_command(kind: CanonicalArtifactKind) -> &'static str {
-    match kind {
-        CanonicalArtifactKind::Charter => "run `handbook author charter`",
-        CanonicalArtifactKind::ProjectContext => "run `handbook author project-context`",
-        CanonicalArtifactKind::EnvironmentInventory => {
-            "run `handbook author environment-inventory`"
-        }
-        CanonicalArtifactKind::FeatureSpec => {
-            "fill canonical artifact at .handbook/feature_spec/FEATURE_SPEC.md"
-        }
-    }
 }

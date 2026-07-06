@@ -237,6 +237,25 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn write_minimal_runner_and_profile(root: &std::path::Path) {
+    write_file(
+        &root.join("core/runners/codex-cli.md"),
+        b"# Runner: codex-cli\n\nThis runner assumes the agent can run commands.\n",
+    );
+    write_file(
+        &root.join("core/profiles/python-uv/profile.yaml"),
+        b"kind: profile\nid: python-uv\nversion: 0.1.0\ntitle: \"Python (uv)\"\ndescription: test profile\ncompatibility:\n  languages: [\"python\"]\n  package_managers: [\"uv\"]\n  runners: [\"codex-cli\"]\nproject_defaults:\n  python_requires: \">=3.11\"\n  code_dirs: [\"src\"]\n  test_dirs: [\"tests\"]\n  config_files: []\ngates:\n  required: [\"tests\"]\n  optional: []\nevidence:\n  required_fields: [\"cmd\", \"exit\", \"tail\", \"timestamp\"]\n  tail_lines: 80\n",
+    );
+    write_file(
+        &root.join("core/profiles/python-uv/commands.yaml"),
+        b"commands:\n  tests: \"pytest -q\"\n",
+    );
+    write_file(
+        &root.join("core/profiles/python-uv/conventions.md"),
+        b"# Test profile conventions\n",
+    );
+}
+
 fn planning_ready_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     pipeline_proof_corpus_support::install_committed_fixture_repo(
         "tests/fixtures/planning_ready_repo",
@@ -341,17 +360,17 @@ fn assert_doctor_empty_baseline_invalid(
 
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
     match path {
-        ".handbook/charter/CHARTER.md" => handbook_compiler::setup_starter_template_bytes(
-            handbook_compiler::CanonicalArtifactKind::Charter,
+        ".handbook/charter/CHARTER.md" => handbook_engine::setup_starter_template_bytes(
+            handbook_engine::CanonicalArtifactKind::Charter,
         ),
         ".handbook/project_context/PROJECT_CONTEXT.md" => {
-            handbook_compiler::setup_starter_template_bytes(
-                handbook_compiler::CanonicalArtifactKind::ProjectContext,
+            handbook_engine::setup_starter_template_bytes(
+                handbook_engine::CanonicalArtifactKind::ProjectContext,
             )
         }
         ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
-            handbook_compiler::setup_starter_template_bytes(
-                handbook_compiler::CanonicalArtifactKind::EnvironmentInventory,
+            handbook_engine::setup_starter_template_bytes(
+                handbook_engine::CanonicalArtifactKind::EnvironmentInventory,
             )
         }
         _ => panic!("unexpected starter path: {path}"),
@@ -571,6 +590,7 @@ fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
 
+    write_minimal_runner_and_profile(&root);
     write_file(
         &root.join("core/stages/00_base.md"),
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\nactivation:\n  when:\n    any:\n      - variables.needs_project_context == true\n---\n# base\n",
@@ -587,6 +607,7 @@ fn invalid_pipeline_id_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
 
+    write_minimal_runner_and_profile(&root);
     write_file(
         &root.join("core/stages/00_base.md"),
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
@@ -893,7 +914,7 @@ fn stage_10_compile_payload(root: &std::path::Path) -> String {
             "stage.10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -986,8 +1007,8 @@ fn record_virtual_evidence_step(transcript: &mut String, command: &str, stdout: 
 fn read_bundle_manifest_from_disk(
     repo_root: &std::path::Path,
     bundle_root: &str,
-) -> handbook_compiler::PipelineHandoffManifest {
-    handbook_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+) -> handbook_pipeline::pipeline_handoff::PipelineHandoffManifest {
+    handbook_pipeline::pipeline_handoff::validate_pipeline_handoff_bundle(repo_root, bundle_root)
         .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
         .manifest
 }
@@ -995,8 +1016,8 @@ fn read_bundle_manifest_from_disk(
 fn read_bundle_allowlist_from_disk(
     repo_root: &std::path::Path,
     bundle_root: &str,
-) -> handbook_compiler::PipelineHandoffReadAllowlist {
-    handbook_compiler::validate_pipeline_handoff_bundle(repo_root, bundle_root)
+) -> handbook_pipeline::pipeline_handoff::PipelineHandoffReadAllowlist {
+    handbook_pipeline::pipeline_handoff::validate_pipeline_handoff_bundle(repo_root, bundle_root)
         .unwrap_or_else(|err| panic!("validate handoff bundle `{bundle_root}`: {}", err.summary))
         .read_allowlist
 }
@@ -1032,7 +1053,7 @@ fn read_repo_text(
 }
 
 fn bundle_path_for_source_path(
-    manifest: &handbook_compiler::PipelineHandoffManifest,
+    manifest: &handbook_pipeline::pipeline_handoff::PipelineHandoffManifest,
     source_path: &str,
 ) -> String {
     manifest
@@ -1176,7 +1197,7 @@ fn collect_repo_reread_planning_inputs(
 }
 
 fn build_planning_inputs(
-    manifest: &handbook_compiler::PipelineHandoffManifest,
+    manifest: &handbook_pipeline::pipeline_handoff::PipelineHandoffManifest,
     feature_spec: &str,
     foundation_strategy: &str,
     tech_arch_brief: &str,
@@ -1457,7 +1478,7 @@ fn run_repo_reread_feature_slice_consumer_baseline(
 }
 
 fn render_handoff_validation_output(
-    validated: &handbook_compiler::PipelineHandoffValidatedBundle,
+    validated: &handbook_pipeline::pipeline_handoff::PipelineHandoffValidatedBundle,
 ) -> String {
     format!(
         "\
@@ -1715,7 +1736,7 @@ fn happy_path_evidence_transcript() -> String {
                 "stage.10_feature_spec",
             ],
             &[(
-                handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
                 FIXED_NOW_UTC,
             )],
         ),
@@ -1772,7 +1793,7 @@ fn happy_path_evidence_transcript() -> String {
         ),
     );
 
-    let validated = handbook_compiler::validate_pipeline_handoff_bundle(
+    let validated = handbook_pipeline::pipeline_handoff::validate_pipeline_handoff_bundle(
         root.as_path(),
         &foundation_flow_demo_happy_path_bundle_root(),
     )
@@ -1901,7 +1922,7 @@ fn skip_path_evidence_transcript() -> String {
                 "stage.10_feature_spec",
             ],
             &[(
-                handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+                handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
                 FIXED_NOW_UTC,
             )],
         ),
@@ -3012,7 +3033,7 @@ fn pipeline_foundation_inputs_m5_happy_path_emits_valid_bundle_and_produces_slic
         "emit output should keep the stable bundle root: {emit_stdout}"
     );
 
-    let validated = handbook_compiler::validate_pipeline_handoff_bundle(
+    let validated = handbook_pipeline::pipeline_handoff::validate_pipeline_handoff_bundle(
         root.as_path(),
         &foundation_flow_demo_happy_path_bundle_root(),
     )
@@ -3626,7 +3647,7 @@ fn pipeline_compile_feature_spec_payload_matches_shared_golden() {
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3682,7 +3703,7 @@ description: malformed and unrelated
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3717,7 +3738,7 @@ fn pipeline_compile_feature_spec_explain_matches_shared_golden() {
             "--explain",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3767,7 +3788,7 @@ fn pipeline_compile_refuses_when_required_variable_is_missing() {
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -3812,7 +3833,7 @@ fn pipeline_compile_refuses_symlinked_required_artifact_input() {
             "10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4118,7 +4139,7 @@ fn pipeline_compile_refuses_missing_required_artifact() {
             "stage.10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4149,15 +4170,15 @@ fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
     }
 
     let canonical_root = canonical_repo_root(root.as_path());
-    let expected = handbook_compiler::compile_pipeline_stage_with_runtime(
+    let expected = handbook_pipeline::pipeline_compile::compile_pipeline_stage_with_runtime(
         canonical_root.as_path(),
         "pipeline.foundation_inputs",
         "stage.10_feature_spec",
-        &handbook_compiler::PipelineCompileRuntimeContext {
+        &handbook_pipeline::pipeline_compile::PipelineCompileRuntimeContext {
             now_utc_override: Some(FIXED_NOW_UTC.to_string()),
         },
     )
-    .map(|result| handbook_compiler::render_pipeline_compile_payload(&result))
+    .map(|result| handbook_pipeline::pipeline_compile::render_pipeline_compile_payload(&result))
     .expect("compile should succeed");
 
     let output = run_in_with_env(
@@ -4171,7 +4192,7 @@ fn pipeline_compile_allows_optional_artifacts_to_be_absent() {
             "stage.10_feature_spec",
         ],
         &[(
-            handbook_compiler::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
+            handbook_pipeline::pipeline_compile::PIPELINE_COMPILE_NOW_UTC_ENV_VAR,
             FIXED_NOW_UTC,
         )],
     );
@@ -4367,8 +4388,8 @@ fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_eva
 
         let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
         assert!(
-            stdout.contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
-            "expected catalog refusal for {:?}: {stdout}",
+            stdout.contains("REFUSED: pipeline definition error: invalid pipeline definition"),
+            "expected pipeline definition refusal for {:?}: {stdout}",
             args
         );
         assert!(
@@ -4385,7 +4406,7 @@ fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_eva
 }
 
 #[test]
-fn pipeline_list_omits_unrelated_invalid_pipeline_ids_but_resolve_still_refuses() {
+fn pipeline_list_and_resolve_omit_unrelated_invalid_pipeline_ids() {
     let (_dir, root) = invalid_pipeline_id_repo();
 
     let output = run_in(root.as_path(), &["pipeline", "list"]);
@@ -4402,19 +4423,12 @@ fn pipeline_list_omits_unrelated_invalid_pipeline_ids_but_resolve_still_refuses(
         root.as_path(),
         &["pipeline", "resolve", "--id", "pipeline.foundation"],
     );
-    assert!(
-        !resolve.status.success(),
-        "pipeline resolve should still refuse"
-    );
+    assert!(resolve.status.success(), "pipeline resolve should succeed");
     let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
     assert!(
-        resolve_stdout
-            .contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
-        "expected strict catalog refusal: {resolve_stdout}"
-    );
-    assert!(
-        resolve_stdout.contains("field `id` has invalid canonical id `pipeline.bad/path`"),
-        "expected invalid canonical id detail: {resolve_stdout}"
+        resolve_stdout.contains("OUTCOME: RESOLVED")
+            && resolve_stdout.contains("PIPELINE: pipeline.foundation"),
+        "expected successful resolve output: {resolve_stdout}"
     );
 }
 
@@ -6357,6 +6371,149 @@ fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
             "\"canonical_repo_relative_path\": \".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
             "\"canonical_repo_relative_path\": \".handbook/feature_spec/FEATURE_SPEC.md\"",
         ],
+    );
+}
+
+#[test]
+fn generate_non_ready_execution_demo_preserves_fixture_backed_labeling() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    let fixture_root = root.join("tests/fixtures/execution_demo/non-ready/.handbook");
+
+    write_file(&fixture_root.join("charter/CHARTER.md"), b"");
+    write_file(
+        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("feature_spec/FEATURE_SPEC.md"),
+        b"demo feature",
+    );
+
+    let output = binary_in(root)
+        .args([
+            "generate",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "non-ready",
+        ])
+        .output()
+        .expect("generate should run");
+
+    assert!(
+        !output.status.success(),
+        "generate should be non-zero when the execution demo fixture is not ready: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    let fixture_section_start = stdout
+        .find("MODE: fixture-backed execution demo")
+        .expect("fixture-backed label should be injected near the top");
+    let body_section_start = stdout
+        .find("## REFUSAL")
+        .or_else(|| stdout.find("## BLOCKERS"))
+        .expect("non-ready generate body section");
+    assert!(
+        fixture_section_start < body_section_start,
+        "expected fixture section before the non-ready body section for generate output: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE SET: non-ready"),
+        "expected fixture set id: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE LINEAGE:"),
+        "expected fixture lineage list: {stdout}"
+    );
+    assert_in_order(
+        &stdout,
+        &[
+            "1. Charter [.handbook/charter/CHARTER.md]",
+            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+        ],
+    );
+    assert!(
+        !stdout.contains(
+            "tests/fixtures/execution_demo/non-ready/.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
+        ),
+        "expected typed lineage rendering instead of ad hoc filesystem-derived entries: {stdout}"
+    );
+}
+
+#[test]
+fn inspect_non_ready_execution_demo_preserves_environment_inventory_in_fixture_lineage() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    let fixture_root = root.join("tests/fixtures/execution_demo/non-ready/.handbook");
+
+    write_file(&fixture_root.join("charter/CHARTER.md"), b"");
+    write_file(
+        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
+        valid_project_context_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
+        valid_environment_inventory_markdown().as_bytes(),
+    );
+    write_file(
+        &fixture_root.join("feature_spec/FEATURE_SPEC.md"),
+        b"demo feature",
+    );
+
+    let output = binary_in(root)
+        .args([
+            "inspect",
+            "--packet",
+            "execution.demo.packet",
+            "--fixture-set",
+            "non-ready",
+        ])
+        .output()
+        .expect("inspect should run");
+
+    assert!(
+        !output.status.success(),
+        "inspect should be non-zero when the execution demo fixture is not ready: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
+    let fixture_section_start = stdout
+        .find("MODE: fixture-backed execution demo")
+        .expect("fixture-backed label should be injected near the top");
+    let decision_log_start = stdout.find("## DECISION LOG").expect("decision log");
+    assert!(
+        fixture_section_start < decision_log_start,
+        "expected fixture section before decision log for non-ready inspect output: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE SET: non-ready"),
+        "expected fixture set id: {stdout}"
+    );
+    assert!(
+        stdout.contains("FIXTURE LINEAGE:"),
+        "expected fixture lineage list: {stdout}"
+    );
+    assert_in_order(
+        &stdout,
+        &[
+            "1. Charter [.handbook/charter/CHARTER.md]",
+            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
+        ],
+    );
+    assert!(
+        !stdout.contains(
+            "tests/fixtures/execution_demo/non-ready/.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
+        ),
+        "expected typed lineage rendering instead of ad hoc filesystem-derived entries: {stdout}"
     );
 }
 

@@ -1,7 +1,8 @@
-use handbook_compiler::{
-    packet_result::PacketSectionMode, render_next_safe_action_value, resolve,
-    setup_starter_template_bytes, BlockerCategory, BudgetDisposition, BudgetPolicy,
-    PacketSelectionStatus, ResolveRequest,
+use handbook_compiler::{render_next_safe_action_value, resolve, BlockerCategory};
+use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
+use handbook_flow::{
+    BudgetDisposition, BudgetPolicy, PacketSectionMode, PacketSelectionStatus, PacketVariant,
+    ReadyPacketNextSafeAction, ResolveRequest,
 };
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
@@ -367,7 +368,7 @@ fn required_starter_template_blocks_without_ready_packet() {
 
     write_file(
         &repo_root.join(".handbook/charter/CHARTER.md"),
-        setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::Charter),
+        setup_starter_template_bytes(CanonicalArtifactKind::Charter),
     );
     write_file(
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
@@ -375,7 +376,7 @@ fn required_starter_template_blocks_without_ready_packet() {
     );
     write_file(
         &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        setup_starter_template_bytes(handbook_compiler::CanonicalArtifactKind::ProjectContext),
+        setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext),
     );
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
@@ -716,10 +717,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
 
     assert!(result.packet_result.is_ready());
-    assert_eq!(
-        result.packet_result.variant,
-        handbook_compiler::packet_result::PacketVariant::Planning
-    );
+    assert_eq!(result.packet_result.variant, PacketVariant::Planning);
     assert!(result.packet_result.fixture_context.is_none());
     assert_eq!(result.packet_result.included_sources.len(), 3);
     assert_eq!(result.packet_result.sections.len(), 3);
@@ -736,7 +734,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `handbook inspect --packet planning.packet` for proof"
+        ReadyPacketNextSafeAction::InspectProof
     );
     assert!(
         result
@@ -860,10 +858,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     let result = resolve(&root, request).expect("resolve");
 
     assert!(result.packet_result.is_ready());
-    assert_eq!(
-        result.packet_result.variant,
-        handbook_compiler::packet_result::PacketVariant::ExecutionDemo
-    );
+    assert_eq!(result.packet_result.variant, PacketVariant::ExecutionDemo);
     let fixture_context = result
         .packet_result
         .fixture_context
@@ -893,7 +888,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     );
     assert_eq!(
         result.packet_result.decision_summary.ready_next_safe_action,
-        "run `handbook inspect --packet execution.demo.packet --fixture-set basic` for proof"
+        ReadyPacketNextSafeAction::InspectProof
     );
 }
 

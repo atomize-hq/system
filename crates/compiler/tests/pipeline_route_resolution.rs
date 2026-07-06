@@ -1,12 +1,20 @@
 #[path = "support/pipeline_proof_corpus_support.rs"]
 mod pipeline_proof_corpus_support;
 
-use handbook_compiler::{
-    load_pipeline_definition, load_route_state_with_supported_variables, resolve_pipeline_route,
-    set_route_state, supported_route_state_variables, ActivationClause, ActivationConditionSet,
-    ActivationOperator, PipelineBody, PipelineDefaults, PipelineDefinition, PipelineHeader,
-    PipelineStage, RouteEvaluationError, RouteStageReason, RouteStageStatus, RouteStateMutation,
-    RouteStateMutationOutcome, RouteVariables, StageActivation,
+use handbook_pipeline::{
+    pipeline::{
+        load_pipeline_definition, supported_route_state_variables, ActivationClause,
+        ActivationConditionSet, ActivationOperator, PipelineBody, PipelineDefaults,
+        PipelineDefinition, PipelineHeader, PipelineStage, StageActivation,
+    },
+    pipeline_route::{
+        resolve_pipeline_route, RouteEvaluationError, RouteStageReason, RouteStageStatus,
+        RouteVariables,
+    },
+    route_state::{
+        effective_route_basis_run, load_route_state_with_supported_variables, set_route_state,
+        RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 use std::path::PathBuf;
 
@@ -282,7 +290,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &initial_state,
-            &handbook_compiler::effective_route_basis_run(&root, &definition, &initial_state),
+            &effective_route_basis_run(&root, &definition, &initial_state),
             &initial_route,
         ),
         &root,
@@ -350,7 +358,7 @@ fn shared_proof_corpus_route_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &activated_state,
-            &handbook_compiler::effective_route_basis_run(&root, &definition, &activated_state),
+            &effective_route_basis_run(&root, &definition, &activated_state),
             &activated_route,
         ),
         &root,
@@ -422,7 +430,7 @@ fn shared_proof_corpus_state_mutation_outputs_match_repo_owned_goldens() {
         &pipeline_proof_corpus_support::render_pipeline_resolve_output(
             &pipeline_id,
             &routed_state,
-            &handbook_compiler::effective_route_basis_run(&root, &definition, &routed_state),
+            &effective_route_basis_run(&root, &definition, &routed_state),
             &route,
         ),
         &root,

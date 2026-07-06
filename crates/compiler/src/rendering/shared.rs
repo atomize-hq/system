@@ -1,12 +1,12 @@
 use crate::{
     blocker::Blocker,
-    budget::{BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction},
-    packet_result::{
-        PacketBodyNote, PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection,
-        PacketSectionMode, PacketSourceSummary, PacketVariant,
-    },
     refusal::{NextSafeAction, RefusalCategory, SubjectRef},
-    BlockerCategory, CanonicalArtifactKind, PacketSelectionStatus,
+    BlockerCategory, CanonicalArtifactKind,
+};
+use handbook_flow::{
+    BudgetDisposition, BudgetReason, NextSafeAction as BudgetNextSafeAction, PacketBodyNote,
+    PacketBodyNoteKind, PacketFixtureContext, PacketResult, PacketSection, PacketSectionMode,
+    PacketSelectionStatus, PacketSourceSummary, PacketVariant, ReadyPacketNextSafeAction,
 };
 
 pub fn push_line(output: &mut String, line: impl AsRef<str>) {
@@ -39,10 +39,39 @@ pub fn render_next_safe_action_from_model(
     }
 
     if packet.is_ready() {
-        return packet.decision_summary.ready_next_safe_action.clone();
+        return render_ready_packet_next_safe_action(packet);
     }
 
     "run `doctor`".to_string()
+}
+
+pub fn render_ready_packet_next_safe_action(packet: &PacketResult) -> String {
+    match packet.decision_summary.ready_next_safe_action {
+        ReadyPacketNextSafeAction::InspectProof => {
+            if let Some(context) = packet.fixture_context.as_ref() {
+                format!(
+                    "run `handbook inspect --packet {} --fixture-set {}` for proof",
+                    packet.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!(
+                    "run `handbook inspect --packet {}` for proof",
+                    packet.packet_id
+                )
+            }
+        }
+        ReadyPacketNextSafeAction::Generate => {
+            if let Some(context) = packet.fixture_context.as_ref() {
+                format!(
+                    "run `handbook generate --packet {} --fixture-set {}`",
+                    packet.packet_id, context.fixture_set_id
+                )
+            } else {
+                format!("run `handbook generate --packet {}`", packet.packet_id)
+            }
+        }
+        ReadyPacketNextSafeAction::RunDoctor => "run `doctor`".to_string(),
+    }
 }
 
 pub fn render_packet_variant(variant: PacketVariant) -> &'static str {
@@ -205,42 +234,7 @@ pub fn render_packet_body(output: &mut String, packet: &PacketResult) {
 }
 
 pub fn render_next_safe_action_value(action: &NextSafeAction) -> String {
-    match action {
-        NextSafeAction::RunSetup => "run `handbook setup`".to_string(),
-        NextSafeAction::RunSetupInit => "run `handbook setup init`".to_string(),
-        NextSafeAction::RunSetupRefresh => "run `handbook setup refresh`".to_string(),
-        NextSafeAction::RunAuthorCharter => "run `handbook author charter`".to_string(),
-        NextSafeAction::RunAuthorProjectContext => {
-            "run `handbook author project-context`".to_string()
-        }
-        NextSafeAction::RunAuthorEnvironmentInventory => {
-            "run `handbook author environment-inventory`".to_string()
-        }
-        NextSafeAction::CreateSystemRoot {
-            canonical_repo_relative_path,
-        } => format!("create canonical .handbook root at {canonical_repo_relative_path}"),
-        NextSafeAction::EnsureSystemRootIsDirectory {
-            canonical_repo_relative_path,
-        } => format!(
-            "ensure canonical .handbook root is a directory at {canonical_repo_relative_path}"
-        ),
-        NextSafeAction::RemoveSystemRootSymlink {
-            canonical_repo_relative_path,
-        } => format!("remove canonical .handbook symlink at {canonical_repo_relative_path}"),
-        NextSafeAction::CreateCanonicalArtifact {
-            canonical_repo_relative_path,
-        } => format!("create canonical artifact at {canonical_repo_relative_path}"),
-        NextSafeAction::FillCanonicalArtifact {
-            canonical_repo_relative_path,
-        } => format!("fill canonical artifact at {canonical_repo_relative_path}"),
-        NextSafeAction::ReduceCanonicalArtifactSize {
-            canonical_repo_relative_path,
-        } => format!("reduce canonical artifact size at {canonical_repo_relative_path}"),
-        NextSafeAction::RunGenerate { packet_id } => {
-            format!("run `handbook generate --packet {packet_id}`")
-        }
-        NextSafeAction::RunDoctor => "run `handbook doctor`".to_string(),
-    }
+    recovery_shell::render_next_safe_action_value(action)
 }
 
 pub fn render_refusal_category(category: RefusalCategory) -> &'static str {
@@ -277,24 +271,7 @@ pub fn render_blocker_category(category: BlockerCategory) -> &'static str {
 }
 
 pub fn render_subject_ref(subject: &SubjectRef) -> String {
-    match subject {
-        SubjectRef::CanonicalArtifact {
-            kind,
-            canonical_repo_relative_path,
-        } => format!(
-            "canonical artifact {} at {}",
-            render_canonical_artifact_kind(*kind),
-            canonical_repo_relative_path
-        ),
-        SubjectRef::InheritedDependency {
-            dependency_id,
-            version,
-        } => match version {
-            Some(version) => format!("inherited dependency {dependency_id}@{version}"),
-            None => format!("inherited dependency {dependency_id}"),
-        },
-        SubjectRef::Policy { policy_id } => format!("policy {policy_id}"),
-    }
+    recovery_shell::render_subject_ref(subject)
 }
 
 pub fn render_canonical_artifact_kind(kind: CanonicalArtifactKind) -> &'static str {
@@ -362,4 +339,80 @@ pub fn json_escape(input: &str) -> String {
 
 pub fn json_string(input: &str) -> String {
     format!("\"{}\"", json_escape(input))
+}
+
+mod recovery_shell {
+    use crate::{
+        refusal::{NextSafeAction, SubjectRef},
+        CanonicalArtifactKind,
+    };
+
+    pub(super) fn render_next_safe_action_value(action: &NextSafeAction) -> String {
+        match action {
+            NextSafeAction::RunSetup => "run `handbook setup`".to_string(),
+            NextSafeAction::RunSetupInit => "run `handbook setup init`".to_string(),
+            NextSafeAction::RunSetupRefresh => "run `handbook setup refresh`".to_string(),
+            NextSafeAction::RunAuthorCharter => "run `handbook author charter`".to_string(),
+            NextSafeAction::RunAuthorProjectContext => {
+                "run `handbook author project-context`".to_string()
+            }
+            NextSafeAction::RunAuthorEnvironmentInventory => {
+                "run `handbook author environment-inventory`".to_string()
+            }
+            NextSafeAction::CreateSystemRoot {
+                canonical_repo_relative_path,
+            } => format!("create canonical .handbook root at {canonical_repo_relative_path}"),
+            NextSafeAction::EnsureSystemRootIsDirectory {
+                canonical_repo_relative_path,
+            } => format!(
+                "ensure canonical .handbook root is a directory at {canonical_repo_relative_path}"
+            ),
+            NextSafeAction::RemoveSystemRootSymlink {
+                canonical_repo_relative_path,
+            } => format!("remove canonical .handbook symlink at {canonical_repo_relative_path}"),
+            NextSafeAction::CreateCanonicalArtifact {
+                canonical_repo_relative_path,
+            } => format!("create canonical artifact at {canonical_repo_relative_path}"),
+            NextSafeAction::FillCanonicalArtifact {
+                canonical_repo_relative_path,
+            } => format!("fill canonical artifact at {canonical_repo_relative_path}"),
+            NextSafeAction::ReduceCanonicalArtifactSize {
+                canonical_repo_relative_path,
+            } => format!("reduce canonical artifact size at {canonical_repo_relative_path}"),
+            NextSafeAction::RunGenerate { packet_id } => {
+                format!("run `handbook generate --packet {packet_id}`")
+            }
+            NextSafeAction::RunDoctor => "run `handbook doctor`".to_string(),
+        }
+    }
+
+    pub(super) fn render_subject_ref(subject: &SubjectRef) -> String {
+        match subject {
+            SubjectRef::CanonicalArtifact {
+                kind,
+                canonical_repo_relative_path,
+            } => format!(
+                "canonical artifact {} at {}",
+                render_canonical_artifact_kind(*kind),
+                canonical_repo_relative_path
+            ),
+            SubjectRef::InheritedDependency {
+                dependency_id,
+                version,
+            } => match version {
+                Some(version) => format!("inherited dependency {dependency_id}@{version}"),
+                None => format!("inherited dependency {dependency_id}"),
+            },
+            SubjectRef::Policy { policy_id } => format!("policy {policy_id}"),
+        }
+    }
+
+    fn render_canonical_artifact_kind(kind: CanonicalArtifactKind) -> &'static str {
+        match kind {
+            CanonicalArtifactKind::Charter => "Charter",
+            CanonicalArtifactKind::ProjectContext => "ProjectContext",
+            CanonicalArtifactKind::EnvironmentInventory => "EnvironmentInventory",
+            CanonicalArtifactKind::FeatureSpec => "FeatureSpec",
+        }
+    }
 }

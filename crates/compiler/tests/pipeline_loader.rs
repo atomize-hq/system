@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use handbook_compiler::{
-    load_pipeline_definition, ActivationOperator, PipelineLoadError, PipelineValidationError,
-    StageFileValidationError,
+use handbook_pipeline::pipeline::{
+    load_pipeline_definition, ActivationOperator, ActivationValidationError, PipelineLoadError,
+    PipelineValidationError, StageFileValidationError,
 };
 
 fn repo_root() -> PathBuf {
@@ -1087,12 +1087,13 @@ stages:
                 PipelineValidationError::InvalidStageFile {
                     stage_id,
                     file,
-                    reason: StageFileValidationError::OutsideStageDirectory,
+                    reason: StageFileValidationError::OutsideStageDirectory { stage_root },
                 },
             ..
         } => {
             assert_eq!(stage_id, "stage.00_base");
             assert_eq!(file, "README.md");
+            assert_eq!(stage_root, "core/stages");
         }
         other => panic!("expected stage-directory refusal, got {other:?}"),
     }
@@ -1555,7 +1556,7 @@ stages:
                 PipelineValidationError::InvalidActivation {
                     stage_id,
                     reason:
-                        handbook_compiler::ActivationValidationError::EmptyConditionList {
+                        ActivationValidationError::EmptyConditionList {
                             operator: ActivationOperator::Any,
                         },
                 },

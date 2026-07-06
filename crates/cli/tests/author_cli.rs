@@ -288,13 +288,13 @@ known_unknowns:
 }
 
 fn expected_project_context_markdown_from_yaml() -> String {
-    let input = handbook_compiler::parse_project_context_structured_input_yaml(
+    let input = handbook_engine::parse_project_context_structured_input_yaml(
         valid_project_context_inputs_yaml(),
     )
     .expect("parse project-context yaml");
 
     with_project_context_now_utc("2026-04-21T12:34:56Z", || {
-        handbook_compiler::render_project_context_markdown(&input)
+        handbook_engine::render_project_context_markdown(&input, "2026-04-21T12:34:56Z")
             .expect("render project-context markdown")
     })
 }
@@ -430,19 +430,19 @@ decision_records:
 }
 
 fn stubbed_authored_markdown() -> String {
-    handbook_compiler::render_charter_markdown(&guided_expected_input())
+    handbook_engine::render_charter_markdown(&guided_expected_input())
         .expect("render stubbed authored markdown")
 }
 
 fn deterministic_authored_markdown() -> String {
     let input =
-        handbook_compiler::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
+        handbook_engine::parse_charter_structured_input_yaml(valid_structured_inputs_yaml())
             .expect("parse deterministic charter inputs");
-    handbook_compiler::render_charter_markdown(&input)
+    handbook_engine::render_charter_markdown(&input)
         .expect("render deterministic authored markdown")
 }
 
-fn guided_expected_input() -> handbook_compiler::CharterStructuredInput {
+fn guided_expected_input() -> handbook_engine::CharterStructuredInput {
     let baseline_level = 3;
     let project_name = "Handbook".to_string();
     let in_production_today = false;
@@ -453,8 +453,8 @@ fn guided_expected_input() -> handbook_compiler::CharterStructuredInput {
             default_dimension_input(name, baseline_level, &project_name, in_production_today)
         })
         .collect();
-    dimensions[0] = handbook_compiler::CharterDimensionInput {
-        name: handbook_compiler::CharterDimensionName::SpeedVsQuality,
+    dimensions[0] = handbook_engine::CharterDimensionInput {
+        name: handbook_engine::CharterDimensionName::SpeedVsQuality,
         level: Some(4),
         default_stance: "favor durable launches over rush delivery".to_string(),
         raise_the_bar_triggers: vec![
@@ -474,41 +474,40 @@ fn guided_expected_input() -> handbook_compiler::CharterStructuredInput {
         ],
     };
 
-    handbook_compiler::CharterStructuredInput {
+    handbook_engine::CharterStructuredInput {
         schema_version: "0.1.0".to_string(),
-        project: handbook_compiler::CharterProjectInput {
+        project: handbook_engine::CharterProjectInput {
             name: project_name.clone(),
-            classification: handbook_compiler::CharterProjectClassification::Greenfield,
+            classification: handbook_engine::CharterProjectClassification::Greenfield,
             team_size: 2,
-            users: handbook_compiler::CharterAudience::Internal,
-            expected_lifetime: handbook_compiler::CharterExpectedLifetime::Months,
+            users: handbook_engine::CharterAudience::Internal,
+            expected_lifetime: handbook_engine::CharterExpectedLifetime::Months,
             surfaces: vec![
-                handbook_compiler::CharterSurface::Cli,
-                handbook_compiler::CharterSurface::Api,
+                handbook_engine::CharterSurface::Cli,
+                handbook_engine::CharterSurface::Api,
             ],
-            runtime_environments: vec![handbook_compiler::CharterRuntimeEnvironment::Server],
-            constraints: handbook_compiler::CharterProjectConstraintsInput {
+            runtime_environments: vec![handbook_engine::CharterRuntimeEnvironment::Server],
+            constraints: handbook_engine::CharterProjectConstraintsInput {
                 deadline: String::new(),
                 budget: String::new(),
                 experience_notes: "small team".to_string(),
                 must_use_tech: vec!["rust".to_string()],
             },
-            operational_reality: handbook_compiler::CharterOperationalRealityInput {
+            operational_reality: handbook_engine::CharterOperationalRealityInput {
                 in_production_today,
                 prod_users_or_data: String::new(),
                 external_contracts_to_preserve: Vec::new(),
                 uptime_expectations: "best effort".to_string(),
             },
-            default_implications: handbook_compiler::CharterDefaultImplicationsInput {
-                backward_compatibility:
-                    handbook_compiler::CharterBackwardCompatibility::NotRequired,
-                migration_planning: handbook_compiler::CharterRequiredness::NotRequired,
-                rollout_controls: handbook_compiler::CharterRolloutControls::Lightweight,
-                deprecation_policy: handbook_compiler::CharterDeprecationPolicy::NotRequiredYet,
-                observability_threshold: handbook_compiler::CharterObservabilityThreshold::Standard,
+            default_implications: handbook_engine::CharterDefaultImplicationsInput {
+                backward_compatibility: handbook_engine::CharterBackwardCompatibility::NotRequired,
+                migration_planning: handbook_engine::CharterRequiredness::NotRequired,
+                rollout_controls: handbook_engine::CharterRolloutControls::Lightweight,
+                deprecation_policy: handbook_engine::CharterDeprecationPolicy::NotRequiredYet,
+                observability_threshold: handbook_engine::CharterObservabilityThreshold::Standard,
             },
         },
-        posture: handbook_compiler::CharterPostureInput {
+        posture: handbook_engine::CharterPostureInput {
             rubric_scale: "1-5".to_string(),
             baseline_level,
             baseline_rationale: vec![
@@ -516,24 +515,24 @@ fn guided_expected_input() -> handbook_compiler::CharterStructuredInput {
                 "moderate blast radius".to_string(),
             ],
         },
-        domains: vec![handbook_compiler::CharterDomainInput {
+        domains: vec![handbook_engine::CharterDomainInput {
             name: "planning".to_string(),
             blast_radius: "medium".to_string(),
             touches: vec!["internal operators".to_string()],
             constraints: vec!["preserve trust boundaries".to_string()],
         }],
         dimensions,
-        exceptions: handbook_compiler::CharterExceptionsInput {
+        exceptions: handbook_engine::CharterExceptionsInput {
             approvers: vec!["project_owner".to_string()],
-            record_location: handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION.to_string(),
+            record_location: handbook_engine::DEFAULT_EXCEPTION_RECORD_LOCATION.to_string(),
             minimum_fields: default_exception_minimum_fields(),
         },
-        debt_tracking: handbook_compiler::CharterDebtTrackingInput {
+        debt_tracking: handbook_engine::CharterDebtTrackingInput {
             system: "issues".to_string(),
             labels: vec!["debt".to_string()],
             review_cadence: "monthly".to_string(),
         },
-        decision_records: handbook_compiler::CharterDecisionRecordsInput {
+        decision_records: handbook_engine::CharterDecisionRecordsInput {
             enabled: true,
             path: "docs/decisions".to_string(),
             format: "md".to_string(),
@@ -541,17 +540,17 @@ fn guided_expected_input() -> handbook_compiler::CharterStructuredInput {
     }
 }
 
-fn all_dimension_names() -> [handbook_compiler::CharterDimensionName; 9] {
+fn all_dimension_names() -> [handbook_engine::CharterDimensionName; 9] {
     [
-        handbook_compiler::CharterDimensionName::SpeedVsQuality,
-        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis,
-        handbook_compiler::CharterDimensionName::TestingRigor,
-        handbook_compiler::CharterDimensionName::ScalabilityPerformance,
-        handbook_compiler::CharterDimensionName::ReliabilityOperability,
-        handbook_compiler::CharterDimensionName::SecurityPrivacy,
-        handbook_compiler::CharterDimensionName::Observability,
-        handbook_compiler::CharterDimensionName::DxToolingAutomation,
-        handbook_compiler::CharterDimensionName::UxPolishApiUsability,
+        handbook_engine::CharterDimensionName::SpeedVsQuality,
+        handbook_engine::CharterDimensionName::TypeSafetyStaticAnalysis,
+        handbook_engine::CharterDimensionName::TestingRigor,
+        handbook_engine::CharterDimensionName::ScalabilityPerformance,
+        handbook_engine::CharterDimensionName::ReliabilityOperability,
+        handbook_engine::CharterDimensionName::SecurityPrivacy,
+        handbook_engine::CharterDimensionName::Observability,
+        handbook_engine::CharterDimensionName::DxToolingAutomation,
+        handbook_engine::CharterDimensionName::UxPolishApiUsability,
     ]
 }
 
@@ -570,11 +569,11 @@ fn default_exception_minimum_fields() -> Vec<String> {
 }
 
 fn default_dimension_input(
-    name: handbook_compiler::CharterDimensionName,
+    name: handbook_engine::CharterDimensionName,
     baseline_level: u8,
     project_name: &str,
     in_production_today: bool,
-) -> handbook_compiler::CharterDimensionInput {
+) -> handbook_engine::CharterDimensionInput {
     let dimension_label = dimension_label(name);
     let production_trigger = if in_production_today {
         "changes touching live users, data, or uptime"
@@ -582,7 +581,7 @@ fn default_dimension_input(
         "changes that create irreversible migration or trust-boundary cost"
     };
 
-    handbook_compiler::CharterDimensionInput {
+    handbook_engine::CharterDimensionInput {
         name,
         level: Some(baseline_level),
         default_stance: format!(
@@ -604,25 +603,25 @@ fn default_dimension_input(
     }
 }
 
-fn dimension_label(name: handbook_compiler::CharterDimensionName) -> &'static str {
+fn dimension_label(name: handbook_engine::CharterDimensionName) -> &'static str {
     match name {
-        handbook_compiler::CharterDimensionName::SpeedVsQuality => "speed vs quality",
-        handbook_compiler::CharterDimensionName::TypeSafetyStaticAnalysis => {
+        handbook_engine::CharterDimensionName::SpeedVsQuality => "speed vs quality",
+        handbook_engine::CharterDimensionName::TypeSafetyStaticAnalysis => {
             "type safety and static analysis"
         }
-        handbook_compiler::CharterDimensionName::TestingRigor => "testing rigor",
-        handbook_compiler::CharterDimensionName::ScalabilityPerformance => {
+        handbook_engine::CharterDimensionName::TestingRigor => "testing rigor",
+        handbook_engine::CharterDimensionName::ScalabilityPerformance => {
             "scalability and performance"
         }
-        handbook_compiler::CharterDimensionName::ReliabilityOperability => {
+        handbook_engine::CharterDimensionName::ReliabilityOperability => {
             "reliability and operability"
         }
-        handbook_compiler::CharterDimensionName::SecurityPrivacy => "security and privacy",
-        handbook_compiler::CharterDimensionName::Observability => "observability",
-        handbook_compiler::CharterDimensionName::DxToolingAutomation => {
+        handbook_engine::CharterDimensionName::SecurityPrivacy => "security and privacy",
+        handbook_engine::CharterDimensionName::Observability => "observability",
+        handbook_engine::CharterDimensionName::DxToolingAutomation => {
             "developer tooling and automation"
         }
-        handbook_compiler::CharterDimensionName::UxPolishApiUsability => {
+        handbook_engine::CharterDimensionName::UxPolishApiUsability => {
             "ux polish and api usability"
         }
     }
@@ -1342,7 +1341,7 @@ fn guided_tty_author_charter_succeeds_via_real_binary_path() {
         fs::read_to_string(dir.path().join(".handbook/charter/CHARTER.md")).expect("charter");
     assert_eq!(charter, expected_markdown);
     assert!(charter.contains("favor durable launches over rush delivery"));
-    assert!(charter.contains(handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(charter.contains(handbook_engine::DEFAULT_EXCEPTION_RECORD_LOCATION));
     assert!(!charter.contains("`CHARTER.md#exceptions`"));
     assert!(prompt_capture_path(dir.path()).exists());
 }
@@ -1790,7 +1789,7 @@ fn charter_input_templates_and_fixtures_use_canonical_exception_record_location(
         brownfield_fixture,
         greenfield_fixture,
     ] {
-        assert!(contents.contains(handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+        assert!(contents.contains(handbook_engine::DEFAULT_EXCEPTION_RECORD_LOCATION));
         assert!(!contents.contains("record_location: \"CHARTER.md#exceptions\""));
     }
 }
@@ -1840,7 +1839,7 @@ fn structured_inputs_author_charter_succeeds_with_live_codex_transport() {
             "missing heading `{heading}` in:\n{charter}"
         );
     }
-    assert!(charter.contains(handbook_compiler::DEFAULT_EXCEPTION_RECORD_LOCATION));
+    assert!(charter.contains(handbook_engine::DEFAULT_EXCEPTION_RECORD_LOCATION));
     assert!(!charter.contains("`CHARTER.md#exceptions`"));
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());

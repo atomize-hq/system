@@ -1,4 +1,4 @@
-use handbook_compiler::{
+use handbook_engine::{
     setup_starter_template_bytes, ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifactKind,
     CanonicalArtifacts, SystemRootStatus,
 };
@@ -85,6 +85,25 @@ fn feature_spec_namespace_directory_establishes_partial_canonical_root() {
     );
     assert_eq!(
         artifacts.feature_spec.identity.presence,
+        ArtifactPresence::Missing
+    );
+}
+
+#[test]
+fn environment_inventory_namespace_directory_establishes_partial_canonical_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let repo_root = dir.path();
+
+    std::fs::create_dir_all(repo_root.join(".handbook/environment_inventory")).expect("mkdirs");
+
+    let artifacts = CanonicalArtifacts::load(repo_root).expect("load");
+    assert_eq!(artifacts.system_root_status, SystemRootStatus::Ok);
+    assert_eq!(
+        artifacts.charter.identity.presence,
+        ArtifactPresence::Missing
+    );
+    assert_eq!(
+        artifacts.environment_inventory.identity.presence,
         ArtifactPresence::Missing
     );
 }

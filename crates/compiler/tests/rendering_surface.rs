@@ -1,7 +1,7 @@
-use handbook_compiler::{
-    build_output_model, render_inspect, render_json, render_markdown, resolve, BudgetPolicy,
-    ResolveRequest,
-};
+use handbook_compiler::rendering::{render_inspect, render_markdown};
+use handbook_compiler::{build_output_model, render_json, resolve};
+use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
+use handbook_flow::{BudgetPolicy, ResolveRequest};
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -263,9 +263,7 @@ fn render_markdown_omits_optional_feature_spec_starter_template_from_ready_packe
     );
     write_file(
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
-        handbook_compiler::setup_starter_template_bytes(
-            handbook_compiler::CanonicalArtifactKind::FeatureSpec,
-        ),
+        setup_starter_template_bytes(CanonicalArtifactKind::FeatureSpec),
     );
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
@@ -461,7 +459,7 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
         b"demo feature",
     );
 
-    let request = handbook_compiler::ResolveRequest {
+    let request = ResolveRequest {
         packet_id: "execution.demo.packet",
         ..Default::default()
     };
@@ -517,7 +515,7 @@ fn render_json_preserves_execution_demo_fixture_lineage_order() {
         b"demo feature",
     );
 
-    let request = handbook_compiler::ResolveRequest {
+    let request = ResolveRequest {
         packet_id: "execution.demo.packet",
         ..Default::default()
     };

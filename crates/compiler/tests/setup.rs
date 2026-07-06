@@ -1,9 +1,11 @@
 use std::fs;
 
 use handbook_compiler::{
-    plan_setup, render_next_safe_action_value, resolve, run_setup, setup_starter_template_bytes,
-    ResolveRequest, SetupActionLabel, SetupDisposition, SetupMode, SetupRefusalKind, SetupRequest,
+    plan_setup, render_next_safe_action_value, resolve, run_setup, SetupActionLabel,
+    SetupDisposition, SetupMode, SetupRefusalKind, SetupRequest,
 };
+use handbook_engine::setup_starter_template_bytes;
+use handbook_flow::ResolveRequest;
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {

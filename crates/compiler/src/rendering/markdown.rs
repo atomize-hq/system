@@ -2,8 +2,9 @@ use super::model::RenderOutputModel;
 use crate::{
     blocker::Blocker,
     refusal::{NextSafeAction, RefusalCategory, SubjectRef},
-    BlockerCategory, CanonicalArtifactKind, PacketSelectionStatus,
+    BlockerCategory, CanonicalArtifactKind,
 };
+use handbook_flow::PacketSelectionStatus;
 
 pub fn render_markdown(model: &RenderOutputModel) -> String {
     let mut output = String::new();

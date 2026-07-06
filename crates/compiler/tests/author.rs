@@ -2,13 +2,14 @@ use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use handbook_compiler::author::{author_charter_guided, preflight_author_charter_from_input};
 use handbook_compiler::{
-    author_charter, author_environment_inventory, author_project_context_from_input,
-    parse_charter_structured_input_yaml, parse_project_context_structured_input_yaml,
-    preflight_author_charter, preflight_author_environment_inventory,
+    author_charter, author_charter_guided, author_environment_inventory,
+    author_project_context_from_input, parse_charter_structured_input_yaml,
+    parse_project_context_structured_input_yaml, preflight_author_charter,
+    preflight_author_charter_from_input, preflight_author_environment_inventory,
     preflight_author_project_context, render_charter_markdown, render_project_context_markdown,
-    run_setup, setup_starter_template_bytes, validate_charter_structured_input,
+    resolve_shipped_template_library, resolve_template_library, run_setup,
+    validate_charter_structured_input, validate_environment_inventory_markdown,
     validate_project_context_markdown, validate_project_context_structured_input,
     AuthorCharterRefusalKind, AuthorEnvironmentInventoryRefusalKind,
     AuthorProjectContextRefusalKind, CanonicalArtifactKind, CharterAudience,
@@ -18,13 +19,17 @@ use handbook_compiler::{
     CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
     CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
     CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
-    CharterSurface, ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
+    CharterSurface, CharterTemplateLibraryOverride, EnvironmentInventoryTemplateLibraryOverride,
+    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
     ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
     ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
     ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
     ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
-    SetupRequest, CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
+    SetupRequest, TemplateLibraryAsset, TemplateLibraryOverrideRequest, TemplateLibraryRequest,
+    TemplateLibraryResolveErrorKind, TemplateLibraryResolveRequest, TemplateLibrarySelection,
+    CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
+use handbook_engine::setup_starter_template_bytes;
 
 const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
 const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";
@@ -796,6 +801,283 @@ fn guided_author_charter_prompt_includes_repo_owned_assets_and_serialized_inputs
 }
 
 #[test]
+fn shipped_template_library_resolver_exposes_canonical_repo_relative_authoring_assets() {
+    let TemplateLibrarySelection::Charter(charter) =
+        resolve_shipped_template_library(TemplateLibraryRequest::CharterAuthoring)
+    else {
+        panic!("expected charter template-library selection");
+    };
+
+    assert_eq!(
+        charter.authoring_method().asset(),
+        TemplateLibraryAsset::CharterAuthoringMethod
+    );
+    assert_eq!(
+        charter.authoring_method().repo_relative_path(),
+        "core/library/authoring/charter_authoring_method.md"
+    );
+    assert!(charter
+        .authoring_method()
+        .contents()
+        .contains("Treat the completed structured input document as the source of truth"));
+    assert_eq!(
+        charter.synthesize_directive().repo_relative_path(),
+        "core/library/charter/charter_synthesize_directive.md"
+    );
+    assert!(charter
+        .synthesize_directive()
+        .contents()
+        .contains("Treat `CHARTER_INPUTS.yaml` as the source of truth."));
+    assert_eq!(
+        charter.template().repo_relative_path(),
+        "core/library/charter/charter.md.tmpl"
+    );
+
+    let TemplateLibrarySelection::EnvironmentInventory(environment_inventory) =
+        resolve_shipped_template_library(TemplateLibraryRequest::EnvironmentInventoryAuthoring)
+    else {
+        panic!("expected environment-inventory template-library selection");
+    };
+
+    assert_eq!(
+        environment_inventory.synthesize_directive().asset(),
+        TemplateLibraryAsset::EnvironmentInventorySynthesizeDirective
+    );
+    assert_eq!(
+        environment_inventory
+            .synthesize_directive()
+            .repo_relative_path(),
+        "core/library/environment_inventory/environment_inventory_directive.md"
+    );
+    assert_eq!(
+        environment_inventory.template().asset(),
+        TemplateLibraryAsset::EnvironmentInventoryTemplate
+    );
+    assert_eq!(
+        environment_inventory.template().repo_relative_path(),
+        "core/library/environment_inventory/ENVIRONMENT_INVENTORY.md.tmpl"
+    );
+    assert!(environment_inventory
+        .template()
+        .contents()
+        .contains("# Environment Inventory"));
+}
+
+#[test]
+fn template_library_resolver_accepts_valid_overrides_for_approved_asset_families() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    write_file(
+        &root.join("core/library/authoring/charter_authoring_method_alt.md"),
+        b"alt charter method
+",
+    );
+    write_file(
+        &root.join("core/library/charter/charter_synthesize_directive_alt.md"),
+        b"alt charter directive
+",
+    );
+    write_file(
+        &root.join("core/library/charter/charter_alt.md.tmpl"),
+        b"alt charter template
+",
+    );
+    write_file(
+        &root.join("core/library/environment_inventory/environment_inventory_directive_alt.md"),
+        b"alt environment inventory directive
+",
+    );
+    write_file(
+        &root.join("core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl"),
+        b"alt environment inventory template
+",
+    );
+
+    let charter_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new()
+            .with_authoring_method_repo_relative_path(
+                "core/library/authoring/charter_authoring_method_alt.md",
+            )
+            .with_synthesize_directive_repo_relative_path(
+                "core/library/charter/charter_synthesize_directive_alt.md",
+            )
+            .with_template_repo_relative_path("core/library/charter/charter_alt.md.tmpl"),
+    ));
+    let TemplateLibrarySelection::Charter(charter) =
+        resolve_template_library(root, &charter_request).expect("charter overrides")
+    else {
+        panic!("expected charter selection");
+    };
+    assert_eq!(
+        charter.authoring_method().repo_relative_path(),
+        "core/library/authoring/charter_authoring_method_alt.md"
+    );
+    assert_eq!(
+        charter.authoring_method().contents(),
+        "alt charter method
+"
+    );
+    assert_eq!(
+        charter.synthesize_directive().repo_relative_path(),
+        "core/library/charter/charter_synthesize_directive_alt.md"
+    );
+    assert_eq!(
+        charter.synthesize_directive().contents(),
+        "alt charter directive
+"
+    );
+    assert_eq!(
+        charter.template().repo_relative_path(),
+        "core/library/charter/charter_alt.md.tmpl"
+    );
+    assert_eq!(
+        charter.template().contents(),
+        "alt charter template
+"
+    );
+
+    let environment_request =
+        TemplateLibraryResolveRequest::new(TemplateLibraryRequest::EnvironmentInventoryAuthoring)
+            .with_override(TemplateLibraryOverrideRequest::EnvironmentInventory(
+                EnvironmentInventoryTemplateLibraryOverride::new()
+                    .with_synthesize_directive_repo_relative_path(
+                        "core/library/environment_inventory/environment_inventory_directive_alt.md",
+                    )
+                    .with_template_repo_relative_path(
+                        "core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl",
+                    ),
+            ));
+    let TemplateLibrarySelection::EnvironmentInventory(environment_inventory) =
+        resolve_template_library(root, &environment_request)
+            .expect("environment inventory overrides")
+    else {
+        panic!("expected environment inventory selection");
+    };
+    assert_eq!(
+        environment_inventory
+            .synthesize_directive()
+            .repo_relative_path(),
+        "core/library/environment_inventory/environment_inventory_directive_alt.md"
+    );
+    assert_eq!(
+        environment_inventory.synthesize_directive().contents(),
+        "alt environment inventory directive
+"
+    );
+    assert_eq!(
+        environment_inventory.template().repo_relative_path(),
+        "core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl"
+    );
+    assert_eq!(
+        environment_inventory.template().contents(),
+        "alt environment inventory template
+"
+    );
+}
+
+#[test]
+fn template_library_resolver_refuses_unsafe_override_paths_and_missing_files() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+
+    let absolute_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new().with_template_repo_relative_path(
+            root.join("core/library/charter/charter.md.tmpl")
+                .display()
+                .to_string(),
+        ),
+    ));
+    let absolute_err = resolve_template_library(root, &absolute_request)
+        .expect_err("absolute override path should refuse");
+    assert_eq!(
+        absolute_err.kind,
+        TemplateLibraryResolveErrorKind::InvalidOverridePath
+    );
+    assert!(absolute_err.summary.contains("bounded repo-relative path"));
+
+    let traversal_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new()
+            .with_template_repo_relative_path("../outside/charter.md.tmpl"),
+    ));
+    let traversal_err = resolve_template_library(root, &traversal_request)
+        .expect_err("traversal override path should refuse");
+    assert_eq!(
+        traversal_err.kind,
+        TemplateLibraryResolveErrorKind::InvalidOverridePath
+    );
+    assert!(traversal_err.summary.contains("bounded repo-relative path"));
+
+    let missing_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new()
+            .with_template_repo_relative_path("core/library/charter/missing.md.tmpl"),
+    ));
+    let missing_err = resolve_template_library(root, &missing_request)
+        .expect_err("missing override should refuse");
+    assert_eq!(
+        missing_err.kind,
+        TemplateLibraryResolveErrorKind::MissingOverride
+    );
+    assert!(missing_err.summary.contains("is missing"));
+}
+
+#[test]
+fn template_library_resolver_refuses_override_family_and_asset_kind_mismatches() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path();
+    write_file(
+        &root.join("core/library/charter/charter_synthesize_directive_alt.md"),
+        b"alt charter directive
+",
+    );
+
+    let family_mismatch_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::EnvironmentInventory(
+        EnvironmentInventoryTemplateLibraryOverride::new().with_template_repo_relative_path(
+            "core/library/environment_inventory/ENVIRONMENT_INVENTORY_ALT.md.tmpl",
+        ),
+    ));
+    let family_mismatch_err = resolve_template_library(root, &family_mismatch_request)
+        .expect_err("override family mismatch should refuse");
+    assert_eq!(
+        family_mismatch_err.kind,
+        TemplateLibraryResolveErrorKind::OverrideFamilyMismatch
+    );
+    assert!(family_mismatch_err
+        .summary
+        .contains("does not match resolver request"));
+
+    let asset_kind_mismatch_request = TemplateLibraryResolveRequest::new(
+        TemplateLibraryRequest::CharterAuthoring,
+    )
+    .with_override(TemplateLibraryOverrideRequest::Charter(
+        CharterTemplateLibraryOverride::new().with_template_repo_relative_path(
+            "core/library/charter/charter_synthesize_directive_alt.md",
+        ),
+    ));
+    let asset_kind_mismatch_err = resolve_template_library(root, &asset_kind_mismatch_request)
+        .expect_err("asset kind mismatch should refuse");
+    assert_eq!(
+        asset_kind_mismatch_err.kind,
+        TemplateLibraryResolveErrorKind::AssetKindMismatch
+    );
+    assert!(asset_kind_mismatch_err.summary.contains("must stay under"));
+}
+
+#[test]
 fn guided_author_charter_uses_codex_from_path_when_override_unset() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
@@ -1380,6 +1662,33 @@ fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaf
 }
 
 #[test]
+fn validate_environment_inventory_markdown_accepts_canonical_document() {
+    validate_environment_inventory_markdown(&expected_environment_inventory_markdown("None"))
+        .expect("canonical environment inventory markdown should validate");
+}
+
+#[test]
+fn validate_environment_inventory_markdown_refuses_legacy_non_canonical_path_claims() {
+    let err = validate_environment_inventory_markdown(
+        &expected_environment_inventory_markdown("None").replace(
+            "`.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`",
+            "`${repo_root}/ENVIRONMENT_INVENTORY.md`",
+        ),
+    )
+    .expect_err("legacy canonical path claim should be rejected");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::SynthesisFailed
+    );
+    assert!(
+        err.summary.contains("legacy non-canonical path claims"),
+        "unexpected summary: {}",
+        err.summary
+    );
+}
+
+#[test]
 fn author_environment_inventory_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
@@ -1421,6 +1730,32 @@ fn author_environment_inventory_replaces_starter_template_and_writes_only_canoni
         .join("artifacts/foundation/ENVIRONMENT_INVENTORY.md")
         .exists());
     assert!(prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn author_environment_inventory_prompt_uses_repo_owned_assets_and_keeps_optional_context_local() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    scaffold_repo(dir.path());
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let expected_markdown = expected_environment_inventory_markdown("None");
+    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+
+    with_environment_inventory_runtime_override(&stub, None, || {
+        author_environment_inventory(dir.path()).expect("author environment inventory");
+    });
+
+    let prompt = std::fs::read_to_string(prompt_capture_path(dir.path())).expect("prompt capture");
+    assert!(prompt.contains("# Environment Inventory Synthesis Directive"));
+    assert!(prompt.contains(
+        "Canonical file reference: `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`"
+    ));
+    assert!(prompt.contains("Project context reference line: `None`"));
+    assert!(prompt.contains("## 1) Environment Variables (Inventory)"));
+    assert!(prompt
+        .contains("Do not describe any repo-root `ENVIRONMENT_INVENTORY.md` file as canonical."));
 }
 
 #[test]

@@ -4,15 +4,22 @@ mod pipeline_proof_corpus_support;
 use std::fs;
 use std::path::Path;
 
-use handbook_compiler::{
-    apply_pipeline_capture, capture_pipeline_output, compile_pipeline_stage_with_runtime,
-    load_pipeline_capture_cache_entry, load_route_state_with_supported_variables,
-    preview_pipeline_capture, render_pipeline_capture_apply_result,
-    render_pipeline_capture_preview, render_pipeline_capture_refusal,
-    render_pipeline_compile_explain, render_pipeline_compile_payload, set_route_state,
-    PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
-    PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
-    PipelineCompileRuntimeContext, RouteState, RouteStateMutation, RouteStateMutationOutcome,
+use handbook_pipeline::{
+    pipeline_capture::{
+        apply_pipeline_capture, capture_pipeline_output, load_pipeline_capture_cache_entry,
+        preview_pipeline_capture, render_pipeline_capture_apply_result,
+        render_pipeline_capture_preview, render_pipeline_capture_refusal,
+        PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
+        PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
+    },
+    pipeline_compile::{
+        compile_pipeline_stage_with_runtime, render_pipeline_compile_explain,
+        render_pipeline_compile_payload, PipelineCompileRuntimeContext,
+    },
+    route_state::{
+        load_route_state_with_supported_variables, set_route_state, RouteBasis, RouteState,
+        RouteStateMutation, RouteStateMutationOutcome,
+    },
 };
 use sha2::{Digest, Sha256};
 
@@ -139,12 +146,9 @@ fn capture_next_safe_action(rendered: &str) -> &str {
 fn apply_mutation(repo_root: &Path, mutation: RouteStateMutation) {
     let (definition, supported_variables) =
         pipeline_proof_corpus_support::load_foundation_inputs_definition(repo_root);
-    let state = handbook_compiler::load_route_state_with_supported_variables(
-        repo_root,
-        PIPELINE_ID,
-        &supported_variables,
-    )
-    .expect("load route state");
+    let state =
+        load_route_state_with_supported_variables(repo_root, PIPELINE_ID, &supported_variables)
+            .expect("load route state");
     let outcome = set_route_state(
         repo_root,
         PIPELINE_ID,
@@ -221,7 +225,7 @@ fn rewrite_tampered_capture_cache(
     cache_entry.capture_id
 }
 
-fn route_basis_sha256(route_basis: &handbook_compiler::RouteBasis) -> String {
+fn route_basis_sha256(route_basis: &RouteBasis) -> String {
     let bytes = serde_json::to_vec(route_basis).expect("serialize route basis");
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
