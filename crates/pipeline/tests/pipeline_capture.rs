@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 use handbook_pipeline::{
     pipeline::load_pipeline_definition,
     pipeline_capture::{
-        apply_pipeline_capture, capture_pipeline_output, load_pipeline_capture_cache_entry,
-        preview_pipeline_capture, preview_pipeline_capture_with_storage_layout,
-        apply_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
+        apply_pipeline_capture, apply_pipeline_capture_with_storage_layout,
+        capture_pipeline_output, load_pipeline_capture_cache_entry, preview_pipeline_capture,
+        preview_pipeline_capture_with_storage_layout, render_pipeline_capture_apply_result,
         render_pipeline_capture_preview, render_pipeline_capture_refusal,
         PipelineCaptureCacheEntry, PipelineCapturePlan, PipelineCaptureRefusalClassification,
         PipelineCaptureRequest, PipelineCaptureStateUpdate, PipelineCaptureStateValue,
@@ -1824,7 +1824,10 @@ fn custom_storage_layout_preview_and_apply_use_public_capture_facade() {
     let custom_cache_path =
         custom_capture_cache_path(&repo_root, &preview.plan.capture_id, storage_layout);
 
-    assert!(custom_cache_path.exists(), "custom capture cache path should exist");
+    assert!(
+        custom_cache_path.exists(),
+        "custom capture cache path should exist"
+    );
     assert!(
         !pipeline_proof_corpus_support::pipeline_capture_cache_path(
             &repo_root,

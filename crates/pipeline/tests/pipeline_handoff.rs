@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use handbook_pipeline::{
+    pipeline::load_pipeline_definition,
     pipeline_capture::{
         apply_pipeline_capture_with_storage_layout, preview_pipeline_capture_with_storage_layout,
         PipelineCaptureRequest,
@@ -12,11 +13,10 @@ use handbook_pipeline::{
     pipeline_handoff::{
         emit_pipeline_handoff_bundle, emit_pipeline_handoff_bundle_with_storage_layout,
         validate_pipeline_handoff_bundle, validate_pipeline_handoff_bundle_with_storage_layout,
-        PipelineHandoffEmitRequest, PipelineHandoffManifest,
-        PipelineHandoffRefusalClassification, PipelineHandoffTrustClass,
-        PipelineHandoffValidatedBundle, PipelineHandoffValidationFailureClassification,
+        PipelineHandoffEmitRequest, PipelineHandoffManifest, PipelineHandoffRefusalClassification,
+        PipelineHandoffTrustClass, PipelineHandoffValidatedBundle,
+        PipelineHandoffValidationFailureClassification,
     },
-    pipeline::load_pipeline_definition,
     pipeline_route::{resolve_pipeline_route, RouteVariables},
     route_state::{
         build_route_basis, load_route_state_with_storage_layout,
@@ -567,10 +567,15 @@ fn custom_storage_layout_emit_and_validate_use_public_handoff_facade() {
         storage_layout,
     )
     .expect("preview custom stage-10 capture");
-    apply_pipeline_capture_with_storage_layout(&repo_root, &preview.plan.capture_id, storage_layout)
-        .expect("apply custom stage-10 capture");
+    apply_pipeline_capture_with_storage_layout(
+        &repo_root,
+        &preview.plan.capture_id,
+        storage_layout,
+    )
+    .expect("apply custom stage-10 capture");
 
-    let custom_provenance_path = custom_stage_10_capture_provenance_path(&repo_root, storage_layout);
+    let custom_provenance_path =
+        custom_stage_10_capture_provenance_path(&repo_root, storage_layout);
     assert!(
         custom_provenance_path.exists(),
         "custom stage-capture provenance path should exist"

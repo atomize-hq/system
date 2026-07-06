@@ -139,6 +139,7 @@ pub struct SupportedTargetRegistry {
 }
 
 impl SupportedTargetRegistry {
+    #[allow(dead_code)]
     pub(crate) fn load(
         repo_root: impl AsRef<Path>,
     ) -> Result<Self, SupportedTargetRegistryLoadError> {
@@ -419,6 +420,7 @@ struct SupportedTargetTopology {
     capture_stage_ids: Vec<String>,
 }
 
+#[allow(dead_code)]
 fn resolve_supported_target_topology(
     catalog: &PipelineCatalog,
 ) -> Result<SupportedTargetTopology, SupportedTargetRegistryLoadError> {
@@ -1384,6 +1386,7 @@ enum PipelineLoadMode {
     RouteAware,
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_pipeline_catalog(
     repo_root: impl AsRef<Path>,
 ) -> Result<PipelineCatalog, PipelineCatalogError> {
@@ -1578,6 +1581,7 @@ pub fn load_selected_pipeline_definition_with_roots(
         .map_err(SelectedPipelineLoadError::Load)
 }
 
+#[allow(dead_code)]
 fn load_pipeline_catalog_with_mode(
     repo_root: impl AsRef<Path>,
     mode: PipelineLoadMode,
@@ -2201,6 +2205,7 @@ fn render_stage_definition(stage: &StageCatalogEntry) -> String {
     out.trim_end().to_string()
 }
 
+#[allow(dead_code)]
 fn load_stage_catalog(
     repo_root: &Path,
 ) -> Result<std::collections::BTreeMap<PathBuf, StageCatalogEntry>, PipelineCatalogError> {

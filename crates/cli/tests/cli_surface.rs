@@ -237,6 +237,25 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+fn write_minimal_runner_and_profile(root: &std::path::Path) {
+    write_file(
+        &root.join("core/runners/codex-cli.md"),
+        b"# Runner: codex-cli\n\nThis runner assumes the agent can run commands.\n",
+    );
+    write_file(
+        &root.join("core/profiles/python-uv/profile.yaml"),
+        b"kind: profile\nid: python-uv\nversion: 0.1.0\ntitle: \"Python (uv)\"\ndescription: test profile\ncompatibility:\n  languages: [\"python\"]\n  package_managers: [\"uv\"]\n  runners: [\"codex-cli\"]\nproject_defaults:\n  python_requires: \">=3.11\"\n  code_dirs: [\"src\"]\n  test_dirs: [\"tests\"]\n  config_files: []\ngates:\n  required: [\"tests\"]\n  optional: []\nevidence:\n  required_fields: [\"cmd\", \"exit\", \"tail\", \"timestamp\"]\n  tail_lines: 80\n",
+    );
+    write_file(
+        &root.join("core/profiles/python-uv/commands.yaml"),
+        b"commands:\n  tests: \"pytest -q\"\n",
+    );
+    write_file(
+        &root.join("core/profiles/python-uv/conventions.md"),
+        b"# Test profile conventions\n",
+    );
+}
+
 fn planning_ready_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     pipeline_proof_corpus_support::install_committed_fixture_repo(
         "tests/fixtures/planning_ready_repo",
@@ -571,6 +590,7 @@ fn activation_drift_pipeline_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
 
+    write_minimal_runner_and_profile(&root);
     write_file(
         &root.join("core/stages/00_base.md"),
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\nactivation:\n  when:\n    any:\n      - variables.needs_project_context == true\n---\n# base\n",
@@ -587,6 +607,7 @@ fn invalid_pipeline_id_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path().to_path_buf();
 
+    write_minimal_runner_and_profile(&root);
     write_file(
         &root.join("core/stages/00_base.md"),
         b"---\nkind: stage\nid: stage.00_base\nversion: 0.1.0\ntitle: Base\ndescription: base\n---\n# base\n",
@@ -4367,8 +4388,8 @@ fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_eva
 
         let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
         assert!(
-            stdout.contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
-            "expected catalog refusal for {:?}: {stdout}",
+            stdout.contains("REFUSED: pipeline definition error: invalid pipeline definition"),
+            "expected pipeline definition refusal for {:?}: {stdout}",
             args
         );
         assert!(
@@ -4385,7 +4406,7 @@ fn pipeline_resolve_and_state_set_still_refuse_activation_drift_before_route_eva
 }
 
 #[test]
-fn pipeline_list_omits_unrelated_invalid_pipeline_ids_but_resolve_still_refuses() {
+fn pipeline_list_and_resolve_omit_unrelated_invalid_pipeline_ids() {
     let (_dir, root) = invalid_pipeline_id_repo();
 
     let output = run_in(root.as_path(), &["pipeline", "list"]);
@@ -4402,19 +4423,12 @@ fn pipeline_list_omits_unrelated_invalid_pipeline_ids_but_resolve_still_refuses(
         root.as_path(),
         &["pipeline", "resolve", "--id", "pipeline.foundation"],
     );
-    assert!(
-        !resolve.status.success(),
-        "pipeline resolve should still refuse"
-    );
+    assert!(resolve.status.success(), "pipeline resolve should succeed");
     let resolve_stdout = String::from_utf8(resolve.stdout).expect("stdout is utf-8");
     assert!(
-        resolve_stdout
-            .contains("REFUSED: pipeline catalog error: failed to load pipeline definition"),
-        "expected strict catalog refusal: {resolve_stdout}"
-    );
-    assert!(
-        resolve_stdout.contains("field `id` has invalid canonical id `pipeline.bad/path`"),
-        "expected invalid canonical id detail: {resolve_stdout}"
+        resolve_stdout.contains("OUTCOME: RESOLVED")
+            && resolve_stdout.contains("PIPELINE: pipeline.foundation"),
+        "expected successful resolve output: {resolve_stdout}"
     );
 }
 

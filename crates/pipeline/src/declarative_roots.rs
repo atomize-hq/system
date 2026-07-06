@@ -134,6 +134,7 @@ pub(crate) fn profile_root() -> &'static Path {
     handbook_product_declarative_roots().profile_root()
 }
 
+#[allow(dead_code)]
 pub(crate) fn stage_root() -> &'static Path {
     handbook_product_declarative_roots().stage_root()
 }
