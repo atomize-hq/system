@@ -115,7 +115,7 @@ For full reduced-v1 surfaces, the first facts are:
 
 Do not invent alternative command stories in different surfaces.
 
-The product language is locked in [`docs/CLI_PRODUCT_VOCABULARY.md`](docs/CLI_PRODUCT_VOCABULARY.md).
+The product language is locked in [`docs/CLI_PRODUCT_VOCABULARY.md`](../reduced-v1/front-door/CLI_PRODUCT_VOCABULARY.md).
 
 ### 4. Interaction style can evolve, operation names should not
 
@@ -360,7 +360,7 @@ Design rule:
 
 ## Vocabulary Contract
 
-The canonical product vocabulary lives in [`docs/CLI_PRODUCT_VOCABULARY.md`](docs/CLI_PRODUCT_VOCABULARY.md).
+The canonical product vocabulary lives in [`docs/CLI_PRODUCT_VOCABULARY.md`](../reduced-v1/front-door/CLI_PRODUCT_VOCABULARY.md).
 
 The highest-value vocabulary rules are:
 
@@ -374,7 +374,7 @@ The highest-value vocabulary rules are:
 
 ## Hierarchy And Routing Contract
 
-The canonical front-door and routing rules live in [`docs/CLI_COMMAND_HIERARCHY.md`](docs/CLI_COMMAND_HIERARCHY.md).
+The canonical front-door and routing rules live in [`docs/CLI_COMMAND_HIERARCHY.md`](../reduced-v1/front-door/CLI_COMMAND_HIERARCHY.md).
 
 The highest-value hierarchy rules are:
 
@@ -398,7 +398,7 @@ Repo-state routing:
 
 ## Tone Contract
 
-The canonical tone rules live in [`docs/CLI_TONE_RULES.md`](docs/CLI_TONE_RULES.md).
+The canonical tone rules live in [`docs/CLI_TONE_RULES.md`](../reduced-v1/front-door/CLI_TONE_RULES.md).
 
 The product voice is:
 
@@ -420,7 +420,7 @@ Refusal should read like a procedural stop with a clear way forward.
 
 ## Output Anatomy Contract
 
-The canonical output anatomy lives in [`docs/CLI_OUTPUT_ANATOMY.md`](docs/CLI_OUTPUT_ANATOMY.md).
+The canonical output anatomy lives in [`docs/CLI_OUTPUT_ANATOMY.md`](../reduced-v1/front-door/CLI_OUTPUT_ANATOMY.md).
 
 Current reduced-v1 interaction shape:
 
@@ -526,9 +526,9 @@ These should be treated as future implementation and conformance work, not silen
 
 This file is downstream of:
 
-- [`docs/CLI_PRODUCT_VOCABULARY.md`](docs/CLI_PRODUCT_VOCABULARY.md)
-- [`docs/CLI_COMMAND_HIERARCHY.md`](docs/CLI_COMMAND_HIERARCHY.md)
-- [`docs/CLI_TONE_RULES.md`](docs/CLI_TONE_RULES.md)
-- [`docs/CLI_OUTPUT_ANATOMY.md`](docs/CLI_OUTPUT_ANATOMY.md)
+- [`docs/CLI_PRODUCT_VOCABULARY.md`](../reduced-v1/front-door/CLI_PRODUCT_VOCABULARY.md)
+- [`docs/CLI_COMMAND_HIERARCHY.md`](../reduced-v1/front-door/CLI_COMMAND_HIERARCHY.md)
+- [`docs/CLI_TONE_RULES.md`](../reduced-v1/front-door/CLI_TONE_RULES.md)
+- [`docs/CLI_OUTPUT_ANATOMY.md`](../reduced-v1/front-door/CLI_OUTPUT_ANATOMY.md)
 
 If those documents and this file disagree, fix the disagreement instead of picking one ad hoc.

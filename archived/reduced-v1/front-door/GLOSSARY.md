@@ -12,7 +12,7 @@ Use this glossary when you need to decode older scaffold docs, the historical re
 
 Approved docs and contracts teach one declarative namespace under `core/**`, including `core/pipelines/`, `core/profiles/`, and `core/runners/`. Any old-root mentions in this file such as `pipeline.yaml`, `pipelines/`, `profiles/`, or `runners/` are historical-only.
 
-> Tip: If you’re trying to understand the legacy stage runner ("what runs when"), start with [`docs/legacy/SYSTEM_MODEL.md`](legacy/SYSTEM_MODEL.md) and then the stage reference in [`docs/legacy/stages/`](legacy/stages/README.md). Those legacy docs describe the historical repo-root `pipeline.yaml` contract.
+> Tip: If you’re trying to understand the legacy stage runner ("what runs when"), start with [`docs/legacy/SYSTEM_MODEL.md`](../legacy/SYSTEM_MODEL.md) and then the stage reference in [`docs/legacy/stages/`](../legacy/stages/README.md). Those legacy docs describe the historical repo-root `pipeline.yaml` contract.
 
 ---
 

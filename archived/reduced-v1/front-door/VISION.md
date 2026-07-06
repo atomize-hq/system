@@ -4,7 +4,7 @@
 
 This file is a broad vision statement.
 
-- For the reviewed reduced-v1 implementation boundary, use the reduced-v1 seam pack at [artifacts/planning/reduced-v1-seam-pack/README.md](../artifacts/planning/reduced-v1-seam-pack/README.md).
+- For the reviewed reduced-v1 implementation boundary, use the reduced-v1 seam pack at [artifacts/planning/reduced-v1-seam-pack/README.md](../../artifacts/planning/reduced-v1-seam-pack/README.md).
 - The reviewed v1 is narrower than this vision: Rust-first, live `project + feature` planning packets, fixture-backed execution packet demo only, then implementation planning next.
 
 ## Purpose

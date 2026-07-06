@@ -21,10 +21,10 @@ If you are trying to understand the current intended direction, start here:
 
 - Active docs index: [`docs/README.md`](docs/README.md)
 - Current architecture memos: [`docs/ideas/`](docs/ideas/)
-- Archived reduced-v1 docs: [`docs/archive/`](docs/archive/)
+- Archived reduced-v1 docs: [`archived/reduced-v1/`](archived/reduced-v1/)
 - Historical root authority docs: [`archived/root-authority/`](archived/root-authority/)
 - Historical research dumps: [`archived/research/`](archived/research/)
-- Historical specs/plans: [`docs/specs/archive/`](docs/specs/archive/)
+- Historical specs/plans: [`archived/specs/`](archived/specs/)
 
 ## Repo landmarks
 

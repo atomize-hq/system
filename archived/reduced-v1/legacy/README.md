@@ -4,13 +4,13 @@ NOTE: This repo keeps a snapshot of legacy generated outputs under `archived/leg
 
 These documents describe the legacy Python harness workflow that still exists in this repo.
 
-They are intentionally retained as **reference material** until reduced-v1 Rust planning packet parity is proven and cutover moves the harness to `archived/python-harness/` (see [`PLAN.md`](../../PLAN.md)).
+They are intentionally retained as **reference material** until reduced-v1 Rust planning packet parity is proven and cutover moves the harness to `archived/python-harness/` (see [`PLAN.md`](../../artifacts/planning/PLAN.md)).
 
 If you want the supported reduced-v1 path, start with:
 
-- [`docs/START_HERE.md`](../START_HERE.md)
+- [`docs/START_HERE.md`](../../../docs/START_HERE.md)
 - [`docs/contracts/`](../contracts/)
-- [`PLAN.md`](../../PLAN.md)
+- [`PLAN.md`](../../artifacts/planning/PLAN.md)
 
 ## Legacy reference index
 

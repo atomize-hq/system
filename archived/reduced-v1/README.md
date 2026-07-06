@@ -11,6 +11,6 @@ It is kept for historical reference only.
 
 If you are working on the current membrane / executable-contract direction, start from:
 
-- [`docs/START_HERE.md`](../../START_HERE.md)
-- [`docs/ideas/handbook-contract-membrane-architecture-memo.md`](../../ideas/handbook-contract-membrane-architecture-memo.md)
-- [`docs/ideas/substrate_executable_contracts_architecture.md`](../../ideas/substrate_executable_contracts_architecture.md)
+- [`docs/START_HERE.md`](../../docs/START_HERE.md)
+- [`docs/ideas/handbook-contract-membrane-architecture-memo.md`](../../docs/ideas/handbook-contract-membrane-architecture-memo.md)
+- [`docs/ideas/substrate_executable_contracts_architecture.md`](../../docs/ideas/substrate_executable_contracts_architecture.md)

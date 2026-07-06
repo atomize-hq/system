@@ -20,16 +20,16 @@ The active work is moving toward a **handbook contract membrane** / **executable
 
 Do not start from these unless you are intentionally doing historical archaeology:
 
-- `docs/archive/reduced-v1/`
-- `docs/archive/reduced-v1-front-door/`
-- `docs/specs/archive/`
+- `archived/reduced-v1/`
+- `archived/reduced-v1/front-door/`
+- `archived/specs/`
 - `archived/root-authority/`
 
 ## If you need the old story
 
 The prior reduced-v1 CLI/compiler material is still preserved:
 
-- reduced-v1 contracts and legacy docs under [`docs/archive/`](archive/)
+- reduced-v1 contracts and legacy docs under [`archived/reduced-v1/`](../archived/reduced-v1/)
 - prior root docs under [`archived/root-authority/`](../archived/root-authority/)
 
 ## Minimal repo map

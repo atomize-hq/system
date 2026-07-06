@@ -11,8 +11,8 @@ This document depends on:
 - [`docs/CLI_PRODUCT_VOCABULARY.md`](CLI_PRODUCT_VOCABULARY.md)
 - [`docs/CLI_COMMAND_HIERARCHY.md`](CLI_COMMAND_HIERARCHY.md)
 - [`docs/CLI_TONE_RULES.md`](CLI_TONE_RULES.md)
-- [`docs/contracts/C-04-resolver-result-and-doctor-blockers.md`](contracts/C-04-resolver-result-and-doctor-blockers.md)
-- [`docs/contracts/C-05-renderer-and-proof-surfaces.md`](contracts/C-05-renderer-and-proof-surfaces.md)
+- [`docs/contracts/C-04-resolver-result-and-doctor-blockers.md`](../contracts/C-04-resolver-result-and-doctor-blockers.md)
+- [`docs/contracts/C-05-renderer-and-proof-surfaces.md`](../contracts/C-05-renderer-and-proof-surfaces.md)
 
 ## Global Rules
 

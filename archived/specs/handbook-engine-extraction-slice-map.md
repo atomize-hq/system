@@ -2,7 +2,7 @@
 
 ## Objective
 
-Turn Phases 1 through 5 from [HANDBOOK_ENGINE_EXTRACTION_PLAN.md](../../HANDBOOK_ENGINE_EXTRACTION_PLAN.md) into a clear Phase -> Slice -> Packet execution model.
+Turn Phases 1 through 5 from [HANDBOOK_ENGINE_EXTRACTION_PLAN.md](../artifacts/planning/HANDBOOK_ENGINE_EXTRACTION_PLAN.md) into a clear Phase -> Slice -> Packet execution model.
 
 This file is the seam map for future spec-driven execution:
 
