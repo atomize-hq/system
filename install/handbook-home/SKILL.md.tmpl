@@ -5,7 +5,19 @@ Root host skill for the `handbook` family.
 - Installed home: `~/handbook/`
 - Installed thin projections: `~/handbook/.agents/skills/handbook/` and `~/handbook/.agents/skills/handbook-charter-intake/`
 - Codex discovery glue: `~/.codex/skills/handbook*`
+- Compatibility discovery glue: `~/.agents/skills/handbook*`
 
 This root skill is informational and packaging-oriented. Use `handbook-charter-intake` for the charter intake workflow.
+
+Successful user-global installs refresh all three surfaces together:
+
+- `~/handbook/`
+- `~/.codex/skills/handbook*`
+- `~/.agents/skills/handbook*`
+
+Preferred install/update paths:
+
+- Tagged release install/update: `scripts/handbook/install.sh`
+- Source checkout install/update: `cargo install --locked --force --path crates/cli && bash tools/codex/install.sh`
 
 Do not edit generated projections under `.agents/skills/**` by hand. Edit `install/handbook-home/SKILL.md.tmpl`, `install/handbook-home/charter-intake/SKILL.md.tmpl`, or `install/handbook-home/agents/openai.yaml`, then rerun `bash tools/codex/generate.sh`.

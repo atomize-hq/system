@@ -14,6 +14,8 @@ INSTALLED_ROOT_SKILL="$HANDBOOK_HOME/.agents/skills/handbook"
 INSTALLED_DISCOVERY_SKILL="$HANDBOOK_HOME/.agents/skills/handbook-charter-intake"
 CODEX_ROOT_SKILL="$HOME/.codex/skills/handbook"
 CODEX_DISCOVERY_SKILL="$HOME/.codex/skills/handbook-charter-intake"
+AGENTS_ROOT_SKILL="$HOME/.agents/skills/handbook"
+AGENTS_DISCOVERY_SKILL="$HOME/.agents/skills/handbook-charter-intake"
 
 assert_exact_file_set() {
   local root="$1"
@@ -126,6 +128,16 @@ assert_discovery_links_to_handbook_home() {
     readlink "$CODEX_DISCOVERY_SKILL" || true
     exit 1
   }
+  [[ "$(readlink "$AGENTS_ROOT_SKILL")" == "$INSTALLED_ROOT_SKILL" ]] || {
+    echo "unexpected agent root discovery link target"
+    readlink "$AGENTS_ROOT_SKILL" || true
+    exit 1
+  }
+  [[ "$(readlink "$AGENTS_DISCOVERY_SKILL")" == "$INSTALLED_DISCOVERY_SKILL" ]] || {
+    echo "unexpected agent leaf discovery link target"
+    readlink "$AGENTS_DISCOVERY_SKILL" || true
+    exit 1
+  }
 }
 
 assert_dev_setup_links_to_repo() {
@@ -139,6 +151,31 @@ assert_dev_setup_links_to_repo() {
     readlink "$CODEX_DISCOVERY_SKILL" || true
     exit 1
   }
+  [[ "$(readlink "$AGENTS_ROOT_SKILL")" == "$ROOT_DIR/.agents/skills/handbook" ]] || {
+    echo "unexpected dev agent root discovery link target"
+    readlink "$AGENTS_ROOT_SKILL" || true
+    exit 1
+  }
+  [[ "$(readlink "$AGENTS_DISCOVERY_SKILL")" == "$ROOT_DIR/.agents/skills/handbook-charter-intake" ]] || {
+    echo "unexpected dev agent leaf discovery link target"
+    readlink "$AGENTS_DISCOVERY_SKILL" || true
+    exit 1
+  }
+}
+
+target_label() {
+  case "$(uname -s):$(uname -m)" in
+    Darwin:arm64|Darwin:aarch64)
+      printf 'macos_arm64\n'
+      ;;
+    Linux:x86_64|Linux:amd64)
+      printf 'linux_x86_64\n'
+      ;;
+    *)
+      echo "unsupported platform for release install smoke: $(uname -s) $(uname -m)"
+      exit 1
+      ;;
+  esac
 }
 
 echo "==> cargo install (crates/cli)"
@@ -185,5 +222,42 @@ test -L "$CODEX_DISCOVERY_SKILL"
 assert_discovery_links_to_handbook_home
 assert_installed_home_file_set
 assert_installed_runtime_contract
+
+echo "==> public install wrapper smoke"
+release_version="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+release_home="$(mktemp -d "${TMPDIR:-/tmp}/handbook-release-home.XXXXXX")"
+release_bundle_root="$(mktemp -d "${TMPDIR:-/tmp}/handbook-release-bundles.XXXXXX")"
+mkdir -p "$release_bundle_root/v$release_version"
+bash tools/release/package-handbook-home.sh \
+  --binary "$(command -v handbook)" \
+  --label "$(target_label)" \
+  --version "$release_version" \
+  --output-dir "$release_bundle_root/v$release_version" >/dev/null
+(
+  cd "$release_bundle_root/v$release_version"
+  shasum -a 256 "handbook-v${release_version}-$(target_label).tar.gz" > SHA256SUMS
+)
+HOME="$release_home" HANDBOOK_INSTALL_BASE_URL="file://$release_bundle_root" \
+  bash scripts/handbook/install.sh --version "$release_version"
+[[ "$(readlink "$release_home/.codex/skills/handbook")" == "$release_home/handbook/.agents/skills/handbook" ]] || {
+  echo "unexpected public install codex root link target"
+  readlink "$release_home/.codex/skills/handbook" || true
+  exit 1
+}
+[[ "$(readlink "$release_home/.codex/skills/handbook-charter-intake")" == "$release_home/handbook/.agents/skills/handbook-charter-intake" ]] || {
+  echo "unexpected public install codex leaf link target"
+  readlink "$release_home/.codex/skills/handbook-charter-intake" || true
+  exit 1
+}
+[[ "$(readlink "$release_home/.agents/skills/handbook")" == "$release_home/handbook/.agents/skills/handbook" ]] || {
+  echo "unexpected public install agent root link target"
+  readlink "$release_home/.agents/skills/handbook" || true
+  exit 1
+}
+[[ "$(readlink "$release_home/.agents/skills/handbook-charter-intake")" == "$release_home/handbook/.agents/skills/handbook-charter-intake" ]] || {
+  echo "unexpected public install agent leaf link target"
+  readlink "$release_home/.agents/skills/handbook-charter-intake" || true
+  exit 1
+}
 
 echo "OK"
