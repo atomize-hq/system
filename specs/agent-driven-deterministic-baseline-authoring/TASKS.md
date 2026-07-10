@@ -75,7 +75,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Added non-mutating input preflight and guarded deterministic authoring while retaining the old synthesis path without new callers.
     - Added malformed-input, non-mutation, deterministic-write, and safe-repair tests; all 63 compiler author tests and compiler check pass.
 
-- [ ] **P1.3: Cut environment CLI to `--from-inputs` and `--validate`**
+- [x] **P1.3: Cut environment CLI to `--from-inputs` and `--validate`**
   - Depends on: P1.2
   - Acceptance:
     - File and stdin authoring succeed deterministically.
@@ -90,6 +90,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `crates/cli/src/author.rs`
     - `crates/cli/tests/author_cli.rs`
     - `crates/cli/tests/snapshots/handbook-author-environment-inventory-help.txt`
+  - Result (2026-07-10):
+    - Added required file/stdin `--from-inputs` handling and non-mutating `--validate` behavior.
+    - Bare authoring now refuses before preflight or process launch; deterministic file/stdin authoring and safe repair do not create prompt captures.
+    - Updated help grammar and refusal mapping; 27 author CLI tests and the full CLI crate suite pass.
 
 ## Phase 2 — Remove Guided Existing Paths
 

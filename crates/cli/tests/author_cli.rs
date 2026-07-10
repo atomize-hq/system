@@ -206,6 +206,57 @@ fn valid_environment_inventory_markdown(project_context_ref: &str) -> String {
     .to_string()
 }
 
+fn valid_environment_inventory_inputs_yaml() -> &'static str {
+    r#"schema_version: "0.1.0"
+project_name: "Handbook"
+owner: "compiler-team"
+team: "Handbook"
+repo_or_project_ref: "handbook"
+charter_ref: ".handbook/charter/CHARTER.md"
+project_context_ref: null
+environment_variables: []
+secret_handling:
+  charter_posture: "never store real credentials in repository artifacts"
+  storage_locations: ["operator secret store"]
+  rotation_expectations: "follow the owning provider policy"
+external_services: []
+runtime_assumptions:
+  listening_ports: "None"
+  filesystem_requirements: "write access to the managed repository"
+  persistent_storage: "repository-local canonical artifacts"
+  network_assumptions: "Unknown for future hosted use; offline authoring requires none"
+  performance_budgets: "normal CLI latency"
+local_development:
+  prerequisites: ["Rust stable toolchain"]
+  works_on_my_machine_prevention: "run workspace tests and install smoke"
+  environment_file_pattern: "None"
+ci:
+  system: "GitHub Actions"
+  required_secret_names: ["None"]
+  services: ["None"]
+  artifacts: ["test output"]
+production:
+  exists_today: false
+  hosting_model: "Not applicable"
+  runtime_environments: ["local CLI"]
+  required_secret_names: ["None"]
+  observability: "command output and CI logs"
+  backup_and_disaster_recovery: "git history"
+tooling:
+  primary_language_runtime: "Rust stable"
+  package_manager_build_system: "Cargo"
+  lockfiles: ["Cargo.lock"]
+  lint_type_test_tools: ["rustfmt", "clippy", "cargo test"]
+  minimum_versions: ["Rust 2021 edition"]
+update_contract:
+  exception_record_location: ".handbook/charter/CHARTER.md#exceptions"
+known_unknowns:
+  - item: "future hosted runtime requirements"
+    owner: "project owner"
+    revisit_trigger: "before adding a hosted deployment"
+"#
+}
+
 fn valid_project_context_inputs_yaml() -> &'static str {
     r#"schema_version: "0.1.0"
 project_name: "Handbook"
@@ -1653,17 +1704,26 @@ fn guided_tty_author_project_context_eof_refusal_names_project_context_command()
 }
 
 #[test]
-fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
+fn environment_inventory_file_inputs_author_deterministically_without_codex() {
     let dir = scaffold_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
     );
-    let expected_markdown = valid_environment_inventory_markdown("None");
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+    let inputs_path = dir.path().join("environment-inventory-inputs.yaml");
+    write_file(&inputs_path, valid_environment_inventory_inputs_yaml());
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_environment_inventory_runtime_override(&stub, None, || {
-        run_in(dir.path(), &["author", "environment-inventory"])
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "environment-inventory",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf8 inputs path"),
+            ],
+        )
     });
 
     assert!(
@@ -1681,15 +1741,15 @@ fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
         out.contains("Wrote canonical environment inventory to .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "{out}"
     );
-    assert_eq!(
-        fs::read_to_string(
-            dir.path()
-                .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
-        )
-        .expect("environment inventory"),
-        expected_markdown
-    );
-    assert!(prompt_capture_path(dir.path()).exists());
+    assert!(out.contains("MODE: structured_inputs_file"), "{out}");
+    let markdown = fs::read_to_string(
+        dir.path()
+            .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+    )
+    .expect("environment inventory");
+    assert!(markdown.starts_with("# Environment Inventory — Handbook"));
+    assert!(markdown.contains("## 9) Known Unknowns"));
+    assert!(!prompt_capture_path(dir.path()).exists());
     assert!(!dir.path().join("ENVIRONMENT_INVENTORY.md").exists());
     assert!(!dir
         .path()
@@ -1698,7 +1758,61 @@ fn author_environment_inventory_command_succeeds_with_stubbed_transport() {
 }
 
 #[test]
-fn author_environment_inventory_command_refuses_existing_truth_before_synthesis() {
+fn environment_inventory_stdin_inputs_author_deterministically() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
+    );
+
+    let output = run_in_with_input(
+        dir.path(),
+        &["author", "environment-inventory", "--from-inputs", "-"],
+        valid_environment_inventory_inputs_yaml(),
+    );
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: AUTHORED"), "{out}");
+    assert!(out.contains("MODE: structured_inputs_stdin"), "{out}");
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn environment_inventory_validate_is_non_mutating() {
+    let dir = scaffold_repo();
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
+    );
+    let canonical = dir
+        .path()
+        .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md");
+    let before = fs::read(&canonical).expect("starter inventory");
+
+    let output = run_in_with_input(
+        dir.path(),
+        &[
+            "author",
+            "environment-inventory",
+            "--validate",
+            "--from-inputs",
+            "-",
+        ],
+        valid_environment_inventory_inputs_yaml(),
+    );
+
+    assert!(output.status.success(), "{}", stdout(&output));
+    assert!(stdout(&output).contains("OUTCOME: VALIDATED"));
+    assert_eq!(
+        fs::read(&canonical).expect("inventory after validate"),
+        before
+    );
+    assert!(!prompt_capture_path(dir.path()).exists());
+}
+
+#[test]
+fn bare_environment_inventory_command_requires_structured_inputs_without_codex() {
     let dir = scaffold_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
@@ -1709,10 +1823,7 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
             .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         &valid_environment_inventory_markdown("None"),
     );
-    let stub = install_stub_codex(
-        dir.path(),
-        &successful_stub_script(&valid_environment_inventory_markdown("None")),
-    );
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_environment_inventory_runtime_override(&stub, None, || {
         run_in(dir.path(), &["author", "environment-inventory"])
@@ -1720,12 +1831,13 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
 
     assert!(
         !output.status.success(),
-        "existing environment inventory truth should refuse: {}",
+        "bare environment inventory command should refuse: {}",
         stdout(&output)
     );
     let out = stdout(&output);
     assert!(out.contains("OUTCOME: REFUSED"), "{out}");
-    assert!(out.contains("CATEGORY: ExistingCanonicalTruth"), "{out}");
+    assert!(out.contains("CATEGORY: InvalidRequest"), "{out}");
+    assert!(out.contains("requires `--from-inputs <path|->`"), "{out}");
     assert_eq!(
         fs::read_to_string(
             dir.path()
@@ -1738,7 +1850,7 @@ fn author_environment_inventory_command_refuses_existing_truth_before_synthesis(
 }
 
 #[test]
-fn author_environment_inventory_command_repairs_semantically_invalid_canonical_truth() {
+fn environment_inventory_file_inputs_repair_semantically_invalid_canonical_truth() {
     let dir = scaffold_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
@@ -1749,11 +1861,20 @@ fn author_environment_inventory_command_repairs_semantically_invalid_canonical_t
             .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         "custom environment inventory truth\n",
     );
-    let expected_markdown = valid_environment_inventory_markdown("None");
-    let stub = install_stub_codex(dir.path(), &successful_stub_script(&expected_markdown));
+    let inputs_path = dir.path().join("environment-inventory-inputs.yaml");
+    write_file(&inputs_path, valid_environment_inventory_inputs_yaml());
+    let stub = install_stub_codex(dir.path(), &failing_stub_script());
 
     let output = with_environment_inventory_runtime_override(&stub, None, || {
-        run_in(dir.path(), &["author", "environment-inventory"])
+        run_in(
+            dir.path(),
+            &[
+                "author",
+                "environment-inventory",
+                "--from-inputs",
+                inputs_path.to_str().expect("utf8 inputs path"),
+            ],
+        )
     });
 
     assert!(
@@ -1761,14 +1882,13 @@ fn author_environment_inventory_command_repairs_semantically_invalid_canonical_t
         "repair should succeed: {}",
         stdout(&output)
     );
-    assert_eq!(
-        fs::read_to_string(
-            dir.path()
-                .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
-        )
-        .expect("environment inventory"),
-        expected_markdown
-    );
+    let markdown = fs::read_to_string(
+        dir.path()
+            .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
+    )
+    .expect("environment inventory");
+    assert!(markdown.starts_with("# Environment Inventory — Handbook"));
+    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]

@@ -115,7 +115,7 @@ enum AuthorCommand {
     /// Author canonical `.handbook/project_context/PROJECT_CONTEXT.md`.
     ProjectContext(AuthorProjectContextArgs),
     /// Author canonical `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
-    EnvironmentInventory,
+    EnvironmentInventory(AuthorEnvironmentInventoryArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -133,6 +133,16 @@ struct AuthorProjectContextArgs {
     /// Read normalized structured inputs from a YAML file or `-` for stdin.
     #[arg(long = "from-inputs", value_name = "path|-")]
     from_inputs: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+struct AuthorEnvironmentInventoryArgs {
+    /// Read normalized structured inputs from a YAML file or `-` for stdin.
+    #[arg(long = "from-inputs", value_name = "path|-")]
+    from_inputs: Option<String>,
+    /// Validate normalized structured inputs and repo write preconditions without mutation.
+    #[arg(long)]
+    validate: bool,
 }
 
 #[derive(clap::Args, Debug)]

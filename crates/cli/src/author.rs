@@ -11,7 +11,8 @@ use crate::{
         split_csv_required,
     },
     shell_shared::{discover_managed_repo_root, read_stdin},
-    AuthorArgs, AuthorCharterArgs, AuthorCommand, AuthorProjectContextArgs, Cli,
+    AuthorArgs, AuthorCharterArgs, AuthorCommand, AuthorEnvironmentInventoryArgs,
+    AuthorProjectContextArgs, Cli,
 };
 use std::fs;
 use std::io::{self, IsTerminal};
@@ -22,7 +23,9 @@ pub(crate) fn run(args: AuthorArgs) -> ExitCode {
     match args.command {
         Some(AuthorCommand::Charter(args)) => author_charter_command(args),
         Some(AuthorCommand::ProjectContext(args)) => author_project_context_command(args),
-        Some(AuthorCommand::EnvironmentInventory) => author_environment_inventory_command(),
+        Some(AuthorCommand::EnvironmentInventory(args)) => {
+            author_environment_inventory_command(args)
+        }
         None => crate::shell_shared::print_subcommand_help::<Cli>(&["author"]),
     }
 }
@@ -60,7 +63,22 @@ fn author_project_context_command(args: AuthorProjectContextArgs) -> ExitCode {
     rendered.exit_code
 }
 
-fn author_environment_inventory_command() -> ExitCode {
+fn author_environment_inventory_command(args: AuthorEnvironmentInventoryArgs) -> ExitCode {
+    let Some(path_or_dash) = args.from_inputs.as_deref() else {
+        println!(
+            "{}",
+            render_author_simple_refusal(
+                "author environment-inventory",
+                "REFUSED",
+                "InvalidRequest",
+                "`handbook author environment-inventory` requires `--from-inputs <path|->`",
+                "command arguments",
+                "retry `handbook author environment-inventory --from-inputs <path|->`",
+            )
+        );
+        return ExitCode::from(1);
+    };
+
     let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(err) => {
@@ -79,20 +97,50 @@ fn author_environment_inventory_command() -> ExitCode {
         }
     };
     let repo_root = discover_managed_repo_root(&cwd);
-    if let Err(refusal) = handbook_compiler::preflight_author_environment_inventory(&repo_root) {
+
+    let yaml = match read_author_inputs_source(
+        "author environment-inventory",
+        "handbook author environment-inventory --from-inputs",
+        path_or_dash,
+    ) {
+        Ok(yaml) => yaml,
+        Err(rendered) => {
+            println!("{rendered}");
+            return ExitCode::from(1);
+        }
+    };
+    let input = match handbook_compiler::parse_environment_inventory_structured_input_yaml(&yaml) {
+        Ok(input) => input,
+        Err(refusal) => {
+            println!("{}", render_environment_inventory_refusal(&refusal));
+            return ExitCode::from(1);
+        }
+    };
+    if let Err(refusal) =
+        handbook_compiler::preflight_author_environment_inventory_from_input(&repo_root, &input)
+    {
         println!("{}", render_environment_inventory_refusal(&refusal));
         return ExitCode::from(1);
     }
-    match handbook_compiler::author_environment_inventory(&repo_root) {
+
+    let input_mode = if path_or_dash == "-" {
+        "structured_inputs_stdin"
+    } else {
+        "structured_inputs_file"
+    };
+    if args.validate {
+        println!(
+            "{}",
+            render_author_environment_inventory_validation_success(input_mode, path_or_dash)
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    match handbook_compiler::author_environment_inventory_from_input(&repo_root, &input) {
         Ok(result) => {
             println!(
                 "{}",
-                render_author_simple_success(
-                    "author environment-inventory",
-                    result.canonical_repo_relative_path,
-                    result.bytes_written,
-                    "Wrote canonical environment inventory to .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
-                )
+                render_author_environment_inventory_success(&result, input_mode, path_or_dash,)
             );
             ExitCode::SUCCESS
         }
@@ -546,6 +594,45 @@ fn render_author_project_context_success(
     out.trim_end().to_string()
 }
 
+fn render_author_environment_inventory_success(
+    result: &handbook_compiler::AuthorEnvironmentInventoryResult,
+    input_mode: &str,
+    input_source: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: AUTHORED\n");
+    out.push_str("OBJECT: author environment-inventory\n");
+    out.push_str("NEXT SAFE ACTION: run `handbook doctor`\n");
+    out.push_str("## CANONICAL ARTIFACT\n");
+    out.push_str(&format!("PATH: {}\n", result.canonical_repo_relative_path));
+    out.push_str(&format!("BYTES WRITTEN: {}\n", result.bytes_written));
+    out.push_str("Wrote canonical environment inventory to .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md\n");
+    out.push_str("## INPUT MODE\n");
+    out.push_str(&format!("MODE: {input_mode}\n"));
+    out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.trim_end().to_string()
+}
+
+fn render_author_environment_inventory_validation_success(
+    input_mode: &str,
+    input_source: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: VALIDATED\n");
+    out.push_str("OBJECT: author environment-inventory\n");
+    out.push_str(
+        "NEXT SAFE ACTION: run `handbook author environment-inventory --from-inputs <path|->`\n",
+    );
+    out.push_str("## INPUT MODE\n");
+    out.push_str(&format!("MODE: {input_mode}\n"));
+    out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.push_str("## SUMMARY\n");
+    out.push_str(
+        "Structured environment-inventory inputs and repo write preconditions validated without mutation.",
+    );
+    out.trim_end().to_string()
+}
+
 fn render_author_custom_refusal(
     object: &str,
     outcome: &str,
@@ -563,24 +650,6 @@ fn render_author_custom_refusal(
     out.push_str(&format!("SUMMARY: {summary}\n"));
     out.push_str(&format!("BROKEN SUBJECT: {broken_subject}\n"));
     out.push_str(&format!("NEXT SAFE ACTION: {next_safe_action}\n"));
-    out.trim_end().to_string()
-}
-
-fn render_author_simple_success(
-    object: &str,
-    canonical_repo_relative_path: &str,
-    bytes_written: usize,
-    summary: &str,
-) -> String {
-    let mut out = String::new();
-    out.push_str("OUTCOME: AUTHORED\n");
-    out.push_str(&format!("OBJECT: {object}\n"));
-    out.push_str("NEXT SAFE ACTION: run `handbook doctor`\n");
-    out.push_str("## CANONICAL ARTIFACT\n");
-    out.push_str(&format!("PATH: {canonical_repo_relative_path}\n"));
-    out.push_str(&format!("BYTES WRITTEN: {bytes_written}\n"));
-    out.push_str("## SUMMARY\n");
-    out.push_str(summary);
     out.trim_end().to_string()
 }
 
@@ -1587,7 +1656,9 @@ fn author_environment_inventory_refusal_outcome_name(
         | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot
         | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MutationRefused
         | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::SynthesisFailed => "BLOCKED",
-        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MalformedStructuredInput
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::IncompleteStructuredInput
+        | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter
         | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
         | handbook_compiler::AuthorEnvironmentInventoryRefusalKind::ExistingCanonicalTruth => {
             "REFUSED"
@@ -1604,6 +1675,12 @@ fn author_environment_inventory_refusal_kind_name(
         }
         handbook_compiler::AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot => {
             "InvalidSystemRoot"
+        }
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MalformedStructuredInput => {
+            "MalformedStructuredInput"
+        }
+        handbook_compiler::AuthorEnvironmentInventoryRefusalKind::IncompleteStructuredInput => {
+            "IncompleteStructuredInput"
         }
         handbook_compiler::AuthorEnvironmentInventoryRefusalKind::MissingRequiredCharter => {
             "MissingRequiredCharter"
