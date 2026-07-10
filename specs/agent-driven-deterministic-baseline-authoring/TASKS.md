@@ -21,11 +21,15 @@ Plan reference: [`plan.md`](./plan.md)
     - Fresh impact: `execute_author_charter_command` CRITICAL; `author_environment_inventory` HIGH; `synthesize_environment_inventory_markdown` HIGH; `author_charter_guided` MEDIUM; remaining required symbols LOW.
     - HIGH/CRITICAL results were reported before product edits. Symbol-specific impact remains mandatory immediately before each implementation edit.
 
-- [ ] **P0.2: Re-run and record the author/pipeline baseline wall**
+- [x] **P0.2: Re-run and record the author/pipeline baseline wall**
   - Depends on: P0.1
   - Acceptance: author-core, compiler-author, CLI-author, pipeline catalog/compile/capture/handoff, and coupling checks match the green planning baseline.
   - Verify: commands in `plan.md` Phase 0
   - Files: verification only
+  - Result (2026-07-10):
+    - Author baselines passed: engine 4, compiler 59, CLI 25 tests.
+    - Pipeline baselines passed: catalog 15, compile 21, capture 46, handoff 9 tests.
+    - Engine, flow, and pipeline dependency/source-coupling checks passed.
 
 ## Phase 1 — Environment Inventory Deterministic Path
 
