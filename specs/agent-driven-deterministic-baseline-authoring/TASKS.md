@@ -33,7 +33,7 @@ Plan reference: [`plan.md`](./plan.md)
 
 ## Phase 1 — Environment Inventory Deterministic Path
 
-- [ ] **P1.1: Add typed environment-inventory inputs and deterministic rendering**
+- [x] **P1.1: Add typed environment-inventory inputs and deterministic rendering**
   - Depends on: P0.2
   - Acceptance:
     - Typed YAML covers every existing canonical section.
@@ -49,6 +49,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `crates/engine/src/author/mod.rs`
     - `crates/engine/tests/author_core.rs`
     - `core/library/environment_inventory/ENVIRONMENT_INVENTORY_INPUTS.yaml.tmpl` (new)
+  - Result (2026-07-10):
+    - Added typed YAML for metadata, variables, secret handling, services, runtime, local development, CI, production, tooling, update contract, and known unknowns.
+    - Added deterministic rendering with an explicit timestamp, canonical heading validation, placeholder/render-safety checks, and secret-value refusal.
+    - Added four focused engine tests; the engine test suite and dependency tree pass with no new Handbook dependency edge.
 
 - [ ] **P1.2: Add compiler validation/write adapters for environment inputs**
   - Depends on: P1.1
