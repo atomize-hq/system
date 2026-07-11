@@ -154,7 +154,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Removed twelve guided/model/auth/transport tests while retaining deterministic authoring and template-library coverage.
     - Compiler author tests (51) and CLI author tests pass; no charter synthesis entry point remains.
 
-- [ ] **P3.2: Delete environment Codex synthesis and its tests**
+- [x] **P3.2: Delete environment Codex synthesis and its tests**
   - Depends on: P1.3
   - Acceptance: no environment compiler API launches Codex; deterministic preflight/write and upstream-artifact rules remain intact.
   - Verify:
@@ -166,6 +166,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `crates/compiler/src/author/environment_inventory_shell.rs`
     - `crates/compiler/src/author/mod.rs`
     - `crates/compiler/tests/author.rs`
+  - Result (2026-07-10):
+    - Removed the no-input environment author API, Codex process/model configuration, prompt/template transport, output-file handling, and shared process-summary helpers.
+    - Retained deterministic input rendering, preflight, lock/write behavior, charter requirements, optional project-context validation, existing-truth refusal, and safe repair tests.
+    - Engine author-core, compiler author (45), and CLI author tests pass; compiler check is warning-free.
 
 - [ ] **P3.3: Delete CLI prompting, PTY, and guided test leaves**
   - Depends on: P2.1, P2.2, P3.1
