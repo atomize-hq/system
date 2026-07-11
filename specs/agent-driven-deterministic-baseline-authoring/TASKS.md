@@ -297,7 +297,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Pipeline catalog (15), compile (21), capture (46), and handoff (9) suites pass.
     - No supported target, declarative stage, pairing, or public importer boundary changed.
 
-- [ ] **P5.3: Run GitNexus detect-changes and stop at human review**
+- [x] **P5.3: Run GitNexus detect-changes and stop at human review**
   - Depends on: P5.2
   - Acceptance:
     - Affected flows are limited to authoring, CLI presentation, skills/install, tests, and obsolete inference CI.
@@ -308,3 +308,7 @@ Plan reference: [`plan.md`](./plan.md)
     - `git diff --check`
     - `git status --short`
   - Files: verification only
+  - Result (2026-07-10):
+    - Full branch comparison reports the expected critical authoring/presentation blast radius (41 files, 194 symbols, 30 flows); named flows are authoring and shared recovery presentation only.
+    - Changed-path review confirms no pipeline/flow crate, declarative pipeline/stage, supported target, or contract-membrane surface changed.
+    - Branch diff checks pass, the worktree is clean after closeout, and the implementation stops at the human review gate.
