@@ -254,7 +254,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Replaced human-interview/synthesis method guidance with normalized-input validation and deterministic rendering rules.
     - Installed and exact-file-set tested charter, project-context, and environment-inventory templates; generation and the full install smoke pass without adding a skill identity.
 
-- [ ] **P4.3: Prove installed all-three baseline authoring without Codex**
+- [x] **P4.3: Prove installed all-three baseline authoring without Codex**
   - Depends on: P4.2, P3.4
   - Acceptance:
     - Clean installed runtime authors all three artifacts from file/stdin inputs.
@@ -267,6 +267,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `tools/ci/codex-skill-live-smoke.sh`
     - deterministic fixture inputs under `tools/fixtures/**`
     - `tools/ci/install-smoke.sh` only if the exact installed file-set assertion changes
+  - Result (2026-07-10):
+    - Added valid project-context and environment-inventory runtime-smoke fixtures alongside the existing charter fixture.
+    - Extended the installed-skill smoke to setup, validate, and author all three artifacts using file and stdin inputs with credentials unset and an empty executable search path.
+    - Installed `handbook doctor --json` reaches `baseline_complete` with no blockers; install and skill smoke scripts both pass without Codex, PTY, or network inference.
 
 ## Phase 5 — Closeout
 
