@@ -274,11 +274,14 @@ Plan reference: [`plan.md`](./plan.md)
 
 ## Phase 5 — Closeout
 
-- [ ] **P5.1: Run the full functional verification wall**
+- [x] **P5.1: Run the full functional verification wall**
   - Depends on: P3.4, P4.1, P4.3
   - Acceptance: fmt, clippy, workspace tests/check, archive checks, install/skill smoke, and diff checks pass.
   - Verify: `plan.md` Phase 5 functional wall
   - Files: verification only; fixes remain scoped to the failing packet
+  - Result (2026-07-10):
+    - Formatting, warning-denied clippy, all workspace tests, workspace check, archive boundary checks, install smoke, offline all-three skill smoke, and diff checks all pass.
+    - No verification-only fix was required.
 
 - [ ] **P5.2: Run Phase 6 coupling and pipeline no-regression proof**
   - Depends on: P5.1
