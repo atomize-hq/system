@@ -231,7 +231,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Doctor checklist, blocker rendering, and author refusal recovery now point to executable `--from-inputs <path|->` commands; obsolete guided-answer wording is gone.
     - CLI surface (123), CLI author (22), and compiler doctor (10) tests pass without changing baseline verdict or canonical-validity behavior.
 
-- [ ] **P4.2: Package all deterministic input resources through existing skills**
+- [x] **P4.2: Package all deterministic input resources through existing skills**
   - Depends on: P1.1, P1.3, P2.1, P2.2
   - Acceptance:
     - No new skill identity is added.
@@ -249,6 +249,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `tools/codex/install.sh`
     - `tools/ci/install-smoke.sh`
     - deterministic input templates/resources required by the installed home
+  - Result (2026-07-10):
+    - Expanded the existing root `handbook` skill into the all-three deterministic baseline workflow while keeping `handbook-charter-intake` charter-specific.
+    - Replaced human-interview/synthesis method guidance with normalized-input validation and deterministic rendering rules.
+    - Installed and exact-file-set tested charter, project-context, and environment-inventory templates; generation and the full install smoke pass without adding a skill identity.
 
 - [ ] **P4.3: Prove installed all-three baseline authoring without Codex**
   - Depends on: P4.2, P3.4
