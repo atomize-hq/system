@@ -364,6 +364,29 @@ fn handbook_product_exception_record_default_remains_explicitly_bounded() {
     );
 }
 
+#[allow(deprecated)]
+#[test]
+fn deprecated_environment_inventory_validation_api_remains_source_compatible() {
+    let with_project_context =
+        expected_environment_inventory_markdown("`.handbook/project_context/PROJECT_CONTEXT.md`");
+    handbook_engine::author::validate_synthesized_environment_inventory_markdown(
+        &with_project_context,
+        handbook_engine::author::EnvironmentInventoryValidationExpectations::for_optional_project_context(
+            true,
+        ),
+    )
+    .expect("compatibility validator should accept the expected project-context reference");
+
+    let error = handbook_engine::author::validate_synthesized_environment_inventory_markdown(
+        &with_project_context,
+        handbook_engine::author::EnvironmentInventoryValidationExpectations::for_optional_project_context(
+            false,
+        ),
+    )
+    .expect_err("compatibility validator should preserve reference-expectation behavior");
+    assert!(error.contains("exact project context reference line"));
+}
+
 #[test]
 fn environment_inventory_core_parses_and_renders_deterministically() {
     let input =

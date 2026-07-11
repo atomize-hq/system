@@ -11,6 +11,8 @@ const LEGACY_NON_CANONICAL_PATH_CLAIMS: [&str; 3] = [
     "artifacts/foundation/ENVIRONMENT_INVENTORY.md",
     "repo/project root",
 ];
+const PROJECT_CONTEXT_REF_PRESENT_LINE: &str =
+    "> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`";
 const PROJECT_CONTEXT_REF_ABSENT_LINE: &str = "> **Project Context Ref:** None";
 const ENVIRONMENT_INVENTORY_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 
@@ -165,6 +167,32 @@ pub const REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS: [&str; 11] = [
     "## 8) Update Contract (non-negotiable)",
     "## 9) Known Unknowns",
 ];
+
+#[deprecated(
+    since = "0.1.1",
+    note = "use `validate_environment_inventory_markdown`; deterministic authoring validates project-context references during repository preflight"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnvironmentInventoryValidationExpectations {
+    expected_project_context_ref_line: &'static str,
+}
+
+#[allow(deprecated)]
+impl EnvironmentInventoryValidationExpectations {
+    pub fn for_optional_project_context(has_project_context: bool) -> Self {
+        Self {
+            expected_project_context_ref_line: if has_project_context {
+                PROJECT_CONTEXT_REF_PRESENT_LINE
+            } else {
+                PROJECT_CONTEXT_REF_ABSENT_LINE
+            },
+        }
+    }
+
+    pub fn expected_project_context_ref_line(self) -> &'static str {
+        self.expected_project_context_ref_line
+    }
+}
 
 pub fn parse_environment_inventory_structured_input_yaml(
     yaml: &str,
@@ -894,6 +922,27 @@ pub fn validate_required_heading_order_result(
             return Err(format!("required heading `{heading}` is out of order"));
         }
         previous = position;
+    }
+
+    Ok(())
+}
+
+#[allow(deprecated)]
+#[deprecated(
+    since = "0.1.1",
+    note = "use `validate_environment_inventory_markdown`; deterministic authoring validates project-context references during repository preflight"
+)]
+pub fn validate_synthesized_environment_inventory_markdown(
+    markdown: &str,
+    expectations: EnvironmentInventoryValidationExpectations,
+) -> Result<(), String> {
+    validate_environment_inventory_markdown(markdown)?;
+
+    let expected_project_context_ref_line = expectations.expected_project_context_ref_line();
+    if !markdown.contains(expected_project_context_ref_line) {
+        return Err(format!(
+            "synthesized environment inventory markdown must include the exact project context reference line `{expected_project_context_ref_line}`"
+        ));
     }
 
     Ok(())

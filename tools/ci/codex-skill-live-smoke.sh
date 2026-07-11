@@ -390,10 +390,6 @@ git -C "$all_three_repo" init -q
 (
   cd "$all_three_repo"
   env -u CODEX_API_KEY -u OPENAI_API_KEY \
-    -u HANDBOOK_AUTHOR_CHARTER_CODEX_BIN \
-    -u HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL \
-    -u HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_BIN \
-    -u HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_CODEX_MODEL \
     PATH="$offline_path" \
     "$HANDBOOK_BINARY" setup >/dev/null
   env -u CODEX_API_KEY -u OPENAI_API_KEY PATH="$offline_path" \
