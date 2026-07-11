@@ -133,6 +133,9 @@ struct AuthorProjectContextArgs {
     /// Read normalized structured inputs from a YAML file or `-` for stdin.
     #[arg(long = "from-inputs", value_name = "path|-")]
     from_inputs: Option<String>,
+    /// Validate normalized structured inputs and repo write preconditions without mutation.
+    #[arg(long)]
+    validate: bool,
 }
 
 #[derive(clap::Args, Debug)]

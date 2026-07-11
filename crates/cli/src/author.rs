@@ -54,9 +54,7 @@ fn author_project_context_command(args: AuthorProjectContextArgs) -> ExitCode {
     let rendered = execute_author_project_context_command(
         args,
         std::env::current_dir,
-        interactive_authoring_is_allowed,
         |repo_root| handbook_compiler::preflight_author_project_context(repo_root),
-        collect_guided_project_context_input,
         |repo_root, input| handbook_compiler::author_project_context_from_input(repo_root, input),
     );
     println!("{}", rendered.output);
@@ -333,25 +331,15 @@ where
     }
 }
 
-fn execute_author_project_context_command<
-    GetCurrentDir,
-    InteractiveAllowed,
-    PreflightAuthoring,
-    CollectGuidedInput,
-    RunAuthor,
->(
+fn execute_author_project_context_command<GetCurrentDir, PreflightAuthoring, RunAuthor>(
     args: AuthorProjectContextArgs,
     get_current_dir: GetCurrentDir,
-    interactive_allowed: InteractiveAllowed,
     preflight_authoring: PreflightAuthoring,
-    collect_guided_input: CollectGuidedInput,
     run_author: RunAuthor,
 ) -> RenderedCommand
 where
     GetCurrentDir: FnOnce() -> io::Result<PathBuf>,
-    InteractiveAllowed: Fn() -> bool,
     PreflightAuthoring: Fn(&Path) -> Result<(), handbook_compiler::AuthorProjectContextRefusal>,
-    CollectGuidedInput: Fn(&Path) -> Result<handbook_engine::ProjectContextStructuredInput, String>,
     RunAuthor: Fn(
         &Path,
         &handbook_engine::ProjectContextStructuredInput,
@@ -360,6 +348,20 @@ where
         handbook_compiler::AuthorProjectContextRefusal,
     >,
 {
+    let Some(path_or_dash) = args.from_inputs.as_deref() else {
+        return RenderedCommand {
+            output: render_author_custom_refusal(
+                "author project-context",
+                "REFUSED",
+                "InvalidRequest",
+                "`handbook author project-context` requires `--from-inputs <path|->`",
+                "command arguments",
+                "retry `handbook author project-context --from-inputs <path|->`",
+            ),
+            exit_code: ExitCode::from(1),
+        };
+    };
+
     let cwd = match get_current_dir() {
         Ok(dir) => dir,
         Err(err) => {
@@ -370,7 +372,7 @@ where
                     "WorkingDirectoryUnavailable",
                     &format!("failed to determine repo root: {err}"),
                     "current working directory",
-                    "repair the current working directory and retry `handbook author project-context`",
+                    "repair the current working directory and retry `handbook author project-context --from-inputs <path|->`",
                 ),
                 exit_code: ExitCode::from(1),
             };
@@ -378,19 +380,28 @@ where
     };
     let repo_root = discover_managed_repo_root(&cwd);
 
-    if args.from_inputs.is_none() && !interactive_allowed() {
-        return RenderedCommand {
-            output: render_author_custom_refusal(
-                "author project-context",
-                "REFUSED",
-                "NonInteractiveRefusal",
-                "`handbook author project-context` is a TTY-only guided interview",
-                "interactive terminal",
-                "run `handbook author project-context --from-inputs <path|->`",
-            ),
-            exit_code: ExitCode::from(1),
-        };
-    }
+    let yaml = match read_author_inputs_source(
+        "author project-context",
+        "handbook author project-context --from-inputs",
+        path_or_dash,
+    ) {
+        Ok(yaml) => yaml,
+        Err(rendered) => {
+            return RenderedCommand {
+                output: rendered,
+                exit_code: ExitCode::from(1),
+            };
+        }
+    };
+    let input = match handbook_compiler::parse_project_context_structured_input_yaml(&yaml) {
+        Ok(input) => input,
+        Err(refusal) => {
+            return RenderedCommand {
+                output: render_project_context_refusal(&refusal),
+                exit_code: ExitCode::from(1),
+            };
+        }
+    };
 
     if let Err(refusal) = preflight_authoring(&repo_root) {
         return RenderedCommand {
@@ -399,59 +410,21 @@ where
         };
     }
 
-    let (input, input_mode, input_source) = match args.from_inputs.as_deref() {
-        Some(path_or_dash) => {
-            let yaml = match read_author_inputs_source(
-                "author project-context",
-                "handbook author project-context --from-inputs",
-                path_or_dash,
-            ) {
-                Ok(yaml) => yaml,
-                Err(rendered) => {
-                    return RenderedCommand {
-                        output: rendered,
-                        exit_code: ExitCode::from(1),
-                    };
-                }
-            };
-            let input = match handbook_engine::parse_project_context_structured_input_yaml(&yaml) {
-                Ok(input) => input,
-                Err(err) => {
-                    let refusal = map_engine_project_context_core_error(err);
-                    return RenderedCommand {
-                        output: render_project_context_refusal(&refusal),
-                        exit_code: ExitCode::from(1),
-                    };
-                }
-            };
-            let input_mode = if path_or_dash == "-" {
-                "structured_inputs_stdin"
-            } else {
-                "structured_inputs_file"
-            };
-            (input, input_mode, path_or_dash.to_string())
-        }
-        None => {
-            let input = match collect_guided_input(&repo_root) {
-                Ok(input) => input,
-                Err(rendered) => {
-                    return RenderedCommand {
-                        output: rendered,
-                        exit_code: ExitCode::from(1),
-                    };
-                }
-            };
-            (
-                input,
-                "guided_interview",
-                "interactive terminal".to_string(),
-            )
-        }
+    let input_mode = if path_or_dash == "-" {
+        "structured_inputs_stdin"
+    } else {
+        "structured_inputs_file"
     };
+    if args.validate {
+        return RenderedCommand {
+            output: render_author_project_context_validation_success(input_mode, path_or_dash),
+            exit_code: ExitCode::SUCCESS,
+        };
+    }
 
     match run_author(&repo_root, &input) {
         Ok(result) => RenderedCommand {
-            output: render_author_project_context_success(&result, input_mode, &input_source),
+            output: render_author_project_context_success(&result, input_mode, path_or_dash),
             exit_code: ExitCode::SUCCESS,
         },
         Err(refusal) => RenderedCommand {
@@ -591,6 +564,26 @@ fn render_author_project_context_success(
     out.push_str("## INPUT MODE\n");
     out.push_str(&format!("MODE: {input_mode}\n"));
     out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.trim_end().to_string()
+}
+
+fn render_author_project_context_validation_success(
+    input_mode: &str,
+    input_source: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("OUTCOME: VALIDATED\n");
+    out.push_str("OBJECT: author project-context\n");
+    out.push_str(
+        "NEXT SAFE ACTION: run `handbook author project-context --from-inputs <path|->`\n",
+    );
+    out.push_str("## INPUT MODE\n");
+    out.push_str(&format!("MODE: {input_mode}\n"));
+    out.push_str(&format!("SOURCE: {input_source}\n"));
+    out.push_str("## SUMMARY\n");
+    out.push_str(
+        "Structured project-context inputs and repo write preconditions validated without mutation.",
+    );
     out.trim_end().to_string()
 }
 

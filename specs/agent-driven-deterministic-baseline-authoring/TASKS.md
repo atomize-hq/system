@@ -97,7 +97,7 @@ Plan reference: [`plan.md`](./plan.md)
 
 ## Phase 2 — Remove Guided Existing Paths
 
-- [ ] **P2.1: Make project-context authoring deterministic-only with validation parity**
+- [x] **P2.1: Make project-context authoring deterministic-only with validation parity**
   - Depends on: P0.2
   - Acceptance:
     - `--from-inputs` is required.
@@ -112,6 +112,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `crates/cli/src/author.rs`
     - `crates/cli/tests/author_cli.rs`
     - `crates/cli/tests/snapshots/handbook-author-project-context-help.txt`
+  - Result (2026-07-10):
+    - Bare project-context authoring now immediately requires `--from-inputs`; no TTY/default/question branch is reachable.
+    - Added file/stdin validation-only parity with zero canonical mutation and updated help output.
+    - Targeted CLI and compiler project-context tests pass; obsolete PTY success tests are quarantined for deletion in P3.3.
 
 - [ ] **P2.2: Make charter authoring deterministic-only**
   - Depends on: P0.2

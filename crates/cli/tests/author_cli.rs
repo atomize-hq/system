@@ -1467,20 +1467,66 @@ fn guided_tty_author_charter_unblocks_doctor_and_generate() {
 }
 
 #[test]
-fn non_tty_project_context_author_refuses_and_points_to_deterministic_path() {
+fn bare_project_context_author_requires_structured_inputs() {
     let dir = scaffold_repo();
 
     let output = run_in(dir.path(), &["author", "project-context"]);
 
     assert!(
         !output.status.success(),
-        "non-tty project-context author should refuse"
+        "bare project-context author should refuse"
     );
     let out = stdout(&output);
     assert!(out.contains("OUTCOME: REFUSED"));
-    assert!(out.contains("CATEGORY: NonInteractiveRefusal"));
-    assert!(out.contains("TTY-only guided interview"));
+    assert!(out.contains("CATEGORY: InvalidRequest"));
+    assert!(out.contains("requires `--from-inputs <path|->`"));
     assert!(out.contains("handbook author project-context --from-inputs <path|->"));
+}
+
+#[test]
+fn project_context_validate_file_and_stdin_are_non_mutating() {
+    for source in ["file", "stdin"] {
+        let dir = scaffold_repo();
+        let canonical = dir
+            .path()
+            .join(".handbook/project_context/PROJECT_CONTEXT.md");
+        let before = fs::read(&canonical).expect("starter project context");
+
+        let output = if source == "file" {
+            let inputs_path = dir.path().join("project-context-inputs.yaml");
+            write_file(&inputs_path, valid_project_context_inputs_yaml());
+            run_in(
+                dir.path(),
+                &[
+                    "author",
+                    "project-context",
+                    "--validate",
+                    "--from-inputs",
+                    inputs_path.to_str().expect("utf8 inputs path"),
+                ],
+            )
+        } else {
+            run_in_with_input(
+                dir.path(),
+                &[
+                    "author",
+                    "project-context",
+                    "--validate",
+                    "--from-inputs",
+                    "-",
+                ],
+                valid_project_context_inputs_yaml(),
+            )
+        };
+
+        assert!(output.status.success(), "{}", stdout(&output));
+        let out = stdout(&output);
+        assert!(out.contains("OUTCOME: VALIDATED"), "{out}");
+        assert_eq!(
+            fs::read(&canonical).expect("project context after validation"),
+            before
+        );
+    }
 }
 
 #[test]
@@ -1637,6 +1683,7 @@ fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
 }
 
 #[test]
+#[ignore = "guided project-context path removed; PTY harness is deleted in P3.3"]
 fn guided_tty_author_project_context_succeeds() {
     let dir = scaffold_repo();
 
@@ -1672,6 +1719,7 @@ fn guided_tty_author_project_context_succeeds() {
 }
 
 #[test]
+#[ignore = "guided project-context path removed; PTY harness is deleted in P3.3"]
 fn guided_tty_author_project_context_eof_refusal_names_project_context_command() {
     let dir = scaffold_repo();
 
