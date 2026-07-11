@@ -171,7 +171,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Retained deterministic input rendering, preflight, lock/write behavior, charter requirements, optional project-context validation, existing-truth refusal, and safe repair tests.
     - Engine author-core, compiler author (45), and CLI author tests pass; compiler check is warning-free.
 
-- [ ] **P3.3: Delete CLI prompting, PTY, and guided test leaves**
+- [x] **P3.3: Delete CLI prompting, PTY, and guided test leaves**
   - Depends on: P2.1, P2.2, P3.1
   - Acceptance:
     - `author_prompting.rs` is removed.
@@ -187,6 +187,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `crates/cli/src/main.rs`
     - `crates/cli/tests/author_cli.rs`
     - `crates/cli/Cargo.toml`
+  - Result (2026-07-10):
+    - Removed the CLI prompting module, guided collectors/defaults/parsers, TTY detection, PTY harnesses, guided fixtures, and obsolete live-Codex claim.
+    - Removed `portable-pty` and the remaining CLI stub-Codex transport fixtures while preserving deterministic file/stdin authoring coverage.
+    - The full CLI suite passes (2 unit, 22 author, 119 surface, and supporting integration tests), and the bounded guided-surface search is empty.
 
 - [ ] **P3.4: Remove live author inference CI/configuration**
   - Depends on: P3.1, P3.2, P3.3
