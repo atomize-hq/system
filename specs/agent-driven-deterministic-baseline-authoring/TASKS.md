@@ -283,7 +283,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Formatting, warning-denied clippy, all workspace tests, workspace check, archive boundary checks, install smoke, offline all-three skill smoke, and diff checks all pass.
     - No verification-only fix was required.
 
-- [ ] **P5.2: Run Phase 6 coupling and pipeline no-regression proof**
+- [x] **P5.2: Run Phase 6 coupling and pipeline no-regression proof**
   - Depends on: P5.1
   - Acceptance:
     - Frozen dependency direction is unchanged.
@@ -292,6 +292,10 @@ Plan reference: [`plan.md`](./plan.md)
     - No supported target or declarative stage changed.
   - Verify: `plan.md` Phase 5 coupling/pipeline wall
   - Files: verification only
+  - Result (2026-07-10):
+    - Dependency-tree and source searches confirm no compiler/CLI back-edge in pipeline, flow, or engine.
+    - Pipeline catalog (15), compile (21), capture (46), and handoff (9) suites pass.
+    - No supported target, declarative stage, pairing, or public importer boundary changed.
 
 - [ ] **P5.3: Run GitNexus detect-changes and stop at human review**
   - Depends on: P5.2
