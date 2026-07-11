@@ -192,7 +192,7 @@ Plan reference: [`plan.md`](./plan.md)
     - Removed `portable-pty` and the remaining CLI stub-Codex transport fixtures while preserving deterministic file/stdin authoring coverage.
     - The full CLI suite passes (2 unit, 22 author, 119 surface, and supporting integration tests), and the bounded guided-surface search is empty.
 
-- [ ] **P3.4: Remove live author inference CI/configuration**
+- [x] **P3.4: Remove live author inference CI/configuration**
   - Depends on: P3.1, P3.2, P3.3
   - Acceptance: CI and local checks require no model/API key for authoring; deterministic skill/install smoke remains.
   - Verify:
@@ -201,6 +201,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `tools/ci/author-live-smoke.sh` (delete)
     - `.github/workflows/ci.yml`
     - `justfile`
+  - Result (2026-07-10):
+    - Removed the live author inference workflow job and smoke script, including API-key and model configuration.
+    - Converted the local smoke check to the deterministic workspace test wall and retained the cross-platform install-smoke job.
+    - Removed the final obsolete compiler test transport overrides; the bounded author-inference configuration search is empty and compiler author tests pass (45).
 
 ## Phase 4 — Shell, Recovery, And Skill Contract
 

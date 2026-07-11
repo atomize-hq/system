@@ -1,5 +1,5 @@
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 use handbook_compiler::{
@@ -33,12 +33,9 @@ use handbook_compiler::{
 };
 use handbook_engine::setup_starter_template_bytes;
 
-const AUTHOR_CHARTER_CODEX_BIN_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_BIN";
-const AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR: &str = "HANDBOOK_AUTHOR_CHARTER_CODEX_MODEL";
 const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const AUTHOR_ENVIRONMENT_INVENTORY_NOW_UTC_ENV_VAR: &str =
     "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_NOW_UTC";
-const PROMPT_CAPTURE_REPO_PATH: &str = ".handbook/state/authoring/last_prompt.txt";
 
 fn write_file(path: &Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -50,53 +47,6 @@ fn write_file(path: &Path, contents: &[u8]) {
 fn author_runtime_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
-}
-
-fn with_author_runtime_override<T>(
-    binary_path: &Path,
-    model: Option<&str>,
-    action: impl FnOnce() -> T,
-) -> T {
-    with_runtime_override(
-        AUTHOR_CHARTER_CODEX_BIN_ENV_VAR,
-        AUTHOR_CHARTER_CODEX_MODEL_ENV_VAR,
-        binary_path,
-        model,
-        action,
-    )
-}
-
-fn with_runtime_override<T>(
-    binary_env_var: &str,
-    model_env_var: &str,
-    binary_path: &Path,
-    model: Option<&str>,
-    action: impl FnOnce() -> T,
-) -> T {
-    let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous_bin = std::env::var_os(binary_env_var);
-    let previous_model = std::env::var_os(model_env_var);
-    std::env::set_var(binary_env_var, binary_path);
-    match model {
-        Some(value) => std::env::set_var(model_env_var, value),
-        None => std::env::remove_var(model_env_var),
-    }
-
-    let result = catch_unwind(AssertUnwindSafe(action));
-
-    match previous_bin {
-        Some(value) => std::env::set_var(binary_env_var, value),
-        None => std::env::remove_var(binary_env_var),
-    }
-    match previous_model {
-        Some(value) => std::env::set_var(model_env_var, value),
-        None => std::env::remove_var(model_env_var),
-    }
-
-    match result {
-        Ok(value) => value,
-        Err(payload) => resume_unwind(payload),
-    }
 }
 
 fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
@@ -133,51 +83,6 @@ fn with_environment_inventory_now_utc<T>(value: &str, action: impl FnOnce() -> T
         Ok(value) => value,
         Err(payload) => resume_unwind(payload),
     }
-}
-
-#[cfg(unix)]
-fn install_stub_codex(root: &Path, script: &str) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
-
-    let path = root.join("stub-codex.sh");
-    write_file(&path, script.as_bytes());
-    let mut permissions = std::fs::metadata(&path)
-        .expect("stub metadata")
-        .permissions();
-    permissions.set_mode(0o755);
-    std::fs::set_permissions(&path, permissions).expect("chmod stub");
-    path
-}
-
-#[cfg(not(unix))]
-fn install_stub_codex(root: &Path, script: &str) -> PathBuf {
-    let path = root.join("stub-codex.bat");
-    write_file(&path, script.as_bytes());
-    path
-}
-
-fn prompt_capture_path(root: &Path) -> PathBuf {
-    root.join(PROMPT_CAPTURE_REPO_PATH)
-}
-
-fn strict_stub_script(markdown: &str, failure_stderr: Option<&str>) -> String {
-    format!(
-        "#!/bin/sh\nset -eu\n[ \"$1\" = \"exec\" ] || {{ echo \"expected exec, got: $1\" >&2; exit 97; }}\n[ \"$2\" = \"--skip-git-repo-check\" ] || {{ echo \"expected --skip-git-repo-check\" >&2; exit 97; }}\n[ \"$3\" = \"--sandbox\" ] || {{ echo \"expected --sandbox\" >&2; exit 97; }}\n[ \"$4\" = \"read-only\" ] || {{ echo \"expected read-only sandbox\" >&2; exit 97; }}\n[ \"$5\" = \"--color\" ] || {{ echo \"expected --color\" >&2; exit 97; }}\n[ \"$6\" = \"never\" ] || {{ echo \"expected color=never\" >&2; exit 97; }}\nshift 6\nif [ \"$#\" -eq 5 ]; then\n  [ \"$1\" = \"--model\" ] || {{ echo \"expected --model\" >&2; exit 97; }}\n  [ -n \"$2\" ] || {{ echo \"missing model value\" >&2; exit 97; }}\n  shift 2\nelif [ \"$#\" -ne 3 ]; then\n  echo \"unexpected argv count after prefix: $#\" >&2\n  exit 97\nfi\n[ \"$1\" = \"--output-last-message\" ] || {{ echo \"expected --output-last-message\" >&2; exit 97; }}\noutput=\"$2\"\n[ -n \"$output\" ] || {{ echo \"missing output path\" >&2; exit 97; }}\n[ \"$3\" = \"-\" ] || {{ echo \"expected stdin marker '-'\" >&2; exit 97; }}\nmkdir -p .handbook/state/authoring\ncat > {prompt_capture}\n[ -s {prompt_capture} ] || {{ echo \"prompt capture was empty\" >&2; exit 97; }}\n{post_validation}",
-        prompt_capture = PROMPT_CAPTURE_REPO_PATH,
-        post_validation = if let Some(stderr) = failure_stderr {
-            format!("cat <<'EOF' >&2\n{stderr}\nEOF\nexit 23\n")
-        } else {
-            format!("cat <<'EOF' > \"$output\"\n{markdown}\nEOF\n")
-        }
-    )
-}
-
-fn failing_stub_script() -> String {
-    failing_stub_script_with_stderr("synthetic codex failure")
-}
-
-fn failing_stub_script_with_stderr(stderr: &str) -> String {
-    strict_stub_script("", Some(stderr))
 }
 
 fn valid_input() -> CharterStructuredInput {
@@ -707,7 +612,6 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     assert_eq!(charter_entries, vec!["CHARTER.md"]);
     assert!(!dir.path().join("artifacts/charter/CHARTER.md").exists());
     assert!(!dir.path().join("CHARTER.md").exists());
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -716,12 +620,8 @@ fn preflight_author_charter_from_input_validates_without_mutation() {
     scaffold_repo(dir.path());
     let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
-    let stub = install_stub_codex(dir.path(), &failing_stub_script());
-
-    with_author_runtime_override(&stub, None, || {
-        preflight_author_charter_from_input(dir.path(), &valid_input())
-            .expect("validate-only preflight should succeed");
-    });
+    preflight_author_charter_from_input(dir.path(), &valid_input())
+        .expect("validate-only preflight should succeed");
 
     assert_eq!(
         std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
@@ -732,18 +632,13 @@ fn preflight_author_charter_from_input_validates_without_mutation() {
         .path()
         .join(".handbook/state/authoring/charter.lock")
         .exists());
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
 fn author_charter_is_deterministic_and_does_not_invoke_codex() {
     let dir = tempfile::tempdir().expect("tempdir");
     scaffold_repo(dir.path());
-    let stub = install_stub_codex(dir.path(), &failing_stub_script());
-
-    let result = with_author_runtime_override(&stub, None, || {
-        author_charter(dir.path(), &valid_input()).expect("author charter")
-    });
+    let result = author_charter(dir.path(), &valid_input()).expect("author charter");
 
     assert_eq!(
         result.canonical_repo_relative_path,
@@ -754,7 +649,6 @@ fn author_charter_is_deterministic_and_does_not_invoke_codex() {
             .expect("canonical charter"),
         expected_charter_markdown()
     );
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -1092,7 +986,6 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
             .expect("repaired charter"),
         expected_markdown
     );
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -1418,7 +1311,6 @@ fn author_environment_inventory_from_input_writes_deterministically_without_prom
             .expect("canonical inventory"),
         expected
     );
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -1444,7 +1336,6 @@ fn author_environment_inventory_from_input_repairs_semantically_invalid_truth() 
         std::fs::read_to_string(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
             .expect("repaired inventory");
     assert!(markdown.starts_with("# Environment Inventory — Handbook"));
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -1575,7 +1466,6 @@ fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_in
             .expect("environment inventory after refusal"),
         before
     );
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
 
 #[test]
@@ -1609,5 +1499,4 @@ fn author_environment_inventory_refuses_when_optional_project_context_is_semanti
             .expect("environment inventory after refusal"),
         before
     );
-    assert!(!prompt_capture_path(dir.path()).exists());
 }
