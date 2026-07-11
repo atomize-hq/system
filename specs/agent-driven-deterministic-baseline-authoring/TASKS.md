@@ -138,7 +138,7 @@ Plan reference: [`plan.md`](./plan.md)
 
 ## Phase 3 — Delete Obsolete Leaves
 
-- [ ] **P3.1: Delete charter Codex synthesis and its tests**
+- [x] **P3.1: Delete charter Codex synthesis and its tests**
   - Depends on: P2.2
   - Acceptance: no charter compiler API launches Codex; deterministic authoring and template-library consumers remain intact.
   - Verify:
@@ -149,6 +149,10 @@ Plan reference: [`plan.md`](./plan.md)
     - `crates/compiler/src/author/charter_shell.rs`
     - `crates/compiler/src/author/mod.rs`
     - `crates/compiler/tests/author.rs`
+  - Result (2026-07-10):
+    - Removed the public guided charter API, Codex process launch, prompt construction, output transport, model/bin configuration, and synthesis-only validation.
+    - Removed twelve guided/model/auth/transport tests while retaining deterministic authoring and template-library coverage.
+    - Compiler author tests (51) and CLI author tests pass; no charter synthesis entry point remains.
 
 - [ ] **P3.2: Delete environment Codex synthesis and its tests**
   - Depends on: P1.3

@@ -11,8 +11,8 @@ mod project_context_shell;
 pub mod template_library;
 
 pub use charter::{
-    author_charter, author_charter_guided, is_unusably_vague_charter_text,
-    normalize_charter_free_text, parse_charter_structured_input_yaml, preflight_author_charter,
+    author_charter, is_unusably_vague_charter_text, normalize_charter_free_text,
+    parse_charter_structured_input_yaml, preflight_author_charter,
     preflight_author_charter_from_input, render_charter_markdown, validate_charter_markdown,
     validate_charter_structured_input, AuthorCharterRefusal, AuthorCharterRefusalKind,
     AuthorCharterResult, CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
