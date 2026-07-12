@@ -4,6 +4,8 @@
 **Date:** 2026-05-22  
 **Context:** Substrate planning/spec development, autonomous coding gates, contract shim / contract membrane
 
+> **Current authority note:** This document is retained as deep concept and vocabulary input. The active Handbook-owned target architecture, ownership corrections, sequencing, Resolution model, SDK/transport posture, and dock program now live in [`docs/specs/handbook-contract-membrane/00-README.md`](../specs/handbook-contract-membrane/00-README.md). Where this older draft assigns canonical contract authority to Substrate, the active control pack and Handbook membrane memo take precedence.
+
 ---
 
 ## 0. Executive recommendation

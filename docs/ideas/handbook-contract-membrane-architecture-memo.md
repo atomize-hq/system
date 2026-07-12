@@ -4,7 +4,9 @@
 
 Architecture memo capturing the parent-session decision and explanation for how handbook should work once the contract shim / contract membrane is added.
 
-This memo is intended to be reusable when drafting a future DESIGN doc. It captures the current intended boundary clearly, but it should not be treated as a broader implementation authority unless a later active spec/design doc explicitly freezes it.
+This memo remains the concise architecture lineage. The active program control surface is now [`docs/specs/handbook-contract-membrane/00-README.md`](../specs/handbook-contract-membrane/00-README.md), which expands this direction into target architecture, semantic contracts, sequencing, proof gates, orchestration, and durable handoff rules.
+
+Treat this memo as design input and the control pack as the current program authority. Slice-local implementation authority exists only when an approved packet supplies `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md`.
 
 ## Executive summary
 
@@ -20,6 +22,44 @@ A second important principle is scope control:
 
 - handbook should **not** try to become a new universal validator
 - handbook should instead own the contract system, evidence model, and runner semantics that unify existing validation ecosystems
+
+A third principle is structured, configurable, resolution-aware truth:
+
+- semantically meaningful artifacts move from Markdown-first authority to canonical structured YAML
+- a shipped opinionated instance profile defines the default artifact set, vocabulary, and Resolution stack
+- repositories may define their own canonical artifact descriptors, requiredness, vocabulary, and intentional workflow-role conflations
+- Markdown, packets, CLI text, GUI views, OpenAPI, and external workflow formats are projections or adapter outputs
+- projections are selected by an explicit namespaced Context Resolution envelope rather than only a token/byte budget
+- initial projection behavior is deterministic reveal/derive; model synthesis is candidate-only and not part of canonical projection
+
+Handbook is greenfield for this architecture. It should not build user-facing migration tooling or permanent dual-read compatibility for prior Markdown-first formats. Any temporary internal bridge requires a bounded architectural purpose and an explicit deletion gate.
+
+## Product and consumer surfaces
+
+The intended capability boundary is transport-neutral:
+
+- a purpose-named `handbook-sdk` facade should expose ordinary consumer use cases while narrower owner crates remain public for advanced use
+- the CLI remains a thin, polished product adapter with complete versioned `--json` support
+- a future Tauri application calls the same typed non-CLI use cases
+- Substrate may initially bundle and invoke the Handbook CLI through its JSON protocol
+- the permanent Substrate posture remains direct consumption of exact published Handbook crate versions from crates.io
+
+The initial CLI bridge counts as a supported integration milestone. It does not satisfy the downstream Rust public-API completion gate.
+
+## Resolution and durable orchestration
+
+Context Resolution is a first-class semantic model with separate scope, detail, temporal, authority, memory, and validation horizons.
+
+It controls:
+
+- what canonical truth is projected into a run
+- which broader constraints are inherited
+- what the run may mutate
+- where observations may be persisted
+- what completion may be claimed
+- when the work must escalate to a broader orchestration/design context
+
+Every program session writes a durable handoff record. Blockers, newly discovered decomposition, cross-document repairs, and broader-resolution decisions return through an orchestration session that updates authority and emits the next bounded dispatch prompt. Long chat closeout reports are not the durable program ledger.
 
 ## Architecture decision statement
 
