@@ -1,22 +1,54 @@
----
-dispatch_id: YYYYMMDDTHHMMSSZ--HCM-X-Y--short-slug
-source_handoff_id: replace-me
-orchestration_decision: replace-me
-session_kind: implementation
-phase_id: HCM-X
-slice_id: HCM-X.Y
-packet_id: null
-snapshot_ref: null
-delta_ref: null
-snapshot_projection_ref: null
-status: ready
----
+# Internal Dispatch Authoring Guide
+
+This Markdown file is explanatory guidance, not a machine dispatch and not a
+schema-valid example. The only normative current machine template is
+`internal-dispatch-template.json`; validate instantiated JSON dispatches against
+`internal-dispatch.v1.1.schema.json`. Do not add front matter that claims a
+machine schema identity here, and do not copy retired legacy fields into a
+current dispatch.
 
 # Dispatch: Replace With Exact Objective
 
 ## Mission
 
 Execute exactly the bounded objective below. Do not widen into sibling work.
+
+For execution_target=internal_subagent, return the result to the active parent through the built-in subagent channel. Do not create a global handoff, append ledger.jsonl, declare the parent slice complete, or ask the user to start another task.
+
+## Execution Contract
+
+- Execution target: internal_subagent | top_level_resume | human_interactive
+- Parent orchestration ID:
+- Built-in agent type: default
+- Role: implementation | documentation | review | proof | remediation
+- Fresh isolated context required: true
+- Closeout owner: parent_orchestrator
+- Ordered required skills:
+- Editing authority: exact paths | read_only
+- Parallel-safety statement:
+- Expected built-in final status:
+
+Built-in subagent execution must use the active session's spawn/wait/status/message/interrupt capabilities. Shell-launched Codex, codex exec, background processes, temporary-file reviewer transport, filesystem identities, and filesystem polling do not satisfy this contract.
+
+## Structured Return Contract
+
+Return to the parent:
+
+- built-in agent ID or canonical task name;
+- final built-in status;
+- concise work/result summary;
+- changed paths, or none for read-only review;
+- commands/checks and raw-result references;
+- findings first, ordered by severity, for review/proof roles;
+- each finding's file/line, violated contract/gate, reasoning, smallest remediation, and missing proof;
+- blockers/escalations and exact resume condition;
+- recommended parent disposition.
+
+Do not write a canonical handoff or global ledger entry for an internal delegated run.
+
+## Replayable Subject Manifest
+
+Current internal JSON dispatches record sorted repository-relative paths and each file's lowercase SHA-256. Encode each entry as path, NUL, SHA-256, newline; hash the concatenated bytes for subject_fingerprint. The reviewer and validator must be able to reconstruct the exact subject rather than trust a free-form fingerprint.
 
 ## Active Context Resolution
 
@@ -30,8 +62,8 @@ Execute exactly the bounded objective below. Do not widen into sibling work.
 
 ## Snapshot Grounding
 
-- Prior/session-end snapshot ref:
-- Current/session-start snapshot ref:
+- Prior/top-level-end snapshot ref:
+- Current/top-level-start snapshot ref:
 - Deterministic delta ref:
 - Resolution-aware grounding projection ref:
 - Included state families:
@@ -43,20 +75,28 @@ Do not load or paste the complete snapshot when the active Resolution requires o
 
 ## Authority Order
 
-1. Slice-local `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md`
+1. Slice-local SPEC.md, tasks/plan.md, and tasks/todo.md
 2. Exact control-pack sections named below
-3. Live code/tests for current implementation truth
-4. Idea/archive context only when explicitly named
+3. Selected handoff as resume context, not architecture or slice-selection authority
+4. Live code/tests for current implementation truth
+5. Idea/archive context only when explicitly named
 
 ## Must Read
 
 - Replace with exact pack sections.
 - Replace with exact live files/tests.
-- Read the source handoff record.
+- Read only source handoffs named in the machine dispatch.
 
 ## Current Repo-Truth Statement
 
 Replace with the freshly verified current boundary and semantic status.
+
+## Affected Seams and Maximum Permitted Change
+
+- Affected seam rows:
+- Current classifications:
+- Maximum classification/proof change this dispatch may support:
+- Sibling/future seams that remain context-only:
 
 ## Artifact / Intake / Posture Boundary
 
@@ -78,6 +118,7 @@ Do not infer shipped defaults from examples/current code, treat intake candidate
 - Adjacent slice implementation.
 - User migration tooling or implicit legacy compatibility.
 - Dynamic/generated CLI commands for profiles, vocabulary, or artifact kinds.
+- Parent-slice closeout by this internal agent.
 
 ## Tasks and Deliverables
 
@@ -85,21 +126,29 @@ Do not infer shipped defaults from examples/current code, treat intake candidate
 
 ## Contracts and Proof Gates
 
-- Replace with exact `05` contract sections.
-- Replace with exact `06` proof gates.
+- Replace with exact 05 contract sections.
+- Replace with exact 06 proof gates and regression scenarios.
 
 ## Stop and Escalate When
 
 - Target docs and live truth conflict in a behavior-changing way.
 - Work requires a broader authority or Resolution horizon.
-- A finding requires cross-document repair or child-packet decomposition.
-- The required proof cannot be produced inside this packet.
+- A finding cannot be remediated within the declared dispatch.
+- Required proof cannot be produced inside this dispatch.
+- Built-in subagent capability returns an explicit error.
 
-## Mandatory Closeout
+For an internal delegated run, report the stop condition to the active parent. Do not convert it into a global handoff.
 
-Before responding in chat:
+## Closeout by Execution Target
 
-1. write one immutable handoff record under `docs/specs/handbook-contract-membrane/handoffs/records/`;
-2. capture/reference the session-end snapshot and session delta when Snapshot Memory is available, otherwise record `not_available` honestly;
-3. update `handoffs/ledger.jsonl` according to `08-handoff-ledger-and-escalation-protocol.md`;
-4. keep the chat response to status, handoff path, short summary, next action, and one `jq` read command.
+### internal_subagent
+
+Return the structured result through the built-in subagent channel. The parent validates and reconciles it, continues the review/remediation loop, and owns proof, commit, handoff, and ledger closeout.
+
+### top_level_resume
+
+The new top-level parent resumes the explicit phase/slice under 07, completes the active loop, and writes one current-schema handoff only at its next genuine stop.
+
+### human_interactive
+
+Record the exact requested human action and observable completion/recheck condition. The active parent remains the closeout owner.

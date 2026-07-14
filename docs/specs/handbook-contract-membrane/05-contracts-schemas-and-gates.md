@@ -21,7 +21,7 @@ Conceptual minimum:
 
 ```yaml
 schema_id: handbook.instance-profile
-schema_version: "1.0"
+schema_version: "1.1"
 profile_id: default
 artifact_kind_sources: []
 artifact_instances: []
@@ -84,6 +84,8 @@ The actual shipped kind/default-instance set is not defined by this illustrative
 ## Artifact instance descriptor contract
 
 ```yaml
+schema_id: handbook.artifact-instance-descriptor
+schema_version: "1.0"
 id: project_context
 kind_ref: handbook.artifact-kind.project-context@1.0.0
 role: project_context
@@ -101,6 +103,7 @@ validation_overlays: []
 
 Instance gates:
 
+- `schema_id` and `schema_version` identify the descriptor record contract independently from the referenced artifact-kind version;
 - `kind_ref` resolves exactly under the selected compatibility policy;
 - path, label, requiredness, and dependencies are repository-instance concerns rather than kind-definition fields;
 - selected role/capabilities are supported by the referenced kind;
@@ -193,7 +196,7 @@ Neither record is canonical. Promotion validates the candidate again against cur
 
 Guided-adaptive, express, and agent-assisted modes all produce the same canonical Charter candidate schema. The skill-directed LLM agent conducts the conversation and invokes Handbook CLI/SDK operations; Handbook owns coverage/evaluation/promotion and performs no hidden nested synthesis.
 
-Canonical Charter YAML owns approved constitutional truth. Intake provenance explains how it was reached, and Markdown/GUI/packet/agent views are projections rather than independently editable authorities.
+Canonical Charter YAML owns approved constitutional truth. Intake provenance explains how it was reached. Before Phase 3, Markdown and other fixed human-review outputs are renderer-derived views; Phase-3 Resolution-aware GUI, packet, and agent-context outputs are Projections. Neither output class is an independently editable authority.
 
 ## Artifact validation layers
 
@@ -205,6 +208,8 @@ Do not ask one schema mechanism to own every kind of correctness:
 4. **External validator docks** — domain-specific witnesses that emit normalized evidence without becoming artifact or contract authority.
 
 A custom kind may need only structural and semantic validation. Human-authored constitutional/governance kinds commonly add intake coverage. Docks remain optional unless the kind/profile/contract requires them.
+
+In Phase 2, a fixed deterministic first-party renderer may produce a renderer-derived human-review view only from validated canonical truth. That view accepts no Context Resolution envelope and is outside the capitalized Phase-3 `Projection` request/result/provenance contract.
 
 ## Vocabulary contract
 
@@ -256,6 +261,8 @@ Envelope gates:
 
 ## Projection request
 
+This capitalized `Projection` request/result pair belongs only to the Phase 3 generic Resolution-aware Projection engine. A Phase 2 fixed deterministic first-party renderer produces a renderer-derived human-review view, not a Projection; it accepts no Resolution envelope and is excluded from this request/result/provenance contract. Generic configured custom-kind Projections and every Resolution-aware view are deferred until the `HCM-3.2` Context Resolution kernel and `HCM-3.3` deterministic Projection engine land.
+
 ```yaml
 schema_id: handbook.projection-request
 schema_version: "1.0"
@@ -267,6 +274,8 @@ surface: agent_packet
 ```
 
 ## Projection result
+
+This result is Phase-3-only and is never required for a fixed pre-Phase-3 renderer-derived view.
 
 ```yaml
 schema_id: handbook.projection-result
@@ -314,10 +323,12 @@ state_families:
     recent_completed:
       count: 10
       source_ref: work-ledger
+      cursor: null
       ordering: completed_at_then_id
     queued_next:
       count: 10
       source_ref: active-plan
+      cursor: null
       ordering: canonical_queue_order
   evidence:
     include_latest_gate_refs: true
@@ -327,6 +338,8 @@ consistency:
   unstable_action: persist_non_promotable
 retention_policy_ref: snapshot-retention.session
 ```
+
+For every bounded history window, `cursor: null` means start at the policy-defined initial boundary for the declared ordering. A non-null cursor is an opaque source-issued continuation position, applied exclusively so the item named by the cursor is not repeated. Reusing the same source revision, cursor, count, and ordering must select the same window; changing any of them changes capture input and therefore the policy/capture fingerprint as applicable.
 
 Capture policy gates:
 
@@ -595,6 +608,91 @@ promotion_eligibility: requires_review_and_lock
 ```
 
 The exact UAA model/provider contract is loaded from the live `unified-agent-api` repository only for that future slice.
+
+## Development orchestration contracts
+
+These contracts govern development of Handbook through this control pack. They do not define a Handbook product-runtime agent engine.
+
+### Dispatch execution envelope
+
+The only normative current machine example is
+`handoffs/internal-dispatch-template.json`. It is validated against
+`handoffs/internal-dispatch.v1.1.schema.json` by `validate_handoffs.py`; do not
+maintain a second partial YAML shape that can drift from the schema. Every
+current internal dispatch includes the complete identity and timing fields,
+parent and source lineage, execution contract, ordered skill chain, explicit
+phase/slice/packet authority, replayable subject manifest, active Resolution,
+authority and repo-truth statements, bounded scope/tasks/gates/stops, and the
+complete structured return contract.
+
+`execution_target` is one of:
+
+- `internal_subagent` — default for delegable implementation, documentation, proof, remediation, and review work; the active parent executes it immediately through built-in subagent tools;
+- `top_level_resume` — used only when a genuine context/runtime or authorization boundary requires another top-level task;
+- `human_interactive` — used only when the next action requires user judgment, interactive observation, approval, or another non-delegable human action.
+
+Rules:
+
+1. `internal_subagent` uses the built-in fresh `default` agent capability with isolated context; shell-launched Codex processes, background jobs, temporary-file reviewer transport, and filesystem polling do not satisfy it.
+2. Every dispatch declares an ordered `required_skills` chain beginning with `using-agent-skills`; the resolved skill workflows are mandatory, not advisory labels.
+3. Review agents are read-only and receive authority, diff/evidence, gates, and non-goals without implementation reasoning or prior reviewer conclusions.
+4. Internal agents return structured results to the parent and never append the global handoff ledger.
+5. The parent validates findings against live truth, remediates valid findings directly or through a fresh fix agent, reruns verification, and sends the resulting state to a different fresh reviewer.
+6. The parent owns integration, control-pack truth, final proof, commit, and top-level closeout.
+
+### Parent-owned delegated-run evidence
+
+New top-level handoffs record each proof-relevant built-in delegation:
+
+```json
+{
+  "run_id": "review-round-1",
+  "dispatch_id": "20260714T120000Z--HCM-0-1--independent-review",
+  "dispatch_ref": "docs/specs/handbook-contract-membrane/handoffs/dispatches/20260714T120000Z--HCM-0-1--independent-review.json",
+  "dispatch_fingerprint": "sha256:...",
+  "role": "review",
+  "agent_id": "independent_review",
+  "agent_type": "default",
+  "fresh_context": true,
+  "required_skills": ["using-agent-skills", "code-review-and-quality"],
+  "subject_fingerprint": "sha256:...",
+  "result_subject_fingerprint": "sha256:...",
+  "review_round": 1,
+  "predecessor_run_id": null,
+  "remediation_for_run_ids": [],
+  "final_status": "completed",
+  "verdict": "clean",
+  "finding_refs": [],
+  "evidence_refs": ["docs/specs/handbook-contract-membrane/handoffs/dispatches/...json"]
+}
+```
+
+Handoff schema v1.2 adds required `orchestration_id`, `source_handoff_ids`, `delegation_capability`, `delegated_runs`, typed `remediations`, `reviewed_state`, `stop_reason`, and `resume`. `stop_reason` is one of `completed`, `human_input`, `external_blocker`, `authority_boundary`, `context_boundary`, or `capability_unavailable`.
+
+A v1.2 handoff with `status: completed` must use `stop_reason: completed`, contain a completed clean fresh review run bound to `reviewed_state.subject_fingerprint` and its replayable manifest, and require no top-level resume. Human, external, authority, context, and capability stop reasons map to explicit permitted status/resume targets; v1.2 cannot emit historical `review_required`. A `capability_unavailable` stop is `blocked`. Dispatch/result parent, slice, packet, role, skills, and subject fingerprints must match. Earlier records and schemas remain immutable historical evidence.
+
+The subject manifest sorts repository-relative paths and encodes each entry as `path + NUL + lowercase SHA-256 + newline`; the aggregate is SHA-256 over the concatenated encoded entries. Dispatch validation always recomputes the aggregate from the stored entries. At execution, the parent and reviewer verify every entry against the live subject. A completed v1.2 closeout verifies the final clean manifest against `reviewed_state.baseline_head`, the primary reviewed commit, while ledger parity is validated separately against the post-closeout record set. This preserves exact review binding even when the mechanical second commit adds the parent record and rebuilds `ledger.jsonl`. Earlier review manifests remain immutable identities of superseded pre-remediation subjects and are not incorrectly compared with the later repaired tree.
+
+`delegation_capability.status: unavailable` and `stop_reason: capability_unavailable` are bidirectionally coupled. Unavailable mandatory delegation cannot be hidden under a human, external, authority, or context stop reason.
+
+Every findings review in a completed closeout has a typed remediation record. Its owner is either `parent_orchestrator` with durable evidence or a completed delegated `remediation` run. The remediation names the findings run, result fingerprint, and different-fresh completed re-review run. That re-review may itself report findings; if it does, it receives its own typed remediation and another different fresh review. The last completed review must be clean. Failed or wrong-role work cannot satisfy remediation lineage.
+
+### Review choreography
+
+```text
+implement or document
+  -> verify
+  -> fresh read-only reviewer
+      -> clean: proof wall and closeout
+      -> actionable findings:
+           validate findings
+           -> parent repair or fresh remediation agent
+           -> verify
+           -> different fresh reviewer
+           -> repeat until clean or genuinely blocked
+```
+
+The orchestrator may not self-approve. A dispatch artifact proves a bounded job was specified; only captured built-in agent identity/status plus reconciled results prove that the job was executed.
 
 ## SDK command contract
 

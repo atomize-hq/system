@@ -134,6 +134,22 @@ The primary agent workflow is skill-directed CLI use:
 
 The skill is an onboarding/orchestration adapter. The CLI/SDK remains the executable product authority.
 
+### Development orchestration control surface
+
+The repository-owned control-pack runner is a development workflow, not a second Handbook runtime or a replacement for Substrate orchestration.
+
+- one top-level orchestrator owns an explicitly selected phase, slice, and optional packet through proof and closeout;
+- a selected handoff supplies resume context but does not choose the work or replace the slice packet;
+- durable dispatches are bounded execution envelopes and audit/replay artifacts;
+- delegable dispatches default to fresh built-in `default` subagents with isolated context and an explicit required-skill chain;
+- the parent waits for built-in results and remains responsible for validation, integration, proof, and commit;
+- implementation/documentation agents do not self-review; actionable findings flow through remediation and a different fresh reviewer;
+- multi-packet slices may use bounded packet reviewers, but final closeout uses a different fresh reviewer over the complete final subject and proof wall;
+- internal subagents return structured results and do not write the global handoff ledger;
+- a new top-level task is reserved for completion, human interaction, external blockers, authority/context boundaries, or unavailable mandatory delegation.
+
+This orchestration discipline governs development of Handbook. It does not add an agent runtime dependency to Handbook's product crates.
+
 ### Substrate owns
 
 - Substrate-side orchestration and runtime behavior;
@@ -167,15 +183,16 @@ The Tauri application invokes the same SDK use cases and Serde DTOs directly. It
 
 Substrate imports exact published Handbook crate versions from crates.io and uses them in a real seam. The proof must not rely on sibling paths or unpublished workspace internals.
 
-## Canonical and projected artifacts
+## Canonical artifacts, renderer-derived views, and Projections
 
 - An `ArtifactKindDefinition` defines reusable schema, intake, semantic-validation, lifecycle, and projection capabilities; an `ArtifactInstanceDescriptor` binds a kind to a repository-specific identity, path, label, requiredness rule, and dependencies.
 - The shipped default profile selects an opinionated set of artifact instances, but that set is not approved by examples in this pack. Phase 0 must research candidate defaults and complete a user brainstorming/decision session before freezing it.
 - Repository-defined custom kinds use the same registry and generic operations as shipped kinds; adding one must not require a new Rust enum variant or CLI subcommand.
 - YAML is the durable canonical representation where structure is semantically meaningful.
-- Markdown, CLI text, GUI views, packets, OpenAPI, and external workflow formats are derived projections or adapter outputs.
-- A derived view cannot silently become a second editable authority.
-- Every projection identifies its source fingerprint, projection definition, target resolution, vocabulary profile, and lossiness.
+- A **renderer-derived view** is a fixed deterministic pre-Phase-3 human-review output produced by a first-party renderer. It accepts no Context Resolution input and is outside the capitalized Phase-3 `Projection` request/result/provenance contract.
+- A capitalized **Projection** is a Phase-3 generic Resolution-aware derived view. Generic configured custom-kind views and Resolution-aware Markdown, CLI text, GUI views, packets, OpenAPI, or external workflow formats enter this contract only after the Context Resolution kernel and deterministic Projection engine exist.
+- Renderer-derived views, Projections, and adapter outputs cannot silently become a second editable authority.
+- Every Projection identifies its source fingerprint, projection definition, target Resolution, vocabulary profile, and lossiness. A renderer-derived view does not prematurely claim this Resolution-aware provenance contract.
 - Expansion may reveal or deterministically derive existing truth. It may not invent canonical detail.
 
 ## Charter intake and project-posture kernel
@@ -186,7 +203,7 @@ The historical Charter questionnaire becomes a versioned `CharterIntakeDefinitio
 - guided-adaptive, express, and agent-assisted acquisition modes all produce the same Charter candidate schema;
 - the external LLM agent using the Handbook skill asks the questions and calls stable generic CLI/SDK operations;
 - Handbook validates candidate completeness and provenance, then promotes only through an explicit approval boundary;
-- canonical Charter YAML is authoritative; Markdown, GUI views, packets, and agent context are derived projections;
+- canonical Charter YAML is authoritative; before Phase 3, Markdown and other fixed human-review outputs are renderer-derived views, while Phase-3 Resolution-aware GUI, packet, and agent-context outputs are Projections;
 - an immutable intake record explains how a candidate was produced but never becomes a competing Charter authority.
 
 The `ProjectPostureKernel` is a fingerprinted resolved view, not another independently editable document. It is led by canonical Charter policy and may incorporate approved domain overrides, applicable project conditions, contracts, and current evidence. Snapshot deltas may trigger a typed `PostureRecommendation` under an approved threshold/window/cooldown/notification policy, but only an authorized `PostureTransition` may change canonical policy. Raising posture may react to one hard trigger; lowering posture requires sustained evidence and may never cross approved floors or red lines. Adapters may deliver notifications but do not own recommendation or approval semantics.
@@ -254,7 +271,7 @@ Handbook defines one semantic dock protocol.
 9. **External validators remain witnesses** — docks do not become peer truth systems.
 10. **Published means consumable** — downstream-intended Rust APIs are complete only after exact crates.io real-seam proof.
 11. **CLI bridge is transitional by design** — it has an explicit replacement gate.
-12. **Escalation is durable** — blocked or broadened work is recorded and re-dispatched; it is not carried only in chat history.
+12. **Escalation is durable** — genuinely blocked or broadened top-level work is recorded for resume; it is not carried only in chat history.
 13. **Snapshots are immutable observations** — Snapshot Memory records what was observed, not what must be true or what should happen next.
 14. **Snapshot access is resolution-aware** — comprehensive capture does not imply comprehensive disclosure to every agent.
 15. **Snapshot drift is explained, not merely scored** — authorized plan changes and escalations remain distinguishable from unexplained divergence.
@@ -263,6 +280,7 @@ Handbook defines one semantic dock protocol.
 18. **Inference is not authority** — agent-derived Charter candidates expose evidence, confidence, gaps, and approval needs before promotion.
 19. **Posture recommendations do not self-enact** — observed drift can recommend a transition but cannot rewrite the Charter or approved policy.
 20. **CLI operations remain stable** — profile vocabulary and custom artifact kinds never generate or rename commands.
+21. **Development orchestration remains parent-owned** — delegable implementation, review, proof, and remediation rounds run as built-in subagents inside one active top-level slice loop; internal agents do not create global continuation records.
 
 ## Explicit non-goals
 

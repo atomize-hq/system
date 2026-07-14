@@ -57,7 +57,7 @@ No lower proof level implies a higher one.
 
 **Classification:** `UsefulPrecursor`.
 
-**Must preserve:** deterministic human review projection where still valuable.
+**Must preserve:** deterministic renderer-derived human-review views where still valuable.
 
 **Must not preserve:** independently editable Markdown as canonical truth.
 
@@ -126,11 +126,11 @@ No lower proof level implies a higher one.
 | `PG-PROFILE-01` | selected profile resolves complete artifact/vocabulary/Resolution truth with deterministic fingerprint | open |
 | `PG-DEFAULT-01` | focused research plus a user brainstorming/decision session explicitly approve the shipped kind set, default instances, and requiredness; examples/current enums do not count | open |
 | `PG-KIND-01` | a versioned `ArtifactKindDefinition` resolves a safe canonical schema, validation, optional intake, lifecycle, and projections independently from repository instance state | open |
-| `PG-KIND-02` | repository-defined custom kind passes meta-schema/structural validation without a new Rust enum variant, executable hook, remote schema fetch, or generated CLI command | open |
+| `PG-KIND-02` | repository-defined custom kind registers, passes meta-schema/structural validation, and exercises supplied intake coverage without a new Rust enum variant, executable hook, remote schema fetch, generated CLI command, or pre-Phase-3 generic projection engine | open |
 | `PG-ARTIFACT-01` | a profile-selected `ArtifactInstanceDescriptor` binds a kind to path/label/requiredness/dependencies and participates in validation/doctor/flow | open |
 | `PG-INTAKE-01` | guided-adaptive, express, and agent-assisted acquisition use one intake definition and produce the same candidate schema while exposing missing coverage | open |
 | `PG-INTAKE-02` | intake provenance distinguishes user declarations, evidenced inference, defaults, unknowns, contradictions, waivers, and approvals; normative fields cannot be silently inferred into authority | open |
-| `PG-CHARTER-01` | `CharterIntakeDefinition` covers approved questionnaire domains, promotes only an approved schema-valid candidate to canonical Charter YAML, and deterministically projects Markdown | open |
+| `PG-CHARTER-01` | `CharterIntakeDefinition` covers approved questionnaire domains, promotes only an approved schema-valid candidate to canonical Charter YAML, and deterministically renders Markdown as a renderer-derived human-review view | open |
 | `PG-YAML-01` | one artifact family is canonically YAML, structurally validated, and deterministically rendered | open |
 | `PG-YAML-02` | no dual editable Markdown/YAML truth remains for converted families | open |
 | `PG-VOCAB-01` | lexical and structural conflation render correctly without losing stable role resolution | open |
@@ -139,7 +139,7 @@ No lower proof level implies a higher one.
 | `PG-PROJ-02` | omitted required claims remain visible and cannot false-pass | open |
 | `PG-SNAP-01` | same selected stable state and capture policy produce the same normalized state fingerprint with deterministic ordering | open |
 | `PG-SNAP-02` | capture detects concurrent revision changes and returns stable, bounded, or non-promotable unstable truth honestly | open |
-| `PG-SNAP-03` | prior-session end and next-session start snapshots produce a deterministic delta that detects stale handoff and unexplained drift | open |
+| `PG-SNAP-03` | prior top-level closeout and current parent-resume snapshots produce a deterministic delta that detects stale handoff and unexplained drift | open |
 | `PG-SNAP-04` | Resolution-aware snapshot projection includes only authorized/relevant fields and enumerates omissions | open |
 | `PG-SNAP-05` | redaction tests prove secrets, unsafe environment values, and unrestricted diff/command contents are excluded | open |
 | `PG-SNAP-06` | planned-versus-actual signals distinguish durable justified divergence from unexplained scope/proof/semantic drift | open |
@@ -154,8 +154,10 @@ No lower proof level implies a higher one.
 | `PG-SUB-CLI-01` | Substrate uses exact bundled CLI/schema in a real replaceable seam | open |
 | `PG-PUBLISH-01` | new downstream-intended API passes exact crates.io external consumer proof | open |
 | `PG-SUB-RUST-01` | current-tip Substrate worktree uses exact new crates.io API in a real seam | open |
-| `PG-HANDOFF-01` | a blocked slice writes a valid durable handoff; orchestration produces a bounded dispatch without manual report copy | open |
+| `PG-HANDOFF-01` | version-routed schemas validate parent-owned true-stop handoffs; the ledger rebuild is byte-identical; immutable history/supersession, scoped stop/resume, and repository-relative refs work without internal subagents writing global records | HCM-0.8 validation and two-commit negative proof complete; closes only when the HCM-0.8 v1.2 parent record and rebuilt ledger validate |
 | `PG-HANDOFF-02` | once snapshots land, handoffs reference start/end snapshots and delta; orchestration rechecks current state before dispatch | open |
+| `PG-ORCH-01` | an explicitly selected phase/slice remains owned by one active parent that executes built-in `default` subagents, captures identity/status, collects results, and completes review -> valid-finding remediation -> different fresh review without an ordinary user-mediated task hop | proven by the HCM-0.8 one-parent multi-round review/remediation loop; final lineage capture belongs in the v1.2 parent record |
+| `PG-ORCH-02` | every current internal dispatch declares execution target, parent ID, role, replayable subject manifest/fingerprint, fresh-context requirement, closeout owner, ordered required-skills chain beginning with `using-agent-skills`, and complete structured return contract; unavailable mandatory delegation fails closed | proven by HCM-0.8 current-schema dispatch validation and fail-closed orchestration self-tests |
 
 ## Greenfield deletion gates
 
@@ -188,6 +190,17 @@ Every implementation slice must preserve applicable baselines:
 15. all intake modes converge on one canonical schema and expose missing coverage/provenance;
 16. agent inference cannot promote constitutional or normative decisions without required approval;
 17. posture recommendations remain advisory and cannot auto-mutate Charter policy.
+18. internal delegated agents do not write canonical handoffs or append the global ledger;
+19. writing an internal dispatch is not orchestration completion and does not create an ordinary user task hop;
+20. implementation/documentation agents cannot self-review; valid findings require remediation and a different fresh reviewer;
+21. mandatory built-in delegation cannot be replaced by shell-launched agents, external Codex processes, temporary-file transport, or filesystem polling.
+22. completed orchestration cannot use a queue-shaped `review_required` stop or a stop/status/resume combination inconsistent with the true boundary;
+23. findings close only through typed successful parent/delegated remediation followed by a different fresh review of the remediation result fingerprint;
+24. final review evidence binds a replayable sorted repository-path/SHA-256 subject manifest, not a free-form fingerprint string.
+25. completed two-commit closeout replays the final review manifest against the primary reviewed commit while validating the mechanically rebuilt post-closeout ledger separately.
+26. unavailable mandatory delegation maps only to `capability_unavailable`/`blocked`/`top_level_resume`, and that mapping is enforced in both directions.
+27. a completed closeout records every findings -> remediation -> completed fresh re-review edge, permits a re-review to discover another remediated round, and requires the final completed review to be clean.
+28. for completed closeout, `reviewed_state.baseline_head` equals `repo_state.head`; a valid manifest from another commit cannot authorize an unreviewed primary slice commit.
 
 ## Slice closeout evidence record
 
@@ -204,19 +217,25 @@ When a slice closes, update only the affected rows and cite:
 
 Do not replace evidence refs with “all tests passed.”
 
-## Control-pack proof gate
+## Control-pack orchestration-repair proof gate
 
-Before `HCM-0.1` may close:
+The immutable HCM-0.1 history remains evidence of the prior workflow and is not rewritten. Before corrective slice `HCM-0.8` may close:
 
 - all control-pack files exist and link correctly;
-- handoff schema and template are valid JSON;
+- all versioned handoff/internal-dispatch schemas, current templates, every immutable handoff record, current JSON dispatch, and every ledger entry pass Draft 2020-12 validation with exact record/index parity and a byte-identical deterministic ledger rebuild; the validator hash-admits all exact pre-correction v1.0/v1.1 records and eight legacy Markdown dispatches, and deterministic negative proof rejects unknown/modified/deleted historical records or dispatches;
+- completed-closeout negative proof preserves a final manifest that includes the pre-closeout ledger by replaying it against the primary reviewed commit, then validates the mechanically changed post-closeout ledger through exact record/index parity;
 - README selective-loading and authority rules are complete;
-- orchestration prompt can select latest or specified handoff;
+- orchestration prompt requires explicit phase/slice selection, can select latest-for-slice or a specified resume handoff, and treats the handoff as context rather than work-selection authority;
 - Snapshot Memory semantics are threaded through architecture, contracts, phase sequencing, proof, orchestration, and optional handoff refs;
 - artifact-kind/instance separation, repository-defined schemas, adaptive intake, Charter authority, and posture recommendation semantics are threaded through architecture, contracts, sequencing, proof, and skill/orchestration guidance;
+- the pack consistently classifies fixed deterministic pre-Phase-3 human-review outputs as renderer-derived views with no Context Resolution input and outside the capitalized Phase-3 Projection request/result/provenance contract;
 - the shipped default artifact set is explicitly unresolved pending `HCM-0.6` research and user brainstorming/decision;
-- escalation protocol distinguishes local remediation, decomposition, docs repair, broader design, external blocker, and proof gap;
+- escalation protocol distinguishes parent-local remediation, internally dispatched decomposition/docs/proof work, broader design/authority, external/human blockers, context boundaries, and delegation-capability failure;
+- internal dispatches declare execution target, parent orchestration, fresh `default` agent, role, replayable subject manifest, required skills, complete return contract, and parent-owned closeout;
+- the top-level runner waits for built-in subagent results and enforces review -> remediation -> different fresh review without ordinary user-mediated task hops or subagent-authored global handoffs;
 - active docs point to this pack without treating archived docs as authority;
 - no Rust files changed;
 - `git diff --check` passes;
-- independent review is requested before the pack is treated as frozen implementation authority.
+- a fresh built-in independent reviewer completes review inside the active top-level orchestration and reports no unresolved actionable findings before the corrected pack is treated as frozen implementation authority;
+- if an independent review reports an actionable finding, the parent remediates it directly or through a fresh internal remediation agent, then a different fresh built-in reviewer completes another review before `HCM-0.8` may close;
+- the final v1.2 parent-owned handoff records proof-relevant delegated runs and a genuine stop reason; no internal review/remediation round writes its own canonical handoff or ledger entry.

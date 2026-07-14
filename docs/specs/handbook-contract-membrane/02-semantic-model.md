@@ -122,8 +122,8 @@ Repositories and selected profiles may define artifact kinds beyond the shipped 
 
 - First-party artifacts may receive specialized deterministic authoring and rendering.
 - Custom kinds define repository-local schemas with stable IDs/versions and pass the same kind-definition meta-validation as shipped kinds.
-- Custom artifacts receive generic structural validation, lifecycle, projection, and contract behavior first.
-- Custom kinds may provide an intake coverage contract and deterministic projections without adding Handbook code.
+- Custom artifacts receive generic structural validation, lifecycle, intake, and contract behavior first.
+- Custom kinds may provide an intake coverage contract without adding Handbook code. Generic configured custom-kind Projections wait for the Phase 3 deterministic Projection engine.
 - A custom artifact does not require a new Rust enum variant merely to exist.
 - Custom kinds never generate or rename CLI commands; stable generic operations select kind/instance IDs.
 - Remote schema fetching, executable schema hooks, and ambient unversioned overrides are out of scope initially.
@@ -179,7 +179,7 @@ Each normalized answer maps to one of:
 - a referenced, freshness-qualified observation used to justify a decision;
 - an unresolved or explicitly waived intake gap.
 
-Canonical Charter YAML is the constitutional authority. Its Markdown document, Tauri view, packets, and agent contexts are projections. The intake record remains available for audit and targeted reassessment without becoming a second editable Charter.
+Canonical Charter YAML is the constitutional authority. Before Phase 3, its Markdown and other fixed human-review outputs are renderer-derived views. Phase-3 Resolution-aware Tauri, packet, and agent-context outputs are Projections. The intake record remains available for audit and targeted reassessment without becoming a second editable Charter.
 
 ## Project posture kernel
 
@@ -331,7 +331,12 @@ Higher-horizon constraints constrain lower-horizon work. Lower-horizon observati
 
 ## Projection semantics
 
-A projection is a derived view from canonical structured truth for a declared requester, surface, vocabulary profile, and Resolution envelope.
+Terminology in this pack is strict:
+
+- A **renderer-derived view** is a fixed deterministic pre-Phase-3 human-review output produced by a first-party renderer from approved canonical truth. It accepts no Context Resolution input and is outside the capitalized `Projection` request/result/provenance contract.
+- A capitalized **Projection** is a Phase-3 generic Resolution-aware derived view from canonical structured truth for a declared requester, surface, vocabulary profile, and Resolution envelope.
+
+Generic configured custom-kind Projections and every Resolution-aware view begin only after the Context Resolution kernel and deterministic Projection engine land in `HCM-3.2` and `HCM-3.3`. Phase 2 introduces no precursor engine and no separate Projection provenance subset.
 
 ### Reveal
 
@@ -379,7 +384,7 @@ Expansion cannot invent detail absent from canonical truth. Missing detail eithe
 
 ## Projection provenance
 
-Every projection should record:
+Every capitalized Projection should record:
 
 - source artifact references and fingerprints;
 - profile and vocabulary versions;
@@ -506,12 +511,13 @@ Recent/next windows record their selection policy, ordering source, cursor, and 
 
 #### Session and transition state
 
-- current/previous session refs;
-- latest handoff and orchestration decision;
-- active dispatch;
+- current/prior top-level orchestration refs;
+- latest applicable true-stop handoff and orchestration decision;
+- active internal dispatches and parent reconciliation status;
+- proof-relevant delegated-run identities, statuses, and verdicts;
 - current authority boundary;
 - unresolved escalations;
-- next recommended session type.
+- next top-level resume or human-interaction condition, when one exists.
 
 #### Evidence and environment state
 
@@ -525,8 +531,8 @@ Recent/next windows record their selection policy, ordering source, cursor, and 
 
 Capture policies may activate at:
 
-- session onboarding and closeout;
-- orchestration dispatch creation/consumption;
+- top-level orchestration onboarding and true-stop closeout;
+- internal dispatch creation, delegated-run start/result, and parent reconciliation;
 - phase, slice, packet, or task open/close;
 - child-packet decomposition;
 - blocker or escalation creation/resolution;
@@ -539,13 +545,13 @@ Capture policies may activate at:
 
 Do not snapshot every command by default. Command streams are operational logs. Snapshot Memory captures strategically meaningful state boundaries.
 
-### Paired session snapshots
+### Paired top-level orchestration snapshots
 
 The primary onboarding pattern is:
 
 ```text
-prior session end snapshot
-  -> new session start snapshot
+prior top-level orchestration end snapshot
+  -> resumed top-level orchestration start snapshot
   -> deterministic SnapshotDelta
   -> Resolution-aware grounding projection
 ```
@@ -589,7 +595,8 @@ Useful delta families include:
 - proof gates gained, lost, or still missing;
 - dirty state introduced/resolved;
 - blockers/escalations added or cleared;
-- handoff prediction versus actual next-session work;
+- handoff prediction versus actual resumed top-level work;
+- internal dispatch objective versus delegated result and parent disposition;
 - repeated rework or failure patterns.
 
 ### Drift semantics
@@ -633,12 +640,14 @@ Keep the record roles separate:
 |---|---|
 | Contract/canonical artifact | What must be true? |
 | Snapshot Memory | What was observed at this boundary? |
-| Handoff | What happened, and how should work transition? |
-| Dispatch | What exactly may the next session do? |
+| Handoff | Why did top-level orchestration stop, what happened, and how may it resume? |
+| Dispatch | What exact internal delegated run, top-level resume, or human interaction is authorized? |
 | Evidence/verdict/gate | What supports or decides a contract claim? |
 | SnapshotDelta | What changed between observations? |
 
-Handoffs reference start/end snapshots and deltas rather than copying their contents.
+Handoffs reference top-level start/end snapshots and deltas rather than copying their contents. Internal delegated-run results may reference narrower snapshots or evidence, but they return to the active parent and do not become global handoffs merely because a subagent turn ended.
+
+A proof-relevant delegated-run result identifies its parent orchestration, immutable dispatch and fingerprint, role, built-in agent identity/status, required skills, reviewed/produced subject fingerprint, review round, predecessor/remediation lineage, verdict/finding refs, and parent disposition. This is execution evidence, not a new authority class.
 
 ### Security, redaction, and retention
 

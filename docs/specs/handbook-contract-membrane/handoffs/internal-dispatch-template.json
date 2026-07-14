@@ -1,0 +1,85 @@
+{
+  "schema_id": "handbook.internal-dispatch",
+  "schema_version": "1.1",
+  "dispatch_id": "YYYYMMDDTHHMMSSZ--HCM-X-Y--short-slug",
+  "created_at_utc": "2026-07-14T00:00:00Z",
+  "source_handoff_ids": [],
+  "parent_orchestration_id": "YYYYMMDDTHHMMSSZ--HCM-X-Y--orchestration",
+  "orchestration_decision": "proof_or_review_followup",
+  "execution_target": "internal_subagent",
+  "agent_type": "default",
+  "role": "review",
+  "fresh_context_required": true,
+  "closeout_owner": "parent_orchestrator",
+  "required_skills": [
+    "using-agent-skills",
+    "code-review-and-quality"
+  ],
+  "phase_id": "HCM-X",
+  "slice_id": "HCM-X.Y",
+  "packet_id": null,
+  "subject_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "subject_manifest": {
+    "algorithm": "sha256",
+    "encoding": "repo-path-null-sha256-newline-v1",
+    "entries": [
+      {
+        "path": "docs/specs/handbook-contract-membrane/00-README.md",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ],
+    "aggregate_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "active_resolution": {
+    "level": "execution",
+    "scope_horizon": "slice",
+    "detail_resolution": "normal",
+    "temporal_horizon": "current_orchestration",
+    "authority_horizon": "slice_local",
+    "memory_horizon": "execution_record",
+    "validation_horizon": "slice_closeout"
+  },
+  "authority_refs": [
+    {
+      "path": "docs/specs/handbook-contract-membrane/04-phase-slice-map.md",
+      "sections": [
+        "Replace with exact section"
+      ]
+    }
+  ],
+  "repo_truth": "Replace with the freshly verified boundary and semantic status.",
+  "allowed_scope": [
+    "Replace with exact read-only or bounded-write scope."
+  ],
+  "non_goals": [
+    "Unrelated cleanup.",
+    "Global handoff or ledger writes."
+  ],
+  "tasks": [
+    "Replace with exact ordered work."
+  ],
+  "contracts_and_gates": [
+    "docs/specs/handbook-contract-membrane/05-contracts-schemas-and-gates.md#development-orchestration-contracts",
+    "docs/specs/handbook-contract-membrane/06-proof-and-regression-ledger.md#open-program-proof-gates"
+  ],
+  "stop_conditions": [
+    "Return to the parent if broader authority or unavailable proof is encountered."
+  ],
+  "return_contract": {
+    "transport": "built_in_subagent",
+    "findings_first": true,
+    "include_agent_identity_and_status": true,
+    "edit_scope": "read_only",
+    "global_handoff": "forbidden",
+    "ledger_write": "forbidden",
+    "user_task_hop": "forbidden",
+    "required_result_fields": [
+      "agent_id",
+      "final_status",
+      "verdict",
+      "findings",
+      "validation",
+      "parent_disposition"
+    ]
+  }
+}

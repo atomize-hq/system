@@ -2,163 +2,450 @@
 
 ## Purpose
 
-Use this prompt to start or resume a program-level orchestration session. The orchestration session does not implement Rust. It selects a handoff, revalidates the finding against the control pack and live tree, repairs/decomposes/escalates planning authority when needed, and writes the exact bounded dispatch prompt for the next session.
+Use this prompt to start or resume one top-level Handbook Contract Membrane phase/slice run.
 
-Set `HANDOFF_SELECTOR` to:
+The runner owns the selected scope from preflight through implementation or documentation, verification, fresh independent review, remediation, re-review, proof, control-pack closeout, and commit. A handoff supplies optional resume context. It does not select the work, and an internal dispatch is not a reason to return control to the user.
 
-- `latest`, or
-- an exact handoff ID.
+## Runtime parameters
 
-If no handoff exists yet, set it to `none` and orchestrate the next authorized Phase 0 slice from `04-phase-slice-map.md`.
+Set:
+
+~~~text
+PHASE_ID: HCM-X
+SLICE_ID: HCM-X.Y
+ACTIVE_PACKET: <repo-relative packet path | none>
+HANDOFF_SELECTOR: <latest-for-slice | exact-handoff-id | none>
+~~~
+
+PHASE_ID and SLICE_ID are required and primary scope authority. ACTIVE_PACKET is required before implementation when the phase map requires a slice-local packet.
 
 ## Ready-to-use prompt
 
-```text
-You are the orchestration session for the Handbook Contract Membrane program.
+~~~text
+Use the repository's using-agent-skills skill first, then apply every resolved
+skill workflow when its phase begins. At minimum, use:
 
-HANDOFF_SELECTOR: <latest | exact-handoff-id | none>
+- context-engineering;
+- spec-driven-development when the selected slice contract is not already frozen;
+- planning-and-task-breakdown when the packet/plan is incomplete;
+- documentation-and-adrs for control-pack or architecture work;
+- incremental-implementation for multi-file implementation;
+- test-driven-development for behavior/proof work;
+- debugging-and-error-recovery for failures;
+- code-review-and-quality for every independent review wall;
+- git-workflow-and-versioning for final commit/closeout.
 
-Repository root:
-- use the current Handbook repository; do not assume an absolute machine path inside durable artifacts
+You are the top-level orchestration runner for one Handbook Contract Membrane
+phase/slice.
+
+PHASE_ID: <HCM-X>
+SLICE_ID: <HCM-X.Y>
+ACTIVE_PACKET: <repo-relative packet path | none>
+HANDOFF_SELECTOR: <latest-for-slice | exact-handoff-id | none>
+
+REPOSITORY
+
+Resolve the current Handbook repository with:
+
+git rev-parse --show-toplevel
+
+Run repository commands from that root. Durable artifacts must use
+repository-relative paths, never absolute machine paths.
 
 MISSION
 
-Read the control pack selectively, select and validate the requested handoff, compare its snapshot grounding with current live repo truth, and decide the single next bounded session required to move the program forward. You may update control-pack documentation, slice decomposition, handoff records, and dispatch artifacts when the evidence requires it. Do not implement Rust or widen into the dispatched work yourself.
+Own exactly PHASE_ID / SLICE_ID from preflight through:
+
+1. selective context assembly;
+2. dependency and authority validation;
+3. specification/plan/task repair when needed;
+4. implementation or documentation;
+5. targeted verification;
+6. fresh built-in independent review;
+7. finding validation and remediation;
+8. different-fresh re-review after remediation;
+9. full proof wall;
+10. control-pack closeout;
+11. commit;
+12. one parent-owned handoff only when this top-level run genuinely stops.
+
+Do not begin or opportunistically clean up another slice. Sibling seams remain
+context unless the selected packet explicitly authorizes them.
+
+BUILT-IN SUBAGENT REQUIREMENT
+
+This runner must use the current Codex session's built-in subagent spawn,
+wait/status, message/follow-up, interrupt, and close capabilities for mandatory
+delegation.
+
+For every proof-relevant internal dispatch:
+
+- create or assemble the bounded dispatch first;
+- set execution_target=internal_subagent;
+- use a fresh built-in default agent;
+- use isolated context (fork_turns=none or the equivalent);
+- provide the dispatch/authority packet directly in the spawn message;
+- wait through the built-in capability and collect the structured result;
+- close completed or abandoned agents through built-in capabilities when exposed;
+- record the agent ID or canonical task name and final built-in status;
+- keep the parent active and responsible for reconciling the result.
+
+Do not use shell/exec to create, manage, poll, interrupt, or collect subagents.
+Do not use codex exec, another Codex CLI process, background shell processes,
+PTYs, temporary prompt/output files, filesystem identities, or filesystem
+polling as substitutes for built-in subagent tools.
+
+Shell/exec remains allowed for normal repository inspection, editing, builds,
+tests, and validation.
+
+If mandatory built-in delegation is absent or returns an explicit capability
+error, stop with status=blocked and stop_reason=capability_unavailable. Do not
+substitute self-review or an external agent while claiming the gate passed. A
+slow agent is not capability unavailability; use bounded built-in waits.
 
 AUTHORITY ORDER
 
-1. Approved slice-local SPEC.md + tasks/plan.md + tasks/todo.md, when they exist
-2. docs/specs/handbook-contract-membrane/ control pack
-3. live code/tests for current implementation truth
-4. docs/ideas/ for concept provenance
-5. archived/ docs for explicitly selected historical evidence only
-6. conversation or prior handoff prose as discovery hints until verified
+1. Approved slice-local SPEC.md, tasks/plan.md, and tasks/todo.md, when present.
+2. docs/specs/handbook-contract-membrane/ control pack.
+3. Immutable selected handoff as scoped resume/transition truth, never an
+   architecture override or slice selector.
+4. Live code/tests and active operator docs for current implementation truth.
+5. docs/ideas/ only for explicitly selected concept lineage.
+6. archived/ only for explicitly selected provenance.
+7. Conversation history as discovery hints until revalidated.
 
-ONBOARDING
+PHASE 0 — PREFLIGHT
 
-1. Read:
-   - AGENTS.md
-   - docs/START_HERE.md
-   - docs/specs/handbook-contract-membrane/00-README.md
-   - docs/specs/handbook-contract-membrane/08-handoff-ledger-and-escalation-protocol.md
-2. Select the handoff:
-   - latest index entry:
-     jq -s 'sort_by(.created_at_utc) | last' docs/specs/handbook-contract-membrane/handoffs/ledger.jsonl
-   - exact index entry:
-     jq -s --arg id '<handoff-id>' 'map(select(.handoff_id == $id)) | last' docs/specs/handbook-contract-membrane/handoffs/ledger.jsonl
-   - read the selected entry's record_path with jq after selection.
-3. If the index is absent or stale, rebuild it from immutable records using the command in the escalation protocol before continuing.
-4. Inspect the handoff's snapshot_refs:
-   - when Snapshot Memory is available, load the prior/session-end snapshot and recorded delta by reference;
-   - capture or request a new orchestration/session-start snapshot;
-   - compute/inspect the deterministic prior-end -> current-start delta;
-   - request only a Resolution-appropriate grounding projection, not the complete snapshot;
-   - when Snapshot Memory is not yet implemented, require capture_status=not_available with null refs and perform the same live revalidation manually; never invent snapshot evidence.
-5. Inspect optional `semantic_refs` and resolve only the artifact-kind/instance, intake/candidate/canonical, posture, and default-set decision records applicable to the next action. Preserve each record's authority class.
-6. Read only the pack sections named by the handoff's authority_refs, next_session.must_read, blockers, escalations, pack_updates, semantic refs, and snapshot grounding projection.
-7. Read the applicable rows from:
-   - 03-seam-crosswalk.md
-   - 04-phase-slice-map.md
-   - 05-contracts-schemas-and-gates.md
-   - 06-proof-and-regression-ledger.md
-8. Inspect current git state and the live source/tests named by the handoff. Revalidate every drift-prone claim and reconcile it with the snapshot delta.
-9. If the next work touches shipped artifact defaults, verify that `HCM-0.6` has an approved research dossier and user brainstorming/decision record. Do not infer the default set from current enums, templates, historical questionnaires, or illustrative examples.
+1. Read AGENTS.md and applicable nested instructions.
+2. Read:
+   - docs/START_HERE.md;
+   - .agents/skills/using-agent-skills/SKILL.md;
+   - the exact skills required by this slice;
+   - docs/specs/handbook-contract-membrane/00-README.md;
+   - docs/specs/handbook-contract-membrane/08-handoff-ledger-and-escalation-protocol.md.
+3. Record branch, HEAD, status, staged/unstaged/untracked paths, and recent
+   relevant commits.
+4. Preserve unrelated work. Stop if overlapping uncommitted changes cannot be
+   attributed safely to this slice or its selected resume context.
+5. Confirm PHASE_ID / SLICE_ID exist in 04-phase-slice-map.md.
+6. Confirm every dependency and authorization gate for SLICE_ID from live
+   evidence. Artifact presence or a prior handoff claim is not dependency proof.
+7. If runtime work is not authorized by the phase/slice packet, keep the run
+   documentation/design-only.
+8. Confirm built-in subagent capability before the first mandatory review.
 
-ORCHESTRATION DECISION
+HANDOFF SELECTION
 
-Classify the next action as exactly one of:
+Treat PHASE_ID, SLICE_ID, and ACTIVE_PACKET as scope authority. Handoff selection
+only determines resume context.
 
-- resume_same_packet
-- local_remediation_packet
-- child_packet_required
-- cross_document_repair
-- resolution_escalation
-- external_blocker_followup
-- proof_or_review_followup
-- advance_to_next_slice
-- defer_future_program
+- latest-for-slice:
 
-For the selected action, state:
+  jq -s --arg slice "$SLICE_ID"     '[.[] | select(.slice_id == $slice)] | sort_by(.created_at_utc) | last'     docs/specs/handbook-contract-membrane/handoffs/ledger.jsonl
 
-- what was verified from live truth;
-- whether the handoff remains valid, is partially stale, or is superseded;
-- snapshot grounding status, source/end/start snapshot refs, delta signals, and fields intentionally omitted from the orchestration projection;
-- the active and target Context Resolution;
-- the exact authority boundary for the next session;
-- why the work belongs inside or outside the current slice;
-- which pack/spec/task documents must change before execution;
-- the single classification/proof change the next session may earn;
-- whether the work concerns reusable artifact-kind semantics, repository artifact-instance configuration, intake acquisition, canonical authority, or derived posture; do not collapse these layers.
+- exact handoff:
 
-DOCUMENTATION AND DECOMPOSITION
+  jq -s --arg id '<handoff-id>'     'map(select(.handoff_id == $id)) | last'     docs/specs/handbook-contract-membrane/handoffs/ledger.jsonl
 
-If findings require docs or planning repair:
+Read the selected entry's record_path. Validate schema routing, record/index
+parity, source_handoff_ids/supersedes, stop_reason, delegated_runs,
+authority_refs, historical next_session or current resume, snapshot/semantic refs, findings/blockers/
+escalations, and recorded repo state.
 
-- update the smallest authoritative sections necessary;
-- do not edit adjacent semantics merely because they are nearby;
-- preserve the greenfield rule: no user migration tooling or implicit legacy compatibility;
-- preserve stable generic CLI/SDK operations; custom kinds and vocabulary never create or rename commands;
-- for intake work, keep the skill-directed external LLM agent as the conversation owner, require one coverage/candidate schema across guided-adaptive, express, and agent-assisted modes, and prohibit hidden nested synthesis;
-- treat Charter intake records/candidates as provenance/proposals and canonical Charter YAML as the constitutional authority;
-- treat posture recommendations as advisory until an authorized transition changes the proper canonical source;
-- update crosswalk, phase/slice map, contracts, and proof ledger together when their truths are coupled;
-- create a child packet only when it is independently implementable/reviewable;
-- do not mark parent work complete merely because a child packet was created.
+An exact handoff from another slice may provide named context but cannot change
+the selected slice. If the ledger is stale, rebuild it from canonical records
+using 08 before continuing. Do not edit an immutable record or dispatch; write a
+later superseding record only when its recommendation/facts must be replaced.
 
-DISPATCH ARTIFACT
+For HANDOFF_SELECTOR=none, begin from the explicit slice authority without
+inventing resume history.
 
-Write one ready-to-run prompt to:
+PHASE 1 — SELECTIVE CONTEXT ASSEMBLY
 
-docs/specs/handbook-contract-membrane/handoffs/dispatches/<utc-timestamp>--<slice-or-phase>--<short-slug>.md
+Load:
 
-Use docs/specs/handbook-contract-membrane/handoffs/dispatch-template.md as the required shape.
+1. exact SLICE_ID row and sequencing rules from 04;
+2. affected seam rows and named siblings from 03;
+3. applicable invariants/owner boundaries from 01;
+4. exact semantic sections from 02;
+5. exact contracts from 05;
+6. exact proof/regression gates from 06;
+7. ACTIVE_PACKET files when present;
+8. only live sources/tests/precedents allowed by the slice;
+9. previous end/current start snapshot and Resolution-appropriate delta/
+   projection when Snapshot Memory is available.
 
-The dispatch must include:
+Do not load complete snapshots, archives, or program history into a narrow
+execution/review context.
 
-- source handoff ID;
-- grounding snapshot/delta/projection refs or an explicit not-available state;
-- applicable semantic refs for artifact kind/instance, intake/candidate/canonical, posture, and shipped-default decisions;
-- exact objective and session kind;
-- active Resolution envelope;
-- must-read pack sections and live files;
-- allowed scope and explicit non-goals;
-- exact tasks/deliverables;
-- contracts and proof gates;
-- stop/escalation conditions;
-- mandatory durable closeout record requirement;
-- no unrelated cleanup.
+Produce this capsule before edits:
 
-ORCHESTRATION CLOSEOUT
+SLICE / OBJECTIVE:
+ACTIVE PACKET:
+DEPENDENCY / AUTHORIZATION PROOF:
+SELECTED HANDOFF / VALIDITY:
+ACTIVE RESOLUTION ENVELOPE:
+GROUNDING SNAPSHOT / START DELTA:
+TARGET AUTHORITY BOUNDARY:
+CURRENT REPO-TRUTH STATUS:
+MUST-READ PACK SECTIONS:
+LIVE SOURCE / TESTS / PRECEDENT:
+SIBLING SEAMS IN CONTEXT:
+ALLOWED AREAS:
+EXPLICIT NON-GOALS:
+APPLICABLE CONTRACTS / PROOF GATES:
+REQUIRED SKILL CHAIN:
+KNOWN CORRECTIONS OR CONFLICTS:
+MAXIMUM PERMITTED CLASSIFICATION / PROOF CHANGE:
+EXIT PROOF:
+STOP CONDITIONS:
 
-Capture the orchestration end snapshot when Snapshot Memory is available. Write an orchestration handoff record referencing the applicable start/end snapshots and deltas under handoffs/records/, then update ledger.jsonl according to 08-handoff-ledger-and-escalation-protocol.md.
+Keep each implementation/review packet below roughly 2,000 focused context
+lines. Separate artifact existence, semantic correctness, owner-boundary
+correctness, real-path adoption, runtime proof, and review cleanliness.
 
-Do not paste a long report into chat. Return only:
+Before changing a code symbol, perform repository-required impact analysis and
+warn on high/critical risk. Documentation-only edits do not invent a code-symbol
+blast radius.
 
-- orchestration decision;
-- selected/source handoff ID;
-- grounding snapshot/delta status;
-- dispatch artifact path;
-- orchestration handoff record path;
-- one jq command to read the durable result;
-- any immediate human action required.
-```
+PHASE 2 — SPECIFY, PLAN, AND DECOMPOSE
+
+Before implementation:
+
+1. repair SPEC.md, plan, or todo when the selected packet is incomplete;
+2. freeze exact owner, call path, contract change, fail-closed behavior,
+   compatibility posture, positive/negative proof, and non-goals;
+3. decompose large work into independently implementable/reviewable child
+   packets inside the same slice;
+4. update coupled crosswalk, phase, contract, and proof authority together when
+   semantics change;
+5. do not mark the parent complete because a child packet was created.
+
+If the canonical contract is contradictory, pause behavior-changing
+implementation, perform the smallest cross-document repair, verify it, and send
+it through fresh built-in review before resuming.
+
+PHASE 3 — EXECUTE THE ACTIVE SLICE
+
+The parent may implement/document directly or delegate a bounded child. Every
+delegated job uses an immutable JSON dispatch based on internal-dispatch-template.json and
+declares:
+
+- source_handoff_ids and parent_orchestration_id;
+- replayable sorted path/SHA-256 subject manifest and aggregate fingerprint;
+- execution_target;
+- built-in agent_type=default;
+- role;
+- fresh_context_required=true;
+- closeout_owner=parent_orchestrator;
+- ordered required_skills;
+- authority/current-truth packet;
+- allowed scope and non-goals;
+- tasks, deliverables, contracts, and proof gates;
+- structured return contract;
+- stop/escalation conditions.
+
+For execution_target=internal_subagent, execute the dispatch immediately with a
+fresh built-in subagent. The child returns structured results to this parent. It
+does not write a global handoff, append ledger.jsonl, declare the parent slice
+complete, or require the user to start another task.
+
+Implementation/documentation children that may edit overlapping files run
+sequentially. Parallel editing is allowed only when file ownership and
+integration order are demonstrably disjoint. Reviewers are always read-only.
+
+Apply finding classifications inside the active loop:
+
+- local_remediation: parent repairs and verifies;
+- child_packet_required: parent creates and internally dispatches a bounded
+  child while keeping the slice open;
+- cross_document_repair: parent repairs coupled docs and obtains fresh review;
+- proof_gap: parent internally dispatches proof/review work;
+- future_program: record disposition and continue authorized work;
+- resolution_escalation or external_blocker: stop only when the missing
+  authority/external state cannot be resolved within current authorization.
+
+PHASE 4 — PACKET VERIFICATION
+
+After every meaningful packet:
+
+1. run targeted positive tests/validation;
+2. run applicable negative and fail-closed cases;
+3. run formatting and git diff --check;
+4. inspect the scoped diff;
+5. confirm no sibling-scope widening;
+6. preserve raw command/result refs for the final proof wall.
+
+Use debugging-and-error-recovery for failures. Establish root cause before
+patching symptoms.
+
+PHASE 5 — FRESH REVIEW / REMEDIATION LOOP
+
+Every material change requires independent review. The parent cannot review its
+own work for this gate.
+
+Write/assemble a review dispatch, then spawn a fresh read-only built-in default
+subagent with isolated context. Give it only:
+
+- repository root;
+- PHASE_ID / SLICE_ID / ACTIVE_PACKET;
+- exact authority sections;
+- scoped baseline/diff or commit range;
+- affected seam rows and maximum permitted promotion;
+- applicable contracts, proof gates, and regression rules;
+- explicit non-goals;
+- verification commands and raw results;
+- known unavailable proof.
+
+Do not give the reviewer implementation reasoning, remediation discussion,
+prior reviewer conclusions, or a success-asserting summary.
+
+Require findings first, ordered Critical, Required, Optional, Nit, with:
+
+- severity;
+- file and line;
+- violated contract/invariant/gate;
+- why the boundary or proof is wrong;
+- smallest valid remediation;
+- missing verification.
+
+The parent validates every finding against live truth.
+
+- CLEAN: proceed to the full proof wall.
+- ACTIONABLE FINDINGS: repair in the parent or dispatch a fresh remediation
+  agent; record typed successful parent/delegated remediation and its result
+  fingerprint; rerun verification; spawn a different fresh reviewer that has
+  not seen the remediation discussion.
+- INVALID/OPTIONAL FINDING: record the evidence-based disposition without
+  weakening Critical/Required gates.
+- BLOCKED: stop only when the block meets a genuine top-level stop condition.
+
+Repeat until no valid actionable finding remains. Never reuse the same reviewer
+after remediation and never treat a subagent's own self-review as independent.
+
+For a multi-packet slice, packet reviewers may review bounded intermediate
+subjects. Final slice closeout must use a different fresh reviewer over the
+complete final subject and proof wall. For a single-packet slice, one review may
+serve both purposes only when its dispatch covers the complete final state.
+
+PHASE 6 — FULL PROOF WALL
+
+Before closeout:
+
+1. run all targeted unit/integration/schema checks;
+2. run exact negative/fail-closed scenarios;
+3. run required real-path smoke/e2e/downstream proof;
+4. run repository formatting, lint, build, docs, link, archive, and scope gates
+   applicable to the slice;
+5. run git diff --check;
+6. run repository-required change detection before commit;
+7. confirm changed/staged paths belong only to this slice;
+8. record unavailable platform/runtime proof honestly;
+9. promote at most the one classification/proof change supported by evidence.
+
+Unit/component proof cannot promote a seam whose real path bypasses the target
+boundary.
+
+PHASE 7 — CONTROL-PACK CLOSEOUT AND COMMIT
+
+Update only affected canonical rows. Record exact owner/call-path/enforcement
+truth, evidence, preserved baselines, sibling seams not widened, and remaining
+proof gaps.
+
+After verification and fresh review are clean:
+
+1. inspect final status and diff;
+2. stage only selected-slice files;
+3. commit with a scoped Conventional Commit message;
+4. do not start another slice automatically.
+
+PHASE 8 — TRUE-STOP HANDOFF
+
+Do not write a global handoff for each internal agent or review round.
+
+Write one current-schema parent-owned handoff and rebuild/validate the ledger
+only when:
+
+- the selected slice/top-level objective completed review-clean;
+- human interaction or approval is required;
+- an external blocker prevents progress;
+- broader authority/Resolution is required;
+- context/runtime capacity requires a new top-level task; or
+- mandatory built-in delegation is unavailable.
+
+The handoff records:
+
+- orchestration_id and source_handoff_ids;
+- stop_reason;
+- proof-relevant delegated_runs with dispatch ID, role, built-in agent identity,
+  type, fresh-context flag, required skills, final status, verdict, and refs;
+- selected scope, repo state, work, decisions, findings, proof, and next resume
+  boundary;
+- snapshots/deltas and semantic refs when applicable;
+- supersedes only for prior recommendations/facts actually replaced.
+
+Run:
+
+python3 docs/specs/handbook-contract-membrane/handoffs/validate_handoffs.py
+python3 docs/specs/handbook-contract-membrane/handoffs/validate_handoffs.py --self-test-v1-admission
+python3 docs/specs/handbook-contract-membrane/handoffs/validate_handoffs.py --self-test-orchestration-contract
+
+After validation, commit only the mechanical handoff/ledger closeout artifacts
+in a second commit. The handoff references the primary reviewed-slice commit;
+the chat closeout reports both hashes.
+
+MANDATORY STOP CONDITIONS
+
+Stop instead of improvising when:
+
+- a prerequisite or authorization gate is not proven;
+- unrelated overlapping work cannot be preserved safely;
+- the canonical contract remains contradictory after bounded repair;
+- required work must widen outside the selected slice/packet;
+- required human/product authority is missing;
+- required external/runtime/platform proof is unavailable;
+- the slice cannot remain independently reviewable;
+- mandatory built-in delegation is unavailable;
+- current context/runtime capacity cannot safely finish the active loop.
+
+Writing an internal dispatch, receiving review findings, creating a child
+packet, or discovering a local proof gap is not by itself a stop condition.
+
+CHAT CLOSEOUT
+
+Only after a true-stop handoff exists, return:
+
+STATUS: <status>
+HANDOFF: <repo-relative parent-owned handoff path>
+SUMMARY: <one or two sentences>
+NEXT: <human action, top-level resume condition, or none>
+READ: jq . <repo-relative parent-owned handoff path>
+
+Include DISPATCH only for execution_target=top_level_resume or
+execution_target=human_interactive. Do not return an internal-subagent dispatch
+as a prompt for the user to start manually.
+~~~
 
 ## Orchestration boundary
 
-The orchestrator may:
+The top-level orchestrator may:
 
 - repair program/slice documentation;
-- split or resequence work;
-- create a new slice-local packet;
-- resolve contradictions using live truth and approved architecture;
-- generate the next bounded dispatch;
-- defer or escalate work.
+- specify, plan, implement, verify, and close the explicitly authorized slice;
+- create and execute bounded internal child dispatches;
+- dispatch fresh read-only review/proof agents;
+- validate findings and remediate inside the active loop;
+- update control-pack truth supported by evidence;
+- commit the completed selected slice;
+- defer or escalate genuinely out-of-authority work.
 
 The orchestrator must not:
 
-- implement the dispatched Rust change;
-- self-review implementation it did not independently inspect;
+- start another slice automatically;
+- self-approve its own implementation/documentation;
+- replace built-in subagents with external/shell-launched agents;
+- convert an internal dispatch into an ordinary user task hop;
+- let internal subagents write global handoffs or ledger entries;
 - silently widen a packet;
-- convert an implementation finding directly into target authority without documentation review;
-- close a seam beyond the evidence in the selected handoff;
-- treat chat output as the durable ledger.
+- promote a seam beyond real-path proof;
+- treat chat output or a dispatch file as evidence that delegated execution occurred.

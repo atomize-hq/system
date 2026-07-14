@@ -21,19 +21,30 @@ control-pack/design authority
 
 Do not begin with the CLI, Tauri UI, external docks, or Substrate integration before their underlying typed semantics exist.
 
+## Top-level slice-runner rule
+
+Every authorized slice runs under one top-level orchestrator selected by explicit `PHASE_ID`, `SLICE_ID`, and optional packet. An optional handoff is resume context for that scope; it does not select the slice.
+
+The parent owns preflight, selective context assembly, specification/plan repair, implementation or documentation, verification, fresh review, remediation, re-review, proof-wall closeout, control-pack updates, and commit. Bounded child work may be delegated through immutable dispatch envelopes to fresh built-in `default` subagents, but the parent waits for their structured results and remains active.
+
+Creating a child packet or internal dispatch does not complete the parent slice. A new top-level handoff/task is justified only by slice completion, required human interaction, external blockage, broader authority, context/runtime exhaustion, or unavailable mandatory delegation.
+
 ## Phase 0 — Architecture and contract freeze
 
 **Purpose:** turn the current idea lineage into implementation-grade target authority without changing Rust.
 
 | Slice | Objective | Primary outputs | Exit gate |
 |---|---|---|---|
-| `HCM-0.1` | Establish the context-engineering control pack | `00`–`08`, handoff schema/template, active-doc pointers | pack is cohesive, repo-truth grounded, JSON artifacts valid, and reviewed |
+| `HCM-0.1` | Establish the context-engineering control pack | `00`–`08`, handoff schema/template, active-doc pointers | historical container/bootstrap scope is preserved; its recorded clean review remains evidence for the semantic content it checked, but its user-routed per-round handoff choreography is superseded by `HCM-0.8` |
 | `HCM-0.2` | Freeze artifact-kind/instance, schema-registry, intake, instance-profile, vocabulary, and constitutional-root semantics | approved `02` and exact schema sections in `05`; `ArtifactKindDefinition`, `ArtifactInstanceDescriptor`, `ArtifactIntakeDefinition`, Charter intake/promotion, and posture-kernel decisions | every semantic field has an owner, defaulting rule, validation rule, authority boundary, and explicit non-goal; examples are not treated as shipped defaults |
 | `HCM-0.3` | Freeze Context Resolution, Snapshot Memory, and deterministic projection contracts | exact envelope, snapshot/capture/delta/projection, omission, provenance, consistency, redaction, and promotion contracts | reveal/derive/synthesize boundaries and snapshot authority/consistency rules are unambiguous and testable |
 | `HCM-0.4` | Freeze crate ownership, `handbook-sdk`, CLI JSON, Tauri, and Substrate integration ladder | owner matrix, SDK use-case inventory, transport DTO contract, published proof plan | no use case depends on CLI prose; bridge and permanent boundary are distinct |
 | `HCM-0.5` | Freeze contract-membrane and dock protocol boundaries | lifecycle, claim/evidence/verdict/gate contracts; process-dock capability/request/result contract | validators remain witnesses; Resolution limits proof; first proof dock is selected |
 | `HCM-0.6` | Research and approve the shipped default artifact set | research dossier; minimal/standard/full candidate comparison; user brainstorming/decision record; approved shipped kind/instance/requiredness list | default set is evidence-backed and explicitly approved; no current enum, template, filename, or illustrative example became a default by inertia |
+| `HCM-0.8` | Correct the development orchestration and true-stop handoff control plane discovered after the original HCM-0.1 review | long-lived `07` runner; parent-owned `08` protocol; internal dispatch contract; handoff v1.2 schema/template/validator; split handoff/orchestration proof | one active parent executes a fresh built-in review internally, reconciles results, and writes one v1.2 closeout; internal agents write no global handoffs; prior records/dispatches remain immutable evidence |
 | `HCM-0.7` | Approve the implementation program and first slice packet | reviewed phase map plus first `slices/<id>/SPEC.md`, plan, and todo | Phase 0 contracts/default decisions are closed and the first slice is independently implementable with a complete proof wall |
+
+`HCM-0.8` is a corrective insertion and must close before `HCM-0.7`, despite its later-discovered numeric identifier.
 
 ### Phase 0 non-goals
 
@@ -97,8 +108,8 @@ Do not begin with the CLI, Tauri UI, external docks, or Substrate integration be
 Select one lower-risk artifact family after Phase 0 review. Project Context is the current leading implementation candidate because a structured input model and deterministic renderer already exist; pilot selection does not itself add that kind to the approved shipped default set.
 
 - canonical YAML load/validate/write;
-- derived Markdown projection;
-- source/projection fingerprints;
+- renderer-derived Markdown human-review view produced by the existing fixed deterministic first-party renderer;
+- source and rendered-output fingerprints without a Resolution or Projection provenance claim;
 - setup, authoring, doctor, and flow integration for the pilot;
 - direct cutover of tests and fixtures.
 
@@ -109,21 +120,21 @@ Select one lower-risk artifact family after Phase 0 review. Project Context is t
 - implement `CharterIntakeDefinition` as the first rich intake coverage contract;
 - support guided-adaptive, express, and agent-assisted acquisition through the skill-directed agent, all targeting the same Charter candidate schema;
 - preserve immutable intake provenance, explicit known unknowns, validation, approval, and promotion without restoring a nested CLI wizard;
-- render Markdown and Resolution-specific views only from approved canonical Charter YAML;
-- prove derived human review output and lifecycle behavior.
+- render Markdown and any other renderer-derived human-review view only through fixed deterministic, non-Resolution, first-party renderers reading approved canonical Charter YAML;
+- prove reproducible renderer-derived human-review output and lifecycle behavior.
 
-### `HCM-2.3` — Generic custom-kind intake and projection proof
+### `HCM-2.3` — Generic custom-kind registration, intake, and validation proof
 
 - register one repository-defined kind/schema without Handbook code changes;
 - use stable generic CLI/SDK operations selected by kind/instance ID;
-- validate canonical YAML and produce at least one deterministic configured projection;
+- validate canonical YAML through the registered custom schema;
 - exercise optional intake coverage when supplied;
 - prove no dynamic command or filename dispatch is involved.
 
 ### `HCM-2.4` — Remaining shipped artifact families
 
 - convert remaining first-party artifacts that need structured manipulation;
-- decide explicitly which outputs are views only;
+- decide explicitly which pre-Phase-3 outputs are renderer-derived human-review views only;
 - remove superseded Markdown-authority helpers.
 
 ### Phase 2 exit gate
@@ -131,12 +142,13 @@ Select one lower-risk artifact family after Phase 0 review. Project Context is t
 - each targeted artifact has exactly one editable canonical truth;
 - all intake modes converge on the same kind-selected canonical schema and expose missing coverage;
 - the Charter intake record/candidate/canonical boundaries are auditable and non-competing;
-- at least one custom kind validates/projects without a Rust enum variant or generated command;
-- Markdown is reproducibly derived;
+- at least one custom kind registers, validates, and exercises supplied intake coverage without a Rust enum variant or generated command;
+- Markdown and other Phase 2 renderer-derived human-review views are reproducibly derived only by fixed deterministic, non-Resolution, first-party renderers and remain outside the Projection contract;
+- generic configured custom-kind Projections and all Resolution-aware views remain deferred until `HCM-3.2` and `HCM-3.3` land;
 - no user migration tooling or dual-read promise exists;
 - every temporary internal cutover bridge named in `06` is deleted.
 
-## Phase 3 — Vocabulary, Context Resolution, Snapshot Memory, and projections
+## Phase 3 — Vocabulary, Context Resolution, Snapshot Memory, and Projections
 
 **Purpose:** make views and agent context profile-aware and resolution-aware.
 
@@ -154,8 +166,10 @@ Select one lower-risk artifact family after Phase 0 review. Project Context is t
 - inheritance, mutation, memory, validation, and escalation semantics;
 - migration of useful work-level behavior without freezing L0-L3.
 
-### `HCM-3.3` — Deterministic projection engine
+### `HCM-3.3` — Deterministic Projection engine
 
+- begins only after the `HCM-3.2` Context Resolution kernel is available;
+- generic configured custom-kind Projections and Resolution-aware first-party views;
 - reveal and derive;
 - collapse/expand request handling;
 - omission and lossiness accounting;
@@ -194,7 +208,7 @@ Select one lower-risk artifact family after Phase 0 review. Project Context is t
 
 ### Phase 3 exit gate
 
-- the same canonical truth produces multiple deterministic Resolution views;
+- the same canonical truth produces multiple deterministic Resolution Projections;
 - stable world/project snapshots and deterministic deltas can ground session transitions;
 - comprehensive snapshots are projected down to the receiving session's Resolution envelope;
 - capture instability and redaction are explicit and test-covered;
@@ -338,14 +352,19 @@ Classify each finding as one of:
 6. `proof_gap` — implementation may exist, but required evidence is missing;
 7. `future_program` — valuable but outside this program's approved target.
 
-The session writes a handoff record and stops at its packet boundary. An orchestration session then:
+The active top-level orchestrator revalidates each finding against pack and live truth, then applies the classification without silently widening:
 
-- revalidates the finding against pack and live truth;
-- decides whether to resume, repair docs, decompose, escalate, or defer;
-- updates this map and affected contracts when authority changes;
-- creates a durable dispatch prompt for the next session.
+- `local_remediation` — repair inside the current parent loop, then verify and obtain fresh review;
+- `child_packet_required` — create an independently reviewable child packet and execute it internally; the parent slice remains open;
+- `cross_document_repair` — pause behavior-changing implementation, repair coupled authority docs, obtain fresh review, then resume when coherent;
+- `proof_gap` — dispatch bounded internal proof/review work and reconcile the result;
+- `resolution_escalation` — write a top-level handoff only when the broader decision/authority cannot be resolved inside the current authorization;
+- `external_blocker` — write a top-level handoff when the named external/human recheck condition prevents further work;
+- `future_program` — record the disposition and continue the current authorized work without adding it to this program.
 
-Only the orchestration/design authority may promote a discovered child packet into the active slice plan. Implementation output alone does not change program scope.
+Local remediation, child decomposition, proof gaps, and cross-document repair do not by themselves justify returning an internal dispatch to the user as a new task.
+
+Only the top-level orchestration/design authority may promote a discovered child packet into the active slice plan. Implementation output alone does not change program scope, and creating the child does not mark the parent complete.
 
 ## Slice packet layout
 

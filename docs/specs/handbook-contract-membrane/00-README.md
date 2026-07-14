@@ -63,8 +63,8 @@ A temporary internal bridge is allowed only when it has a concrete architectural
 | [`04-phase-slice-map.md`](04-phase-slice-map.md) | planning, decomposing, executing, or escalating work | phase order, slice boundaries, child-packet rules, non-goals, exit gates |
 | [`05-contracts-schemas-and-gates.md`](05-contracts-schemas-and-gates.md) | defining artifact-kind/intake/posture types, YAML/JSON schemas, CLI output, SDK surfaces, or docks | preliminary contract shapes, schema policy, intake/approval semantics, lifecycle, evidence/verdict/gate rules |
 | [`06-proof-and-regression-ledger.md`](06-proof-and-regression-ledger.md) | reviewing, validating, closing, or preserving known behavior | current proof tiers, open proof gaps, permanent guard rails, cutover-deletion gates |
-| [`07-orchestration-onboarding-prompt.md`](07-orchestration-onboarding-prompt.md) | starting or resuming a program-level orchestration session | ready-to-use orchestration prompt, handoff selection, dispatch output contract |
-| [`08-handoff-ledger-and-escalation-protocol.md`](08-handoff-ledger-and-escalation-protocol.md) | stopping any session, reporting a blocker, or expanding scope/resolution | durable record rules, status model, escalation choreography, `jq` queries, short chat closeout |
+| [`07-orchestration-onboarding-prompt.md`](07-orchestration-onboarding-prompt.md) | starting or resuming a top-level phase/slice orchestration run | long-lived slice runner, selective onboarding, built-in delegation, review/remediation/re-review, proof, commit, and true-stop closeout |
+| [`08-handoff-ledger-and-escalation-protocol.md`](08-handoff-ledger-and-escalation-protocol.md) | stopping top-level orchestration, reporting a genuine external/authority boundary, or resuming later | parent-owned durable records, internal delegated-run results, status/stop model, ledger validation, and short chat closeout |
 
 ## Semantic landing labels
 
@@ -114,6 +114,8 @@ Use this capsule at slice start:
 
 ```text
 SLICE / OBJECTIVE:
+PARENT ORCHESTRATION ID:
+SELECTED PHASE / SLICE / PACKET:
 ACTIVE RESOLUTION ENVELOPE:
 GROUNDING SNAPSHOT / START DELTA:
 TARGET AUTHORITY BOUNDARY:
@@ -123,20 +125,35 @@ LIVE SOURCE / TESTS / PRECEDENT:
 SIBLING SEAMS IN CONTEXT:
 ALLOWED AREAS / EXPLICIT NON-GOALS:
 APPLICABLE CONTRACTS / PROOF GATES:
+BUILT-IN DELEGATION CAPABILITY / ACTIVE RUNS:
+REVIEW ROUND / SUBJECT FINGERPRINT:
 KNOWN CORRECTIONS OR CONFLICTS:
 HANDOFF RECORD TO RESUME, IF ANY:
 EXIT PROOF / STOP CONDITIONS:
 ```
 
-## Session closeout rule
+## Top-level orchestration and closeout rule
 
-Every design, planning, implementation, documentation, review, proof, or orchestration session must finish by writing one durable handoff record under `handoffs/records/`, even when the work completed cleanly.
+The user starts one top-level phase/slice orchestration run. That parent remains responsible for the selected slice through context assembly, specification and planning, implementation or documentation, verification, fresh independent review, remediation, fresh re-review, proof-wall closeout, and commit.
+
+Internal implementation, documentation, proof, remediation, and review subagents return structured results to the parent through the built-in subagent channel. They do not write canonical handoff records, append the global ledger, claim slice completion, or require the user to start another task.
+
+A durable handoff record under `handoffs/records/` is written by the top-level orchestrator only when:
+
+- the selected slice or explicitly authorized top-level objective is complete and review-clean;
+- human-visible or interactive validation is required;
+- an external blocker prevents further progress;
+- broader scope, Resolution, or decision authority is required;
+- the current top-level context/runtime boundary requires a later resume; or
+- mandatory built-in delegation is unavailable.
+
+Writing an internal dispatch is not a stopping condition. A dispatch is an immutable execution/audit envelope that the parent normally executes immediately with a fresh built-in subagent.
 
 Once Snapshot Memory is implemented, the handoff references the session-start snapshot, session-end snapshot, and their delta. A handoff is the normative transition record; the snapshot is the descriptive observation of what was true. Neither replaces the other.
 
 When artifact/intake/posture semantics are involved, the handoff also references the exact kind/instance, intake/candidate/canonical, posture, and shipped-default decision records. References preserve authority boundaries; they do not make an intake record canonical or a posture recommendation self-enacting.
 
-The record must distinguish:
+The parent-owned record must distinguish:
 
 - completed work;
 - partial work safe to resume;
@@ -144,26 +161,30 @@ The record must distinguish:
 - an escalation requiring broader resolution or authority;
 - documentation/control-pack repair;
 - further decomposition discovered during execution;
-- required review or proof follow-up.
+- required review or proof follow-up that could not be completed internally;
+- delegated runs, their built-in agent identities/statuses, and review verdicts;
+- the exact reason top-level orchestration stopped.
 
 The chat response should then be short: status, handoff ID/path, and one `jq` command. Do not paste the full handoff report into chat when the durable record exists.
 
 ## Orchestration loop
 
 ```text
-slice session
-  -> deterministic end snapshot
-  -> durable handoff record referencing snapshots/delta
-  -> orchestration session selects latest/specific handoff
-  -> orchestration captures/revalidates current start snapshot
-  -> Resolution-aware snapshot delta/projection grounds the decision
-  -> orchestration revalidates pack + live truth
-  -> orchestration updates docs/decomposition when required
-  -> orchestration writes a durable dispatch prompt
-  -> next bounded session runs from that dispatch
+user starts top-level orchestrator with explicit phase/slice
+  -> select optional resume handoff for that slice
+  -> capture/revalidate current state and assemble bounded context
+  -> specify/plan/repair the active packet
+  -> parent executes work or immediately delegates an internal dispatch
+  -> parent verifies and waits for a fresh built-in review subagent
+  -> valid findings: parent remediates or delegates a fresh fix subagent
+  -> another fresh reviewer checks the remediated state
+  -> repeat until clean or genuinely blocked
+  -> run proof wall, update control-pack truth, and commit reviewed slice state
+  -> write one parent-owned durable handoff only when orchestration stops
+  -> validate and commit the mechanical handoff/ledger closeout separately
 ```
 
-Escalation is a normal resolution transition, not a failure. Silent scope widening is a failure.
+Escalation is a normal resolution transition, not a failure. Silent scope widening and user-mediated hopping between otherwise delegable internal rounds are failures.
 
 ## Initial program conclusion
 

@@ -44,7 +44,8 @@ This document separates current artifacts from target semantics. Re-check the li
 | Contract membrane | Idea docs define lifecycle, claims, evidence, verdicts, gates, and dock semantics; no general live system exists | `TargetOnly` | owner decision pending; Handbook authority | Freeze typed core and lifecycle without creating a universal validator | canonical artifacts, SDK, docks |
 | External docks | Dock taxonomy and mental model exist only in architecture docs | `TargetOnly` | Handbook dock protocol + separable implementations | Define semantic protocol; implement process JSON first; normalize evidence | contract core, JSON schemas, capability manifest |
 | AI synthesis | Handbook has no target requirement for model-generated canonical projections; Substrate already uses Unified Agent API | `TargetOnly` optional | Substrate or optional Handbook adapter | Keep initial projections deterministic; future Handbook synthesis must use UAA programmatically and remain candidate-only | promotion gate, provenance |
-| Orchestration handoff | Prior sessions relied heavily on chat closeout and manual copy/paste; the pack now defines immutable handoff/dispatch records but runtime Snapshot Memory is not implemented | `BoundaryLanded` for the docs protocol | control-pack protocol consuming future Snapshot Memory | Require immutable handoff records, snapshot refs/deltas when available, escalation classification, and durable next-session dispatches | orchestration prompt, handoff schema, Snapshot Memory |
+| Durable top-level handoff | The pack has immutable version-routed records, a rebuildable ledger, supersession, and optional Snapshot Memory refs; the HCM-0.1 history also demonstrates that writing one record per internal review/remediation round creates an incorrect user-routed session queue | `BoundaryLanded` for record/ledger mechanics only | top-level orchestration closeout protocol consuming future Snapshot Memory | Restrict canonical handoffs and ledger writes to genuine top-level stop/resume boundaries; preserve prior records as immutable evidence; prove scoped resume, supersession, validation, and repository-relative references | delegated orchestration, handoff v1.2 schema, Snapshot Memory |
+| Delegated development orchestration | Repository skills require context/specification, implementation or documentation, verification, independent review, remediation, and re-review; the prior onboarding prompt stopped after dispatch instead of executing delegable work through built-in subagents | `BoundaryLanded` for the corrected control-pack contract; full exercise remains open | top-level control-pack slice runner using built-in subagent capabilities | Keep the parent alive for the explicit phase/slice; execute internal dispatches with fresh `default` agents; collect results; enforce review -> fix -> different fresh review; close only after proof/commit or a genuine stop condition | required skills, dispatch envelope, durable top-level handoff, proof ledger |
 
 ## High-risk coupling zones
 
@@ -96,6 +97,12 @@ Repository inspection may establish observational facts, but it cannot authorize
 
 Posture recommendations derived from snapshots are advisory until an authorized transition is approved. Fast automatic raises and lowers would create policy churn; hard triggers may prompt an immediate raise recommendation, while lowering requires sustained evidence and cannot bypass floors or non-negotiables.
 
+### Orchestration versus a session-routing queue
+
+An immutable dispatch is useful for bounded context, audit, and replay, but creating it does not complete orchestration. For `execution_target: internal_subagent`, the parent must immediately use the built-in subagent capability, wait for the result, validate findings, and continue the selected slice.
+
+Internal subagents do not append the canonical handoff ledger. Requiring the user to start a new task for an ordinary review, proof, documentation repair, child packet, or remediation round converts a long-lived slice runner into a manual queue and violates the target seam.
+
 ## Crosswalk update rule
 
 When a slice changes a seam:
@@ -104,5 +111,5 @@ When a slice changes a seam:
 2. record the exact evidence refs;
 3. change at most to the classification supported by that evidence;
 4. update `06-proof-and-regression-ledger.md`;
-5. write the closeout handoff record;
+5. let the top-level orchestrator write a closeout handoff only at a genuine stop boundary;
 6. leave sibling rows unchanged unless the same proof actually exercised them.
