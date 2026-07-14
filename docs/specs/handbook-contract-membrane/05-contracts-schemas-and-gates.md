@@ -2,9 +2,9 @@
 
 ## Status
 
-The HCM-0.2 sections are frozen design contracts: schema policy, instance-profile composition for stable-role/schema/kind/instance/vocabulary truth, stable-role and schema registries, artifact kinds, artifact instances, intake records/candidates/promotion, Charter/constitutional-root semantics, validation layers, vocabulary, and the project-posture owner/transition boundary. They are implementation authority for later slice packets, not published API guarantees or evidence that the runtime types exist.
+The HCM-0.2 sections are frozen design contracts: schema policy, instance-profile composition for stable-role/schema/kind/instance/vocabulary truth, stable-role and schema registries, artifact kinds, artifact instances, intake records/candidates/promotion, Charter/constitutional-root semantics, validation layers, vocabulary, and the project-posture owner/transition boundary. HCM-0.3 additionally freezes the Context Resolution stack/envelope/escalation/promotion, deterministic Projection definition/request/result, Snapshot Memory capture/record/delta/projection, and redaction/retention contracts. They are implementation authority for later slice packets, not published API guarantees or evidence that the runtime types exist.
 
-Context Resolution, Projection, Snapshot Memory, SDK/transport, contract/dock, and public-API sections remain preliminary until their named Phase 0 slices close. The shipped artifact-kind/default-instance/requiredness set remains unresolved until HCM-0.6.
+SDK/transport, contract/dock, and public-API sections remain preliminary until their named Phase 0 slices close. The shipped artifact-kind/default-instance/requiredness set and shipped Resolution labels/default policy remain unresolved rather than being selected by illustrative examples.
 
 ## Schema policy
 
@@ -21,7 +21,7 @@ Context Resolution, Projection, Snapshot Memory, SDK/transport, contract/dock, a
 
 ### Uniform exact-definition identity
 
-Every HCM-0.2 versioned definition uses a namespaced stable identity field and SemVer field. Its exact ref is mechanically `identity + "@" + version`; for example, `profile_id: handbook.profile.example` plus `profile_version: "1.0.0"` yields `handbook.profile.example@1.0.0`. A ref that cannot be derived this way, resolves to different identity fields, or resolves more than one record is invalid.
+Every HCM-0.2/HCM-0.3 versioned definition uses a namespaced stable identity field and SemVer field. Its exact ref is mechanically `identity + "@" + version`; for example, `profile_id: handbook.profile.example` plus `profile_version: "1.0.0"` yields `handbook.profile.example@1.0.0`. A ref that cannot be derived this way, resolves to different identity fields, or resolves more than one record is invalid.
 
 Every such definition also exposes one derived fingerprint field named by its contract (`profile_fingerprint`, `entry_fingerprint`, `registry_fingerprint`, `definition_fingerprint`, `capability_fingerprint`, `intake_definition_fingerprint`, `vocabulary_fingerprint`, `trigger_fingerprint`, `policy_fingerprint`, or another explicitly declared `*_fingerprint`). The common derivation is:
 
@@ -49,8 +49,14 @@ stable_role_registry:
   fingerprint: sha256:...
 schema_registry_sources:
   - handbook.schemas.artifacts.charter@1.0.0
+  - handbook.schemas.artifacts.project-context@1.0.0
+  - handbook.schemas.projection.agent-packet@1.0.0
+  - handbook.schemas.projection.snapshot-grounding@1.0.0
+  - handbook.schemas.context-memory-snapshot@1.0.0
+  - handbook.schemas.snapshot-delta@1.0.0
 artifact_kind_sources:
   - handbook.artifact-kind.charter@1.0.0
+  - handbook.artifact-kind.project-context@1.0.0
 artifact_instances:
   - schema_id: handbook.artifact-instance-descriptor
     schema_version: "1.0"
@@ -72,8 +78,10 @@ artifact_instances:
     validation_overlay_refs: []
     extensions: {}
 vocabulary_ref: handbook.vocabulary.example@1.0.0
-context_resolution_ref: null
-projection_catalog_refs: []
+context_resolution_ref: handbook.context-resolution.example@1.0.0
+projection_catalog_refs:
+  - handbook.projection.example-agent-packet@1.0.0
+  - handbook.projection.snapshot-grounding@1.0.0
 posture_evaluation_policy:
   ref: handbook.posture-policy.example@1.0.0
   fingerprint: sha256:...
@@ -98,7 +106,7 @@ Required gates:
 - artifact instance IDs resolve valid exact kind definitions, stable roles, and compatible semantic capabilities;
 - vocabulary conflations are explicit;
 - Resolution stack is ordered and connected;
-- projection definitions reference valid source roles and target levels.
+- every projection definition resolves exactly from the profile catalog; its typed source selectors, target schema, allowed surfaces/operations, mandatory currentness, exact disclosure policy/support evaluator, and per-rule six-dimension/classification closure validate against the resolved profile's registered kinds, capabilities, schemas, and exact Context Resolution selection.
 
 Field authority/defaulting matrix:
 
@@ -113,8 +121,8 @@ Field authority/defaulting matrix:
 | `artifact_kind_sources` | profile author supplies a complete ordered kind-source list when present | root: required; child omission inherits; present list replaces whole; explicit empty clears | exact refs; unique identities; conflicts within replacement fail | no append merge or enum/template inference |
 | `artifact_instances` | profile author supplies a complete instance registry when present | root: required; child omission inherits; present list replaces whole; explicit empty clears and then fails final constitutional validation | unique IDs/paths; valid kinds/roles/capabilities/requiredness/dependencies | no keyed merge/tombstone or reusable kind authority |
 | `vocabulary_ref` | profile author selects one exact vocabulary profile | root: required; child omission inherits; present value replaces | resolves and validates | does not rename machine identifiers or commands |
-| `context_resolution_ref` | later HCM-0.3 authority | root: explicit `null`; child omission inherits; present value replaces | must remain null until later contract freezes | HCM-0.2 does not freeze Resolution semantics |
-| `projection_catalog_refs` | later HCM-0.3 authority | root: explicit empty; child omission inherits; present list replaces whole | must remain empty until Projection contract freezes | fixed renderer refs do not belong here |
+| `context_resolution_ref` | Context Resolution stack-definition author owns comparison/default semantics; profile author selects one exact definition | root: required exact ref; child omission inherits; present ref replaces | exact ref/fingerprint closure; ordered connected levels; all six ranked domains/defaults complete | not an invocation override or a fixed L0-L3 mapping |
+| `projection_catalog_refs` | Projection-definition authors own deterministic mapping semantics; profile author selects a complete compatible catalog | root: explicit list, which may be empty; child omission inherits; present list replaces whole | exact unique refs/fingerprints; sources, surfaces, schemas, derivations, disclosure policies/support evaluators/classifications/minimum ranks, and stack compatibility resolve | fixed renderer refs and executable hooks do not belong here |
 | `posture_evaluation_policy` | profile author selects an approved policy ref/fingerprint pair | root: exact pair or `null`; child omission inherits; present pair/null replaces | exact compatible current policy fingerprint | null disables recommendations; no automatic Charter mutation |
 | `dock_requirement_refs` | later HCM-0.5 authority | root: explicit empty; child omission inherits; present list replaces whole | exact refs after later contract lands | no executable validator in a profile |
 | `adapter_overlay_refs` | adapter/profile integration authority | root: explicit empty; child omission inherits; present list replaces whole | exact declared refs; cannot change domain truth | no transport-owned semantics |
@@ -139,8 +147,15 @@ schema_registry_entries:
   - entry_ref: handbook.schemas.artifacts.charter@1.0.0
     entry_fingerprint: sha256:...
     closure_fingerprint: sha256:...
+  - { entry_ref: handbook.schemas.artifacts.project-context@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
+  - { entry_ref: handbook.schemas.projection.agent-packet@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
+  - { entry_ref: handbook.schemas.projection.snapshot-grounding@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
+  - { entry_ref: handbook.schemas.context-memory-snapshot@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
+  - { entry_ref: handbook.schemas.snapshot-delta@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
 artifact_kind_definitions:
   - kind_ref: handbook.artifact-kind.charter@1.0.0
+    definition_fingerprint: sha256:...
+  - kind_ref: handbook.artifact-kind.project-context@1.0.0
     definition_fingerprint: sha256:...
 artifact_instances:
   - schema_id: handbook.artifact-instance-descriptor
@@ -165,8 +180,12 @@ artifact_instances:
 vocabulary:
   vocabulary_ref: handbook.vocabulary.example@1.0.0
   vocabulary_fingerprint: sha256:...
-context_resolution_ref: null
-projection_catalog_refs: []
+context_resolution:
+  ref: handbook.context-resolution.example@1.0.0
+  fingerprint: sha256:...
+projection_catalog:
+  - { ref: handbook.projection.example-agent-packet@1.0.0, fingerprint: sha256:... }
+  - { ref: handbook.projection.snapshot-grounding@1.0.0, fingerprint: sha256:... }
 posture_evaluation_policy:
   ref: handbook.posture-policy.example@1.0.0
   fingerprint: sha256:...
@@ -222,7 +241,9 @@ This is a generic conformance example, not a shipped profile/default decision.
 | `artifact_kind_definitions` | resolver materializes exact kinds and fingerprints | empty only if no instance exists | unique exact kinds; all instance refs resolve | no inferred enum kinds |
 | `artifact_instances` | winning profile layer remains configuration authority; resolver materializes full descriptors | none; final list must be explicit | all descriptor gates plus exactly one constitutional capability | no keyed merge/tombstone |
 | `vocabulary` | winning vocabulary record remains display/workflow mapping authority | none | exact ref/fingerprint and vocabulary gates | no capability/command renaming |
-| later-phase refs/lists | their named profile field/later contract owns them | explicit null/empty as shown until later freezes | later contract compatibility | no premature Resolution/Projection/dock behavior |
+| `context_resolution` | winning `context_resolution_ref` layer selects exact stack semantics; resolver materializes its pair | none | exact ref/fingerprint; ordered levels, six ranked domains, and defaults resolve | no ambient stack, fixed L0-L3 inference, or invocation mutation |
+| `projection_catalog` | winning `projection_catalog_refs` layer selects a complete catalog; resolver materializes pairs | explicit list, which may be empty | exact compatible refs/fingerprints; every advertised kind/instance Projection and its disclosure-policy/support-evaluator/classification/rank closure resolves through the catalog and exact profile stack | no fixed renderer, ambient disclosure/support registry, or dynamic executable behavior |
+| remaining later-phase refs/lists | their named profile field/later contract owns them | explicit null/empty as shown until later freezes | later contract compatibility | no premature dock behavior |
 | `posture_evaluation_policy` | winning profile layer selects policy ref/fingerprint pair | explicit pair or null | compatible exact current policy | null disables recommendations, not policy authority |
 | `adapter_overlay_refs` | winning profile layer selects declared overlays | explicit list | exact refs cannot change domain truth | no transport-owned semantics |
 | `extensions` | winning profile layer supplies complete namespaced map | explicit map | declared optional namespaces | no key merge/unknown required semantics |
@@ -394,7 +415,7 @@ The actual shipped kind/default-instance set is not defined by this illustrative
 | `structural_validation_profile_ref` | Handbook schema policy | Draft 2020-12 | exact allowlisted ref compatible with schema entry | no arbitrary executable validator |
 | `semantic_validation_profile_refs` | Handbook or declared built-in semantic validators own cross-field rules | empty | exact refs; all compatible with kind/capabilities | no repository executable hook |
 | `renderer_definition_refs` | renderer-definition authors own fixed deterministic pre-Phase-3 renderers | empty | exact refs; deterministic inputs declared | not a capitalized Projection |
-| `projection_definition_refs` | later Projection authority | empty and must remain empty until HCM-0.3/Phase 3 authorization | exact refs after later freeze | no precursor generic Projection engine |
+| `projection_definition_refs` | Projection-definition authors own deterministic mapping semantics; kind author declares compatible definitions | empty | exact refs/fingerprint closure; source kind/capability selectors match and target schemas resolve | declaration does not implement or authorize a pre-Phase-3 engine |
 | `lifecycle_policy_ref` | kind author selects a Handbook lifecycle policy | `null` only when lifecycle is unrestricted by the kind | exact compatible ref or explicit null | not instance lock state |
 | `review_triggers` | kind author declares semantic reassessment triggers | empty | exact versioned trigger refs with fingerprint producers; no duplicates | no direct transport notification behavior |
 | `required_capabilities[].capability_id` | kind author declares a cross-artifact semantic prerequisite | empty list; no per-entry default | registered capability ID | no filename dependency |
@@ -502,7 +523,7 @@ The `project_context` descriptor above is a shape example only. It does not sele
 | `lifecycle_policy_ref` | profile author selects instance policy override | explicit exact ref or `null` | compatible with kind; cannot weaken kind/constitutional policy | not current mutable lock state |
 | `intake_definition_ref` | profile author explicitly selects intake | exact ref or explicit `null`; no implicit inheritance | definition's exact `artifact_kind_ref` equals selected kind; capability-required constitutional coverage cannot be disabled | kind does not list/fingerprint intakes; no prompt-owned behavior |
 | `renderer_definition_refs` | profile author explicitly selects fixed renderers | explicit list, possibly empty | subset of compatible kind refs | not Projection selection |
-| `projection_definition_refs` | later Projection authority | explicit empty list until later authorization | compatible exact refs after later freeze | no Resolution-aware view in Phase 2 |
+| `projection_definition_refs` | profile author selects compatible catalog definitions for this instance | explicit list, possibly empty | subset of kind-compatible definitions; exact refs/fingerprints; profile catalog contains each selection | selection does not create a Phase-2 view or executable hook |
 | `validation_overlay_refs` | profile author selects declarative repository constraints | empty | exact schema/declarative refs; only equal/stricter rules | no executable hook or weakened floor |
 | `extensions` | descriptor schema owns namespaced optional additions | empty | declared namespace/schema | no unknown required behavior |
 
@@ -1341,12 +1362,121 @@ Duplicate displayed labels are legal. Ambiguity matters only when a machine oper
 
 Stable role resolution always uses typed context first. Untyped ambiguous input returns candidates or a typed refusal. Profile vocabulary never renames schema IDs, profile/kind/instance IDs, capability IDs, SDK/JSON operation IDs, or CLI commands. An adapter that cannot preserve structural absorption reports typed loss/refusal rather than silently flattening it.
 
+## Context Resolution stack definition
+
+```yaml
+schema_id: handbook.context-resolution-stack-definition
+schema_version: "1.0"
+stack_id: handbook.context-resolution.example
+stack_version: "1.0.0"
+levels:
+  - level_id: strategic
+    display_label: Strategic
+    defaults:
+      scope_horizon: program
+      detail_resolution: full
+      temporal_horizon: long_range
+      authority_horizon: program_policy
+      memory_horizon: strategic
+      validation_horizon: program_gate
+  - level_id: coordination
+    display_label: Coordination
+    defaults:
+      scope_horizon: slice
+      detail_resolution: normal
+      temporal_horizon: current_slice
+      authority_horizon: slice_write
+      memory_horizon: coordination
+      validation_horizon: slice_closeout
+  - level_id: execution
+    display_label: Execution
+    defaults:
+      scope_horizon: assigned_unit
+      detail_resolution: normal
+      temporal_horizon: immediate
+      authority_horizon: local_write
+      memory_horizon: execution
+      validation_horizon: unit_closeout
+  - level_id: operation
+    display_label: Operation
+    defaults:
+      scope_horizon: local_observation
+      detail_resolution: identifier_only
+      temporal_horizon: current_operation
+      authority_horizon: read_only
+      memory_horizon: operation
+      validation_horizon: observation_only
+dimension_domains:
+  scope_horizon:
+    - { value_id: local_observation, rank: 0 }
+    - { value_id: assigned_unit, rank: 1 }
+    - { value_id: slice, rank: 2 }
+    - { value_id: program, rank: 3 }
+  detail_resolution:
+    - { value_id: identifier_only, rank: 0 }
+    - { value_id: summary, rank: 1 }
+    - { value_id: normal, rank: 2 }
+    - { value_id: full, rank: 3 }
+  temporal_horizon:
+    - { value_id: current_operation, rank: 0 }
+    - { value_id: immediate, rank: 1 }
+    - { value_id: current_slice, rank: 2 }
+    - { value_id: long_range, rank: 3 }
+  authority_horizon:
+    - { value_id: read_only, rank: 0 }
+    - { value_id: local_write, rank: 1 }
+    - { value_id: slice_write, rank: 2 }
+    - { value_id: program_policy, rank: 3 }
+  memory_horizon:
+    - { value_id: operation, rank: 0 }
+    - { value_id: execution, rank: 1 }
+    - { value_id: coordination, rank: 2 }
+    - { value_id: strategic, rank: 3 }
+  validation_horizon:
+    - { value_id: observation_only, rank: 0 }
+    - { value_id: unit_closeout, rank: 1 }
+    - { value_id: slice_closeout, rank: 2 }
+    - { value_id: program_gate, rank: 3 }
+mutation_matcher:
+  ref: handbook.mutation-matcher.core@1.0.0
+  fingerprint: sha256:...
+escalation_policy:
+  ref: handbook.resolution-escalation.core@1.0.0
+  fingerprint: sha256:...
+memory_promotion_policy:
+  ref: handbook.memory-promotion.core@1.0.0
+  fingerprint: sha256:...
+extensions: {}
+definition_fingerprint: sha256:...
+```
+
+This is a complete internally consistent conformance example, not a shipped stack decision. HCM-0.3 freezes the contract and comparison semantics without selecting product labels or a shipped stack.
+
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| schema identity | Handbook schema registry | none | exact supported pair | not stack semantic version |
+| `stack_id`, `stack_version` | stack author owns semantic identity | none | stable ID plus SemVer; unique tuple; exact ref derived from both | no implicit `default`/latest stack |
+| `levels` | stack author owns the named linear stack and defaults | none; at least one | unique stable IDs in declared broad-to-narrow order; each has all six valid defaults | no arbitrary graph or L0-L3 inference |
+| `dimension_domains` | stack author owns profile-specific value IDs and total order | none; exactly six non-empty domains | every domain has contiguous unique ranks from zero; rank zero grants least reach/disclosure/durability/claim authority | no seventh aggregate score or reversed per-profile privilege meaning |
+| level `defaults` | stack author selects one value from each domain | none | exactly six values; every value belongs to its domain; a narrower level cannot default to a higher rank than its predecessor | defaults do not override an envelope's explicit complete dimensions |
+| policy/matcher refs | named Handbook definitions own comparison, selector, escalation, and promotion semantics | none | exact refs/fingerprints; compatible versions; no executable/remote hook | no invocation-selected policy |
+| `extensions` | definition schema owns namespaced optional additions | empty | declared optional namespaces | no unknown required semantics |
+| `definition_fingerprint` | Handbook derives exact stack identity | none | RFC 8785/SHA-256 over normalized record and exact referenced-definition fingerprints except itself | no timestamp, path, or display-only drift hidden behind an unchanged fingerprint |
+
 ## Context Resolution envelope
 
 ```yaml
 schema_id: handbook.context-resolution-envelope
 schema_version: "1.0"
-active_level: execution
+envelope_id: envelope.example.execution
+resolved_profile:
+  ref: handbook.profile.example@1.0.0
+  fingerprint: sha256:...
+resolution_stack:
+  ref: handbook.context-resolution.example@1.0.0
+  fingerprint: sha256:...
+active_level_id: execution
+objective_ref: work.unit.example
 dimensions:
   scope_horizon: assigned_unit
   detail_resolution: normal
@@ -1354,21 +1484,281 @@ dimensions:
   authority_horizon: local_write
   memory_horizon: execution
   validation_horizon: unit_closeout
-parent_refs: []
-inherited_constraint_refs: []
-allowed_mutations: []
-forbidden_mutations: []
-escalation_triggers: []
+parent_envelope: null
+constraint_inputs:
+  - ref: contract.example@1.0.0
+    fingerprint: sha256:...
+mutation_rules:
+  - rule_id: allow_unit_files
+    effect: allow
+    target_kind: repository_path
+    selector: crates/example/**
+  - rule_id: deny_canonical_policy
+    effect: deny
+    target_kind: repository_path
+    selector: docs/canon/**
+escalation_triggers:
+  - trigger_id: parent_contract_conflict
+    policy_ref: handbook.resolution-trigger.parent-contract-conflict@1.0.0
+    policy_fingerprint: sha256:...
+envelope_fingerprint: sha256:...
 ```
 
-Envelope gates:
+An envelope is fully materialized; omission never means “inherit later.” A child cites at most one exact parent envelope and repeats the complete effective state. Independent constraints are exact ref/fingerprint inputs rather than merge parents.
 
-- active level exists in the selected profile;
-- narrower authority cannot override inherited broader constraints;
-- allowed and forbidden mutation sets cannot resolve ambiguously;
-- validation claims cannot exceed the validation horizon;
-- memory writes above the allowed horizon require promotion evidence;
-- expansion requests identify the missing context/authority condition.
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| schema identity and `envelope_id` | Handbook schema registry identifies shape; creating authority identifies this immutable envelope | none | exact schema; stable unique ID | not a mutable session setting |
+| `resolved_profile` | selected profile remains semantic authority | none | exact ref/fingerprint; profile selects the cited stack/catalog | no invocation-time profile mutation |
+| `resolution_stack` | selected stack definition owns level/domain comparison | none | exact ref/fingerprint equals resolved profile selection | no ambient or CLI-owned stack |
+| `active_level_id` | envelope creator selects a named default position | none | exists in stack | not an aggregate authority score |
+| `objective_ref` | parent work/operation authority identifies purpose | none | stable typed ref resolvable within scope | does not grant mutation authority |
+| `dimensions` | envelope creator selects complete operating bounds under stack semantics | none; all six required | each value resolves; every child rank is less than or equal to parent rank | no token-budget proxy or omitted inherited dimension |
+| `parent_envelope` | parent execution/view authority constrains child | root: `null`; child: exact ref/fingerprint | at most one; acyclic; same exact profile/stack; cited fingerprint matches | no multi-parent merge |
+| `constraint_inputs` | named contracts/artifacts own applicable constraints | empty | exact typed ref/fingerprint pairs; deterministic stable ordering | no prose-only or bare mutable ref |
+| `mutation_rules` | parent/creating authority grants or denies typed targets | explicit list, possibly empty | known target kinds; selectors validate through exact matcher; child allow set is a subset of parent; deny is union and wins | no unknown resource namespace, absolute-path escape, or child relaxation |
+| `escalation_triggers` | exact trigger definitions own detection semantics | explicit list | unique IDs; exact refs/fingerprints; missing-context/authority condition is reportable | trigger detection does not approve escalation |
+| `envelope_fingerprint` | Handbook derives immutable resolved identity | none | normalized complete record plus exact profile/stack/parent/constraint/policy fingerprints except itself | no caller-supplied or timestamp-based identity |
+
+Envelope conformance scenarios:
+
+| Scenario | Required result |
+|---|---|
+| identical complete inputs resolve twice | identical envelope fingerprint |
+| child narrows any subset of dimensions and mutation allows | passes and preserves every parent deny |
+| child increases one dimension rank or adds a mutation target | refuses and emits an escalation candidate; no partial widening |
+| parent fingerprint is stale or profile/stack differs | refuses |
+| allow and deny both match | deny wins and the effective set is unambiguous |
+| validation claim exceeds `validation_horizon` | claim remains `not_authorized`, never passed |
+| memory write exceeds `memory_horizon` | requires a separately authorized `ResolutionPromotionRequest` and terminal applied disposition |
+
+## Resolution escalation and memory promotion
+
+```yaml
+schema_id: handbook.resolution-escalation-request
+schema_version: "1.0"
+escalation_request_id: escalation-request.example
+current_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
+proposed_envelope: { ref: envelope.example.coordination, fingerprint: sha256:... }
+trigger: { ref: handbook.resolution-trigger.parent-contract-conflict@1.0.0, fingerprint: sha256:... }
+missing_condition: broader_contract_authority
+requested_authority_ref: work.slice.owner
+evidence_refs: []
+request_fingerprint: sha256:...
+```
+
+```yaml
+schema_id: handbook.resolution-escalation-disposition
+schema_version: "1.0"
+escalation_disposition_id: escalation-disposition.example
+request: { ref: escalation-request.example, fingerprint: sha256:... }
+outcome: approved
+decision: { ref: decision.example, fingerprint: sha256:... }
+authorized_envelope: { ref: envelope.example.coordination, fingerprint: sha256:... }
+superseding_request: null
+disposition_fingerprint: sha256:...
+```
+
+```yaml
+schema_id: handbook.resolution-promotion-request
+schema_version: "1.0"
+promotion_request_id: promotion-request.example
+source_inputs:
+  - { ref: snapshot.example, fingerprint: sha256:... }
+source_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
+target_memory_horizon: coordination
+target_record_ref: semantic-memory.example
+expected_target_fingerprint: null
+requested_authority_ref: work.slice.owner
+request_fingerprint: sha256:...
+```
+
+```yaml
+schema_id: handbook.resolution-promotion-disposition
+schema_version: "1.0"
+promotion_disposition_id: promotion-disposition.example
+request: { ref: promotion-request.example, fingerprint: sha256:... }
+outcome: applied
+decision: { ref: decision.example, fingerprint: sha256:... }
+validation_evidence_refs:
+  - { ref: evidence.example, fingerprint: sha256:... }
+approving_authority_ref: work.slice.owner
+result_record: { ref: semantic-memory.example@1, fingerprint: sha256:... }
+disposition_fingerprint: sha256:...
+```
+
+Requests and dispositions are separate append-only records. A request is pending only while no terminal disposition exists; it never changes status in place. The escalation registry admits exactly one terminal disposition per exact request: `approved`, `refused`, or `superseded`. `approved` requires the exact decision and authorized replacement envelope; `refused` requires the decision and null authorized/superseding fields; `superseded` requires the decision and one exact distinct superseding-request pair. The promotion registry likewise admits exactly one `applied`, `refused`, or `stale` disposition per exact request. `applied` requires target-horizon validation, an authorized approver, compare-and-write against the request's `expected_target_fingerprint`, and one exact new semantic-memory result pair; refused/stale dispositions have a null result. Duplicate dispositions, in-place request mutation, reuse of an ID for changed bytes, and a disposition whose request fingerprint is stale all fail closed. Snapshots, deltas, and Projections remain immutable evidence and never become canonical artifacts/contracts merely because they are promotion inputs.
+
+| Field family | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| request/disposition IDs and schema identity | Handbook schema registry/creating orchestrator | none | exact schemas; every record has a stable unique ID and fingerprint | no lifecycle mutation behind a reused ID |
+| current/proposed envelope pairs | exact envelope records own bounds | none | refs/fingerprints match; proposal uses same profile/stack and changes at least one bound | no in-place envelope mutation |
+| trigger/missing condition/requested authority | escalation policy and parent authority own why/who | none | exact trigger pair; typed missing condition; authority resolves above current bound | no “need more context” without a concrete condition |
+| escalation disposition | requested authority owns terminal decision | absent while pending; exactly one terminal record | exact request/decision pair; outcome-specific authorized envelope or superseding request; registry uniqueness | request cannot self-approve or mutate into a disposition |
+| promotion source inputs/envelope | immutable source records and envelope own observed boundary | none; non-empty sources | exact pairs; source envelope admits observation | no source promotion into canonical authority |
+| target horizon/record/expected fingerprint | target semantic-memory authority owns write location | expected fingerprint `null` only for create | target rank exceeds source only through approved policy; compare-and-write basis exact | no artifact/contract/posture mutation shortcut |
+| promotion disposition | target validation and authority own terminal admission | absent while pending; result null unless applied | exact request/decision; applied has complete paired evidence, authorized approver, successful compare-and-write, exact new result; stale/refused has no result | no unreviewed semantic-memory write or in-place outcome change |
+| request/disposition fingerprints | Handbook derives immutable transition identity | none | normalized complete record except its own fingerprint; exact request pair enters disposition fingerprint | no mutable transition history |
+
+Transition conformance requires request-only pending state, one valid terminal disposition, byte-identical replay of every prior request/disposition, and refusal of a second terminal disposition. Tests cover escalation approval/refusal/supersession and promotion application/refusal/stale compare-and-write without changing prior bytes.
+
+## Projection disclosure policy
+
+```yaml
+schema_id: handbook.projection-disclosure-policy
+schema_version: "1.0"
+policy_id: handbook.projection-disclosure.core
+policy_version: "1.0.0"
+classification_registry: { ref: handbook.projection-classification.core@1.0.0, fingerprint: sha256:... }
+matcher_definition: { ref: handbook.projection-disclosure-matcher.core@1.0.0, fingerprint: sha256:... }
+unmatched_action: redact
+indeterminate_match_action: refuse
+overlap_precedence: redact_wins
+rules:
+  - { rule_id: public_allow, disclosure_classifications: [public], source_kinds: [artifact_kind, artifact_instance, semantic_capability, snapshot, snapshot_delta, semantic_record], source_pointer_selector: "*", action: allow }
+  - { rule_id: internal_allow, disclosure_classifications: [internal], source_kinds: [artifact_kind, artifact_instance, semantic_capability, snapshot, snapshot_delta, semantic_record], source_pointer_selector: "*", action: allow }
+  - { rule_id: sensitive_redact, disclosure_classifications: [sensitive, secret], source_kinds: [artifact_kind, artifact_instance, semantic_capability, snapshot, snapshot_delta, semantic_record], source_pointer_selector: "*", action: redact }
+extensions: {}
+policy_fingerprint: sha256:...
+```
+
+Every `ProjectionDefinition` binds one exact disclosure-policy ref/fingerprint. Each field rule binds one classification registered by the policy's exact classification registry and a complete six-dimension `minimum_resolution`. An unregistered definition classification invalidates the definition and refuses before any result/evaluation record or payload read; it never reaches policy fallback. Before protected payload bytes are read, the engine compares every request-envelope dimension rank with the rule minimum under the exact envelope stack: any lower rank yields `out_of_resolution`. It then evaluates the policy only over stable source metadata `(source_kind, exact source ref, source_pointer, disclosure_classification)`. A registered tuple matching no policy rule uses `unmatched_action: redact`; matching `redact` wins over matching `allow`; matcher indeterminacy, missing/stale policy, stale classification registry, or incompatible matcher refuses the request with no payload read. Invocation cannot replace or weaken the policy.
+
+An immutable source may already carry an exact upstream redaction-disposition pair. Coverage uses the disposition's `original_pointer` and JSON Pointer segment boundaries. A request for that original pointer or its descendants maps any upstream `omit`, `fingerprint_only`, `artifact_ref_only`, or `redacted_summary` action to a Projection `redacted` omission before generic policy evaluation; it never maps to `unavailable`, and the engine never rereads the hidden original. The disposition's optional typed `retained.pointer` is outside the original subtree and is never covered merely because it shares earlier path segments; a request for that exact retained field evaluates it independently through its own rule/classification. Only an allowed pointer with no covering upstream disposition that cannot be read becomes `unavailable`. Runtime source-kind/schema/pointer or derivation-I/O rejection becomes `unsupported` before value access.
+
+Every definition also binds one exact built-in `support_evaluator` ref/fingerprint. That pure metadata-only contract owns source-kind/schema compatibility, source-pointer existence/type, target-pointer/schema compatibility, and derivation input/output compatibility. Semantic-capability compatibility is not an evaluator input or `unsupported` reason: exact profile/definition/source validation resolves every selected capability contract and binding before per-rule evaluation, and invalid capability semantics refuse with no result. A valid evaluator can return `supported` or the typed per-rule `unsupported` outcome without reading value bytes. Missing, stale, unresolved, or schema-incompatible evaluator identity refuses before result construction. Changing only evaluator identity or semantics changes its fingerprint, the enclosing definition fingerprint, every applicable disclosure-evaluation fingerprint, and the result fingerprint.
+
+Deterministic per-applicable-rule order is: validate exact definition/profile/source identity, support-evaluator identity, and mandatory currentness -> compare `minimum_resolution` -> map upstream redaction disposition -> evaluate exact disclosure policy -> evaluate runtime source-path/schema support through the bound evaluator -> read allowed bytes -> include/derive or record `unavailable`. Operation mismatch is classified before this disclosure sequence as the sole `not_applicable` case. A protected-source spy must observe zero value reads for `out_of_resolution`, `redacted`, policy/support refusal, or `unsupported` outcomes.
+
+| Field family | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| policy identity and exact refs | security/disclosure policy author owns classification and matching semantics | none | stable ID plus SemVer; exact classification/matcher refs/fingerprints; compatible with definition/profile stack | no ambient/latest/invocation policy |
+| policy actions/defaults | policy author owns allow/redact decision | v1 fixes a registered unmatched tuple to `redact`, indeterminate to `refuse`, and overlap to `redact_wins` | known actions; definition classifications registered before evaluation; complete deterministic precedence; no payload-dependent matcher input | no fallback for an unregistered definition classification, permissive unmatched default, or caller override |
+| policy rules | policy author maps stable metadata tuples to allow/redact | none; non-empty | registered classifications/source kinds; deterministic pointer selectors; stable IDs; overlap replay | no prompt/model/transport rule or content inspection |
+| field-rule `minimum_resolution` | Projection-definition author owns the least envelope that may disclose the rule | none; all six dimensions | every value belongs to the exact request-envelope stack domain; complete rank comparison | no named-level shortcut or aggregate score |
+| field-rule `disclosure_classification` | classification registry and definition author own sensitivity class | none | exact registered class evaluated by bound policy | no filename/label inference or value sniffing |
+| upstream redaction mapping | immutable source disposition owns prior hiding; Projection engine maps it | absent when no upstream disposition covers the pointer | exact disposition/source/pointer coverage; every non-raw upstream action maps original pointer to `redacted`; no reread | no downgrade to `unavailable`, recovery of omitted bytes, or policy weakening |
+| `policy_fingerprint` | Handbook derives disclosure closure | none | normalized complete policy plus exact registry/matcher fingerprints except itself | no unchanged fingerprint after rule/default drift |
+
+## Projection support evaluator definition
+
+```yaml
+schema_id: handbook.projection-support-evaluator-definition
+schema_version: "1.0"
+support_evaluator_id: handbook.projection-support.core
+support_evaluator_version: "1.0.0"
+schema_registry_contract: { ref: handbook.schema-registry.core@1.0.0, fingerprint: sha256:... }
+pointer_semantics: { ref: handbook.json-pointer.rfc6901@1.0.0, fingerprint: sha256:... }
+derivation_compatibility: { ref: handbook.projection-derivation-compatibility.core@1.0.0, fingerprint: sha256:... }
+supported_source_kinds: [artifact_kind, artifact_instance, semantic_capability, snapshot, snapshot_delta, semantic_record]
+decision_input_fields:
+  - source_kind
+  - source_schema_ref
+  - source_schema_fingerprint
+  - source_pointer
+  - source_pointer_schema
+  - derivation_ref
+  - derivation_fingerprint
+  - target_schema_ref
+  - target_schema_fingerprint
+  - target_pointer
+  - target_pointer_schema
+unsupported_reason_precedence:
+  - source_kind_unsupported
+  - source_schema_unregistered
+  - source_pointer_missing
+  - source_pointer_type_incompatible
+  - target_schema_unregistered
+  - target_pointer_missing
+  - target_pointer_type_incompatible
+  - derivation_unregistered
+  - derivation_io_incompatible
+extensions: {}
+evaluator_fingerprint: sha256:...
+```
+
+The exact ref is `support_evaluator_id + "@" + support_evaluator_version`. The evaluator receives only the listed normalized metadata fields, resolved from the exact already-validated selected source metadata, field rule, target schema, and derivation pair; it never receives source-definition or semantic-capability identity and never receives payload values. Exact profile/definition/source validation has already resolved every source-definition identity plus semantic-capability contract and binding for every admitted source kind; a missing, stale, unregistered, or incompatible definition/capability pair refuses before this evaluator and produces neither `unsupported` nor a result. The evaluator first validates its own exact schema-registry/pointer/derivation-contract pairs. Missing, stale, unresolved, or incompatible evaluator/registry/contract state refuses before result construction. Otherwise it evaluates `unsupported_reason_precedence` in order. The first matching reason returns `support_status: unsupported` plus that exact `support_reason`; if none matches, it returns `support_status: supported` with `support_reason: null`. A prior disclosure short-circuit records `support_status: not_evaluated` and `support_reason: null` without invoking the evaluator.
+
+`evaluator_fingerprint` is RFC 8785/SHA-256 over the normalized complete definition plus exact schema-registry, pointer-semantics, and derivation-compatibility fingerprints except itself. Changing the input list, supported source kinds, reason order, or any exact dependency therefore changes the evaluator pair. Extensions follow the shared HCM-0.3 optional-only rule and enter the evaluator fingerprint; they cannot add required support behavior or reorder base reasons.
+
+| Field family | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| schema/evaluator identity | Handbook support-evaluator definition schema and author | none | exact schema; stable ID plus SemVer; ref derived mechanically; unique | no bare alias, ambient/latest evaluator, or invocation ID |
+| registry/semantic contract pairs | their exact definitions own schema, pointer, and derivation semantics | none | exact refs/fingerprints; mutually compatible; all resolve before evaluation | no capability-registry ownership, payload content, network lookup, or transport registry |
+| `supported_source_kinds` | evaluator definition owns admitted metadata families | none; non-empty | registered kinds; deterministic set normalization | no filename/label inference or implicit future kind |
+| `decision_input_fields` | evaluator definition owns the complete metadata tuple | none; exact ordered v1 list shown | allowlist equals the shown fields; every field is derivable from already-validated source/schema/rule/derivation metadata; no extra/omitted input | no source-definition/capability identity, payload value, clock, environment, or caller hint |
+| `unsupported_reason_precedence` | evaluator definition owns deterministic first-failure outcome | none; exact non-empty ordered reason set | known exhaustive reason codes; first match wins; supported iff none match | no multi-reason ordering drift, warning-based success, or caller-selected reason |
+| `extensions` | evaluator schema owns optional namespaces | empty map | registered optional-only extension schemas; fingerprinted | no added required support rule or base-order override |
+| `evaluator_fingerprint` | Handbook derives exact evaluator identity | none | normalized complete definition plus exact dependency fingerprints except itself | no unchanged fingerprint after evaluator semantic drift |
+
+## Projection definition
+
+```yaml
+schema_id: handbook.projection-definition
+schema_version: "1.0"
+projection_definition_id: handbook.projection.example-agent-packet
+projection_definition_version: "1.0.0"
+source_selectors:
+  - selector_id: project_context
+    source_kind: artifact_kind
+    source_ref: handbook.artifact-kind.project-context@1.0.0
+    cardinality: exactly_one
+allowed_surfaces:
+  - agent_packet
+allowed_operations:
+  - reveal
+  - derive
+target_schema:
+  ref: handbook.schemas.projection.agent-packet@1.0.0
+  fingerprint: sha256:...
+disclosure_policy: { ref: handbook.projection-disclosure.core@1.0.0, fingerprint: sha256:... }
+support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }
+currentness_requirements:
+  mode: none
+  revision_basis: null
+  families: []
+field_rules:
+  - rule_id: reveal_objective
+    operation: reveal
+    source_selector_id: project_context
+    source_pointer: /objective
+    target_pointer: /objective
+    minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: normal, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: operation, validation_horizon: observation_only }
+    disclosure_classification: internal
+    required_for_result: true
+    claim_refs: []
+    derivation: null
+  - rule_id: derive_constraints
+    operation: derive
+    source_selector_id: project_context
+    source_pointer: /constraints
+    target_pointer: /constraint_summary
+    minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: normal, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: operation, validation_horizon: observation_only }
+    disclosure_classification: internal
+    required_for_result: false
+    claim_refs: []
+    derivation:
+      ref: handbook.derivation.normalized-summary@1.0.0
+      fingerprint: sha256:...
+extensions: {}
+definition_fingerprint: sha256:...
+```
+
+Source kinds are `artifact_kind`, `artifact_instance`, `semantic_capability`, `snapshot`, `snapshot_delta`, or another registered semantic record class. Canonical artifacts and immutable semantic/observation records are both valid typed sources, but Projection preserves the source's existing authority class; accepting a snapshot or delta never labels it canonical truth or peer authority. V1 selector cardinality is always `exactly_one`; zero or multiple identity matches refuse rather than choosing by source order. A rule may reveal one compatible source path or derive through one exact allowlisted Handbook derivation. Rule graphs are acyclic; every target pointer has one producer; required rules cannot be silently dropped. Definitions contain no executable hook, remote code, command, prompt, or transport renderer.
+
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| definition identity | Projection-definition author owns mapping identity | none | stable ID plus SemVer; unique exact ref | not a request/result ID |
+| `source_selectors` | definition author declares accepted typed sources | none; at least one | unique selector IDs; exact compatible source refs/fingerprint closure; `cardinality=exactly_one` | no plural/source-order/filename/label inference |
+| `allowed_surfaces` | definition author limits transport-neutral view purposes | none | registered stable surface IDs | surface does not own domain semantics |
+| `allowed_operations` | definition author selects deterministic operations | none | non-empty subset of `reveal`, `derive` | no synthesis in v1 |
+| `target_schema` | schema registry owns output structure | none | exact safe local schema ref/fingerprint | no prose-only output contract |
+| `disclosure_policy` | exact Projection disclosure policy owns metadata-only allow/redact/default/refusal semantics | none | exact ref/fingerprint; compatible matcher/classification registry and profile stack; invocation cannot replace it | no ambient policy, value inspection, or transport-owned redaction |
+| `support_evaluator` | exact built-in Projection support contract owns metadata-only source-kind/path/schema and derivation-I/O compatibility | none | exact ref/fingerprint; compatible with source and target schema registries; profile catalog closes it; invocation cannot replace it | no semantic-capability ownership, ambient registry, payload/content inspection, or transport-owned support decision |
+| `currentness_requirements` | definition author owns any exact pre-output source-currentness closure | none; every definition declares it | `none` requires null basis/empty families; `exact_revision_check` is snapshot-selector-only, fixes `revision_basis: captured_revision`, and requires non-empty unique family, exact adapter, and declared source-slot bindings | no extension-supplied required behavior, request-selected family/value set, post-revision proxy, or purpose-derived currentness |
+| `field_rules` | definition author owns deterministic mapping, v1 applicability, minimum disclosure ranks, and classification | none; at least one | declared operation is allowed and is the sole applicability condition; valid source/target JSON Pointers; complete valid six-dimension minimum; registered disclosure class; unique producers; acyclic; exact derivation when used | no arbitrary condition/expression, named-level shortcut, content sniffing, or executable plugin |
+| `required_for_result`/`claim_refs` | contract/definition author declares decision-completeness and claim-observation consequences | `false`/empty | claims resolve and source path can observe them; exact inclusion/omission truth table below; every potentially omitted target pointer is structurally omittable in the target schema | `required_for_result` does not suppress the Projection result, make the target pointer unconditionally schema-required, or create automatic passing evidence |
+| `definition_fingerprint` | Handbook derives definition closure | none | normalized definition plus exact source/schema/derivation/disclosure-policy/support-evaluator fingerprints except itself | no mutable alias/latest selection |
 
 ## Projection request
 
@@ -1377,12 +1767,25 @@ This capitalized `Projection` request/result pair belongs only to the Phase 3 ge
 ```yaml
 schema_id: handbook.projection-request
 schema_version: "1.0"
-artifact_refs: []
-projection_id: agent.execution-packet
-vocabulary_profile_ref: default
-resolution_envelope: {}
+request_id: projection-request.example
+sources:
+  - selector_id: project_context
+    ref: artifact.project-context@7
+    fingerprint: sha256:...
+resolved_profile: { ref: handbook.profile.example@1.0.0, fingerprint: sha256:... }
+vocabulary: { ref: handbook.vocabulary.example@1.0.0, fingerprint: sha256:... }
+projection_definition: { ref: handbook.projection.example-agent-packet@1.0.0, fingerprint: sha256:... }
+resolution_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
+operation: reveal
 surface: agent_packet
+purpose: delegated_execution_context
+currentness:
+  mode: none
+  revision_basis: null
+  expected_family_revisions: []
 ```
+
+The request must use the exact profile-selected vocabulary, stack, catalog, and complete envelope; every source selector binds exactly one stable source identity through its ref/fingerprint pair. Zero/multiple identity matches, an invalid pair, stale definition/profile/capability semantics, or a failed mandatory currentness precondition refuses. Operation and surface must be allowed by the definition. For a valid exactly bound source, envelope access is evaluated per applicable field rule before protected payload bytes are read: envelope denial produces `out_of_resolution`, redaction produces `redacted`, payload unavailability produces `unavailable`, and a runtime-unsupported source kind/path/schema or derivation I/O produces `unsupported`. Each is a typed omission with its proof effect, never a request refusal or `not_applicable`; hidden content is not loaded and then concealed. Invocation cannot replace profile, vocabulary, definition, or envelope semantics.
 
 ## Projection result
 
@@ -1391,18 +1794,54 @@ This result is Phase-3-only and is never required for a fixed pre-Phase-3 render
 ```yaml
 schema_id: handbook.projection-result
 schema_version: "1.0"
-projection_id: agent.execution-packet
-source_refs: []
-source_fingerprints: []
-resolved_profile_fingerprint: ""
-projection_definition_version: "1"
-resolution_envelope: {}
+result_id: projection-result.example
+request_ref: projection-request.example
+sources:
+  - selector_id: project_context
+    ref: artifact.project-context@7
+    fingerprint: sha256:...
+resolved_profile: { ref: handbook.profile.example@1.0.0, fingerprint: sha256:... }
+vocabulary: { ref: handbook.vocabulary.example@1.0.0, fingerprint: sha256:... }
+projection_definition: { ref: handbook.projection.example-agent-packet@1.0.0, fingerprint: sha256:... }
+resolution_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
+surface: agent_packet
 operation: reveal
+currentness_validation:
+  mode: none
+  revision_basis: null
+  checks: []
+disclosure_evaluations:
+  - rule_id: reveal_objective
+    definition_rule_ordinal: 1
+    minimum_resolution_outcome: sufficient
+    upstream_redaction_check: none
+    upstream_redaction_disposition: null
+    policy_evaluation: matched
+    matched_policy_rule_ids: [internal_allow]
+    policy_action: allow
+    support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }
+    support_status: supported
+    support_reason: null
+    payload_access: read
+    final_disposition: included
+    evaluation_fingerprint: sha256:...
 lossiness: lossless
-included_claim_refs: []
-omitted_claim_refs: []
-derived_artifact_refs: []
-promotion_eligibility: local_only
+included:
+  - rule_id: reveal_objective
+    source_pointer: /objective
+    target_pointer: /objective
+    claim_refs: []
+omissions: []
+not_applicable:
+  - rule_id: derive_constraints
+    reason: operation_mismatch
+derivations: []
+output:
+  schema_ref: handbook.schemas.projection.agent-packet@1.0.0
+  content_ref: projection-output.example
+  content_fingerprint: sha256:...
+authority_effect: none
+result_fingerprint: sha256:...
 ```
 
 Allowed `operation` values initially:
@@ -1412,58 +1851,166 @@ Allowed `operation` values initially:
 
 Reserve `synthesize_candidate` in the conceptual model but do not implement it in the first projection slice.
 
+Omission entries contain `rule_id`, source selector/path, the rule's exact claim refs, one of `out_of_resolution`, `redacted`, `unavailable`, or `unsupported`, and exactly one `proof_effect`: `not_observed` or `none`. `required_for_result` means required for a complete decision/evidence-bearing view, not required for the existence of the Projection result record. An omitted target pointer is absent from `output`; every Projection target schema must allow that typed absence for every potentially omitted rule, or the definition is invalid before execution. A result with an omitted required rule is still emitted and schema-valid but is incomplete for any positive decision/proof use and carries `not_observed`. In v1, each field rule's declared `operation` is its complete applicability condition. A rule whose operation differs from the request appears exactly once in `not_applicable` with `reason: operation_mismatch`; it is not an omission and has no proof effect. The definition rule IDs must equal the disjoint union of `included`, `omissions`, and `not_applicable` rule IDs.
+
+`disclosure_evaluations` contains exactly one entry for every applicable rule, sorted by the rule's one-based `definition_rule_ordinal`, and none for operation-mismatch rules. No ordinal may be duplicated, skipped among applicable rules, or reordered. Each entry contains `rule_id`, `definition_rule_ordinal`, `minimum_resolution_outcome`, `upstream_redaction_check`, `upstream_redaction_disposition`, `policy_evaluation`, ordered `matched_policy_rule_ids`, resolved `policy_action`, exact `support_evaluator` ref/fingerprint, `support_status`, `support_reason`, `payload_access`, `final_disposition`, and `evaluation_fingerprint`. The support pair is always present and equals the definition pair even when a prior short-circuit makes `support_status: not_evaluated`; `support_reason` is non-null exactly for `unsupported` and is the evaluator's first matching frozen reason. Policy/definition/support/currentness refusal occurs before result construction and therefore emits no result or disclosure-evaluation record.
+
+`evaluation_fingerprint` is RFC 8785/SHA-256 over the normalized evaluation entry except itself plus the exact result-level source pair selected by the rule, Projection-definition pair/fingerprint (which closes over the disclosure policy and rule), and envelope pair/fingerprint. A non-null upstream-disposition pair is already inside the entry. The enclosing `result_fingerprint` hashes the complete ordered evaluation list. Derivation entries bind rule/derivation refs, exact input fingerprints, output fingerprint, and `lossy: true|false` declared by the derivation definition.
+
+Exact inclusion/omission/proof table:
+
+| Rule applicability/outcome | `required_for_result` | `claim_refs` | Target/output treatment | `proof_effect` and result treatment |
+|---|---:|---|---|---|
+| operation mismatch | either | either | target absent; one `not_applicable(operation_mismatch)` entry | no `proof_effect`; requiredness is irrelevant because the rule is not applicable |
+| applicable and included | either | either | target present and schema-valid | no `proof_effect`; included claims may be evaluated only from the cited source/output |
+| applicable and omitted | `true` | empty or non-empty | target absent through schema-declared typed omission | `not_observed`; result is emitted but incomplete/non-passing for decision or proof use |
+| applicable and omitted | `false` | non-empty | target absent through schema-declared typed omission | `not_observed` for every named claim; result is emitted and no named claim is satisfied |
+| applicable and omitted | `false` | empty | target absent through schema-declared typed omission | `none`; result is emitted with lossiness determined by the omission reason |
+
+Exact disclosure-evaluation outcome matrix (`upstream disposition` is always an exact `{ref, fingerprint}` pair when non-null, and every row carries the same exact definition-bound `support_evaluator` pair):
+
+| Final disposition | `minimum_resolution_outcome` | `upstream_redaction_check` / disposition | `policy_evaluation` / matched IDs / action | `support_status` / reason | `payload_access` |
+|---|---|---|---|---|---|
+| `out_of_resolution` | `insufficient` | `not_evaluated` / `null` | `not_evaluated` / `[]` / `not_evaluated` | `not_evaluated` / `null` | `not_attempted` |
+| `redacted` by upstream disposition | `sufficient` | `covered` / exact pair | `not_evaluated` / `[]` / `not_evaluated` | `not_evaluated` / `null` | `not_attempted` |
+| `redacted` by matched policy rule(s) | `sufficient` | `none` / `null` | `matched` / non-empty definition order / `redact` | `not_evaluated` / `null` | `not_attempted` |
+| `redacted` by registered unmatched tuple | `sufficient` | `none` / `null` | `unmatched_default` / `[]` / `redact` | `not_evaluated` / `null` | `not_attempted` |
+| `unsupported` | `sufficient` | `none` / `null` | `matched` / non-empty definition order / `allow` | `unsupported` / exact first reason | `not_attempted` |
+| `unavailable` | `sufficient` | `none` / `null` | `matched` / non-empty definition order / `allow` | `supported` / `null` | `attempted_unavailable` |
+| `included` | `sufficient` | `none` / `null` | `matched` / non-empty definition order / `allow` | `supported` / `null` | `read` |
+
+For overlapping matched rules, `matched_policy_rule_ids` retains exact policy-definition order and the resolved action is `redact` if any match redacts. A policy refusal (`indeterminate` matcher, missing/stale/incompatible policy or registry), invalid/unregistered definition classification, invalid source identity/cardinality, or failed mandatory currentness check emits no Projection result. Mixed-rule fixtures must reproduce byte-identical evaluation ordering, evaluation fingerprints, and the enclosing result fingerprint.
+
+Lossiness uses this fixed precedence:
+
+| Highest matching condition | Result lossiness |
+|---|---|
+| any omission is `redacted` | `redacted` |
+| otherwise any omission is `unavailable` or `unsupported` | `partial` |
+| otherwise any omission is `out_of_resolution`, or any included derivation is lossy | `collapsed` |
+| otherwise every applicable rule is included and every derivation is non-lossy | `lossless` |
+
+Mixed reasons always take the highest row, so the caller cannot choose a friendlier label. `not_applicable` entries do not affect lossiness. Every generic request/result carries currentness basis/evidence: definition mode `none` requires null basis plus request `none`/empty expected revisions and result `none`/empty checks. `exact_revision_check` is valid only for definitions whose required families bind snapshot source selectors and fixes `revision_basis: captured_revision`. Each request expected family revision must equal that selected snapshot's family `captured_revision`, and each expected slot revision must equal its corresponding captured slot revision. Result observations must equal those same request/bound-snapshot values; pre/post revisions and arbitrary caller-supplied live values cannot substitute. Exact mode also requires definition/request/result tuple equality. The result fingerprint covers request/provenance, currentness validation, complete disclosure evaluations, included/omitted/not-applicable/derived entries, output fingerprint, lossiness, and authority effect except itself.
+
+Projection conformance scenarios:
+
+| Scenario | Required result |
+|---|---|
+| same exact request and source bytes execute twice | identical output and result fingerprints |
+| a selector resolves zero or multiple sources | refuses; v1 never selects a source-order winner |
+| an exactly bound applicable source field is outside the envelope | `out_of_resolution` omission with its proof effect; result remains completely accounted |
+| an exactly bound applicable source field is redacted | `redacted` omission with its proof effect; protected bytes are not disclosed |
+| an exactly bound applicable source payload is unavailable | `unavailable` omission with its proof effect; no request refusal unless a separate mandatory currentness check fails |
+| an exactly bound applicable source kind/path/schema or derivation I/O is unsupported at runtime | `unsupported` omission with its proof effect |
+| reveal request executes the example definition | `reveal_objective` is included and `derive_constraints` is exactly `not_applicable` because of operation mismatch |
+| equivalent definitions reveal/derive from a canonical artifact, snapshot, or delta source | each result preserves the source's prior authority class and records `authority_effect: none`; observation sources do not become canonical/peer truth |
+| each omission reason crosses required/non-required rules with empty/non-empty claims | output remains schema-valid with target absent; exact table selects `not_observed` or `none`; rule partition and lossiness remain complete; no false pass |
+| definition/profile/vocabulary/envelope fingerprint is stale | refuses |
+| request asks for unsupported operation/surface | refuses |
+| expansion needs a higher dimension or mutation authority | returns a `ResolutionEscalationRequest` candidate; engine does not widen itself |
+| definition contains a prompt, executable hook, remote ref, cycle, or two target producers | definition validation refuses |
+
+Projection request/result field authority:
+
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| request/result schema and IDs | Handbook schema registry owns shape; caller/engine allocate immutable operation IDs | none | exact schema; unique stable IDs; result cites exact request | IDs do not grant authority |
+| request `sources` | caller selects exact typed source identities allowed by definition; source records retain their prior authority class | none | paired ref/fingerprint and selector/cardinality satisfied; envelope/redaction/availability/support are evaluated per applicable rule into typed omissions | no parallel arrays, ambient discovery, request-wide envelope-visibility precondition, snapshot-to-canonical promotion, or hidden-payload read before access decision |
+| profile/vocabulary/definition/envelope pairs | their exact definitions remain semantic/display/view/authority owners | none | exact matching fingerprints and cross-compatibility; request and result pairs identical | no invocation override or result-side substitution |
+| request `operation`, `surface`, `purpose` | caller selects within definition | none | operation/surface allowed; purpose registered and non-authoritative | purpose does not change mapping rules |
+| request `currentness` | exact definition owns mode/basis and family/selector/adapter/slot closure; bound snapshot owns expected values | none; field is always present | mode/basis equal definition; `none` is null/empty; exact tuples equal definition and values equal selected snapshot captured composite/slots | no extension/purpose-derived basis, caller-selected closure/value, or pre/post proxy |
+| result `currentness_validation` | exact source adapters own observed live revisions; engine records evidence | none; field is always present | mode/basis equal definition/request; `none` is null/empty; exact tuples equal definition/request; observed equals request and bound captured values; all pass | no stale snapshot greened by unrelated equal live values, omitted evidence, or post-request source substitution |
+| result `disclosure_evaluations` | exact stack, field rule, upstream source disposition, disclosure policy, and definition-bound support evaluator own decisions; engine records replay | none; one per applicable rule | exact applicable-rule set; exact support pair always equals definition; `unsupported` has first-precedence reason and other statuses have null reason; fixed evaluation order/nullability; final disposition equals included/omission entry; payload access consistent; evaluation fingerprint recomputes | no ambient support registry, unowned/free-form reason, evaluation for operation mismatch, hidden read, unrecorded policy default, or result-side reclassification |
+| result `included` | engine records each executed reveal/derive rule | empty only when definition/request allow an empty result | unique rule IDs; exact source/target pointers/claims | no unproven claim implication |
+| result `omissions` | engine records every applicable unexecuted rule | empty on fully included result | typed reason; exact rule/claim refs; target absent under an omission-compatible target schema; proof effect follows the complete requiredness/claim table; every applicable rule is included or omitted exactly once | no result suppression for a valid omission, silent omission, invented placeholder value, or green default |
+| result `not_applicable` | engine records definition rules whose operation differs from the request | empty only when every rule uses the request operation | exact rule ID and `operation_mismatch`; disjoint-union accounting equals all definition rules | no omission reason, proof effect, or caller-defined condition |
+| result `derivations` | exact derivation definition owns algorithm | empty for reveal-only result | exact derivation/input/output fingerprints and matching rule | no model/executable hook |
+| result `output` | target schema owns shape; engine owns derived bytes | none | exact schema; content ref/fingerprint; output validates with omitted rule targets absent; a definition whose schema cannot represent any allowed typed omission is invalid | output is not canonical source authority and omission never inserts a fabricated placeholder |
+| `lossiness` | engine derives from rule outcomes | none | exact computed enum consistent with omissions/derivations | caller cannot request `lossless` |
+| `authority_effect` | architecture contract fixes view authority | always `none` | exact literal | no auto-promotion or source mutation |
+| `result_fingerprint` | Handbook derives immutable result identity | none | normalized complete result plus exact provenance/output fingerprints except itself | no timestamp or mutable alias |
+
 ## Snapshot capture policy
 
 ```yaml
 schema_id: handbook.snapshot-capture-policy
 schema_version: "1.0"
-policy_id: session-boundary.default
+policy_id: handbook.snapshot-policy.session-boundary
+policy_version: "1.0.0"
 triggers:
   - session_start
   - session_end
+allowed_memory_horizons:
+  - execution
+  - operation
 state_families:
   git:
+    source_adapter: { ref: handbook.snapshot-source.git@1.0.0, fingerprint: sha256:... }
     include_paths: true
     include_diff_stats: true
     full_diff: artifact_ref_only
   handbook:
+    source_adapter: { ref: handbook.snapshot-source.handbook@1.0.0, fingerprint: sha256:... }
     include_profile: true
     include_artifact_fingerprints: true
     include_contract_state: true
   work:
+    source_adapter: { ref: handbook.snapshot-source.work@1.0.0, fingerprint: sha256:... }
+    source_slots:
+      - work_ledger
+      - active_plan
+    composite_revision_rule: { ref: handbook.snapshot-composite.work-slots@1.0.0, fingerprint: sha256:... }
     recent_completed:
+      window_id: recent_completed
       count: 10
-      source_ref: work-ledger
-      cursor: null
+      source_slot: work_ledger
+      cursor_mode: exclusive
       ordering: completed_at_then_id
     queued_next:
+      window_id: queued_next
       count: 10
-      source_ref: active-plan
-      cursor: null
+      source_slot: active_plan
+      cursor_mode: exclusive
       ordering: canonical_queue_order
+  session:
+    source_adapter: { ref: handbook.snapshot-source.session@1.0.0, fingerprint: sha256:... }
+    include_orchestration_state: true
   evidence:
+    source_adapter: { ref: handbook.snapshot-source.evidence@1.0.0, fingerprint: sha256:... }
     include_latest_gate_refs: true
-redaction_policy_ref: snapshot-redaction.default
+comparison_contract: { ref: handbook.snapshot-comparison.core@1.0.0, fingerprint: sha256:... }
+drift_rule_catalog: { ref: handbook.snapshot-drift.core@1.0.0, fingerprint: sha256:... }
+predecessor_rule: { ref: handbook.snapshot-predecessor.boundary-stream@1.0.0, fingerprint: sha256:... }
+redaction_policy: { ref: handbook.snapshot-redaction.default@1.0.0, fingerprint: sha256:... }
 consistency:
   retries: 2
+  bounded_skew_rule: { ref: handbook.snapshot-bound.exact-revision-per-family@1.0.0, fingerprint: sha256:... }
   unstable_action: persist_non_promotable
-retention_policy_ref: snapshot-retention.session
+retention_policy: { ref: handbook.snapshot-retention.session@1.0.0, fingerprint: sha256:... }
+extensions: {}
+policy_fingerprint: sha256:...
 ```
 
-For every bounded history window, `cursor: null` means start at the policy-defined initial boundary for the declared ordering. A non-null cursor is an opaque source-issued continuation position, applied exclusively so the item named by the cursor is not repeated. Reusing the same source revision, cursor, count, and ordering must select the same window; changing any of them changes capture input and therefore the policy/capture fingerprint as applicable.
+The versioned policy owns only static window semantics: stable window ID, source slot, count, cursor mode, and total ordering. At capture time each window binds that slot to one exact source ref/revision and supplies an opaque source-issued cursor or `null` for the rule-defined initial boundary. `exclusive` means the item named by a non-null cursor is not repeated. Reusing the same source revision, cursor, count, and ordering selects the same window. Source revision/cursor changes alter snapshot capture input and state/record fingerprints, not the policy definition fingerprint.
 
-Capture policy gates:
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| policy identity | capture-policy author owns selected-state semantics | none | stable ID plus SemVer; exact derived ref | no implicit local/default policy |
+| `triggers` | policy author selects strategic capture boundaries | none; non-empty | registered trigger IDs; deterministic stable order; no command-by-command default | trigger does not change authority |
+| `allowed_memory_horizons` | policy author limits where records produced by this policy may be stored | none; non-empty | unique valid horizons; capture envelope's memory horizon is a member; every horizon/trigger/record-class tuple is covered by retention | no invocation-selected durability |
+| `state_families` | policy author selects exact source adapters and normalized fields | none; non-empty | registered family; exact adapter ref/fingerprint; adapter declares source/revision/payload schema | no ambient plugin or unrestricted payload |
+| multi-source family slots/composite rule | family adapter definition owns source-slot identities; exact composite rule owns family revision | omitted only for single-slot families | unique declared slots; exact rule pair; composite covers every slot in stable order | no plan/ledger drift hidden behind one slot's revision |
+| bounded-window definitions | policy author owns window ID/source slot/count/cursor mode/ordering | omitted when no window | unique window ID; positive bound; declared source slot; deterministic total order; exclusive cursor mode | no live revision/cursor in reusable policy and no nondeterministic “last N” |
+| comparison/drift/predecessor refs | exact definitions own compatibility, signal, and predecessor-applicability rules | none | exact refs/fingerprints compatible with all families/triggers | no model interpretation, free-form causal classifier, or heuristic predecessor |
+| redaction/retention refs | exact policies own disclosure/storage limits | none | exact refs/fingerprints; redaction fail-closed; retention honors referenced records/holds | no invocation override to expose denied content |
+| `consistency` | policy author owns retries, bounded rule, and unstable disposition | none | bounded retries; declared skew rule; unstable action only `persist_non_promotable` or `refuse` | no unstable closeout/grounding claim |
+| `policy_fingerprint` | Handbook derives policy closure | none | normalized policy plus every exact source/policy/rule fingerprint except itself | no timestamp or mutable source alias |
 
-- every selected state family names its authority/source;
-- bounded history windows name count, source, cursor, and ordering;
-- sensitive content defaults to excluded or artifact-ref-only;
-- capture hooks and retention are explicit;
-- unstable captures cannot support promotion or closeout;
-- changing capture policy changes its fingerprint/version.
+Changing any selected field, source adapter, source-slot/composite rule, memory horizon, static window rule, comparison/drift/predecessor rule, redaction/retention policy, or consistency behavior requires a changed policy version/fingerprint. Capture invocation selects an exact policy/trigger and supplies only exact live source revisions/cursors for declared slots/windows; it cannot widen the policy or memory horizon.
 
 ## Context Memory Snapshot
 
-Conceptual minimum:
+Conceptual minimum (family payloads are abbreviated but their envelopes are required):
 
 ```yaml
 schema_id: handbook.context-memory-snapshot
@@ -1471,77 +2018,183 @@ schema_version: "1.0"
 snapshot_id: snap_...
 capture:
   trigger: session_end
-  policy_ref: session-boundary.default
+  policy: { ref: handbook.snapshot-policy.session-boundary@1.0.0, fingerprint: sha256:... }
   started_at: "..."
   completed_at: "..."
   producer_version: "..."
   consistency: stable
-  pre_revisions: {}
-  post_revisions: {}
-context_resolution: {}
-repository:
-  repository_id: "..."
-  worktree_id: "..."
-  branch: main
-  head: "..."
-  upstream: "..."
-  operation_state: clean
-  dirty_paths: []
-  untracked_paths: []
-  diff_summary: {}
-  diff_artifact_refs: []
-handbook:
-  profile_ref: "..."
-  resolved_profile_fingerprint: "..."
-  artifact_kind_registry_fingerprint: "..."
-  vocabulary_fingerprint: "..."
-  resolution_stack_fingerprint: "..."
-  artifacts: []
-  intake_refs: []
-  unresolved_intake_coverage: []
-  posture_kernel_ref: null
-  posture_recommendation_refs: []
-  contracts: []
-  verdict_refs: []
-  gate_refs: []
-work:
-  active_refs: []
-  recent_completed: []
-  queued_next: []
-  blocked_refs: []
-  deferred_refs: []
-  escalation_refs: []
-session:
-  session_ref: "..."
-  handoff_ref: "..."
-  dispatch_ref: "..."
-evidence:
-  validation_refs: []
-  unresolved_proof_refs: []
+  retry_count: 0
+repository_identity:
+  repository_id: repo.example
+  workspace_id: worktree.example
+boundary_stream_ref: orchestration.example
+boundary_sequence: 2
+resolved_profile: { ref: handbook.profile.example@1.0.0, fingerprint: sha256:... }
+context_resolution_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
+family_observations:
+  git:
+    source_adapter: { ref: handbook.snapshot-source.git@1.0.0, fingerprint: sha256:... }
+    pre_revision: git:abc
+    captured_revision: git:abc
+    post_revision: git:abc
+    consistency: stable
+    bound_evaluation: null
+    payload_fingerprint: sha256:...
+    payload:
+      branch: main
+      head: abc
+      upstream: origin/main
+      operation_state: clean
+      dirty_paths: []
+      untracked_paths: []
+      diff_summary: {}
+      diff_artifact_refs: []
+  handbook:
+    source_adapter: { ref: handbook.snapshot-source.handbook@1.0.0, fingerprint: sha256:... }
+    pre_revision: handbook-state:7
+    captured_revision: handbook-state:7
+    post_revision: handbook-state:7
+    consistency: stable
+    bound_evaluation: null
+    payload_fingerprint: sha256:...
+    payload:
+      artifact_kind_registry_fingerprint: sha256:...
+      vocabulary_fingerprint: sha256:...
+      resolution_stack_fingerprint: sha256:...
+      artifacts: []
+      intake_refs: []
+      unresolved_intake_coverage: []
+      posture_kernel_ref: null
+      posture_recommendation_refs: []
+      contracts: []
+      verdict_refs: []
+      gate_refs: []
+  work:
+    source_adapter: { ref: handbook.snapshot-source.work@1.0.0, fingerprint: sha256:... }
+    pre_revision: composite:sha256:...
+    captured_revision: composite:sha256:...
+    post_revision: composite:sha256:...
+    source_slot_revisions:
+      - { source_slot: work_ledger, pre_revision: "work:4", captured_revision: "work:4", post_revision: "work:4" }
+      - { source_slot: active_plan, pre_revision: "plan:4", captured_revision: "plan:4", post_revision: "plan:4" }
+    consistency: stable
+    bound_evaluation: null
+    payload_fingerprint: sha256:...
+    payload:
+      window_inputs:
+        - window_id: recent_completed
+          source_ref: work-ledger
+          source_revision: work:4
+          cursor: null
+          count: 10
+          ordering: completed_at_then_id
+        - window_id: queued_next
+          source_ref: active-plan
+          source_revision: plan:4
+          cursor: null
+          count: 10
+          ordering: canonical_queue_order
+      active_refs: []
+      recent_completed: []
+      queued_next: []
+      blocked_refs: []
+  session:
+    source_adapter: { ref: handbook.snapshot-source.session@1.0.0, fingerprint: sha256:... }
+    pre_revision: session:3
+    captured_revision: session:3
+    post_revision: session:3
+    consistency: stable
+    bound_evaluation: null
+    payload_fingerprint: sha256:...
+    payload:
+      parent_orchestration_ref: orchestration.example
+      handoff_ref: null
+      active_dispatch_refs: []
+      unresolved_escalation_refs: []
+  evidence:
+    source_adapter: { ref: handbook.snapshot-source.evidence@1.0.0, fingerprint: sha256:... }
+    pre_revision: evidence:9
+    captured_revision: evidence:9
+    post_revision: evidence:9
+    consistency: stable
+    bound_evaluation: null
+    payload_fingerprint: sha256:...
+    payload:
+      validation_refs: []
+      unresolved_proof_refs: []
 redaction:
-  policy_ref: snapshot-redaction.default
-  excluded_surfaces: []
-previous_snapshot_ref: null
+  policy: { ref: handbook.snapshot-redaction.default@1.0.0, fingerprint: sha256:... }
+  dispositions: []
+retention_policy: { ref: handbook.snapshot-retention.session@1.0.0, fingerprint: sha256:... }
+excluded_families: []
+previous_snapshot:
+  ref: snap_previous
+  record_fingerprint: sha256:...
+  boundary_sequence: 1
+admissibility: grounding_and_evidence
 state_fingerprint: sha256:...
 record_fingerprint: sha256:...
-promotion_eligibility: grounding_only
 ```
+
+Every real family payload uses its source-adapter schema. The `work` family composite revision is derived by its exact rule over both declared source slots, and each window's `source_revision` equals the corresponding slot's captured revision. Work windows carry source revision, cursor, count, ordering, and selected stable IDs. Session state names the parent orchestration, applicable true-stop handoff, active internal dispatches, delegated-run reconciliation, and unresolved escalation refs. Evidence state contains refs/statuses rather than unrestricted command output.
+
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| schema identity and `snapshot_id` | Handbook schema registry identifies shape; capture service allocates immutable record identity | none | exact schema; unique stable ID | snapshot ID is not state identity |
+| `capture` | exact capture policy owns observation semantics; engine derives top-level consistency | none | allowed trigger; matching policy fingerprint; monotonic start/end; bounded retry count; consistency equals aggregation table | caller cannot label the record more favorably |
+| repository/workspace identity | capture source identifies observed workspace | none | stable normalized IDs | no absolute machine path in durable identity |
+| boundary stream/sequence | capture service identifies transition stream and allocates record order | none | stable stream ref; sequence is unique and strictly increasing in repository/workspace/stream; allocation collision retries or refuses | no timestamp ordering, tie-breaker, or state-fingerprint input |
+| profile/envelope pairs | selected semantic authority and execution/view boundary | none | exact refs/fingerprints; envelope cites profile and policy-compatible stack | snapshot does not alter either authority |
+| `family_observations` | exact source adapter owns payload/revision schema | every policy-selected family required | exact adapter pair; pre/captured/post revisions; per-slot revisions and exact composite for multi-source families; policy-selected bound evaluation; family consistency; payload matches schema/fingerprint | no ambient or unversioned source or hidden source-slot drift |
+| window capture inputs | capture invocation binds declared static window slots to live state | every policy window represented in its family payload | matching window ID/count/ordering; exact source identity/revision; opaque cursor/null under declared cursor mode | live revision/cursor do not mutate policy identity |
+| `excluded_families` | capture records a selected family that was not observed | empty | every policy family is observed or appears once with exactly one of `unavailable`, `unsupported`, `redacted`, `unstable`; any entry forces top-level unstable/diagnostic-only or policy refusal | missing is never unchanged, observed, stable, or bounded |
+| redaction dispositions | exact redaction policy owns disclosure; immutable disposition owns original/retained mapping | empty only when nothing matched | exact disposition pairs; original pointer/subtree, action/nullability matrix, matched rules, optional safe pre-fingerprint, retained pointer/ref/fingerprint, disposition fingerprint | no secret value, ambiguous path-prefix coverage, or retained field inside original subtree |
+| retention policy | exact policy owns storage lifecycle | none | exact ref/fingerprint | no mutation of retained record bytes |
+| `previous_snapshot` | exact predecessor rule selects the applicable prior boundary observation | `null` only when no eligible predecessor exists | exact ref/record fingerprint; same repository/workspace/boundary stream; recorded sequence is the greatest eligible value below current | no self/future/cycle/wrong-stream/wrong-boundary link or causal claim |
+| `admissibility` | consistency rules derive allowed use | none | `grounding_and_evidence` for stable/bounded; `diagnostic_only` for unstable | never canonical/contract authority |
+| `state_fingerprint` | Handbook derives selected observed-state identity | none | normalization below | no trigger/time/snapshot-ID sensitivity |
+| `record_fingerprint` | Handbook derives complete immutable-record identity | none | normalization below | no mutable record after publication |
 
 ### Snapshot consistency
 
 Supported consistency values:
 
 - `stable` — selected authorities/revisions did not change during capture;
-- `bounded` — separately captured surfaces are revision-bound and all remained within declared bounds;
+- `bounded` — every separately captured payload is bound to an exact immutable revision and cross-source skew satisfies the policy's explicit comparison bound;
 - `unstable` — one or more authorities changed and the retry policy could not obtain a stable/bounded record.
 
-An unstable snapshot remains useful for diagnostics but cannot ground a closeout, promotion, or hard gate.
+Top-level consistency and admissibility are derived exactly:
+
+| Observed family classifications | Selected-family exclusions | Top-level consistency | Admissibility/result |
+|---|---|---|---|
+| all `stable` | none | `stable` | `grounding_and_evidence` |
+| at least one `bounded`, all others `stable` or `bounded`, every bound evaluation valid | none | `bounded` | `grounding_and_evidence` |
+| any `unstable` | any | `unstable` | `diagnostic_only`, or no record when policy says `refuse` |
+| all observed families `stable`/`bounded` | any `unavailable`, `unsupported`, `redacted`, or `unstable` exclusion | `unstable` | `diagnostic_only`, or no record when policy says `refuse` |
+
+Field-level redaction within an otherwise observed family does not create a family exclusion; it remains represented by redaction dispositions and may coexist with stable/bounded source consistency. A whole selected family that cannot be represented is excluded and makes the capture incomplete, so it cannot be labeled grounding-and-evidence. The engine applies the table after retries; invocation cannot supply the top-level value or admissibility.
+
+`stable` requires equal pre/captured/post revisions for every selected family, equal pre/captured/post revisions for every declared source slot, an exact family composite over those slot revisions, and `bound_evaluation: null`. A bounded family records `bound_evaluation` with the exact same bound-rule ref/fingerprint selected by the capture policy, evaluated composite/per-slot revision set, `within_bound` outcome, and evidence fingerprint; its payload must be attributable to `captured_revision`. A missing, substituted, or stale rule pair refuses bounded classification. A changed source is not `bounded` merely because the reader finished. An out-of-bound evaluation triggers the declared retry and ultimately `unstable`/diagnostic-only or refusal; it cannot ground a closeout, promotion, hard gate, or stable delta. Active-plan-only drift therefore changes the work composite and yields retry or unstable/stale refusal rather than a current work observation.
+
+The bounded evaluation has this exact semantic shape:
+
+```yaml
+bound_evaluation:
+  rule: { ref: handbook.snapshot-bound.exact-revision-per-family@1.0.0, fingerprint: sha256:... }
+  evaluated_revisions:
+    family_revision: composite:sha256:...
+    source_slot_revisions: { work_ledger: "work:4", active_plan: "plan:4" }
+  outcome: within_bound
+  evidence_fingerprint: sha256:...
+```
+
+The `rule` pair must equal the capture policy's `consistency.bounded_skew_rule`; the evaluation is capture-local and therefore does not enter the reusable policy definition.
 
 ### Snapshot fingerprints
 
-- `state_fingerprint` covers normalized observed state and excludes volatile capture timestamp/trigger metadata.
-- `record_fingerprint` covers the complete immutable record.
-- Map keys, paths, work-item windows, and evidence refs use canonical deterministic ordering.
+- `state_fingerprint` covers schema identity, repository/workspace identity, exact policy/profile/envelope fingerprints, every selected family composite and per-slot pre/captured/post revision, bound evaluation, window capture inputs, payload fingerprint, exclusions, and redaction outcomes. It excludes snapshot ID, boundary-stream ref, boundary sequence, trigger, timestamps, retry count, previous-snapshot link, and both fingerprint fields.
+- `record_fingerprint` covers the normalized complete immutable record except itself.
+- Map keys, paths, unordered semantic sets, work-item windows, and evidence refs use their contract-defined canonical deterministic ordering.
 - Two records captured at different times may have equal state fingerprints.
 
 ### Snapshot authority
@@ -1554,35 +2207,59 @@ Snapshot Memory is descriptive evidence. It cannot:
 - infer why a divergence occurred;
 - pass claims beyond captured/observed state.
 
+Snapshot refs in handoffs, evidence, deltas, and projections always include or resolve the exact `record_fingerprint`; a bare mutable snapshot ID is insufficient.
+
+The policy's exact predecessor rule defines eligible trigger transitions and ordering within `boundary_stream_ref`. Sequence values are unique and strictly increasing within each repository/workspace/stream; concurrent allocation collision must retry or refuse rather than introduce a tie-breaker. When `previous_snapshot` is present it must be the highest eligible sequence lower than the current record and its recorded sequence must match the referenced record. Self-links, forward links, duplicate sequences, cycles, wrong-stream/workspace links, skipped eligible predecessors, and disallowed trigger transitions fail closed.
+
 ## Snapshot delta
 
 ```yaml
 schema_id: handbook.snapshot-delta
 schema_version: "1.0"
 delta_id: delta_...
-from_snapshot_ref: snap_previous
-to_snapshot_ref: snap_current
+from_snapshot: { ref: snap_previous, record_fingerprint: sha256:..., state_fingerprint: sha256:... }
+to_snapshot: { ref: snap_current, record_fingerprint: sha256:..., state_fingerprint: sha256:... }
 compatibility:
-  capture_policies_compatible: true
-  compared_state_families: []
+  comparison_contract: { ref: handbook.snapshot-comparison.core@1.0.0, fingerprint: sha256:... }
+  drift_rule_catalog: { ref: handbook.snapshot-drift.core@1.0.0, fingerprint: sha256:... }
+  compared_state_families:
+    - git
+    - handbook
+    - work
+    - session
+    - evidence
+  excluded_state_families: []
 changes:
-  git: {}
-  artifacts: []
-  contracts: []
-  work_completed: []
-  work_not_completed: []
-  unplanned_work: []
-  queue_changes: []
-  blockers_added: []
-  blockers_cleared: []
-  proof_gates_gained: []
-  proof_gates_lost: []
+  - change_id: work.completed.example
+    family: work
+    stable_key: work-item.example
+    change_kind: completed
+    before_fingerprint: sha256:...
+    after_fingerprint: sha256:...
+rule_evaluations:
+  - { rule: { ref: handbook.snapshot-drift.expected-progress@1.0.0, fingerprint: sha256:... }, outcome: matched, signal_id: signal.expected-progress.example }
+  - { rule: { ref: handbook.snapshot-drift.justified-divergence@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.unexplained-drift@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.scope-expansion@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.execution-inefficiency@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.planning-inaccuracy@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.proof-drift@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.semantic-drift@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
+  - { rule: { ref: handbook.snapshot-drift.stale-handoff@1.0.0, fingerprint: sha256:... }, outcome: not_matched, signal_id: null }
 signals:
-  - kind: expected_progress
+  - signal_id: signal.expected-progress.example
+    kind: expected_progress
+    rule: { ref: handbook.snapshot-drift.expected-progress@1.0.0, fingerprint: sha256:... }
+    change_ids:
+      - work.completed.example
     evidence_refs: []
     justification_refs: []
 delta_fingerprint: sha256:...
 ```
+
+The two snapshots must have stable/bounded admissibility, the same repository/workspace identity, supported snapshot schema versions, and policies/state-family adapters admitted by the exact comparison contract. The delta's exact drift-rule catalog must equal the catalog selected by both endpoint policies or be explicitly admitted as compatible by that comparison contract. Every family selected by either policy is compared or appears once in `excluded_state_families` with `absent`, `redacted`, `unstable`, or `incompatible`. A missing family or path is never silently treated as unchanged.
+
+Every change carries a deterministic stable key, typed change kind, and before/after fingerprints (`null` only for creation/deletion). Domain-specific derived lists such as completed work, queue changes, proof gates, artifacts, contracts, blockers, and handoff drift are views over this normalized change set, not second delta authorities.
 
 Deterministic signal values:
 
@@ -1596,51 +2273,240 @@ Deterministic signal values:
 - `semantic_drift`;
 - `stale_handoff`.
 
-Signals identify evidence and durable justification refs. They do not make an unreviewed causal claim.
+Every exact rule in the bound catalog is evaluated exactly once in catalog order and recorded in `rule_evaluations` as `matched`, `not_matched`, or `not_applicable`; applicability is owned by the rule definition, not the caller. Every matched evaluation names exactly one unique signal, every signal resolves back to exactly one matched evaluation with the same rule pair, and non-matched/not-applicable evaluations have null signal IDs. Missing, duplicate, stale, refused, or contradictory evaluation prevents delta creation. Thus `signals` is exactly the deterministic set of all matching catalog rules, including legitimate overlaps rather than a caller-selected subset.
+
+Signals identify their stable ID, exact drift-rule ref/fingerprint, matching change IDs, evidence, and durable justification refs. Every signal rule is a member of the bound catalog. An uncataloged rule, stale catalog fingerprint, or catalog not selected/admitted by the endpoints and comparison contract refuses delta creation. `justified_divergence` requires at least one authoritative decision/handoff/escalation/child-packet justification ref admitted by its rule. Signals do not make an unreviewed causal claim, and free-form explanation never changes deterministic classification.
+
+`delta_fingerprint` covers both exact snapshot input pairs, comparison contract, drift-rule catalog, compared/excluded families, normalized changes, complete rule evaluations, signals, and justification refs except itself. Reversing inputs is a different delta. Incompatible or unstable inputs refuse rather than emitting an empty/green delta.
+
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| schema identity and `delta_id` | Handbook schema registry/engine | none | exact schema; stable unique ID | not a mutable comparison cursor |
+| snapshot input pairs | immutable snapshots own observed endpoints | none | exact record/state fingerprints; ordered from/to; admissible consistency; same repository/workspace | no bare snapshot ID or reversed equivalence |
+| comparison contract and drift catalog | comparison definition owns compatibility/key semantics; endpoint policies/catalog own deterministic signal closure | none | exact pairs; comparison admits both policies/schemas/adapters and any compatible catalog; every signal rule is a catalog member | no best-effort comparison or ambient drift rule |
+| compared/excluded families | engine records comparison coverage | none | every selected family appears exactly once; exclusions typed | no missing-as-unchanged behavior |
+| `changes` | engine derives normalized observed differences | empty only when compared state is equal | stable keys; typed kind; correct before/after nullability/fingerprints; deterministic order | no causal interpretation |
+| `rule_evaluations` | exact catalog/rules own applicability and matching; engine records closure | none; one entry per catalog rule | exact catalog order and complete unique rule set; typed outcome; matched-to-signal bijection; no refused/duplicate/missing evaluation | no caller-selected evaluation subset |
+| `signals` | exact drift rules own classification | empty when no rule matches | exact rule pair is a member of the bound catalog; referenced change IDs exist; required evidence/justification present | no free-form/model-owned or uncataloged reclassification |
+| `delta_fingerprint` | Handbook derives immutable delta identity | none | normalized complete delta except itself | no timestamp or diagnostic input |
+
+## Snapshot-grounding Projection definition
+
+Snapshot grounding uses an ordinary exact `ProjectionDefinition`; the required currentness-family set is base definition behavior, not an extension or request hint:
+
+```yaml
+schema_id: handbook.projection-definition
+schema_version: "1.0"
+projection_definition_id: handbook.projection.snapshot-grounding
+projection_definition_version: "1.0.0"
+source_selectors:
+  - { selector_id: snapshot_current, source_kind: snapshot, source_ref: handbook.context-memory-snapshot@1.0, cardinality: exactly_one }
+  - { selector_id: snapshot_delta, source_kind: snapshot_delta, source_ref: handbook.snapshot-delta@1.0, cardinality: exactly_one }
+allowed_surfaces: [agent_packet]
+allowed_operations: [reveal]
+target_schema: { ref: handbook.schemas.projection.snapshot-grounding@1.0.0, fingerprint: sha256:... }
+disclosure_policy: { ref: handbook.projection-disclosure.core@1.0.0, fingerprint: sha256:... }
+support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }
+currentness_requirements:
+  mode: exact_revision_check
+  revision_basis: captured_revision
+  families:
+    - { family: git, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.git@1.0.0, fingerprint: sha256:... }, source_slots: [] }
+    - { family: handbook, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.handbook@1.0.0, fingerprint: sha256:... }, source_slots: [] }
+    - { family: work, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.work@1.0.0, fingerprint: sha256:... }, source_slots: [work_ledger, active_plan] }
+    - { family: session, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.session@1.0.0, fingerprint: sha256:... }, source_slots: [] }
+    - { family: evidence, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.evidence@1.0.0, fingerprint: sha256:... }, source_slots: [] }
+field_rules:
+  - { rule_id: reveal_active_work, operation: reveal, source_selector_id: snapshot_current, source_pointer: /family_observations/work/payload/active_refs, target_pointer: /active_work, minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: normal, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: execution, validation_horizon: unit_closeout }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+  - { rule_id: reveal_changed_paths, operation: reveal, source_selector_id: snapshot_current, source_pointer: /family_observations/git/payload/dirty_paths, target_pointer: /changed_paths, minimum_resolution: { scope_horizon: local_observation, detail_resolution: summary, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: operation, validation_horizon: observation_only }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+  - { rule_id: reveal_unresolved_blockers, operation: reveal, source_selector_id: snapshot_current, source_pointer: /family_observations/work/payload/blocked_refs, target_pointer: /unresolved_blockers, minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: normal, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: execution, validation_horizon: unit_closeout }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+  - { rule_id: reveal_queued_next, operation: reveal, source_selector_id: snapshot_current, source_pointer: /family_observations/work/payload/queued_next, target_pointer: /queued_next, minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: summary, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: execution, validation_horizon: observation_only }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+  - { rule_id: reveal_applicable_contracts, operation: reveal, source_selector_id: snapshot_current, source_pointer: /family_observations/handbook/payload/contracts, target_pointer: /applicable_contracts, minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: normal, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: execution, validation_horizon: unit_closeout }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+  - { rule_id: reveal_proof_obligations, operation: reveal, source_selector_id: snapshot_current, source_pointer: /family_observations/evidence/payload/unresolved_proof_refs, target_pointer: /proof_obligations, minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: normal, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: execution, validation_horizon: unit_closeout }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+  - { rule_id: reveal_delta_signals, operation: reveal, source_selector_id: snapshot_delta, source_pointer: /signals, target_pointer: /recent_signals, minimum_resolution: { scope_horizon: assigned_unit, detail_resolution: summary, temporal_horizon: immediate, authority_horizon: read_only, memory_horizon: execution, validation_horizon: observation_only }, disclosure_classification: internal, required_for_result: true, claim_refs: [], derivation: null }
+extensions: {}
+definition_fingerprint: sha256:...
+```
+
+The request's `currentness.expected_family_revisions` and the result's `currentness_validation.checks` must each equal the definition's required family set exactly. Family IDs, source-selector IDs, adapters, and source-slot sets must match. Each request value is copied from the exact bound snapshot's captured composite/per-slot revisions, and every result observed value must equal it. Omission, extra entries, duplicate families, selector/adapter/slot substitution, or values not equal to the bound captured state refuses before output. Because this definition reveals the delta's unfiltered `/signals`, its currentness set covers every family compared by that delta, including `session`; a definition that omits one must instead filter/omit signals derived from unchecked families with typed proof effects.
 
 ## Snapshot projection request/result
 
 ```yaml
 schema_id: handbook.snapshot-projection-request
 schema_version: "1.0"
-snapshot_ref: snap_current
-delta_ref: delta_previous_to_current
-target_resolution_envelope: {}
+request_id: snapshot-projection-request.example
+sources:
+  - { selector_id: snapshot_current, ref: snap_current, fingerprint: sha256:..., state_fingerprint: sha256:... }
+  - { selector_id: snapshot_delta, ref: delta_previous_to_current, fingerprint: sha256:... }
+resolved_profile: { ref: handbook.profile.example@1.0.0, fingerprint: sha256:... }
+vocabulary: { ref: handbook.vocabulary.example@1.0.0, fingerprint: sha256:... }
+projection_definition: { ref: handbook.projection.snapshot-grounding@1.0.0, fingerprint: sha256:... }
+resolution_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
 purpose: session_grounding
-include_families:
-  - active_work
-  - changed_paths
-  - unresolved_blockers
-  - queued_next
-  - applicable_contracts
-  - proof_obligations
+surface: agent_packet
+operation: reveal
+currentness:
+  mode: exact_revision_check
+  revision_basis: captured_revision
+  expected_family_revisions:
+    - { family: git, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.git@1.0.0, fingerprint: sha256:... }, revision: "git:abc" }
+    - { family: handbook, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.handbook@1.0.0, fingerprint: sha256:... }, revision: "handbook-state:7" }
+    - family: work
+      source_selector_id: snapshot_current
+      source_adapter: { ref: handbook.snapshot-source.work@1.0.0, fingerprint: sha256:... }
+      revision: "composite:sha256:..."
+      source_slot_revisions: { work_ledger: "work:4", active_plan: "plan:4" }
+    - { family: session, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.session@1.0.0, fingerprint: sha256:... }, revision: "session:3" }
+    - { family: evidence, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.evidence@1.0.0, fingerprint: sha256:... }, revision: "evidence:9" }
 ```
 
 ```yaml
 schema_id: handbook.snapshot-projection-result
 schema_version: "1.0"
-snapshot_ref: snap_current
-snapshot_state_fingerprint: sha256:...
-delta_ref: delta_previous_to_current
-target_resolution_envelope: {}
-included_paths: []
-omitted_paths: []
-grounding_data: {}
-lossiness: collapsed
-projection_fingerprint: sha256:...
-promotion_eligibility: grounding_only
+result_id: snapshot-projection-result.example
+request_ref: snapshot-projection-request.example
+sources:
+  - { selector_id: snapshot_current, ref: snap_current, fingerprint: sha256:..., state_fingerprint: sha256:... }
+  - { selector_id: snapshot_delta, ref: delta_previous_to_current, fingerprint: sha256:... }
+resolved_profile: { ref: handbook.profile.example@1.0.0, fingerprint: sha256:... }
+vocabulary: { ref: handbook.vocabulary.example@1.0.0, fingerprint: sha256:... }
+projection_definition: { ref: handbook.projection.snapshot-grounding@1.0.0, fingerprint: sha256:... }
+resolution_envelope: { ref: envelope.example.execution, fingerprint: sha256:... }
+surface: agent_packet
+operation: reveal
+disclosure_evaluations:
+  - { rule_id: reveal_active_work, definition_rule_ordinal: 1, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+  - { rule_id: reveal_changed_paths, definition_rule_ordinal: 2, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+  - { rule_id: reveal_unresolved_blockers, definition_rule_ordinal: 3, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+  - { rule_id: reveal_queued_next, definition_rule_ordinal: 4, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+  - { rule_id: reveal_applicable_contracts, definition_rule_ordinal: 5, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+  - { rule_id: reveal_proof_obligations, definition_rule_ordinal: 6, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+  - { rule_id: reveal_delta_signals, definition_rule_ordinal: 7, minimum_resolution_outcome: sufficient, upstream_redaction_check: none, upstream_redaction_disposition: null, policy_evaluation: matched, matched_policy_rule_ids: [internal_allow], policy_action: allow, support_evaluator: { ref: handbook.projection-support.core@1.0.0, fingerprint: sha256:... }, support_status: supported, support_reason: null, payload_access: read, final_disposition: included, evaluation_fingerprint: sha256:... }
+included:
+  - { rule_id: reveal_active_work, source_pointer: /family_observations/work/payload/active_refs, target_pointer: /active_work, claim_refs: [] }
+  - { rule_id: reveal_changed_paths, source_pointer: /family_observations/git/payload/dirty_paths, target_pointer: /changed_paths, claim_refs: [] }
+  - { rule_id: reveal_unresolved_blockers, source_pointer: /family_observations/work/payload/blocked_refs, target_pointer: /unresolved_blockers, claim_refs: [] }
+  - { rule_id: reveal_queued_next, source_pointer: /family_observations/work/payload/queued_next, target_pointer: /queued_next, claim_refs: [] }
+  - { rule_id: reveal_applicable_contracts, source_pointer: /family_observations/handbook/payload/contracts, target_pointer: /applicable_contracts, claim_refs: [] }
+  - { rule_id: reveal_proof_obligations, source_pointer: /family_observations/evidence/payload/unresolved_proof_refs, target_pointer: /proof_obligations, claim_refs: [] }
+  - { rule_id: reveal_delta_signals, source_pointer: /signals, target_pointer: /recent_signals, claim_refs: [] }
+omissions: []
+not_applicable: []
+derivations: []
+output: { schema_ref: handbook.schemas.projection.snapshot-grounding@1.0.0, content_ref: grounding.example, content_fingerprint: sha256:... }
+currentness_validation:
+  mode: exact_revision_check
+  revision_basis: captured_revision
+  checks:
+    - { family: git, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.git@1.0.0, fingerprint: sha256:... }, expected_revision: "git:abc", observed_revision: "git:abc", outcome: current, evidence_fingerprint: sha256:... }
+    - { family: handbook, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.handbook@1.0.0, fingerprint: sha256:... }, expected_revision: "handbook-state:7", observed_revision: "handbook-state:7", outcome: current, evidence_fingerprint: sha256:... }
+    - family: work
+      source_selector_id: snapshot_current
+      source_adapter: { ref: handbook.snapshot-source.work@1.0.0, fingerprint: sha256:... }
+      expected_revision: "composite:sha256:..."
+      observed_revision: "composite:sha256:..."
+      expected_source_slot_revisions: { work_ledger: "work:4", active_plan: "plan:4" }
+      observed_source_slot_revisions: { work_ledger: "work:4", active_plan: "plan:4" }
+      outcome: current
+      evidence_fingerprint: sha256:...
+    - { family: session, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.session@1.0.0, fingerprint: sha256:... }, expected_revision: "session:3", observed_revision: "session:3", outcome: current, evidence_fingerprint: sha256:... }
+    - { family: evidence, source_selector_id: snapshot_current, source_adapter: { ref: handbook.snapshot-source.evidence@1.0.0, fingerprint: sha256:... }, expected_revision: "evidence:9", observed_revision: "evidence:9", outcome: current, evidence_fingerprint: sha256:... }
+lossiness: lossless
+authority_effect: none
+result_fingerprint: sha256:...
 ```
 
-Projection gates:
+These are specialized capitalized Projection DTOs, not a second projection model. Their schemas extend the generic request/result schemas without removing or renaming any generic required field. The example definition declares exactly-one `snapshot_current` and `snapshot_delta` selectors, so both entries appear in generic `sources`; a different exact definition may omit the delta selector entirely, but v1 never makes one exactly-one selector optional at request time. Snapshot sources use `fingerprint` for the exact record fingerprint and additionally carry `state_fingerprint`. Generic `resolution_envelope`, surface, operation, `disclosure_evaluations`, included/omissions/not-applicable/derivations, output, lossiness, authority, and result-fingerprint fields retain their generic meanings. The snapshot-grounding definition also declares the exact source families whose current revisions must be revalidated.
+
+Additional snapshot-projection gates:
 
 - included fields fit the target Resolution authority and detail horizons;
-- omitted sensitive or out-of-scope fields remain enumerated;
+- omitted sensitive, unavailable, or out-of-scope fields remain enumerated with proof effect;
 - comprehensive capture does not imply comprehensive disclosure;
 - grounding projection never mutates the source snapshot;
-- snapshot/delta fingerprints remain traceable;
-- a new live capture or revision check detects staleness before acting.
+- snapshot/delta fingerprints remain traceable through their generic source-selector entries;
+- when the definition includes a `snapshot_delta` selector, that delta names the `snapshot_current` source as its `to_snapshot`;
+- a caller that requires fresh capture completes it before constructing the Projection request, then binds the resulting exact snapshot/delta sources; every current-grounding request uses definition-matching `exact_revision_check`, the result retains identical sources and records one typed check per definition-required family including exact selector/composite/per-slot revisions, and any observed mismatch returns a typed stale refusal instead of a result.
+
+| Specialized field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| `sources` entries for `snapshot_current`/`snapshot_delta` | immutable snapshot/delta own observed and changed state | exactly as declared by definition; both required in this example | generic exactly-one selector rules; exact fingerprints; snapshot stable/bounded; delta `to_snapshot` equals selected snapshot | no specialized alias, implicit optional selector, or full-record injection |
+| definition disclosure policy/rule minima/classifications and result `disclosure_evaluations` | generic Projection disclosure contract owns metadata-only decision order; snapshot/delta dispositions own prior redaction | no specialization default; every generic field remains required | exact policy/fingerprint; complete six-dimension/classification rules; one replayable evaluation per applicable rule; covering upstream action maps original pointer to `redacted`; no protected read before allow | no snapshot-only policy, `unavailable` downgrade, hidden reread, content sniff, or disclosure field drop |
+| specialized included/omission/not-applicable/derivation/output | generic Projection contract owns view semantics | as generic contract | all generic disjoint rule accounting plus exact snapshot/delta provenance | no second snapshot-only projection semantics |
+| request `currentness` | snapshot-grounding definition owns tuple set/basis; bound snapshot owns expected values | none; mode `exact_revision_check`, basis `captured_revision` | mode/basis equal definition; tuples equal definition; values equal exact bound snapshot family/slot captured revisions | no caller-supplied alternate live value, omitted/extra family, selector/adapter/slot substitution, placeholder source, or post-request substitution |
+| result `currentness_validation` | source adapters own current observed revisions; engine records proof | none | check set equals definition/request; expected values equal bound captured state; observed equals expected; all `current`; request/result sources identical | no result on stale/partial validation, plan/session-only drift, or bounded captured/post mismatch |
+
+V1 has no caller-selected family or rule subset. For the requested operation, the exact definition's applicable field rules are the complete rule set that must be evaluated and partitioned. The resolved envelope, redaction policy, source availability, and schema support yield the already-defined typed omissions with their proof effects; they never yield `not_applicable` and do not remove a rule from accounting. Operation mismatch alone yields `not_applicable`. An `include_families` field or any other caller-supplied subset selector is unknown input and produces a typed refusal with no Projection result.
+
+`currentness_validation` is included in `result_fingerprint`. Fresh capture is a pre-request operation: only after it completes may its exact snapshot fingerprint populate `sources`. The engine never swaps that source after request construction. The engine reads captured values from that bound record before observing live revisions; it never trusts caller equality alone. In a bounded snapshot whose captured and post revisions differ, exact-current grounding refuses unless the live observed value again equals the captured value. A mismatch, missing family, unchecked delta-signal family, stale adapter, unavailable check, placeholder pre-capture source, or request/result source difference emits a typed refusal with no Projection output/result fingerprint.
 
 ## Snapshot redaction and retention
+
+```yaml
+schema_id: handbook.snapshot-redaction-policy
+schema_version: "1.0"
+policy_id: handbook.snapshot-redaction.default
+policy_version: "1.0.0"
+fail_closed: true
+unmatched_action: omit
+rules:
+  - rule_id: secret_values
+    matcher: { surface_kind: classified_secret, selector: "*" }
+    action: omit
+  - rule_id: unrestricted_environment
+    matcher: { surface_kind: environment_value, selector: unrestricted }
+    action: omit
+  - rule_id: secret_files
+    matcher: { surface_kind: secret_file, selector: "**" }
+    action: omit
+  - rule_id: raw_command_arguments
+    matcher: { surface_kind: command_argument, selector: raw }
+    action: omit
+  - rule_id: raw_command_output
+    matcher: { surface_kind: command_output, selector: unrestricted }
+    action: omit
+  - rule_id: unrestricted_diff
+    matcher: { surface_kind: repository_diff, selector: unrestricted_full_content }
+    action: omit
+  - rule_id: environment_metadata
+    matcher: { surface_kind: environment_value, selector: allowlisted_non_secret }
+    action: fingerprint_only
+extensions: {}
+policy_fingerprint: sha256:...
+```
+
+Actions are `omit`, `fingerprint_only`, `artifact_ref_only`, or `redacted_summary`. V1 requires `fail_closed: true` and `unmatched_action: omit`; unknown classification, matcher failure, and a known surface matching no rule therefore all omit. Rule order makes matching replay-stable but does not select among actions. Multiple matching rules with the same action are valid; if any matching action is `omit`, `omit` wins; two or more distinct matching non-omit actions are incomparable and capture refuses.
+
+```yaml
+schema_id: handbook.snapshot-redaction-disposition
+schema_version: "1.0"
+disposition_id: snapshot-redaction-disposition.example
+source_family: session
+source_adapter: { ref: handbook.snapshot-source.session@1.0.0, fingerprint: sha256:... }
+original_pointer: /family_observations/session/payload/environment/PATH
+matched_rule_ids: [environment_metadata]
+action: fingerprint_only
+reason: matched_policy
+pre_redaction_value_fingerprint: sha256:...
+retained:
+  kind: fingerprint
+  pointer: /family_observations/session/payload/environment_fingerprints/PATH
+  content_ref: null
+  content_fingerprint: sha256:...
+disposition_fingerprint: sha256:...
+```
+
+Every snapshot `redaction.dispositions` entry is an exact `{ref, fingerprint}` pair to one immutable disposition. `original_pointer` is the exact JSON Pointer hidden by the action and covers that pointer plus its descendants by JSON Pointer segment boundaries, never by string-prefix matching. `retained` uses this exact action matrix:
+
+| `action` | `retained.kind` | `retained.pointer` | `retained.content_ref` | `retained.content_fingerprint` |
+|---|---|---|---|---|
+| `omit` | `none` | `null` | `null` | `null` |
+| `fingerprint_only` | `fingerprint` | required | `null` | required |
+| `artifact_ref_only` | `artifact_ref` | required | required | required |
+| `redacted_summary` | `redacted_summary` | required | required | required |
+
+A non-null retained pointer is a schema-valid pointer outside the original pointer's subtree; it may share earlier path segments but is never equal to or a descendant of `original_pointer`. Therefore the disposition covers the original value/subtree only and never automatically covers the retained field. Projection maps a request for the original pointer or its descendants to `redacted` with zero value reads, while a request for the exact retained pointer evaluates that retained field independently through its own rule classification and disclosure policy. Matched rule IDs retain policy order. `pre_redaction_value_fingerprint` is non-null only when safe to compute. `disposition_fingerprint` covers the normalized complete record and exact adapter fingerprint except itself. Missing/ambiguous original/retained mapping, action-nullability mismatch, duplicate disposition identity, or a retained pointer inside the original subtree refuses snapshot creation.
 
 By default snapshots exclude:
 
@@ -1650,7 +2516,75 @@ By default snapshots exclude:
 - raw command arguments/output that may carry secrets;
 - full diffs when normalized statistics/fingerprints and evidence refs suffice.
 
-Snapshots record the redaction policy and excluded surfaces. Retention is profile/policy-driven by horizon and trigger. Immutable retained records may be content-addressed and deduplicated; compaction writes a new reviewed aggregate and never rewrites retained source snapshots.
+No invocation flag may weaken those floors. A stricter selected policy may omit more.
+
+```yaml
+schema_id: handbook.snapshot-retention-policy
+schema_version: "1.0"
+policy_id: handbook.snapshot-retention.session
+policy_version: "1.0.0"
+rules:
+  - rule_id: strategic_milestone
+    memory_horizons: [strategic]
+    triggers: [gate_complete, publish]
+    record_classes: [context_memory_snapshot]
+    action: retain_indefinitely
+    minimum_retention_seconds: null
+  - rule_id: execution_session
+    memory_horizons: [execution, operation]
+    triggers: [session_start, session_end]
+    record_classes: [context_memory_snapshot]
+    action: retention_window
+    minimum_retention_seconds: 2592000
+deduplication: content_addressed_payload_only
+compaction:
+  allowed: true
+  requires_review: true
+  preserve_source_refs: true
+extensions: {}
+policy_fingerprint: sha256:...
+```
+
+Retention actions are `retain_indefinitely` or `retention_window`; content-addressed payload deduplication is a storage optimization, not a record action. Every `(memory_horizon, trigger, record_class)` selected by the capture policy resolves exactly one retention rule. A record referenced by a handoff, evidence, verdict, gate, active promotion, legal hold, or unexpired stricter rule cannot be deleted. Deduplication preserves distinct record identities. Compaction creates a new reviewed aggregate with exact source ref/fingerprint pairs and never rewrites retained source bytes.
+
+Both policy fingerprints use uniform exact-definition identity over the normalized policy and referenced matcher/classification definitions, including `unmatched_action` and excluding only their own fingerprint. Secret fixtures and unsafe paths/arguments/output must have explicit negative tests before implementation gates can close.
+
+| Field family | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| policy schema/identity | Handbook schema registry and policy author | none | exact schema; stable ID plus SemVer; unique exact ref | no ambient/latest policy |
+| redaction `fail_closed`/`unmatched_action`/rules | security policy owns minimum disclosure | v1 requires true/`omit`/non-empty | explicit secret, unrestricted environment, secret-file, raw command argument/output, and unrestricted full-diff floors; known matcher surfaces/actions; identical overlap valid; `omit` wins; distinct non-omit overlap refuses | no undeclared action ranking, permissive unmatched surface, invocation weakening, or secret-bearing diagnostic |
+| redaction dispositions | capture engine records immutable applied/default outcomes | empty matched-rule IDs only for default omission | exact source adapter; original JSON Pointer/subtree; action-specific retained kind/pointer/ref/fingerprint; policy-order matched IDs; safe pre-fingerprint; disposition fingerprint; snapshot stores exact pair | no hidden omission, string-prefix coverage, ambiguous original/retained identity, retained descendant, or later mutation |
+| retention rules | retention authority owns minimum storage lifetime by horizon/trigger/record-class tuple | none | every selected tuple resolves exactly one rule without overlap; known record class; positive window when used | no automatic deletion policy from frequency alone |
+| deduplication/compaction | storage policy owns safe physical optimization | dedupe optional; compaction disabled unless explicit | distinct records preserved; reviewed aggregate/source refs; holds/references/floors honored | no byte rewrite or authority merge |
+| policy fingerprints | Handbook derives exact policy identity | none | normalized policy plus exact referenced matcher/classification fingerprints except itself | no unchanged fingerprint after semantic drift |
+
+### Shared HCM-0.3 extension rule
+
+Every HCM-0.3 definition that exposes `extensions` uses the same field contract: the declaring record schema owns namespaced optional additions; the default is an explicit empty map; each populated namespace resolves an exact extension schema and may add only optional semantics; the complete normalized map and extension-schema fingerprints enter the record's definition/policy fingerprint. Unknown required behavior, unregistered namespaces, executable hooks, remote code, and extensions that weaken a base invariant fail closed. Records that do not show an `extensions` field do not accept one.
+
+| Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
+|---|---|---|---|---|
+| HCM-0.3 `extensions` | declaring schema owns namespaced optional additions | explicit empty map | registered exact extension schemas; optional-only semantics; included in enclosing fingerprint closure | no unknown required behavior, base-rule override, executable hook, or ambient namespace |
+
+### HCM-0.3 required conformance scenarios
+
+Later implementation packets must turn these design examples into mechanical schema/semantic tests:
+
+| Contract | Positive scenarios | Negative/fail-closed scenarios |
+|---|---|---|
+| stack/envelope | compare every adjacent level across all six domains; equal/narrow child; exact and wildcard allow/deny overlap resolves deny | one rank increase; malformed/indeterminate selector; stale parent; changed stack/profile |
+| escalation/promotion transitions | request-only pending state followed by exactly one terminal disposition; approval/application creates exact new envelope/memory result while prior bytes replay unchanged | in-place status/outcome mutation; duplicate disposition; reused ID with changed bytes; stale request; invalid outcome-specific nullability |
+| Projection sources | one exact source identity per typed selector; canonical artifacts and immutable semantic/observation records including snapshot/delta sources retain their authority class; definition belongs to resolved-profile catalog; target schema, allowed surfaces/operations, mandatory currentness, profile stack/catalog, and source/schema/kind/capability closure resolve | zero/multiple identity matches; source-order fallback; snapshot/delta rejected merely for being non-canonical or promoted to canonical/peer authority; definition absent from profile catalog; unresolved source/target schema; catalog gate invents a source-role or target-level field absent from `ProjectionDefinition` |
+| Projection disclosure | same canonical/snapshot/delta rule included under a sufficient envelope and `out_of_resolution` under a narrower envelope; matched allow/redact plus registered-unmatched redaction; evaluator fingerprint recomputes from exact dependencies/input/reason order, supported/unsupported plus first reason replay metadata-only, and evaluator-only drift changes evaluator/definition/profile/evaluation/result fingerprints; exact evaluation-outcome/nullability matrix and mixed-rule ordering replay; all four upstream actions map original pointer/subtree to `redacted`; retained fields sharing path segments evaluate independently; protected-source spy records zero reads before allow | unregistered definition classification accepted or converted to result; missing/stale/incompatible policy, classification registry, evaluator, or evaluator dependency produces a result; ambient evaluator substitution; unsupported free-form/wrong-precedence reason; incomplete/invalid minimum ranks; permissive registered-unmatched tuple; action-nullability/ordinal/fingerprint mismatch; string-prefix original/retained confusion; upstream redaction mapped `unavailable`; hidden payload reread; fingerprint unchanged after disclosure/support drift |
+| Projection accounting/lossiness | request-operation partitions definition rules exactly across included/omissions/not-applicable; exactly bound fields denied by envelope, redacted, unavailable, or runtime-unsupported produce typed omissions; every reason crosses required/non-required plus empty/non-empty claims using the exact proof-effect/output-schema table; non-lossy/lossy derivations; each mixed-reason precedence row | request-wide envelope-visibility precondition; valid bound applicable source refused solely for envelope/redaction/availability/support; target schema cannot represent typed absence; missing/duplicate rule accounting; those four outcomes classified `not_applicable`; non-operation applicability condition; caller-selected lossiness; required omission suppresses result or falsely passes |
+| capture windows/families | same policy with changed live source revisions/cursors produces new snapshot fingerprints; exclusive cursor boundary replay; selected families equal observed plus excluded; work windows bind declared slots | revision/cursor mutates policy identity; ambient extra family; silently missing family/slot |
+| consistency | all-stable/no-exclusion aggregation; mixed stable/bounded/no-exclusion aggregation; exact composite/per-slot revisions and policy-selected bound evaluation | any excluded/unstable family labeled stable/bounded or grounding; active-plan-only drift; substituted/stale bound rule; out-of-bound retry; completed-read-only bounded claim |
+| predecessor | valid immediate prior-end/new-start or start/end boundary transition with unique strictly increasing sequence under exact rule | self, future, duplicate sequence/collision tie-breaker, cycle, skipped eligible predecessor, wrong stream/workspace/trigger |
+| delta | every selected family appears once in compared/excluded; normalized changes replay; every catalog rule is evaluated once and matched evaluations map bijectively to signals | incompatible/unstable inputs; missing family treated unchanged; reversed input equivalence; uncataloged signal; omitted/duplicate/contradictory evaluation; stale/incompatible catalog |
+| snapshot Projection | definition owns the complete operation rule set and captured-revision family/selector/adapter/slot closure; request values equal bound snapshot captured state; observations equal request; unfiltered delta signals cover every compared family; fresh capture precedes request | caller family/rule subset selector including unknown `include_families`; stale snapshot plus unrelated equal live values; bounded captured/post mismatch; session-only drift; unchecked-family signal; omitted/extra/duplicate tuple; selector/adapter/slot mismatch; post-request substitution; incomplete rule accounting |
+| redaction | identical-action overlap; `omit` overlap; explicit sensitive-surface floors; unknown, matcher-failed, and known-unmatched surfaces default to omit; every action satisfies exact original/retained pointer/nullability matrix including containing-value coverage and shared-prefix retained fields | distinct non-omit overlap; permissive unmatched surface; known-unmatched environment/secret-file/command/diff content retained; retained pointer equal to/under original subtree; ambiguous prefix coverage; action/nullability mismatch |
+| retention | every allowed memory-horizon/declared-trigger/context-memory-snapshot tuple resolves exactly one rule | envelope horizon outside policy; uncovered/overlapping tuple; deletion under reference/hold/floor |
+| field matrix | mechanical example-key-to-owning matrix coverage including shared `extensions` | undefined fingerprint input or unmatrixed semantic field |
 
 ## Project posture kernel and recommendation contracts
 

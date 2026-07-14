@@ -2,9 +2,9 @@
 
 ## Status
 
-The HCM-0.2 scope in this document is frozen design authority: stable semantics and configurable language, instance-profile artifact/vocabulary composition, schema registration, artifact kinds and instances, intake and promotion, the constitutional root, Charter intake, the project-posture owner boundary, and vocabulary semantics. The exact field contracts and validation/defaulting matrix live in `05-contracts-schemas-and-gates.md`.
+The HCM-0.2 scope in this document is frozen design authority: stable semantics and configurable language, instance-profile artifact/vocabulary composition, schema registration, artifact kinds and instances, intake and promotion, the constitutional root, Charter intake, the project-posture owner boundary, and vocabulary semantics. HCM-0.3 additionally freezes Context Resolution, deterministic Projection, memory promotion, Snapshot Memory, delta/drift, redaction/retention, and snapshot-grounding semantics. The exact field contracts and validation/defaulting matrices live in `05-contracts-schemas-and-gates.md`.
 
-This freeze is not implementation proof. Context Resolution, Snapshot Memory, and Projection sections remain subject to their later Phase 0 slices, and the shipped artifact/default-instance set remains explicitly unresolved until HCM-0.6.
+These freezes are not implementation proof. All runtime gates remain open, and the shipped artifact/default-instance set plus shipped Resolution labels/default policy remain explicitly unresolved rather than being selected by examples.
 
 ## Purpose
 
@@ -319,8 +319,8 @@ Use namespaced implementation terminology such as:
 - `ContextResolution`;
 - `ContextResolutionEnvelope`;
 - `ResolutionProjection`;
-- `ResolutionEscalation`;
-- `ResolutionPromotion`.
+- `ResolutionEscalationRequest` and `ResolutionEscalationDisposition`;
+- `ResolutionPromotionRequest` and `ResolutionPromotionDisposition`.
 
 Do not use an unqualified `Resolution` type in code because route, path, selector, and dependency resolution already have different meanings.
 
@@ -343,7 +343,7 @@ These dimensions must not be collapsed into a token budget or one numeric level.
 
 ### Ordered stack
 
-The first version uses a configurable ordered stack rather than an arbitrary graph.
+The first version uses one exact, versioned `ContextResolutionStackDefinition` rather than an arbitrary graph. Its definition ref is derived from its declared ID and SemVer, and its fingerprint follows the uniform exact-definition rules in `05-contracts-schemas-and-gates.md`.
 
 The shipped default may resemble:
 
@@ -358,64 +358,100 @@ Profiles may rename, add, remove, or intentionally collapse levels. Work-unit te
 
 The current `L0`–`L3` work-level mechanism is a useful precursor, not the final semantic model, because it mixes scope levels with workflow phases such as merge/quality gate.
 
+The stack definition owns:
+
+- one linear ordered list of stable level IDs and profile-selected display labels;
+- one ordered value domain for each of the six dimensions;
+- a complete six-dimension default for every level;
+- exact matcher, escalation-policy, and memory-promotion-policy refs/fingerprints;
+- its deterministic `definition_fingerprint`.
+
+For every dimension, rank zero is the least disclosure, reach, durability, or claim authority and larger ranks grant more. A child envelope may remain equal to or narrow any parent rank; it may not increase one without a typed escalation approved by authority outside the child. A profile may name the values differently, but it cannot reverse this comparison rule or collapse two values that have different authority effects.
+
+The ordered level list supplies named defaults and navigation. It is not a seventh aggregate authority score. Two envelopes at the same active level may still differ in one or more dimensions, and every comparison is dimension-by-dimension.
+
 ## Resolution envelope
+
+`ContextResolutionEnvelope` is a fully materialized immutable execution/view constraint. It pins the exact resolved profile and stack, records all six dimension values, and has at most one parent envelope. Additional upstream contracts are exact constraint inputs, not merge parents.
 
 Conceptual shape:
 
 ```yaml
 schema_id: handbook.context-resolution-envelope
 schema_version: "1.0"
-active_level: execution
-goal_ref: work.task.capture-screenshot
+envelope_id: envelope.capture-screenshot
+resolved_profile:
+  ref: handbook.profile.example@1.0.0
+  fingerprint: sha256:...
+resolution_stack:
+  ref: handbook.context-resolution.example@1.0.0
+  fingerprint: sha256:...
+active_level_id: execution
+objective_ref: work.task.capture-screenshot
 dimensions:
-  scope_horizon: assigned_task
+  scope_horizon: assigned_unit
   detail_resolution: normal
   temporal_horizon: immediate
-  authority_horizon: task_local
-  memory_horizon: execution_record
-  validation_horizon: task_closeout
-parent_refs:
-  - feature.browser-evidence
-inherited_constraint_refs:
-  - charter.security
-  - feature.browser-evidence.acceptance
-allowed_mutations:
-  - crates/browser/**
-forbidden_mutations:
-  - docs/canon/**
+  authority_horizon: local_write
+  memory_horizon: execution
+  validation_horizon: unit_closeout
+parent_envelope: null
+constraint_inputs:
+  - ref: charter.security@7
+    fingerprint: sha256:...
+mutation_rules:
+  - rule_id: allow_browser_paths
+    effect: allow
+    target_kind: repository_path
+    selector: crates/browser/**
+  - rule_id: deny_canonical_policy
+    effect: deny
+    target_kind: repository_path
+    selector: docs/canon/**
 escalation_triggers:
-  - parent_contract_conflict
-  - architectural_decision_required
-  - insufficient_acceptance_criteria
+  - trigger_id: parent_contract_conflict
+    policy_ref: handbook.resolution-trigger.parent-contract-conflict@1.0.0
+    policy_fingerprint: sha256:...
+envelope_fingerprint: sha256:...
 ```
 
-Higher-horizon constraints constrain lower-horizon work. Lower-horizon observations do not rewrite higher-authority truth without promotion.
+Root envelopes declare every field and have no parent. A child repeats the complete resolved state and cites its exact parent ref/fingerprint. Its effective mutation set is the intersection of parent and child allows minus the union of parent and child denies; a valid selector overlap always resolves to deny. Mutation selectors use the exact matcher contract pinned by the stack definition. Unknown target kinds, malformed/unresolvable selectors, matcher evaluation that cannot determine a stable match set, stale parent fingerprints, or any dimension increase fail closed.
+
+`envelope_fingerprint` covers the normalized record, exact profile/stack/parent/constraint fingerprints, and ordered mutation/escalation semantics, excluding only its own field. Invocation cannot silently rewrite the selected profile or stack. Higher-horizon constraints constrain lower-horizon work. Lower-horizon observations do not rewrite higher-authority truth without a separately authorized promotion.
+
+### Escalation and promotion
+
+`ResolutionEscalationRequest` asks for a dimension increase, missing source, or broader mutation authority. It binds the current envelope, proposed complete envelope, exact trigger, evidence, and requested authority. A separate append-only `ResolutionEscalationDisposition` binds that exact request and records one terminal approval, refusal, or supersession. Neither record mutates in place, and creating the request does not grant the requested authority; only the named authority may approve a replacement envelope.
+
+`ResolutionPromotionRequest` proposes moving a reviewed conclusion into a more durable memory horizon and binds exact source observations/projections, target semantic-memory record, requested authority, and compare-and-write basis. A separate append-only `ResolutionPromotionDisposition` records exactly one applied, refused, or stale outcome with its decision, validation evidence, approving authority, and result when applied. Prior request/disposition bytes remain immutable. Promotion never turns a snapshot or Projection into canonical artifact/contract authority, and artifact/intake/posture/lifecycle mutations continue to use their own contracts.
 
 ## Projection semantics
 
 Terminology in this pack is strict:
 
 - A **renderer-derived view** is a fixed deterministic pre-Phase-3 human-review output produced by a first-party renderer from approved canonical truth. It accepts no Context Resolution input and is outside the capitalized `Projection` request/result/provenance contract.
-- A capitalized **Projection** is a Phase-3 generic Resolution-aware derived view from canonical structured truth for a declared requester, surface, vocabulary profile, and Resolution envelope.
+- A capitalized **Projection** is a Phase-3 generic Resolution-aware derived view from exact fingerprinted structured sources for a declared requester, surface, vocabulary profile, and Resolution envelope. Sources may be canonical artifacts or immutable semantic/observation records such as snapshots and deltas; Projection preserves each source's authority class and never upgrades descriptive evidence into canonical or peer truth.
 
 Generic configured custom-kind Projections and every Resolution-aware view begin only after the Context Resolution kernel and deterministic Projection engine land in `HCM-3.2` and `HCM-3.3`. Phase 2 introduces no precursor engine and no separate Projection provenance subset.
 
+Every capitalized Projection uses one exact `ProjectionDefinition`. The definition declares compatible source record/kind/capability selectors, allowed surfaces, one or both deterministic operations, a target schema, mandatory currentness requirements (`none` with an empty family set or exact-revision checking with complete family/adapter/slot bindings), one exact fingerprinted metadata-only disclosure policy, one exact fingerprinted built-in metadata-only support evaluator, field/claim rules with complete six-dimension minimum Resolution and registered disclosure classification, and exact built-in derivation refs/fingerprints. Exact profile/definition/source validation is the sole owner of semantic-capability compatibility: it resolves capability contracts and bindings for every selector before a request can produce per-rule evaluations, and missing, stale, or incompatible capability semantics refuse the request rather than becoming `unsupported`. Before reading protected payload bytes, the engine compares the request envelope with each applicable rule minimum, maps any exact upstream redaction disposition, evaluates the bound fail-closed disclosure policy, and asks only the bound evaluator for source-kind, source/target-schema, pointer, and derivation-I/O support. Missing/stale/incompatible evaluator or schema-registry state refuses before a result; evaluator or schema-registry semantic drift changes the required definition/evaluation/result fingerprint closure. Repository-defined projection records may compose declarative selectors and allowlisted Handbook derivations; they cannot load executable hooks, remote code, model prompts, transport-owned business rules, content-sniffing disclosure/support rules, or extension-supplied required currentness/disclosure behavior.
+
 ### Reveal
 
-Expose canonical fields or referenced child artifacts already present.
+Expose fields or referenced records already present in the exact bound source.
 
 - deterministic;
 - non-inventive;
-- canonical-source preserving.
+- preserves whether the source is canonical authority, reviewed semantic memory, or descriptive observation/evidence.
 
 ### Derive
 
-Compute a deterministic aggregate, selection, normalization, or presentation from canonical fields.
+Compute a deterministic aggregate, selection, normalization, or presentation from fields in exact bound sources.
 
 - deterministic;
 - provenance-bearing;
 - may be lossy as a view;
-- cannot destroy or replace source truth.
+- cannot destroy, replace, or upgrade any source's authority class.
 
 ### Synthesize
 
@@ -430,8 +466,8 @@ Generate new interpretation, prose, decomposition, or candidate detail through a
 
 User-facing mental model:
 
-- **collapse** projects broader canonical meaning into a smaller working set;
-- **expand** requests broader horizon or finer canonical detail when the current envelope is insufficient.
+- **collapse** projects broader exact source content into a smaller working set while retaining its authority class;
+- **expand** requests broader horizon or finer source detail when the current envelope is insufficient.
 
 Implementation-level operations should remain explicit:
 
@@ -442,22 +478,27 @@ Implementation-level operations should remain explicit:
 - aggregate;
 - promote.
 
-Expansion cannot invent detail absent from canonical truth. Missing detail either remains missing, triggers escalation, or enters a candidate synthesis workflow.
+Expansion cannot invent detail absent from the exact bound sources. Missing detail either remains missing, triggers escalation, or enters a candidate synthesis workflow. If the source is canonical, only its owning canonical mutation contract can add canonical detail; if it is an observation or semantic record, expansion does not promote it into canonical truth.
+
+Collapse is a Projection whose target envelope is equal to or narrower than the source/requester envelope on every dimension. Expansion is not a Projection result: it is either a new authorized request using an already valid broader envelope or a `ResolutionEscalationRequest`. A Projection engine never widens its own authority in order to satisfy a request.
 
 ## Projection provenance
 
-Every capitalized Projection should record:
+Every capitalized Projection records:
 
-- source artifact references and fingerprints;
-- profile and vocabulary versions;
-- projection definition/version;
-- requested Resolution envelope;
-- fields or claims included;
-- fields or claims omitted;
-- lossiness classification;
-- deterministic derivation identifiers;
-- synthesis provenance when applicable;
-- promotion eligibility.
+- exact source ref/fingerprint pairs, never parallel unpaired lists;
+- exact resolved-profile, vocabulary, Projection-definition, and envelope ref/fingerprint pairs;
+- requester purpose and output surface;
+- operation and target schema;
+- definition-owned currentness requirements, request expected-revision basis, and result validation evidence, including selector/adapter/slot closure when exact checking applies;
+- included source/output paths and claim refs;
+- typed omissions with source path/claim, reason, and proof effect;
+- computed lossiness classification;
+- exact deterministic derivation refs plus input/output fingerprints;
+- output and complete result fingerprints;
+- `authority_effect: none`.
+
+Initial omission reasons are `out_of_resolution`, `redacted`, `unavailable`, and `unsupported`. Every definition rule is accounted as included, omitted, or `not_applicable`. In v1, a rule is applicable exactly when its declared `operation` equals the request operation; operation mismatch is the only `not_applicable` reason. Lossiness precedence is `redacted` over `partial` over `collapsed` over `lossless`: any redaction yields `redacted`; otherwise unavailable/unsupported yields `partial`; otherwise out-of-Resolution omission or an included lossy derivation yields `collapsed`; otherwise the result is `lossless`. An omitted `required_for_result` rule carries `not_observed` even when it names no claim; any omitted rule with claim refs carries `not_observed` for each named claim; only an omitted non-required claimless rule carries `none`. The result is still emitted with the target absent under an omission-compatible target schema, but no `not_observed` requirement or claim can contribute a passing verdict. A Projection may be evidence input, but it does not mutate its source or become a second editable authority.
 
 ## Memory semantics
 
@@ -493,6 +534,8 @@ Promotion requires:
 - explicit authority to update that truth;
 - a durable promotion record.
 
+Promotion is compare-and-write against the target memory authority. Stale source fingerprints, missing validation for the target horizon, or an approver outside the target authority fail closed. The promoted record is new reviewed semantic memory with its own identity; the source observation, delta, or Projection remains immutable evidence.
+
 ## Snapshot Memory
 
 ### Definition
@@ -523,15 +566,17 @@ A snapshot may be submitted as evidence or grounding context. It never becomes a
 
 A capture policy selects fields from several state families.
 
+`SnapshotCapturePolicy` is an exact versioned definition. It pins every allowed memory horizon, source adapter, multi-source family slot/composite-revision rule, static bounded-window selection rule, comparison contract, bounded-skew rule, redaction policy, retention policy, predecessor rule, and drift-rule catalog by ref/fingerprint and carries a derived policy fingerprint. Live source revision and exclusive cursor are capture inputs recorded in the snapshot, not policy-definition fields. It cannot discover ambient state families, widen a source adapter, or select a more durable memory horizon at capture time. Every allowed horizon/trigger/record-class combination must resolve exactly one retention rule.
+
 #### Capture identity
 
 - snapshot ID and schema version;
-- capture trigger and capture-policy ID/version;
+- capture trigger and capture-policy ref/fingerprint;
 - capture start/end time;
 - producing Handbook/SDK version;
 - repository/workspace identity;
-- active Context Resolution;
-- previous snapshot reference;
+- exact resolved-profile and active-envelope refs/fingerprints;
+- previous snapshot ref/record-fingerprint pair;
 - state and record fingerprints.
 
 #### Git and worktree state
@@ -620,6 +665,8 @@ prior top-level orchestration end snapshot
 
 This makes a stale handoff, unexpected git change, queue reorder, new blocker, or altered contract state visible before the next session acts.
 
+Every boundary snapshot records a stable boundary-stream ref and a unique, strictly increasing sequence within its repository/workspace/stream. A concurrent sequence-allocation collision retries or refuses; it cannot introduce a tie-breaker. The exact predecessor rule in its capture policy defines legal trigger transitions and selects the greatest eligible earlier sequence in the same repository, workspace, and stream. A previous-snapshot link cites that record fingerprint and sequence. Self, future, duplicate-sequence, cyclic, skipped-eligible, wrong-stream/workspace, or wrong-trigger links fail closed.
+
 ### Capture consistency
 
 Git, artifacts, work ledgers, contracts, and evidence may change during capture. Every snapshot records:
@@ -630,7 +677,9 @@ Git, artifacts, work ledgers, contracts, and evidence may change during capture.
 - retry/refusal outcome;
 - surfaces not captured atomically.
 
-If authoritative revisions change during capture, the system retries under a bounded policy or emits an `unstable` snapshot that cannot ground promotion or closeout decisions.
+Each selected state family also records its exact source-adapter ref/fingerprint, pre/post revision pair, the exact immutable revision used to produce its payload, normalized payload fingerprint, static-window plus capture-time source/cursor inputs where applicable, and capture disposition. When one family adapter reads multiple source slots, its family revision is a deterministic composite over every declared slot, and the snapshot also records pre/captured/post revisions per slot. `stable` requires equal pre/captured/post revisions for the family composite and every slot. `bounded` requires an exact immutable captured revision for each separately read payload/slot plus an exact policy-selected bound-rule/evaluation record proving that cross-source skew stayed within the bound. Merely finishing a read while sources changed is not bounded consistency.
+
+Top-level consistency is derived, never caller-selected. With no selected-family exclusions, all-stable families yield `stable`; a mix of stable/bounded families with every exact bound evaluation passing yields `bounded`. Any unstable observed family or any whole selected-family exclusion (`unavailable`, `unsupported`, `redacted`, or `unstable`) yields top-level `unstable` plus diagnostic-only admissibility, or no record when the policy says refuse. Field-level redaction inside an observed family is instead recorded by redaction dispositions and does not itself change source consistency. If authoritative revisions change outside the permitted bound, the system retries under the exact policy or emits/refuses according to this table. An unstable snapshot cannot ground promotion, closeout, a hard gate, or a later delta that claims stable comparison.
 
 ### Fingerprints
 
@@ -641,9 +690,13 @@ Use two distinct fingerprints:
 
 Two snapshots taken at different times may share a state fingerprint while remaining distinct records.
 
+The state fingerprint covers schema identity, repository/workspace identity, exact capture-policy/profile/envelope fingerprints, every selected state-family composite and per-slot pre/captured/post revision, bound evaluation, window capture input and normalized payload, ordered exclusions, and redaction outcomes. It excludes snapshot ID, boundary-stream ref/sequence, capture timestamps/trigger, previous-snapshot link, record fingerprint, and other record-only provenance. The record fingerprint covers the normalized complete record except itself. Therefore equal selected state under the same semantic policies may retain one state fingerprint across later boundary sequences or different transition streams while producing distinct record fingerprints. Map keys, repository-relative paths, unordered semantic sets, and evidence refs use contract-defined canonical ordering.
+
 ### Snapshot deltas
 
 `SnapshotDelta` is a deterministic derived artifact. It compares two compatible snapshots without mutating either.
+
+Compatibility is fail-closed. Both inputs must cite exact record fingerprints, the same repository/workspace identity, compatible schema versions, and the same exact comparison-contract ref/fingerprint. The comparison contract declares comparable policy/state-family versions and path/record identity rules. A delta names common compared families plus every family excluded because it was absent, redacted, unstable, or incompatible; it never silently treats missing data as unchanged.
 
 Useful delta families include:
 
@@ -677,11 +730,13 @@ Deterministic policy may classify deltas as:
 
 Divergence is not automatically failure. A durable handoff, escalation, decision, or child-packet record may explain and authorize the change. The delta records the signal and justification refs; it does not invent intent.
 
+Every normalized change identifies family, stable path/record key, change kind, and before/after value fingerprints. The delta binds the exact drift-rule catalog resolved from the endpoint policies or explicitly admitted by their comparison contract. It evaluates every catalog rule exactly once in catalog order as matched, not matched, or not applicable; every matched evaluation produces exactly one unique signal and every signal maps back to exactly one matched catalog rule. Missing, duplicate, stale, refused, or caller-skipped evaluation fails closed. Every signal cites its stable ID, exact rule ref/fingerprint, matching changes, evidence refs, and optional durable justification refs. No free-form explanation changes deterministic classification. `delta_fingerprint` covers both exact snapshot inputs, the comparison contract, drift catalog, compared/excluded families, normalized changes, complete rule evaluations, signals, and justification refs except itself.
+
 ### Resolution-aware snapshot projection
 
 A snapshot may be comprehensive, but an agent must not automatically receive all of it.
 
-Snapshot projection applies the target Context Resolution envelope to select:
+Snapshot projection is a specialized capitalized Projection. It uses the same generic `sources`, `resolution_envelope`, exact `ProjectionDefinition`, request/result provenance, included/omissions/not-applicable rule accounting, lossiness, fingerprint, and `authority_effect: none` fields as every other Projection. Its definition declares an exactly-one snapshot selector and may declare a separate exactly-one compatible-delta selector; if the selector exists the request must satisfy it rather than treating that selector as optional. It applies the target Context Resolution envelope to select:
 
 - relevant work and queue state;
 - applicable contracts and constraints;
@@ -692,7 +747,7 @@ Snapshot projection applies the target Context Resolution envelope to select:
 
 An execution agent may receive task-local changes and next actions. A strategic session may receive phase drift, cumulative proof debt, queue churn, and unresolved architecture decisions.
 
-Projection provenance records included/omitted snapshot fields and the source snapshot fingerprint. Comprehensive capture never implies comprehensive disclosure.
+Projection provenance records included/omitted snapshot fields and exact source snapshot/delta record fingerprints. The snapshot-grounding definition's mandatory currentness field declares the exact required family, source-selector, adapter, source-slot set, and `captured_revision` basis. Its disclosure contract applies the same per-rule minimum Resolution and exact metadata-only policy as generic Projection. A snapshot/delta redaction disposition records an exact original JSON Pointer/subtree and action-typed optional retained pointer outside that subtree. A request for the original/subtree deterministically yields a Projection `redacted` omission before payload access, never `unavailable`; the exact retained transformed/fingerprint field is evaluated independently even when it shares earlier path segments. A caller that needs a fresh capture completes it before constructing the Projection request, then binds that new snapshot (and any compatible delta) as the request's exact sources. The request expected values are copied from that exact snapshot's captured family composite/per-slot revisions; result observations must equal those same values, not merely agree with unrelated caller input. Unfiltered delta signals require currentness coverage for every compared family, while unchecked-family signals must be filtered/omitted with proof effects. A placeholder or pre-capture source, omitted/extra/duplicate family, selector/adapter/slot substitution, captured-value mismatch, missing check, stale adapter, or unchecked delta-signal family produces a typed refusal and no Projection result. Comprehensive capture never implies comprehensive disclosure.
 
 ### Handoff and snapshot relationship
 
@@ -724,7 +779,9 @@ Snapshot capture must not include by default:
 
 Every snapshot records the redaction/capture policy and excluded surfaces.
 
-Retention is policy-driven by horizon and trigger. Contract/milestone snapshots may be durable indefinitely; high-frequency session or operation snapshots may use content-addressed deduplication, retention windows, or reviewed compaction without rewriting retained immutable records.
+Redaction is driven by one exact `SnapshotRedactionPolicy`. V1 fixes `fail_closed: true` and unmatched-surface action `omit`; both enter the policy fingerprint. Rules match typed surfaces and choose `omit`, `fingerprint_only`, `artifact_ref_only`, or `redacted_summary`. When rules overlap, identical actions remain valid and `omit` wins over any other action; two or more distinct non-omit actions are incomparable and the capture refuses instead of guessing. Unknown, unclassifiable, matcher-failed, and known-but-unmatched input is omitted. Explicit deny-floor rules cover secret values, unrestricted environment variables, `.env`/secret-file contents, raw command arguments/output, and unrestricted full diffs, and no invocation flag can weaken them.
+
+Retention is driven by one exact `SnapshotRetentionPolicy` keyed by the complete tuple of memory horizon, trigger, and record class. Contract/milestone snapshots may be durable indefinitely; high-frequency session or operation snapshots may use content-addressed deduplication, retention windows, or reviewed compaction. Deduplication may share immutable payload storage but preserves distinct record identities. Compaction creates a new reviewed aggregate with source refs/fingerprints and never rewrites retained records or removes a record still referenced by a handoff, evidence, gate, legal hold, or active retention floor.
 
 ## Resolution-aware validation
 
