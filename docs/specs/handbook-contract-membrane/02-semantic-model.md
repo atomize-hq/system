@@ -1,5 +1,11 @@
 # Semantic Model
 
+## Status
+
+The HCM-0.2 scope in this document is frozen design authority: stable semantics and configurable language, instance-profile artifact/vocabulary composition, schema registration, artifact kinds and instances, intake and promotion, the constitutional root, Charter intake, the project-posture owner boundary, and vocabulary semantics. The exact field contracts and validation/defaulting matrix live in `05-contracts-schemas-and-gates.md`.
+
+This freeze is not implementation proof. Context Resolution, Snapshot Memory, and Projection sections remain subject to their later Phase 0 slices, and the shipped artifact/default-instance set remains explicitly unresolved until HCM-0.6.
+
 ## Purpose
 
 This file defines the conceptual model that profiles, artifacts, vocabulary, Context Resolution, projections, memory, contracts, and adapters must share.
@@ -32,31 +38,61 @@ A user may render these as Charter, System Brief, Feature, Phase, Slice, Packet,
 
 Stable identifiers exist for validation and translation. They are not a language-policing mechanism.
 
+Handbook keeps two explicit semantic namespaces:
+
+- the versioned **stable-role registry** identifies typed places in the system and workflow, such as `constitutional_authority`, `project_context`, or `execution_envelope`;
+- the versioned **semantic-capability registry** identifies behavior/conformance contracts, such as `constitutional_root`.
+
+Profiles may select labels, aliases, and explicit structural absorptions only for stable roles. They cannot use a capability ID as a vocabulary role, create an undeclared role/capability, change machine meaning, or rename a schema ID, kind ID, operation ID, or CLI command. A kind separately advertises supported role refs and capability contracts; an instance separately selects `role_ref` and zero or more `capability_refs`.
+
+The stable-role registry is not ambient. Every profile, kind, and vocabulary record pins the same exact registry ref/fingerprint pair, and resolved-profile identity includes that pair. The registry owns stable role IDs, canonical display labels, and role categories; vocabulary owns only profile-selected labels, aliases, and allowed structural absorption. A changed registry fingerprint is a changed semantic input and cannot silently alter default labels or role validation.
+
+Every versioned HCM-0.2 definition ref is mechanically derived as its declared namespaced identity plus `@` plus its declared SemVer, and every referenced definition has a recomputable semantic fingerprint producer. Bare mutable refs, reconstructed aliases, and definitions with no fingerprint closure fail closed.
+
 ## Instance profile
 
 An instance profile defines the Handbook semantics for one repository or project.
 
 It contains:
 
-- profile identity and schema version;
-- artifact-kind sources and artifact-instance registry;
-- vocabulary profile;
+- profile identity, profile version, and schema version;
+- explicit parent profile reference, if any;
+- one exact stable-role registry ref/fingerprint pair;
+- schema-registry and artifact-kind sources;
+- a complete artifact-instance registry for the resolved profile;
+- one vocabulary profile;
 - Resolution stack;
 - projection definitions;
 - validator/dock requirements;
-- shipped defaults and explicit repository overrides;
-- optional adapter overlays.
+- posture-evaluation policy ref/fingerprint pair or explicit null;
+- optional adapter overlays and declared extensions.
 
 Recommended first-version precedence:
 
 ```text
-shipped default profile
-  -> selected named profile
-  -> repository profile
-  -> explicit invocation overrides
+shipped root profile
+  -> selected named profile layer
+  -> repository profile layer
+  -> exact profile selection at invocation
 ```
 
 Ambient, silently discovered local overrides are out of scope initially.
+
+Each layer is an explicit versioned record with at most one exact parent. For every layerable field, omission inherits the parent's complete value and presence replaces the complete value; an explicit empty list/map clears it. There is no implicit append, key merge, deletion/tombstone, last-write-wins conflict repair, or multi-parent merge in v1. A replacement must independently validate after resolution, so a layer cannot clear the constitutional root or weaken its floors.
+
+Repository configuration is a profile layer, not an untracked mutation of the shipped profile. Invocation may select one exact resolved profile and supply operation-specific request fields, but v1 has no invocation-time profile-field override. Missing identity, authority, schema, kind, instance, path, requiredness, or constitutional-root decisions never infer from filenames, current enums, templates, or prose.
+
+Profile resolution is deterministic. It emits the ordered source-profile refs/fingerprints, the source layer chosen for every replace-whole field, fully resolved schema/kind/instance/vocabulary values, diagnostics, and a fingerprint over normalized semantic content and exact definition fingerprints. Timestamps, local absolute paths, and invocation request fields are not profile-fingerprint inputs.
+
+## Schema registry
+
+The schema registry maps an exact stable content-schema ID and semantic version to one repository-relative JSON Schema document, its Draft 2020-12 meta-schema, media type, and SHA-256 document fingerprint.
+
+- `SchemaRegistryEntry` owns safe schema resolution metadata; the schema document owns structural content rules.
+- `ArtifactKindDefinition` refers to a registry entry by exact ID and version. It does not embed an ambient path or fetch a schema on demand.
+- The tuple `(content_schema_id, content_schema_version)` is unique in a resolved profile. Conflicting documents or fingerprints for the same tuple fail closed.
+- First-version compatibility is exact. Version ranges, implicit latest selection, remote refs, network fetching, executable hooks, symlink escapes, and unversioned ambient discovery are refused.
+- Schema validation does not grant semantic or constitutional authority. Handbook-owned semantic validators, intake coverage, approvals, and external dock evidence remain separate layers.
 
 ## Artifact-kind and instance registries
 
@@ -66,42 +102,54 @@ The registry replaces the fixed assumption that every repository has exactly the
 
 An artifact kind defines the reusable shape and behavior of a class of canonical artifact. It identifies at least:
 
-- stable kind ID, schema version, and definition fingerprint;
-- canonical content schema reference;
-- zero or more compatible semantic roles/capabilities;
-- structural and semantic-validation profiles;
-- optional `ArtifactIntakeDefinition`;
-- supported deterministic projections;
+- stable kind ID and kind version plus a derived definition fingerprint;
+- exact canonical content-schema reference;
+- zero or more supported stable-role refs;
+- zero or more versioned semantic capability contracts and schema bindings;
+- structural and semantic-validation profile references;
+- fixed deterministic renderer-definition references;
+- future generic Projection-definition references, which remain empty until their later contract is frozen;
 - lifecycle and review-trigger semantics;
-- required cross-artifact capabilities;
-- extension and compatibility rules.
+- required cross-artifact capabilities bound to exact capability-contract refs and explicit cardinality;
+- declared extensions and exact-version compatibility posture.
 
 The kind definition does not contain a repository-specific path, user-facing instance label, or requiredness decision.
+
+A capability name alone is not conformance. Each advertised capability cites a versioned capability contract and binds its required semantic fields to JSON Pointers in the canonical content schema. Meta-validation proves that the pointers exist with compatible shapes; Handbook semantic validation proves the cross-field and authority invariants. A kind may advertise at most one contract version for a given capability ID, so an instance's selected capability ID resolves unambiguously through that kind.
 
 ### `ArtifactInstanceDescriptor`
 
 An artifact instance binds one kind into a repository/project profile. It identifies at least:
 
 - stable artifact instance ID;
-- artifact-kind reference and exact version/range policy;
-- selected semantic role when the kind supports more than one;
+- exact artifact-kind reference;
+- selected `role_ref`, or explicit null when the instance has no stable role;
+- explicit selected `capability_refs`, possibly empty;
 - user-facing label;
-- canonical repo-relative path or path template;
-- requiredness rule and applicable project conditions;
-- dependencies on other instance IDs or semantic capabilities;
-- lifecycle/lock state or policy reference;
-- selected intake and projection definitions;
-- repository-specific validation overlays allowed by the kind.
+- one concrete normalized canonical repo-relative path in the resolved profile;
+- explicit `always`, `conditional`, or `optional` requiredness plus a condition reference only for `conditional`;
+- typed dependencies on exact instance IDs or exact semantic-capability contract refs, including required cardinality;
+- lifecycle policy reference, while mutable lifecycle/lock state remains canonical artifact state;
+- explicit intake definition reference or null;
+- explicit fixed-renderer and future Projection-definition selections;
+- repository-specific validation overlays allowed by the kind;
+- declared extensions.
 
 One kind may back multiple instances. A profile selects instances; it does not create new hard-coded product types.
 
+The authored descriptor does not inherit intake/rendering selections implicitly from a kind. It records an exact intake definition that targets the selected kind, explicit null when the kind/capability permits no intake, and explicit renderer/Projection lists. Intake compatibility is owned in one direction by `ArtifactIntakeDefinition.artifact_kind_ref`; kinds do not list or fingerprint intake definitions. This keeps the definition graph acyclic and makes the fully resolved profile replayable.
+
+V1 dependency cardinality is intentionally small: `exactly_one` requires one distinct resolved provider and `at_least_one` requires one or more. Instance-ID dependencies allow only `exactly_one` because instance IDs are unique. Capability dependencies cite both the stable capability ID and its exact contract ref; resolution returns every matching provider instance in stable instance-ID order and never selects a source-order winner. Zero providers, too many providers for `exactly_one`, a contract-version mismatch, or duplicate capability declarations within one kind fail closed.
+
 ### Constitutional root
 
-The shipped model retains one required constitutional-root semantic role. Its display name and path may be profile-defined; the shipped default binding may remain Charter.
+Every valid resolved profile contains exactly one instance selected for the `constitutional_root` semantic capability. That instance is `always` required. Its display name and concrete canonical path are profile-defined; the shipped default binding may remain Charter.
 
 This is a semantic invariant, not a literal filename requirement.
 
-A custom kind may satisfy the constitutional-root role only when its declared capabilities and schema meet the constitutional contract. Merely assigning the label `Charter` is insufficient.
+A kind may satisfy the constitutional-root capability only when its declared capability contract and schema bindings cover policy authority, decision authority, exception/waiver authority, engineering-posture floors and red lines, and review/reassessment triggers. The instance must select `capability_refs: [constitutional_root]`; its separately selected stable role is normally `constitutional_authority`. Merely assigning that role, the label `Charter`, a familiar filename, or requiredness is insufficient.
+
+No profile overlay, condition, waiver, vocabulary mapping, or adapter may remove or multiply the constitutional-root capability. Changing which instance selects it is an explicit reviewed profile change and must preserve one valid root throughout atomic promotion.
 
 ### Shipped defaults require a decision session
 
@@ -130,6 +178,8 @@ Repositories and selected profiles may define artifact kinds beyond the shipped 
 
 Structural JSON Schema validates YAML after parsing. Cross-field/cross-artifact semantic rules remain separate, and external domain validators continue to integrate through docks rather than executable code embedded in schemas.
 
+Fixed first-party renderer definitions are not Projections. They accept validated canonical truth and declared deterministic rendering inputs only. Generic configured custom-kind views and any Resolution-aware view remain unavailable until the Phase 3 Projection contract is implemented.
+
 ## Artifact intake semantics
 
 An `ArtifactIntakeDefinition` is a versioned coverage contract for obtaining the information needed to produce one artifact kind. It is not a fixed terminal questionnaire and is not itself canonical project truth.
@@ -144,7 +194,9 @@ It defines:
 - specificity, completeness, contradiction, and known-unknown rules;
 - approval requirements and promotion gates;
 - optional question wording/prompt guidance for agent-facing projections;
-- reassessment triggers for affected coverage items.
+- reassessment trigger refs with the exact affected coverage IDs each trigger reopens.
+
+Each coverage item also declares an authority class (`observational`, `rationale`, or `normative`) and the allowed source kinds for that class. Only an explicit coverage-level deterministic default may create a defaulted value. A default records its source and authority effect; it cannot satisfy a user-declaration or approval requirement and cannot silently create constitutional policy.
 
 Three first-version acquisition modes share the same definition and output schema:
 
@@ -153,6 +205,8 @@ Three first-version acquisition modes share the same definition and output schem
 - `agent_assisted` — prepares the fullest evidence-backed candidate possible and asks only blocking or authority-required questions.
 
 Mode changes the acquisition path, not the canonical schema or semantic quality bar. Missing coverage remains explicit and cannot be hidden by choosing a shorter mode.
+
+Coverage evaluation uses typed states: `satisfied`, `unknown`, `contradicted`, `waived`, `not_applicable`, or `blocked`. `not_applicable` requires its applicability proof; `waived` requires declared waiver authority and does not equal satisfied; unresolved required normative coverage blocks promotion.
 
 ### Intake records, candidates, and promotion
 
@@ -165,6 +219,10 @@ Keep three authorities distinct:
 | canonical artifact YAML | Approved project truth used by projections/contracts | authoritative at its declared semantic role |
 
 The LLM agent running the Handbook skill conducts the interview and uses CLI/SDK operations to inspect coverage, submit observations/declarations, validate the candidate, and request promotion. Handbook supplies deterministic schemas, evaluation, and promotion rules; it does not wrap an internal question-by-question UI or perform an untracked nested model call.
+
+The intake record is finalized after acquisition and coverage evaluation. It never receives forward links to later records. A candidate points back to its intake record; an approval points to the immutable candidate/fingerprint; and a promotion points to the candidate plus approvals. An append-only derived index may expose forward navigation, but it is not authority and never changes source-record fingerprints.
+
+Promotion is a compare-and-write transition. Handbook re-resolves the exact profile/kind/schema/intake versions, verifies the candidate fingerprint and current target state, reruns structural/semantic/coverage checks, validates approval authority, writes canonical YAML atomically, and emits an immutable promotion record. A stale candidate, changed target, missing approval, unresolved required coverage, or unknown required semantic fails closed.
 
 ### Charter intake
 
@@ -195,9 +253,11 @@ It resolves:
 
 The Charter is its primary constitutional authority. Observations may change the kernel's applicability calculation, but do not rewrite Charter policy.
 
-A `PostureRecommendation` may be derived when snapshots, contracts, evidence, or lifecycle events cross an approved trigger. It records affected dimensions/scope, proposed transition, triggering observations, evidence refs, confidence, urgency, approval requirement, and suggested actions. A recommendation is not an enacted posture change.
+The kernel fingerprint covers normalized semantic inputs and resolved output, including the exact profile ref and `resolved_profile_fingerprint`, a typed ref/fingerprint pair for every Charter, override, condition, contract, evidence, and snapshot input, and an explicit content-addressed freshness-evaluation basis whenever time affects applicability. Bare mutable refs are never sufficient replay inputs. It excludes the presentation-only resolution timestamp. Repeating resolution against the same input pairs and freshness basis produces the same fingerprints; changed bytes behind the same ref must change the cited fingerprint or cause refusal, and crossing an expiry boundary creates a new basis/fingerprint and may change the kernel honestly.
 
-Only an authorized, reviewed `PostureTransition` may update canonical policy or approved overrides. Raising posture may react to a single hard trigger; lowering posture requires sustained evidence across a configured window and cannot cross approved floors or red lines. This hysteresis prevents policy thrashing.
+A `PostureRecommendation` may be derived when snapshots, contracts, evidence, or lifecycle events cross an approved trigger. In v1 each recommendation contains exactly one global engineering-dimension transition plus one causal/applicability scope ref, the exact kernel, policy, trigger-or-rule, evidence, and snapshot-delta fingerprints, and one confidence, urgency, approval requirement, and suggested-action set. Scope explains where the evidence arose; it is not a second posture-state coordinate and does not select a scoped authority path. A causal event that warrants two dimension changes produces two independently fingerprinted recommendations. A recommendation is not an enacted posture change.
+
+Only an authorized, reviewed `PostureTransition` may update canonical policy. V1 transitions target the one canonical constitutional-root authority only; approved domain/instance overrides may influence resolution and recommendations but remain read-only inputs until a later typed override-mutation contract defines their own schema bindings, reassessment, and atomic-write rules. Raising posture may react to a single hard trigger; lowering posture requires sustained evidence across a configured window and cannot cross approved floors or red lines. This hysteresis prevents policy thrashing.
 
 An approved `PostureEvaluationPolicy` defines hard triggers, accumulated-signal thresholds/windows, cooldown/revisit rules, recommendation recipients, and acknowledgment/escalation behavior. Handbook core emits a typed recommendation/event; CLI, Tauri, Substrate, or another adapter decides how to present or deliver the notification without becoming posture authority.
 
@@ -249,6 +309,8 @@ work_units:
 ```
 
 The profile makes the collapse explicit so adapters can report whether the target system can preserve it.
+
+Vocabulary defaults are deterministic: a missing label uses the stable-role registry's canonical display label; aliases and absorptions default to empty. Duplicate display labels are allowed, but typed context must still resolve exactly one stable role. Absorptions are directed, acyclic, cannot absorb the `constitutional_authority` role, cannot mention a capability ID, and cannot erase an authority boundary or change a schema/kind/operation identifier. An adapter that cannot preserve a declared structural absorption must refuse or report a typed loss; it may not silently flatten the workflow.
 
 ## Context Resolution
 

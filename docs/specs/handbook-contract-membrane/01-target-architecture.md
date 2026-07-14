@@ -4,7 +4,7 @@
 
 Handbook will become a profile-driven, resolution-aware contract membrane with one transport-neutral capability layer:
 
-> Canonical structured truth is interpreted through stable semantic roles, schema-defined artifact kinds, profile-selected artifact instances, agent-directed intake coverage, explicit Context Resolution envelopes, a Charter-led project-posture kernel, deterministic Snapshot Memory and projections, executable contracts, normalized evidence, and hard gate semantics.
+> Canonical structured truth is interpreted through separate stable-role and semantic-capability registries, schema-defined artifact kinds, profile-selected artifact instances, agent-directed intake coverage, explicit Context Resolution envelopes, a Charter-led project-posture kernel, deterministic Snapshot Memory and projections, executable contracts, normalized evidence, and hard gate semantics.
 
 The same non-CLI use cases must support:
 
@@ -66,7 +66,7 @@ flowchart TD
 ### Handbook owns
 
 - canonical structured artifact truth;
-- stable semantic role identifiers;
+- a versioned replayable stable-role registry for typed places/workflow vocabulary and separate semantic-capability contracts for behavioral conformance;
 - instance-profile validation and resolution;
 - artifact-kind definitions, schema registry, artifact-instance descriptors, and requiredness semantics;
 - intake coverage definitions, candidate validation, approval/promotion semantics, and deterministic Charter authoring boundaries;

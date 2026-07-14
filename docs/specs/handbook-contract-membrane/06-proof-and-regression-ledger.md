@@ -201,6 +201,19 @@ Every implementation slice must preserve applicable baselines:
 26. unavailable mandatory delegation maps only to `capability_unavailable`/`blocked`/`top_level_resume`, and that mapping is enforced in both directions.
 27. a completed closeout records every findings -> remediation -> completed fresh re-review edge, permits a re-review to discover another remediated round, and requires the final completed review to be clean.
 28. for completed closeout, `reviewed_state.baseline_head` equals `repo_state.head`; a valid manifest from another commit cannot authorize an unreviewed primary slice commit.
+29. schema, kind, capability, capability-dependency contract, intake, renderer, profile-parent, vocabulary, posture, and other HCM-0.2 definition refs derive mechanically as `identity@version`; every referenced definition has a recomputable uniform fingerprint producer, the graph is acyclic with intake compatibility owned only intake -> kind, and range/latest/ambient/bare-ref fallback is refused.
+30. a resolved artifact instance has one concrete safe repo-relative canonical path; templates and absolute paths do not survive resolution.
+31. fixed renderer-definition refs and future generic Projection-definition refs remain separate; HCM-0.2/Phase 2 cannot populate a precursor Projection engine.
+32. stable roles and semantic capabilities are separate registries/fields; profiles, kinds, and vocabulary pin one exact stable-role registry ref/fingerprint pair, while versioned capability contracts bind required semantic fields to schema pointers and pass semantic validation; dependencies cite exact capability contracts and use only the frozen `exactly_one`/`at_least_one` semantics without source-order provider selection.
+33. every valid resolved profile has exactly one `always`-required instance selecting the `constitutional_root` capability, and role/vocabulary/conditions/overlays cannot erase or multiply it.
+34. intake source kinds and coverage results remain typed; defaults, inference, waivers, contradictions, unknowns, declarations, and approvals do not collapse into one value authority.
+35. promotion re-resolves current semantic definitions and uses compare-and-write fingerprints; stale candidates or targets leave canonical truth unchanged.
+36. vocabulary applies only to registered stable roles; it may change labels/aliases and declare acyclic structural absorption, but cannot mention capability IDs, rename machine identifiers/commands, absorb `constitutional_authority`, or erase authority/evidence boundaries.
+37. posture input/kernel fingerprints include the exact profile ref plus `resolved_profile_fingerprint`, an exact ref/fingerprint pair for every other semantic input, and an immutable freshness-evaluation basis whenever time affects applicability, with explicit normalization inclusions/exclusions; recommendations remain advisory and only authorized compare-and-write transitions mutate canonical policy.
+38. profile inheritance is single-parent replace-whole: child omission inherits, field presence replaces completely, and explicit empty/null clears; v1 has no append/key merge, tombstone, multi-parent, or invocation-time field override.
+39. immutable intake, candidate, approval, and promotion records link only downstream-to-upstream; later transitions never add forward refs or change prior bytes/fingerprints.
+40. every reassessment trigger maps a non-empty exact set of coverage IDs; unknown, empty, or unrelated mappings fail closed and never reopen the whole artifact implicitly.
+41. hard-trigger contracts and accumulated posture rules have replayable fingerprints and typed bounded evidence; each v1 recommendation proposes exactly one global-dimension transition with causal scope metadata, its `from` matches the kernel, its notification matches policy, and its constitutional-root-only compare-and-write `replace` replays resulting authority/kernel fingerprints while stale/unauthorized/unmapped/override-target changes fail closed.
 
 ## Slice closeout evidence record
 
@@ -216,6 +229,29 @@ When a slice closes, update only the affected rows and cite:
 - handoff record ID.
 
 Do not replace evidence refs with “all tests passed.”
+
+## HCM-0.2 semantic-freeze proof gate
+
+HCM-0.2 is a documentation/design freeze. Its closeout does not promote any runtime implementation gate in the open-program table. Before HCM-0.2 may close:
+
+- `02-semantic-model.md` identifies the exact frozen HCM-0.2 boundary while leaving HCM-0.3+ contracts and the HCM-0.6 shipped-default decision unresolved;
+- the HCM-0.2 sections in `05-contracts-schemas-and-gates.md` define every in-scope authored or derived field with its owner/authority, default or omission behavior, required validation, and explicit non-goal;
+- profile layering is explicit single-parent replace-whole with omitted-versus-empty/null semantics, no ambient/invocation-time field overrides, per-field source decisions, one exact stable-role registry ref/fingerprint closure, fail-closed conflicts, and a complete normalized `ResolvedInstanceProfile` fingerprint;
+- uniform exact-definition identity derives every ref from declared identity/version fields and recomputes RFC 8785/SHA-256 definition closure fingerprints, while the local schema registry adds Draft 2020-12 meta-validation, safe repo-relative/no-follow resolution, transitive local-ref closure, and fail-closed conflict/remote/hook handling;
+- kind definitions remain reusable schema/behavior authority, while instance descriptors alone own repository ID/path/label/requiredness/dependency/selection state;
+- exact-version refs, concrete resolved paths, exact capability-dependency contracts, frozen `exactly_one`/`at_least_one` provider semantics, and renderer-versus-Projection separation are unambiguous;
+- stable-role refs and semantic-capability refs are separate throughout kind, instance, profile, vocabulary, and dependency contracts; the stable-role registry is exact and replayable while versioned capability contracts/schema bindings, not roles/labels/filenames, determine capability conformance;
+- every valid resolved profile contains exactly one `always`-required instance selecting `constitutional_root`, with policy, decision/exception authority, exact posture-dimension/red-line bindings, and reassessment bindings whose mapped coverage path equals or is an ancestor of each bound pointer;
+- intake definition with non-empty v1 candidate-field mappings, typed source/result provenance, immutable downstream lineage, candidate, approval, compare-and-write promotion, Charter authority, and non-empty trigger-to-coverage reassessment mappings are explicit and fail closed;
+- Charter intake definition/result/candidate coverage sets are identical and retain project shape, delivery constraints, all five live default-delivery implications, operational reality, risk, posture, governance, debt, and decision-record domains with exact candidate-schema paths;
+- vocabulary defaulting, lexical ambiguity, stable-role-only structural absorption, adapter-loss refusal, and stable machine-identifier/capability boundaries are explicit;
+- project-posture kernel typed ref/fingerprint inputs bind `resolved_profile_fingerprint`, explicit freshness basis, versioned hard triggers, fingerprinted bounded accumulated-signal rules/policies, exactly-one global-dimension recommendations with causal scope metadata, constitutional-root-only typed bound transition changes, authorized reassessment, resulting-kernel fingerprint, hysteresis, normalization, and non-second-authority rules are explicit;
+- examples do not select the shipped artifact kinds/default instances/requiredness reserved for HCM-0.6;
+- live Rust remains accurately classified as fixed-layout/Markdown-authority precursors, and all affected runtime program gates stay open;
+- no Rust files change;
+- control-pack links, fixed-renderer-versus-Projection terminology assertions, archive boundary, handoff validation/self-tests, scoped diff, and `git diff --check` pass;
+- a fresh isolated built-in `default` reviewer reports no unresolved actionable finding over the complete HCM-0.2 subject and proof wall;
+- the primary reviewed commit and second mechanical v1.2 parent-owned handoff/ledger closeout both validate.
 
 ## Control-pack orchestration-repair proof gate
 
