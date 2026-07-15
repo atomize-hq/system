@@ -66,6 +66,8 @@ A temporary internal bridge is allowed only when it has a concrete architectural
 | [`07-orchestration-onboarding-prompt.md`](07-orchestration-onboarding-prompt.md) | starting or resuming a top-level phase/slice orchestration run | long-lived slice runner, selective onboarding, built-in delegation, review/remediation/re-review, proof, commit, and true-stop closeout |
 | [`08-handoff-ledger-and-escalation-protocol.md`](08-handoff-ledger-and-escalation-protocol.md) | stopping top-level orchestration, reporting a genuine external/authority boundary, or resuming later | parent-owned durable records, internal delegated-run results, status/stop model, ledger validation, and short chat closeout |
 
+Corrective slice [`HCM-0.9`](slices/HCM-0.9/SPEC.md) is the approved planning entrypoint for decomposing the `05` contract catalog into focused canonical leaf documents while retaining `05-contracts-schemas-and-gates.md` as the stable routing index. Until that slice is executed and its structural-parity gate is review-clean, the current monolithic `05` file remains canonical; the packet does not authorize decomposition by its existence alone.
+
 ## Semantic landing labels
 
 Use these labels for seams, not for isolated files or functions:

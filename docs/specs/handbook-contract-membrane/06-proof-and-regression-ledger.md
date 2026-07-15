@@ -160,6 +160,7 @@ No lower proof level implies a higher one.
 | `PG-HANDOFF-02` | once snapshots land, handoffs reference start/end snapshots and delta; orchestration rechecks current state before dispatch | open |
 | `PG-ORCH-01` | an explicitly selected phase/slice remains owned by one active parent that executes built-in `default` subagents, captures identity/status, collects results, and completes review -> valid-finding remediation -> different fresh review without an ordinary user-mediated task hop | proven by the HCM-0.8 one-parent multi-round review/remediation loop; final lineage capture belongs in the v1.2 parent record |
 | `PG-ORCH-02` | every current internal dispatch declares execution target, parent ID, role, replayable subject manifest/fingerprint, fresh-context requirement, closeout owner, ordered required-skills chain beginning with `using-agent-skills`, and complete structured return contract; unavailable mandatory delegation fails closed | proven by HCM-0.8 current-schema dispatch validation and fail-closed orchestration self-tests |
+| `PG-CATALOG-01` | the frozen HCM-0.4 `05` semantic payload is partitioned into the exact HCM-0.9 leaf topology with byte-identical ordered parity, one canonical owner per frozen top-level section, stable routing for every frozen anchor, exact mutable leaf selection, and no historical-record/dispatch rewrite | open; HCM-0.9 packet registered, decomposition not started |
 
 ## Greenfield deletion gates
 
@@ -351,3 +352,21 @@ The immutable HCM-0.1 history remains evidence of the prior workflow and is not 
 - a fresh built-in independent reviewer completes review inside the active top-level orchestration and reports no unresolved actionable findings before the corrected pack is treated as frozen implementation authority;
 - if an independent review reports an actionable finding, the parent remediates it directly or through a fresh internal remediation agent, then a different fresh built-in reviewer completes another review before `HCM-0.8` may close;
 - the final v1.2 parent-owned handoff records proof-relevant delegated runs and a genuine stop reason; no internal review/remediation round writes its own canonical handoff or ledger entry.
+
+## HCM-0.9 contract-catalog structural-parity and routing proof gate
+
+HCM-0.9 is documentation/control maintenance only. It does not correct or extend a contract, implement Rust/runtime behavior, alter a public API or schema version, promote an open program gate, or begin HCM-0.5. Before `PG-CATALOG-01` may close:
+
+- execution proves that the source baseline is exactly commit `214a5b8eb182fce74478df49d4f55d226d65fdf5` and SHA-256 `c7f61db209a81ba20690f365b4069dd01f11e395335bfa10d2ce21143cc2985d` for `05-contracts-schemas-and-gates.md`;
+- `05-contracts-schemas-and-gates.md` remains at the stable path and becomes routing/compatibility metadata only; it does not duplicate canonical contract prose, fenced examples, field rules, defaults, validation, or non-goals;
+- the eleven leaf files and every frozen top-level-section assignment exactly match the HCM-0.9 `SPEC.md`; no section is missing, duplicated, split across owners, or reassigned without a reviewed plan change;
+- after validating and removing each leaf's H1 plus any exact routing-only dependency scaffold before the first H2, concatenating the leaf payloads in topology order is byte-identical to the frozen baseline bytes after its single H1 plus following blank line;
+- all frozen `##` and `###` headings retain their original text and generated leaf anchors, and the stable index exposes a forwarding alias for every historical `05` anchor while its unchanged H1 preserves the document-level anchor;
+- every frozen positional and named contract dependency is classified; leaves 8-11 contain exactly the source-triggered dependency-table targets for domain lineage, operation/bootstrap, transport/CLI, Resolution, bridge, and publication authority; omitted, broken, reordered, unjustified, or unclassified cross-leaf context fails closed;
+- Markdown relative links and fragments resolve; every moved fence remains balanced with the same info string and byte-identical body; all YAML/JSON examples that parsed at baseline still parse; schema-like examples and applicable semantic assertions remain unchanged and pass;
+- mutable control-pack, orchestration, dispatch-template, proof, and handoff guidance names the minimum exact leaf path/anchor set; complete-catalog work names all leaves; new dispatch subject manifests include only the exact subject files plus routing/proof authority needed for that run;
+- new proof refs and parent handoffs name exact leaf refs when contract semantics are relevant, while a persisted execution-start HEAD proves every pre-existing handoff/dispatch Git blob remains byte-identical; modified, deleted, or renamed history fails and additive HCM-0.9 artifacts are allowed; legacy `05` refs remain valid evidence through the stable index and Git history;
+- archive-boundary checks, all handoff validator modes, deterministic manifest replay, parity/routing checks, scoped diff inspection, `git diff --check`, and staged GitNexus change detection pass;
+- no Rust, Cargo, runtime, CLI, Tauri, Substrate, SDK/public API, schema-version, proof-promotion, HCM-0.5, or unrelated files change;
+- a fresh isolated built-in `default` reviewer reports no unresolved actionable finding over the complete HCM-0.9 execution subject and proof wall within the four-submission/three-remediation budget; review stops immediately on CLEAN;
+- the reviewed execution commit and its separate mechanical v1.2 parent handoff/ledger closeout both validate without claiming semantic completion beyond structural parity and selective routing.
