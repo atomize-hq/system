@@ -1,172 +1,112 @@
 # HCM-0.9 Execution Checklist
 
-**Status:** not started; approved packet does not authorize execution in the planning session  
-**Baseline:** `214a5b8eb182fce74478df49d4f55d226d65fdf5` / `c7f61db209a81ba20690f365b4069dd01f11e395335bfa10d2ce21143cc2985d`
+> Planning checklist only. Do not execute HCM-0.9 in the redesign-planning
+> session. The monolithic `05` remains canonical until an approved execution
+> session completes the full cutover.
 
 ## 1. Preflight and immutable baseline
 
-- [ ] Invoke `using-agent-skills` first and apply the packet skill chain.
-- [ ] Confirm repository root, branch, HEAD, and clean/attributable status.
-- [ ] Confirm `214a5b8...` is an ancestor of the execution start.
-- [ ] Confirm frozen `05` full-file SHA-256.
-- [ ] Derive and compare the frozen 48 H2 / 22 H3 inventory.
-- [ ] Inventory all live mutable `05` references.
-- [ ] Confirm the immutable roots have no untracked files.
-- [ ] Write `evidence/execution-start.json` with exact start HEAD, baseline commit, and immutable roots.
-- [ ] Derive every pre-existing handoff/dispatch path and blob hash from the recorded start HEAD.
-- [ ] Stop on mismatch or unsafe overlap.
+- [ ] Confirm exact branch, HEAD, worktree, and attributable dirt.
+- [ ] Confirm baseline commit ancestry and full-file SHA-256.
+- [ ] Derive body SHA-256, byte/line counts, 48 H2, and 22 H3.
+- [ ] Derive all eight exact span digests from frozen Git bytes.
+- [ ] Inventory live mutable `05` references.
+- [ ] Confirm history roots contain no untracked files.
+- [ ] Write `evidence/execution-start.json` with exact HEAD/baseline/roots.
 
-## 2. Parity/routing verifier
+## 2. Mechanical verifier
 
-- [ ] Create `slices/HCM-0.9/verify_contract_catalog.py`.
-- [ ] Encode the eleven ordered leaf paths and exact H2 ownership map.
-- [ ] Verify exact baseline commit/SHA and H1/body boundary.
-- [ ] Verify the execution-start record and every pre-existing history blob while allowing additive HCM-0.9 artifacts.
-- [ ] Verify contiguous leaf spans and byte-identical reconstruction.
-- [ ] Verify all H2/H3 headings, anchors, links, fences, and parseable YAML/JSON.
-- [ ] Verify no duplicated semantic payload in the index.
-- [ ] Derive all eleven leaf spans, 48 H2/22 H3 headings, exactly 84 frozen
-  positional occurrences, `R01`-`R98`, `O01`-`O50`, `N01`-`N11`, and every
-  named-heading aggregate from `evidence/dependency-audit.md`.
-- [ ] Add negative self-tests for wrong SHA, missing/duplicate section, changed
-  byte, broken alias/fence, every omitted route, every broken target,
-  overlapping trigger units, unjustified extra route, unclassified
-  positional/named reference, missing operation fixture, heading-wide implicit
-  activation, stale fanout/broad-only classification,
-  modified/deleted/renamed history, and allowed additive history.
-- [ ] Run verifier self-tests.
+- [ ] Add `verify_contract_catalog.py` with no network dependency.
+- [ ] Validate baseline identity and eight-span inventory.
+- [ ] Validate each inventory-defined exact H1 plus one blank line and reject a
+  missing, changed, duplicate, or additional scaffold byte.
+- [ ] Validate exact payload reconstruction.
+- [ ] Validate H2/H3 ownership, order, and anchors.
+- [ ] Validate index contents and all 70 compatibility aliases/targets.
+- [ ] Validate changed links, fence sequence/bodies, and parseable examples.
+- [ ] Validate immutable historical paths/blobs and scope.
+- [ ] Validate review-manifest equality to every changed non-dispatch path from
+  execution-start HEAD, with only additive HCM-0.9 review dispatches exempt.
+- [ ] Add omitted-changed-manifest-path and forbidden runtime/HCM-0.5 negative
+  fixtures plus all other specified self-tests.
+- [ ] Confirm no trigger/route/co-activation/operation-fixture/semantic-dependency
+  or inferred-selection logic exists.
 
-## 3. Leaf shadows 01-04
+## 3. Eight non-canonical leaf shadows
 
-- [ ] Generate `contracts/01-schema-profile-and-artifact-registry.md`.
-- [ ] Generate `contracts/02-intake-charter-and-validation.md`.
-- [ ] Generate `contracts/03-vocabulary-and-context-resolution.md`.
-- [ ] Generate `contracts/04-projection-contracts.md`.
-- [ ] Run bounded group parity/fence checks.
-- [ ] Keep current `05` canonical; do not commit partial split.
+- [ ] Generate leaves 01-08 from exact frozen byte spans.
+- [ ] Give each leaf only its approved H1, one blank line, and payload.
+- [ ] Verify each span digest and heading assignment.
+- [ ] Verify no H3 or fence crosses a boundary.
+- [ ] Prove all eight payloads reconstruct the frozen body byte-for-byte.
+- [ ] Keep the monolith canonical through this checkpoint.
 
-## 4. Leaf shadows 05-08
+## 4. Stable-index cutover
 
-- [ ] Generate `contracts/05-snapshot-memory-contracts.md`.
-- [ ] Generate `contracts/06-posture-and-synthesis-contracts.md`.
-- [ ] Generate `contracts/07-development-orchestration-contracts.md`.
-- [ ] Generate `contracts/08-sdk-operations-and-capability-discovery.md`.
-- [ ] Add each leaf's exact trigger-indexed cross-leaf route block.
-- [ ] Run bounded group parity/fence checks.
-- [ ] Keep current `05` canonical; do not commit partial split.
+- [ ] Replace the `05` body only after complete shadow parity passes.
+- [ ] Preserve the exact H1.
+- [ ] Add ordered eight-leaf discovery table.
+- [ ] Add exact H2/H3 ownership table and 70 compatibility aliases/links.
+- [ ] Verify every leaf path and fragment.
+- [ ] Verify no normative frozen payload or fence is duplicated in the index.
+- [ ] State that future packets/dispatches explicitly select leaf authority and
+  the index performs no inference.
 
-## 5. Leaves 09-11 and stable-index cutover
+## 5. Active control-pack guidance
 
-- [ ] Generate `contracts/09-machine-transport-and-adapter-contracts.md`.
-- [ ] Generate `contracts/10-substrate-integration-and-publication.md`.
-- [ ] Generate `contracts/11-contract-evidence-gates-and-docks.md`.
-- [ ] Prove all eleven leaf payloads reconstruct the frozen body byte-for-byte.
-- [ ] Replace `05` body with routing/compatibility metadata only.
-- [ ] Preserve unchanged H1.
-- [ ] Add ordered leaf catalog and exact H2 map.
-- [ ] Add exactly one forwarding alias for every frozen H2/H3 anchor.
-- [ ] Add the exact trigger-indexed route blocks for leaves 9, 10, and 11 and
-  confirm all eleven blocks match the complete audit.
-- [ ] Confirm every positional or named contract dependency is same-leaf, non-layout-dependent, or explicitly source-triggered and routed.
-- [ ] Verify every alias target and relative link.
-- [ ] Confirm no baseline fence/normative payload remains duplicated in the index.
+- [ ] Update only live mutable refs proven necessary by inventory.
+- [ ] Make future slice packets list exact leaf paths/anchors.
+- [ ] Make dispatches repeat explicit selection in `authority_refs` and/or
+  `contracts_and_gates`.
+- [ ] Keep `subject_manifest` limited to current bytes under review.
+- [ ] Manifest changed index/leaves/verifier/control files when reviewed.
+- [ ] Keep unchanged contextual authority outside the manifest.
+- [ ] Preserve all pre-existing handoff/dispatch bytes.
+- [ ] Do not add automatic semantic routing or selection closure.
 
-## 6. Mutable semantic/proof routing
+## 6. Complete proof wall
 
-- [ ] Update `00-README.md` to expose index/leaves/selective loading.
-- [ ] Update both `02-semantic-model.md` references to exact leaves.
-- [ ] Update the `03` catalog-topology row with proven current truth only.
-- [ ] Preserve HCM-0.4 -> HCM-0.9 -> HCM-0.5 ordering in `04`.
-- [ ] Route HCM-0.2 proof refs to leaves 01, 02, 03, and 06 as applicable.
-- [ ] Route HCM-0.3 proof refs to leaves 03, 04, and 05 as applicable.
-- [ ] Route HCM-0.4 proof refs to leaves 08, 09, 10, and 11 as applicable.
-- [ ] Close only `PG-CATALOG-01` when structural proof exists.
-- [ ] Confirm no runtime gate promotion.
+- [ ] Run verifier self-tests and full verifier.
+- [ ] Run archive boundary check and self-test.
+- [ ] Run normal, v1 admission, and orchestration handoff validators.
+- [ ] Replay all current review manifests/fingerprints.
+- [ ] Compare each manifest to every changed non-dispatch path at its review
+  boundary and validate the additive review-dispatch exemption separately.
+- [ ] Verify immutable history against execution-start HEAD.
+- [ ] Enforce the exact approved path allowlist and run `git diff --check`.
+- [ ] Run omitted-manifest-path and forbidden runtime/HCM-0.5 negative fixtures.
+- [ ] Confirm no Rust/runtime/API/schema/HCM-0.5/unrelated change.
 
-## 7. Orchestration/dispatch/handoff routing
+## 7. Fresh independent execution review
 
-- [ ] Update `07` to load minimum exact contract leaves.
-- [ ] Treat headings as locators only; activate exact route/operation triggers,
-  derive multi-trigger union fanout, and reject six-or-more-leaf unions from
-  normal selective routing.
-- [ ] Update `08` to require exact leaf refs in new dispatches/handoffs.
-- [ ] Preserve historical monolith refs as immutable evidence.
-- [ ] Update `handoffs/internal-dispatch-template.json` to the leaf-07 example.
-- [ ] Update `handoffs/dispatch-template.md` to request exact leaf path/anchor.
-- [ ] Confirm no handoff/dispatch schema change.
-- [ ] Confirm every delegated dispatch begins `required_skills` with `using-agent-skills`.
+- [ ] Create complete-subject review dispatch with `required_skills` beginning
+  `using-agent-skills`, then `code-review-and-quality`.
+- [ ] Use a fresh isolated built-in `default` reviewer.
+- [ ] Validate actionable findings against live authority.
+- [ ] After remediation, rerun the full proof wall and use a different fresh
+  reviewer.
+- [ ] Stop immediately on CLEAN; never exceed four reviews/three remediations.
+- [ ] Do not self-approve or weaken findings.
 
-## 8. Complete proof wall
+## 8. Reviewed execution commit
 
-- [ ] Run full parity/routing verifier.
-- [ ] Run verifier negative self-tests at the final subject fingerprint.
-- [ ] Validate Markdown links and fragments.
-- [ ] Validate all frozen/leaf anchors.
-- [ ] Validate Markdown fences and identical fence bodies.
-- [ ] Parse every baseline-parseable YAML/JSON example.
-- [ ] Run applicable HCM-0.2/HCM-0.3/HCM-0.4 semantic assertions.
-- [ ] Run archive-boundary check and self-test.
-- [ ] Run normal handoff validation.
-- [ ] Run v1 admission self-test.
-- [ ] Run orchestration-contract self-test.
-- [ ] Replay review subject manifests.
-- [ ] Compare all start-commit handoff/dispatch Git blobs through the persisted execution-start record.
-- [ ] Prove modified/deleted/renamed history fails and a new additive HCM-0.9 dispatch passes.
-- [ ] Run `git diff --check`.
-- [ ] Inspect exact scoped diff and status.
-- [ ] Confirm no semantic correction occurred.
-- [ ] Confirm no Rust/Cargo/runtime/public API/schema/HCM-0.5/unrelated change.
+- [ ] Stage only reviewed HCM-0.9 execution/control files and review dispatches.
+- [ ] Run staged GitNexus change detection.
+- [ ] Run cached whitespace, scope, and diff inspection.
+- [ ] Commit one documentation/control-only execution change.
 
-## 9. Fresh independent review loop
+## 9. Mechanical handoff/ledger closeout
 
-- [ ] Assemble complete-subject Review 1 with full diff, authority, baseline, packet, non-goals, verification, and budget.
-- [ ] Manifest only files whose bytes are under review, including changed
-  routing/proof files; keep unchanged contextual authority only in
-  `authority_refs` and/or `contracts_and_gates`.
-- [ ] Spawn fresh isolated built-in `default` reviewer.
-- [ ] Require findings first: Critical, Required, Optional, Nit.
-- [ ] Stop immediately if CLEAN.
-- [ ] If actionable, validate and remediate Round 1; rerun proof wall.
-- [ ] Assemble Review 2 with the new subject fingerprint.
-- [ ] Spawn a different fresh isolated reviewer.
-- [ ] Stop immediately if CLEAN.
-- [ ] If actionable, validate and remediate Round 2; rerun proof wall.
-- [ ] Assemble Review 3 and spawn a different fresh reviewer.
-- [ ] Stop immediately if CLEAN.
-- [ ] If actionable, validate and remediate Round 3; rerun proof wall.
-- [ ] Assemble Review 4 and spawn a different fresh reviewer.
-- [ ] Stop immediately if CLEAN.
-- [ ] Do not run Review 5.
-- [ ] On unresolved valid Critical/Required findings, write the partial human-input handoff; do not self-approve or authorize HCM-0.5.
-
-## 10. Reviewed execution commit
-
-- [ ] Confirm final CLEAN fingerprint matches current bytes.
-- [ ] Stage only reviewed HCM-0.9 execution/control artifacts and additive review dispatches.
-- [ ] Run `npx gitnexus detect-changes -r handbook -s staged`.
-- [ ] Run `git diff --cached --check`.
-- [ ] Inspect cached name-status and full diff.
-- [ ] Confirm zero affected runtime processes and no unrelated paths.
-- [ ] Commit with scoped Conventional Commit.
-- [ ] Record exact execution commit.
-
-## 11. Mechanical handoff/ledger closeout
-
-- [ ] Create one v1.2 parent handoff for HCM-0.9 execution.
-- [ ] Record exact execution commit, packet paths, review lineage/CLEAN verdict, verification, and structural-only claim.
-- [ ] Do not claim semantic correction, runtime completion, or HCM-0.5 start.
-- [ ] Rebuild deterministic ledger from canonical records.
-- [ ] Run all three handoff validator modes.
-- [ ] Run closeout `git diff --check` and staged scope inspection.
-- [ ] Commit only new handoff/ledger mechanical artifacts.
-- [ ] Return execution commit, closeout commit, handoff ID, and exact selector.
+- [ ] Create one v1.2 parent handoff recording exact execution commit, proof,
+  reviewer lineage, CLEAN result, and structural-only scope.
+- [ ] Do not activate HCM-0.5.
+- [ ] Rebuild and validate the ledger deterministically.
+- [ ] Commit only the handoff record and ledger separately.
 
 ## Mandatory stop reminders
 
-- [ ] Stop on baseline mismatch or unattributable overlap.
-- [ ] Stop rather than changing semantic payload.
-- [ ] Stop rather than widening outside the packet.
-- [ ] Stop if historical bytes drift.
-- [ ] Stop if mandatory validation or fresh review is unavailable.
-- [ ] Stop at review budget; never self-approve or weaken findings.
-- [ ] Never start HCM-0.5 from this checklist.
+- [ ] Stop and retain the monolith if complete parity cannot be proven.
+- [ ] Stop rather than correct frozen semantic bytes.
+- [ ] Stop rather than infer missing leaf authority for a future packet.
+- [ ] Never leave a partial decomposition canonical.
+- [ ] Never implement Rust or begin HCM-0.5 here.
