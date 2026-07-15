@@ -112,6 +112,16 @@ The contract catalog is now large enough that loading all of `05` for every slic
 
 Historical `05` path, line, anchor, and manifest references remain immutable evidence of the state they recorded. Execution must preserve every frozen HCM-0.4 heading anchor on the stable index as a forwarding alias, update only mutable control-pack/orchestration references to exact leaves, and prove that the ordered leaf payload is byte-identical to the frozen baseline body before any later semantic slice begins.
 
+The bounded continuation topology is grounded by the HCM-0.9 all-eleven-leaf
+dependency audit: 48 H2 and 22 H3 headings, 84 frozen positional occurrences,
+98 exact source-triggered routes, 50 ordinary-operation fixtures, and outbound
+dependencies from every proposed leaf. Continuation Review 1 proved that the
+prior flat named-section union would load seven leaves for three heading scopes,
+so that routing topology is rejected. The replacement is trigger-indexed: a
+heading is only a locator, one exact field/statement/operation trigger selects
+targets, and a six-or-more-leaf union is broad-only rather than normal selective
+routing. Complete-catalog parity work remains intentionally all-leaf.
+
 ## Crosswalk update rule
 
 When a slice changes a seam:

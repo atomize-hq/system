@@ -7,6 +7,7 @@ Execute a docs/control-only structural split of the frozen HCM-0.4 contract cata
 ## Authority
 
 - [`../SPEC.md`](../SPEC.md)
+- [`../evidence/dependency-audit.md`](../evidence/dependency-audit.md)
 - `docs/specs/handbook-contract-membrane/04-phase-slice-map.md#hcm-09-corrective-maintenance-contract`
 - `docs/specs/handbook-contract-membrane/06-proof-and-regression-ledger.md#hcm-09-contract-catalog-structural-parity-and-routing-proof-gate`
 - baseline commit `214a5b8eb182fce74478df49d4f55d226d65fdf5`
@@ -99,8 +100,16 @@ jq -n --arg head "$start_head" --arg baseline "214a5b8eb182fce74478df49d4f55d226
 - [ ] verifier requires the exact baseline commit and SHA;
 - [ ] verifier encodes the eleven ordered leaves and 48 H2 assignments from `SPEC.md`;
 - [ ] verifier validates the execution-start record and compares all start-commit handoff/dispatch Git blobs while permitting additive HCM-0.9 artifacts;
-- [ ] verifier classifies every frozen positional and named contract dependency and requires the exact source-triggered routing table for leaves 8-11;
-- [ ] negative self-tests cover a missing section, duplicate section, changed payload byte, broken alias, broken fence, wrong baseline SHA, omission or breakage of every leaf-8/9/10/11 dependency group, an unjustified extra or unclassified cross-leaf dependency, modified/deleted/renamed history, and an allowed additive dispatch;
+- [ ] verifier independently derives the all-eleven-leaf audit: 48 H2, 22 H3,
+  exactly 84 frozen positional occurrences, `R01`-`R98`, `O01`-`O50`,
+  `N01`-`N11`, and every named-heading aggregate;
+- [ ] negative self-tests cover a missing section, duplicate section, changed
+  payload byte, broken alias, broken fence, wrong baseline SHA, every omitted
+  route, every broken target, overlapping exact triggers, an unjustified extra
+  route, an unclassified positional/named reference, a missing operation
+  fixture, a heading wrongly activating all child routes, stale aggregate
+  fanout/broad-only classification, modified/deleted/renamed history, and an
+  allowed additive dispatch;
 - [ ] verifier is read-only and has no network dependency.
 
 **Verification:**
@@ -133,7 +142,9 @@ python3 docs/specs/handbook-contract-membrane/slices/HCM-0.9/verify_contract_cat
 
 **Description:** Generate the next four exact leaf payloads while retaining monolith authority.
 
-**Acceptance criteria:** same as Task 3 for leaves 05-08; leaf 8's routing-only block exactly matches its combined ordered dependency-table targets.  
+**Acceptance criteria:** same as Task 3 for leaves 05-08; each leaf's
+routing-only block contains its exact trigger-indexed route rows in global
+order, without flattening or de-duplicating targets across triggers.
 **Verification:** run bounded group verification and inspect exact diffs.  
 **Dependencies:** Task 3.  
 **Files touched:** leaf files 05-08.  
@@ -149,7 +160,9 @@ python3 docs/specs/handbook-contract-membrane/slices/HCM-0.9/verify_contract_cat
 - [ ] index has the unchanged H1, topology, exact H2 map, selective-loading rules, and 70 H2/H3 forwarding aliases;
 - [ ] every alias target resolves to the owning leaf heading;
 - [ ] index contains no copied normative payload or baseline fence.
-- [ ] leaves 9-11 contain their exact combined ordered dependency-table targets and the complete positional/named-dependency audit has no unclassified occurrence.
+- [ ] leaves 9-11 contain their exact trigger-indexed route rows and the derived
+  all-eleven-leaf positional/named/operation/aggregate audit matches
+  `evidence/dependency-audit.md` with no unclassified occurrence.
 
 **Verification:** run the full parity verifier and changed-link/anchor/fence checks.
 
@@ -189,7 +202,9 @@ python3 docs/specs/handbook-contract-membrane/slices/HCM-0.9/verify_contract_cat
 **Acceptance criteria:**
 
 - [ ] `07` requires exact leaf selection and complete-catalog selection only when justified;
-- [ ] `07` applies dependency rows only when their triggering source contract is in scope and never loads unrelated advertised dependencies by default;
+- [ ] `07` treats headings as locators only, applies only exact route/operation
+  triggers, derives multi-trigger union fanout before loading, and rejects a
+  six-or-more-leaf union from normal selective routing;
 - [ ] `08` requires exact leaf refs in new dispatch/handoff evidence and explicitly preserves historical monolith refs;
 - [ ] JSON dispatch template uses the development-orchestration leaf example;
 - [ ] Markdown dispatch guide requests exact leaf path/anchor;
@@ -228,7 +243,10 @@ python3 docs/specs/handbook-contract-membrane/slices/HCM-0.9/verify_contract_cat
 
 **Acceptance criteria:**
 
-- [ ] every review dispatch manifest binds the exact complete subject and begins required skills with `using-agent-skills`;
+- [ ] every review dispatch manifest binds only the files whose exact bytes are
+  under review, including every changed routing/proof file; unchanged authority
+  read for context appears only in `authority_refs` and/or
+  `contracts_and_gates`; required skills begin with `using-agent-skills`;
 - [ ] maximum four complete-subject submissions and three remediations;
 - [ ] review stops immediately on CLEAN;
 - [ ] every valid findings round has typed successful remediation and a different-fresh re-review;

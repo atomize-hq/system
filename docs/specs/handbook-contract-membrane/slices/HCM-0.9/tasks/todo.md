@@ -25,8 +25,15 @@
 - [ ] Verify contiguous leaf spans and byte-identical reconstruction.
 - [ ] Verify all H2/H3 headings, anchors, links, fences, and parseable YAML/JSON.
 - [ ] Verify no duplicated semantic payload in the index.
-- [ ] Classify every frozen positional and named contract dependency and require the exact source-triggered routing table for leaves 8-11.
-- [ ] Add negative self-tests for wrong SHA, missing/duplicate section, changed byte, broken alias/fence, every omitted/broken leaf-8/9/10/11 dependency group, unjustified extra or unclassified cross-leaf dependency, modified/deleted/renamed history, and allowed additive history.
+- [ ] Derive all eleven leaf spans, 48 H2/22 H3 headings, exactly 84 frozen
+  positional occurrences, `R01`-`R98`, `O01`-`O50`, `N01`-`N11`, and every
+  named-heading aggregate from `evidence/dependency-audit.md`.
+- [ ] Add negative self-tests for wrong SHA, missing/duplicate section, changed
+  byte, broken alias/fence, every omitted route, every broken target,
+  overlapping trigger units, unjustified extra route, unclassified
+  positional/named reference, missing operation fixture, heading-wide implicit
+  activation, stale fanout/broad-only classification,
+  modified/deleted/renamed history, and allowed additive history.
 - [ ] Run verifier self-tests.
 
 ## 3. Leaf shadows 01-04
@@ -44,7 +51,7 @@
 - [ ] Generate `contracts/06-posture-and-synthesis-contracts.md`.
 - [ ] Generate `contracts/07-development-orchestration-contracts.md`.
 - [ ] Generate `contracts/08-sdk-operations-and-capability-discovery.md`.
-- [ ] Add leaf 8's exact combined ordered cross-leaf dependency block.
+- [ ] Add each leaf's exact trigger-indexed cross-leaf route block.
 - [ ] Run bounded group parity/fence checks.
 - [ ] Keep current `05` canonical; do not commit partial split.
 
@@ -58,7 +65,8 @@
 - [ ] Preserve unchanged H1.
 - [ ] Add ordered leaf catalog and exact H2 map.
 - [ ] Add exactly one forwarding alias for every frozen H2/H3 anchor.
-- [ ] Add the exact combined ordered dependency blocks for leaves 9, 10, and 11.
+- [ ] Add the exact trigger-indexed route blocks for leaves 9, 10, and 11 and
+  confirm all eleven blocks match the complete audit.
 - [ ] Confirm every positional or named contract dependency is same-leaf, non-layout-dependent, or explicitly source-triggered and routed.
 - [ ] Verify every alias target and relative link.
 - [ ] Confirm no baseline fence/normative payload remains duplicated in the index.
@@ -78,7 +86,9 @@
 ## 7. Orchestration/dispatch/handoff routing
 
 - [ ] Update `07` to load minimum exact contract leaves.
-- [ ] Apply dependency-table targets only when their triggering source contract is in scope.
+- [ ] Treat headings as locators only; activate exact route/operation triggers,
+  derive multi-trigger union fanout, and reject six-or-more-leaf unions from
+  normal selective routing.
 - [ ] Update `08` to require exact leaf refs in new dispatches/handoffs.
 - [ ] Preserve historical monolith refs as immutable evidence.
 - [ ] Update `handoffs/internal-dispatch-template.json` to the leaf-07 example.
@@ -110,6 +120,9 @@
 ## 9. Fresh independent review loop
 
 - [ ] Assemble complete-subject Review 1 with full diff, authority, baseline, packet, non-goals, verification, and budget.
+- [ ] Manifest only files whose bytes are under review, including changed
+  routing/proof files; keep unchanged contextual authority only in
+  `authority_refs` and/or `contracts_and_gates`.
 - [ ] Spawn fresh isolated built-in `default` reviewer.
 - [ ] Require findings first: Critical, Required, Optional, Nit.
 - [ ] Stop immediately if CLEAN.
