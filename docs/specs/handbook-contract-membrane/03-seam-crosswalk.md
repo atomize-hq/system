@@ -46,7 +46,7 @@ This document separates current artifacts from target semantics. Re-check the li
 | AI synthesis | Handbook has no target requirement for model-generated canonical derived views; Substrate already uses Unified Agent API | `TargetOnly` optional | Substrate or optional Handbook adapter | Keep fixed renderer-derived views and later Projections deterministic; future Handbook synthesis must use UAA programmatically and remain candidate-only | promotion gate, provenance |
 | Durable top-level handoff | The pack has immutable version-routed records, a rebuildable ledger, supersession, and optional Snapshot Memory refs; the HCM-0.1 history also demonstrates that writing one record per internal review/remediation round creates an incorrect user-routed session queue | `BoundaryLanded` for record/ledger mechanics only | top-level orchestration closeout protocol consuming future Snapshot Memory | Restrict canonical handoffs and ledger writes to genuine top-level stop/resume boundaries; preserve prior records as immutable evidence; prove scoped resume, supersession, validation, and repository-relative references | delegated orchestration, handoff v1.2 schema, Snapshot Memory |
 | Delegated development orchestration | Repository skills require context/specification, implementation or documentation, verification, independent review, remediation, and re-review; the prior onboarding prompt stopped after dispatch instead of executing delegable work through built-in subagents | `BoundaryLanded` for the corrected control-pack contract; full exercise remains open | top-level control-pack slice runner using built-in subagent capabilities | Keep the parent alive for the explicit phase/slice; execute internal dispatches with fresh `default` agents; collect results; enforce review -> fix -> different fresh review; close only after proof/commit or a genuine stop condition | required skills, dispatch envelope, durable top-level handoff, proof ledger |
-| Contract-catalog decomposition and explicit leaf selection | `05-contracts-schemas-and-gates.md` is one 3,757-line canonical catalog; callers can name sections, but they cannot select focused canonical files and immutable historical records/dispatches bind the monolith by path or manifest | `TargetOnly` for mechanical decomposition; the frozen HCM-0.4 monolith remains canonical | Handbook Contract Membrane control pack | Execute HCM-0.9 as a zero-semantic-delta eight-leaf split: retain `05` as a stable discovery/compatibility index, move each frozen top-level section exactly once, require future packets/dispatches to enumerate leaf authority explicitly, and never infer semantic routing or rewrite historical evidence | HCM-0.4 frozen contract baseline, HCM-0.9 mechanical inventory, control-pack map, orchestration prompt, dispatch templates, proof ledger, handoff immutability |
+| Contract-catalog decomposition | `05-contracts-schemas-and-gates.md` remains the one canonical 3,757-line catalog | `TargetOnly`; HCM-0.9 decomposition was abandoned after terminal Redesign Review 2 was not CLEAN | Handbook Contract Membrane control pack | Retain the monolith. Do not create leaf files, a compatibility index, or an automatic semantic routing engine without a new explicit human decision and new reviewed packet | HCM-0.4 frozen contract baseline, rejected HCM-0.9 evidence checkpoint `f3a33ddb55443d37f3a51ffb58f1c85b74a28b23`, terminal abandonment handoff |
 
 ## High-risk coupling zones
 
@@ -106,20 +106,24 @@ An immutable dispatch is useful for bounded context, audit, and replay, but crea
 
 Internal subagents do not append the canonical handoff ledger. Requiring the user to start a new task for an ordinary review, proof, documentation repair, child packet, or remediation round converts a long-lived slice runner into a manual queue and violates the target seam.
 
-### Contract-catalog decomposition and explicit leaf selection
+### Contract catalog remains monolithic
 
-The contract catalog is now large enough that loading all of `05` for every slice or review conflicts with the control pack's selective-context rule. HCM-0.9 corrects document topology only. The stable `05` path remains the discovery and compatibility surface, while eight cohesive contiguous leaves own the frozen payload.
+The contract catalog remains canonical at `05-contracts-schemas-and-gates.md`.
+HCM-0.9 attempted a documentation-only decomposition plan, but terminal
+Redesign Review 2 retained one Required proof defect after the only authorized
+remediation. The preauthorized outcome is abandonment, not another repair.
 
-Historical `05` path, line, anchor, and manifest references remain immutable evidence of the state they recorded. Execution must preserve every frozen HCM-0.4 heading anchor on the stable index as a compatibility alias, update only mutable active guidance, and prove that the ordered eight-leaf payload is byte-identical to the frozen baseline body before any later semantic slice begins.
+No canonical leaf files or stable-index cutover exist. Historical `05` path,
+line, anchor, and manifest references remain valid against the monolith and Git
+history. Future slices must cite the monolith path and exact sections they need
+unless a new human-authorized decomposition is independently planned and
+reviewed.
 
-The prior trigger, route-inventory, co-activation, operation-fixture, fanout,
-and semantic-dependency completeness designs are abandoned. The replacement is
-the mechanical eight-span inventory in
-`slices/HCM-0.9/evidence/decomposition-inventory.md`: exact source spans,
-digests, headings, anchors, links, fences, and ordered byte reconstruction only.
-Future slice packets and dispatches explicitly list their exact leaf
-paths/anchors. No machine infers additional authority or performs transitive
-leaf loading.
+Both the earlier semantic-routing design and the later eight-span mechanical
+candidate are non-authoritative historical evidence. No machine infers
+contract-catalog authority or performs transitive loading. A review manifest
+still contains only bytes under review; unchanged contextual authority remains
+in `authority_refs` and/or `contracts_and_gates`.
 
 ## Crosswalk update rule
 
