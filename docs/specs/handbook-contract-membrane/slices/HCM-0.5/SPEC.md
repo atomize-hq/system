@@ -2,44 +2,30 @@
 
 ## Status and authority
 
-Planning subject for HCM-0.5. This packet becomes slice-local execution authority only after a fresh independent planning review reports `CLEAN`. Until then, the monolithic `docs/specs/handbook-contract-membrane/05-contracts-schemas-and-gates.md` remains canonical and its contract/dock sections remain preliminary.
+Forward execution packet for the HCM-0.5 documentation/design freeze. Until the execution-entry gate below passes, the monolithic [`05-contracts-schemas-and-gates.md`](../../05-contracts-schemas-and-gates.md) remains canonical and its HCM-0.5 contract/dock sections remain preliminary.
 
-This slice is documentation/design-only. It authorizes no Rust, Cargo, CLI, Tauri, Substrate, SDK, dock process, validator, schema file, or runtime implementation.
+This slice authorizes documentation and architecture changes only. It authorizes no Rust, Cargo, CLI, Tauri, Substrate, SDK, dock process, validator, schema file, or runtime implementation.
 
-## Runtime selection
+HCM-0.4 is completed dependency evidence at `git:214a5b8eb182fce74478df49d4f55d226d65fdf5` and in [`20260715T141656Z--HCM-0-4--orchestration--sdk-transport-contracts-frozen.json`](../../handoffs/records/20260715T141656Z--HCM-0-4--orchestration--sdk-transport-contracts-frozen.json). Its owner, ordinary-operation, DTO, transport, bridge, and publication contracts remain frozen. HCM-0.9 is abandoned evidence only and supplies no resume, topology, or catalog-leaf authority. Earlier HCM-0.5 handoffs and dispatches remain immutable historical evidence; none is the selector for forward design execution.
 
-```text
-PHASE_ID: HCM-0
-SLICE_ID: HCM-0.5
-ACTIVE_PACKET: docs/specs/handbook-contract-membrane/slices/HCM-0.5
-HANDOFF_SELECTOR: 20260715T202049Z--HCM-0-5--orchestration--planning-review-budget-exhausted
-```
-
-HCM-0.4 is completed dependency evidence at `git:214a5b8eb182fce74478df49d4f55d226d65fdf5` and in `handoffs/records/20260715T141656Z--HCM-0-4--orchestration--sdk-transport-contracts-frozen.json`. HCM-0.9 is abandoned evidence only. It supplies no resume context, topology authority, or contract-catalog leaf authority. The selected HCM-0.5 handoff is immutable resume evidence for the exhausted historical planning-review lineage; the human-authorized continuation below replaces its stop recommendation without rewriting that record or its dispatches.
-
-## Selective context capsule
+## Execution-entry gate
 
 ```text
-SLICE / OBJECTIVE: HCM-0.5 / freeze contract, evidence, verdict, gate, and dock semantics
-ACTIVE PACKET: docs/specs/handbook-contract-membrane/slices/HCM-0.5
-DEPENDENCY / AUTHORIZATION PROOF: HCM-0.2, HCM-0.3, HCM-0.4, and HCM-0.8 are closed design dependencies; Phase 0 authorizes docs/design only
-SELECTED HANDOFF / VALIDITY: 20260715T202049Z--HCM-0-5--orchestration--planning-review-budget-exhausted; schema/ledger-valid immutable resume evidence; its Reviews 1-4 remain historical and are not renumbered
-ACTIVE RESOLUTION ENVELOPE: repository-local documentation scope; no product Resolution label/default is selected; proof comparisons use the frozen six explicit dimensions
-GROUNDING SNAPSHOT / START DELTA: Snapshot Memory runtime is not implemented; branch, HEAD, clean status, dependency record, and canonical 05 fingerprint are live preflight evidence
-TARGET AUTHORITY BOUNDARY: handbook-contracts owns protocol-neutral semantics; separable docks witness; SDK composes ordinary operations; transports remain thin
-CURRENT REPO-TRUTH STATUS: target contract/dock semantics are preliminary and no general contract membrane or external dock runtime exists
-MUST-READ PACK SECTIONS: 01 authority/dock/invariants; 02 Resolution/validation/adapter rules; 03 membrane/dock rows; 04 HCM-0.5 and Phase 5; 05 HCM-0.4 operation/transport rules plus preliminary contract/dock sections; 06 open gates/regressions
-LIVE SOURCE / TESTS / PRECEDENT: handoff Draft 2020-12 validator and local schema policy are implementation precedents only; ideas memo supplies design lineage, not owner override
-SIBLING SEAMS IN CONTEXT: HCM-0.2 semantic identities, HCM-0.3 Resolution/Snapshot/Projection, HCM-0.4 SDK/transport, HCM-0.6 defaults, HCM-5.1 through HCM-5.4 runtime
-ALLOWED AREAS: current continuation: this three-file packet, additive continuation-review dispatches, final planning-continuation handoff, and ledger; fresh execution session after approved planning: affected 01-06 sections
-EXPLICIT NON-GOALS: canonical 00-06 edits in this continuation; HCM-0.9 repair/decomposition; leaf catalogs; Rust/runtime work; shipped defaults; universal validator; marketplace; HCM-0.6
-APPLICABLE CONTRACTS / PROOF GATES: PG-CONTRACT-01, PG-DOCK-01, PG-GATE-01 stay open; HCM-0.5 documentation-freeze gate is added
-REQUIRED SKILL CHAIN: using-agent-skills -> context-engineering -> spec-driven-development -> planning-and-task-breakdown -> api-and-interface-design -> security-and-hardening -> incremental-implementation -> documentation-and-adrs -> debugging-and-error-recovery as needed -> code-review-and-quality -> git-workflow-and-versioning
-KNOWN CORRECTIONS OR CONFLICTS: preliminary 05 conflates passed/blocked evaluation with contract lifecycle; freeze must separate them without changing HCM-0.4 contracts
-MAXIMUM PERMITTED CLASSIFICATION / PROOF CHANGE: documentation/design freeze only; runtime seams remain TargetOnly and runtime proof gates remain open
-EXIT PROOF: this continuation exits after a clean Continuation Planning Review, complete packet validation, approved planning commit, and partial/context-boundary v1.2 handoff; canonical freeze and Design Reviews 1-3 belong to the authorized fresh execution session
-STOP CONDITIONS: Continuation Planning Review 2 non-clean; a non-bounded or out-of-authority Continuation Planning Review 1 result; product choice absent from authority; broader redesign; runtime proof required; mandatory delegation unavailable
+review-clean packet commit -> validated v1.2 context-boundary handoff binding that commit, this packet path, and the reviewed packet fingerprint -> fresh design-freeze session selecting that exact handoff -> live repository and packet-identity validation by that fresh session -> canonical HCM-0.5 design edits may begin
 ```
+
+The approved selector is supplied by the review-clean packet closeout and is not hard-coded in this packet.
+
+## Bounded design context
+
+| Context | HCM-0.5 boundary |
+|---|---|
+| Selection | `PHASE_ID: HCM-0`; `SLICE_ID: HCM-0.5`; `ACTIVE_PACKET: docs/specs/handbook-contract-membrane/slices/HCM-0.5` |
+| Target authority | `handbook-contracts` owns protocol-neutral contract/evidence/verdict/gate and dock DTO semantics; separable docks witness; `handbook-sdk` composes ordinary operations; transports remain thin |
+| Current truth | contract/dock semantics are preliminary and no general contract membrane or external dock runtime exists |
+| Required canonical inputs | HCM-0.2 semantic identities; HCM-0.3 Resolution/Snapshot/Projection contracts; HCM-0.4 owner/operation/transport contracts; the HCM-0.5 and Phase 5 rows; preliminary HCM-0.5 sections in canonical `05`; applicable proof/regression rows in `06` |
+| Maximum change | freeze design across affected canonical `00`-`06`; runtime seams stay `TargetOnly`; `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` stay open |
+| Known correction | separate contract lifecycle from evaluation/verdict/gate state without changing HCM-0.4 interfaces |
 
 ## Objective
 
@@ -103,7 +89,7 @@ Every immutable `ContractDefinition` declares `contract_id`, full-SemVer `contra
 
 Any change not proved to meet the patch or minor row is major. Reordering claims is semantic because verdict and diagnostic order are deterministic. Deprecation or closure never reuses an old ref for new meaning.
 
-## Proposed lifecycle model for the freeze
+## Contract definition lifecycle
 
 Contract definition lifecycle is distinct from evaluation state:
 
@@ -326,13 +312,13 @@ The freeze and proof wall must cover at least:
 
 | File | Required HCM-0.5 change |
 |---|---|
-| `00-README.md` | author the final intended HCM-0.5 status during Tasks 3-5, include those bytes in the complete proof wall and every Design Review manifest, and make them effective only through the clean reviewed design commit; no post-`CLEAN` status-byte edit |
-| `01-target-architecture.md` | tighten dock posture, validator witness boundary, process-first/future-Rust semantic parity, and non-goals |
-| `02-semantic-model.md` | add contract/evidence/Resolution/applicability semantics and adapter implications without changing HCM-0.3 definitions |
-| `03-seam-crosswalk.md` | record frozen target semantics/selected first proof target while both runtime seams stay `TargetOnly` |
-| `04-phase-slice-map.md` | expand HCM-0.5 dependency/output/exit/non-goal contract; do not begin HCM-0.6 |
-| `05-contracts-schemas-and-gates.md` | replace only preliminary HCM-0.5 sections with exact field/rule/state/protocol tables and append HCM-0.5 ordinary operation definitions |
-| `06-proof-and-regression-ledger.md` | add HCM-0.5 freeze proof gate and regression rules; keep PG-CONTRACT/DOCK/GATE open |
+| [`00-README.md`](../../00-README.md) | author the final intended HCM-0.5 status before the complete proof wall; include those bytes in the final review manifest and do not mutate them after `CLEAN` |
+| [`01-target-architecture.md`](../../01-target-architecture.md) | tighten dock posture, validator witness boundary, process-first/future-Rust semantic parity, and non-goals |
+| [`02-semantic-model.md`](../../02-semantic-model.md) | add contract/evidence/Resolution/applicability semantics and adapter implications without changing HCM-0.3 definitions |
+| [`03-seam-crosswalk.md`](../../03-seam-crosswalk.md) | record frozen target semantics and the selected first proof target while both runtime seams stay `TargetOnly` |
+| [`04-phase-slice-map.md`](../../04-phase-slice-map.md) | expand the HCM-0.5 dependency/output/exit/non-goal contract; do not begin HCM-0.6 |
+| [`05-contracts-schemas-and-gates.md`](../../05-contracts-schemas-and-gates.md) | replace only preliminary HCM-0.5 sections with exact field/rule/state/protocol tables and append HCM-0.5 ordinary operation definitions |
+| [`06-proof-and-regression-ledger.md`](../../06-proof-and-regression-ledger.md) | add the HCM-0.5 freeze proof gate and regression rules; keep `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` open |
 
 ## Proof wall
 
@@ -348,8 +334,8 @@ The freeze and proof wall must cover at least:
 10. Check Markdown relative links, anchors, fences, and archive boundary.
 11. Run all three handoff validator modes.
 12. Run `git diff --check`, scoped diff inspection, no absolute durable paths, no Rust/Cargo changes, no HCM-0.6 changes, and repository-required GitNexus change detection.
-13. In the later design-freeze execution session, obtain Design Review 1 over the complete final subject and proof evidence; use Design Review 2 only after the first permitted design remediation and Design Review 3 only after the second. Every Design Review manifest includes the final intended `00-README.md` bytes, and byte-identical staging/commit verification requires that file's hash to equal the clean review manifest entry.
-14. Mechanically assert the stage-scoped state machines: historical Planning Reviews 1-4 remain unchanged; Continuation Planning Review 1 may lead to at most one remediation and Continuation Planning Review 2; the future design stage permits at most Design Reviews 1-3 and two remediations; every stage stops immediately on `CLEAN`; every non-clean terminal review transitions byte-identically to its non-completion handoff; no continuation review is named `Review 5`; and no Design Review 4 exists.
+13. Complete the proof wall before final canonical review and bind every intended canonical byte, including the final `00-README.md` status bytes, into that review's subject manifest.
+14. Use fresh independent review, accepted-blocker remediation, different-fresh re-review, and true-stop handling through canonical [`07`](../../07-orchestration-onboarding-prompt.md) and [`08`](../../08-handoff-ledger-and-escalation-protocol.md). No subject mutation is allowed after `CLEAN`, no non-clean subject may be completed, and byte-identical proof replay/staging must match the clean manifest before commit.
 
 ## Non-goals
 
@@ -362,42 +348,19 @@ The freeze and proof wall must cover at least:
 - waiver semantics, automatic contract mutation, auto-promotion, model synthesis, or executable predicates in claims/schemas;
 - claiming PG-CONTRACT-01, PG-DOCK-01, or PG-GATE-01 passed from documentation.
 
-## Stage-scoped review authority and honest stop behavior
+## Review and closeout invariants
 
-Review identity is stage-scoped. There is no shared counter across planning continuation and design execution:
+Canonical [`07-orchestration-onboarding-prompt.md`](../../07-orchestration-onboarding-prompt.md) owns generic delegation, review, finding classification, remediation, verification, and stop mechanics. Canonical [`08-handoff-ledger-and-escalation-protocol.md`](../../08-handoff-ledger-and-escalation-protocol.md) owns dispatch/handoff schemas, lineage, ledger validation, true-stop records, and the two-commit closeout.
 
-| Stage | Review identities | Remediation authority | Terminal rule |
-|---|---|---|---|
-| historical planning | Planning Reviews 1-4 and Remediations 1-3 | exhausted; immutable evidence only | preserve all four dispatches and reviewed fingerprints unchanged |
-| current planning continuation | Continuation Planning Review 1; Continuation Planning Review 2 only after one permitted remediation | maximum one bounded planning remediation | stop on `CLEAN`; stop after Continuation Planning Review 2; never call either invocation `Review 5` |
-| future canonical design freeze | Design Review 1; Design Review 2 only after design Remediation 1; Design Review 3 only after design Remediation 2 | maximum two design remediations | stop on `CLEAN`; after non-clean Design Review 3, create an honest non-completion handoff; no Design Review 4 |
+HCM-0.5 adds only these slice-specific invariants:
 
-Every review uses a fresh isolated built-in `default` reviewer with `using-agent-skills` and `code-review-and-quality`; every post-remediation review uses a different fresh identity. A `CLEAN` result ends that stage's review loop immediately. Review budgets are maxima, not targets.
+- obtain fresh independent review over the complete final subject: all three packet files, every affected canonical file, and complete proof;
+- when an accepted in-scope blocker is remediated, rerun the complete proof wall and obtain different-fresh re-review;
+- include every intended canonical byte, including final `00-README.md` status bytes, in the final review manifest;
+- after `CLEAN`, do not mutate the subject and do not complete from any non-clean subject;
+- replay proof and stage byte-identically against the clean manifest;
+- commit the exact reviewed slice first, then create a separate mechanical v1.2 handoff/ledger closeout commit;
+- treat any non-completion handoff as orchestration closeout rather than a feature task; and
+- never auto-start HCM-0.6.
 
-The current planning continuation may change only this three-file subject and additive continuation-review dispatches. After correcting HCM-0.5-R4-001 and HCM-0.5-R4-002, submit the complete subject to Continuation Planning Review 1. If it reports only bounded actionable planning defects classified `local_remediation` and every correction stays inside the authorized three-file subject, permit one remediation and submit the new complete subject to Continuation Planning Review 2. Any other non-clean Continuation Planning Review 1 result is terminal. Every non-clean Continuation Planning Review 2 result is terminal.
-
-A non-clean terminal review permits no local correction. The subject manifest and aggregate fingerprint recorded by its non-completion handoff must equal the terminal review's manifest and fingerprint exactly; no subject byte may change between review and handoff. Budget exhaustion is reported as an honest partial/escalation boundary and never as automatic abandonment.
-
-The review transition set is closed:
-
-| Prior state | Event | Only allowed next state |
-|---|---|---|
-| human-authorized continuation + R4-001/R4-002 repair | Continuation Planning Review 1 `CLEAN` | validate byte-identical subject, commit approved planning continuation, then partial/context-boundary handoff authorizing a fresh design-freeze session |
-| human-authorized continuation + R4-001/R4-002 repair | Continuation Planning Review 1 bounded local planning findings only | one planning remediation, full verification, then different-fresh Continuation Planning Review 2 |
-| human-authorized continuation + R4-001/R4-002 repair | Continuation Planning Review 1 any other non-clean result | byte-identical non-completion handoff; no canonical edit |
-| Continuation Planning Review 1 bounded findings remediated | Continuation Planning Review 2 `CLEAN` | validate byte-identical subject, commit approved planning continuation, then partial/context-boundary handoff authorizing a fresh design-freeze session |
-| Continuation Planning Review 1 bounded findings remediated | Continuation Planning Review 2 any non-clean result | byte-identical non-completion handoff; no further remediation or canonical edit |
-| approved planning commit + fresh design-freeze session + complete proof wall | Design Review 1 `CLEAN` | byte-identical proof replay/staging and completion commits |
-| approved planning commit + fresh design-freeze session + complete proof wall | Design Review 1 findings | design Remediation 1, full proof wall, then different-fresh Design Review 2 |
-| Design Review 1 findings remediated + complete proof wall | Design Review 2 `CLEAN` | byte-identical proof replay/staging and completion commits |
-| Design Review 1 findings remediated + complete proof wall | Design Review 2 findings | design Remediation 2, full proof wall, then different-fresh Design Review 3 |
-| Design Review 2 findings remediated + complete proof wall | Design Review 3 `CLEAN` | byte-identical proof replay/staging and completion commits |
-| Design Review 2 findings remediated + complete proof wall | Design Review 3 any non-clean result | byte-identical non-completion handoff; no Design Review 4 |
-
-Stop with `human_input` if first-proof-dock selection or another decision needs product authority absent from the live pack/evidence. Use `authority_boundary`, `external_blocker`, `context_boundary`, or `capability_unavailable` only when that is the true reason.
-
-## Closeout
-
-This planning-continuation session never edits canonical `00`-`06`. After a clean Continuation Planning Review, run complete packet validation and GitNexus change detection, commit the exact reviewed planning subject plus its additive continuation-review dispatches, then create a `partial` / `context_boundary` v1.2 parent handoff. That handoff records the approved planning commit, historical Planning Reviews 1-4, Continuation Planning Review 1 and optional Continuation Planning Review 2, the reserved Design Review 1-3/two-remediation budget, the exact execution packet path, and the prohibition on treating any planning review as final-design review. Rebuild/validate the ledger and commit only the mechanical handoff/ledger closeout separately.
-
-The fresh design-freeze execution session may use the completed-design path only after canonical design bytes, the complete proof wall, and a `CLEAN` Design Review 1, 2, or 3 over the complete final-design subject. It commits the reviewed packet/control-pack subject first, then creates one completed v1.2 handoff bound to that primary commit and clean manifest and commits the mechanical closeout separately. A non-clean terminal continuation or design review uses the byte-identical non-completion path instead. Do not start HCM-0.6.
+Stop with the truthful canonical `08` reason if first-proof-dock selection or another decision needs product authority absent from live authority, if required proof is unavailable, if scope must widen, or if mandatory independent delegation is unavailable. Historical HCM-0.5 evidence remains immutable and does not constrain the generic fresh-review loop beyond the invariants above.
