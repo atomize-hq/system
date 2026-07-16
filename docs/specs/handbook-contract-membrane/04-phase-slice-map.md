@@ -40,7 +40,7 @@ Creating a child packet or internal dispatch does not complete the parent slice.
 | `HCM-0.3` | Freeze Context Resolution, Snapshot Memory, and deterministic projection contracts | exact envelope, snapshot/capture/delta/projection, omission, provenance, consistency, redaction, and promotion contracts | reveal/derive/synthesize boundaries and snapshot authority/consistency rules are unambiguous and testable |
 | `HCM-0.4` | Freeze crate ownership, `handbook-sdk`, CLI JSON, Tauri, and Substrate integration ladder | owner matrix, SDK use-case inventory, transport DTO contract, published proof plan | no use case depends on CLI prose; bridge and permanent boundary are distinct |
 | `HCM-0.9` | Abandoned corrective decomposition attempt | immutable rejected planning/review evidence only; no leaf files and no index cutover | terminal Redesign Review 2 was not CLEAN after the only authorized remediation; decomposition is abandoned, `05-contracts-schemas-and-gates.md` remains canonical, and execution requires a new explicit human decision and newly reviewed packet |
-| `HCM-0.5` | Freeze contract-membrane and dock protocol boundaries | lifecycle, claim/evidence/verdict/gate contracts; process-dock capability/request/result contract | validators remain witnesses; Resolution limits proof; first proof dock is selected |
+| `HCM-0.5` | Freeze one fail-closed contract membrane and dock protocol without runtime work | canonical `00`-`06` subject defining exact contract identity/SemVer compatibility, immutable lifecycle, claims/applicability, evidence cardinality/provenance/freshness/Resolution/consistency, verdict/gate precedence, dock implementation-bundle/typed-launch-vector/runtime closure, process JSON/isolation/total-outcome semantics, bounded JSON Schema proof target, and HCM-0.4-compatible operations | complete proof wall and fresh independent review bind the exact subject; lifecycle stays separate from evaluation, validators stay witnesses, `handbook.dock.json-schema@1.0.0` is selected only as a future target, the `05` monolith remains canonical, and `PG-CONTRACT-01`/`PG-DOCK-01`/`PG-GATE-01` remain open |
 | `HCM-0.6` | Research and approve the shipped default artifact set | research dossier; minimal/standard/full candidate comparison; user brainstorming/decision record; approved shipped kind/instance/requiredness list | default set is evidence-backed and explicitly approved; no current enum, template, filename, or illustrative example became a default by inertia |
 | `HCM-0.8` | Correct the development orchestration and true-stop handoff control plane discovered after the original HCM-0.1 review | long-lived `07` runner; parent-owned `08` protocol; internal dispatch contract; handoff v1.2 schema/template/validator; split handoff/orchestration proof | one active parent executes a fresh built-in review internally, reconciles results, and writes one v1.2 closeout; internal agents write no global handoffs; prior records/dispatches remain immutable evidence |
 | `HCM-0.7` | Approve the implementation program and first slice packet | reviewed phase map plus first `slices/<id>/SPEC.md`, plan, and todo | Phase 0 contracts/default decisions are closed and the first slice is independently implementable with a complete proof wall |
@@ -62,6 +62,18 @@ Creating a child packet or internal dispatch does not complete the parent slice.
 **Non-goals:** semantic correction or clarification; Rust, Cargo, runtime, CLI, Tauri, Substrate, SDK, public API, schema-version, proof-promotion, or HCM-0.5 work; rewriting historical handoffs/dispatches; changing record schemas solely to carry leaf refs; selecting shipped defaults; or opportunistic control-pack cleanup.
 
 **Review-budget stop:** exhausted. Redesign Review 1, one remediation, and terminal Redesign Review 2 completed. Do not run Review 3, remediate the terminal finding, or authorize execution.
+
+### `HCM-0.5` design-freeze contract
+
+**Dependencies:** HCM-0.2 semantic identities, HCM-0.3 Resolution/Snapshot/Projection contracts, HCM-0.4 owner/SDK/DTO/transport contracts, and HCM-0.8 orchestration mechanics are completed dependency evidence. HCM-0.9 is abandoned evidence and supplies no topology, catalog-leaf, or resume authority.
+
+**Authorized output:** documentation/design changes only in canonical `00-README.md` through `06-proof-and-regression-ledger.md`. The output keeps `05-contracts-schemas-and-gates.md` monolithic; defines one exact protocol-neutral contract/evidence/verdict/gate and dock DTO model; appends only the HCM-0.4-compatible ordinary contract/dock operation definitions; and selects `handbook.dock.json-schema@1.0.0` as the bounded future HCM-5.4 target.
+
+**Exit gate:** exact contract/lifecycle/claim/evidence/verdict/gate and manifest/request/result/isolation/failure matrices are mechanically checked; HCM-0.2/HCM-0.3/HCM-0.4 frozen semantics regress cleanly; final intended `00` status bytes are in the review subject; a fresh independent reviewer returns `CLEAN`; and proof/staging replay the clean subject byte-identically before commit.
+
+**Runtime boundary:** `handbook-contracts`, ordinary SDK operations, process adapters, manifests, implementation bundles, schema files, validators, runners, CLI/Tauri/Substrate surfaces, and the selected first dock remain unimplemented. Documentation cannot promote `PG-CONTRACT-01`, `PG-DOCK-01`, or `PG-GATE-01`.
+
+**Non-goals:** Rust, Cargo, runtime, schema publication, HCM-0.6 research/default selection, HCM-0.7 approval, HCM-0.9 repair, catalog leaves/index/routing, a universal validator, waiver semantics, remote registry, or marketplace.
 
 ### Phase 0 non-goals
 
@@ -289,37 +301,42 @@ Select one lower-risk artifact family after Phase 0 review. Project Context is t
 
 ### `HCM-5.1` — Contract lifecycle and claim model
 
-- identity, version, draft/review/lock/active/close lifecycle;
-- claims, invariants, severity, and required evidence;
-- canonical structured contract records.
+- exact `contract_id@full-SemVer` refs/fingerprints and closed compatibility rules;
+- immutable `draft -> review_ready -> locked -> active/deprecated -> closed` authority transitions, including the complete closed adjacency table and distinct lock authority;
+- typed claims, selectors/applicability, gate effects, all-of evidence requirements, and canonical structured contract records;
+- no evaluation, verdict, score, or gate outcome encoded as lifecycle state.
 
 ### `HCM-5.2` — Evidence, verdict, and gate engine
 
-- normalized evidence;
-- pass/fail/blocked/warning/not-observed/not-applicable/flaky;
-- hard-fail semantics independent of weighted score;
-- Resolution-qualified proof and promotion.
+- validate one untrusted candidate into one immutable canonical evidence record with exact provenance/freshness/source/subject/case/run identity;
+- enforce per-kind/case cardinality, repeated-observation consistency, complete claim partitions, and dimension-by-dimension effective Resolution;
+- compute the closed `pass`/`fail`/`blocked`/`warning`/`not_observed`/`not_applicable`/`flaky` vocabulary;
+- compose hard/required/advisory gates so hard failure, required missing evidence, stale bindings, or incomplete accounting outrank weighted score;
+- compute local closeout and parent promotion separately.
 
 ### `HCM-5.3` — Process dock protocol
 
-- capability manifest;
-- JSON request/result;
-- isolation, timeout, cancellation, and refusal semantics;
-- evidence and artifact references.
+- exact manifest identity plus content-addressed implementation bundle, normalized bundle manifest, entrypoint digest, typed native-or-bundled-interpreter launch vector/fingerprint, and normalized bundle-only runtime/dependency-closure descriptor/fingerprint;
+- one bounded UTF-8 JSON request and one bounded JSON result with exact fingerprints and no stdout side channel;
+- default-deny filesystem/environment/process/resource grants, unconditional v1 network denial, safe artifact refs, and bounded output admission;
+- host-monotonic timeout, idempotent cancellation, typed refusal, ordered mutually exclusive crash/protocol/cleanup outcome semantics, and no partial evidence;
+- process executor emits only operational records and untrusted candidates.
 
 ### `HCM-5.4` — First real validator dock proof
 
-- choose one existing validator ecosystem;
-- execute it through the process protocol;
-- normalize evidence;
-- prove a real contract gate without making the validator authoritative.
+- implement the already-selected `handbook.dock.json-schema@1.0.0` bounded adapter over the existing local Draft 2020-12 ecosystem;
+- validate one JSON-compatible instance against one exact offline schema/ref closure and refuse remote refs, executable hooks, unsupported dialects, and fingerprint mismatch;
+- execute through the process protocol, validate one candidate into canonical evidence, and prove positive/negative/refusal/timeout/fingerprint/Resolution/gate paths;
+- prove a real contract gate without giving the validator, runner, host allowlist, SDK, or transport canonical authority.
 
 ### Phase 5 exit gate
 
-- a locked contract drives a real dock/evidence/verdict/gate path;
-- missing or out-of-resolution evidence cannot produce false green;
-- process protocol is stable enough for later Rust-native binding;
-- `handbook contract ...` use cases exist behind SDK types before CLI polish claims completion.
+- an exact active contract with a valid prior independent-lock transition drives a real selected-dock -> execution record -> admitted evidence -> verdict -> gate path; a bare `locked` definition cannot start evaluation;
+- missing, stale, refused, failed, malformed, inconsistent, wrong-subject/case, or insufficient-Resolution evidence cannot produce false green or partial proof;
+- manifest/implementation/runtime-closure substitution, shell/PATH/ambient-runtime discovery, network use, unsafe output, timeout/cancellation/crash, and cleanup uncertainty fail closed;
+- process protocol semantics are stable enough for a later Rust-native binding with no semantic privilege or evidence-shape divergence;
+- the frozen ordinary `contract.*`/`dock.*` use cases exist behind SDK types before CLI polish claims completion;
+- `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` close only for the exact runtime evidence exercised.
 
 ## Phase 6 — Consumer adoption
 

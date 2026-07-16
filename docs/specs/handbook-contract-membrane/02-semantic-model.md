@@ -793,6 +793,50 @@ A projection can prove only what it exposes and observes.
 - A gate must distinguish local completion from promotion readiness.
 - An external dock declares the Resolution envelope under which it collected evidence.
 
+## Contract membrane semantics
+
+The contract membrane applies the existing six-dimension Context Resolution model to immutable contract definitions and evidence. It does not redefine the HCM-0.3 stack, envelope, inheritance, escalation, promotion, Snapshot, or Projection contracts.
+
+### Definitions, evaluations, and authority
+
+A `ContractDefinition` is exact immutable semantic authority identified by `contract_id`, full-SemVer `contract_version`, derived `contract_ref`, `definition_fingerprint`, and the authenticated definition-author/admission-authority binding inside that fingerprint. Its lifecycle is a separate append-only authority history over `draft`, `review_ready`, `locked`, `active`, `deprecated`, and terminal `closed`. Draft transitions equality-check that immutable author binding, lock authority must be distinct from it, and exact non-circular transition/resulting-lifecycle fingerprints chain every append. Changing normalized semantic bytes creates a new version/ref/fingerprint; lifecycle never rewrites definition bytes.
+
+An evaluation run binds one exact definition, the content-addressed current active transition plus its immediately prior independent-lock transition/resulting fingerprints, subject, case set, request identity, evidence basis, and effective Resolution envelope. That active-after-independent-lock lifecycle basis is revalidated before evaluation/spawn, candidate admission, verdict, and gate; bare lock or later deprecation/closure/staleness blocks. Evaluation state, claim verdicts, weighted progress, local closeout eligibility, and parent promotion eligibility are derived records; none is a contract lifecycle state. A validator or dock may witness observations but cannot lock, activate, deprecate, close, pass, waive, or promote a contract.
+
+### Claims and applicability
+
+Every claim binds a contract-local `claim_id`, typed subject/case selectors, one authoritative applicability rule, one gate effect (`hard_fail`, `required`, or `advisory`), a non-empty ordered all-of evidence-requirement list, freshness policy, complete minimum Resolution, and optional positive finite score weight.
+
+Applicability precedes evidence selection:
+
+| Applicability outcome | Canonical result |
+|---|---|
+| selector proves false | `not_applicable` |
+| selector proves true | evaluate every evidence requirement |
+| selector/matcher is malformed, stale, unresolved, or indeterminate | `blocked` |
+
+Selectors are closed declarative data evaluated by exact registered matchers. Executable predicates, prompts, remote code, content-sniffed applicability, and dock-supplied `not_applicable` are refused.
+
+### Evidence qualification and Resolution
+
+Dock output is an untrusted candidate. Only the `handbook-contracts` membrane may admit one validated candidate as one immutable `EvidenceRecord`. A canonical record binds the exact contract/claim/evaluation/subject/case identities, current active-after-independent-lock lifecycle basis, parent evaluation-run ID, request ID/fingerprint, dock-run ID, evidence kind, observed fact schema/payload, producer manifest plus implementation-bundle/launch-vector/runtime-closure-descriptor fingerprints, execution record, source/artifact/trace refs and fingerprints, observation partitions, freshness result, request/effective Resolution envelopes, normalization policy, and evidence fingerprint. One evaluation run may own multiple distinct dock runs, but no result or candidate may move between them. Every candidate inside a completed result carries the same identity closure plus a non-empty fingerprint-bound claim-ID subset of the request and result-observed partition; the host checks both before it may classify the run `completed`. Every admitted run also yields one outcome-discriminated operational record whose expected identity remains total across absent, invalid, and valid result observations; valid completion atomically retains fingerprinted normalized request/result admission bases plus the untrusted candidate bundle so later separate evidence admission can replay lifecycle/claim/case/Resolution/partition rules without the original request, full result, process/workspace, or caller state.
+
+The effective evidence envelope is the dimension-by-dimension minimum of:
+
+1. the requested envelope;
+2. the dock manifest's capability ceiling; and
+3. the actual grant and observation envelope.
+
+Evidence is eligible only when every exact identity/source fingerprint matches, the claim is in its observed partition, kind/case/currentness/freshness match, and the effective envelope meets the claim minimum in all six dimensions. A broader claim cannot be proved by a narrower observation. Insufficient-Resolution, stale, malformed, excluded, hidden, unsupported, wrong-subject, wrong-case, or wrong-run records remain explicit accounting but do not vote.
+
+Each evidence-requirement clause selects one exact evidence kind and one closed cardinality variant: `exactly_one`, `at_least_one`, or `all_declared_cases`. Clauses are all-of; one kind cannot substitute for another. Within each `(claim_id, case_id, evidence_kind)` tuple, exact duplicate refs deduplicate, distinct eligible observations remain distinct, and all observations must agree under the exact stability policy. Evaluation order is applicability, identity/currentness/Resolution eligibility, cardinality, repeated-observation consistency, satisfied/violated mapping, then all-of combination. The closed precedence is `blocked` > `flaky` > `fail`/`warning` > `not_observed` > `pass`; no later score or adapter action can override it.
+
+### Verdict and gate evaluation
+
+Every claim is partitioned exactly once into `pass`, `fail`, `blocked`, `warning`, `not_observed`, `not_applicable`, or `flaky`. `warning` is legal only for advisory observed violations. `not_applicable` requires proven false applicability. Required or hard claims accept only `pass` or proven `not_applicable`; `fail`, `blocked`, `not_observed`, `flaky`, and invalid `warning` block.
+
+A `GateResult` completely partitions the definition's claims and decides only `passed` or `blocked`. Positive finite weights are advisory progress metadata: applicable non-pass verdicts contribute zero, and `not_applicable` is omitted from the denominator. A score cannot override a hard failure, required missing observation, incomplete claim partition, stale binding, or invalid input. `local_closeout_eligible` and `parent_promotion_eligible` are independently computed from exact policies and default false on indeterminate state.
+
 ## Adapter implications
 
 `handbook-sdk` presents transport-neutral typed use cases over the semantic owners. CLI, Tauri, and Substrate adapters preserve the selected operation definition, negotiated API context, request fingerprint, schema versions, exact semantic refs/fingerprints, Resolution envelope, provenance, omissions, idempotency result, conditional write set/receipts, and typed outcome; they may change invocation mechanics and product wording but not domain meaning. A distinct immutable bootstrap descriptor per API major is the discovery root; snapshot-bound paged operation/profile/schema/governed-record catalogs, exact record and vocabulary/Resolution/Projection reads, and applicable-snapshot selection follow it, and adapters never infer shipped defaults or depend on retained process-local state.
@@ -806,6 +850,8 @@ Future workflow adapters map:
 - Resolution placement;
 - projection expectations;
 - lifecycle and gate semantics.
+
+Contract/dock adapters additionally preserve the exact evaluation-run/request/dock-run identities and the exact contract/claim/evidence/manifest/implementation-bundle/typed-launch-vector/runtime-closure-descriptor/request/execution/result fingerprints, complete observation partitions, effective Resolution, and candidate-versus-canonical boundary. A process executor may return a typed execution outcome and untrusted candidates; it cannot serialize canonical verdict or gate authority on behalf of `handbook-contracts`.
 
 An adapter translates between systems. It does not mutate Handbook canonical truth merely to imitate another tool's terminology.
 

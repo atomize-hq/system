@@ -2,9 +2,9 @@
 
 ## Status
 
-The HCM-0.2 sections are frozen design contracts: schema policy, instance-profile composition for stable-role/schema/kind/instance/vocabulary truth, stable-role and schema registries, artifact kinds, artifact instances, intake records/candidates/promotion, Charter/constitutional-root semantics, validation layers, vocabulary, and the project-posture owner/transition boundary. HCM-0.3 additionally freezes the Context Resolution stack/envelope/escalation/promotion, deterministic Projection definition/request/result, Snapshot Memory capture/record/delta/projection, and redaction/retention contracts. HCM-0.4 freezes crate ownership, the SDK ordinary-use-case inventory, operation/DTO identities, CLI JSON and Tauri adapter behavior, the transitional Substrate process bridge, and the permanent published-Rust proof plan. They are implementation authority for later slice packets, not published API guarantees or evidence that the runtime types exist.
+The HCM-0.2 sections are frozen design contracts: schema policy, instance-profile composition for stable-role/schema/kind/instance/vocabulary truth, stable-role and schema registries, artifact kinds, artifact instances, intake records/candidates/promotion, Charter/constitutional-root semantics, validation layers, vocabulary, and the project-posture owner/transition boundary. HCM-0.3 additionally freezes the Context Resolution stack/envelope/escalation/promotion, deterministic Projection definition/request/result, Snapshot Memory capture/record/delta/projection, and redaction/retention contracts. HCM-0.4 freezes crate ownership, the SDK ordinary-use-case inventory, operation/DTO identities, CLI JSON and Tauri adapter behavior, the transitional Substrate process bridge, and the permanent published-Rust proof plan. The HCM-0.5 sections below are the complete implementation-grade contract-membrane/dock design subject governed by the HCM-0.5 proof/review closeout record. They become frozen target authority only when that closeout is completed; otherwise they remain an unclosed subject. These documentation contracts are not published API guarantees or evidence that runtime types exist.
 
-Contract/dock semantic sections remain preliminary until HCM-0.5 closes. The HCM-0.4 owner, SDK/transport, and public-proof-plan sections are frozen design authority but do not prove any implemented or published API. The shipped artifact-kind/default-instance/requiredness set and shipped Resolution labels/default policy remain unresolved rather than being selected by illustrative examples.
+The HCM-0.4 owner, SDK/transport, and public-proof-plan sections remain frozen design authority and are changed by HCM-0.5 only through the explicitly appended ordinary contract/dock operations. `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` remain open; no contract/dock crate, schema, manifest, bundle, process, validator, SDK/CLI/Tauri/Substrate path, or runtime proof is implied. The shipped artifact-kind/default-instance/requiredness set and shipped Resolution labels/default policy remain unresolved rather than being selected by illustrative examples.
 
 ## Schema policy
 
@@ -3052,8 +3052,20 @@ All listed operation IDs start at operation version `1.0.0`; an implemented defi
 | Pipeline capture | `pipeline.capture.apply` | pipeline through SDK repository transaction | compare-and-write mutation |
 | Pipeline handoff | `pipeline.handoff.emit` | pipeline through SDK repository transaction | append-only |
 | Pipeline state | `pipeline.state.apply` | pipeline through SDK repository transaction | compare-and-write mutation |
+| Contract definition | `contract.definition.list` | contracts | read-only exact definition catalog |
+| Contract definition | `contract.definition.read` | contracts | read-only exact definition |
+| Contract definition | `contract.definition.append` | contracts through SDK repository transaction | append-only immutable draft definition |
+| Contract lifecycle | `contract.lifecycle.transition` | contracts through SDK repository transaction | compare-and-write immutable lifecycle transition |
+| Contract evidence | `contract.evidence.list` | contracts | read-only exact canonical evidence catalog |
+| Contract evidence | `contract.evidence.read` | contracts | read-only exact canonical evidence |
+| Contract evidence | `contract.evidence.append` | contracts through SDK repository transaction | append-only one membrane-validated canonical evidence record |
+| Contract verdict | `contract.verdict.evaluate` | contracts | read-only deterministic claim verdict evaluation |
+| Contract gate | `contract.gate.evaluate` | contracts | read-only deterministic gate composition |
+| Dock manifest | `dock.manifest.list` | contracts | read-only exact dock-manifest catalog |
+| Dock manifest | `dock.manifest.read` | contracts | read-only exact dock manifest |
+| Dock execution | `dock.run` | contracts semantic owner composed by SDK with a separable process executor | append-only one admitted operational execution record; no canonical evidence/verdict/gate mutation |
 
-`contract.*`, `dock.*`, evidence, verdict, and gate operation IDs are intentionally absent until HCM-0.5 freezes their semantics. Adding them later extends this catalog; it cannot change the owner/DTO/transport rules in this section. The SDK may expose advanced owner APIs through direct crate imports, but only catalogued ordinary operations owe CLI JSON and Tauri parity.
+HCM-0.5 appends only the `contract.*` and `dock.*` rows above. They inherit every HCM-0.4 owner/DTO/transport/idempotency/receipt/publication rule unchanged, target `rust_sdk`, `cli_json`, and `tauri`, and use the exact operation bindings in the HCM-0.5 sections below. The SDK may expose advanced owner APIs through direct crate imports, but only catalogued ordinary operations owe CLI JSON and Tauri parity.
 
 The intake lifecycle is mechanically reachable through ordinary operations: append an immutable intake record, validate a candidate without writing, append that exact candidate, append zero or more immutable approval records over its exact fingerprint, then compare-and-write promotion against the current target. The promotion request cites the intake-record, candidate, and approval ref/fingerprint pairs and the current target fingerprint; no step mutates or replaces an earlier record. Posture evaluation is pure and always returns one typed `recommendation` or `no_recommendation` variant; only `posture.recommendation.append` persists an exact evaluated recommendation. Resolution escalation and memory promotion similarly expose separate request/disposition operations. Escalation dispositions are append-only terminal records. Memory-promotion dispositions use compare-and-write because an `applied` disposition atomically appends both the unique terminal disposition and the newly derived semantic-memory record; refusal or stale outcomes append only the terminal disposition. The HCM-0.2 and HCM-0.3 lineage, uniqueness, authority, nullability, and byte-identical replay rules remain authoritative.
 
@@ -3139,7 +3151,16 @@ No other combination is valid. Each write-set item uses authority class `canonic
 | `observation_evidence` | snapshot for `snapshot.capture` always; capture record for `pipeline.capture.apply` always |
 | `operational_state` | acknowledgment for `posture.recommendation.acknowledge` always; setup state for `repository.setup.apply` always; handoff for `pipeline.handoff.emit` always; pipeline state for `pipeline.state.apply` always |
 
-Any operation not named in this table is read-only with an empty write set. Repository setup and pipeline state do not become canonical semantic authority merely because they use compare-and-write. `artifact.candidate.promote` and `posture.transition.apply` each realize exactly two receipts on success; refusal before commit realizes none. The posture result may return a newly derived `ProjectPostureKernel` and fingerprint, but the kernel is not written as canonical authority; its inputs are the updated constitutional-root artifact plus exact semantic inputs. For memory-promotion `refused`/`stale`, only the always-written semantic-record disposition is realized; for `applied`, both exact items are committed atomically. Every operation-definition fixture and result fixture asserts the realized write set, atomic group, exact record identities, and absence of undeclared writes.
+HCM-0.5 extends that exhaustive classification with exactly four mutators:
+
+| Operation | Authority class | Condition | Cardinality / atomic group | Receipt behavior |
+|---|---|---|---|---|
+| `contract.definition.append` | `semantic_record` | `always` after the pre-establishment definition-admission gate | `exactly_one` / `contract_definition_append` | one draft-definition receipt; any pre-admission refusal realizes none |
+| `contract.lifecycle.transition` | `semantic_record` | `data.transition=applied` after exact basis/authority validation | `exactly_one` / `contract_lifecycle_transition` | one transition receipt; stale/unauthorized/refused comparison realizes none |
+| `contract.evidence.append` | `observation_evidence` | `always` after the pre-establishment candidate-admission gate | `exactly_one` / `contract_evidence_append` | one evidence receipt; invalid/rejected candidate realizes none |
+| `dock.run` | `operational_state` | `always` after the pre-establishment process-admission gate | `exactly_one` / `dock_run` | one execution-record receipt for every admitted terminal outcome; pre-admission refusal realizes none |
+
+The HCM-0.5 table is an additive extension of the exact mutation classification, not a competing later override. Any operation absent from the combined classification is read-only with an empty write set. Repository setup and pipeline state do not become canonical semantic authority merely because they use compare-and-write. `artifact.candidate.promote` and `posture.transition.apply` each realize exactly two receipts on success; refusal before commit realizes none. The posture result may return a newly derived `ProjectPostureKernel` and fingerprint, but the kernel is not written as canonical authority; its inputs are the updated constitutional-root artifact plus exact semantic inputs. For memory-promotion `refused`/`stale`, only the always-written semantic-record disposition is realized; for `applied`, both exact items are committed atomically. Every operation-definition fixture and result fixture asserts the realized write set, atomic group, exact record identities, and absence of undeclared writes. A combined-inventory fixture asserts that every non-read-only operation appears exactly once across the base and HCM-0.5 classification.
 
 An idempotency key is scoped to the exact repository-identity fingerprint, negotiated API version/bootstrap-descriptor pair, operation ref, and operation-definition fingerprint and is durably bound to the request fingerprint. Domain key state has precedence once retained/tombstoned; before first establishment, the unresolved recovery-hold active-key index participates in the same atomic admission transaction. The outcome matrix is total:
 
@@ -3617,126 +3638,430 @@ A downstream-intended API is not complete because its symbol is `pub`, workspace
 
 ## Contract record
 
-```yaml
-schema_id: handbook.contract
-schema_version: "1.0"
-contract_id: example.operation.v1
-kind: operation
-status: locked
-authority_resolution: coordination
-subject: {}
-claims: []
-required_evidence: []
-scoring: {}
-```
+HCM-0.5 defines the protocol-neutral contract membrane owned by `handbook-contracts`. These records are target design authority only after the HCM-0.5 proof/review closeout; they do not claim an implemented crate, schema, validator, gate, or dock runtime.
 
-Lifecycle target:
+### Contract definition identity and compatibility
+
+A `ContractDefinition` is immutable exact-definition data:
+
+| Field | Exact rule |
+|---|---|
+| `schema_ref` / `schema_fingerprint` | exact local/published `handbook.contract-definition@1.0.0` binding; mismatch or unavailable schema refuses |
+| `contract_id` | stable lowercase dot-separated machine identity; never derived from filename, title, CLI path, artifact kind, vocabulary label, or dock |
+| `contract_version` | full SemVer |
+| `contract_ref` | mechanically `contract_id + "@" + contract_version`; ranges, `latest`, and compatible substitution are forbidden |
+| `contract_kind` | exact closed kind used only for typed claim/schema selection; it grants no lifecycle or gate authority |
+| `definition_schema` | exact definition-schema ref/fingerprint pair used to validate this definition |
+| `claims` | non-empty ordered complete claim list; order is semantic and determines deterministic verdict/diagnostic order |
+| `definition_author_ref` / `definition_authority_ref` / `definition_authority_fingerprint` | authenticated definition author plus the exact admission role/authority binding under which that author submitted the definition; all three values are immutable semantic data, not transport/session metadata |
+| `lifecycle_policy` | exact ref/fingerprint naming the closed state/authority/transition policy |
+| `matcher_bindings` | every subject/case/applicability matcher as an exact ref/fingerprint; executable or ambient matchers refuse |
+| `gate_policy` | exact hard/required/advisory, score, local-closeout, and parent-promotion policy closure |
+| `extensions_policy` | exact closed policy; unknown required behavior and extension-supplied waiver semantics refuse |
+| `definition_fingerprint` | lowercase `sha256:<64-hex>` over RFC 8785 canonical JSON of every semantic field above except itself |
+
+Same `contract_ref` with different normalized bytes or fingerprint is a conflict. Any changed normalized semantic bytes require a new version/ref/fingerprint. Exact selection never substitutes a SemVer-compatible version automatically.
+
+| Change | Minimum version | Compatibility meaning |
+|---|---|---|
+| presentation-only annotation with identical claim/lifecycle/applicability/evidence/gate closure | patch | no automatic substitution; consumers still pin the exact ref/fingerprint |
+| new advisory claim with omitted score weight, absent from every hard/required set, changing no existing claim/policy | minor | additive authoring signal only; exact pin still required |
+| add/remove/change an existing claim; add hard/required claim; change selectors, applicability, evidence kind/cardinality/freshness/Resolution, matcher, lifecycle, score, gate, schema, subject/case, or authority | major | breaking semantic definition |
+
+Any change not proved to satisfy the patch or minor row is major. Deprecation or closure never reuses an old ref for new meaning.
+
+Every admitted definition has one deterministic draft-genesis lifecycle basis without a separate mutable record:
 
 ```text
-draft -> review_ready -> locked -> active -> passed|blocked -> closed
-                                  \-> deprecated
+draft_genesis_lifecycle_fingerprint = sha256(RFC8785({
+  schema_ref: "handbook.contract-lifecycle-genesis@1.0.0",
+  contract_ref,
+  definition_fingerprint,
+  lifecycle_policy_ref,
+  lifecycle_policy_fingerprint,
+  state: "draft",
+  prior_transition_ref: null
+}))
 ```
 
-Lifecycle transitions require typed evidence and authority. A rendered document or passing test cannot lock or close a contract by itself.
+The genesis schema/ref and exact object keys above are closed; no timestamp, actor, filename, transport field, or extension enters the preimage. The bound `definition_fingerprint` already closes over `definition_author_ref`, `definition_authority_ref`, and `definition_authority_fingerprint`; substituting any author binding therefore changes both the definition and genesis identities. `contract.definition.append` returns the derived genesis fingerprint with the immutable draft definition but writes no second lifecycle record or receipt. The value is recomputable from the admitted definition and is the only legal first-transition compare basis.
+
+### Contract definition lifecycle
+
+Lifecycle describes definition authority only. It does not contain evaluation, verdict, score, or gate state.
+
+```text
+draft -> review_ready
+draft -> closed
+review_ready -> locked
+review_ready -> closed
+locked -> active
+locked -> deprecated
+active -> deprecated
+deprecated -> closed
+```
+
+| State | New-evaluation meaning |
+|---|---|
+| `draft` | immutable authoring candidate; cannot drive a gate |
+| `review_ready` | immutable candidate awaiting named independent lock authority; cannot drive a gate |
+| `locked` | exact definition accepted as authority; eligible only for lifecycle-policy validation/activation, not ambient/default selection |
+| `active` | exact locked definition eligible for new evaluation within declared applicability |
+| `deprecated` | immutable/readable; excluded from new default selection, while exact historical/replay use remains valid until closure policy forbids it |
+| `closed` | terminal for new evaluation; immutable retained history only |
+
+Every append-only `ContractLifecycleTransition` binds:
+
+| Field | Exact rule |
+|---|---|
+| `transition_ref` / `transition_fingerprint` | immutable unique record identity and RFC 8785/SHA-256 fingerprint |
+| `contract_ref` / `definition_fingerprint` | exact immutable definition being transitioned |
+| `prior_transition_ref` / `prior_lifecycle_fingerprint` | first transition only: `prior_transition_ref: null` and the exact derived draft-genesis fingerprint above; every later transition: non-null exact immediately prior transition ref and resulting lifecycle fingerprint; stale, wrong-genesis, fake-prior, or null-later basis refuses |
+| `from_state` / `to_state` | one exact edge in the closed table below |
+| `actor_ref` / `authority_ref` | authenticated actor plus exact role/authority binding required by the edge |
+| `transition_policy_ref` / `transition_policy_fingerprint` | exact policy that admits the edge and authority |
+| `supporting_evidence` | ordered exact evidence ref/fingerprint pairs required by the edge |
+| `reason` / `decision_time` | typed reason and semantic decision time; both enter the record fingerprint |
+| `resulting_lifecycle_fingerprint` | derived complete lifecycle-history fingerprint after this append |
+
+Transition identity is derived in this exact non-circular order:
+
+```text
+transition_fingerprint = sha256(RFC8785({
+  schema_ref: "handbook.contract-lifecycle-transition@1.0.0",
+  contract_ref,
+  definition_fingerprint,
+  prior_transition_ref,
+  prior_lifecycle_fingerprint,
+  from_state,
+  to_state,
+  actor_ref,
+  authority_ref,
+  transition_policy_ref,
+  transition_policy_fingerprint,
+  supporting_evidence,
+  reason,
+  decision_time
+}))
+
+transition_ref = contract_ref + "#transition/" + hex(transition_fingerprint)
+
+resulting_lifecycle_fingerprint = sha256(RFC8785({
+  schema_ref: "handbook.contract-lifecycle-result@1.0.0",
+  contract_ref,
+  definition_fingerprint,
+  state: to_state,
+  prior_transition_ref,
+  prior_lifecycle_fingerprint,
+  transition_ref,
+  transition_fingerprint
+}))
+```
+
+`hex(transition_fingerprint)` is the lowercase 64-hex digest without the `sha256:` prefix. The transition preimage contains exactly the listed keys in their typed normalized forms; `transition_ref`, `transition_fingerprint`, and `resulting_lifecycle_fingerprint` are excluded from it. The resulting-lifecycle preimage contains exactly its listed keys and excludes itself. `supporting_evidence` preserves its declared ordered exact ref/fingerprint pairs. Thus every later resulting fingerprint transitively closes over the entire ordered history through the exact immediate prior lifecycle fingerprint without hashing itself or relying on an ambient history serialization.
+
+| From | To | Required authority/evidence |
+|---|---|---|
+| `draft` | `review_ready` | definition author; clean schema/semantic validation over exact fingerprint |
+| `draft` | `closed` | definition author or lifecycle authority; typed withdrawal reason |
+| `review_ready` | `locked` | named lock authority distinct from definition author; clean review over exact fingerprint |
+| `review_ready` | `closed` | named lock authority; typed rejection evidence |
+| `locked` | `active` | activation authority; applicability/matcher/currentness validation |
+| `locked` | `deprecated` | lifecycle authority; exact replacement pair or typed no-replacement rationale |
+| `active` | `deprecated` | lifecycle authority; exact replacement pair or typed no-replacement rationale |
+| `deprecated` | `closed` | closure authority; retention/reference-safety evidence |
+
+The table is exhaustive. A `draft -> review_ready` actor must equal the immutable `definition_author_ref` and present the exact bound definition-author authority ref/fingerprint. A `draft -> closed` actor must either satisfy that same equality or present the exact lifecycle-authority binding. A `review_ready -> locked` actor must be byte-distinct from `definition_author_ref` and satisfy the named lock-authority binding. Non-author draft transition, author-binding substitution, self-lock, stale-basis transition, state skipping, reactivation, rollback, `active -> closed`, and every unlisted edge refuse. `closed` is terminal. A definition remains immutable even as `draft`; correction creates a new version and closes/withdraws the old candidate through an allowed transition.
+
+For `draft -> review_ready` and `draft -> closed`, null prior identity is valid only when no transition exists and `prior_lifecycle_fingerprint` recomputes from the same exact definition. A non-null claimed prior for the first transition refuses. For every other edge, null prior identity refuses and the cited immediately prior transition must chain to the same contract/definition fingerprint.
+
+Every new evaluation binds one immutable content-addressed `EvaluationLifecycleAdmissionBasis` before claim applicability or dock selection:
+
+| Field | Exact rule |
+|---|---|
+| `schema_ref` / `schema_fingerprint` | exact `handbook.contract-evaluation-lifecycle-basis@1.0.0` binding |
+| `contract_ref` / `definition_fingerprint` | exact definition being evaluated |
+| `lifecycle_policy_ref` / `lifecycle_policy_fingerprint` | exact policy from that definition |
+| `independent_lock_transition_ref` / `independent_lock_transition_fingerprint` / `independent_lock_resulting_lifecycle_fingerprint` | exact `review_ready -> locked` transition whose actor is distinct from the definition author and whose resulting fingerprint is the active transition's immediate prior basis |
+| `active_transition_ref` / `active_transition_fingerprint` / `active_resulting_lifecycle_fingerprint` | exact immediately following `locked -> active` transition and resulting lifecycle fingerprint; bare `locked`, draft, review-ready, deprecated, or closed state refuses evaluation |
+| `basis_fingerprint` | RFC 8785/SHA-256 over every field above except itself; `evaluation_lifecycle_basis_ref` is the content-addressed ref derived from this digest |
+
+At evaluation-run creation the lifecycle owner must rederive both transitions/fingerprints, prove the lock-author distinctness rule, and require the authoritative current lifecycle head to equal the bound active transition and active resulting fingerprint. The exact `evaluation_lifecycle_basis_ref`/fingerprint enters the evaluation-run identity. Current-head equality is rechecked before evaluation, before request body access or process spawn, during candidate admission, and before verdict/gate composition. If the definition becomes deprecated/closed or any lock/activation/basis byte is stale or substituted after request creation, pre-spawn use refuses; already returned candidates are ineligible; and verdict/gate evaluation blocks rather than using a stale basis.
+
+### Claims and applicability
+
+Each contract-local claim has this complete semantic shape:
+
+| Field | Exact rule |
+|---|---|
+| `claim_id` | unique stable ID within the exact contract definition |
+| `statement` | immutable normative statement; display wording cannot contradict machine fields |
+| `subject_selector` / `case_selector` | closed declarative selectors interpreted only by exact registered matcher bindings |
+| `applicability_rule` | authoritative declarative condition evaluated before evidence binding |
+| `gate_effect` | exactly `hard_fail`, `required`, or `advisory` |
+| `evidence_requirements` | non-empty ordered list; every clause is required (all-of) |
+| `freshness_policy_ref` / `freshness_policy_fingerprint` | exact deterministic source/time/revision currentness rule |
+| `minimum_resolution` | complete six-dimension minimum Context Resolution envelope |
+| `score_weight` | omitted or positive finite number; zero, negative, NaN, infinity, null, string, or transport default refuses |
+
+Executable predicates, prompts, remote code, content-sniffed applicability, and ambient matcher selection refuse. Applicability is decided exactly once before evidence satisfaction: proven false yields `not_applicable`; proven true proceeds; malformed, stale, unresolved, or indeterminate state yields `blocked`. A dock cannot declare a claim not applicable.
+
+Each evidence-requirement clause binds exactly one `evidence_kind`, one cardinality variant, either one exact non-empty case set or the claim case selector, and one exact stability-policy ref/fingerprint. V1 has no any-of group, dock-preference order, newest-wins rule, cross-kind substitution, or source-order selection.
+
+| Cardinality | Required eligible set | Missing/surplus outcome |
+|---|---|---|
+| `exactly_one` | exactly one unique canonical evidence ref for the claim/case/kind tuple | zero -> `not_observed`; more than one after exact-ref deduplication -> `blocked` |
+| `at_least_one` | one or more eligible refs for the tuple | zero -> `not_observed` |
+| `all_declared_cases` | one or more eligible refs for every exact declared case | missing case -> `not_observed`; unknown/duplicate case identity -> `blocked` |
+
+Distinct eligible records remain distinct. Within each `(claim_id, case_id, evidence_kind)` tuple, all eligible observations must agree under the exact stability policy. Mixed satisfied/violated observations yield `flaky`; all violated observations yield `fail` for hard/required claims or `warning` for advisory claims; all satisfied observations yield `pass`. Malformed, stale, out-of-scope, or insufficient-Resolution records are ineligible accounting, not votes.
+
+Evaluation order is fixed: applicability -> identity/kind/case/currentness/Resolution eligibility -> per-tuple cardinality -> repeated-observation consistency -> satisfied/violated mapping -> all-of clause combination. Clause precedence is `blocked` > `flaky` > `fail`/`warning` > `not_observed` > `pass`. No later score, transport, dock, or extension can override an earlier higher-precedence outcome.
 
 ## Evidence record
 
-Evidence identifies:
+A dock emits an untrusted `EvidenceCandidate`. Only `handbook-contracts` may validate one exact candidate into one immutable canonical `EvidenceRecord`; emission, process completion, or host allowlisting alone never makes evidence canonical.
 
-- contract and claim refs;
-- producer/dock identity and version;
-- subject and case;
-- observed facts;
-- artifact/trace refs;
-- source fingerprints;
-- Context Resolution envelope;
-- included and unobserved claims;
-- execution provenance;
-- confidence/flakiness where applicable.
-- snapshot and delta refs when point-in-time state supports the observation.
+| Canonical evidence field | Exact binding |
+|---|---|
+| `evidence_ref` / `evidence_fingerprint` | unique immutable record ref plus RFC 8785/SHA-256 fingerprint over the complete normalized record except itself |
+| `schema_ref` / `schema_fingerprint` | exact canonical-evidence schema binding |
+| `contract_ref` / `definition_fingerprint` / `claim_ids` | exact contract version and non-empty observed claim subset |
+| `evaluation_lifecycle_basis_ref` / `evaluation_lifecycle_basis_fingerprint` | exact active-after-independent-lock basis bound into the evaluation run, candidate, result, execution record, verdict, and gate; it must still equal the authoritative lifecycle head at admission |
+| `evaluation_run_id` / `request_id` / `run_id` / `request_fingerprint` | exact parent evaluation, process request, and dock-run identities; one evaluation may own multiple runs, but all four values must equal the candidate, result, and execution-record bindings |
+| `subject_ref` / `subject_fingerprint` / `case_id` | exact subject and case identity; no display-label substitution |
+| `evidence_kind` / `fact_schema` / `observed_fact` | one declared evidence kind and exact fact schema/payload |
+| `dock_manifest_ref` / `manifest_fingerprint` | exact producer manifest identity |
+| `implementation_binding` | exact implementation bundle, normalized bundle manifest, entrypoint digest, and runtime/dependency-closure fingerprints |
+| `execution_record_ref` / `execution_record_fingerprint` | exact admitted completed process execution |
+| `sources` | non-empty ordered exact artifact/source/trace ref/fingerprint bindings plus collection time/revision |
+| `claim_partition` | complete disjoint `observed`, `unobserved`, and typed `excluded` partition for every requested claim |
+| `request_resolution` / `effective_resolution` | complete six-dimension envelopes; effective values are the dimension-by-dimension minimum defined below |
+| `freshness_policy_ref` / `freshness_policy_fingerprint` | exact rule used to compute currentness |
+| `observed_at` / `evaluated_at` / `source_revision` / `freshness_outcome` | explicit semantic times/revision and deterministic outcome |
+| `normalization_policy_ref` / `normalization_policy_fingerprint` | exact candidate-to-canonical normalization/admission policy |
+
+`effective_resolution` is the dimension-by-dimension minimum of the request envelope, dock capability ceiling, and actual grant/observation envelope. Evidence satisfies a claim only when every identity/source fingerprint matches, the claim is in `observed`, kind/cardinality/case match, freshness passes, and every effective dimension meets the claim minimum. Resolution qualifies visibility, observation, authority, and proof; it is not an importance score and grants no mutation/promotion authority.
+
+The requested claim set must equal the disjoint union of observed, unobserved, and excluded claims. Duplicate or missing partition membership, unsupported claim/kind, hidden source, stale source, wrong contract/claim/subject/case/run, insufficient Resolution, fingerprint mismatch, or non-completed execution makes the candidate ineligible or invalid. These states remain visible in evaluation accounting and cannot be weighted into green.
 
 ## Verdict contract
 
-Supported verdicts:
+A canonical `ClaimVerdict` binds the exact contract/definition/evaluation/claim identity, the current exact `evaluation_lifecycle_basis_ref`/fingerprint, effective Resolution and freshness basis, all supporting and disqualifying evidence ref/fingerprint pairs, one closed verdict, one typed deterministic reason code, and its own record fingerprint. A stale, substituted, bare-locked, deprecated, or closed lifecycle basis yields `blocked` before claim scoring.
 
-- `pass`;
-- `fail`;
-- `blocked`;
-- `warning`;
-- `not_observed`;
-- `not_applicable`;
-- `flaky`.
+| Verdict | Exact meaning | Gate relevance |
+|---|---|---|
+| `pass` | sufficient fresh applicable eligible evidence directly observed and satisfied the claim | may satisfy any gate effect |
+| `fail` | sufficient fresh applicable eligible evidence directly observed a violation | blocks hard/required; advisory violation must instead be `warning` |
+| `blocked` | prerequisite, authority, execution, protocol, selector, or accounting failure prevented valid satisfaction/violation | blocks hard/required |
+| `warning` | observed violation of an advisory claim | legal only for advisory; visible and score-relevant per policy |
+| `not_observed` | applicable claim lacks fresh/eligible/sufficient-cardinality/sufficient-Resolution observation | blocks hard/required |
+| `not_applicable` | authoritative applicability matcher deterministically proved false | excluded from score denominator; never supplied by a dock |
+| `flaky` | repeated eligible evidence conflicts under the exact stability policy | blocks hard/required and cannot average into pass |
 
-Rules:
-
-- hard-fail severity blocks regardless of aggregate score;
-- required `not_observed` cannot become pass through weighting;
-- evidence outside the required Resolution/subject boundary cannot satisfy a claim;
-- flaky evidence remains visible and cannot silently average into green;
-- verdicts cite evidence records.
+Every applicable or proven-inapplicable claim receives exactly one verdict. A hard/required `warning`, advisory `fail`, duplicate verdict, missing claim, or claim outside the exact definition is an evaluator defect that blocks the gate.
 
 ## Gate contract
 
-A gate identifies:
+A canonical `GateResult` binds one exact contract definition and evaluation run, the current exact `evaluation_lifecycle_basis_ref`/fingerprint, all input policy/matcher/evidence/verdict/freshness/Resolution fingerprints, a complete claim-to-verdict partition, optional score inputs/result, separate local-closeout and parent-promotion policy evaluations, typed blockers/next actions, and its own fingerprint. Its decision is only `passed` or `blocked`; there is no partial-green decision. Current-head mismatch, bare lock, deprecation/closure after request creation, or lock/activation substitution blocks before score.
 
-- target contract and lifecycle transition;
-- claim verdicts;
-- hard blockers;
-- weighted score if used;
-- local closeout eligibility;
-- parent promotion eligibility;
-- remediation/next actions;
-- evidence and projection refs.
-- snapshot/delta refs used for grounding, staleness, or drift decisions.
+| Gate effect | `pass` | `not_applicable` | `fail` | `blocked` | `warning` | `not_observed` | `flaky` |
+|---|---|---|---|---|---|---|---|
+| `hard_fail` | continue | continue only with proven false applicability | block | block | invalid -> block | block | block |
+| `required` | continue | continue only with proven false applicability | block | block | invalid -> block | block | block |
+| `advisory` | continue | continue | invalid -> block | visible non-blocking deficit unless score policy blocks | visible concern unless score policy blocks | visible deficit unless score policy blocks | visible instability unless score policy blocks |
 
-Local completion and broader promotion are separate decisions.
+The gate blocks before score evaluation when any hard/required claim is neither `pass` nor proven `not_applicable`, claim/evidence/verdict accounting is incomplete, or an input definition/matcher/evidence/dock/Resolution/freshness/fingerprint binding is stale or invalid. Only after those checks may a declared weighted threshold block.
+
+Weights are positive finite advisory-progress metadata. Omitted weight contributes neither numerator nor denominator; `not_applicable` is excluded; every applicable non-pass contributes zero. Score cannot override hard/required failure, missing evidence, invalid input, or incomplete accounting. Extensions, manifests, adapters, and docks cannot add waiver semantics.
+
+`local_closeout_eligible` and `parent_promotion_eligible` are computed separately from exact policy refs/fingerprints and default false on indeterminate state. Local pass never implies parent promotion.
 
 ## Dock capability manifest
 
-```json
-{
-  "schema_id": "handbook.dock-capability",
-  "schema_version": "1.0",
-  "dock_id": "example.validator",
-  "dock_protocol_versions": ["1.0"],
-  "contract_kinds": ["operation"],
-  "evidence_kinds": ["schema_validation"],
-  "input_media_types": ["application/json"],
-  "resolution_support": {
-    "minimum_level": "execution",
-    "dimensions": ["scope_horizon", "detail_resolution", "validation_horizon"]
-  },
-  "execution": {
-    "mode": "process",
-    "supports_timeout": true,
-    "supports_cancellation": true
-  }
-}
-```
+A `DockCapabilityManifest` is immutable exact-definition data:
+
+| Field | Exact rule |
+|---|---|
+| `schema_ref` / `schema_fingerprint` | exact dock-manifest schema binding |
+| `dock_id` / `dock_version` / `dock_ref` | stable lowercase dot-separated ID, full SemVer, and mechanically `dock_id + "@" + dock_version` |
+| `manifest_fingerprint` | RFC 8785/SHA-256 over every semantic field except itself |
+| `protocol_versions` | non-empty exact versions; ranges/latest/ambient fallback refuse |
+| `execution_mode` | `process` for v1; a future `rust_native` version must preserve all semantic DTO/authority rules |
+| `supported_contract_kinds` / `supported_claim_kinds` / `supported_evidence_kinds` | closed non-empty capability ceilings |
+| `request_schema` / `result_schema` | exact ref/fingerprint pairs for the selected protocol version |
+| `input_media_types` / `output_media_types` | closed exact media types |
+| `resolution_ceiling` | complete six-dimension maximum observation envelope |
+| `required_input_grants` | closed grant kinds only; no ambient repository, home, credentials, or temp access |
+| `output_policy` | exact artifact kinds, media types, file count, per-file, aggregate, diagnostic, stdout, and stderr byte ceilings |
+| `determinism` / `network` | exact posture; every v1 process manifest requires `network: denied` |
+| `timeout_support` / `cancellation_support` | exact declared cooperative capabilities; host enforcement remains authoritative |
+| `resource_ceilings` | positive CPU, memory, process-count, output, wall-time, and cancellation-grace maxima |
+| `implementation` | one exact `DockImplementationBinding` below |
+| `extensions_policy` | closed optional behavior only; unknown required semantics refuse |
+
+`DockImplementationBinding` closes identity over executable bytes:
+
+| Field | Exact rule |
+|---|---|
+| `bundle_ref` / `bundle_fingerprint` | one content-addressed immutable implementation bundle |
+| `bundle_manifest_ref` / `bundle_manifest_fingerprint` | exact normalized manifest listing every safe relative file path, regular-file mode, and SHA-256 |
+| `entrypoint_path` / `entrypoint_sha256` | one manifest-listed safe relative regular file and its exact digest |
+| `runtime_kind` | exactly `native` or `bundled_interpreter` |
+| `launch_binding` / `launch_fingerprint` | one closed typed launch vector, included in the manifest fingerprint and runtime closure: `native` binds the exact executable path/digest plus ordered typed argv; `bundled_interpreter` binds exact interpreter path/digest, application path/digest equal to the entrypoint, and ordered typed argv whose first element is that application path |
+| `runtime_dependency_closure_ref` / `runtime_dependency_closure_fingerprint` | exact normalized `RuntimeDependencyClosure` descriptor below and RFC 8785/SHA-256 fingerprint; the ref is content-addressed and every runtime/library/module byte is inside the verified bundle |
+
+Each launch argv element is exactly one closed `literal_utf8` value or one `bundle_path` naming a manifest-listed safe relative regular file plus digest. There is no environment, request-body, cwd, shell, template, wildcard, or variable interpolation. For `native`, the spawned executable is the exact entrypoint. For `bundled_interpreter`, the spawned executable is the exact interpreter and argv element zero is the exact application/entrypoint; later elements are the manifest's fixed ordered typed argv. The host constructs no other argument.
+
+`RuntimeDependencyClosure` has this closed normalized preimage:
+
+| Field | Exact rule |
+|---|---|
+| `schema_ref` / `schema_fingerprint` | exact `handbook.dock-runtime-closure@1.0.0` binding |
+| `bundle_manifest_ref` / `bundle_manifest_fingerprint` | exact containing bundle manifest |
+| `runtime_kind` / `launch_fingerprint` | exact values from the implementation binding |
+| `platform_abi_ref` / `platform_abi_fingerprint` | exact reviewed host ABI policy; v1 permits only named kernel/syscall surfaces and forbids ambient user-space libraries/modules |
+| `members` | non-empty list canonically sorted by safe relative path; each unique item is `{path, mode, sha256, role}` where role is one of `executable`, `interpreter`, `application`, `native_library`, `standard_library`, or `language_package`; every item exactly equals one bundle-manifest entry |
+| `dependency_edges` | complete list canonically sorted by `(consumer_path, resolution_kind, requested_name, provider_path)`; each unique edge binds two members and one closed kind `native_load`, `interpreter_stdlib`, or `language_import` |
+| `resolution_policy` | exactly `bundle_only`, with ordered bundle-relative native-loader roots and interpreter/module roots; environment, cwd, user/system search paths, network, registry, and fallback are empty/forbidden |
+| `closure_fingerprint` | RFC 8785/SHA-256 over every field above except itself; equals `runtime_dependency_closure_fingerprint` |
+
+The host recomputes the descriptor from the verified bundle before body access or spawn: traverse the launch executable/interpreter/application and all native/import metadata to a fixed point; require every resolved provider to be one declared member and edge; reject missing, extra, duplicate, unresolved, ambiguous, or outside-bundle providers; verify canonical member/edge ordering; and recompute the closure fingerprint. Cycles are permitted only when every member/edge is explicit and the fixed-point set is complete. A bundle rehash, member role/path/mode/digest change, dependency edge/order/resolution-kind/provider change, launch change, platform-policy change, or resolution-root change requires a new descriptor and fingerprint.
+
+The host allowlist maps the exact manifest plus implementation/bundle/launch/runtime-closure-descriptor fingerprints to one local extracted bundle. Before request-body/artifact access or spawn, the host re-verifies no symlinks, no unsafe paths, no extra/missing files, every mode/digest, entrypoint/interpreter/application/argv bundle-path membership and digest, exact launch fingerprint, normalized runtime-closure members/edges/policy, and recomputed closure fingerprint. It executes only the bound executable plus ordered argv without a shell, ambient `PATH`, shebang/interpreter discovery, dynamic dependency lookup, package-manager install, repository script discovery, or command interpolation. Operational mapping confers no semantic authority.
+
+Unknown required fields/extensions, unsupported protocol major, range/latest selection, fingerprint mismatch, stale/missing host mapping, executable/package substitution, unbound runtime closure, capability overclaim, or a request outside capability/policy ceilings refuses before body/artifact access or spawn. Manifest capability is a ceiling, not evidence that a run observed anything.
 
 ## Dock request/result
 
-Request includes:
+### One-shot process request
 
-- protocol and schema versions;
-- contract and selected claim refs;
-- Resolution envelope;
-- canonical/projection/evidence artifact refs;
-- snapshot/delta refs when the validator needs a point-in-time state boundary;
-- workspace capability grant;
-- timeout/cancellation policy;
-- requested evidence types.
+A `ProcessDockRequest` is one bounded UTF-8 JSON object with these exact bindings:
 
-Result includes:
+| Field group | Required content |
+|---|---|
+| protocol identity | protocol version plus request/result schema refs/fingerprints |
+| run identity | unique parent `evaluation_run_id`, unique `request_id`, unique dock `run_id`, and derived `request_fingerprint`; one evaluation may issue multiple requests/runs, but each `(evaluation_run_id, request_id, run_id)` tuple is immutable and exact |
+| dock identity | exact manifest, implementation bundle, bundle manifest, entrypoint, typed launch vector, and runtime-closure refs/fingerprints; the request cannot add, remove, reorder, or substitute launch elements |
+| contract selection | exact contract/definition, current active-after-independent-lock `evaluation_lifecycle_basis_ref`/fingerprint, claim IDs, subject, and case identities |
+| Resolution | complete request envelope and requested evidence kinds |
+| inputs | ordered exact logical artifact/source refs/fingerprints; never arbitrary repository paths |
+| grants | exact isolated workspace/input/output grant plus sanitized environment declaration |
+| limits | positive resource ceilings, host monotonic timeout, exact cancellation grace, and output policy |
+| network | exactly `denied` in both manifest and request for v1 |
+| fingerprint | RFC 8785/SHA-256 over every semantic request field except itself |
 
-- dock identity/version;
-- structured status/refusal;
-- normalized evidence refs;
-- observed/unobserved claim refs;
-- diagnostics;
-- produced artifact refs;
-- exact Resolution/provenance;
-- execution timing and completion state.
+The host intersects requested limits with manifest and policy ceilings; it never widens them. Logical refs resolve only after no-follow safe-path and fingerprint checks into read-only staged inputs.
+
+### Result and execution-record states
+
+Every process result status first carries the same common identity closure: exact `evaluation_run_id`, `request_id`, `run_id`, `request_fingerprint`, `evaluation_lifecycle_basis_ref`/fingerprint, manifest ref/fingerprint, implementation bundle/manifest/entrypoint/launch/runtime-closure-descriptor fingerprints, and a result fingerprint over all common identity fields plus the complete status-specific payload. All values must equal the request, authoritative current lifecycle head, and host-selected implementation before status-specific fields are read. Identity mismatch, stale/deprecated/closed lifecycle, bare lock, or transplantation is `protocol_error` after spawn (pre-spawn currentness mismatch refuses) and admits no candidate.
+
+Every `EvidenceCandidate` nested in a `completed` result repeats the exact `evaluation_run_id`, `request_id`, `run_id`, `request_fingerprint`, `evaluation_lifecycle_basis_ref`/fingerprint, manifest, implementation, launch, runtime-closure, contract, definition, non-empty ordered `claim_ids`, subject, case, evidence-kind, and candidate-schema bindings plus its own fingerprint. Candidate `claim_ids` is fingerprint-bound, contains no duplicate, is an exact subset of the request's claim IDs, and every member must appear in the result's `observed` claim partition; unobserved, unsupported/excluded, unrequested, omitted-from-partition, reordered/substituted claim identity, stale lifecycle head, or lock/activation-basis substitution refuses the entire result. During result validation, before selecting host outcome `completed`, the host equality-checks every candidate against the result common identity, request, authoritative lifecycle head, selected implementation, requested contract/claim/subject/case set, and complete result claim partition. Any nested mismatch selects priority 5 `protocol_error` for the whole run, appends the one operational record, and exposes zero candidates or evidence receipts. Later membrane admission repeats these checks as defense in depth; it is not the first transplantation boundary.
+
+The process result status is closed:
+
+| Dock result status | Required fields | Forbidden fields |
+|---|---|---|
+| `completed` | common identity closure; complete observed/unobserved/unsupported claim partition; zero or more candidates each carrying and matching that closure; bounded diagnostics/artifact candidates, timing, actual resource use, and actual observation envelope | canonical evidence refs created by the dock; claim verdicts; gate/lifecycle authority |
+| `refused` | common identity closure; one closed refusal reason and bounded diagnostics | evidence or artifact candidates |
+| `cancelled` | common identity closure; exact matching host-cancellation identity and bounded diagnostics | evidence or artifact candidates |
+
+The host separately appends one immutable `DockExecutionRecord` for every admitted run. Its closed outcome-discriminated shape is total even when no process or valid result exists:
+
+| Execution-record field group | Exact rule |
+|---|---|
+| `request_admission_basis` / `request_admission_basis_fingerprint` | always present bounded complete normalized admitted `ProcessDockRequest` (including protocol/schema, evaluation/request/run, dock/implementation, contract/definition/current evaluation-lifecycle basis/ordered claim IDs/subject/case, request/evidence-kind Resolution, logical input refs, grants, limits, network, and request fingerprint) plus RFC 8785/SHA-256 over `{schema_ref: "handbook.dock-request-admission-basis@1.0.0", request}`; it contains logical refs/fingerprints, never raw input bytes |
+| `expected_identity` | exact evaluation/request/run, request fingerprint, manifest/implementation/launch/runtime-closure identities, grants, and limits copied from and equality-checked against the retained request-admission basis and host selection |
+| `process_observation` | exactly one branch: `not_created` carries a closed setup-failure code with null process identity/start/end/termination fields; `created` carries exact process identity, start/end monotonic timing, termination/cancellation sequence, resource use, and cleanup disposition |
+| `result_observation` | exactly one branch: `absent` carries a closed absence reason and null result closure/fingerprint/admission basis; `invalid` carries the bounded captured stdout/result/artifact digests plus exact framing/schema/fingerprint/identity/candidate failure code but treats every parsed child identity as untrusted and carries no accepted result closure/admission basis; `valid` carries and equality-checks the complete result common identity closure and result fingerprint plus the accepted result-admission basis below |
+| `result_admission_basis` / `result_admission_basis_fingerprint` | `valid` only: durable bounded normalized `{schema_ref: "handbook.dock-result-admission-basis@1.0.0", status, common_identity, result_fingerprint, claim_partition, actual_observation_envelope}`; completed requires its complete accepted observed/unobserved/unsupported partition and actual six-dimension observation envelope, while refused/cancelled require null partition/envelope; fingerprint is RFC 8785/SHA-256 over that exact object |
+| `candidate_bundle` / `candidate_bundle_fingerprint` | `valid completed` only: one durable bounded normalized `handbook.dock-candidate-bundle@1.0.0` object containing the exact ordered complete candidate objects accepted during result validation (the list may be empty), plus RFC 8785/SHA-256 over `{schema_ref, request_admission_basis_fingerprint, result_admission_basis_fingerprint, evaluation_run_id, request_id, run_id, request_fingerprint, result_fingerprint, candidates}`; every other result/outcome branch requires both fields null |
+| `host_facts` / `outcome` | complete observed host-fact vector, first matched outcome-rule priority, and exactly one closed host outcome |
+| `execution_record_fingerprint` | RFC 8785/SHA-256 over the complete normalized record except itself |
+
+Only `result_observation: valid` may equality-check and retain an accepted child result closure/result-admission basis. For host `completed`, the same atomic `dock.run` append stores the complete normalized request-admission basis, accepted result-admission basis, and untrusted candidate bundle with all three fingerprints inside the execution record before the receipt becomes established; the bases and bundle are operational recovery data, not canonical evidence. Candidate order is the exact result order, every candidate object/fingerprint must equal the already validated result member, and the three basis/bundle fingerprints plus execution-record fingerprint close over the full retained bytes. A later `contract.evidence.append` names the execution record, request/result basis fingerprints, bundle fingerprint, candidate index, and candidate fingerprint; reloads all retained normalized bytes after the original request, full result, process/workspace, and caller state may be gone; recomputes all fingerprints; and replays the current active-after-independent-lock lifecycle basis, contract/definition/ordered-claim/subject/case/requested-Resolution/evidence-kind plus result-status/claim-partition/actual-observation-envelope admission before candidate normalization. It rejects any post-hoc basis/candidate bytes, stale/deprecated/closed lifecycle head, bare lock, lock/activation substitution, requested-but-unobserved claim, changed case/Resolution, reordered/substituted claim, index, or fingerprint. Spawn/exec setup failure uses `process_observation: not_created` plus `result_observation: absent`; crash/no-output uses `created` plus `absent`; malformed output or any top-level/nested identity transplantation uses `created` plus `invalid`. Nulls and fields from one discriminant branch are forbidden in the other branch. Raw stdout, stderr, whole result, artifact, input, or secret bodies are never retained—only bounded normalized admission fields/logical refs, digests, typed failure facts, and the candidate bundle on the valid-completed branch. The record remains schema-valid and binds expected request/selected identities for every admitted failure, timeout, cancellation, refusal, completion, or protocol error.
+
+Pre-admission validation happens before the table below and creates no process or execution record. For an admitted run, evaluate the rows in order and stop at the first match; lower rows cannot override it. This makes overlaps deterministic: nonzero exit plus malformed stdout is `failed`; an accepted host cancellation plus a completed/refused/malformed child result is `cancelled`; a deadline plus a later cancelled result is `timed_out`; a schema-valid `cancelled` result without the matching accepted host-cancellation identity is `protocol_error`.
+
+| Priority | Exclusive first-match predicate over recorded host facts | Host outcome | Candidate disposition |
+|---|---|---|---|
+| 1 | cleanup fails or remains uncertain after an admitted spawn | `failed` | none; quarantine/retain workspace under policy |
+| 2 | monotonic deadline is reached, regardless of later child exit/result | `timed_out` | none |
+| 3 | host accepts cancellation before the deadline, regardless of later child exit/result | `cancelled` | none |
+| 4 | isolation/resource/spawn/exec setup fails, or the process crashes, signals, or exits nonzero | `failed` | none |
+| 5 | zero exit but framing/UTF-8/JSON/duplicate-member/schema/fingerprint/result-status/output/artifact/candidate-identity validation fails; includes nested candidate transplantation, unsolicited `cancelled`, and unknown status | `protocol_error` | none |
+| 6 | zero exit, exact valid `refused` result, admitted bounded diagnostics, and clean cleanup | `refused` | none |
+| 7 | zero exit, exact valid `completed` result, every output admitted, and clean cleanup | `completed` | each candidate may independently enter membrane validation |
+| 8 | any remaining admitted fact vector | `protocol_error` | none; implementation defect is recorded |
+
+Only host `completed` may expose candidates to normalization. No partial candidate survives any other outcome.
+
+### Framing and diagnostics
+
+1. Resolve and re-verify the exact implementation bundle/runtime closure before body/artifact access or spawn.
+2. Resolve every typed launch element and recheck its digest, then spawn the exact bound executable/interpreter/application argv vector directly in the isolated workspace; never invoke a shell or ambient executable/interpreter lookup.
+3. Write exactly one bounded UTF-8 JSON request object to stdin, optionally followed by one LF, then close stdin.
+4. Accept exactly one bounded UTF-8 JSON result object on stdout, optionally followed by one LF. Duplicate member names at any nesting level, any other trailing byte, extra document, prompt, ANSI/prose, invalid UTF-8/JSON, unknown required behavior, or schema/fingerprint mismatch is `protocol_error`.
+5. Treat stderr as bounded redacted diagnostics only. It never carries a result, evidence candidate, or authority.
+
+### Isolation and resource contract
+
+| Surface | V1 default-deny rule |
+|---|---|
+| filesystem input | read-only staged exact logical refs only; no repository root, home, ambient temp, config, credentials, devices, or unlisted paths |
+| filesystem output | one empty bounded output directory; relative regular non-symlink files only; no-follow path validation plus count/size/media/fingerprint admission |
+| environment | explicit sanitized allowlist with deterministic locale/timezone; no inherited secrets/config/proxy/package state |
+| process | explicit cwd, closed extra file descriptors, bounded process tree/count, no shell/PATH/shebang/package-manager resolution |
+| network | unconditionally denied for every v1 process dock; manifest and request must both say `denied`; proxy/DNS/socket/environment/extension workarounds refuse |
+| resources | positive host-enforced CPU, memory, process, stdout/stderr/artifact, wall-time, and grace ceilings |
+
+A future host-mediated egress design requires a later reviewed protocol version. V1 cannot enable network by manifest extension, invocation policy, environment, proxy, DNS, or dock behavior.
+
+### Timeout, cancellation, refusal, and failure
+
+Timeout uses host monotonic time. At deadline the host requests process-tree termination, waits the exact grace, and force-kills the remaining tree. The execution outcome remains `timed_out` even when the process emits a cooperative cancelled result during grace.
+
+Cancellation is host-owned and idempotent, uses the same terminate/grace/kill sequence, and records one exact cancellation identity. A schema-valid cancelled result may be retained in the operational record but never becomes evidence. Repeated cancellation cannot spawn another process, extend the deadline, or change a terminal outcome.
+
+Pre-spawn manifest/protocol/capability/network/bundle mismatch creates no process and no `dock.run` operational receipt. After admission, `dock.run` appends exactly one operational execution record for completed, refused, timed-out, cancelled, failed, or protocol-error outcomes. Crash, signal, nonzero exit, oversized output, invalid UTF-8/JSON, duplicate members, schema/fingerprint mismatch, undeclared artifact, isolation failure, force-kill uncertainty, or cleanup uncertainty fails closed. Cleanup uncertainty quarantines/retains the isolated workspace under policy and blocks the run; secrets and raw diagnostic bodies never enter public diagnostics.
+
+The runner creates only the operational outcome/record and untrusted candidates. During deterministic evaluation, `handbook-contracts` may map a trusted failed execution record to canonical `blocked`; no runner, dock, SDK, transport, or adapter may emit a canonical verdict, including `blocked` or `not_applicable`.
+
+### Candidate admission
+
+For each candidate from a host-completed run, `contract.evidence.append` resolves only an exact execution-record/request-basis/result-basis/candidate-bundle fingerprint plus candidate index/fingerprint, reloads those retained normalized bytes, and independently revalidates the exact current active-after-independent-lock lifecycle basis, evaluation-run/request-ID/request-fingerprint/dock-run, contract/non-empty claim-ID subset/subject/case, manifest/implementation/launch/runtime-closure/execution/source/schema/freshness/requested-and-actual Resolution/complete partition identities and normalization policy. Candidate, result basis, request basis, execution record, and resulting canonical evidence must carry identical lifecycle/evaluation/request/run bindings; candidate claim IDs must remain an exact no-duplicate subset of both the retained request claim set and retained result `observed` partition. This is defense in depth after completed-result validation has already rejected any candidate identity, claim, or lifecycle-basis transplantation as host `protocol_error`. One valid retained candidate appends exactly one canonical evidence record and receipt. A caller-supplied/post-hoc candidate, missing basis/bundle, stale/deprecated/closed lifecycle head, bare lock, lock/activation substitution, requested-but-unobserved claim, changed case/Resolution, reordered/substituted claim, wrong index/fingerprint, or later-corrupted candidate writes nothing. A completed run with zero candidates still retains its request/result bases, empty fingerprinted bundle, and one operational execution record and creates no evidence. Refused, timed-out, cancelled, failed, protocol-error, and cleanup-uncertain runs never receive evidence receipts.
+
+### First proof-dock target
+
+`handbook.dock.json-schema@1.0.0` is the selected future HCM-5.4 proof target because the repository already uses a mature local Python `jsonschema` Draft 2020-12 validator, JSON Schema inputs/fixtures are deterministic and offline, the dock needs only read-only low-privilege inputs, and structured violations exercise the full manifest/request/result/fingerprint/Resolution/evidence/gate path. Its future v1 manifest must use `bundled_interpreter` and bind the exact interpreter, application entrypoint, standard library, `jsonschema` package/dependencies, bundle-only import roots/edges, and ordered argv inside one verified bundle/runtime-closure descriptor; host Python, shebang discovery, ambient `sys.path`, module search paths, or ambient packages are forbidden.
+
+Its sole initial responsibility is to validate one JSON-compatible instance against one exact local Draft 2020-12 schema/ref closure and emit bounded schema-conformance evidence candidates. It refuses remote refs, executable hooks, ambient schemas, unsupported dialects, and fingerprint mismatch. It performs no semantic validation, intake approval, lifecycle transition, verdict, gate, waiver, or canonical mutation and is not a universal validator.
+
+CLI-behavior and documentation/link validators remain later candidates: they either introduce broader process/transport state or provide weaker typed evidence. Selection of the JSON Schema dock is design authority for a future packet only; no schema/dock implementation exists and `PG-DOCK-01` remains open.
+
+### HCM-0.5 ordinary operation bindings
+
+All operations below are version `1.0.0`, owner `handbook-contracts`, target `rust_sdk`, `cli_json`, and `tauri`, and inherit the frozen HCM-0.4 typed request/result/outcome, exact schema/fingerprint, idempotency, receipt, transport, deprecation, and publication rules. The four mutating rows are the same additive extension to the exhaustive HCM-0.4 mutation-classification table above; the eight remaining rows are read-only.
+
+| Operation | Mutability / idempotency | Authority effect and exact write set |
+|---|---|---|
+| `contract.definition.list` | `read_only` / `safe` | `none`; `[]` |
+| `contract.definition.read` | `read_only` / `safe` | `none`; `[]` |
+| `contract.definition.append` | `append_only` / `idempotency_key_required` | `append_record`; exactly one `semantic_record` draft definition after exact admission |
+| `contract.lifecycle.transition` | `compare_and_write` / `compare_and_write_required` | `compare_and_write`; exactly one `semantic_record` transition against the exact current lifecycle fingerprint |
+| `contract.evidence.list` | `read_only` / `safe` | `none`; `[]` |
+| `contract.evidence.read` | `read_only` / `safe` | `none`; `[]` |
+| `contract.evidence.append` | `append_only` / `idempotency_key_required` | `append_record`; exactly one `observation_evidence` record for one validated candidate; invalid candidate writes nothing before operation establishment |
+| `contract.verdict.evaluate` | `read_only` / `safe` | `none`; `[]`; deterministic verdicts are returned without persistence |
+| `contract.gate.evaluate` | `read_only` / `safe` | `none`; `[]`; deterministic gate recomposition is returned without persistence |
+| `dock.manifest.list` | `read_only` / `safe` | `none`; `[]` |
+| `dock.manifest.read` | `read_only` / `safe` | `none`; `[]` |
+| `dock.run` | `append_only` / `idempotency_key_required` | `append_record`; exactly one `operational_state` `DockExecutionRecord` for every admitted run, including the durable bounded normalized candidate bundle on valid completion; no canonical evidence/verdict/gate/contract mutation |
+
+`dock.run` pre-admission request/manifest/bundle/protocol/capability/network refusal occurs before operation establishment and writes nothing. Every admitted run writes one operational record even when completed with zero candidates or ending refused/timed-out/cancelled/failed/protocol-error. Valid completion atomically retains the exact fingerprinted request-admission basis, accepted result-admission basis, and candidate bundle before the `dock.run` receipt establishes. Candidate admission is a separate crash-resumable `contract.evidence.append` operation that resolves only those retained bases and one retained bundle member and remains fully revalidatable after all ephemeral original-request/full-result/workspace/caller state is discarded. Verdict/gate persistence is deferred until a future approved operation defines its authority and write set; read-only evaluation is sufficient for the first proof path.
+
+No HCM-0.5 operation changes an existing HCM-0.4 operation, DTO, transport, bridge, idempotency, receipt, or publication contract. CLI paths and Tauri command names remain adapter decisions.
 
 ## Public API proof gates
 

@@ -1,7 +1,8 @@
 # Handbook Contract Membrane Control Pack
 
-**Status:** draft active control pack; docs and architecture only  
-**Scope:** target architecture, artifact-kind/schema registry, adaptive intake, Charter authority, posture kernel, sequencing, Context Resolution, Snapshot Memory, crate ownership, SDK/use-case and machine-transport boundaries, context assembly, handoff, escalation, and proof gates
+**Status:** active control pack; HCM-0.2 through HCM-0.4 are frozen design authority, and HCM-0.5 contains the complete implementation-grade design subject governed by its recorded proof/review closeout; implementation and runtime proof remain open
+
+**Scope:** target architecture, artifact-kind/schema registry, adaptive intake, Charter authority, posture kernel, sequencing, Context Resolution, Snapshot Memory, crate ownership, SDK/use-case and machine-transport boundaries, contract definitions, claims, evidence, verdicts, gates, dock protocol, context assembly, handoff, escalation, and proof gates
 
 **Implementation authorization:** none; implementation begins only from an approved slice-local packet  
 **Repo-truth snapshot:** 2026-07-14; re-check live code before every slice
@@ -61,7 +62,7 @@ A temporary internal bridge is allowed only when it has a concrete architectural
 | [`02-semantic-model.md`](02-semantic-model.md) | changing artifact kinds/instances, schemas, intake, Charter, posture, profiles, vocabulary, Resolution, memory, snapshots, or projections | separate stable-role and semantic-capability registries, artifact-kind and intake contracts, Charter/posture semantics, configurable terminology, memory record classes, snapshots/deltas, resolution envelope, projection and promotion semantics |
 | [`03-seam-crosswalk.md`](03-seam-crosswalk.md) | scoping a slice or checking whether a named capability really exists | current artifacts, current classification, target owner, required action, sibling dependencies |
 | [`04-phase-slice-map.md`](04-phase-slice-map.md) | planning, decomposing, executing, or escalating work | phase order, slice boundaries, child-packet rules, non-goals, exit gates |
-| [`05-contracts-schemas-and-gates.md`](05-contracts-schemas-and-gates.md) | defining artifact-kind/intake/posture types, YAML/JSON schemas, CLI output, SDK surfaces, or docks | preliminary contract shapes, schema policy, intake/approval semantics, lifecycle, evidence/verdict/gate rules |
+| [`05-contracts-schemas-and-gates.md`](05-contracts-schemas-and-gates.md) | defining artifact-kind/intake/posture types, YAML/JSON schemas, CLI output, SDK surfaces, contracts, gates, or docks | frozen HCM-0.2 through HCM-0.4 contracts plus the HCM-0.5 proof/review subject for contract lifecycle, evidence/verdict/gate rules, and process-dock protocol |
 | [`06-proof-and-regression-ledger.md`](06-proof-and-regression-ledger.md) | reviewing, validating, closing, or preserving known behavior | current proof tiers, open proof gaps, permanent guard rails, cutover-deletion gates |
 | [`07-orchestration-onboarding-prompt.md`](07-orchestration-onboarding-prompt.md) | starting or resuming a top-level phase/slice orchestration run | long-lived slice runner, selective onboarding, built-in delegation, review/remediation/re-review, proof, commit, and true-stop closeout |
 | [`08-handoff-ledger-and-escalation-protocol.md`](08-handoff-ledger-and-escalation-protocol.md) | stopping top-level orchestration, reporting a genuine external/authority boundary, or resuming later | parent-owned durable records, internal delegated-run results, status/stop model, ledger validation, and short chat closeout |
@@ -190,7 +191,9 @@ Escalation is a normal resolution transition, not a failure. Silent scope wideni
 
 ## Initial program conclusion
 
-The live repository contains published, reusable owner crates and several valuable precursors, but the artifact-kind/schema registry, researched shipped default set, adaptive intake/Charter promotion system, configurable profile, canonical YAML authority, resolved posture kernel, Context Resolution model, deterministic Snapshot Memory, projection engine, SDK facade, full JSON protocol, contract membrane, and dock protocol are not yet one landed system.
+The live repository contains published, reusable owner crates and several valuable precursors. HCM-0.2 through HCM-0.4 freeze the target semantics for the artifact/profile/intake kernel, Context Resolution/Snapshot/Projection model, and SDK/transport boundary; HCM-0.5 contains the complete contract-membrane/dock design subject, whose frozen-authority state is determined by its recorded proof/review closeout. Authored documentation does not mean the corresponding runtime seams exist: the researched shipped default set, canonical YAML cutover, runtime semantic kernels, SDK facade, complete JSON transport, contract evaluator, gate engine, dock runner, and first proof dock are not yet one landed system.
+
+The contract membrane and external docks therefore remain `TargetOnly`. `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` remain open, and the HCM-0.5 design freeze authorizes no Rust, schema publication, process execution, CLI, Tauri, Substrate, or SDK implementation.
 
 The next authorized work after this pack is reviewed is documentation/design work inside Phase 0. No Rust implementation is authorized by the existence of this pack alone.
 

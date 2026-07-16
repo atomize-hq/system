@@ -74,10 +74,10 @@ flowchart TD
 - vocabulary and intentional conflation semantics;
 - Context Resolution schemas and projection semantics;
 - Snapshot Memory capture policy, immutable record, consistency, fingerprint, delta, drift, and projection semantics;
-- contract identity, lifecycle, claims, and invariants;
-- dock protocol and capability negotiation;
-- evidence normalization;
-- verdict, scoring, hard-gate, and promotion semantics;
+- exact contract-definition identity, compatibility, immutable lifecycle records, claims, applicability, and invariants;
+- canonical evidence admission and normalization from untrusted witness candidates;
+- claim verdict, score, hard-gate, local-closeout, and parent-promotion semantics;
+- protocol-neutral dock identities, capability ceilings, request/result DTOs, and implementation-bundle/runtime-closure bindings;
 - transport-neutral request/result DTOs;
 - schema identifiers and compatibility rules.
 
@@ -114,7 +114,7 @@ The target should preserve the useful decoupling already present:
 - `handbook-engine`: canonical data, artifact-kind/intake schemas, profile/semantic validation, Charter/posture resolution, snapshot normalization/fingerprints/deltas, and other pure transformations;
 - `handbook-flow`: request-scoped selection, context assembly, Resolution envelope application, posture/snapshot projection, and packet/projection results;
 - `handbook-pipeline`: declarative workflow compilation/capture/handoff and execution sequencing;
-- `handbook-contracts`: purpose-named owner for contract identity/lifecycle, claims, evidence, verdicts, hard gates, and protocol-neutral dock types; HCM-0.5 freezes those type semantics before the crate is implemented;
+- `handbook-contracts`: purpose-named owner for contract identity/lifecycle, claims, evidence admission, verdicts, hard gates, and protocol-neutral dock types; the HCM-0.5 design subject defines those type semantics without implementing the crate;
 - `handbook-compiler`: current compatibility/support seam with an approved retirement posture, not a target facade or SDK dependency;
 - `handbook-sdk`: ordinary-consumer composition and transport DTO facade;
 - `handbook-cli`: executable transport only.
@@ -267,13 +267,16 @@ Substrate may instead remain the only synthesis owner. The core Handbook crates 
 
 ## Dock posture
 
-Handbook defines one semantic dock protocol.
+Handbook defines one semantic dock protocol and keeps semantic authority separate from process execution.
 
-- Process-based JSON docks are implemented first for isolation and language neutrality.
-- Rust-native dock traits may follow without changing normalized evidence semantics.
-- Docks declare capabilities and supported schema versions.
-- Validators remain evidence producers/checkers, never contract authorities.
-- A resolution-scoped dock result can prove only claims observed within its declared envelope.
+- `handbook-contracts` owns contract, claim, canonical evidence, verdict, gate, and protocol-neutral dock DTO semantics; a separable future process adapter owns spawn, isolation, resource enforcement, and cleanup only.
+- One-shot process JSON is the first universal transport for isolation and language neutrality. A future Rust-native dock must preserve the same request identity, evidence-candidate shape, canonical admission rules, verdict vocabulary, gate behavior, and authority boundary rather than creating a privileged semantic path.
+- A dock manifest is an immutable exact identity that binds the manifest fingerprint, a content-addressed implementation bundle, normalized bundle manifest, entrypoint digest, exact typed launch vector/fingerprint, and a normalized recomputable runtime/dependency-closure descriptor. A bundled-interpreter launch binds interpreter, application, standard-library/package bytes, exact bundle-only import resolution, and argument order. Host selection maps that identity to verified local bytes; it does not confer authority.
+- Capability declarations are ceilings. The host intersects the request with manifest and policy limits, re-verifies the complete bundle closure before body access or spawn, and denies network unconditionally for every v1 process dock.
+- Validators emit untrusted evidence candidates and diagnostics only. The Handbook membrane validates one candidate into one immutable canonical evidence record; validators, runners, transports, and adapters cannot emit canonical verdicts, gates, lifecycle transitions, `blocked`, or `not_applicable` truth.
+- Evidence can satisfy only the exact contract/claim/subject/case tuple it observed, within the dimension-by-dimension effective Resolution envelope and freshness/source bindings. Omitted, stale, insufficient-Resolution, refused, failed, or malformed observations cannot produce green truth.
+- Timeout uses host monotonic time; cancellation is host-owned and idempotent; refusal, crash, protocol error, output violation, or cleanup uncertainty fails closed and yields no partial evidence.
+- `handbook.dock.json-schema@1.0.0` is the bounded first future proof target for one exact local Draft 2020-12 schema closure. The selection is design input for HCM-5.4, not a running dock or proof that `PG-DOCK-01` passed.
 
 ## Non-negotiable invariants
 
@@ -298,6 +301,10 @@ Handbook defines one semantic dock protocol.
 19. **Posture recommendations do not self-enact** — observed drift can recommend a transition but cannot rewrite the Charter or approved policy.
 20. **CLI operations remain stable** — profile vocabulary and custom artifact kinds never generate or rename commands.
 21. **Development orchestration remains parent-owned** — delegable implementation, review, proof, and remediation rounds run as built-in subagents inside one active top-level slice loop; internal agents do not create global continuation records.
+22. **Contract lifecycle is not evaluation state** — `draft`, `review_ready`, `locked`, `active`, `deprecated`, and `closed` describe immutable definition authority; the definition fingerprint binds its author/admission authority, transitions check that authority and chain exact non-circular fingerprints, and each evaluation/evidence/verdict/gate identity separately binds and revalidates the current active transition plus its immediately prior independent-lock basis.
+23. **Dock identity closes over executable bytes, invocation, and dependency resolution** — manifest selection binds the implementation bundle, normalized file manifest, entrypoint digest, typed executable/interpreter/application launch vector and argument order, and a canonical bundle-only runtime-closure member/edge/policy descriptor before any process may run.
+24. **Host selection confers no semantic authority** — an allowlisted executable remains a witness, and only the membrane may admit canonical evidence or compute verdict/gate truth.
+25. **Process failures cannot leak partial proof** — every admitted run yields one total outcome-discriminated operational record; valid completion atomically retains bounded fingerprinted normalized request/result admission bases plus its untrusted candidate bundle for crash-resumable membrane replay without ephemeral state, while every non-completed host outcome, result/candidate identity or claim validation failure, or cleanup uncertainty yields no exposed candidate or canonical evidence.
 
 ## Explicit non-goals
 
@@ -307,6 +314,9 @@ Handbook defines one semantic dock protocol.
 - a hidden or prompt-wrapped model call inside Handbook's deterministic intake/authoring kernel;
 - automatic mutation of the Charter or posture policy from Snapshot Memory or recommendations;
 - a universal validator reimplementation;
+- waiver semantics hidden in extensions, scores, manifests, adapters, or dock assertions;
+- ambient interpreters, package-manager installation, shell/PATH discovery, mutable runtime references, or v1 dock network access;
+- treating the HCM-0.5 documentation subject, first-dock selection, or an allowlisted bundle as runtime proof;
 - arbitrary graph-shaped Resolution topology in the first version;
 - model-generated canonical projections in the first version;
 - raw command logs, secrets, credential material, or unrestricted full diffs embedded in Snapshot Memory;
