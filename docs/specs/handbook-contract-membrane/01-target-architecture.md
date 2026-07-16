@@ -201,7 +201,7 @@ Substrate imports exact published `handbook-sdk` and/or advanced owner-crate ver
 ## Canonical artifacts, renderer-derived views, and Projections
 
 - An `ArtifactKindDefinition` defines reusable schema, intake, semantic-validation, lifecycle, and projection capabilities; an `ArtifactInstanceDescriptor` binds a kind to a repository-specific identity, path, label, requiredness rule, and dependencies.
-- The shipped default profile selects an opinionated set of artifact instances, but that set is not approved by examples in this pack. Phase 0 must research candidate defaults and complete a user brainstorming/decision session before freezing it.
+- The shipped default profile selects the exact three-instance set approved by HCM-0.6 from an exact six-kind first-party catalog. The decision is target data, not implementation; examples, current enums, templates, and filenames remain non-authoritative.
 - Repository-defined custom kinds use the same registry and generic operations as shipped kinds; adding one must not require a new Rust enum variant or CLI subcommand.
 - YAML is the durable canonical representation where structure is semantically meaningful.
 - A **renderer-derived view** is a fixed deterministic pre-Phase-3 human-review output produced by a first-party renderer. It accepts no Context Resolution input and is outside the capitalized Phase-3 `Projection` request/result/provenance contract.
@@ -310,7 +310,7 @@ Handbook defines one semantic dock protocol and keeps semantic authority separat
 
 - dynamic CLI command renaming from vocabulary profiles;
 - generated CLI command families for repository-defined artifact kinds;
-- treating the illustrative artifact names in this pack as an approved shipped default set;
+- treating illustrative artifact names or examples as the authority for the approved HCM-0.6 shipped default set;
 - a hidden or prompt-wrapped model call inside Handbook's deterministic intake/authoring kernel;
 - automatic mutation of the Charter or posture policy from Snapshot Memory or recommendations;
 - a universal validator reimplementation;

@@ -4,7 +4,7 @@
 
 The HCM-0.2 scope in this document is frozen design authority: stable semantics and configurable language, instance-profile artifact/vocabulary composition, schema registration, artifact kinds and instances, intake and promotion, the constitutional root, Charter intake, the project-posture owner boundary, and vocabulary semantics. HCM-0.3 additionally freezes Context Resolution, deterministic Projection, memory promotion, Snapshot Memory, delta/drift, redaction/retention, and snapshot-grounding semantics. HCM-0.4 freezes adapter preservation across the SDK, CLI, Tauri, and the distinct transitional/permanent Substrate boundaries. The exact field contracts and validation/defaulting matrices live in `05-contracts-schemas-and-gates.md`.
 
-These freezes are not implementation proof. All runtime gates remain open, and the shipped artifact/default-instance set plus shipped Resolution labels/default policy remain explicitly unresolved rather than being selected by examples.
+These freezes are not implementation proof. HCM-0.6 now approves the exact shipped artifact-kind catalog, root-profile instances, requiredness, condition identity/policy, role/capability bindings, lifecycle posture, and intake/renderer support posture. All runtime gates remain open, and shipped Resolution labels/default policy remain unresolved; examples still select nothing.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ Example stable roles:
 ```text
 constitutional_authority
 project_context
-environment_inventory
+environment_context
 delivery_unit
 coordination_horizon
 implementation_unit
@@ -143,7 +143,7 @@ V1 dependency cardinality is intentionally small: `exactly_one` requires one dis
 
 ### Constitutional root
 
-Every valid resolved profile contains exactly one instance selected for the `constitutional_root` semantic capability. That instance is `always` required. Its display name and concrete canonical path are profile-defined; the shipped default binding may remain Charter.
+Every valid resolved profile contains exactly one instance selected for the `constitutional_root` semantic capability. That instance is `always` required. Its display name and concrete canonical path are profile-defined; the shipped root profile binds `project_authority` with the default label Charter and path `.handbook/project/charter.yaml`.
 
 This is a semantic invariant, not a literal filename requirement.
 
@@ -151,18 +151,15 @@ A kind may satisfy the constitutional-root capability only when its declared cap
 
 No profile overlay, condition, waiver, vocabulary mapping, or adapter may remove or multiply the constitutional-root capability. Changing which instance selects it is an explicit reviewed profile change and must preserve one valid root throughout atomic promotion.
 
-### Shipped defaults require a decision session
+### Approved HCM-0.6 shipped defaults
 
-Handbook will ship an opinionated, versioned collection of artifact kinds and a default profile selecting some instances. The actual default set is intentionally unresolved in this control pack.
+HCM-0.6 completed focused research, a shared-rubric Minimal/Standard/Full comparison, an explicit user decision session, and final review/proof. The authoritative decision is [`slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md`](slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md); the machine-oriented contract tables are in `05-contracts-schemas-and-gates.md`.
 
-Before the set is frozen, Phase 0 must produce:
+The approved first-party catalog has exactly six semantic kinds: durable normative project authority, maintained factual project context, maintained environment/runtime operational facts, bounded intended work/change, discrete project/work decisions, and maintained risk/uncertainty records. The shipped root profile selects exactly `project_authority`, `project_context`, and conditional `environment_context`; it selects no work, decision, or risk instance.
 
-1. focused research into common durable project-governance/context artifacts and their failure modes;
-2. a comparison of minimal, standard, and fuller candidate sets;
-3. a user brainstorming/decision session covering purpose, overlap, lifecycle, requiredness, and projection needs;
-4. an explicit approved decision identifying the shipped kinds, default instances, and which are required or optional.
+Selection is not requiredness, materialization, role, capability, or authority. `project_authority` and `project_context` are always required. `environment_context` is required only when `handbook.condition.project.managed-operational-surface@1.0.0` evaluates `true` from independently authoritative evidence. The unique constitutional root still arises only from the separate `constitutional_root` selection and exact `handbook.capabilities.constitutional-root@1.0.0` conformance.
 
-Names such as Charter, Project Context, Environment Inventory, Technology Stack, decision policy, or risk register are candidate examples only. Their presence in this pack is not approval of the final shipped set.
+Labels such as Charter, Project Context, and Environment Context are shipped-profile presentation defaults rather than machine identity. Repository vocabulary may replace them while preserving exact typed kind, instance, role, capability, registry, and condition identities. Current enums, examples, templates, and filenames do not amend the decision.
 
 ### Custom artifacts
 

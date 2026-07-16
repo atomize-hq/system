@@ -126,7 +126,7 @@ No lower proof level implies a higher one.
 | Gate | Required proof | Current state |
 |---|---|---|
 | `PG-PROFILE-01` | selected profile resolves complete artifact/vocabulary/Resolution truth with deterministic fingerprint | open |
-| `PG-DEFAULT-01` | focused research plus a user brainstorming/decision session explicitly approve the shipped kind set, default instances, and requiredness; examples/current enums do not count | open |
+| `PG-DEFAULT-01` | focused research plus a user brainstorming/decision session explicitly approve the shipped kind set, default instances, and requiredness; examples/current enums do not count | closed for the HCM-0.6 documentation decision by its exact approved record, final proof wall, clean independent review, and two-commit closeout; no runtime/profile publication proof |
 | `PG-KIND-01` | a versioned `ArtifactKindDefinition` resolves a safe canonical schema, validation, optional intake, lifecycle, and projections independently from repository instance state | open |
 | `PG-KIND-02` | repository-defined custom kind registers, passes meta-schema/structural validation, and exercises supplied intake coverage without a new Rust enum variant, executable hook, remote schema fetch, generated CLI command, or pre-Phase-3 generic projection engine | open |
 | `PG-ARTIFACT-01` | a profile-selected `ArtifactInstanceDescriptor` binds a kind to path/label/requiredness/dependencies and participates in validation/doctor/flow | open |
@@ -274,7 +274,7 @@ Do not replace evidence refs with “all tests passed.”
 
 ## HCM-0.2 semantic-freeze proof gate
 
-HCM-0.2 is a documentation/design freeze. Its closeout does not promote any runtime implementation gate in the open-program table. Before HCM-0.2 may close:
+HCM-0.2 is a documentation/design freeze. Its closeout does not promote any runtime implementation gate in the open-program table. At its completed closeout, the following conditions had to hold; later approved slices may resolve the items explicitly left open here without rewriting this historical gate:
 
 - `02-semantic-model.md` identifies the exact frozen HCM-0.2 boundary while leaving HCM-0.3+ contracts and the HCM-0.6 shipped-default decision unresolved;
 - the HCM-0.2 sections in `05-contracts-schemas-and-gates.md` define every in-scope authored or derived field with its owner/authority, default or omission behavior, required validation, and explicit non-goal;
@@ -320,7 +320,7 @@ HCM-0.3 is a documentation/design freeze. It does not implement the HCM-3.2–HC
 
 ## HCM-0.4 ownership/SDK/transport freeze proof gate
 
-HCM-0.4 is a documentation/design freeze. It does not create crates, implement SDK/CLI/Tauri/Substrate behavior, publish packages, select shipped artifact defaults, freeze HCM-0.5 contract/dock semantics, or promote `PG-SDK-01`, `PG-JSON-01`, `PG-TAURI-01`, `PG-SUB-CLI-01`, `PG-PUBLISH-01`, or `PG-SUB-RUST-01`. Before HCM-0.4 may close:
+HCM-0.4 is a documentation/design freeze. It does not create crates, implement SDK/CLI/Tauri/Substrate behavior, publish packages, select shipped artifact defaults, freeze HCM-0.5 contract/dock semantics, or promote `PG-SDK-01`, `PG-JSON-01`, `PG-TAURI-01`, `PG-SUB-CLI-01`, `PG-PUBLISH-01`, or `PG-SUB-RUST-01`. At its completed closeout, the following conditions had to hold; later approved HCM-0.5/HCM-0.6 decisions resolve their reserved design questions without changing this historical gate:
 
 - `01-target-architecture.md` freezes the semantic-owner/SDK/transport/Substrate split, `handbook-contracts` owner, acyclic dependency direction, `handbook-compiler` retirement, and four-tier integration ladder;
 - `02-semantic-model.md` requires adapters to preserve exact operation/schema/semantic/Resolution/provenance/omission truth and separates the transitional bridge from permanent Rust adoption;
@@ -371,9 +371,58 @@ HCM-0.5 is a documentation/design freeze. It does not implement `handbook-contra
 - proof and staging replay the clean manifest byte-identically before the primary subject commit, followed only by the parent-owned separate v1.2 handoff/ledger closeout commit; and
 - HCM-0.6 is not auto-started.
 
+## HCM-0.6 shipped-default documentation-decision proof gate
+
+HCM-0.6 closes `PG-DEFAULT-01` only as a reviewed target-data decision. It does
+not promote `PG-PROFILE-01`, `PG-KIND-01`, `PG-ARTIFACT-01`, `PG-INTAKE-01`,
+`PG-INTAKE-02`, `PG-CHARTER-01`, `PG-YAML-01`, `PG-YAML-02`, or any runtime,
+transport, contract, dock, or gate proof. Before HCM-0.6 may close:
+
+- the review-clean research dossier separates primary-source facts, current
+  repository precedent, local inference, and user authority;
+- Minimal, Standard, and Full candidates use the same rubric and keep shipped
+  kinds distinct from selected instances and requiredness;
+- the explicit user decision record fixes exactly six first-party kind refs,
+  exactly three root-profile instance descriptors, always/always/conditional
+  requiredness, the exact managed-operational-surface condition ref/policy,
+  and one unique `constitutional_root` provider;
+- the machine tables pin full exact namespaced kind refs, the
+  `handbook.capabilities.constitutional-root@1.0.0` capability contract, and
+  `handbook.roles.core@1.1.0` with
+  `sha256:0c85b1b53786e7980c4fd0d7975cd9cde1a3eae2bc8daceb23be1a1731263029`;
+- kind identity, instance identity, stable role, semantic capability, label,
+  path, requiredness, materialization, and authority remain separate typed
+  decisions even where names match;
+- `project_authority` is always required and uniquely selects
+  `constitutional_root` through a conforming Project Authority kind;
+  `project_context` is always required factual orientation/reference truth;
+  `environment_context` is required only on positive independently
+  authoritative evidence and no indeterminate outcome becomes false;
+- the root profile selects no Work Specification, Decision Record, or Risk
+  Record and setup/doctor receive no authority to scaffold empty artifacts for
+  them;
+- lifecycle/reassessment responsibilities do not invent policy IDs, states,
+  freshness thresholds, retention, mutation, or automation;
+- all six kinds receive a future first-party schema-backed intake and fixed
+  deterministic human-review renderer while canonical YAML remains authority,
+  fixed renderers remain outside capitalized Projection, and the shipped root
+  profile initially selects no Projection definitions;
+- deferred runbook, quality-strategy, catalog, and other artifact roles remain
+  outside the six-kind catalog unless separately amended with evidence;
+- affected `00`-`06` authority, the slice decision/SPEC/plan/todo, and final
+  proof agree without modifying Rust, Cargo, runtime, schemas, profile assets,
+  setup/doctor, CLI, SDK, Tauri, Substrate, or HCM-0.7;
+- `git diff --check`, archive-boundary checks, Markdown/link/identity/refusal
+  assertions, handoff validation/self-tests, and staged GitNexus change
+  detection pass;
+- a different-fresh isolated built-in `default` reviewer reports `CLEAN` over
+  the complete exact subject and proof wall; and
+- the primary reviewed documentation commit plus a second mechanical v1.2
+  completed handoff/ledger closeout bind and replay the exact subject.
+
 ## Control-pack orchestration-repair proof gate
 
-The immutable HCM-0.1 history remains evidence of the prior workflow and is not rewritten. Before corrective slice `HCM-0.8` may close:
+The immutable HCM-0.1 history remains evidence of the prior workflow and is not rewritten. At corrective slice HCM-0.8's completed closeout, the following conditions had to hold; the later HCM-0.6 decision resolves the shipped-default item that was intentionally open at that boundary:
 
 - all control-pack files exist and link correctly;
 - all versioned handoff/internal-dispatch schemas, current templates, every immutable handoff record, current JSON dispatch, and every ledger entry pass Draft 2020-12 validation with exact record/index parity and a byte-identical deterministic ledger rebuild; the validator hash-admits all exact pre-correction v1.0/v1.1 records and eight legacy Markdown dispatches, and deterministic negative proof rejects unknown/modified/deleted historical records or dispatches;

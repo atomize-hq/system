@@ -2,10 +2,14 @@
 
 ## Status
 
-Decision-ready research draft. This document supplies evidence and inference;
-it does not approve a shipped kind, default instance, requiredness mode, label,
-or path. `PG-DEFAULT-01` remains open until the user-approved decision record
-and clean final review exist.
+Research complete. The later approved authority is
+[`../decision/shipped-default-artifact-set-decision.md`](../decision/shipped-default-artifact-set-decision.md);
+this dossier remains evidence and rationale rather than the selected default.
+
+At research capture this was a decision-ready draft and `PG-DEFAULT-01` was
+open. This document still supplies evidence and inference rather than approval;
+the later decision and final review/proof own the selected values and gate
+closure.
 
 Research date: 2026-07-16.
 

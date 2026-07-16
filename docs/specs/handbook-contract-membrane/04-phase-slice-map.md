@@ -41,7 +41,7 @@ Creating a child packet or internal dispatch does not complete the parent slice.
 | `HCM-0.4` | Freeze crate ownership, `handbook-sdk`, CLI JSON, Tauri, and Substrate integration ladder | owner matrix, SDK use-case inventory, transport DTO contract, published proof plan | no use case depends on CLI prose; bridge and permanent boundary are distinct |
 | `HCM-0.9` | Abandoned corrective decomposition attempt | immutable rejected planning/review evidence only; no leaf files and no index cutover | terminal Redesign Review 2 was not CLEAN after the only authorized remediation; decomposition is abandoned, `05-contracts-schemas-and-gates.md` remains canonical, and execution requires a new explicit human decision and newly reviewed packet |
 | `HCM-0.5` | Freeze one fail-closed contract membrane and dock protocol without runtime work | canonical `00`-`06` subject defining exact contract identity/SemVer compatibility, immutable lifecycle, claims/applicability, evidence cardinality/provenance/freshness/Resolution/consistency, verdict/gate precedence, dock implementation-bundle/typed-launch-vector/runtime closure, process JSON/isolation/total-outcome semantics, bounded JSON Schema proof target, and HCM-0.4-compatible operations | complete proof wall and fresh independent review bind the exact subject; lifecycle stays separate from evaluation, validators stay witnesses, `handbook.dock.json-schema@1.0.0` is selected only as a future target, the `05` monolith remains canonical, and `PG-CONTRACT-01`/`PG-DOCK-01`/`PG-GATE-01` remain open |
-| `HCM-0.6` | Research and approve the shipped default artifact set | research dossier; minimal/standard/full candidate comparison; user brainstorming/decision record; approved shipped kind/instance/requiredness list | default set is evidence-backed and explicitly approved; no current enum, template, filename, or illustrative example became a default by inertia |
+| `HCM-0.6` | Research and approve the shipped default artifact set | reviewed research dossier and candidate comparison; explicit user decision record; exact six-kind catalog; exact three-instance root-profile selection; requiredness/condition, role/capability, lifecycle, and support posture | approved decision and `PG-DEFAULT-01` proof bind the complete target set; runtime remains unimplemented; no enum, template, filename, or example became authority by inertia |
 | `HCM-0.8` | Correct the development orchestration and true-stop handoff control plane discovered after the original HCM-0.1 review | long-lived `07` runner; parent-owned `08` protocol; internal dispatch contract; handoff v1.2 schema/template/validator; split handoff/orchestration proof | one active parent executes a fresh built-in review internally, reconciles results, and writes one v1.2 closeout; internal agents write no global handoffs; prior records/dispatches remain immutable evidence |
 | `HCM-0.7` | Approve the implementation program and first slice packet | reviewed phase map plus first `slices/<id>/SPEC.md`, plan, and todo | Phase 0 contracts/default decisions are closed and the first slice is independently implementable with a complete proof wall |
 
@@ -75,6 +75,18 @@ Creating a child packet or internal dispatch does not complete the parent slice.
 
 **Non-goals:** Rust, Cargo, runtime, schema publication, HCM-0.6 research/default selection, HCM-0.7 approval, HCM-0.9 repair, catalog leaves/index/routing, a universal validator, waiver semantics, remote registry, or marketplace.
 
+### `HCM-0.6` shipped-default decision contract
+
+**Dependencies:** frozen HCM-0.2 kind/instance/registry/intake/constitutional-root semantics, HCM-0.3 renderer/Projection separation, HCM-0.4 owner/transport boundaries, HCM-0.5 contract/evidence/gate separation, and HCM-0.8 orchestration controls are completed dependency evidence. Current enums, templates, paths, examples, and historical artifacts are precedent only.
+
+**Approved output:** exactly six first-party kind refs at `1.0.0`; additive `handbook.roles.core@1.1.0` with exact fingerprint and distinct artifact role `environment_context`; root instances `project_authority`, `project_context`, and `environment_context` at the three `.handbook/project/*.yaml` paths; always/always/conditional requiredness; exact managed-operational-surface condition identity and six-outcome evidence policy; one unique `constitutional_root`; approved role-support, lifecycle/review, first-party intake/renderer posture; and no capitalized Projection selected by the shipped root profile. The complete authority is [`slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md`](slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md).
+
+**Exit gate:** research and candidates remain review-clean provenance; the explicit user decision is transcribed without inventing subordinate schemas or implementation; affected `00`-`06` rows agree; `PG-DEFAULT-01` closes only for the documentation decision; a different-fresh independent reviewer reports `CLEAN`; final proof and staged change detection replay the exact subject; and the two-commit completed handoff closes the slice.
+
+**Runtime boundary:** registry/kind/schema/profile/condition/intake/renderer publication, setup/doctor behavior, materialization, canonical YAML content, migration, adapters, and Projections remain unimplemented. `PG-PROFILE-01`, `PG-KIND-01`, `PG-ARTIFACT-01`, `PG-INTAKE-*`, `PG-CHARTER-01`, `PG-YAML-*`, and runtime/transport gates remain open.
+
+**Non-goals:** Rust, Cargo, runtime, schema/definition publication, setup or empty-artifact scaffolding, content-field decisions, adapter/source-of-truth mappings, HCM-0.7 work, or widening any deferred kind into the six-kind catalog.
+
 ### Phase 0 non-goals
 
 - Rust changes;
@@ -84,7 +96,7 @@ Creating a child packet or internal dispatch does not complete the parent slice.
 - Tauri scaffolding;
 - actual dock execution;
 - speculative third-party workflow adapters.
-- implementation-selected shipped artifact defaults before `HCM-0.6` approval.
+- implementation-selected defaults that differ from or infer beyond the approved HCM-0.6 decision.
 
 ## Phase 1 — Profile and artifact semantic kernel
 
@@ -134,7 +146,7 @@ Creating a child packet or internal dispatch does not complete the parent slice.
 
 ### `HCM-2.1` — Vertical pilot artifact
 
-Select one lower-risk artifact family after Phase 0 review. Project Context is the current leading implementation candidate because a structured input model and deterministic renderer already exist; pilot selection does not itself add that kind to the approved shipped default set.
+Select one lower-risk artifact family after Phase 0 review. Project Context is the current leading implementation candidate because a structured input model and deterministic renderer already exist and HCM-0.6 includes its kind and one root instance; pilot selection does not amend the approved catalog, descriptor, or requiredness decisions.
 
 - canonical YAML load/validate/write;
 - renderer-derived Markdown human-review view produced by the existing fixed deterministic first-party renderer;

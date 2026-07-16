@@ -6,6 +6,14 @@ Turn the reserved shipped-default question into an evidence-backed user
 decision while preserving the frozen kind/instance/requiredness contracts and
 remaining documentation-only.
 
+## Decision status
+
+Tasks 1-5 completed in the pre-decision run and its `human_input` closeout. The
+user then completed the focused decision sequence and approved the consolidated
+package. Task 6 now records that authority, aligns the affected control-pack
+rows, obtains a different-fresh final review, proves the exact subject, and
+performs the required two-commit completed closeout without starting HCM-0.7.
+
 ## Dependency graph
 
 ```text
@@ -84,6 +92,12 @@ two-commit closeout protocol.
 
 **Verify:** approved kind/default-instance/requiredness lists are exact and
 internally valid; all final proof/review/handoff gates pass.
+
+The authoritative decision path is
+`decision/shipped-default-artifact-set-decision.md`. The final review subject
+must include the exact decision, affected `00`-`06` bytes, slice control files,
+research provenance, and final proof wall. No subject byte changes after
+`CLEAN`.
 
 ## Risks and mitigations
 

@@ -7,10 +7,10 @@
 - [x] Write `research/shipped-default-artifact-set-research.md`.
 - [x] Write `research/candidate-comparison.md`.
 - [x] Run targeted pre-decision verification.
-- [ ] Obtain clean fresh independent review of the complete pre-decision subject.
-- [ ] Commit the reviewed decision-ready slice state.
-- [ ] Write, validate, and separately commit a `human_input` handoff if the user decision is still pending.
-- [ ] Run the one-question-at-a-time user brainstorming/decision session.
-- [ ] Write the explicitly approved decision record.
-- [ ] Update only affected canonical rows and `PG-DEFAULT-01` when earned.
+- [x] Obtain clean fresh independent review of the complete pre-decision subject.
+- [x] Commit the reviewed decision-ready slice state.
+- [x] Write, validate, and separately commit a `human_input` handoff because the user decision was pending.
+- [x] Run the one-question-at-a-time user brainstorming/decision session.
+- [x] Write the explicitly approved decision record.
+- [x] Update only affected canonical rows and the final intended `PG-DEFAULT-01` decision posture.
 - [ ] Obtain a different-fresh final slice review, run the final proof wall, and close HCM-0.6.

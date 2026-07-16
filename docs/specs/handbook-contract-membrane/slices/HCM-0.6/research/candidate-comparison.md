@@ -2,9 +2,19 @@
 
 ## Status
 
-Decision-ready comparison, not approval. Names and paths below are candidate
-machine values for discussion. The explicit user decision record is the only
-authority that can select or change them.
+Historical decision-ready comparison and rationale, not current authority.
+Names and paths below remain the candidate values presented for discussion.
+The later explicit user decision record is the only authority that selected or
+changed them.
+
+## Decision outcome
+
+The user selected the Standard-catalog/lean-default product posture, then
+resolved each subordinate kind, role, instance, requiredness, condition,
+lifecycle, and support question independently. The authoritative result is
+[`../decision/shipped-default-artifact-set-decision.md`](../decision/shipped-default-artifact-set-decision.md).
+It closes the catalog at six kinds but selects only three root instances and
+does not retain every candidate name, risk instance, or condition value below.
 
 ## Comparison convention
 

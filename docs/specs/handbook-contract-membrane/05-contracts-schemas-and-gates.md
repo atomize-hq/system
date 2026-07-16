@@ -4,7 +4,7 @@
 
 The HCM-0.2 sections are frozen design contracts: schema policy, instance-profile composition for stable-role/schema/kind/instance/vocabulary truth, stable-role and schema registries, artifact kinds, artifact instances, intake records/candidates/promotion, Charter/constitutional-root semantics, validation layers, vocabulary, and the project-posture owner/transition boundary. HCM-0.3 additionally freezes the Context Resolution stack/envelope/escalation/promotion, deterministic Projection definition/request/result, Snapshot Memory capture/record/delta/projection, and redaction/retention contracts. HCM-0.4 freezes crate ownership, the SDK ordinary-use-case inventory, operation/DTO identities, CLI JSON and Tauri adapter behavior, the transitional Substrate process bridge, and the permanent published-Rust proof plan. The HCM-0.5 sections below are the complete implementation-grade contract-membrane/dock design subject governed by the HCM-0.5 proof/review closeout record. They become frozen target authority only when that closeout is completed; otherwise they remain an unclosed subject. These documentation contracts are not published API guarantees or evidence that runtime types exist.
 
-The HCM-0.4 owner, SDK/transport, and public-proof-plan sections remain frozen design authority and are changed by HCM-0.5 only through the explicitly appended ordinary contract/dock operations. `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` remain open; no contract/dock crate, schema, manifest, bundle, process, validator, SDK/CLI/Tauri/Substrate path, or runtime proof is implied. The shipped artifact-kind/default-instance/requiredness set and shipped Resolution labels/default policy remain unresolved rather than being selected by illustrative examples.
+The HCM-0.4 owner, SDK/transport, and public-proof-plan sections remain frozen design authority and are changed by HCM-0.5 only through the explicitly appended ordinary contract/dock operations. `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` remain open; no contract/dock crate, schema, manifest, bundle, process, validator, SDK/CLI/Tauri/Substrate path, or runtime proof is implied. HCM-0.6 now freezes the shipped artifact-kind/default-instance/requiredness data and its exact condition/role/capability/lifecycle/support posture below. Shipped Resolution labels/default policy remain unresolved, and illustrative examples still select nothing.
 
 ## Schema policy
 
@@ -55,13 +55,13 @@ schema_registry_sources:
   - handbook.schemas.context-memory-snapshot@1.0.0
   - handbook.schemas.snapshot-delta@1.0.0
 artifact_kind_sources:
-  - handbook.artifact-kind.charter@1.0.0
+  - example.artifact-kind.constitutional-authority@1.0.0
   - handbook.artifact-kind.project-context@1.0.0
 artifact_instances:
   - schema_id: handbook.artifact-instance-descriptor
     schema_version: "1.0"
     id: example_constitutional_root
-    kind_ref: handbook.artifact-kind.charter@1.0.0
+    kind_ref: example.artifact-kind.constitutional-authority@1.0.0
     role_ref: constitutional_authority
     capability_refs:
       - constitutional_root
@@ -91,7 +91,7 @@ extensions: {}
 profile_fingerprint: sha256:...
 ```
 
-This is one internally consistent illustrative authored profile, not a proposed shipped profile. Its artifact kind, instance, label, path, renderer selection, and requiredness are examples only and do not freeze the shipped set; that decision remains reserved until `HCM-0.6` completes research and a user brainstorming/decision session.
+This is one internally consistent illustrative authored profile, not the shipped profile. Its artifact kind, instance, label, path, renderer selection, and requiredness remain examples only and select nothing. The completed HCM-0.6 decision record and exact tables below are the sole shipped-set authority.
 
 Required gates:
 
@@ -153,7 +153,7 @@ schema_registry_entries:
   - { entry_ref: handbook.schemas.context-memory-snapshot@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
   - { entry_ref: handbook.schemas.snapshot-delta@1.0.0, entry_fingerprint: sha256:..., closure_fingerprint: sha256:... }
 artifact_kind_definitions:
-  - kind_ref: handbook.artifact-kind.charter@1.0.0
+  - kind_ref: example.artifact-kind.constitutional-authority@1.0.0
     definition_fingerprint: sha256:...
   - kind_ref: handbook.artifact-kind.project-context@1.0.0
     definition_fingerprint: sha256:...
@@ -161,7 +161,7 @@ artifact_instances:
   - schema_id: handbook.artifact-instance-descriptor
     schema_version: "1.0"
     id: example_constitutional_root
-    kind_ref: handbook.artifact-kind.charter@1.0.0
+    kind_ref: example.artifact-kind.constitutional-authority@1.0.0
     role_ref: constitutional_authority
     capability_refs:
       - constitutional_root
@@ -331,8 +331,52 @@ roles:
   - role_id: atomic_action
     canonical_display_label: Atomic Action
     category: workflow
-registry_fingerprint: sha256:...
+registry_fingerprint: sha256:7d9407b43ebdda9ac73206bdfcb0e60e3906bdba980820ed12717d63c28e5c3f
 ```
+
+HCM-0.6 preserves that exact 1.0.0 definition and fingerprint and freezes the
+following additive registry target data for later publication. This decision
+does not itself publish a registry asset or runtime definition:
+
+```yaml
+schema_id: handbook.stable-role-registry
+schema_version: "1.0"
+registry_id: handbook.roles.core
+registry_version: "1.1.0"
+roles:
+  - role_id: constitutional_authority
+    canonical_display_label: Constitutional Authority
+    category: governance
+  - role_id: project_context
+    canonical_display_label: Project Context
+    category: artifact
+  - role_id: environment_context
+    canonical_display_label: Environment Context
+    category: artifact
+  - role_id: coordination_horizon
+    canonical_display_label: Coordination Horizon
+    category: workflow
+  - role_id: delivery_unit
+    canonical_display_label: Delivery Unit
+    category: workflow
+  - role_id: implementation_unit
+    canonical_display_label: Implementation Unit
+    category: workflow
+  - role_id: execution_envelope
+    canonical_display_label: Execution Envelope
+    category: workflow
+  - role_id: atomic_action
+    canonical_display_label: Atomic Action
+    category: workflow
+registry_fingerprint: sha256:0c85b1b53786e7980c4fd0d7975cd9cde1a3eae2bc8daceb23be1a1731263029
+```
+
+The 1.1.0 fingerprint uses the uniform exact-definition derivation over the
+authored registry order and normalized content, excluding only
+`registry_fingerprint`. Existing 1.0.0 roles retain their exact semantics;
+`environment_context` is a distinct artifact role, not an alias/subtype of
+`project_context`. Its category grants no authority, applicability,
+requiredness, schema shape, or materialization.
 
 | Field | Owner and authority | Default/omission | Required validation | Explicit non-goal |
 |---|---|---|---|---|
@@ -343,14 +387,14 @@ registry_fingerprint: sha256:...
 | `roles[].category` | stable-role authority classifies legal uses/absorptions | none | `artifact`, `workflow`, `governance`, `evidence`, or `organizational` | category does not grant a capability |
 | `registry_fingerprint` | Handbook derives exact registry identity | none | SHA-256 over normalized registry fields except this fingerprint | no mutable registry behind a stable ref |
 
-Profiles select exactly one registry ref/fingerprint pair. Every resolved kind and vocabulary record must cite that same pair. Unknown roles, mismatched registry versions/fingerprints, category-invalid absorptions, and changed bytes behind an unchanged ref fail closed. Exact selection, not process-global code, determines canonical fallback labels and role validation.
+Profiles select exactly one registry ref/fingerprint pair. Every resolved kind and vocabulary record must cite that same pair. The HCM-0.6 shipped root profile and six shipped kind definitions pin `handbook.roles.core@1.1.0` with `sha256:0c85b1b53786e7980c4fd0d7975cd9cde1a3eae2bc8daceb23be1a1731263029`; 1.0.0 consumers remain pinned to 1.0.0 until explicitly migrated. Unknown roles, mismatched registry versions/fingerprints, category-invalid absorptions, changed bytes behind an unchanged ref, and automatic minor-version substitution fail closed. Exact selection, not process-global code, determines canonical fallback labels and role validation.
 
 ## Artifact kind definition contract
 
 ```yaml
 schema_id: handbook.artifact-kind-definition
 schema_version: "1.0"
-kind_id: handbook.artifact-kind.charter
+kind_id: example.artifact-kind.constitutional-authority
 kind_version: "1.0.0"
 compatibility: exact
 stable_role_registry:
@@ -397,7 +441,7 @@ Kind gates:
 - no new Rust enum variant or CLI command is required;
 - schemas contain no executable hooks or undeclared remote references.
 
-The actual shipped kind/default-instance set is not defined by this illustrative Charter example. It is frozen only by the research and user decision in `HCM-0.6`.
+This illustrative constitutional kind uses an `example.*` identity and selects no first-party kind. The exact shipped kind/default-instance set is frozen only by the HCM-0.6 tables below and its approved decision record.
 
 `definition_fingerprint` is derived over the normalized kind record plus the stable-role registry fingerprint and the resolved fingerprints of its schema, capability contracts, semantic validators, renderer definitions, lifecycle policy, and declared extension schemas. It does not include or reference intake definitions; intake definitions point to kinds. It is emitted on the validated definition and excluded from its own hash; authors do not choose it.
 
@@ -531,6 +575,149 @@ The constitutional-root instance adds these gates: it is the only instance whose
 
 Dependency conformance scenarios required by implementation packets include: zero/one/two providers against both cardinalities; an exact contract-version match and mismatch; duplicate same-capability declarations in one kind; deterministic ordering of multiple `at_least_one` providers; and refusal when an instance dependency uses any cardinality other than `exactly_one`.
 
+## HCM-0.6 exact shipped kind and root-profile data
+
+This section freezes target data only. It does not publish any definition,
+schema, profile, condition evaluator, intake, renderer, or runtime behavior.
+Every kind and the shipped root profile pin this stable-role registry pair:
+
+| Field | Exact value |
+|---|---|
+| `stable_role_registry.ref` | `handbook.roles.core@1.1.0` |
+| `stable_role_registry.fingerprint` | `sha256:0c85b1b53786e7980c4fd0d7975cd9cde1a3eae2bc8daceb23be1a1731263029` |
+
+### First-party kind catalog and semantic allowlists
+
+| Exact kind ref | Supported `role_ref` values | Advertised semantic capabilities |
+|---|---|---|
+| `handbook.artifact-kind.project-authority@1.0.0` | `constitutional_authority` | capability ID `constitutional_root`; exact contract `handbook.capabilities.constitutional-root@1.0.0` |
+| `handbook.artifact-kind.project-context@1.0.0` | `project_context` | none |
+| `handbook.artifact-kind.environment-context@1.0.0` | `environment_context` | none |
+| `handbook.artifact-kind.work-specification@1.0.0` | `coordination_horizon`, `delivery_unit`, `implementation_unit`, `execution_envelope`, `atomic_action` | none |
+| `handbook.artifact-kind.decision-record@1.0.0` | none; explicit null only | none |
+| `handbook.artifact-kind.risk-record@1.0.0` | none; explicit null only | none |
+
+This table is an exact closed first-party artifact-kind catalog for v1. A new
+first-party kind requires a separate evidence-backed catalog amendment. Custom
+kinds, repository profiles, external authoritative systems, future adapters,
+and non-artifact semantic/executable records remain allowed. A deferred role
+cannot be introduced indirectly by widening an approved kind until it
+substantially owns that role.
+
+Every kind has its own definition fingerprint, content-schema binding,
+compatibility history, and version sequence. Shared `1.0.0` versions imply no
+lockstep or cross-kind compatibility. Exact kind refs admit no range/latest
+substitution and grant no role, capability, authority, currentness, instance,
+schema, intake, renderer, or implementation readiness.
+
+The Work Specification role list is an allowlist only. An instance selects at
+most one value explicitly, or explicit null when permitted; the kind never
+selects a workflow level or creates hierarchy/cardinality. Decision and Risk
+records use explicit null because a record about a subject does not occupy that
+subject's role; future subject/scope/evidence/posture links require exact typed
+references.
+
+### Shipped root-profile artifact instances
+
+| `id` | `kind_ref` | `role_ref` | `capability_refs` plus contract closure | `label` | `canonical_path` | `requiredness.mode` | `requiredness.condition_ref` |
+|---|---|---|---|---|---|---|---|
+| `project_authority` | `handbook.artifact-kind.project-authority@1.0.0` | `constitutional_authority` | `constitutional_root` via `handbook.capabilities.constitutional-root@1.0.0` | Charter | `.handbook/project/charter.yaml` | `always` | `null` |
+| `project_context` | `handbook.artifact-kind.project-context@1.0.0` | `project_context` | empty | Project Context | `.handbook/project/context.yaml` | `always` | `null` |
+| `environment_context` | `handbook.artifact-kind.environment-context@1.0.0` | `environment_context` | empty | Environment Context | `.handbook/project/environment.yaml` | `conditional` | `handbook.condition.project.managed-operational-surface@1.0.0` |
+
+The root profile selects exactly those three descriptors and no Work
+Specification, Decision Record, or Risk Record descriptor. Selection does not
+imply materialization. Setup/doctor cannot treat unselected work/decision/risk
+artifacts as missing, scaffold empty general-purpose records, or treat a false
+Environment Context condition as incomplete.
+
+`project_authority` is the one always-required instance selecting capability ID
+`constitutional_root`; its kind must conform to the full exact
+`handbook.capabilities.constitutional-root@1.0.0` bindings/validators. Its
+`constitutional_authority` role, Charter label, path, requiredness, and kind ID
+remain independently insufficient to grant authority. Missing/invalid identity,
+content, bindings, approval, or conformance fails closed and cannot be replaced
+by Project Context, templates, defaults, external systems, or inferred policy.
+
+`project_context` is an always-required maintained factual orientation/reference
+surface, not constitutional policy or exhaustive fact storage. Its identity is
+stable while maintained content changes with authoritative current facts.
+Inference, empty placeholders, boilerplate, and stale mirrors cannot satisfy
+requiredness.
+
+`environment_context` is a maintained environment/deployment/runtime-dependency
+and safe-configuration fact surface. It cannot own secrets, runbooks, volatile
+live state, inferred deployment fact, exhaustive catalogs, or topology owned by
+another canonical source. One descriptor does not imply one internal
+environment. Its identity/path remain stable when inapplicable and absent.
+
+Paths and labels grant no typed semantics. Matching instance/role spellings do
+not merge namespaces. Consumers resolve exact descriptors; co-location does not
+merge responsibilities; path changes require explicit profile/migration
+handling with no fallback filename discovery or duplicate canonical authority.
+
+### Managed-operational-surface condition policy
+
+`handbook.condition.project.managed-operational-surface@1.0.0` is true only when
+an independently authoritative verified project fact or admitted evidence
+establishes continuing project responsibility for a runtime, deployment,
+operated automation, or operational integration whose durable facts must be
+maintained for safe operation, support, or change. Production is not required.
+Incidental language-runtime, package-manager, local/test-environment, container,
+or CI presence is insufficient, and a profile flag alone cannot replace the
+verified fact. Environment Context cannot satisfy its own condition.
+
+| Outcome | Exact semantic class | Boolean/applicability effect |
+|---|---|---|
+| `true` | current authoritative evidence positively proves qualifying continuing responsibility | applicable; artifact required and missing/invalid fails closed |
+| `false` | affirmative current authoritative evidence proves no qualifying responsibility | inapplicable; absence is complete |
+| `unknown` | evaluable inputs prove neither true nor false | indeterminate; no coercion |
+| `unresolved` | exact definition/input/reference/evidence cannot resolve | indeterminate; no coercion |
+| `stale` | evidence is outside the explicit freshness basis | indeterminate; no coercion |
+| `refused` | circular, malformed, untrusted, disallowed, or materially contradictory without approved precedence | indeterminate; no coercion |
+
+Evaluation is deterministic over exact definitions, independently authoritative
+facts/admitted evidence, and an explicit freshness basis and records the full
+fingerprinted input/evidence closure. Identical closure reproduces the outcome.
+Bare silence cannot establish `false`. Contradictions produce `refused` unless a
+separately approved authority/precedence contract resolves them. The condition
+record schema, exact input bindings, evidence types, freshness thresholds,
+outcome precedence, evaluator, transport, and migration remain separate
+contracts. Conditionality creates no empty scaffold or automatic artifact.
+
+### Lifecycle, support, and derived-view constraints
+
+| Kind | Approved lifecycle/reassessment responsibility |
+|---|---|
+| Project Authority | reviewed long-lived normative amendment; preserve provenance/history; reassess relevant governance, policy, exception, red-line, posture, and trigger changes |
+| Project Context | maintain current owned facts/references; reassess boundaries, ownership, and material bounded-topology changes without becoming a catalog |
+| Environment Context | maintain while applicable; reassess responsibility, durable dependencies/references, fact validity, and applicability evidence |
+| Work Specification | one bounded intended-change identity; explicit status/history; never a rolling unrelated singleton or assertion of implementation/current truth |
+| Decision Record | one discrete-decision identity; preserve effect/status/history separation and supersession lineage |
+| Risk Record | evidence-qualified uncertainty; reassess relevant evidence/assumptions/ownership/treatment/validity/posture references without enacting policy |
+
+A review trigger obliges reassessment but performs no automatic mutation,
+invalidation, supersession, deletion, or recreation. Stable identity does not
+mean immutable content. Exact lifecycle-policy refs, states/transitions,
+freshness, retention, automation, notifications, and operations remain
+unfrozen.
+
+Every shipped kind must publish before Phase 3 at least one compatible
+schema-backed first-party intake definition and at least one fixed deterministic
+human-review renderer. This support selects no instance and grants no truth or authority.
+Project Authority intake must satisfy the complete frozen constitutional-root
+coverage/approval/reassessment contract. Canonical YAML remains authoritative;
+fixed renderer output is derived and outside the capitalized Projection
+contract. The shipped root profile initially selects no Projection definitions.
+Exact intake/renderer refs and all implementations remain later decisions.
+
+Operational/runbook, quality-strategy, and software/service/component/API/
+resource-catalog kinds are deferred. Environment Context may reference but not
+own procedures; constitutional policy must not absorb mutable implementation
+verification plans; Project/Environment Context cannot mirror exhaustive
+catalogs. Deferral is reconsidered only through a separately approved,
+evidence-backed catalog amendment.
+
 ## Artifact intake definition contract
 
 ```yaml
@@ -538,7 +725,7 @@ schema_id: handbook.artifact-intake-definition
 schema_version: "1.0"
 intake_id: handbook.intake.charter
 intake_version: "1.0.0"
-artifact_kind_ref: handbook.artifact-kind.charter@1.0.0
+artifact_kind_ref: example.artifact-kind.constitutional-authority@1.0.0
 candidate_schema_ref: handbook.schemas.artifacts.charter@1.0.0
 supported_modes:
   - guided_adaptive
@@ -944,7 +1131,7 @@ schema_version: "1.0"
 intake_record_id: intake_...
 intake_definition_ref: handbook.intake.charter@1.0.0
 acquisition_mode: guided_adaptive
-target_kind_ref: handbook.artifact-kind.charter@1.0.0
+target_kind_ref: example.artifact-kind.constitutional-authority@1.0.0
 target_instance_id: example_constitutional_root
 profile_ref: handbook.profile.example@1.0.0
 resolved_profile_fingerprint: sha256:...
@@ -1135,7 +1322,7 @@ schema_id: handbook.artifact-candidate
 schema_version: "1.0"
 candidate_id: candidate_...
 intake_record_ref: intake_...
-target_kind_ref: handbook.artifact-kind.charter@1.0.0
+target_kind_ref: example.artifact-kind.constitutional-authority@1.0.0
 target_instance_id: example_constitutional_root
 target_schema_ref: handbook.schemas.artifacts.charter@1.0.0
 profile_ref: handbook.profile.example@1.0.0
@@ -1233,7 +1420,7 @@ expected_current_artifact_fingerprint: null
 profile_ref: handbook.profile.example@1.0.0
 resolved_profile_fingerprint: sha256:...
 resolved_definitions:
-  - definition_ref: handbook.artifact-kind.charter@1.0.0
+  - definition_ref: example.artifact-kind.constitutional-authority@1.0.0
     definition_fingerprint: sha256:...
 approval_refs:
   - approval_...
@@ -1280,7 +1467,7 @@ Required conformance scenarios include: an empty `target_paths` item refuses in 
 
 ## Charter intake and canonical contract
 
-`CharterIntakeDefinition` is the first rich first-party intake definition. Its coverage must account for the historical domains of project shape, delivery constraints, operational reality, posture and delivery implications, risk domains, engineering dimensions, exceptions/governance, debt, and decision records. Research/design may revise questions and branches, but omissions are explicit decisions. This contract does not decide the shipped default kind/instance set reserved for HCM-0.6.
+`CharterIntakeDefinition` is the first rich first-party intake definition. Its coverage must account for the historical domains of project shape, delivery constraints, operational reality, posture and delivery implications, risk domains, engineering dimensions, exceptions/governance, debt, and decision records. Research/design may revise questions and branches, but omissions are explicit decisions. This intake contract does not select defaults; the completed HCM-0.6 decision record and exact tables above are the sole shipped kind/instance authority.
 
 Guided-adaptive, express, and agent-assisted modes all produce the same canonical Charter candidate schema. The skill-directed LLM agent conducts the conversation and invokes Handbook CLI/SDK operations; Handbook owns coverage/evaluation/promotion and performs no hidden nested synthesis.
 
@@ -1296,7 +1483,7 @@ The versioned `constitutional_root` capability contract requires schema bindings
 
 Exactly one resolved artifact instance selects this capability and is `always` required. A custom kind may expose the capability only when its exact capability contract, bindings, semantic validators, intake/approval posture, and lifecycle policy pass. A role ref, label, filename, current enum variant, or requiredness flag alone never grants constitutional authority.
 
-Charter-specific defaults are intentionally narrow: absent optional rationale/evidence collections are empty only when the Charter content schema allows it; policy, authority, posture floors/red lines, required approvals, and required coverage have no implicit default. The HCM-0.6 decision may choose a shipped binding/path/label but cannot weaken these semantics.
+Charter-specific defaults are intentionally narrow: absent optional rationale/evidence collections are empty only when the Charter content schema allows it; policy, authority, posture floors/red lines, required approvals, and required coverage have no implicit default. The HCM-0.6 decision chooses a shipped kind/instance/role/capability/requiredness/path/label target without weakening these semantics or approving the subordinate intake definition.
 
 Explicit non-goals are a rigid CLI questionnaire, prompt-owned policy, agent self-approval, Markdown authority, a second editable posture document, automatic whole-Charter regeneration on one changed condition, or default-set selection by example.
 

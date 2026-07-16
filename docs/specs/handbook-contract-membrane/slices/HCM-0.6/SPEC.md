@@ -13,6 +13,12 @@ filenames, implementation paths, illustrative control-pack examples, and
 historical artifacts are evidence about migration cost or precedent only. None
 has decision authority.
 
+The explicit user decision session is now complete. The approved authority is
+[`decision/shipped-default-artifact-set-decision.md`](decision/shipped-default-artifact-set-decision.md).
+The research and candidate comparison remain decision provenance rather than a
+second authority. HCM-0.6 still authorizes documentation/control-pack changes
+only; implementation and HCM-0.7 remain out of scope.
+
 ## Objective
 
 Produce an evidence-backed, explicitly user-approved decision that identifies:
@@ -94,6 +100,13 @@ The slice closes only when all of the following are true:
 - a fresh independent reviewer reports no valid Critical or Required finding;
 - the proof wall and repository-required change detection pass; and
 - only documentation/control-pack artifacts are committed.
+
+The approved decision fixes exactly six kinds, three root-profile instances,
+always/always/conditional requiredness, the exact managed-operational-surface
+condition identity/policy, the unique constitutional root, exact role support,
+and the lifecycle/intake/renderer/Projection posture. Subordinate schemas,
+fields, policy IDs, definition IDs, publication, and runtime behavior remain
+unapproved.
 
 ## Non-goals
 
