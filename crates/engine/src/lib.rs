@@ -8,6 +8,7 @@ mod canonical_paths;
 mod canonical_repo_support;
 pub mod definition_identity;
 pub mod freshness;
+pub mod stable_role_registry;
 
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
@@ -60,6 +61,7 @@ pub use freshness::{
     InheritedDependency, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,
     MANIFEST_GENERATION_VERSION,
 };
+pub use stable_role_registry::{StableRoleCategory, StableRoleDefinition, StableRoleRegistry};
 
 pub fn workspace_contract_version() -> &'static str {
     "C-02"
