@@ -243,8 +243,6 @@ fn classify_typed_decode_error(error: serde_json::Error) -> RegistryLoadError {
     let detail = error.to_string();
     let kind = if detail.contains("unknown field") {
         RegistryLoadErrorKind::UnknownField
-    } else if detail.contains("unknown variant") && detail.contains("category") {
-        RegistryLoadErrorKind::InvalidStableRoleCategory
     } else if detail.contains("unknown variant") {
         RegistryLoadErrorKind::InvalidStableRoleCategory
     } else {

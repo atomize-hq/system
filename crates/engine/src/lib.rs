@@ -8,6 +8,7 @@ mod canonical_paths;
 mod canonical_repo_support;
 pub mod definition_identity;
 pub mod freshness;
+pub mod schema_registry;
 pub mod stable_role_registry;
 
 pub use artifact_manifest::{
@@ -60,6 +61,9 @@ pub use freshness::{
     compute_freshness, FreshnessIssue, FreshnessIssueKind, FreshnessStatus, FreshnessTruth,
     InheritedDependency, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,
     MANIFEST_GENERATION_VERSION,
+};
+pub use schema_registry::{
+    ResolvedSchema, SchemaRegistry, SchemaRegistryEntry, StructuralValidationError,
 };
 pub use stable_role_registry::{StableRoleCategory, StableRoleDefinition, StableRoleRegistry};
 
