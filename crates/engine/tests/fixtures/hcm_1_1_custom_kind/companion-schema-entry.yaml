@@ -1,0 +1,12 @@
+schema_id: handbook.schema-registry-entry
+schema_version: "1.0"
+content_schema_id: example.schemas.hcm-companion
+content_schema_version: 1.0.0
+document_ref: tests/fixtures/hcm_1_1_custom_kind/companion.schema.json
+document_fingerprint: sha256:19c14e8c41eeaaba3aa4012f5d6f12b661b9b350cd9e04d019b6dbecb8ee2861
+closure_fingerprint: sha256:afe1c37701e37a560f9b02eeabca69d60039435eb259c6775cbef718e59afe4e
+meta_schema_ref: https://json-schema.org/draft/2020-12/schema
+media_type: application/schema+json
+compatibility: exact
+extensions: {}
+entry_fingerprint: sha256:b8e4805fe82732b334046c0a4c77ab193cf9d61a2a6f2eccdce9cccad02c73a7
