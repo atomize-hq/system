@@ -6,6 +6,7 @@ pub mod baseline_validation;
 pub mod canonical_artifacts;
 mod canonical_paths;
 mod canonical_repo_support;
+pub mod definition_identity;
 pub mod freshness;
 
 pub use artifact_manifest::{
@@ -49,6 +50,11 @@ pub use canonical_artifacts::{
     CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
 pub use canonical_paths::{default_canonical_layout_contract, CanonicalLayoutContract};
+pub use definition_identity::{
+    parse_definition_yaml, parse_schema_json, DefinitionFingerprint, ExactDefinitionRef,
+    RegistryLoadError, RegistryLoadErrorKind, SourceByteBudget, MAX_SOURCE_DOCUMENT_BYTES,
+    MAX_TOTAL_SOURCE_BYTES,
+};
 pub use freshness::{
     compute_freshness, FreshnessIssue, FreshnessIssueKind, FreshnessStatus, FreshnessTruth,
     InheritedDependency, OverrideTarget, OverrideWithRationale, C03_SCHEMA_VERSION,
