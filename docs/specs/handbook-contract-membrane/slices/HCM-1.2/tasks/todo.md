@@ -84,9 +84,9 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 11 — Vocabulary producer
 
-- [ ] RED complete vocabulary record/registry cases.
-- [ ] Add exact empty mappings and roles core pair.
-- [ ] Prove no applied vocabulary behavior; verify and commit green.
+- [x] RED complete vocabulary record/registry cases.
+- [x] Add exact empty mappings and roles core pair.
+- [x] Prove no applied vocabulary behavior; verify and commit green.
 
 ## Task 12 — Context Resolution policy producers
 

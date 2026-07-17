@@ -14,6 +14,7 @@ pub mod project_condition_registry;
 pub mod schema_registry;
 pub mod semantic_capability_registry;
 pub mod stable_role_registry;
+pub mod vocabulary_registry;
 
 pub use artifact_kind_registry::{
     load_artifact_kind_registry, ArtifactKindCapability, ArtifactKindDefinition,
@@ -84,6 +85,7 @@ pub use semantic_capability_registry::{
     SemanticValidationProfileDefinition,
 };
 pub use stable_role_registry::{StableRoleCategory, StableRoleDefinition, StableRoleRegistry};
+pub use vocabulary_registry::VocabularyDefinition;
 
 pub fn workspace_contract_version() -> &'static str {
     "C-02"
