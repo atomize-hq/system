@@ -32,9 +32,9 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 3 — Project Authority schema
 
-- [ ] RED exact entry/document/member and field-boundary cases.
-- [ ] Add the complete two-asset closure and prove exact fingerprint/package.
-- [ ] Verify, detect staged scope, and commit the green increment.
+- [x] RED exact entry/document/member and field-boundary cases.
+- [x] Add the complete two-asset closure and prove exact fingerprint/package.
+- [x] Verify, detect staged scope, and commit the green increment.
 
 ## Task 4 — Project/Environment Context schemas
 
