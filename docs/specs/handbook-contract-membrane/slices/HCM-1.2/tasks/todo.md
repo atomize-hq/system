@@ -72,9 +72,9 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 9 — Unselected kinds
 
-- [ ] RED literal Work/Decision/Risk kind set and allowlists.
-- [ ] Add exact definitions with no capability or root selection.
-- [ ] Verify package/order/scope and commit green.
+- [x] RED literal Work/Decision/Risk kind set and allowlists.
+- [x] Add exact definitions with no capability or root selection.
+- [x] Verify package/order/scope and commit green.
 
 ## Task 10 — Condition producer
 
