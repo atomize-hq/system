@@ -5,21 +5,21 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Entry
 
-- [ ] Start a new top-level HCM-1.2 implementation run from this packet and an
+- [x] Start a new top-level HCM-1.2 implementation run from this packet and an
   exact completed planning handoff used only as transition.
-- [ ] Validate branch/HEAD/status, packet bytes, handoff/ledger parity, and
+- [x] Validate branch/HEAD/status, packet bytes, handoff/ledger parity, and
   completed HCM-1.1 dependency truth.
-- [ ] Assemble bounded authority/repo/proof context and confirm prohibited
+- [x] Assemble bounded authority/repo/proof context and confirm prohibited
   product/HCM-1.3+ paths.
-- [ ] Apply the required skill chain and GitNexus impact rules.
+- [x] Apply the required skill chain and GitNexus impact rules.
 
 ## Task 1 — Request/source envelope
 
-- [ ] RED exact structural request/binding/path/root/budget/SymbolicId cases.
-- [ ] Implement exact fields, declared-ID duplication, stages 1-4, and safe
+- [x] RED exact structural request/binding/path/root/budget/SymbolicId cases.
+- [x] Implement exact fields, declared-ID duplication, stages 1-4, and safe
   errors without record decoding or source-usage decisions.
-- [ ] Prove 64/512/32, 1024-byte/64-component, and 1-MiB/8-MiB N/N+1 cases.
-- [ ] Verify, detect staged scope, and commit the green increment.
+- [x] Prove 64/512/32, 1024-byte/64-component, and 1-MiB/8-MiB N/N+1 cases.
+- [x] Verify, detect staged scope, and commit the green increment.
 
 ## Task 2 — Schema budget and shape query
 
