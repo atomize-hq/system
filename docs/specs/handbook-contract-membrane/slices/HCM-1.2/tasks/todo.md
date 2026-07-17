@@ -97,9 +97,9 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 13 — Context Resolution stack
 
-- [ ] RED literal level/domain/default/policy-closure cases.
-- [ ] Add exact stack asset and validate ordering/compatibility/fingerprint.
-- [ ] Prove no envelope/Projection/work-level behavior; commit green.
+- [x] RED literal level/domain/default/policy-closure cases.
+- [x] Add exact stack asset and validate ordering/compatibility/fingerprint.
+- [x] Prove no envelope/Projection/work-level behavior; commit green.
 
 ## Task 14 — Artifact descriptors
 

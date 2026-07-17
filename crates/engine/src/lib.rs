@@ -62,7 +62,9 @@ pub use canonical_artifacts::{
     CanonicalArtifactIdentity, CanonicalArtifactKind, CanonicalArtifacts, SystemRootStatus,
 };
 pub use canonical_paths::{default_canonical_layout_contract, CanonicalLayoutContract};
-pub use context_resolution_registry::ContextResolutionPolicyRegistry;
+pub use context_resolution_registry::{
+    ContextResolutionPolicyRegistry, ContextResolutionStackDefinition,
+};
 pub use definition_identity::{
     parse_definition_yaml, parse_schema_json, DefinitionFingerprint, ExactDefinitionRef,
     RegistryLoadError, RegistryLoadErrorKind, SourceByteBudget, MAX_SOURCE_DOCUMENT_BYTES,

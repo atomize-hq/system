@@ -193,3 +193,279 @@ fn resolve_promotion(
         expected,
     )
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RefFingerprint {
+    #[serde(rename = "ref")]
+    reference: String,
+    fingerprint: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct Defaults {
+    scope_horizon: String,
+    detail_resolution: String,
+    temporal_horizon: String,
+    authority_horizon: String,
+    memory_horizon: String,
+    validation_horizon: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct Level {
+    level_id: String,
+    display_label: String,
+    defaults: Defaults,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RankedValue {
+    value_id: String,
+    rank: u8,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct DimensionDomains {
+    scope_horizon: Vec<RankedValue>,
+    detail_resolution: Vec<RankedValue>,
+    temporal_horizon: Vec<RankedValue>,
+    authority_horizon: Vec<RankedValue>,
+    memory_horizon: Vec<RankedValue>,
+    validation_horizon: Vec<RankedValue>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct AuthoredStack {
+    schema_id: String,
+    schema_version: String,
+    stack_id: String,
+    stack_version: String,
+    levels: Vec<Level>,
+    dimension_domains: DimensionDomains,
+    mutation_matcher: RefFingerprint,
+    escalation_policy: RefFingerprint,
+    memory_promotion_policy: RefFingerprint,
+    extensions: BTreeMap<String, Value>,
+    #[serde(skip_serializing)]
+    definition_fingerprint: String,
+}
+#[derive(Clone, Debug)]
+pub struct ContextResolutionStackDefinition {
+    exact_ref: ExactDefinitionRef,
+    definition_fingerprint: DefinitionFingerprint,
+}
+impl ContextResolutionStackDefinition {
+    pub fn exact_ref(&self) -> &ExactDefinitionRef {
+        &self.exact_ref
+    }
+    pub fn definition_fingerprint(&self) -> &DefinitionFingerprint {
+        &self.definition_fingerprint
+    }
+    pub fn load(
+        repo: impl AsRef<Path>,
+        path: &str,
+        policies: &ContextResolutionPolicyRegistry,
+    ) -> Result<Self, RegistryLoadError> {
+        let mut b = SourceByteBudget::default();
+        let (_, bytes) = read_trusted_repo_source(repo.as_ref(), path, &mut b)?;
+        let value = parse_definition_yaml(&bytes)?;
+        let authored: AuthoredStack = decode(value)?;
+        authored.resolve(policies)
+    }
+}
+impl AuthoredStack {
+    fn resolve(
+        self,
+        policies: &ContextResolutionPolicyRegistry,
+    ) -> Result<ContextResolutionStackDefinition, RegistryLoadError> {
+        if self.schema_id != "handbook.context-resolution-stack-definition"
+            || self.schema_version != "1.0"
+            || !self.extensions.is_empty()
+        {
+            return Err(RegistryLoadError::new(
+                RegistryLoadErrorKind::UnsupportedRecord,
+                "unsupported Context Resolution stack record",
+            ));
+        }
+        let expected_levels = [
+            (
+                "strategic",
+                "Strategic",
+                [
+                    "program",
+                    "full",
+                    "long_range",
+                    "program_policy",
+                    "strategic",
+                    "program_gate",
+                ],
+            ),
+            (
+                "coordination",
+                "Coordination",
+                [
+                    "slice",
+                    "normal",
+                    "current_slice",
+                    "slice_write",
+                    "coordination",
+                    "slice_closeout",
+                ],
+            ),
+            (
+                "execution",
+                "Execution",
+                [
+                    "assigned_unit",
+                    "normal",
+                    "immediate",
+                    "local_write",
+                    "execution",
+                    "unit_closeout",
+                ],
+            ),
+            (
+                "operation",
+                "Operation",
+                [
+                    "local_observation",
+                    "identifier_only",
+                    "current_operation",
+                    "read_only",
+                    "operation",
+                    "observation_only",
+                ],
+            ),
+        ];
+        if self.levels.len() != 4 {
+            return Err(stack_drift());
+        }
+        for (level, (id, label, values)) in self.levels.iter().zip(expected_levels) {
+            let actual = [
+                level.defaults.scope_horizon.as_str(),
+                level.defaults.detail_resolution.as_str(),
+                level.defaults.temporal_horizon.as_str(),
+                level.defaults.authority_horizon.as_str(),
+                level.defaults.memory_horizon.as_str(),
+                level.defaults.validation_horizon.as_str(),
+            ];
+            if level.level_id != id || level.display_label != label || actual != values {
+                return Err(stack_drift());
+            }
+        }
+        let domains = [
+            (
+                &self.dimension_domains.scope_horizon,
+                ["local_observation", "assigned_unit", "slice", "program"],
+            ),
+            (
+                &self.dimension_domains.detail_resolution,
+                ["identifier_only", "summary", "normal", "full"],
+            ),
+            (
+                &self.dimension_domains.temporal_horizon,
+                [
+                    "current_operation",
+                    "immediate",
+                    "current_slice",
+                    "long_range",
+                ],
+            ),
+            (
+                &self.dimension_domains.authority_horizon,
+                ["read_only", "local_write", "slice_write", "program_policy"],
+            ),
+            (
+                &self.dimension_domains.memory_horizon,
+                ["operation", "execution", "coordination", "strategic"],
+            ),
+            (
+                &self.dimension_domains.validation_horizon,
+                [
+                    "observation_only",
+                    "unit_closeout",
+                    "slice_closeout",
+                    "program_gate",
+                ],
+            ),
+        ];
+        for (domain, expected) in domains {
+            if domain.len() != 4
+                || domain
+                    .iter()
+                    .zip(expected)
+                    .enumerate()
+                    .any(|(rank, (value, id))| {
+                        value.value_id != id || usize::from(value.rank) != rank
+                    })
+            {
+                return Err(stack_drift());
+            }
+        }
+        let selections = [
+            (
+                &self.mutation_matcher,
+                "handbook.mutation-matcher.core@1.0.0",
+            ),
+            (
+                &self.escalation_policy,
+                "handbook.resolution-escalation.core@1.0.0",
+            ),
+            (
+                &self.memory_promotion_policy,
+                "handbook.memory-promotion.core@1.0.0",
+            ),
+        ];
+        let mut fingerprints = Vec::new();
+        for (selection, expected) in selections {
+            if selection.reference != expected {
+                return Err(stack_drift());
+            }
+            let r = ExactDefinitionRef::parse(&selection.reference)?;
+            let f = policies.fingerprint(&r).ok_or_else(|| {
+                RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedDependency,
+                    "Context Resolution stack policy is absent",
+                )
+            })?;
+            if selection.fingerprint != f.as_str() {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::FingerprintMismatch,
+                    "Context Resolution stack policy fingerprint mismatch",
+                ));
+            }
+            fingerprints.push(f.as_str());
+        }
+        let exact_ref = ExactDefinitionRef::new(&self.stack_id, &self.stack_version)?;
+        if exact_ref.as_str() != "handbook.context-resolution.shipped-root@1.0.0" {
+            return Err(stack_drift());
+        }
+        let supplied = DefinitionFingerprint::parse(&self.definition_fingerprint)?;
+        let computed = fingerprint_serializable(&StackClosure {
+            definition: &self,
+            policy_fingerprints: fingerprints,
+        })?;
+        if supplied != computed {
+            return Err(RegistryLoadError::new(
+                RegistryLoadErrorKind::FingerprintMismatch,
+                "Context Resolution stack fingerprint mismatch",
+            ));
+        }
+        Ok(ContextResolutionStackDefinition {
+            exact_ref,
+            definition_fingerprint: computed,
+        })
+    }
+}
+#[derive(Serialize)]
+struct StackClosure<'a> {
+    definition: &'a AuthoredStack,
+    policy_fingerprints: Vec<&'a str>,
+}
+fn stack_drift() -> RegistryLoadError {
+    RegistryLoadError::new(
+        RegistryLoadErrorKind::UnsupportedRecord,
+        "Context Resolution stack differs from the exact shipped definition",
+    )
+}
