@@ -9,10 +9,14 @@ reviewed planning slice. A Rust implementation slice is authorized only when
 its own `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md` packet is present and
 review-clean.
 
-HCM-1.1 is the only implementation slice currently authorized. Its packet is
-[`slices/HCM-1.1/`](slices/HCM-1.1/SPEC.md). Packet approval is not execution:
-HCM-1.1 begins only in a separately selected top-level run, and every later
-slice remains unauthorized until its own packet is created and reviewed.
+HCM-1.1 and HCM-1.2 have landed through their separately reviewed
+implementation and closeout commits. They are completed dependency evidence,
+not continuing implementation authority. HCM-1.3 packet approval is the next
+authorization boundary: only the exact `slices/HCM-1.3/` planning subject may
+authorize a later HCM-1.3 implementation run, and only after that subject is
+review-clean and its planning closeout is selected by a separate top-level
+session. Packet approval is not execution. HCM-1.4 and every later slice remain
+unauthorized until their own packets are created and reviewed.
 
 ## Sequencing rule
 
@@ -181,12 +185,24 @@ shipped-profile publication, or a released downstream API.
 - validate explicit profile selection and repository profile input;
 - do not add a legacy profile merely to preserve old behavior.
 
+HCM-1.2 landed at reviewed implementation commit
+`832716a66241bdcf86e2a82ffb3ae72680a7c2cd`; its selected v1.2 closeout is
+`20260717T125103Z--HCM-1-2--orchestration--profile-boundary-landed`. Those
+records are completed dependency evidence for HCM-1.3 and do not authorize
+additional HCM-1.2 work.
+
 ### `HCM-1.3` — Descriptor-driven artifact-instance registry
 
 - replace enum-owned universe with profile-resolved kind and instance registries;
 - support first-party stable capabilities/roles plus custom kind and instance IDs;
 - make requiredness, dependencies, paths, and validators data-driven;
 - preserve trusted repo-relative path enforcement.
+
+The planning packet is [`slices/HCM-1.3/`](slices/HCM-1.3/SPEC.md). Its exact
+review-clean planning subject and parent planning closeout are the next
+authorization boundary. Approval may authorize only a future separately
+selected HCM-1.3 implementation session; packet creation, review, and closeout
+do not start Rust work. HCM-1.4 remains unauthorized.
 
 ### `HCM-1.4` — Profile-aware setup and doctor decisions
 
