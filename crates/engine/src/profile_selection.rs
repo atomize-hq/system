@@ -175,11 +175,18 @@ pub fn resolve_profile_selection(
         return Err(unsupported("profile extensions must be empty"));
     }
 
-    let ancestry_closure = selected_sources
+    let ancestry_closure = layered
+        .ancestry()
         .iter()
-        .map(|s| AncestryMember {
-            profile_ref: s.exact_ref().as_str(),
-            profile_fingerprint: s.profile_fingerprint().as_str(),
+        .map(|reference| {
+            let source = profile_sources
+                .iter()
+                .find(|source| source.exact_ref() == reference)
+                .expect("layered ancestry came from admitted sources");
+            AncestryMember {
+                profile_ref: source.exact_ref().as_str(),
+                profile_fingerprint: source.profile_fingerprint().as_str(),
+            }
         })
         .collect();
     let decisions = layered

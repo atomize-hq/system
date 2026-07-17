@@ -60,6 +60,30 @@ fn request(reverse: bool) -> ProfileSelectionRequest {
         allowed_schema_roots: vec!["definitions/schemas".into()],
     }
 }
+
+fn shipped_request(repository: bool, reverse_sources: bool) -> ProfileSelectionRequest {
+    let mut value = request(reverse_sources);
+    let shipped = builtin("handbook.profile.shipped-root@1.0.0");
+    if repository {
+        value.selected_profile_ref = r("example.profile.repository@1.0.0");
+        value.profile_sources = vec![
+            shipped,
+            DefinitionSourceBinding {
+                definition_ref: r("example.profile.repository@1.0.0"),
+                source: DefinitionSource::RepositoryPath(
+                    "tests/fixtures/hcm_1_2_profile/repository.yaml".into(),
+                ),
+            },
+        ];
+        if reverse_sources {
+            value.profile_sources.reverse();
+        }
+    } else {
+        value.selected_profile_ref = r("handbook.profile.shipped-root@1.0.0");
+        value.profile_sources = vec![shipped];
+    }
+    value
+}
 #[test]
 fn exact_selection_recomputes_the_complete_typed_closure() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -105,4 +129,45 @@ fn missing_typed_source_and_nonempty_later_owned_values_refuse() {
     let mut unsupported = request(false);
     unsupported.allowed_schema_roots.clear();
     assert!(resolve_profile_selection(root, unsupported).is_err());
+}
+
+#[test]
+fn shipped_root_and_repository_replace_whole_fixture_are_exact() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let shipped = resolve_profile_selection(root, shipped_request(false, false)).unwrap();
+    assert_eq!(
+        shipped.exact_ref().as_str(),
+        "handbook.profile.shipped-root@1.0.0"
+    );
+    assert_eq!(
+        shipped.artifact_instances().ids(),
+        [
+            "environment_context",
+            "project_authority",
+            "project_context"
+        ]
+    );
+    let forward = resolve_profile_selection(root, shipped_request(true, false)).unwrap();
+    let reverse = resolve_profile_selection(root, shipped_request(true, true)).unwrap();
+    assert_eq!(
+        forward.resolved_profile_fingerprint(),
+        reverse.resolved_profile_fingerprint()
+    );
+    for field in [
+        ProfileField::SchemaRegistrySources,
+        ProfileField::ArtifactKindSources,
+        ProfileField::VocabularyRef,
+        ProfileField::ContextResolutionRef,
+    ] {
+        let decision = forward
+            .layer_decisions()
+            .iter()
+            .find(|decision| decision.field() == field)
+            .unwrap();
+        assert_eq!(decision.disposition(), LayerDisposition::Replaced);
+        assert_eq!(
+            decision.source_profile_ref().as_str(),
+            "example.profile.repository@1.0.0"
+        );
+    }
 }

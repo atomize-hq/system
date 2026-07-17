@@ -126,10 +126,10 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 17 — Shipped root/repository fixture
 
-- [ ] Add exact eleven-field shipped-root source.
-- [ ] Assert literal six-kind/three-instance/unique-root equality.
-- [ ] Add explicit repository child and valid/invalid whole-field replacements.
-- [ ] Prove no legacy/materialization/product-path change; commit green.
+- [x] Add exact eleven-field shipped-root source.
+- [x] Assert literal six-kind/three-instance/unique-root equality.
+- [x] Add explicit repository child and valid/invalid whole-field replacements.
+- [x] Prove no legacy/materialization/product-path change; commit green.
 
 ## Task 18 — Full proof and review
 

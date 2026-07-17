@@ -1,0 +1,23 @@
+schema_id: handbook.instance-profile
+schema_version: '1.0'
+profile_id: example.profile.repository
+profile_version: 1.0.0
+profile_scope: repository
+extends_profile_ref: handbook.profile.shipped-root@1.0.0
+schema_registry_sources:
+- handbook.schemas.artifacts.risk-record@1.0.0
+- handbook.schemas.artifacts.decision-record@1.0.0
+- handbook.schemas.artifacts.work-specification@1.0.0
+- handbook.schemas.artifacts.environment-context@1.0.0
+- handbook.schemas.artifacts.project-context@1.0.0
+- handbook.schemas.artifacts.project-authority@1.0.0
+artifact_kind_sources:
+- handbook.artifact-kind.risk-record@1.0.0
+- handbook.artifact-kind.decision-record@1.0.0
+- handbook.artifact-kind.work-specification@1.0.0
+- handbook.artifact-kind.environment-context@1.0.0
+- handbook.artifact-kind.project-context@1.0.0
+- handbook.artifact-kind.project-authority@1.0.0
+vocabulary_ref: handbook.vocabulary.shipped-root@1.0.0
+context_resolution_ref: handbook.context-resolution.shipped-root@1.0.0
+profile_fingerprint: sha256:16df6c14ce413eafc368d7c8f6c452b680642046f98e5b3ceadac40097013de1
