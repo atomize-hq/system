@@ -110,10 +110,10 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 15 — Profile source/layering
 
-- [ ] RED root/named/repository, all-eleven-field, and ancestry cases.
-- [ ] Implement exact source parsing and uniform replace-whole layering.
-- [ ] Emit eleven deterministic decisions; prove 32/33 and 64/65.
-- [ ] Verify and commit green.
+- [x] RED root/named/repository, all-eleven-field, and ancestry cases.
+- [x] Implement exact source parsing and uniform replace-whole layering.
+- [x] Emit eleven deterministic decisions; prove 32/33 and 64/65.
+- [x] Verify and commit green.
 
 ## Task 16 — Selection/resolved fingerprint
 

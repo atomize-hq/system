@@ -81,8 +81,9 @@ pub use freshness::{
     MANIFEST_GENERATION_VERSION,
 };
 pub use instance_profile::{
-    DefinitionSource, DefinitionSourceBinding, ProfileLoadError, ProfileLoadErrorKind,
-    ProfileSelectionRequest, SymbolicId,
+    layer_profile_sources, parse_profile_source, AuthoredProfileSource, DefinitionSource,
+    DefinitionSourceBinding, LayerDisposition, LayeredProfile, ProfileField, ProfileLayerDecision,
+    ProfileLoadError, ProfileLoadErrorKind, ProfileScope, ProfileSelectionRequest, SymbolicId,
 };
 pub use project_condition_registry::ProjectConditionDefinition;
 pub use schema_registry::{

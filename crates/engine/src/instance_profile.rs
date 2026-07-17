@@ -2,7 +2,9 @@ use crate::definition_identity::{
     ExactDefinitionRef, RegistryLoadError, RegistryLoadErrorKind, SourceByteBudget,
 };
 use crate::stable_role_registry::read_trusted_repo_source;
-use std::collections::BTreeSet;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::Path;
 
@@ -317,6 +319,343 @@ pub(crate) fn admit_selection_request(
         sources,
         source_bytes: budget.total_bytes(),
     })
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileScope {
+    Shipped,
+    Named,
+    Repository,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileField {
+    StableRoleRegistry,
+    SchemaRegistrySources,
+    ArtifactKindSources,
+    ArtifactInstances,
+    VocabularyRef,
+    ContextResolutionRef,
+    ProjectionCatalogRefs,
+    PostureEvaluationPolicy,
+    DockRequirementRefs,
+    AdapterOverlayRefs,
+    Extensions,
+}
+impl ProfileField {
+    pub const ALL: [Self; 11] = [
+        Self::StableRoleRegistry,
+        Self::SchemaRegistrySources,
+        Self::ArtifactKindSources,
+        Self::ArtifactInstances,
+        Self::VocabularyRef,
+        Self::ContextResolutionRef,
+        Self::ProjectionCatalogRefs,
+        Self::PostureEvaluationPolicy,
+        Self::DockRequirementRefs,
+        Self::AdapterOverlayRefs,
+        Self::Extensions,
+    ];
+    fn key(self) -> &'static str {
+        match self {
+            Self::StableRoleRegistry => "stable_role_registry",
+            Self::SchemaRegistrySources => "schema_registry_sources",
+            Self::ArtifactKindSources => "artifact_kind_sources",
+            Self::ArtifactInstances => "artifact_instances",
+            Self::VocabularyRef => "vocabulary_ref",
+            Self::ContextResolutionRef => "context_resolution_ref",
+            Self::ProjectionCatalogRefs => "projection_catalog_refs",
+            Self::PostureEvaluationPolicy => "posture_evaluation_policy",
+            Self::DockRequirementRefs => "dock_requirement_refs",
+            Self::AdapterOverlayRefs => "adapter_overlay_refs",
+            Self::Extensions => "extensions",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthoredProfileSource {
+    exact_ref: ExactDefinitionRef,
+    scope: ProfileScope,
+    parent_ref: Option<ExactDefinitionRef>,
+    fields: BTreeMap<ProfileField, Value>,
+    profile_fingerprint: crate::definition_identity::DefinitionFingerprint,
+}
+impl AuthoredProfileSource {
+    pub fn exact_ref(&self) -> &ExactDefinitionRef {
+        &self.exact_ref
+    }
+    pub fn scope(&self) -> ProfileScope {
+        self.scope
+    }
+    pub fn parent_ref(&self) -> Option<&ExactDefinitionRef> {
+        self.parent_ref.as_ref()
+    }
+    pub fn profile_fingerprint(&self) -> &crate::definition_identity::DefinitionFingerprint {
+        &self.profile_fingerprint
+    }
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LayerDisposition {
+    Inherited,
+    Replaced,
+}
+#[derive(Clone, Debug)]
+pub struct ProfileLayerDecision {
+    field: ProfileField,
+    source_profile_ref: ExactDefinitionRef,
+    disposition: LayerDisposition,
+}
+impl ProfileLayerDecision {
+    pub fn field(&self) -> ProfileField {
+        self.field
+    }
+    pub fn source_profile_ref(&self) -> &ExactDefinitionRef {
+        &self.source_profile_ref
+    }
+    pub fn disposition(&self) -> LayerDisposition {
+        self.disposition
+    }
+}
+#[derive(Clone, Debug)]
+pub struct LayeredProfile {
+    selected_profile_ref: ExactDefinitionRef,
+    ancestry: Vec<ExactDefinitionRef>,
+    fields: BTreeMap<ProfileField, Value>,
+    decisions: Vec<ProfileLayerDecision>,
+}
+impl LayeredProfile {
+    pub fn selected_profile_ref(&self) -> &ExactDefinitionRef {
+        &self.selected_profile_ref
+    }
+    pub fn ancestry(&self) -> &[ExactDefinitionRef] {
+        &self.ancestry
+    }
+    pub fn field(&self, field: ProfileField) -> &Value {
+        self.fields.get(&field).expect("all fields resolved")
+    }
+    pub fn decisions(&self) -> &[ProfileLayerDecision] {
+        &self.decisions
+    }
+}
+
+pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, ProfileLoadError> {
+    let mut value =
+        crate::definition_identity::parse_definition_yaml(bytes).map_err(registry_profile_error)?;
+    let object = value.as_object_mut().ok_or_else(|| {
+        ProfileLoadError::new(
+            ProfileLoadErrorKind::MissingSource,
+            "profile source must be an object",
+        )
+    })?;
+    let supplied = object
+        .remove("profile_fingerprint")
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .ok_or_else(|| {
+            ProfileLoadError::new(
+                ProfileLoadErrorKind::SourceIdentityMismatch,
+                "profile fingerprint is required",
+            )
+        })?;
+    let computed = crate::definition_identity::DefinitionFingerprint::from_json_value(
+        &Value::Object(object.clone()),
+    )
+    .map_err(registry_profile_error)?;
+    let supplied = crate::definition_identity::DefinitionFingerprint::parse(&supplied)
+        .map_err(registry_profile_error)?;
+    if supplied != computed {
+        return Err(ProfileLoadError::new(
+            ProfileLoadErrorKind::SourceIdentityMismatch,
+            "profile source fingerprint mismatch",
+        ));
+    }
+    let take_string = |map: &mut serde_json::Map<String, Value>, key: &str| {
+        map.remove(key)
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .ok_or_else(|| {
+                ProfileLoadError::at(
+                    ProfileLoadErrorKind::SourceIdentityMismatch,
+                    key,
+                    "profile identity field is required",
+                )
+            })
+    };
+    let schema_id = take_string(object, "schema_id")?;
+    let schema_version = take_string(object, "schema_version")?;
+    if schema_id != "handbook.instance-profile" || schema_version != "1.0" {
+        return Err(ProfileLoadError::new(
+            ProfileLoadErrorKind::SourceIdentityMismatch,
+            "unsupported profile record",
+        ));
+    }
+    let profile_id = take_string(object, "profile_id")?;
+    let profile_version = take_string(object, "profile_version")?;
+    let exact_ref =
+        ExactDefinitionRef::new(&profile_id, &profile_version).map_err(registry_profile_error)?;
+    let scope: ProfileScope =
+        serde_json::from_value(object.remove("profile_scope").ok_or_else(|| {
+            ProfileLoadError::new(
+                ProfileLoadErrorKind::SourceIdentityMismatch,
+                "profile_scope is required",
+            )
+        })?)
+        .map_err(|_| {
+            ProfileLoadError::new(
+                ProfileLoadErrorKind::SourceIdentityMismatch,
+                "invalid profile scope",
+            )
+        })?;
+    let parent_ref = match object.remove("extends_profile_ref").ok_or_else(|| {
+        ProfileLoadError::new(
+            ProfileLoadErrorKind::SourceIdentityMismatch,
+            "extends_profile_ref is required",
+        )
+    })? {
+        Value::Null => None,
+        Value::String(v) => Some(ExactDefinitionRef::parse(&v).map_err(registry_profile_error)?),
+        _ => {
+            return Err(ProfileLoadError::new(
+                ProfileLoadErrorKind::SourceIdentityMismatch,
+                "invalid parent profile ref",
+            ))
+        }
+    };
+    let mut fields = BTreeMap::new();
+    for field in ProfileField::ALL {
+        if let Some(v) = object.remove(field.key()) {
+            fields.insert(field, v);
+        }
+    }
+    if !object.is_empty() {
+        return Err(ProfileLoadError::new(
+            ProfileLoadErrorKind::SourceIdentityMismatch,
+            "profile source contains an unknown field",
+        ));
+    }
+    if parent_ref.is_none() && fields.len() != 11 {
+        return Err(ProfileLoadError::new(
+            ProfileLoadErrorKind::SourceIdentityMismatch,
+            "root profile must materialize all eleven fields",
+        ));
+    }
+    Ok(AuthoredProfileSource {
+        exact_ref,
+        scope,
+        parent_ref,
+        fields,
+        profile_fingerprint: computed,
+    })
+}
+
+pub fn layer_profile_sources(
+    selected: &ExactDefinitionRef,
+    sources: Vec<AuthoredProfileSource>,
+) -> Result<LayeredProfile, ProfileLoadError> {
+    if sources.len() > 64 {
+        return Err(ProfileLoadError::new(
+            ProfileLoadErrorKind::ProfileSourceLimitExceeded,
+            "profile source count exceeds 64",
+        ));
+    }
+    let mut by_ref = BTreeMap::new();
+    for source in sources {
+        let key = source.exact_ref.clone();
+        if by_ref.insert(key, source).is_some() {
+            return Err(ProfileLoadError::new(
+                ProfileLoadErrorKind::DuplicateSourceBinding,
+                "profile source identity is duplicated",
+            ));
+        }
+    }
+    let mut reverse = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut current = selected.clone();
+    loop {
+        if !seen.insert(current.clone()) {
+            return Err(ProfileLoadError::new(
+                ProfileLoadErrorKind::SourceIdentityMismatch,
+                "profile ancestry cycle",
+            ));
+        }
+        if reverse.len() == 32 {
+            return Err(ProfileLoadError::new(
+                ProfileLoadErrorKind::ProfileSourceLimitExceeded,
+                "profile ancestry exceeds 32",
+            ));
+        }
+        let source = by_ref.get(&current).ok_or_else(|| {
+            ProfileLoadError::new(
+                ProfileLoadErrorKind::MissingSource,
+                "profile ancestry source is absent",
+            )
+        })?;
+        reverse.push(current.clone());
+        match &source.parent_ref {
+            Some(parent) => {
+                let p = by_ref.get(parent).ok_or_else(|| {
+                    ProfileLoadError::new(
+                        ProfileLoadErrorKind::MissingSource,
+                        "parent profile source is absent",
+                    )
+                })?;
+                if p.scope > source.scope {
+                    return Err(ProfileLoadError::new(
+                        ProfileLoadErrorKind::SourceIdentityMismatch,
+                        "profile scope order is illegal",
+                    ));
+                }
+                current = parent.clone();
+            }
+            None => break,
+        }
+    }
+    reverse.reverse();
+    let mut fields = BTreeMap::new();
+    let mut winners = BTreeMap::new();
+    let mut decisions = Vec::new();
+    for reference in &reverse {
+        let source = &by_ref[reference];
+        for field in ProfileField::ALL {
+            if let Some(value) = source.fields.get(&field) {
+                fields.insert(field, value.clone());
+                winners.insert(field, reference.clone());
+            }
+        }
+    }
+    if fields.len() != 11 {
+        return Err(ProfileLoadError::new(
+            ProfileLoadErrorKind::SourceIdentityMismatch,
+            "layered profile does not materialize all fields",
+        ));
+    }
+    let leaf = &by_ref[selected];
+    for field in ProfileField::ALL {
+        let source_profile_ref = winners[&field].clone();
+        decisions.push(ProfileLayerDecision {
+            field,
+            disposition: if leaf.fields.contains_key(&field) {
+                LayerDisposition::Replaced
+            } else {
+                LayerDisposition::Inherited
+            },
+            source_profile_ref,
+        });
+    }
+    Ok(LayeredProfile {
+        selected_profile_ref: selected.clone(),
+        ancestry: reverse,
+        fields,
+        decisions,
+    })
+}
+fn registry_profile_error(_: crate::definition_identity::RegistryLoadError) -> ProfileLoadError {
+    ProfileLoadError::new(
+        ProfileLoadErrorKind::SourceIdentityMismatch,
+        "profile source contains an invalid definition identity or fingerprint",
+    )
 }
 
 #[allow(dead_code)] // Activated by the Task 16 resolver increment.
