@@ -614,6 +614,75 @@ may close HCM-1.2:
 `PG-PROFILE-01`, `PG-ARTIFACT-01`, `PG-KIND-01`, or `PG-KIND-02` and does not
 authorize any current product-path cutover.
 
+## HCM-1.3 descriptor-driven artifact registry proof gate
+
+HCM-1.3 may promote only the additive selected-profile artifact-registry owner
+boundary in `handbook-engine`. Current fixed canonical artifacts, layout,
+setup, doctor, flow, compiler, CLI, SDK, Tauri, Substrate, materialization,
+condition evaluation, semantic-validator execution, vocabulary application,
+Context Resolution execution, intake, renderer, lifecycle, Projection,
+manifest, and freshness paths remain unchanged. Before the parent may close
+HCM-1.3:
+
+- one already resolved `ResolvedInstanceProfile` must construct one immutable
+  `ResolvedArtifactRegistry`; the registry accepts no repository root, source
+  path, bytes, enum, filename, environment, CLI option, fallback, range/latest
+  selector, or product-dispatch input;
+- kind membership must come only from
+  `ResolvedInstanceProfile::artifact_kind_registry()` and instance membership
+  only from `ResolvedInstanceProfile::artifact_instances()`, with exact lexical
+  kind refs, symbolic instance IDs, and providers-before-consumers order;
+- shipped proof must preserve the exact six HCM-0.6 kind refs and the exact
+  `environment_context`, `project_authority`, and `project_context`
+  descriptor set, including roles, trusted paths, requiredness, the managed-
+  operational-surface condition ref, constitutional capability contract, and
+  non-executing validator metadata;
+- repository-source fixture proof must show a custom kind and custom artifact
+  instance enter the selected registry without any enum variant, generated
+  command, filename switch, renderer dispatch, setup/doctor adoption, or
+  product migration;
+- dependency proof must bind authored instance and capability dependencies to
+  lexically sorted provider IDs and one deterministic provider-before-consumer
+  topological order without reinterpreting HCM-1.2 descriptor semantics;
+- validation proof must route by the bound instance kind schema, return the
+  typed `UnknownArtifactInstance` error for absent members, wrap structural
+  failures without success collapse, and execute no semantic validator,
+  condition, vocabulary, Context Resolution, lifecycle, intake, renderer,
+  Projection, overlay, repository read, or materialization behavior;
+- HCM-1.2 source/path/identity/fingerprint/duplicate/compatibility/dependency
+  refusal suites and the N/N+1 boundary proofs must continue to fail closed
+  before any HCM-1.3 registry can exist; HCM-1.3 must add no new numeric input
+  ceiling and no absolute path, source byte, credential, environment, or
+  unbounded attacker text in errors;
+- format, clippy, focused HCM-1.3, HCM-1.1, HCM-1.2, engine, full-workspace,
+  Windows target, package archive, extracted-package check, handoff-validator,
+  fixed-consumer inventory, forbidden-scope scan, scope set-equality, and
+  staged GitNexus proof must pass, with no Cargo, definition-asset, manifest,
+  freshness, compiler, flow, setup, doctor, CLI, SDK, Tauri, Substrate,
+  adapter, contract, or dock change;
+- the literal HCM-1.2 29-member package-definition manifest must remain exact
+  for both the repository definition tree and the `cargo package` archive, by
+  path, size, SHA-256, and byte equality rather than by count only; no HCM-1.3
+  fixture may become a package-owned definition;
+- the only classification promotion is `BoundaryLanded` for the selected-
+  profile registry owner boundary and the narrow HCM-1.3 subset of
+  `PG-PROFILE-01`, `PG-KIND-01`, `PG-KIND-02`, and `PG-ARTIFACT-01`; setup/
+  doctor adoption, content authority, real-path reads, semantic execution,
+  renderer/Projection behavior, downstream release, and every later gate remain
+  open;
+- one fresh isolated read-only built-in `default` reviewer must review the exact
+  complete implementation subject and return `CLEAN`; any valid finding
+  requires bounded remediation, full proof replay, a new immutable dispatch, and
+  a different fresh reviewer; and
+- the final clean subject must be committed first with reviewed bytes unchanged,
+  followed only by a separate parent-owned completed v1.2 handoff and
+  deterministic ledger closeout commit that names HCM-1.4 planning as next
+  without starting it.
+
+`BoundaryLanded` is the ceiling. This section does not close setup/doctor,
+content, renderer, Projection, downstream, HCM-1.4, HCM-2, HCM-3, contract, or
+dock gates and does not authorize any current product-path cutover.
+
 ## Control-pack orchestration-repair proof gate
 
 The immutable HCM-0.1 history remains evidence of the prior workflow and is not rewritten. At corrective slice HCM-0.8's completed closeout, the following conditions had to hold; the later HCM-0.6 decision resolves the shipped-default item that was intentionally open at that boundary:

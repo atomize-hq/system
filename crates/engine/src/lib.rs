@@ -3,6 +3,7 @@
 pub mod artifact_instance;
 pub mod artifact_kind_registry;
 pub mod artifact_manifest;
+pub mod artifact_registry;
 pub mod author;
 pub mod baseline_validation;
 pub mod canonical_artifacts;
@@ -31,6 +32,10 @@ pub use artifact_kind_registry::{
 };
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
+};
+pub use artifact_registry::{
+    ArtifactRegistryValidationError, ResolvedArtifactCapability, ResolvedArtifactDependency,
+    ResolvedArtifactInstance, ResolvedArtifactKind, ResolvedArtifactRegistry,
 };
 pub use author::{
     parse_charter_structured_input_yaml, parse_environment_inventory_structured_input_yaml,

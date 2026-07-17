@@ -198,11 +198,15 @@ additional HCM-1.2 work.
 - make requiredness, dependencies, paths, and validators data-driven;
 - preserve trusted repo-relative path enforcement.
 
-The planning packet is [`slices/HCM-1.3/`](slices/HCM-1.3/SPEC.md). Its exact
-review-clean planning subject and parent planning closeout are the next
-authorization boundary. Approval may authorize only a future separately
-selected HCM-1.3 implementation session; packet creation, review, and closeout
-do not start Rust work. HCM-1.4 remains unauthorized.
+The planning packet is [`slices/HCM-1.3/`](slices/HCM-1.3/SPEC.md). The
+implementation adds only the additive `handbook-engine` owner API
+`ResolvedArtifactRegistry`, its focused integration tests, and the bounded
+control-pack classification/proof updates. It proves shipped and custom
+descriptor-driven membership, role/capability/schema/validator metadata,
+dependency providers/order, structural validation routing, deterministic source
+permutations, unchanged package-owned definitions, and no setup/doctor/flow or
+fixed-product adoption. HCM-1.4 remains unauthorized until a separate selected
+planning/implementation handoff.
 
 ### `HCM-1.4` — Profile-aware setup and doctor decisions
 
