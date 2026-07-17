@@ -45,9 +45,9 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 5 — Work/Decision schemas
 
-- [ ] RED both exact shapes/status enums/bounds and no-root-authority cases.
-- [ ] Add four exact assets and prove closure/package equality.
-- [ ] Verify, detect staged scope, and commit the green increment.
+- [x] RED both exact shapes/status enums/bounds and no-root-authority cases.
+- [x] Add four exact assets and prove closure/package equality.
+- [x] Verify, detect staged scope, and commit the green increment.
 
 ## Task 6 — Risk schema
 

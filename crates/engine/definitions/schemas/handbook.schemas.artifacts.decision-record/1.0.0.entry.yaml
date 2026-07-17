@@ -1,0 +1,12 @@
+schema_id: handbook.schema-registry-entry
+schema_version: "1.0"
+content_schema_id: handbook.schemas.artifacts.decision-record
+content_schema_version: 1.0.0
+document_ref: definitions/schemas/handbook.schemas.artifacts.decision-record/1.0.0.schema.json
+document_fingerprint: sha256:16906254f457edd60362408a18a8531786752ae0bab71bcbc7194c16bd26c509
+closure_fingerprint: sha256:ff12bfa11c07fd25ebfeda45992c35ffd69efcbfa06bf6178856d4515989f514
+meta_schema_ref: https://json-schema.org/draft/2020-12/schema
+media_type: application/schema+json
+compatibility: exact
+extensions: {}
+entry_fingerprint: sha256:02144e0148eae41711acbfe8b6aaaa07d49ddd59214f5c0dd3f3b813012f93ef
