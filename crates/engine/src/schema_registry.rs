@@ -15,11 +15,58 @@ const SCHEMA_MEDIA_TYPE: &str = "application/schema+json";
 const MAX_CLOSURE_DOCUMENTS: usize = 128;
 const MAX_REFERENCE_DEPTH: usize = 32;
 const MAX_STRUCTURAL_LOCATION_BYTES: usize = 512;
+const MAX_SCHEMA_PATH_BYTES: usize = 1024;
+const MAX_SCHEMA_PATH_COMPONENTS: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructuralValidationError {
     instance_location: String,
     schema_location: String,
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ResolvedBindingJsonType {
+    Object,
+    Array,
+    String,
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ResolvedBindingCardinality {
+    Singular,
+    Plural,
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ResolvedBindingEmptyPolicy {
+    Forbidden,
+    Allowed,
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ResolvedBindingShape {
+    json_type: ResolvedBindingJsonType,
+    cardinality: ResolvedBindingCardinality,
+    empty_policy: ResolvedBindingEmptyPolicy,
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+impl ResolvedBindingShape {
+    pub(crate) fn json_type(self) -> ResolvedBindingJsonType {
+        self.json_type
+    }
+
+    pub(crate) fn cardinality(self) -> ResolvedBindingCardinality {
+        self.cardinality
+    }
+
+    pub(crate) fn empty_policy(self) -> ResolvedBindingEmptyPolicy {
+        self.empty_policy
+    }
 }
 
 impl StructuralValidationError {
@@ -67,6 +114,8 @@ impl SchemaRegistryEntry {
 pub struct ResolvedSchema {
     entry: SchemaRegistryEntry,
     closure_document_refs: Vec<String>,
+    #[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+    documents: BTreeMap<String, LoadedSchemaDocument>,
     validator: Validator,
 }
 
@@ -112,6 +161,231 @@ impl ResolvedSchema {
             Err(errors)
         }
     }
+
+    #[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+    pub(crate) fn binding_shape(
+        &self,
+        instance_pointer: &str,
+    ) -> Result<ResolvedBindingShape, RegistryLoadError> {
+        let tokens = parse_instance_pointer(instance_pointer)?;
+        let mut document_path = self.entry.document_ref.clone();
+        let mut schema_pointer = String::new();
+
+        for token in tokens {
+            let (resolved_document, resolved_pointer) =
+                self.resolve_schema_reference(&document_path, &schema_pointer)?;
+            let document = self
+                .documents
+                .get(&resolved_document)
+                .ok_or_else(|| indeterminate_binding_shape("binding schema document is absent"))?;
+            let node = document
+                .value
+                .pointer(&resolved_pointer)
+                .ok_or_else(|| indeterminate_binding_shape("binding schema pointer is absent"))?;
+            require_unambiguous_schema_node(node)?;
+            if node.get("type").and_then(Value::as_str) != Some("object") {
+                return Err(indeterminate_binding_shape(
+                    "binding path parent must have exact object type",
+                ));
+            }
+            let properties = node
+                .get("properties")
+                .and_then(Value::as_object)
+                .ok_or_else(|| {
+                    indeterminate_binding_shape("binding path parent must declare properties")
+                })?;
+            if !properties.contains_key(&token) {
+                return Err(indeterminate_binding_shape(
+                    "binding path property is absent",
+                ));
+            }
+            let required = node
+                .get("required")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    indeterminate_binding_shape("binding path parent must declare required")
+                })?;
+            if !required.iter().any(|value| value.as_str() == Some(&token)) {
+                return Err(indeterminate_binding_shape(
+                    "binding path property must be required",
+                ));
+            }
+            document_path = resolved_document;
+            schema_pointer = format!(
+                "{resolved_pointer}/properties/{}",
+                escape_json_pointer_token(&token)
+            );
+        }
+
+        let (document_path, schema_pointer) =
+            self.resolve_schema_reference(&document_path, &schema_pointer)?;
+        let document = self
+            .documents
+            .get(&document_path)
+            .ok_or_else(|| indeterminate_binding_shape("binding schema document is absent"))?;
+        let node = document
+            .value
+            .pointer(&schema_pointer)
+            .ok_or_else(|| indeterminate_binding_shape("binding schema pointer is absent"))?;
+        require_unambiguous_schema_node(node)?;
+        let json_type = match node.get("type").and_then(Value::as_str) {
+            Some("object") => ResolvedBindingJsonType::Object,
+            Some("array") => ResolvedBindingJsonType::Array,
+            Some("string") => ResolvedBindingJsonType::String,
+            _ => {
+                return Err(indeterminate_binding_shape(
+                    "binding terminal must have one explicit supported JSON type",
+                ))
+            }
+        };
+        let cardinality = if json_type == ResolvedBindingJsonType::Array {
+            ResolvedBindingCardinality::Plural
+        } else {
+            ResolvedBindingCardinality::Singular
+        };
+        let non_empty = match json_type {
+            ResolvedBindingJsonType::Object => {
+                node.get("required")
+                    .and_then(Value::as_array)
+                    .is_some_and(|required| !required.is_empty())
+                    || node
+                        .get("minProperties")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|value| value >= 1)
+            }
+            ResolvedBindingJsonType::Array => node
+                .get("minItems")
+                .and_then(Value::as_u64)
+                .is_some_and(|value| value >= 1),
+            ResolvedBindingJsonType::String => node
+                .get("minLength")
+                .and_then(Value::as_u64)
+                .is_some_and(|value| value >= 1),
+        };
+        Ok(ResolvedBindingShape {
+            json_type,
+            cardinality,
+            empty_policy: if non_empty {
+                ResolvedBindingEmptyPolicy::Forbidden
+            } else {
+                ResolvedBindingEmptyPolicy::Allowed
+            },
+        })
+    }
+
+    #[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+    fn resolve_schema_reference(
+        &self,
+        document_path: &str,
+        schema_pointer: &str,
+    ) -> Result<(String, String), RegistryLoadError> {
+        let mut document_path = document_path.to_owned();
+        let mut schema_pointer = schema_pointer.to_owned();
+        let mut visited = BTreeSet::new();
+        for _ in 0..=MAX_REFERENCE_DEPTH {
+            let location = SchemaLocation {
+                document_path: document_path.clone(),
+                pointer: schema_pointer.clone(),
+            };
+            if !visited.insert(location.clone()) {
+                return Err(indeterminate_binding_shape(
+                    "binding schema reference cycle is refused",
+                ));
+            }
+            let document = self
+                .documents
+                .get(&document_path)
+                .ok_or_else(|| indeterminate_binding_shape("binding schema document is absent"))?;
+            let Some(reference) = document
+                .references
+                .iter()
+                .find(|reference| reference.source_pointer == schema_pointer)
+            else {
+                return Ok((document_path, schema_pointer));
+            };
+            document_path = reference
+                .target_path
+                .clone()
+                .unwrap_or_else(|| document_path.clone());
+            schema_pointer = reference.fragment.clone();
+        }
+        Err(indeterminate_binding_shape(
+            "binding schema reference depth exceeds 32 edges",
+        ))
+    }
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+fn parse_instance_pointer(pointer: &str) -> Result<Vec<String>, RegistryLoadError> {
+    if pointer.is_empty() {
+        return Ok(Vec::new());
+    }
+    if !pointer.starts_with('/') {
+        return Err(indeterminate_binding_shape(
+            "binding pointer must be an RFC 6901 JSON Pointer",
+        ));
+    }
+    pointer[1..]
+        .split('/')
+        .map(|token| {
+            let mut decoded = String::with_capacity(token.len());
+            let bytes = token.as_bytes();
+            let mut index = 0;
+            while index < bytes.len() {
+                if bytes[index] == b'~' {
+                    let Some(next) = bytes.get(index + 1) else {
+                        return Err(indeterminate_binding_shape(
+                            "binding pointer contains an invalid escape",
+                        ));
+                    };
+                    match next {
+                        b'0' => decoded.push('~'),
+                        b'1' => decoded.push('/'),
+                        _ => {
+                            return Err(indeterminate_binding_shape(
+                                "binding pointer contains an invalid escape",
+                            ))
+                        }
+                    }
+                    index += 2;
+                } else {
+                    let remainder = &token[index..];
+                    let character = remainder.chars().next().expect("non-empty remainder");
+                    decoded.push(character);
+                    index += character.len_utf8();
+                }
+            }
+            Ok(decoded)
+        })
+        .collect()
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+fn require_unambiguous_schema_node(node: &Value) -> Result<(), RegistryLoadError> {
+    let Some(object) = node.as_object() else {
+        return Err(indeterminate_binding_shape(
+            "binding schema node must be a closed object schema",
+        ));
+    };
+    if ["allOf", "anyOf", "oneOf", "if", "then", "else"]
+        .iter()
+        .any(|keyword| object.contains_key(*keyword))
+        || object.get("type").is_some_and(Value::is_array)
+    {
+        return Err(indeterminate_binding_shape(
+            "binding schema node has an indeterminate union or conditional shape",
+        ));
+    }
+    Ok(())
+}
+
+#[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
+fn indeterminate_binding_shape(detail: &'static str) -> RegistryLoadError {
+    RegistryLoadError::at(
+        RegistryLoadErrorKind::UnsupportedDependency,
+        "binding_shape",
+        detail,
+    )
 }
 
 #[derive(Clone, Debug)]
@@ -141,6 +415,23 @@ impl SchemaRegistry {
         allowed_schema_roots: &[String],
         budget: &mut SourceByteBudget,
     ) -> Result<Self, RegistryLoadError> {
+        let mut request_schema_state = RequestSchemaState::default();
+        Self::load_with_request_budget(
+            repo_root,
+            entry_source_paths,
+            allowed_schema_roots,
+            budget,
+            &mut request_schema_state,
+        )
+    }
+
+    fn load_with_request_budget(
+        repo_root: &Path,
+        entry_source_paths: &[String],
+        allowed_schema_roots: &[String],
+        budget: &mut SourceByteBudget,
+        request_schema_state: &mut RequestSchemaState,
+    ) -> Result<Self, RegistryLoadError> {
         if entry_source_paths.is_empty() {
             return Err(RegistryLoadError::new(
                 RegistryLoadErrorKind::MissingSchema,
@@ -162,7 +453,8 @@ impl SchemaRegistry {
             }
             let authored = AuthoredSchemaRegistryEntry::parse(&bytes)?;
             let exact_ref = authored.exact_ref()?;
-            let resolved = authored.resolve(repo_root, &allowed_roots, budget)?;
+            let resolved =
+                authored.resolve(repo_root, &allowed_roots, budget, request_schema_state)?;
             if let Some(existing) = entries.get(&exact_ref) {
                 let kind = if existing.entry.entry_fingerprint == resolved.entry.entry_fingerprint
                     && existing.entry.closure_fingerprint == resolved.entry.closure_fingerprint
@@ -245,6 +537,7 @@ impl AuthoredSchemaRegistryEntry {
         repo_root: &Path,
         allowed_roots: &[String],
         budget: &mut SourceByteBudget,
+        request_schema_state: &mut RequestSchemaState,
     ) -> Result<ResolvedSchema, RegistryLoadError> {
         self.validate_static_contract()?;
         let exact_ref = self.exact_ref()?;
@@ -262,7 +555,7 @@ impl AuthoredSchemaRegistryEntry {
             ));
         }
 
-        let mut loader = ClosureLoader::new(repo_root, allowed_roots, budget);
+        let mut loader = ClosureLoader::new(repo_root, allowed_roots, budget, request_schema_state);
         loader.load_document(&self.document_ref)?;
         loader.validate_reference_graph()?;
         let root = loader.documents.get(&self.document_ref).ok_or_else(|| {
@@ -308,6 +601,7 @@ impl AuthoredSchemaRegistryEntry {
 
         let validator = build_validator(&self.document_ref, &loader.documents)?;
         let closure_document_refs = loader.documents.keys().cloned().collect();
+        let documents = loader.documents;
         Ok(ResolvedSchema {
             entry: SchemaRegistryEntry {
                 exact_ref,
@@ -317,6 +611,7 @@ impl AuthoredSchemaRegistryEntry {
                 entry_fingerprint: computed_entry_fingerprint,
             },
             closure_document_refs,
+            documents,
             validator,
         })
     }
@@ -356,7 +651,7 @@ impl AuthoredSchemaRegistryEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct LoadedSchemaDocument {
     path: String,
     value: Value,
@@ -366,10 +661,16 @@ struct LoadedSchemaDocument {
     references: Vec<LocalSchemaReference>,
 }
 
+#[derive(Default)]
+struct RequestSchemaState {
+    documents: BTreeMap<String, LoadedSchemaDocument>,
+}
+
 struct ClosureLoader<'a> {
     repo_root: &'a Path,
     allowed_roots: &'a [String],
     budget: &'a mut SourceByteBudget,
+    request_schema_state: &'a mut RequestSchemaState,
     documents: BTreeMap<String, LoadedSchemaDocument>,
 }
 
@@ -378,11 +679,13 @@ impl<'a> ClosureLoader<'a> {
         repo_root: &'a Path,
         allowed_roots: &'a [String],
         budget: &'a mut SourceByteBudget,
+        request_schema_state: &'a mut RequestSchemaState,
     ) -> Self {
         Self {
             repo_root,
             allowed_roots,
             budget,
+            request_schema_state,
             documents: BTreeMap::new(),
         }
     }
@@ -393,10 +696,19 @@ impl<'a> ClosureLoader<'a> {
         if self.documents.contains_key(&normalized) {
             return Ok(());
         }
-        if self.documents.len() >= MAX_CLOSURE_DOCUMENTS {
+        if let Some(cached) = self
+            .request_schema_state
+            .documents
+            .get(&normalized)
+            .cloned()
+        {
+            self.documents.insert(normalized.clone(), cached);
+            return self.load_transitive_and_validate(&normalized);
+        }
+        if self.request_schema_state.documents.len() >= MAX_CLOSURE_DOCUMENTS {
             return Err(RegistryLoadError::new(
                 RegistryLoadErrorKind::DocumentLimitExceeded,
-                "schema closure exceeds 128 documents",
+                "request-wide schema closure exceeds 128 distinct documents",
             ));
         }
 
@@ -428,29 +740,41 @@ impl<'a> ClosureLoader<'a> {
             }
         }
 
-        let target_paths = profile
-            .references
-            .iter()
-            .filter_map(|reference| reference.target_path.clone())
-            .collect::<BTreeSet<_>>();
-        self.documents.insert(
-            normalized.clone(),
-            LoadedSchemaDocument {
-                path: normalized.clone(),
-                value,
-                fingerprint: DefinitionFingerprint::from_bytes(&bytes),
-                schema_pointers: profile.schema_pointers,
-                schema_children: profile.schema_children,
-                references: profile.references,
-            },
-        );
+        let document = LoadedSchemaDocument {
+            path: normalized.clone(),
+            value,
+            fingerprint: DefinitionFingerprint::from_bytes(&bytes),
+            schema_pointers: profile.schema_pointers,
+            schema_children: profile.schema_children,
+            references: profile.references,
+        };
+        self.request_schema_state
+            .documents
+            .insert(normalized.clone(), document.clone());
+        self.documents.insert(normalized.clone(), document);
+
+        self.load_transitive_and_validate(&normalized)
+    }
+
+    fn load_transitive_and_validate(&mut self, normalized: &str) -> Result<(), RegistryLoadError> {
+        let target_paths = self
+            .documents
+            .get(normalized)
+            .map(|document| {
+                document
+                    .references
+                    .iter()
+                    .filter_map(|reference| reference.target_path.clone())
+                    .collect::<BTreeSet<_>>()
+            })
+            .unwrap_or_default();
 
         for target_path in target_paths {
             self.load_document(&target_path)?;
         }
         let references = self
             .documents
-            .get(&normalized)
+            .get(normalized)
             .map(|document| document.references.clone())
             .unwrap_or_default();
         for reference in references {
@@ -820,6 +1144,9 @@ fn parse_local_reference(
     {
         return Err(remote_reference_error(current_document, reference));
     }
+    if !document_part.is_empty() {
+        validate_schema_path_limits(document_part, current_document)?;
+    }
     validate_json_pointer_fragment(current_document, fragment)?;
     if document_part.is_empty() {
         return Ok(LocalSchemaReference {
@@ -987,6 +1314,7 @@ fn normalize_allowed_roots(
     let workspace = CanonicalWorkspace::new(repo_root);
     let mut normalized = BTreeSet::new();
     for root in allowed_roots {
+        validate_schema_path_limits(root, "allowed_schema_root")?;
         let path = workspace.normalize_repo_relative(root).map_err(|detail| {
             RegistryLoadError::at(
                 RegistryLoadErrorKind::InvalidSourcePath,
@@ -1007,6 +1335,7 @@ fn normalize_allowed_roots(
 }
 
 fn normalize_schema_path(repo_root: &Path, path: &str) -> Result<String, RegistryLoadError> {
+    validate_schema_path_limits(path, "source_path")?;
     let workspace = CanonicalWorkspace::new(repo_root);
     workspace
         .normalize_repo_relative(path)
@@ -1018,6 +1347,28 @@ fn normalize_schema_path(repo_root: &Path, path: &str) -> Result<String, Registr
                 detail,
             )
         })
+}
+
+fn validate_schema_path_limits(path: &str, location: &str) -> Result<(), RegistryLoadError> {
+    let components = path.split('/').collect::<Vec<_>>();
+    let invalid = path.trim() != path
+        || !(1..=MAX_SCHEMA_PATH_BYTES).contains(&path.len())
+        || !(1..=MAX_SCHEMA_PATH_COMPONENTS).contains(&components.len())
+        || path.starts_with('/')
+        || path.ends_with('/')
+        || path.contains('\\')
+        || path.contains('\0')
+        || components
+            .iter()
+            .any(|component| component.is_empty() || *component == "." || *component == "..");
+    if invalid {
+        return Err(RegistryLoadError::at(
+            RegistryLoadErrorKind::InvalidSourcePath,
+            location,
+            "schema path must be normalized and contain 1-1024 bytes and 1-64 components",
+        ));
+    }
+    Ok(())
 }
 
 fn classify_entry_decode_error(error: serde_json::Error) -> RegistryLoadError {
@@ -1190,6 +1541,112 @@ fn bounded_structural_location(location: String) -> String {
 
 fn escape_json_pointer_token(token: &str) -> String {
     token.replace('~', "~0").replace('/', "~1")
+}
+
+#[cfg(test)]
+mod binding_shape_tests {
+    use super::{
+        ResolvedBindingCardinality, ResolvedBindingEmptyPolicy, ResolvedBindingJsonType,
+        SchemaRegistry,
+    };
+    use crate::{DefinitionFingerprint, ExactDefinitionRef};
+    use serde_json::{json, Value};
+
+    #[test]
+    fn binding_shape_requires_determinate_required_closed_paths() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(repo.path().join("schemas")).unwrap();
+        std::fs::create_dir_all(repo.path().join("definitions")).unwrap();
+        let document_ref = "schemas/root.schema.json";
+        let schema = json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"$ref": "#/$defs/policy"},
+                "approvals": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                "ambiguous": {"oneOf": [{"type": "string"}, {"type": "array"}]}
+            },
+            "$defs": {
+                "policy": {
+                    "type": "object",
+                    "properties": {"revision": {"type": "string", "minLength": 1}},
+                    "required": ["revision"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["policy", "approvals", "ambiguous"],
+            "additionalProperties": false
+        });
+        let bytes = serde_json::to_vec(&schema).unwrap();
+        std::fs::write(repo.path().join(document_ref), &bytes).unwrap();
+        let document_fingerprint = DefinitionFingerprint::from_bytes(&bytes).to_string();
+        let closure = DefinitionFingerprint::from_json_value(&json!([{
+            "document_ref": document_ref,
+            "document_fingerprint": document_fingerprint,
+        }]))
+        .unwrap()
+        .to_string();
+        let preimage = json!({
+            "schema_id": "handbook.schema-registry-entry",
+            "schema_version": "1.0",
+            "content_schema_id": "example.schemas.binding-shape",
+            "content_schema_version": "1.0.0",
+            "document_ref": document_ref,
+            "document_fingerprint": document_fingerprint,
+            "closure_fingerprint": closure,
+            "meta_schema_ref": super::DRAFT_2020_12,
+            "media_type": super::SCHEMA_MEDIA_TYPE,
+            "compatibility": "exact",
+            "extensions": {},
+        });
+        let mut authored = preimage.as_object().unwrap().clone();
+        authored.insert(
+            "entry_fingerprint".into(),
+            DefinitionFingerprint::from_json_value(&Value::Object(
+                preimage.as_object().unwrap().clone(),
+            ))
+            .unwrap()
+            .to_string()
+            .into(),
+        );
+        std::fs::write(
+            repo.path().join("definitions/binding.entry.yaml"),
+            serde_yaml_bw::to_string(&authored).unwrap(),
+        )
+        .unwrap();
+        let registry = SchemaRegistry::load(
+            repo.path(),
+            &["definitions/binding.entry.yaml".into()],
+            &["schemas".into()],
+        )
+        .unwrap();
+        let schema_ref = ExactDefinitionRef::parse("example.schemas.binding-shape@1.0.0").unwrap();
+        let resolved = registry.resolved(&schema_ref).unwrap();
+
+        let policy = resolved.binding_shape("/policy").unwrap();
+        assert_eq!(policy.json_type(), ResolvedBindingJsonType::Object);
+        assert_eq!(policy.cardinality(), ResolvedBindingCardinality::Singular);
+        assert_eq!(policy.empty_policy(), ResolvedBindingEmptyPolicy::Forbidden);
+
+        let revision = resolved.binding_shape("/policy/revision").unwrap();
+        assert_eq!(revision.json_type(), ResolvedBindingJsonType::String);
+        assert_eq!(
+            revision.empty_policy(),
+            ResolvedBindingEmptyPolicy::Forbidden
+        );
+
+        let approvals = resolved.binding_shape("/approvals").unwrap();
+        assert_eq!(approvals.json_type(), ResolvedBindingJsonType::Array);
+        assert_eq!(approvals.cardinality(), ResolvedBindingCardinality::Plural);
+        assert_eq!(
+            approvals.empty_policy(),
+            ResolvedBindingEmptyPolicy::Forbidden
+        );
+
+        for pointer in ["policy", "/missing", "/ambiguous"] {
+            assert!(resolved.binding_shape(pointer).is_err(), "{pointer}");
+        }
+    }
 }
 
 #[derive(Serialize)]

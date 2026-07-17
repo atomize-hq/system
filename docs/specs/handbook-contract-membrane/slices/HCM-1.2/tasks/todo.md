@@ -23,12 +23,12 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 2 — Schema budget and shape query
 
-- [ ] RED multi-entry 128/129, shared identity, depth, and query cases.
-- [ ] Add request-wide visited budget and private retained normalized closure.
-- [ ] Implement exact determinate `binding_shape` algorithm with no raw escape.
-- [ ] Enforce root-document/transitive `$ref` 1024/1025-byte and
+- [x] RED multi-entry 128/129, shared identity, depth, and query cases.
+- [x] Add request-wide visited budget and private retained normalized closure.
+- [x] Implement exact determinate `binding_shape` algorithm with no raw escape.
+- [x] Enforce root-document/transitive `$ref` 1024/1025-byte and
   64/65-component ceilings before filesystem open.
-- [ ] Verify, detect staged scope, and commit the green increment.
+- [x] Verify, detect staged scope, and commit the green increment.
 
 ## Task 3 — Project Authority schema
 
