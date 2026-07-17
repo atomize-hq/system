@@ -78,9 +78,9 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 10 — Condition producer
 
-- [ ] RED complete literal condition record and every structural mutation.
-- [ ] Add typed metadata registry/fingerprint; refuse stale/self/profile-only.
-- [ ] Prove no evaluator/setup/doctor/scaffold behavior; commit green.
+- [x] RED complete literal condition record and every structural mutation.
+- [x] Add typed metadata registry/fingerprint; refuse stale/self/profile-only.
+- [x] Prove no evaluator/setup/doctor/scaffold behavior; commit green.
 
 ## Task 11 — Vocabulary producer
 

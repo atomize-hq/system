@@ -10,6 +10,7 @@ mod canonical_repo_support;
 pub mod definition_identity;
 pub mod freshness;
 pub mod instance_profile;
+pub mod project_condition_registry;
 pub mod schema_registry;
 pub mod semantic_capability_registry;
 pub mod stable_role_registry;
@@ -73,6 +74,7 @@ pub use instance_profile::{
     DefinitionSource, DefinitionSourceBinding, ProfileLoadError, ProfileLoadErrorKind,
     ProfileSelectionRequest, SymbolicId,
 };
+pub use project_condition_registry::ProjectConditionDefinition;
 pub use schema_registry::{
     ResolvedSchema, SchemaRegistry, SchemaRegistryEntry, StructuralValidationError,
 };
