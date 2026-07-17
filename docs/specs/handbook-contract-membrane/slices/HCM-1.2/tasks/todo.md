@@ -90,10 +90,10 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 12 — Context Resolution policy producers
 
-- [ ] RED all three complete record and matcher grammar cases.
-- [ ] Add three exact assets and typed metadata registry.
-- [ ] Refuse every structural/class/fingerprint mutation.
-- [ ] Prove no policy execution; verify and commit green.
+- [x] RED all three complete record and matcher grammar cases.
+- [x] Add three exact assets and typed metadata registry.
+- [x] Refuse every structural/class/fingerprint mutation.
+- [x] Prove no policy execution; verify and commit green.
 
 ## Task 13 — Context Resolution stack
 
