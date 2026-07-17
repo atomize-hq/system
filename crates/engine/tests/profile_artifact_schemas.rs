@@ -86,7 +86,9 @@ fn project_authority_schema_is_complete_closed_and_bounded() {
         "/engineering_posture/red_lines",
     ] {
         let mut changed = valid.clone();
-        changed.pointer_mut(pointer).map(|slot| *slot = Value::Null);
+        if let Some(slot) = changed.pointer_mut(pointer) {
+            *slot = Value::Null;
+        }
         assert!(schema.validate_json(&changed).is_err(), "{pointer}");
     }
 

@@ -2,7 +2,14 @@ use crate::definition_identity::{
     fingerprint_serializable, parse_definition_yaml, DefinitionFingerprint, ExactDefinitionRef,
     RegistryLoadError, RegistryLoadErrorKind, SourceByteBudget,
 };
-use crate::schema_registry::{SchemaRegistry, StructuralValidationError};
+use crate::instance_profile::SymbolicId;
+use crate::schema_registry::{
+    ResolvedBindingCardinality, ResolvedBindingEmptyPolicy, ResolvedBindingJsonType,
+    SchemaRegistry, StructuralValidationError,
+};
+use crate::semantic_capability_registry::{
+    BindingCardinality, BindingEmptyPolicy, BindingJsonType, SemanticCapabilityRegistry,
+};
 use crate::stable_role_registry::{read_trusted_repo_source, StableRoleRegistry};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -19,6 +26,8 @@ pub struct ArtifactKindRegistryLoadRequest {
     schema_entry_source_paths: Vec<String>,
     allowed_schema_roots: Vec<String>,
     artifact_kind_source_paths: Vec<String>,
+    semantic_capability_source_paths: Vec<String>,
+    semantic_validator_source_paths: Vec<String>,
 }
 
 impl ArtifactKindRegistryLoadRequest {
@@ -33,7 +42,19 @@ impl ArtifactKindRegistryLoadRequest {
             schema_entry_source_paths,
             allowed_schema_roots,
             artifact_kind_source_paths,
+            semantic_capability_source_paths: Vec::new(),
+            semantic_validator_source_paths: Vec::new(),
         }
+    }
+
+    pub fn with_semantic_sources(
+        mut self,
+        semantic_capability_source_paths: Vec<String>,
+        semantic_validator_source_paths: Vec<String>,
+    ) -> Self {
+        self.semantic_capability_source_paths = semantic_capability_source_paths;
+        self.semantic_validator_source_paths = semantic_validator_source_paths;
+        self
     }
 
     pub fn stable_role_registry_ref(&self) -> &ExactDefinitionRef {
@@ -58,6 +79,7 @@ pub struct ArtifactKindDefinition {
     exact_ref: ExactDefinitionRef,
     canonical_schema_ref: ExactDefinitionRef,
     supported_role_refs: Vec<String>,
+    semantic_capabilities: BTreeMap<SymbolicId, ArtifactKindCapability>,
     definition_fingerprint: DefinitionFingerprint,
 }
 
@@ -77,12 +99,32 @@ impl ArtifactKindDefinition {
     pub fn definition_fingerprint(&self) -> &DefinitionFingerprint {
         &self.definition_fingerprint
     }
+
+    pub fn semantic_capabilities(&self) -> &BTreeMap<SymbolicId, ArtifactKindCapability> {
+        &self.semantic_capabilities
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArtifactKindCapability {
+    contract_ref: ExactDefinitionRef,
+    bindings: BTreeMap<SymbolicId, String>,
+}
+
+impl ArtifactKindCapability {
+    pub fn contract_ref(&self) -> &ExactDefinitionRef {
+        &self.contract_ref
+    }
+    pub fn bindings(&self) -> &BTreeMap<SymbolicId, String> {
+        &self.bindings
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct ArtifactKindRegistry {
     stable_role_registry: StableRoleRegistry,
     schema_registry: SchemaRegistry,
+    semantic_capability_registry: SemanticCapabilityRegistry,
     kinds: BTreeMap<ExactDefinitionRef, ArtifactKindDefinition>,
     fingerprint: DefinitionFingerprint,
 }
@@ -98,6 +140,10 @@ impl ArtifactKindRegistry {
 
     pub fn schema_registry(&self) -> &SchemaRegistry {
         &self.schema_registry
+    }
+
+    pub fn semantic_capability_registry(&self) -> &SemanticCapabilityRegistry {
+        &self.semantic_capability_registry
     }
 
     pub fn kind_refs(&self) -> Vec<ExactDefinitionRef> {
@@ -142,6 +188,11 @@ pub fn load_artifact_kind_registry(
         &request.allowed_schema_roots,
         &mut source_budget,
     )?;
+    let semantic_capability_registry = SemanticCapabilityRegistry::load(
+        repo_root.as_ref(),
+        &request.semantic_capability_source_paths,
+        &request.semantic_validator_source_paths,
+    )?;
     let mut kinds = BTreeMap::new();
 
     for source_path in &request.artifact_kind_source_paths {
@@ -155,7 +206,11 @@ pub fn load_artifact_kind_registry(
             ));
         }
         let authored = AuthoredArtifactKindDefinition::parse(&bytes)?;
-        let definition = authored.validate(&stable_role_registry, &schema_registry)?;
+        let definition = authored.validate(
+            &stable_role_registry,
+            &schema_registry,
+            &semantic_capability_registry,
+        )?;
         if let Some(existing) = kinds.get(definition.exact_ref()) {
             let kind = if existing == &definition {
                 RegistryLoadErrorKind::DuplicateIdentity
@@ -183,6 +238,7 @@ pub fn load_artifact_kind_registry(
     Ok(ArtifactKindRegistry {
         stable_role_registry,
         schema_registry,
+        semantic_capability_registry,
         kinds,
         fingerprint,
     })
@@ -212,6 +268,14 @@ struct AuthoredArtifactKindDefinition {
     definition_fingerprint: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct AuthoredKindCapability {
+    capability_id: String,
+    contract_ref: String,
+    bindings: BTreeMap<String, String>,
+}
+
 impl AuthoredArtifactKindDefinition {
     fn parse(bytes: &[u8]) -> Result<Self, RegistryLoadError> {
         let value = parse_definition_yaml(bytes)?;
@@ -222,6 +286,7 @@ impl AuthoredArtifactKindDefinition {
         mut self,
         stable_role_registry: &StableRoleRegistry,
         schema_registry: &SchemaRegistry,
+        semantic_registry: &SemanticCapabilityRegistry,
     ) -> Result<ArtifactKindDefinition, RegistryLoadError> {
         if self.schema_id != KIND_SCHEMA_ID || self.schema_version != KIND_SCHEMA_VERSION {
             return Err(RegistryLoadError::new(
@@ -285,13 +350,81 @@ impl AuthoredArtifactKindDefinition {
             ));
         };
 
+        let semantic_capabilities = self.validate_semantic_capabilities(
+            schema_registry,
+            &canonical_schema_ref,
+            semantic_registry,
+        )?;
+
+        let mut validator_refs = Vec::new();
+        for value in &self.semantic_validation_profile_refs {
+            let reference = ExactDefinitionRef::parse(value)?;
+            if semantic_registry.validator(&reference).is_none() {
+                return Err(RegistryLoadError::at(
+                    RegistryLoadErrorKind::UnsupportedDependency,
+                    "semantic_validation_profile_refs",
+                    "semantic validator is absent from the exact typed registry",
+                ));
+            }
+            validator_refs.push(reference);
+        }
+        let expected_validator_refs = semantic_capabilities
+            .values()
+            .flat_map(|selected| {
+                semantic_registry
+                    .capability(selected.contract_ref())
+                    .expect("validated capability remains present")
+                    .semantic_validation_profile_refs()
+                    .iter()
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
+        if validator_refs != expected_validator_refs {
+            return Err(RegistryLoadError::at(
+                RegistryLoadErrorKind::UnsupportedDependency,
+                "semantic_validation_profile_refs",
+                "kind semantic validator refs must exactly match its capability contracts",
+            ));
+        }
+
         let supplied = DefinitionFingerprint::parse(&self.definition_fingerprint)?;
-        let computed = fingerprint_serializable(&ArtifactKindFingerprintClosure {
-            definition: &self,
-            stable_role_registry_fingerprint: stable_role_registry.fingerprint().as_str(),
-            schema_entry_fingerprint: schema_entry.entry_fingerprint().as_str(),
-            schema_closure_fingerprint: schema_entry.closure_fingerprint().as_str(),
-        })?;
+        let computed = if semantic_capabilities.is_empty() {
+            fingerprint_serializable(&ArtifactKindFingerprintClosure {
+                definition: &self,
+                stable_role_registry_fingerprint: stable_role_registry.fingerprint().as_str(),
+                schema_entry_fingerprint: schema_entry.entry_fingerprint().as_str(),
+                schema_closure_fingerprint: schema_entry.closure_fingerprint().as_str(),
+            })?
+        } else {
+            let capability_fingerprints = semantic_capabilities
+                .values()
+                .map(|selected| {
+                    semantic_registry
+                        .capability(selected.contract_ref())
+                        .expect("validated")
+                        .capability_fingerprint()
+                        .as_str()
+                })
+                .collect::<Vec<_>>();
+            let semantic_validator_fingerprints = validator_refs
+                .iter()
+                .map(|reference| {
+                    semantic_registry
+                        .validator(reference)
+                        .expect("validated")
+                        .profile_fingerprint()
+                        .as_str()
+                })
+                .collect::<Vec<_>>();
+            fingerprint_serializable(&ArtifactKindSemanticFingerprintClosure {
+                definition: &self,
+                stable_role_registry_fingerprint: stable_role_registry.fingerprint().as_str(),
+                schema_entry_fingerprint: schema_entry.entry_fingerprint().as_str(),
+                schema_closure_fingerprint: schema_entry.closure_fingerprint().as_str(),
+                capability_fingerprints,
+                semantic_validator_fingerprints,
+            })?
+        };
         if supplied != computed {
             return Err(RegistryLoadError::new(
                 RegistryLoadErrorKind::FingerprintMismatch,
@@ -303,14 +436,13 @@ impl AuthoredArtifactKindDefinition {
             exact_ref,
             canonical_schema_ref,
             supported_role_refs: self.supported_role_refs,
+            semantic_capabilities,
             definition_fingerprint: computed,
         })
     }
 
     fn refuse_later_owned_dependencies(&self) -> Result<(), RegistryLoadError> {
-        let refused = !self.semantic_capabilities.is_empty()
-            || !self.semantic_validation_profile_refs.is_empty()
-            || !self.renderer_definition_refs.is_empty()
+        let refused = !self.renderer_definition_refs.is_empty()
             || !self.projection_definition_refs.is_empty()
             || !self.lifecycle_policy_ref.is_null()
             || !self.review_triggers.is_empty()
@@ -323,6 +455,120 @@ impl AuthoredArtifactKindDefinition {
             ));
         }
         Ok(())
+    }
+
+    fn validate_semantic_capabilities(
+        &self,
+        schema_registry: &SchemaRegistry,
+        canonical_schema_ref: &ExactDefinitionRef,
+        semantic_registry: &SemanticCapabilityRegistry,
+    ) -> Result<BTreeMap<SymbolicId, ArtifactKindCapability>, RegistryLoadError> {
+        let schema = schema_registry
+            .resolved(canonical_schema_ref)
+            .expect("schema entry resolved");
+        let mut selected = BTreeMap::new();
+        for value in &self.semantic_capabilities {
+            let authored: AuthoredKindCapability =
+                serde_json::from_value(value.clone()).map_err(|_| {
+                    RegistryLoadError::new(
+                        RegistryLoadErrorKind::UnsupportedDependency,
+                        "kind semantic capability does not match its closed typed record",
+                    )
+                })?;
+            let capability_id = SymbolicId::parse(&authored.capability_id).map_err(|_| {
+                RegistryLoadError::new(
+                    RegistryLoadErrorKind::InvalidExactDefinitionRef,
+                    "kind capability ID is invalid",
+                )
+            })?;
+            let contract_ref = ExactDefinitionRef::parse(&authored.contract_ref)?;
+            let contract = semantic_registry.capability(&contract_ref).ok_or_else(|| {
+                RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedDependency,
+                    "kind capability contract is absent",
+                )
+            })?;
+            if contract.capability_id() != &capability_id {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedDependency,
+                    "kind capability ID does not match contract",
+                ));
+            }
+            let validator = contract
+                .semantic_validation_profile_refs()
+                .first()
+                .and_then(|r| semantic_registry.validator(r))
+                .ok_or_else(|| {
+                    RegistryLoadError::new(
+                        RegistryLoadErrorKind::UnsupportedDependency,
+                        "kind capability validator is absent",
+                    )
+                })?;
+            if authored.bindings.len() != contract.required_bindings().len() {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedDependency,
+                    "kind capability binding set is incomplete",
+                ));
+            }
+            let mut bindings = BTreeMap::new();
+            for (index, key) in contract.required_bindings().iter().enumerate() {
+                let pointer = authored.bindings.get(key.as_str()).ok_or_else(|| {
+                    RegistryLoadError::new(
+                        RegistryLoadErrorKind::UnsupportedDependency,
+                        "kind capability binding is missing",
+                    )
+                })?;
+                let shape = schema.binding_shape(pointer)?;
+                let rule = &validator.binding_rules()[index];
+                let compatible = matches!(
+                    (rule.json_type(), shape.json_type()),
+                    (BindingJsonType::Object, ResolvedBindingJsonType::Object)
+                        | (BindingJsonType::Array, ResolvedBindingJsonType::Array)
+                        | (BindingJsonType::String, ResolvedBindingJsonType::String)
+                ) && matches!(
+                    (rule.cardinality(), shape.cardinality()),
+                    (
+                        BindingCardinality::Singular,
+                        ResolvedBindingCardinality::Singular
+                    ) | (
+                        BindingCardinality::Plural,
+                        ResolvedBindingCardinality::Plural
+                    )
+                ) && matches!(
+                    (rule.empty_policy(), shape.empty_policy()),
+                    (
+                        BindingEmptyPolicy::Forbidden,
+                        ResolvedBindingEmptyPolicy::Forbidden
+                    ) | (
+                        BindingEmptyPolicy::Allowed,
+                        ResolvedBindingEmptyPolicy::Allowed
+                    )
+                );
+                if !compatible {
+                    return Err(RegistryLoadError::new(
+                        RegistryLoadErrorKind::UnsupportedDependency,
+                        "kind capability binding shape is incompatible",
+                    ));
+                }
+                bindings.insert(key.clone(), pointer.clone());
+            }
+            if selected
+                .insert(
+                    capability_id,
+                    ArtifactKindCapability {
+                        contract_ref,
+                        bindings,
+                    },
+                )
+                .is_some()
+            {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::DuplicateIdentity,
+                    "kind capability ID is duplicated",
+                ));
+            }
+        }
+        Ok(selected)
     }
 }
 
@@ -340,6 +586,16 @@ struct ArtifactKindFingerprintClosure<'a> {
     stable_role_registry_fingerprint: &'a str,
     schema_entry_fingerprint: &'a str,
     schema_closure_fingerprint: &'a str,
+}
+
+#[derive(Serialize)]
+struct ArtifactKindSemanticFingerprintClosure<'a> {
+    definition: &'a AuthoredArtifactKindDefinition,
+    stable_role_registry_fingerprint: &'a str,
+    schema_entry_fingerprint: &'a str,
+    schema_closure_fingerprint: &'a str,
+    capability_fingerprints: Vec<&'a str>,
+    semantic_validator_fingerprints: Vec<&'a str>,
 }
 
 #[derive(Serialize)]

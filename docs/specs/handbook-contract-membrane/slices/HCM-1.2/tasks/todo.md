@@ -57,11 +57,11 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 7 — Capability/validator metadata
 
-- [ ] RED complete producer and exact nine-binding table.
-- [ ] Add two exact assets and schema-aware binding compatibility.
-- [ ] Prove validator -> capability -> kind acyclicity and back-edge refusal.
-- [ ] Refuse all structural/shape/identity/fingerprint mutations.
-- [ ] Prove no executable validator; verify and commit green.
+- [x] RED complete producer and exact nine-binding table.
+- [x] Add two exact assets and schema-aware binding compatibility.
+- [x] Prove validator -> capability -> kind acyclicity and back-edge refusal.
+- [x] Refuse all structural/shape/identity/fingerprint mutations.
+- [x] Prove no executable validator; verify and commit green.
 
 ## Task 8 — Selected-root kinds
 

@@ -11,11 +11,12 @@ pub mod definition_identity;
 pub mod freshness;
 pub mod instance_profile;
 pub mod schema_registry;
+pub mod semantic_capability_registry;
 pub mod stable_role_registry;
 
 pub use artifact_kind_registry::{
-    load_artifact_kind_registry, ArtifactKindDefinition, ArtifactKindRegistry,
-    ArtifactKindRegistryLoadRequest,
+    load_artifact_kind_registry, ArtifactKindCapability, ArtifactKindDefinition,
+    ArtifactKindRegistry, ArtifactKindRegistryLoadRequest,
 };
 pub use artifact_manifest::{
     ArtifactManifest, ManifestError, ManifestInputs, ManifestVersion, SchemaVersion,
@@ -74,6 +75,11 @@ pub use instance_profile::{
 };
 pub use schema_registry::{
     ResolvedSchema, SchemaRegistry, SchemaRegistryEntry, StructuralValidationError,
+};
+pub use semantic_capability_registry::{
+    AllowedInstanceCardinality, BindingCardinality, BindingEmptyPolicy, BindingJsonType,
+    SemanticBindingRule, SemanticCapabilityDefinition, SemanticCapabilityRegistry,
+    SemanticValidationProfileDefinition,
 };
 pub use stable_role_registry::{StableRoleCategory, StableRoleDefinition, StableRoleRegistry};
 
