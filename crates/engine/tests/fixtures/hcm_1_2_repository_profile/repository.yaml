@@ -20,4 +20,4 @@ artifact_kind_sources:
 - handbook.artifact-kind.project-authority@1.0.0
 vocabulary_ref: handbook.vocabulary.shipped-root@1.0.0
 context_resolution_ref: handbook.context-resolution.shipped-root@1.0.0
-profile_fingerprint: sha256:16df6c14ce413eafc368d7c8f6c452b680642046f98e5b3ceadac40097013de1
+profile_fingerprint: sha256:2160f43ab59a1352f906b06dc3c26fc0d3e71ec2763e68ddf748912782e19701

@@ -17,6 +17,9 @@ const MAX_REFERENCE_DEPTH: usize = 32;
 const MAX_STRUCTURAL_LOCATION_BYTES: usize = 512;
 const MAX_SCHEMA_PATH_BYTES: usize = 1024;
 const MAX_SCHEMA_PATH_COMPONENTS: usize = 64;
+const MAX_BINDING_ARRAY_WITNESS_ITEMS: usize = 64;
+const MAX_BINDING_ARRAY_WITNESS_STATES: usize = 4096;
+const MAX_BINDING_ITEM_CANDIDATES: usize = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructuralValidationError {
@@ -117,6 +120,7 @@ pub struct ResolvedSchema {
     #[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
     documents: BTreeMap<String, LoadedSchemaDocument>,
     validator: Validator,
+    deferred_fingerprint_error: Option<RegistryLoadError>,
 }
 
 impl ResolvedSchema {
@@ -170,10 +174,11 @@ impl ResolvedSchema {
         let tokens = parse_instance_pointer(instance_pointer)?;
         let mut document_path = self.entry.document_ref.clone();
         let mut schema_pointer = String::new();
+        let mut traversal = BindingReferenceTraversal::default();
 
         for token in tokens {
             let (resolved_document, resolved_pointer) =
-                self.resolve_schema_reference(&document_path, &schema_pointer)?;
+                self.resolve_schema_reference(&document_path, &schema_pointer, &mut traversal)?;
             let document = self
                 .documents
                 .get(&resolved_document)
@@ -188,6 +193,22 @@ impl ResolvedSchema {
                     "binding path parent must have exact object type",
                 ));
             }
+            if node.get("additionalProperties").and_then(Value::as_bool) != Some(false) {
+                return Err(indeterminate_binding_shape(
+                    "binding path parent must be a closed object",
+                ));
+            }
+            if node
+                .get("patternProperties")
+                .and_then(Value::as_object)
+                .is_some_and(|patterns| !patterns.is_empty())
+            {
+                return Err(indeterminate_binding_shape(
+                    "binding path parent cannot admit patterned properties",
+                ));
+            }
+            require_satisfiable_binding_parent(node)?;
+            self.require_satisfiable_schema_location(&resolved_document, &resolved_pointer)?;
             let properties = node
                 .get("properties")
                 .and_then(Value::as_object)
@@ -218,7 +239,7 @@ impl ResolvedSchema {
         }
 
         let (document_path, schema_pointer) =
-            self.resolve_schema_reference(&document_path, &schema_pointer)?;
+            self.resolve_schema_reference(&document_path, &schema_pointer, &mut traversal)?;
         let document = self
             .documents
             .get(&document_path)
@@ -238,6 +259,25 @@ impl ResolvedSchema {
                 ))
             }
         };
+        if json_type == ResolvedBindingJsonType::Object
+            && node.get("additionalProperties").and_then(Value::as_bool) != Some(false)
+        {
+            return Err(indeterminate_binding_shape(
+                "binding object terminal must be closed",
+            ));
+        }
+        if json_type == ResolvedBindingJsonType::Object
+            && node
+                .get("patternProperties")
+                .and_then(Value::as_object)
+                .is_some_and(|patterns| !patterns.is_empty())
+        {
+            return Err(indeterminate_binding_shape(
+                "binding object terminal cannot admit patterned properties",
+            ));
+        }
+        require_satisfiable_binding_terminal(node, json_type)?;
+        self.require_satisfiable_schema_location(&document_path, &schema_pointer)?;
         let cardinality = if json_type == ResolvedBindingJsonType::Array {
             ResolvedBindingCardinality::Plural
         } else {
@@ -273,25 +313,238 @@ impl ResolvedSchema {
         })
     }
 
+    fn require_satisfiable_schema_location(
+        &self,
+        document_path: &str,
+        schema_pointer: &str,
+    ) -> Result<(), RegistryLoadError> {
+        let mut traversal = BindingSatisfiabilityTraversal::default();
+        if self.schema_location_is_conservatively_satisfiable(
+            document_path,
+            schema_pointer,
+            0,
+            &mut traversal,
+        )? {
+            Ok(())
+        } else {
+            Err(indeterminate_binding_shape(
+                "binding schema location is not provably satisfiable",
+            ))
+        }
+    }
+
+    fn schema_location_is_conservatively_satisfiable(
+        &self,
+        document_path: &str,
+        schema_pointer: &str,
+        reference_depth: usize,
+        traversal: &mut BindingSatisfiabilityTraversal,
+    ) -> Result<bool, RegistryLoadError> {
+        let mut references = BindingReferenceTraversal::default();
+        let (document_path, schema_pointer) =
+            self.resolve_schema_reference(document_path, schema_pointer, &mut references)?;
+        let reference_depth = reference_depth
+            .checked_add(references.edges)
+            .filter(|depth| *depth <= MAX_REFERENCE_DEPTH)
+            .ok_or_else(|| {
+                indeterminate_binding_shape(
+                    "binding satisfiability reference depth exceeds 32 edges",
+                )
+            })?;
+        let location = SchemaLocation {
+            document_path: document_path.clone(),
+            pointer: schema_pointer.clone(),
+        };
+        if traversal.proven.contains(&location) {
+            return Ok(true);
+        }
+        if !traversal.active.insert(location.clone()) {
+            return Ok(false);
+        }
+        let document = self
+            .documents
+            .get(&document_path)
+            .ok_or_else(|| indeterminate_binding_shape("binding schema document is absent"))?;
+        let node = document
+            .value
+            .pointer(&schema_pointer)
+            .ok_or_else(|| indeterminate_binding_shape("binding schema pointer is absent"))?;
+        let mut satisfiable = schema_fragment_is_conservatively_satisfiable(node)
+            || schema_fragment_is_conservatively_satisfiable_with_deferred_property_references(
+                node,
+            );
+        if satisfiable {
+            if let Some(object) = node.as_object() {
+                let candidate_types = match object.get("type") {
+                    Some(Value::String(json_type)) => vec![json_type.as_str()],
+                    Some(Value::Array(types)) => {
+                        types.iter().filter_map(Value::as_str).collect::<Vec<_>>()
+                    }
+                    _ => Vec::new(),
+                };
+                if !candidate_types.is_empty() {
+                    satisfiable = false;
+                    let mut branch_error = None;
+                    for json_type in candidate_types {
+                        let mut normalized = object.clone();
+                        normalized.insert("type".into(), Value::String(json_type.to_owned()));
+                        let normalized = Value::Object(normalized);
+                        if !schema_fragment_is_conservatively_satisfiable(&normalized)
+                            && !schema_fragment_is_conservatively_satisfiable_with_deferred_property_references(
+                                &normalized,
+                            )
+                        {
+                            continue;
+                        }
+                        let active_before = traversal.active.clone();
+                        let proven_before = traversal.proven.clone();
+                        match self.schema_type_branch_is_conservatively_satisfiable(
+                            object,
+                            json_type,
+                            &document_path,
+                            &schema_pointer,
+                            reference_depth,
+                            traversal,
+                        ) {
+                            Ok(true) => {
+                                satisfiable = true;
+                                break;
+                            }
+                            Ok(false) => {
+                                traversal.active = active_before;
+                                traversal.proven = proven_before;
+                            }
+                            Err(error) => {
+                                traversal.active = active_before;
+                                traversal.proven = proven_before;
+                                branch_error.get_or_insert(error);
+                            }
+                        }
+                    }
+                    if !satisfiable {
+                        if let Some(error) = branch_error {
+                            traversal.active.remove(&location);
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+        }
+        traversal.active.remove(&location);
+        if satisfiable {
+            traversal.proven.insert(location);
+        }
+        Ok(satisfiable)
+    }
+
+    fn schema_type_branch_is_conservatively_satisfiable(
+        &self,
+        object: &serde_json::Map<String, Value>,
+        json_type: &str,
+        document_path: &str,
+        schema_pointer: &str,
+        reference_depth: usize,
+        traversal: &mut BindingSatisfiabilityTraversal,
+    ) -> Result<bool, RegistryLoadError> {
+        match json_type {
+            "object" => {
+                let required_names = effective_required_names(object)?;
+                let properties = object
+                    .get("properties")
+                    .and_then(Value::as_object)
+                    .cloned()
+                    .unwrap_or_default();
+                let Some(witness_names) = dependency_safe_minimum_property_names(
+                    object,
+                    &required_names,
+                    &properties,
+                    true,
+                ) else {
+                    return Ok(false);
+                };
+                for name in witness_names {
+                    if !properties.contains_key(&name)
+                        || !self.schema_location_is_conservatively_satisfiable(
+                            document_path,
+                            &format!(
+                                "{schema_pointer}/properties/{}",
+                                escape_json_pointer_token(&name)
+                            ),
+                            reference_depth,
+                            traversal,
+                        )?
+                    {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            "array" => {
+                let minimum_items = object.get("minItems").and_then(Value::as_u64).unwrap_or(0);
+                let prefix_items = object
+                    .get("prefixItems")
+                    .and_then(Value::as_array)
+                    .map(Vec::as_slice)
+                    .unwrap_or_default();
+                for index in 0..prefix_items
+                    .len()
+                    .min(usize::try_from(minimum_items).unwrap_or(usize::MAX))
+                {
+                    if !self.schema_location_is_conservatively_satisfiable(
+                        document_path,
+                        &format!("{schema_pointer}/prefixItems/{index}"),
+                        reference_depth,
+                        traversal,
+                    )? {
+                        return Ok(false);
+                    }
+                }
+                if array_requires_post_prefix_item(object, prefix_items)
+                    && object.contains_key("items")
+                    && !self.schema_location_is_conservatively_satisfiable(
+                        document_path,
+                        &format!("{schema_pointer}/items"),
+                        reference_depth,
+                        traversal,
+                    )?
+                {
+                    return Ok(false);
+                }
+                if object.contains_key("contains")
+                    && object
+                        .get("minContains")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(1)
+                        > 0
+                    && !self.schema_location_is_conservatively_satisfiable(
+                        document_path,
+                        &format!("{schema_pointer}/contains"),
+                        reference_depth,
+                        traversal,
+                    )?
+                {
+                    return Ok(false);
+                }
+                Ok(true)
+            }
+            _ => Ok(true),
+        }
+    }
+
     #[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
     fn resolve_schema_reference(
         &self,
         document_path: &str,
         schema_pointer: &str,
+        traversal: &mut BindingReferenceTraversal,
     ) -> Result<(String, String), RegistryLoadError> {
         let mut document_path = document_path.to_owned();
         let mut schema_pointer = schema_pointer.to_owned();
-        let mut visited = BTreeSet::new();
-        for _ in 0..=MAX_REFERENCE_DEPTH {
+        loop {
             let location = SchemaLocation {
                 document_path: document_path.clone(),
                 pointer: schema_pointer.clone(),
             };
-            if !visited.insert(location.clone()) {
-                return Err(indeterminate_binding_shape(
-                    "binding schema reference cycle is refused",
-                ));
-            }
             let document = self
                 .documents
                 .get(&document_path)
@@ -303,16 +556,962 @@ impl ResolvedSchema {
             else {
                 return Ok((document_path, schema_pointer));
             };
+            let node = document.value.pointer(&schema_pointer).ok_or_else(|| {
+                indeterminate_binding_shape("binding schema reference source is absent")
+            })?;
+            require_reference_only_node(node)?;
+            if !traversal.visited.insert(location) {
+                return Err(indeterminate_binding_shape(
+                    "binding schema reference cycle is refused",
+                ));
+            }
+            if traversal.edges == MAX_REFERENCE_DEPTH {
+                return Err(indeterminate_binding_shape(
+                    "binding schema reference depth exceeds 32 edges",
+                ));
+            }
+            traversal.edges += 1;
             document_path = reference
                 .target_path
                 .clone()
                 .unwrap_or_else(|| document_path.clone());
             schema_pointer = reference.fragment.clone();
         }
-        Err(indeterminate_binding_shape(
-            "binding schema reference depth exceeds 32 edges",
-        ))
     }
+}
+
+fn require_satisfiable_binding_terminal(
+    node: &Value,
+    json_type: ResolvedBindingJsonType,
+) -> Result<(), RegistryLoadError> {
+    let object = node
+        .as_object()
+        .ok_or_else(|| indeterminate_binding_shape("binding terminal must be an object schema"))?;
+    if ["not", "const", "enum"]
+        .iter()
+        .any(|key| object.contains_key(*key))
+    {
+        return Err(indeterminate_binding_shape(
+            "binding terminal has a semantic constraint whose satisfiability is not proven",
+        ));
+    }
+    match json_type {
+        ResolvedBindingJsonType::String => {
+            require_ordered_bounds(object, "minLength", "maxLength")?;
+        }
+        ResolvedBindingJsonType::Array => {
+            require_ordered_bounds(object, "minItems", "maxItems")?;
+            if object.contains_key("contains") {
+                let minimum = object
+                    .get("minContains")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                if object
+                    .get("maxContains")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|maximum| minimum > maximum)
+                {
+                    return Err(indeterminate_binding_shape(
+                        "binding array terminal minimum contains exceeds its maximum",
+                    ));
+                }
+            }
+            let prefix_items = object
+                .get("prefixItems")
+                .and_then(Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            if array_requires_post_prefix_item(object, prefix_items)
+                && object
+                    .get("items")
+                    .is_some_and(|items| !schema_fragment_is_conservatively_satisfiable(items))
+            {
+                return Err(indeterminate_binding_shape(
+                    "binding array terminal requires an impossible item",
+                ));
+            }
+            if object
+                .get("contains")
+                .is_some_and(|contains| !schema_fragment_is_conservatively_satisfiable(contains))
+                && object
+                    .get("minContains")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1)
+                    > 0
+            {
+                return Err(indeterminate_binding_shape(
+                    "binding array terminal requires an impossible contained item",
+                ));
+            }
+        }
+        ResolvedBindingJsonType::Object => {
+            require_ordered_bounds(object, "minProperties", "maxProperties")?;
+            let properties = object
+                .get("properties")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            let required_names = effective_required_names(object)?;
+            if required_names
+                .iter()
+                .any(|name| !properties.contains_key(name))
+                || object
+                    .get("maxProperties")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|maximum| required_names.len() as u64 > maximum)
+                || object
+                    .get("minProperties")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|minimum| minimum > properties.len() as u64)
+                || required_names.iter().any(|name| {
+                    properties.get(name).is_some_and(|schema| {
+                        !schema_fragment_is_conservatively_satisfiable(schema)
+                    })
+                })
+                || !required_names_satisfy_property_names(object, &required_names)
+            {
+                return Err(indeterminate_binding_shape(
+                    "binding object terminal has an impossible closed required set",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn require_satisfiable_binding_parent(node: &Value) -> Result<(), RegistryLoadError> {
+    let object = node
+        .as_object()
+        .ok_or_else(|| indeterminate_binding_shape("binding parent must be an object schema"))?;
+    require_ordered_bounds(object, "minProperties", "maxProperties")?;
+    let properties = object
+        .get("properties")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let required_names = effective_required_names(object)?;
+    if required_names
+        .iter()
+        .any(|name| !properties.contains_key(name))
+        || object
+            .get("maxProperties")
+            .and_then(Value::as_u64)
+            .is_some_and(|maximum| required_names.len() as u64 > maximum)
+        || object
+            .get("minProperties")
+            .and_then(Value::as_u64)
+            .is_some_and(|minimum| minimum > properties.len() as u64)
+        || !required_names_satisfy_property_names(object, &required_names)
+    {
+        return Err(indeterminate_binding_shape(
+            "binding parent has an impossible closed required set",
+        ));
+    }
+    Ok(())
+}
+
+fn effective_required_names(
+    object: &serde_json::Map<String, Value>,
+) -> Result<BTreeSet<String>, RegistryLoadError> {
+    let required = object
+        .get("required")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let names = required
+        .iter()
+        .map(|value| value.as_str().map(str::to_owned))
+        .collect::<Option<BTreeSet<_>>>()
+        .ok_or_else(|| indeterminate_binding_shape("binding object required set is invalid"))?;
+    dependent_required_closure(object, names)
+}
+
+fn dependent_required_closure(
+    object: &serde_json::Map<String, Value>,
+    mut names: BTreeSet<String>,
+) -> Result<BTreeSet<String>, RegistryLoadError> {
+    let dependencies = object
+        .get("dependentRequired")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    loop {
+        let before = names.len();
+        for trigger in names.clone() {
+            if let Some(dependent_names) = dependencies.get(&trigger).and_then(Value::as_array) {
+                for dependent in dependent_names {
+                    names.insert(
+                        dependent
+                            .as_str()
+                            .ok_or_else(|| {
+                                indeterminate_binding_shape(
+                                    "binding object dependent required set is invalid",
+                                )
+                            })?
+                            .to_owned(),
+                    );
+                }
+            }
+        }
+        if names.len() == before {
+            return Ok(names);
+        }
+    }
+}
+
+fn required_names_satisfy_property_names(
+    object: &serde_json::Map<String, Value>,
+    required_names: &BTreeSet<String>,
+) -> bool {
+    required_names
+        .iter()
+        .all(|name| property_name_satisfies(object, name))
+}
+
+fn property_name_satisfies(object: &serde_json::Map<String, Value>, name: &str) -> bool {
+    let Some(schema) = object.get("propertyNames") else {
+        return true;
+    };
+    if schema.as_bool() == Some(true) {
+        return true;
+    }
+    if schema.as_bool() == Some(false) {
+        return false;
+    }
+    if schema.get("$ref").is_some() {
+        return false;
+    }
+    jsonschema::draft202012::options()
+        .with_pattern_options(PatternOptions::regex())
+        .build(schema)
+        .is_ok_and(|validator| validator.is_valid(&Value::String(name.to_owned())))
+}
+
+fn require_ordered_bounds(
+    object: &serde_json::Map<String, Value>,
+    minimum_key: &str,
+    maximum_key: &str,
+) -> Result<(), RegistryLoadError> {
+    if let (Some(minimum), Some(maximum)) = (
+        object.get(minimum_key).and_then(Value::as_u64),
+        object.get(maximum_key).and_then(Value::as_u64),
+    ) {
+        if minimum > maximum {
+            return Err(indeterminate_binding_shape(
+                "binding terminal minimum exceeds its maximum",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn array_requires_post_prefix_item(
+    object: &serde_json::Map<String, Value>,
+    prefix_items: &[Value],
+) -> bool {
+    let minimum_items = object.get("minItems").and_then(Value::as_u64).unwrap_or(0);
+    let contains_requires_post_prefix = object.get("contains").is_some_and(|contains| {
+        let minimum_contains = object
+            .get("minContains")
+            .and_then(Value::as_u64)
+            .unwrap_or(1);
+        let prefix_matches = prefix_items
+            .iter()
+            .filter(|prefix| schemas_share_witness(prefix, contains))
+            .count() as u64;
+        minimum_contains > prefix_matches
+    });
+    minimum_items > prefix_items.len() as u64 || contains_requires_post_prefix
+}
+
+fn schema_fragment_is_conservatively_satisfiable(node: &Value) -> bool {
+    let Some(object) = node.as_object() else {
+        return node.as_bool().unwrap_or(false);
+    };
+    if ["not", "allOf", "anyOf", "oneOf", "if", "then", "else"]
+        .iter()
+        .any(|key| object.contains_key(*key))
+    {
+        return false;
+    }
+    for (minimum, maximum) in [
+        ("minLength", "maxLength"),
+        ("minItems", "maxItems"),
+        ("minProperties", "maxProperties"),
+    ] {
+        if matches!(
+            (
+                object.get(minimum).and_then(Value::as_u64),
+                object.get(maximum).and_then(Value::as_u64),
+            ),
+            (Some(left), Some(right)) if left > right
+        ) {
+            return false;
+        }
+    }
+    if let Some(constant) = object.get("const") {
+        return standalone_schema_accepts(node, constant);
+    }
+    if let Some(values) = object.get("enum").and_then(Value::as_array) {
+        return values
+            .iter()
+            .any(|candidate| standalone_schema_accepts(node, candidate));
+    }
+    if let Some(types) = object.get("type").and_then(Value::as_array) {
+        let mut unique = BTreeSet::new();
+        if types.is_empty()
+            || types.iter().any(|value| {
+                value.as_str().is_none_or(|value| {
+                    !matches!(
+                        value,
+                        "array" | "object" | "string" | "integer" | "number" | "boolean" | "null"
+                    ) || !unique.insert(value)
+                })
+            })
+        {
+            return false;
+        }
+        return unique.into_iter().any(|json_type| {
+            let mut normalized = object.clone();
+            normalized.insert("type".into(), Value::String(json_type.to_owned()));
+            schema_fragment_is_conservatively_satisfiable(&Value::Object(normalized))
+        });
+    }
+    match object.get("type").and_then(Value::as_str) {
+        Some("array") => {
+            let minimum_items = object.get("minItems").and_then(Value::as_u64).unwrap_or(0);
+            let prefix_items = object
+                .get("prefixItems")
+                .and_then(Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            if prefix_items
+                .iter()
+                .take(usize::try_from(minimum_items).unwrap_or(usize::MAX))
+                .any(|schema| !schema_fragment_is_conservatively_satisfiable(schema))
+            {
+                return false;
+            }
+            let unique_items = object.get("uniqueItems").and_then(Value::as_bool) == Some(true);
+            let needs_joint_witness = (unique_items
+                && (!prefix_items.is_empty() || object.contains_key("contains")))
+                || (object.contains_key("contains")
+                    && (!prefix_items.is_empty()
+                        || object.contains_key("maxContains")
+                        || object.contains_key("maxItems")))
+                || (minimum_items > 0 && object.contains_key("unevaluatedItems"));
+            if needs_joint_witness {
+                if !array_schema_has_joint_candidate(node, object) {
+                    return false;
+                }
+                return true;
+            }
+            if unique_items
+                && minimum_items > 1
+                && !shared_item_domain_proves_unique_minimum(object, prefix_items, minimum_items)
+            {
+                return false;
+            }
+            let minimum_contains = object.contains_key("contains").then(|| {
+                object
+                    .get("minContains")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1)
+            });
+            if minimum_items.max(minimum_contains.unwrap_or(0)) > 0
+                && object
+                    .get("items")
+                    .is_some_and(|items| !schema_fragment_is_conservatively_satisfiable(items))
+            {
+                return false;
+            }
+            if object.contains_key("contains") {
+                let minimum_contains = minimum_contains.expect("contains established the default");
+                let contains = object
+                    .get("contains")
+                    .expect("contains established the schema");
+                let guaranteed_matches = required_items_provably_matching_contains(
+                    object,
+                    prefix_items,
+                    minimum_items,
+                    contains,
+                );
+                if object
+                    .get("maxContains")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|maximum| minimum_contains > maximum)
+                    || object
+                        .get("maxContains")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|maximum| guaranteed_matches > maximum)
+                    || object
+                        .get("maxItems")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|maximum| minimum_contains > maximum)
+                    || (minimum_contains > 0
+                        && object.get("contains").is_some_and(|contains| {
+                            !schema_fragment_is_conservatively_satisfiable(contains)
+                        }))
+                    || (minimum_contains > 0
+                        && object.get("items").is_some_and(|items| {
+                            object
+                                .get("contains")
+                                .is_some_and(|contains| !schemas_share_witness(items, contains))
+                        }))
+                {
+                    return false;
+                }
+            }
+        }
+        Some("object") => {
+            let Ok(required_names) = effective_required_names(object) else {
+                return false;
+            };
+            let properties = object
+                .get("properties")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            if object
+                .get("patternProperties")
+                .and_then(Value::as_object)
+                .is_some_and(|patterns| !patterns.is_empty())
+                && (!required_names.is_empty()
+                    || object
+                        .get("minProperties")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|minimum| minimum > 0))
+            {
+                return false;
+            }
+            if object.get("additionalProperties").and_then(Value::as_bool) == Some(false)
+                && required_names
+                    .iter()
+                    .any(|name| !properties.contains_key(name))
+            {
+                return false;
+            }
+            if !closed_object_has_dependency_safe_minimum(object, &required_names, &properties)
+                || object
+                    .get("maxProperties")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|maximum| required_names.len() as u64 > maximum)
+                || required_names.iter().any(|name| {
+                    properties.get(name).is_some_and(|schema| {
+                        !schema_fragment_is_conservatively_satisfiable(schema)
+                    })
+                })
+                || !required_dependent_schemas_are_trivially_satisfiable(object, &required_names)
+                || !required_names_satisfy_property_names(object, &required_names)
+            {
+                return false;
+            }
+        }
+        Some("string") => return string_schema_has_candidate(node, object),
+        Some("integer") => return numeric_schema_has_candidate(node, object, true),
+        Some("number") => return numeric_schema_has_candidate(node, object, false),
+        Some("boolean") => {
+            return standalone_schema_accepts(node, &Value::Bool(false))
+                || standalone_schema_accepts(node, &Value::Bool(true));
+        }
+        Some("null") => return standalone_schema_accepts(node, &Value::Null),
+        _ => {}
+    }
+    true
+}
+
+fn schema_fragment_is_conservatively_satisfiable_with_deferred_property_references(
+    node: &Value,
+) -> bool {
+    let mut deferred_reference = false;
+    let deferred = defer_property_references(node, &mut deferred_reference);
+    deferred_reference && schema_fragment_is_conservatively_satisfiable(&deferred)
+}
+
+fn defer_property_references(node: &Value, deferred_reference: &mut bool) -> Value {
+    let Some(object) = node.as_object() else {
+        return node.clone();
+    };
+    let mut deferred = object.clone();
+    if let Some(properties) = object.get("properties").and_then(Value::as_object) {
+        deferred.insert(
+            "properties".into(),
+            Value::Object(
+                properties
+                    .iter()
+                    .map(|(name, schema)| {
+                        (
+                            name.clone(),
+                            if schema.get("$ref").is_some() {
+                                *deferred_reference = true;
+                                Value::Bool(true)
+                            } else {
+                                defer_property_references(schema, deferred_reference)
+                            },
+                        )
+                    })
+                    .collect(),
+            ),
+        );
+    }
+    Value::Object(deferred)
+}
+
+fn array_schema_has_joint_candidate(
+    schema: &Value,
+    object: &serde_json::Map<String, Value>,
+) -> bool {
+    let minimum_items = object.get("minItems").and_then(Value::as_u64).unwrap_or(0);
+    let maximum_items = object
+        .get("maxItems")
+        .and_then(Value::as_u64)
+        .unwrap_or(u64::MAX);
+    let minimum_contains = if object.contains_key("contains") {
+        object
+            .get("minContains")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+    } else {
+        0
+    };
+    let prefix_items = object
+        .get("prefixItems")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let search_maximum = maximum_items.min(
+        minimum_items
+            .saturating_add(minimum_contains)
+            .max((prefix_items.len() as u64).saturating_add(minimum_contains)),
+    );
+    let Ok(minimum_items) = usize::try_from(minimum_items) else {
+        return false;
+    };
+    let Ok(search_maximum) = usize::try_from(search_maximum) else {
+        return false;
+    };
+    if minimum_items > search_maximum || search_maximum > MAX_BINDING_ARRAY_WITNESS_ITEMS {
+        return false;
+    }
+    let unique = object.get("uniqueItems").and_then(Value::as_bool) == Some(true);
+    let mut states = 0;
+    for length in minimum_items..=search_maximum {
+        let mut domains = Vec::with_capacity(length);
+        for index in 0..length {
+            let item_schema = prefix_items.get(index).or_else(|| object.get("items"));
+            let domain = item_schema
+                .map(bounded_schema_candidates)
+                .unwrap_or_else(unconstrained_schema_candidates);
+            if domain.is_empty() {
+                domains.clear();
+                break;
+            }
+            domains.push(domain);
+        }
+        if domains.len() == length
+            && array_candidate_search(
+                schema,
+                &domains,
+                unique,
+                &mut Vec::with_capacity(length),
+                &mut states,
+            )
+        {
+            return true;
+        }
+        if states >= MAX_BINDING_ARRAY_WITNESS_STATES {
+            return false;
+        }
+    }
+    false
+}
+
+fn array_candidate_search(
+    schema: &Value,
+    domains: &[Vec<Value>],
+    unique: bool,
+    candidate: &mut Vec<Value>,
+    states: &mut usize,
+) -> bool {
+    if *states >= MAX_BINDING_ARRAY_WITNESS_STATES {
+        return false;
+    }
+    if candidate.len() == domains.len() {
+        *states += 1;
+        return standalone_schema_accepts(schema, &Value::Array(candidate.clone()));
+    }
+    for value in &domains[candidate.len()] {
+        if unique && candidate.contains(value) {
+            continue;
+        }
+        *states += 1;
+        candidate.push(value.clone());
+        if array_candidate_search(schema, domains, unique, candidate, states) {
+            return true;
+        }
+        candidate.pop();
+        if *states >= MAX_BINDING_ARRAY_WITNESS_STATES {
+            return false;
+        }
+    }
+    false
+}
+
+fn bounded_schema_candidates(schema: &Value) -> Vec<Value> {
+    let mut candidates = schema_candidate_values(schema);
+    candidates.extend(unconstrained_schema_candidates());
+    if let Some(object) = schema.as_object() {
+        for key in [
+            "minimum",
+            "maximum",
+            "exclusiveMinimum",
+            "exclusiveMaximum",
+            "multipleOf",
+        ] {
+            if let Some(value) = object.get(key).and_then(Value::as_f64) {
+                for candidate in [value - 1.0, value, value + 1.0] {
+                    if let Some(number) = serde_json::Number::from_f64(candidate) {
+                        candidates.push(Value::Number(number));
+                    }
+                }
+            }
+        }
+        if let Some(minimum) = object.get("minLength").and_then(Value::as_u64) {
+            if minimum <= 8_192 {
+                candidates.push(Value::String("a".repeat(minimum as usize)));
+            }
+        }
+    }
+    let mut proven = Vec::new();
+    for candidate in candidates {
+        if proven.len() == MAX_BINDING_ITEM_CANDIDATES {
+            break;
+        }
+        if standalone_schema_accepts(schema, &candidate) && !proven.contains(&candidate) {
+            proven.push(candidate);
+        }
+    }
+    proven
+}
+
+fn unconstrained_schema_candidates() -> Vec<Value> {
+    vec![
+        Value::Null,
+        Value::Bool(false),
+        Value::Bool(true),
+        Value::from(-1),
+        Value::from(0),
+        Value::from(1),
+        Value::String(String::new()),
+        Value::String("a".into()),
+        Value::String("b".into()),
+        Value::String("c".into()),
+        Value::String("a.a".into()),
+        Value::Array(Vec::new()),
+        Value::Array(vec![Value::Null]),
+        Value::Object(serde_json::Map::new()),
+    ]
+}
+
+fn closed_object_has_dependency_safe_minimum(
+    object: &serde_json::Map<String, Value>,
+    required_names: &BTreeSet<String>,
+    properties: &serde_json::Map<String, Value>,
+) -> bool {
+    dependency_safe_minimum_property_names(object, required_names, properties, false).is_some()
+}
+
+fn dependency_safe_minimum_property_names(
+    object: &serde_json::Map<String, Value>,
+    required_names: &BTreeSet<String>,
+    properties: &serde_json::Map<String, Value>,
+    defer_local_references: bool,
+) -> Option<BTreeSet<String>> {
+    let minimum = object
+        .get("minProperties")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    if required_names.len() as u64 >= minimum {
+        return Some(required_names.clone());
+    }
+    let maximum = object
+        .get("maxProperties")
+        .and_then(Value::as_u64)
+        .unwrap_or(u64::MAX);
+    let mut selected = required_names.clone();
+    for name in properties.keys() {
+        if selected.contains(name) {
+            continue;
+        }
+        let mut candidate = selected.clone();
+        candidate.insert(name.clone());
+        let Ok(closure) = dependent_required_closure(object, candidate) else {
+            continue;
+        };
+        if closure.len() as u64 > maximum
+            || closure.iter().any(|name| {
+                !property_name_satisfies(object, name)
+                    || properties.get(name).is_none_or(|schema| {
+                        if schema.get("$ref").is_some() {
+                            !defer_local_references
+                        } else {
+                            !schema_fragment_is_conservatively_satisfiable(schema)
+                        }
+                    })
+            })
+            || !required_dependent_schemas_are_trivially_satisfiable(object, &closure)
+        {
+            continue;
+        }
+        selected = closure;
+        if selected.len() as u64 >= minimum {
+            return Some(selected);
+        }
+    }
+    None
+}
+
+fn shared_item_domain_proves_unique_minimum(
+    object: &serde_json::Map<String, Value>,
+    prefix_items: &[Value],
+    minimum_items: u64,
+) -> bool {
+    if !prefix_items.is_empty() {
+        return false;
+    }
+    let Some(items) = object.get("items") else {
+        return false;
+    };
+    finite_schema_domain(items)
+        .is_some_and(|domain| u64::try_from(domain.len()).is_ok_and(|size| size >= minimum_items))
+}
+
+fn finite_schema_domain(schema: &Value) -> Option<Vec<Value>> {
+    if schema.as_bool() == Some(false) {
+        return Some(Vec::new());
+    }
+    if schema.as_bool() == Some(true) {
+        return None;
+    }
+    let object = schema.as_object()?;
+    let candidates = if let Some(constant) = object.get("const") {
+        vec![constant.clone()]
+    } else if let Some(values) = object.get("enum").and_then(Value::as_array) {
+        values.clone()
+    } else {
+        match object.get("type").and_then(Value::as_str) {
+            Some("boolean") => vec![Value::Bool(false), Value::Bool(true)],
+            Some("null") => vec![Value::Null],
+            _ => return None,
+        }
+    };
+    let mut domain = Vec::new();
+    for candidate in candidates {
+        if standalone_schema_accepts(schema, &candidate) && !domain.contains(&candidate) {
+            domain.push(candidate);
+        }
+    }
+    Some(domain)
+}
+
+fn required_items_provably_matching_contains(
+    object: &serde_json::Map<String, Value>,
+    prefix_items: &[Value],
+    minimum_items: u64,
+    contains: &Value,
+) -> u64 {
+    if contains.as_bool() == Some(true) {
+        return minimum_items;
+    }
+    let prefix_count = minimum_items.min(prefix_items.len() as u64);
+    let guaranteed_prefix = prefix_items
+        .iter()
+        .take(usize::try_from(prefix_count).unwrap_or(usize::MAX))
+        .filter(|schema| schema_is_provably_subset_of(schema, contains))
+        .count() as u64;
+    let remaining = minimum_items.saturating_sub(prefix_count);
+    guaranteed_prefix
+        + object
+            .get("items")
+            .filter(|items| schema_is_provably_subset_of(items, contains))
+            .map(|_| remaining)
+            .unwrap_or(0)
+}
+
+fn schema_is_provably_subset_of(schema: &Value, containing_schema: &Value) -> bool {
+    if containing_schema.as_bool() == Some(true)
+        || schema.as_bool() == Some(false)
+        || schema == containing_schema
+    {
+        return true;
+    }
+    if let Some(constant) = schema.get("const") {
+        return standalone_schema_accepts(containing_schema, constant);
+    }
+    schema
+        .get("enum")
+        .and_then(Value::as_array)
+        .is_some_and(|values| {
+            !values.is_empty()
+                && values
+                    .iter()
+                    .all(|candidate| standalone_schema_accepts(containing_schema, candidate))
+        })
+}
+
+fn required_dependent_schemas_are_trivially_satisfiable(
+    object: &serde_json::Map<String, Value>,
+    required_names: &BTreeSet<String>,
+) -> bool {
+    let Some(dependent_schemas) = object.get("dependentSchemas").and_then(Value::as_object) else {
+        return true;
+    };
+    required_names.iter().all(|name| {
+        dependent_schemas.get(name).is_none_or(|schema| {
+            schema.as_bool() == Some(true)
+                || schema.as_object().is_some_and(serde_json::Map::is_empty)
+        })
+    })
+}
+
+fn schemas_share_witness(left: &Value, right: &Value) -> bool {
+    let mut candidates = schema_candidate_values(left);
+    candidates.extend(schema_candidate_values(right));
+    candidates.extend([
+        Value::Null,
+        Value::Bool(false),
+        Value::Bool(true),
+        Value::from(-1),
+        Value::from(0),
+        Value::from(1),
+        Value::String(String::new()),
+        Value::String("a".into()),
+        Value::String("a.a".into()),
+        Value::Array(Vec::new()),
+        Value::Array(vec![Value::Null]),
+        Value::Object(serde_json::Map::new()),
+    ]);
+    candidates.iter().any(|candidate| {
+        standalone_schema_accepts(left, candidate) && standalone_schema_accepts(right, candidate)
+    })
+}
+
+fn schema_candidate_values(schema: &Value) -> Vec<Value> {
+    let mut candidates = Vec::new();
+    if let Some(constant) = schema.get("const") {
+        candidates.push(constant.clone());
+    }
+    if let Some(values) = schema.get("enum").and_then(Value::as_array) {
+        candidates.extend(values.iter().cloned());
+    }
+    candidates
+}
+
+fn string_schema_has_candidate(schema: &Value, object: &serde_json::Map<String, Value>) -> bool {
+    let mut candidates = ["", "a", "a.a", "0", "A", "a-b", "example"]
+        .into_iter()
+        .map(|value| Value::String(value.to_owned()))
+        .collect::<Vec<_>>();
+    let minimum = object.get("minLength").and_then(Value::as_u64).unwrap_or(0);
+    if minimum <= 8_192 {
+        candidates.push(Value::String("a".repeat(minimum as usize)));
+        if minimum >= 3 {
+            let mut value = "a.a".to_owned();
+            value.extend(std::iter::repeat_n('a', minimum as usize - 3));
+            candidates.push(Value::String(value));
+        }
+    }
+    candidates
+        .iter()
+        .any(|candidate| standalone_schema_accepts(schema, candidate))
+}
+
+fn numeric_schema_has_candidate(
+    schema: &Value,
+    object: &serde_json::Map<String, Value>,
+    integer: bool,
+) -> bool {
+    let mut candidates = vec![
+        -1024.0, -100.0, -10.0, -2.0, -1.0, 0.0, 1.0, 2.0, 10.0, 100.0, 1024.0,
+    ];
+    for key in [
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+    ] {
+        if let Some(value) = object.get(key).and_then(Value::as_f64) {
+            candidates.extend([value, value - 1.0, value + 1.0]);
+        }
+    }
+    if let (Some(minimum), Some(multiple)) = (
+        object
+            .get("minimum")
+            .or_else(|| object.get("exclusiveMinimum"))
+            .and_then(Value::as_f64),
+        object.get("multipleOf").and_then(Value::as_f64),
+    ) {
+        if multiple > 0.0 {
+            let candidate = (minimum / multiple).ceil() * multiple;
+            candidates.extend([candidate, candidate + multiple]);
+        }
+    }
+    candidates.into_iter().any(|candidate| {
+        candidate.is_finite()
+            && (!integer || candidate.fract() == 0.0)
+            && serde_json::Number::from_f64(candidate)
+                .map(Value::Number)
+                .is_some_and(|candidate| standalone_schema_accepts(schema, &candidate))
+    })
+}
+
+fn standalone_schema_accepts(schema: &Value, candidate: &Value) -> bool {
+    if schema.get("$ref").is_some() {
+        return false;
+    }
+    jsonschema::draft202012::options()
+        .with_pattern_options(PatternOptions::regex())
+        .build(schema)
+        .is_ok_and(|validator| validator.is_valid(candidate))
+}
+
+#[derive(Default)]
+struct BindingReferenceTraversal {
+    visited: BTreeSet<SchemaLocation>,
+    edges: usize,
+}
+
+#[derive(Default)]
+struct BindingSatisfiabilityTraversal {
+    active: BTreeSet<SchemaLocation>,
+    proven: BTreeSet<SchemaLocation>,
+}
+
+fn require_reference_only_node(node: &Value) -> Result<(), RegistryLoadError> {
+    let object = node.as_object().ok_or_else(|| {
+        indeterminate_binding_shape("binding schema reference node must be an object")
+    })?;
+    let allowed_annotation = |key: &str| {
+        matches!(
+            key,
+            "$ref"
+                | "$comment"
+                | "title"
+                | "description"
+                | "default"
+                | "examples"
+                | "deprecated"
+                | "readOnly"
+                | "writeOnly"
+        )
+    };
+    if object.keys().any(|key| !allowed_annotation(key)) {
+        return Err(indeterminate_binding_shape(
+            "binding schema reference node has a semantic sibling",
+        ));
+    }
+    Ok(())
 }
 
 #[allow(dead_code)] // Consumed by the Task 7 capability-binding increment.
@@ -394,6 +1593,18 @@ pub struct SchemaRegistry {
     fingerprint: DefinitionFingerprint,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) enum SchemaSourceKind {
+    BuiltIn,
+    Repository,
+}
+
+pub(crate) struct AdmittedSchemaEntrySource<'a> {
+    pub(crate) declared_ref: &'a ExactDefinitionRef,
+    pub(crate) source_kind: SchemaSourceKind,
+    pub(crate) bytes: &'a [u8],
+}
+
 impl SchemaRegistry {
     pub fn load(
         repo_root: impl AsRef<Path>,
@@ -453,38 +1664,82 @@ impl SchemaRegistry {
             }
             let authored = AuthoredSchemaRegistryEntry::parse(&bytes)?;
             let exact_ref = authored.exact_ref()?;
-            let resolved =
-                authored.resolve(repo_root, &allowed_roots, budget, request_schema_state)?;
-            if let Some(existing) = entries.get(&exact_ref) {
-                let kind = if existing.entry.entry_fingerprint == resolved.entry.entry_fingerprint
-                    && existing.entry.closure_fingerprint == resolved.entry.closure_fingerprint
-                {
-                    RegistryLoadErrorKind::DuplicateIdentity
-                } else {
-                    RegistryLoadErrorKind::ConflictingIdentity
-                };
-                return Err(RegistryLoadError::at(
-                    kind,
-                    "schema_registry_entries",
-                    "schema-registry exact identity appears more than once",
-                ));
-            }
-            entries.insert(exact_ref, resolved);
+            let resolved = authored.resolve(
+                repo_root,
+                &allowed_roots,
+                budget,
+                request_schema_state,
+                SchemaSourceKind::Repository,
+            )?;
+            insert_resolved_schema(&mut entries, exact_ref, resolved)?;
         }
 
-        let fingerprint_members = entries
-            .values()
-            .map(|resolved| SchemaRegistryFingerprintMember {
-                entry_ref: resolved.entry.exact_ref.as_str(),
-                entry_fingerprint: resolved.entry.entry_fingerprint.as_str(),
-                closure_fingerprint: resolved.entry.closure_fingerprint.as_str(),
-            })
-            .collect::<Vec<_>>();
-        let fingerprint = fingerprint_serializable(&fingerprint_members)?;
-        Ok(Self {
-            entries,
-            fingerprint,
-        })
+        let registry = finish_schema_registry(entries)?;
+        registry.validate_fingerprints()?;
+        Ok(registry)
+    }
+
+    #[allow(dead_code)] // Eager internal path retained for direct registry callers and tests.
+    pub(crate) fn load_admitted(
+        repo_root: &Path,
+        entry_sources: &[AdmittedSchemaEntrySource<'_>],
+        allowed_schema_roots: &[String],
+        budget: &mut SourceByteBudget,
+    ) -> Result<Self, RegistryLoadError> {
+        let registry = Self::load_admitted_deferred_fingerprints(
+            repo_root,
+            entry_sources,
+            allowed_schema_roots,
+            budget,
+        )?;
+        registry.validate_fingerprints()?;
+        Ok(registry)
+    }
+
+    pub(crate) fn load_admitted_deferred_fingerprints(
+        repo_root: &Path,
+        entry_sources: &[AdmittedSchemaEntrySource<'_>],
+        allowed_schema_roots: &[String],
+        budget: &mut SourceByteBudget,
+    ) -> Result<Self, RegistryLoadError> {
+        if entry_sources.is_empty() {
+            return Err(RegistryLoadError::new(
+                RegistryLoadErrorKind::MissingSchema,
+                "at least one schema-registry entry source is required",
+            ));
+        }
+        let allowed_roots = normalize_allowed_roots(repo_root, allowed_schema_roots)?;
+        let mut request_schema_state = RequestSchemaState::default();
+        let mut entries = BTreeMap::new();
+        for source in entry_sources {
+            let authored = AuthoredSchemaRegistryEntry::parse(source.bytes)?;
+            let exact_ref = authored.exact_ref()?;
+            if &exact_ref != source.declared_ref {
+                return Err(RegistryLoadError::at(
+                    RegistryLoadErrorKind::ConflictingIdentity,
+                    "schema_entry_source",
+                    "schema-entry derived exact ref does not match its typed source binding",
+                ));
+            }
+            let resolved = authored.resolve(
+                repo_root,
+                &allowed_roots,
+                budget,
+                &mut request_schema_state,
+                source.source_kind,
+            )?;
+            insert_resolved_schema(&mut entries, exact_ref, resolved)?;
+        }
+        finish_schema_registry(entries)
+    }
+
+    pub(crate) fn validate_fingerprints(&self) -> Result<(), RegistryLoadError> {
+        for resolved in self.entries.values() {
+            if let Some(error) = &resolved.deferred_fingerprint_error {
+                return Err(error.clone());
+            }
+        }
+        Ok(())
     }
 
     pub fn fingerprint(&self) -> &DefinitionFingerprint {
@@ -502,6 +1757,65 @@ impl SchemaRegistry {
     pub fn resolved(&self, exact_ref: &ExactDefinitionRef) -> Option<&ResolvedSchema> {
         self.entries.get(exact_ref)
     }
+
+    pub(crate) fn select_entries(
+        &self,
+        exact_refs: &[ExactDefinitionRef],
+    ) -> Result<Self, RegistryLoadError> {
+        let mut entries = BTreeMap::new();
+        for exact_ref in exact_refs {
+            let resolved = self.entries.get(exact_ref).ok_or_else(|| {
+                RegistryLoadError::at(
+                    RegistryLoadErrorKind::MissingSchema,
+                    "schema_registry_sources",
+                    "effective profile schema entry is absent from the admitted closure",
+                )
+            })?;
+            entries.insert(exact_ref.clone(), resolved.clone());
+        }
+        finish_schema_registry(entries)
+    }
+}
+
+fn insert_resolved_schema(
+    entries: &mut BTreeMap<ExactDefinitionRef, ResolvedSchema>,
+    exact_ref: ExactDefinitionRef,
+    resolved: ResolvedSchema,
+) -> Result<(), RegistryLoadError> {
+    if let Some(existing) = entries.get(&exact_ref) {
+        let kind = if existing.entry.entry_fingerprint == resolved.entry.entry_fingerprint
+            && existing.entry.closure_fingerprint == resolved.entry.closure_fingerprint
+        {
+            RegistryLoadErrorKind::DuplicateIdentity
+        } else {
+            RegistryLoadErrorKind::ConflictingIdentity
+        };
+        return Err(RegistryLoadError::at(
+            kind,
+            "schema_registry_entries",
+            "schema-registry exact identity appears more than once",
+        ));
+    }
+    entries.insert(exact_ref, resolved);
+    Ok(())
+}
+
+fn finish_schema_registry(
+    entries: BTreeMap<ExactDefinitionRef, ResolvedSchema>,
+) -> Result<SchemaRegistry, RegistryLoadError> {
+    let fingerprint_members = entries
+        .values()
+        .map(|resolved| SchemaRegistryFingerprintMember {
+            entry_ref: resolved.entry.exact_ref.as_str(),
+            entry_fingerprint: resolved.entry.entry_fingerprint.as_str(),
+            closure_fingerprint: resolved.entry.closure_fingerprint.as_str(),
+        })
+        .collect::<Vec<_>>();
+    let fingerprint = fingerprint_serializable(&fingerprint_members)?;
+    Ok(SchemaRegistry {
+        entries,
+        fingerprint,
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -538,14 +1852,10 @@ impl AuthoredSchemaRegistryEntry {
         allowed_roots: &[String],
         budget: &mut SourceByteBudget,
         request_schema_state: &mut RequestSchemaState,
+        source_kind: SchemaSourceKind,
     ) -> Result<ResolvedSchema, RegistryLoadError> {
         self.validate_static_contract()?;
         let exact_ref = self.exact_ref()?;
-        let supplied_document_fingerprint =
-            DefinitionFingerprint::parse(&self.document_fingerprint)?;
-        let supplied_closure_fingerprint = DefinitionFingerprint::parse(&self.closure_fingerprint)?;
-        let supplied_entry_fingerprint = DefinitionFingerprint::parse(&self.entry_fingerprint)?;
-
         let normalized_document_ref = normalize_schema_path(repo_root, &self.document_ref)?;
         if normalized_document_ref != self.document_ref {
             return Err(RegistryLoadError::at(
@@ -555,7 +1865,13 @@ impl AuthoredSchemaRegistryEntry {
             ));
         }
 
-        let mut loader = ClosureLoader::new(repo_root, allowed_roots, budget, request_schema_state);
+        let mut loader = ClosureLoader::new(
+            repo_root,
+            allowed_roots,
+            budget,
+            request_schema_state,
+            source_kind,
+        );
         loader.load_document(&self.document_ref)?;
         loader.validate_reference_graph()?;
         let root = loader.documents.get(&self.document_ref).ok_or_else(|| {
@@ -565,14 +1881,7 @@ impl AuthoredSchemaRegistryEntry {
                 "prewalk did not retain the selected root document",
             )
         })?;
-        if root.fingerprint != supplied_document_fingerprint {
-            return Err(RegistryLoadError::at(
-                RegistryLoadErrorKind::FingerprintMismatch,
-                "document_fingerprint",
-                "schema document fingerprint does not match exact source bytes",
-            ));
-        }
-
+        let computed_document_fingerprint = root.fingerprint.clone();
         let closure_members = loader
             .documents
             .values()
@@ -582,22 +1891,41 @@ impl AuthoredSchemaRegistryEntry {
             })
             .collect::<Vec<_>>();
         let computed_closure_fingerprint = fingerprint_serializable(&closure_members)?;
-        if computed_closure_fingerprint != supplied_closure_fingerprint {
-            return Err(RegistryLoadError::at(
-                RegistryLoadErrorKind::FingerprintMismatch,
-                "closure_fingerprint",
-                "schema closure fingerprint does not match the prewalked closure",
-            ));
-        }
-
         let computed_entry_fingerprint = fingerprint_serializable(&self)?;
-        if computed_entry_fingerprint != supplied_entry_fingerprint {
-            return Err(RegistryLoadError::at(
-                RegistryLoadErrorKind::FingerprintMismatch,
-                "entry_fingerprint",
-                "schema-registry entry fingerprint does not match normalized source",
-            ));
-        }
+
+        let deferred_fingerprint_error = match DefinitionFingerprint::parse(
+            &self.document_fingerprint,
+        ) {
+            Err(error) => Some(error),
+            Ok(supplied) if computed_document_fingerprint != supplied => {
+                Some(RegistryLoadError::at(
+                    RegistryLoadErrorKind::FingerprintMismatch,
+                    "document_fingerprint",
+                    "schema document fingerprint does not match exact source bytes",
+                ))
+            }
+            Ok(_) => match DefinitionFingerprint::parse(&self.closure_fingerprint) {
+                Err(error) => Some(error),
+                Ok(supplied) if computed_closure_fingerprint != supplied => {
+                    Some(RegistryLoadError::at(
+                        RegistryLoadErrorKind::FingerprintMismatch,
+                        "closure_fingerprint",
+                        "schema closure fingerprint does not match the prewalked closure",
+                    ))
+                }
+                Ok(_) => match DefinitionFingerprint::parse(&self.entry_fingerprint) {
+                    Err(error) => Some(error),
+                    Ok(supplied) if computed_entry_fingerprint != supplied => {
+                        Some(RegistryLoadError::at(
+                            RegistryLoadErrorKind::FingerprintMismatch,
+                            "entry_fingerprint",
+                            "schema-registry entry fingerprint does not match normalized source",
+                        ))
+                    }
+                    Ok(_) => None,
+                },
+            },
+        };
 
         let validator = build_validator(&self.document_ref, &loader.documents)?;
         let closure_document_refs = loader.documents.keys().cloned().collect();
@@ -606,13 +1934,14 @@ impl AuthoredSchemaRegistryEntry {
             entry: SchemaRegistryEntry {
                 exact_ref,
                 document_ref: self.document_ref,
-                document_fingerprint: supplied_document_fingerprint,
+                document_fingerprint: computed_document_fingerprint,
                 closure_fingerprint: computed_closure_fingerprint,
                 entry_fingerprint: computed_entry_fingerprint,
             },
             closure_document_refs,
             documents,
             validator,
+            deferred_fingerprint_error,
         })
     }
 
@@ -651,6 +1980,19 @@ impl AuthoredSchemaRegistryEntry {
     }
 }
 
+pub(crate) fn admitted_schema_entry_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let authored = AuthoredSchemaRegistryEntry::parse(bytes)?;
+    if authored.schema_id != "handbook.schema-registry-entry" || authored.schema_version != "1.0" {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "schema-registry entry must use handbook.schema-registry-entry / 1.0",
+        ));
+    }
+    authored.exact_ref()
+}
+
 #[derive(Clone, Debug)]
 struct LoadedSchemaDocument {
     path: String,
@@ -663,7 +2005,13 @@ struct LoadedSchemaDocument {
 
 #[derive(Default)]
 struct RequestSchemaState {
-    documents: BTreeMap<String, LoadedSchemaDocument>,
+    documents: BTreeMap<SchemaDocumentIdentity, LoadedSchemaDocument>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct SchemaDocumentIdentity {
+    source_kind: SchemaSourceKind,
+    path: String,
 }
 
 struct ClosureLoader<'a> {
@@ -671,6 +2019,7 @@ struct ClosureLoader<'a> {
     allowed_roots: &'a [String],
     budget: &'a mut SourceByteBudget,
     request_schema_state: &'a mut RequestSchemaState,
+    source_kind: SchemaSourceKind,
     documents: BTreeMap<String, LoadedSchemaDocument>,
 }
 
@@ -680,12 +2029,14 @@ impl<'a> ClosureLoader<'a> {
         allowed_roots: &'a [String],
         budget: &'a mut SourceByteBudget,
         request_schema_state: &'a mut RequestSchemaState,
+        source_kind: SchemaSourceKind,
     ) -> Self {
         Self {
             repo_root,
             allowed_roots,
             budget,
             request_schema_state,
+            source_kind,
             documents: BTreeMap::new(),
         }
     }
@@ -696,10 +2047,14 @@ impl<'a> ClosureLoader<'a> {
         if self.documents.contains_key(&normalized) {
             return Ok(());
         }
+        let source_identity = SchemaDocumentIdentity {
+            source_kind: self.source_kind,
+            path: normalized.clone(),
+        };
         if let Some(cached) = self
             .request_schema_state
             .documents
-            .get(&normalized)
+            .get(&source_identity)
             .cloned()
         {
             self.documents.insert(normalized.clone(), cached);
@@ -712,18 +2067,35 @@ impl<'a> ClosureLoader<'a> {
             ));
         }
 
-        let (_, bytes) = read_trusted_repo_source(self.repo_root, &normalized, self.budget)
-            .map_err(|error| {
-                if error.kind() == RegistryLoadErrorKind::MissingSource {
-                    RegistryLoadError::at(
-                        RegistryLoadErrorKind::LocalReferenceMissing,
-                        &normalized,
-                        "referenced local schema document does not exist",
-                    )
-                } else {
-                    error
-                }
-            })?;
+        let bytes = match self.source_kind {
+            SchemaSourceKind::BuiltIn => {
+                let bytes =
+                    crate::profile_builtins::schema_document(&normalized).ok_or_else(|| {
+                        RegistryLoadError::at(
+                            RegistryLoadErrorKind::LocalReferenceMissing,
+                            "schema_document",
+                            "referenced built-in schema document is not compile-time allowlisted",
+                        )
+                    })?;
+                self.budget.admit(bytes.len())?;
+                bytes.to_vec()
+            }
+            SchemaSourceKind::Repository => {
+                let (_, bytes) = read_trusted_repo_source(self.repo_root, &normalized, self.budget)
+                    .map_err(|error| {
+                        if error.kind() == RegistryLoadErrorKind::MissingSource {
+                            RegistryLoadError::at(
+                                RegistryLoadErrorKind::LocalReferenceMissing,
+                                "schema_document",
+                                "referenced local schema document does not exist",
+                            )
+                        } else {
+                            error
+                        }
+                    })?;
+                bytes
+            }
+        };
         let value = parse_schema_json(&bytes)?;
         validate_schema_document(&normalized, &value)?;
         let profile = collect_schema_profile(&normalized, &value)?;
@@ -750,7 +2122,7 @@ impl<'a> ClosureLoader<'a> {
         };
         self.request_schema_state
             .documents
-            .insert(normalized.clone(), document.clone());
+            .insert(source_identity, document.clone());
         self.documents.insert(normalized.clone(), document);
 
         self.load_transitive_and_validate(&normalized)
@@ -1358,6 +2730,7 @@ fn validate_schema_path_limits(path: &str, location: &str) -> Result<(), Registr
         || path.ends_with('/')
         || path.contains('\\')
         || path.contains('\0')
+        || crate::instance_profile::has_uri_scheme_or_drive_prefix(path)
         || components
             .iter()
             .any(|component| component.is_empty() || *component == "." || *component == "..");
@@ -1546,11 +2919,66 @@ fn escape_json_pointer_token(token: &str) -> String {
 #[cfg(test)]
 mod binding_shape_tests {
     use super::{
-        ResolvedBindingCardinality, ResolvedBindingEmptyPolicy, ResolvedBindingJsonType,
-        SchemaRegistry,
+        RegistryLoadError, ResolvedBindingCardinality, ResolvedBindingEmptyPolicy,
+        ResolvedBindingJsonType, ResolvedSchema, SchemaRegistry,
     };
     use crate::{DefinitionFingerprint, ExactDefinitionRef};
     use serde_json::{json, Value};
+
+    fn load_binding_schema(schema: Value) -> ResolvedSchema {
+        try_load_binding_schema(schema).unwrap()
+    }
+
+    fn try_load_binding_schema(schema: Value) -> Result<ResolvedSchema, RegistryLoadError> {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(repo.path().join("schemas")).unwrap();
+        std::fs::create_dir_all(repo.path().join("definitions")).unwrap();
+        let document_ref = "schemas/root.schema.json";
+        let bytes = serde_json::to_vec(&schema).unwrap();
+        std::fs::write(repo.path().join(document_ref), &bytes).unwrap();
+        let document_fingerprint = DefinitionFingerprint::from_bytes(&bytes).to_string();
+        let closure = DefinitionFingerprint::from_json_value(&json!([{
+            "document_ref": document_ref,
+            "document_fingerprint": document_fingerprint,
+        }]))
+        .unwrap()
+        .to_string();
+        let preimage = json!({
+            "schema_id": "handbook.schema-registry-entry",
+            "schema_version": "1.0",
+            "content_schema_id": "example.schemas.binding-test",
+            "content_schema_version": "1.0.0",
+            "document_ref": document_ref,
+            "document_fingerprint": document_fingerprint,
+            "closure_fingerprint": closure,
+            "meta_schema_ref": super::DRAFT_2020_12,
+            "media_type": super::SCHEMA_MEDIA_TYPE,
+            "compatibility": "exact",
+            "extensions": {},
+        });
+        let mut authored = preimage.as_object().unwrap().clone();
+        authored.insert(
+            "entry_fingerprint".into(),
+            DefinitionFingerprint::from_json_value(&preimage)
+                .unwrap()
+                .to_string()
+                .into(),
+        );
+        std::fs::write(
+            repo.path().join("definitions/binding.entry.yaml"),
+            serde_yaml_bw::to_string(&authored).unwrap(),
+        )
+        .unwrap();
+        let mut registry = SchemaRegistry::load(
+            repo.path(),
+            &["definitions/binding.entry.yaml".into()],
+            &["schemas".into()],
+        )?;
+        Ok(registry
+            .entries
+            .remove(&ExactDefinitionRef::parse("example.schemas.binding-test@1.0.0").unwrap())
+            .unwrap())
+    }
 
     #[test]
     fn binding_shape_requires_determinate_required_closed_paths() {
@@ -1574,7 +3002,7 @@ mod binding_shape_tests {
                     "additionalProperties": false
                 }
             },
-            "required": ["policy", "approvals", "ambiguous"],
+            "required": ["policy", "approvals"],
             "additionalProperties": false
         });
         let bytes = serde_json::to_vec(&schema).unwrap();
@@ -1646,6 +3074,1426 @@ mod binding_shape_tests {
         for pointer in ["policy", "/missing", "/ambiguous"] {
             assert!(resolved.binding_shape(pointer).is_err(), "{pointer}");
         }
+    }
+
+    #[test]
+    fn binding_shape_refuses_open_parents_and_semantic_ref_siblings() {
+        let open = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {"policy": {"type": "string", "minLength": 1}},
+            "required": ["policy"]
+        }));
+        assert!(open.binding_shape("/policy").is_err());
+
+        let semantic_sibling = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"$ref": "#/$defs/policy", "minLength": 1}
+            },
+            "$defs": {"policy": {"type": "string", "minLength": 1}},
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(semantic_sibling.binding_shape("/policy").is_err());
+
+        let annotation_sibling = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"$ref": "#/$defs/policy", "description": "annotation only"}
+            },
+            "$defs": {"policy": {"type": "string", "minLength": 1}},
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(annotation_sibling.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_refuses_pattern_opened_parents_and_object_terminals() {
+        let opened_parent = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1}
+            },
+            "patternProperties": {"^x-": {"type": "string"}},
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(opened_parent.binding_shape("/policy").is_err());
+
+        let opened_terminal = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {
+                    "type": "object",
+                    "properties": {"revision": {"type": "string"}},
+                    "patternProperties": {".*": {"type": "string"}},
+                    "required": ["revision"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(opened_terminal.binding_shape("/policy").is_err());
+    }
+
+    #[test]
+    fn binding_shape_refuses_contradictory_object_array_and_string_terminals() {
+        for terminal in [
+            json!({"type": "string", "minLength": 1, "maxLength": 0}),
+            json!({"type": "string", "minLength": 1, "not": {}}),
+            json!({
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 0,
+                "items": {"type": "string"}
+            }),
+            json!({
+                "type": "array",
+                "minItems": 1,
+                "items": false
+            }),
+            json!({
+                "type": "object",
+                "properties": {},
+                "required": ["missing"],
+                "additionalProperties": false
+            }),
+            json!({
+                "type": "object",
+                "properties": {"required_value": {"not": {}}},
+                "required": ["required_value"],
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_err());
+        }
+
+        for terminal in [
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "items": {"enum": ["a", "b"]},
+                "uniqueItems": true,
+                "contains": {"enum": ["a", "b"]},
+                "minContains": 2,
+                "maxContains": 2
+            }),
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "prefixItems": [{"const": "a"}, {"const": "b"}],
+                "items": {"const": "c"},
+                "contains": {"const": "c"},
+                "minContains": 1
+            }),
+            json!({
+                "type": "object",
+                "properties": {
+                    "a": {"type": "string"},
+                    "b": {"type": "string"}
+                },
+                "required": [],
+                "minProperties": 1,
+                "maxProperties": 1,
+                "dependentSchemas": {"a": false},
+                "additionalProperties": false
+            }),
+            json!({
+                "type": "object",
+                "properties": {
+                    "a": {"type": "string"},
+                    "b": {"type": "string"}
+                },
+                "required": [],
+                "minProperties": 1,
+                "maxProperties": 2,
+                "dependentRequired": {"a": ["b"]},
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_ok());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_unsatisfiable_root_intermediate_and_referenced_parents() {
+        for schema in [
+            json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"type": "string", "minLength": 1}
+                },
+                "required": ["policy"],
+                "maxProperties": 0,
+                "additionalProperties": false
+            }),
+            json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {
+                        "type": "object",
+                        "properties": {
+                            "revision": {"type": "string", "minLength": 1}
+                        },
+                        "required": ["revision"],
+                        "maxProperties": 0,
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["policy"],
+                "additionalProperties": false
+            }),
+            json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"$ref": "#/$defs/impossibleParent"}
+                },
+                "required": ["policy"],
+                "additionalProperties": false,
+                "$defs": {
+                    "impossibleParent": {
+                        "type": "object",
+                        "properties": {
+                            "revision": {"type": "string", "minLength": 1}
+                        },
+                        "required": ["revision"],
+                        "maxProperties": 0,
+                        "additionalProperties": false
+                    }
+                }
+            }),
+        ] {
+            let resolved = load_binding_schema(schema);
+            assert!(resolved.binding_shape("/policy/revision").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_unsatisfiable_required_children_and_object_dependencies() {
+        for (schema, pointer) in [
+            (
+                json!({
+                    "$schema": super::DRAFT_2020_12,
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "blocker": false
+                    },
+                    "required": ["policy", "blocker"],
+                    "additionalProperties": false
+                }),
+                "/policy",
+            ),
+            (
+                json!({
+                    "$schema": super::DRAFT_2020_12,
+                    "$ref": "#/$defs/root",
+                    "$defs": {
+                        "root": {
+                            "type": "object",
+                            "properties": {
+                                "policy": {"type": "string", "minLength": 1},
+                                "blocker": {"type": "string", "minLength": 2, "maxLength": 1}
+                            },
+                            "required": ["policy", "blocker"],
+                            "additionalProperties": false
+                        }
+                    }
+                }),
+                "/policy",
+            ),
+            (
+                json!({
+                    "$schema": super::DRAFT_2020_12,
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "blocker": {"$ref": "#/$defs/impossible"}
+                    },
+                    "required": ["policy", "blocker"],
+                    "additionalProperties": false,
+                    "$defs": {"impossible": false}
+                }),
+                "/policy",
+            ),
+            (
+                json!({
+                    "$schema": super::DRAFT_2020_12,
+                    "type": "object",
+                    "properties": {
+                        "outer": {
+                            "type": "object",
+                            "properties": {
+                                "policy": {"type": "string", "minLength": 1},
+                                "blocker": false
+                            },
+                            "required": ["policy", "blocker"],
+                            "additionalProperties": false
+                        }
+                    },
+                    "required": ["outer"],
+                    "additionalProperties": false
+                }),
+                "/outer/policy",
+            ),
+            (
+                json!({
+                    "$schema": super::DRAFT_2020_12,
+                    "type": "object",
+                    "properties": {"policy": {"type": "string", "minLength": 1}},
+                    "required": ["policy"],
+                    "dependentRequired": {"policy": ["missing"]},
+                    "additionalProperties": false
+                }),
+                "/policy",
+            ),
+            (
+                json!({
+                    "$schema": super::DRAFT_2020_12,
+                    "type": "object",
+                    "properties": {"policy": {"type": "string", "minLength": 1}},
+                    "required": ["policy"],
+                    "propertyNames": false,
+                    "additionalProperties": false
+                }),
+                "/policy",
+            ),
+        ] {
+            let resolved = load_binding_schema(schema);
+            assert!(resolved.binding_shape(pointer).is_err(), "{pointer}");
+        }
+    }
+
+    #[test]
+    fn binding_shape_applies_default_min_contains_before_certifying_arrays() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {
+                    "type": "array",
+                    "minItems": 1,
+                    "contains": {},
+                    "maxContains": 0
+                }
+            },
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(resolved.binding_shape("/policy").is_err());
+    }
+
+    #[test]
+    fn binding_shape_refuses_cross_keyword_array_and_object_contradictions() {
+        for terminal in [
+            json!({
+                "type": "array",
+                "maxItems": 1,
+                "contains": {},
+                "minContains": 2
+            }),
+            json!({
+                "type": "array",
+                "items": false,
+                "contains": {}
+            }),
+            json!({
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "minProperties": 1,
+                "additionalProperties": false
+            }),
+            json!({
+                "type": "object",
+                "properties": {"candidate": {"type": "string"}},
+                "required": [],
+                "propertyNames": false,
+                "minProperties": 1,
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_err());
+        }
+
+        for terminal in [
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "items": {"enum": ["first", "second"]},
+                "uniqueItems": true
+            }),
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "contains": true,
+                "maxContains": 2
+            }),
+            json!({
+                "type": "array",
+                "minItems": 1,
+                "prefixItems": [true]
+            }),
+            json!({
+                "type": "object",
+                "properties": {"a": {"type": "string"}},
+                "required": ["a"],
+                "dependentSchemas": {"a": true},
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_ok());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_cross_keyword_contradictions_in_required_references() {
+        for impossible in [
+            json!({
+                "type": "array",
+                "maxItems": 1,
+                "contains": {},
+                "minContains": 2
+            }),
+            json!({
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "minProperties": 1,
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"type": "string", "minLength": 1},
+                    "blocker": {"$ref": "#/$defs/impossible"}
+                },
+                "required": ["policy", "blocker"],
+                "additionalProperties": false,
+                "$defs": {"impossible": impossible}
+            }));
+            assert!(resolved.binding_shape("/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_unproven_joint_constraint_witnesses() {
+        for terminal in [
+            json!({
+                "type": "array",
+                "items": {"type": "string"},
+                "contains": {"type": "object"}
+            }),
+            json!({
+                "type": "object",
+                "properties": {"only": false},
+                "required": [],
+                "minProperties": 1,
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_err());
+        }
+
+        for impossible in [
+            json!({"type": "integer", "minimum": 1, "maximum": 0}),
+            json!({
+                "type": "array",
+                "items": {"type": "string"},
+                "contains": {"type": "object"}
+            }),
+            json!({
+                "type": "object",
+                "properties": {"only": false},
+                "required": [],
+                "minProperties": 1,
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "outer": {
+                        "type": "object",
+                        "properties": {
+                            "policy": {"type": "string", "minLength": 1},
+                            "blocker": {"$ref": "#/$defs/impossible"}
+                        },
+                        "required": ["policy", "blocker"],
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["outer"],
+                "additionalProperties": false,
+                "$defs": {"impossible": impossible}
+            }));
+            assert!(resolved.binding_shape("/outer/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_advanced_array_and_dependency_contradictions() {
+        for terminal in [
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "items": {"const": "only"},
+                "uniqueItems": true
+            }),
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "contains": true,
+                "minContains": 0,
+                "maxContains": 1
+            }),
+            json!({
+                "type": "array",
+                "minItems": 1,
+                "prefixItems": [false]
+            }),
+            json!({
+                "type": "object",
+                "properties": {"a": {"type": "string"}},
+                "required": ["a"],
+                "dependentSchemas": {"a": false},
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_advanced_contradictions_in_required_references() {
+        for impossible in [
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "items": {"const": "only"},
+                "uniqueItems": true
+            }),
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "contains": true,
+                "minContains": 0,
+                "maxContains": 1
+            }),
+            json!({
+                "type": "array",
+                "minItems": 1,
+                "prefixItems": [false]
+            }),
+            json!({
+                "type": "object",
+                "properties": {"a": {"type": "string"}},
+                "required": ["a"],
+                "dependentSchemas": {"a": false},
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "outer": {
+                        "type": "object",
+                        "properties": {
+                            "policy": {"type": "string", "minLength": 1},
+                            "blocker": {"$ref": "#/$defs/impossible"}
+                        },
+                        "required": ["policy", "blocker"],
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["outer"],
+                "additionalProperties": false,
+                "$defs": {"impossible": impossible}
+            }));
+            assert!(resolved.binding_shape("/outer/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_joint_array_and_optional_dependency_contradictions() {
+        for terminal in [
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "items": {"enum": ["a", "b"]},
+                "uniqueItems": true,
+                "contains": {"const": "a"},
+                "minContains": 2
+            }),
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "prefixItems": [{"const": "a"}, {"const": "b"}],
+                "contains": {"const": "c"},
+                "minContains": 1
+            }),
+            json!({
+                "type": "object",
+                "properties": {"a": {"type": "string"}},
+                "required": [],
+                "minProperties": 1,
+                "dependentSchemas": {"a": false},
+                "additionalProperties": false
+            }),
+            json!({
+                "type": "object",
+                "properties": {
+                    "a": {"type": "string"},
+                    "b": {"type": "string"}
+                },
+                "required": [],
+                "minProperties": 1,
+                "maxProperties": 1,
+                "dependentRequired": {"a": ["b"], "b": ["a"]},
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"policy": terminal},
+                "required": ["policy"],
+                "additionalProperties": false
+            }));
+            assert!(resolved.binding_shape("/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_joint_contradictions_in_required_references() {
+        for impossible in [
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "items": {"enum": ["a", "b"]},
+                "uniqueItems": true,
+                "contains": {"const": "a"},
+                "minContains": 2
+            }),
+            json!({
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "prefixItems": [{"const": "a"}, {"const": "b"}],
+                "contains": {"const": "c"},
+                "minContains": 1
+            }),
+            json!({
+                "type": "object",
+                "properties": {"a": {"type": "string"}},
+                "required": [],
+                "minProperties": 1,
+                "dependentSchemas": {"a": false},
+                "additionalProperties": false
+            }),
+            json!({
+                "type": "object",
+                "properties": {
+                    "a": {"type": "string"},
+                    "b": {"type": "string"}
+                },
+                "required": [],
+                "minProperties": 1,
+                "maxProperties": 1,
+                "dependentRequired": {"a": ["b"], "b": ["a"]},
+                "additionalProperties": false
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "outer": {
+                        "type": "object",
+                        "properties": {
+                            "policy": {"type": "string", "minLength": 1},
+                            "blocker": {"$ref": "#/$defs/impossible"}
+                        },
+                        "required": ["policy", "blocker"],
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["outer"],
+                "additionalProperties": false,
+                "$defs": {"impossible": impossible}
+            }));
+            assert!(resolved.binding_shape("/outer/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_refuses_required_unevaluated_items() {
+        let impossible = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {
+                    "type": "array",
+                    "minItems": 1,
+                    "unevaluatedItems": false
+                }
+            },
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(impossible.binding_shape("/policy").is_err());
+
+        let empty = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 0,
+                    "unevaluatedItems": false
+                }
+            },
+            "required": ["policy"],
+            "additionalProperties": false
+        }));
+        assert!(empty.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_refuses_required_unevaluated_items_in_references() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "outer": {
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "blocker": {"$ref": "#/$defs/impossible"}
+                    },
+                    "required": ["policy", "blocker"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["outer"],
+            "additionalProperties": false,
+            "$defs": {
+                "impossible": {
+                    "type": "array",
+                    "minItems": 1,
+                    "unevaluatedItems": false
+                }
+            }
+        }));
+        assert!(resolved.binding_shape("/outer/policy").is_err());
+    }
+
+    #[test]
+    fn binding_shape_refuses_required_unevaluated_properties() {
+        let impossible = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "blocker": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "unevaluatedProperties": false
+                }
+            },
+            "required": ["policy", "blocker"],
+            "additionalProperties": false
+        }));
+        assert!(impossible.binding_shape("/policy").is_err());
+
+        let declared = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": "object",
+                    "properties": {"a": {"type": "string"}},
+                    "minProperties": 1,
+                    "unevaluatedProperties": false
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false
+        }));
+        assert!(declared.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_refuses_required_unevaluated_properties_in_references() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "outer": {
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "blocker": {"$ref": "#/$defs/impossible"}
+                    },
+                    "required": ["policy", "blocker"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["outer"],
+            "additionalProperties": false,
+            "$defs": {
+                "impossible": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "unevaluatedProperties": false
+                }
+            }
+        }));
+        assert!(resolved.binding_shape("/outer/policy").is_err());
+    }
+
+    #[test]
+    fn binding_shape_proves_singleton_array_valued_object_types() {
+        let impossible = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "blocker": {
+                    "type": ["object"],
+                    "minProperties": 1,
+                    "unevaluatedProperties": false
+                }
+            },
+            "required": ["policy", "blocker"],
+            "additionalProperties": false
+        }));
+        assert!(impossible.binding_shape("/policy").is_err());
+
+        let declared = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": ["object"],
+                    "properties": {"a": {"type": "string"}},
+                    "minProperties": 1,
+                    "unevaluatedProperties": false
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false
+        }));
+        assert!(declared.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_refuses_array_valued_object_types_in_references() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "outer": {
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "blocker": {"$ref": "#/$defs/impossible"}
+                    },
+                    "required": ["policy", "blocker"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["outer"],
+            "additionalProperties": false,
+            "$defs": {
+                "impossible": {
+                    "type": ["object"],
+                    "minProperties": 1,
+                    "unevaluatedProperties": false
+                }
+            }
+        }));
+        assert!(resolved.binding_shape("/outer/policy").is_err());
+    }
+
+    #[test]
+    fn binding_shape_refuses_unwitnessed_open_object_minimums() {
+        for blocker in [
+            json!({
+                "type": "object",
+                "minProperties": 1,
+                "propertyNames": false
+            }),
+            json!({
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 1
+                }
+            }),
+        ] {
+            let impossible = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"type": "string", "minLength": 1},
+                    "blocker": blocker
+                },
+                "required": ["policy", "blocker"],
+                "additionalProperties": false
+            }));
+            assert!(impossible.binding_shape("/policy").is_err());
+        }
+
+        let declared = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": "object",
+                    "properties": {"a": {"type": "string"}},
+                    "propertyNames": {"pattern": "^[a-z]+$"},
+                    "minProperties": 1
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false
+        }));
+        assert!(declared.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_refuses_unwitnessed_open_object_minimums_in_references() {
+        for blocker in [
+            json!({
+                "type": "object",
+                "minProperties": 1,
+                "propertyNames": false
+            }),
+            json!({
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 1
+                }
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "outer": {
+                        "type": "object",
+                        "properties": {
+                            "policy": {"type": "string", "minLength": 1},
+                            "blocker": {"$ref": "#/$defs/impossible"}
+                        },
+                        "required": ["policy", "blocker"],
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["outer"],
+                "additionalProperties": false,
+                "$defs": {"impossible": blocker}
+            }));
+            assert!(resolved.binding_shape("/outer/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_resolves_references_in_optional_minimum_witnesses() {
+        let impossible = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "blocker": {
+                    "type": "object",
+                    "properties": {
+                        "candidate": {
+                            "type": "object",
+                            "properties": {"nested": {"$ref": "#/$defs/impossible"}},
+                            "required": ["nested"],
+                            "additionalProperties": false
+                        }
+                    },
+                    "minProperties": 1
+                }
+            },
+            "required": ["policy", "blocker"],
+            "additionalProperties": false,
+            "$defs": {"impossible": false}
+        }));
+        assert!(impossible.binding_shape("/policy").is_err());
+
+        let possible = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": "object",
+                    "properties": {
+                        "candidate": {
+                            "type": "object",
+                            "properties": {"nested": {"$ref": "#/$defs/possible"}},
+                            "required": ["nested"],
+                            "additionalProperties": false
+                        }
+                    },
+                    "minProperties": 1
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false,
+            "$defs": {"possible": {"type": "string", "minLength": 1}}
+        }));
+        assert!(possible.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_resolves_optional_minimum_witnesses_in_references() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "outer": {
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "blocker": {"$ref": "#/$defs/blocker"}
+                    },
+                    "required": ["policy", "blocker"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["outer"],
+            "additionalProperties": false,
+            "$defs": {
+                "blocker": {
+                    "type": "object",
+                    "properties": {
+                        "candidate": {
+                            "type": "object",
+                            "properties": {"nested": {"$ref": "#/$defs/impossible"}},
+                            "required": ["nested"],
+                            "additionalProperties": false
+                        }
+                    },
+                    "minProperties": 1
+                },
+                "impossible": false
+            }
+        }));
+        assert!(resolved.binding_shape("/outer/policy").is_err());
+    }
+
+    #[test]
+    fn binding_shape_resolves_children_in_array_valued_type_branches() {
+        for blocker in [
+            json!({
+                "type": ["object"],
+                "properties": {"nested": {"$ref": "#/$defs/impossible"}},
+                "required": ["nested"],
+                "additionalProperties": false
+            }),
+            json!({
+                "type": ["array"],
+                "minItems": 1,
+                "items": {"$ref": "#/$defs/impossible"}
+            }),
+        ] {
+            let impossible = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"type": "string", "minLength": 1},
+                    "blocker": blocker
+                },
+                "required": ["policy", "blocker"],
+                "additionalProperties": false,
+                "$defs": {"impossible": false}
+            }));
+            assert!(impossible.binding_shape("/policy").is_err());
+        }
+
+        for context in [
+            json!({
+                "type": ["object"],
+                "properties": {"nested": {"$ref": "#/$defs/possible"}},
+                "required": ["nested"],
+                "additionalProperties": false
+            }),
+            json!({
+                "type": ["array"],
+                "minItems": 1,
+                "items": {"$ref": "#/$defs/possible"}
+            }),
+        ] {
+            let possible = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"type": "string", "minLength": 1},
+                    "context": context
+                },
+                "required": ["policy", "context"],
+                "additionalProperties": false,
+                "$defs": {"possible": {"type": "string", "minLength": 1}}
+            }));
+            assert!(possible.binding_shape("/policy").is_ok());
+        }
+    }
+
+    #[test]
+    fn binding_shape_resolves_array_valued_type_branches_in_references() {
+        for blocker in [
+            json!({
+                "type": ["object"],
+                "properties": {"nested": {"$ref": "#/$defs/impossible"}},
+                "required": ["nested"],
+                "additionalProperties": false
+            }),
+            json!({
+                "type": ["array"],
+                "minItems": 1,
+                "items": {"$ref": "#/$defs/impossible"}
+            }),
+        ] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "outer": {
+                        "type": "object",
+                        "properties": {
+                            "policy": {"type": "string", "minLength": 1},
+                            "blocker": {"$ref": "#/$defs/blocker"}
+                        },
+                        "required": ["policy", "blocker"],
+                        "additionalProperties": false
+                    }
+                },
+                "required": ["outer"],
+                "additionalProperties": false,
+                "$defs": {
+                    "blocker": blocker,
+                    "impossible": false
+                }
+            }));
+            assert!(resolved.binding_shape("/outer/policy").is_err());
+        }
+    }
+
+    #[test]
+    fn binding_shape_accepts_fully_prefixed_joint_array_witnesses() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": ["array"],
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "prefixItems": [{"const": "a"}],
+                    "items": false,
+                    "contains": {"const": "a"},
+                    "minContains": 1,
+                    "maxContains": 1,
+                    "uniqueItems": true,
+                    "unevaluatedItems": false
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false
+        }));
+        assert!(resolved.binding_shape("/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_accepts_fully_prefixed_joint_array_witnesses_in_references() {
+        let resolved = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "outer": {
+                    "type": "object",
+                    "properties": {
+                        "policy": {"type": "string", "minLength": 1},
+                        "context": {"$ref": "#/$defs/prefixed"}
+                    },
+                    "required": ["policy", "context"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["outer"],
+            "additionalProperties": false,
+            "$defs": {
+                "prefixed": {
+                    "type": ["array"],
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "prefixItems": [{"const": "a"}],
+                    "items": false,
+                    "contains": {"const": "a"},
+                    "minContains": 1,
+                    "maxContains": 1,
+                    "uniqueItems": true,
+                    "unevaluatedItems": false
+                }
+            }
+        }));
+        assert!(resolved.binding_shape("/outer/policy").is_ok());
+    }
+
+    #[test]
+    fn binding_shape_proves_direct_ref_optional_minimum_witnesses() {
+        for (index, context) in [
+            json!({
+                "type": "object",
+                "properties": {"candidate": {"$ref": "#/$defs/possible"}},
+                "minProperties": 1,
+                "additionalProperties": false
+            }),
+            json!({"$ref": "#/$defs/context"}),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {
+                    "policy": {"type": "string", "minLength": 1},
+                    "context": context
+                },
+                "required": ["policy", "context"],
+                "additionalProperties": false,
+                "$defs": {
+                    "possible": {"type": "string", "minLength": 1},
+                    "context": {
+                        "type": "object",
+                        "properties": {"candidate": {"$ref": "#/$defs/possible"}},
+                        "minProperties": 1,
+                        "additionalProperties": false
+                    }
+                }
+            }));
+            let shape = resolved.binding_shape("/policy");
+            assert!(
+                shape.is_ok(),
+                "direct reference witness case {index}: {shape:?}"
+            );
+        }
+
+        let impossible = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": "object",
+                    "properties": {"candidate": {"$ref": "#/$defs/impossible"}},
+                    "minProperties": 1,
+                    "additionalProperties": false
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false,
+            "$defs": {"impossible": false}
+        }));
+        assert!(impossible.binding_shape("/policy").is_err());
+
+        assert!(try_load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "policy": {"type": "string", "minLength": 1},
+                "context": {
+                    "type": "object",
+                    "properties": {"candidate": {"$ref": "#/$defs/impossible"}},
+                    "minProperties": 1,
+                    "additionalProperties": false
+                }
+            },
+            "required": ["policy", "context"],
+            "additionalProperties": false,
+            "$defs": {
+                "impossible": {"$ref": "#/$defs/cycle"},
+                "cycle": {"$ref": "#/$defs/impossible"}
+            }
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn binding_shape_accepts_fully_prefix_covered_array_terminals() {
+        let prefixed = json!({
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "prefixItems": [{"const": "a"}],
+            "items": false,
+            "contains": {"const": "a"},
+            "minContains": 1,
+            "maxContains": 1,
+            "uniqueItems": true,
+            "unevaluatedItems": false
+        });
+        for terminal in [prefixed.clone(), json!({"$ref": "#/$defs/prefixed"})] {
+            let resolved = load_binding_schema(json!({
+                "$schema": super::DRAFT_2020_12,
+                "type": "object",
+                "properties": {"values": terminal},
+                "required": ["values"],
+                "additionalProperties": false,
+                "$defs": {"prefixed": prefixed}
+            }));
+            assert!(resolved.binding_shape("/values").is_ok());
+        }
+
+        let post_prefix_required = load_binding_schema(json!({
+            "$schema": super::DRAFT_2020_12,
+            "type": "object",
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "prefixItems": [{"const": "a"}],
+                    "items": false
+                }
+            },
+            "required": ["values"],
+            "additionalProperties": false
+        }));
+        assert!(post_prefix_required.binding_shape("/values").is_err());
+    }
+}
+
+#[cfg(test)]
+mod shared_profile_budget_tests {
+    use super::{AdmittedSchemaEntrySource, SchemaRegistry, SchemaSourceKind};
+    use crate::{
+        ExactDefinitionRef, RegistryLoadErrorKind, SourceByteBudget, MAX_SOURCE_DOCUMENT_BYTES,
+        MAX_TOTAL_SOURCE_BYTES,
+    };
+
+    fn fill_budget(budget: &mut SourceByteBudget, mut bytes: usize) {
+        while bytes > 0 {
+            let chunk = bytes.min(MAX_SOURCE_DOCUMENT_BYTES);
+            budget.admit(chunk).unwrap();
+            bytes -= chunk;
+        }
+    }
+
+    #[test]
+    fn admitted_definition_and_schema_document_bytes_share_the_exact_8_mib_boundary() {
+        let reference =
+            ExactDefinitionRef::parse("handbook.schemas.artifacts.project-authority@1.0.0")
+                .unwrap();
+        let entry = crate::profile_builtins::definition(&reference).unwrap();
+        let document_path =
+            "definitions/schemas/handbook.schemas.artifacts.project-authority/1.0.0.schema.json";
+        let document_bytes = crate::profile_builtins::schema_document(document_path).unwrap();
+        let source = AdmittedSchemaEntrySource {
+            declared_ref: &reference,
+            source_kind: SchemaSourceKind::BuiltIn,
+            bytes: entry.bytes,
+        };
+        let repo = tempfile::tempdir().unwrap();
+
+        let mut exact = SourceByteBudget::default();
+        fill_budget(&mut exact, MAX_TOTAL_SOURCE_BYTES - document_bytes.len());
+        SchemaRegistry::load_admitted(
+            repo.path(),
+            std::slice::from_ref(&source),
+            &["definitions/schemas".into()],
+            &mut exact,
+        )
+        .unwrap();
+        assert_eq!(exact.total_bytes(), MAX_TOTAL_SOURCE_BYTES);
+
+        let mut over = SourceByteBudget::default();
+        fill_budget(&mut over, MAX_TOTAL_SOURCE_BYTES - document_bytes.len() + 1);
+        assert_eq!(
+            SchemaRegistry::load_admitted(
+                repo.path(),
+                std::slice::from_ref(&source),
+                &["definitions/schemas".into()],
+                &mut over,
+            )
+            .unwrap_err()
+            .kind(),
+            RegistryLoadErrorKind::AggregateLimitExceeded
+        );
     }
 }
 

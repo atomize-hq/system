@@ -102,6 +102,23 @@ pub enum ProfileLoadErrorKind {
     SourceReadFailure,
     SourceLimitExceeded,
     AggregateLimitExceeded,
+    InvalidProfileRecord,
+    InvalidProfileIdentity,
+    InvalidProfileFingerprint,
+    UnknownProfileField,
+    InvalidProfileScope,
+    InvalidProfileAncestry,
+    ProfileAncestryCycle,
+    ProfileAncestryDepthExceeded,
+    IllegalProfileScope,
+    DuplicateProfileDependency,
+    UnreferencedSource,
+    FingerprintMismatch,
+    InvalidRequiredness,
+    InvalidDependency,
+    InvalidConstitutionalRoot,
+    ShippedSetMismatch,
+    Registry(RegistryLoadErrorKind),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -170,8 +187,8 @@ impl fmt::Display for ProfileLoadError {
 impl std::error::Error for ProfileLoadError {}
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DefinitionClass {
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) enum DefinitionClass {
     Profile,
     StableRoleRegistry,
     SchemaEntry,
@@ -186,17 +203,35 @@ enum DefinitionClass {
 
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
-enum AdmittedDefinitionSource {
-    BuiltIn {
-        class: DefinitionClass,
-        definition_ref: ExactDefinitionRef,
-    },
-    Repository {
-        class: DefinitionClass,
-        definition_ref: ExactDefinitionRef,
-        normalized_path: String,
-        bytes: Vec<u8>,
-    },
+pub(crate) enum AdmittedSourceIdentity {
+    BuiltIn { package_path: &'static str },
+    Repository { normalized_path: String },
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct AdmittedDefinitionSource {
+    class: DefinitionClass,
+    definition_ref: ExactDefinitionRef,
+    identity: AdmittedSourceIdentity,
+    bytes: Vec<u8>,
+}
+
+impl AdmittedDefinitionSource {
+    pub(crate) fn class(&self) -> DefinitionClass {
+        self.class
+    }
+
+    pub(crate) fn definition_ref(&self) -> &ExactDefinitionRef {
+        &self.definition_ref
+    }
+
+    pub(crate) fn identity(&self) -> &AdmittedSourceIdentity {
+        &self.identity
+    }
+
+    pub(crate) fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
 }
 
 #[allow(dead_code)]
@@ -204,13 +239,23 @@ enum AdmittedDefinitionSource {
 pub(crate) struct AdmittedProfileSelectionRequest {
     request: ProfileSelectionRequest,
     sources: Vec<AdmittedDefinitionSource>,
-    source_bytes: usize,
+    budget: SourceByteBudget,
 }
 
 impl AdmittedProfileSelectionRequest {
     #[allow(dead_code)] // Activated by the Task 16 resolver increment.
     pub(crate) fn source_bytes(&self) -> usize {
-        self.source_bytes
+        self.budget.total_bytes()
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        ProfileSelectionRequest,
+        Vec<AdmittedDefinitionSource>,
+        SourceByteBudget,
+    ) {
+        (self.request, self.sources, self.budget)
     }
 }
 
@@ -260,6 +305,15 @@ pub(crate) fn admit_selection_request(
                     ));
                 }
             }
+            if crate::profile_builtins::definition(&binding.definition_ref).is_some()
+                && !matches!(binding.source, DefinitionSource::BuiltIn(_))
+            {
+                return Err(ProfileLoadError::at(
+                    ProfileLoadErrorKind::ShippedSetMismatch,
+                    "definition_source",
+                    "package-owned exact refs require their immutable built-in source",
+                ));
+            }
         }
     }
 
@@ -287,10 +341,26 @@ pub(crate) fn admit_selection_request(
     for (class, bindings) in collections {
         for binding in bindings {
             let admitted = match &binding.source {
-                DefinitionSource::BuiltIn(_) => AdmittedDefinitionSource::BuiltIn {
-                    class,
-                    definition_ref: binding.definition_ref.clone(),
-                },
+                DefinitionSource::BuiltIn(_) => {
+                    let built_in = crate::profile_builtins::definition(&binding.definition_ref)
+                        .ok_or_else(|| {
+                            ProfileLoadError::new(
+                                ProfileLoadErrorKind::MissingSource,
+                                "built-in definition is not compile-time allowlisted",
+                            )
+                        })?;
+                    budget
+                        .admit(built_in.bytes.len())
+                        .map_err(map_source_error)?;
+                    AdmittedDefinitionSource {
+                        class,
+                        definition_ref: binding.definition_ref.clone(),
+                        identity: AdmittedSourceIdentity::BuiltIn {
+                            package_path: built_in.package_path,
+                        },
+                        bytes: built_in.bytes.to_vec(),
+                    }
+                }
                 DefinitionSource::RepositoryPath(path) => {
                     let (normalized_path, bytes) =
                         read_trusted_repo_source(repo_root, path, &mut budget)
@@ -302,10 +372,10 @@ pub(crate) fn admit_selection_request(
                             "repository source path must already be normalized",
                         ));
                     }
-                    AdmittedDefinitionSource::Repository {
+                    AdmittedDefinitionSource {
                         class,
                         definition_ref: binding.definition_ref.clone(),
-                        normalized_path,
+                        identity: AdmittedSourceIdentity::Repository { normalized_path },
                         bytes,
                     }
                 }
@@ -317,7 +387,7 @@ pub(crate) fn admit_selection_request(
     Ok(AdmittedProfileSelectionRequest {
         request,
         sources,
-        source_bytes: budget.total_bytes(),
+        budget,
     })
 }
 
@@ -382,7 +452,11 @@ pub struct AuthoredProfileSource {
     parent_ref: Option<ExactDefinitionRef>,
     fields: BTreeMap<ProfileField, Value>,
     profile_fingerprint: crate::definition_identity::DefinitionFingerprint,
+    fingerprint_definition: Value,
 }
+
+pub type InstanceProfileDefinition = AuthoredProfileSource;
+
 impl AuthoredProfileSource {
     pub fn exact_ref(&self) -> &ExactDefinitionRef {
         &self.exact_ref
@@ -399,6 +473,10 @@ impl AuthoredProfileSource {
 
     pub(crate) fn field(&self, field: ProfileField) -> Option<&Value> {
         self.fields.get(&field)
+    }
+
+    pub(crate) fn fingerprint_definition(&self) -> &Value {
+        &self.fingerprint_definition
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -450,8 +528,9 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
     let mut value =
         crate::definition_identity::parse_definition_yaml(bytes).map_err(registry_profile_error)?;
     let object = value.as_object_mut().ok_or_else(|| {
-        ProfileLoadError::new(
-            ProfileLoadErrorKind::MissingSource,
+        ProfileLoadError::at(
+            ProfileLoadErrorKind::InvalidProfileRecord,
+            "profile_source",
             "profile source must be an object",
         )
     })?;
@@ -460,28 +539,19 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
         .and_then(|v| v.as_str().map(str::to_owned))
         .ok_or_else(|| {
             ProfileLoadError::new(
-                ProfileLoadErrorKind::SourceIdentityMismatch,
+                ProfileLoadErrorKind::InvalidProfileFingerprint,
                 "profile fingerprint is required",
             )
         })?;
-    let computed = crate::definition_identity::DefinitionFingerprint::from_json_value(
-        &Value::Object(object.clone()),
-    )
-    .map_err(registry_profile_error)?;
     let supplied = crate::definition_identity::DefinitionFingerprint::parse(&supplied)
         .map_err(registry_profile_error)?;
-    if supplied != computed {
-        return Err(ProfileLoadError::new(
-            ProfileLoadErrorKind::SourceIdentityMismatch,
-            "profile source fingerprint mismatch",
-        ));
-    }
+    let fingerprint_definition = Value::Object(object.clone());
     let take_string = |map: &mut serde_json::Map<String, Value>, key: &str| {
         map.remove(key)
             .and_then(|v| v.as_str().map(str::to_owned))
             .ok_or_else(|| {
                 ProfileLoadError::at(
-                    ProfileLoadErrorKind::SourceIdentityMismatch,
+                    ProfileLoadErrorKind::InvalidProfileRecord,
                     key,
                     "profile identity field is required",
                 )
@@ -491,7 +561,7 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
     let schema_version = take_string(object, "schema_version")?;
     if schema_id != "handbook.instance-profile" || schema_version != "1.0" {
         return Err(ProfileLoadError::new(
-            ProfileLoadErrorKind::SourceIdentityMismatch,
+            ProfileLoadErrorKind::InvalidProfileRecord,
             "unsupported profile record",
         ));
     }
@@ -502,19 +572,19 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
     let scope: ProfileScope =
         serde_json::from_value(object.remove("profile_scope").ok_or_else(|| {
             ProfileLoadError::new(
-                ProfileLoadErrorKind::SourceIdentityMismatch,
+                ProfileLoadErrorKind::InvalidProfileScope,
                 "profile_scope is required",
             )
         })?)
         .map_err(|_| {
             ProfileLoadError::new(
-                ProfileLoadErrorKind::SourceIdentityMismatch,
+                ProfileLoadErrorKind::InvalidProfileScope,
                 "invalid profile scope",
             )
         })?;
     let parent_ref = match object.remove("extends_profile_ref").ok_or_else(|| {
         ProfileLoadError::new(
-            ProfileLoadErrorKind::SourceIdentityMismatch,
+            ProfileLoadErrorKind::InvalidProfileRecord,
             "extends_profile_ref is required",
         )
     })? {
@@ -522,7 +592,7 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
         Value::String(v) => Some(ExactDefinitionRef::parse(&v).map_err(registry_profile_error)?),
         _ => {
             return Err(ProfileLoadError::new(
-                ProfileLoadErrorKind::SourceIdentityMismatch,
+                ProfileLoadErrorKind::InvalidProfileAncestry,
                 "invalid parent profile ref",
             ))
         }
@@ -530,18 +600,19 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
     let mut fields = BTreeMap::new();
     for field in ProfileField::ALL {
         if let Some(v) = object.remove(field.key()) {
+            validate_profile_field_shape(field, &v)?;
             fields.insert(field, v);
         }
     }
     if !object.is_empty() {
         return Err(ProfileLoadError::new(
-            ProfileLoadErrorKind::SourceIdentityMismatch,
+            ProfileLoadErrorKind::UnknownProfileField,
             "profile source contains an unknown field",
         ));
     }
     if parent_ref.is_none() && fields.len() != 11 {
         return Err(ProfileLoadError::new(
-            ProfileLoadErrorKind::SourceIdentityMismatch,
+            ProfileLoadErrorKind::InvalidProfileRecord,
             "root profile must materialize all eleven fields",
         ));
     }
@@ -550,8 +621,72 @@ pub fn parse_profile_source(bytes: &[u8]) -> Result<AuthoredProfileSource, Profi
         scope,
         parent_ref,
         fields,
-        profile_fingerprint: computed,
+        profile_fingerprint: supplied,
+        fingerprint_definition,
     })
+}
+
+fn validate_profile_field_shape(
+    field: ProfileField,
+    value: &Value,
+) -> Result<(), ProfileLoadError> {
+    let invalid = || {
+        ProfileLoadError::at(
+            ProfileLoadErrorKind::InvalidProfileRecord,
+            field.key(),
+            "profile field does not match its closed authored shape",
+        )
+    };
+    let validate_ref = |value: &Value| {
+        value
+            .as_str()
+            .and_then(|value| ExactDefinitionRef::parse(value).ok().map(|_| ()))
+            .ok_or_else(invalid)
+    };
+    let validate_ref_list = |value: &Value| {
+        let values = value.as_array().ok_or_else(invalid)?;
+        for value in values {
+            validate_ref(value)?;
+        }
+        Ok(())
+    };
+    let validate_ref_fingerprint_pair = |value: &Value| {
+        let object = value.as_object().ok_or_else(invalid)?;
+        if object.len() != 2 || !object.contains_key("ref") || !object.contains_key("fingerprint") {
+            return Err(invalid());
+        }
+        validate_ref(&object["ref"])?;
+        object["fingerprint"]
+            .as_str()
+            .and_then(|value| {
+                crate::definition_identity::DefinitionFingerprint::parse(value)
+                    .ok()
+                    .map(|_| ())
+            })
+            .ok_or_else(invalid)
+    };
+
+    match field {
+        ProfileField::StableRoleRegistry => validate_ref_fingerprint_pair(value),
+        ProfileField::SchemaRegistrySources
+        | ProfileField::ArtifactKindSources
+        | ProfileField::ProjectionCatalogRefs
+        | ProfileField::DockRequirementRefs
+        | ProfileField::AdapterOverlayRefs => validate_ref_list(value),
+        ProfileField::ArtifactInstances => {
+            crate::artifact_instance::validate_authored_descriptor_record_shapes(value)
+                .map_err(|_| invalid())
+        }
+        ProfileField::VocabularyRef | ProfileField::ContextResolutionRef => validate_ref(value),
+        ProfileField::PostureEvaluationPolicy => {
+            if value.is_null() {
+                Ok(())
+            } else {
+                validate_ref_fingerprint_pair(value)
+            }
+        }
+        ProfileField::Extensions => value.as_object().map(|_| ()).ok_or_else(invalid),
+    }
 }
 
 pub fn layer_profile_sources(
@@ -577,17 +712,12 @@ pub fn layer_profile_sources(
     let mut reverse = Vec::new();
     let mut seen = BTreeSet::new();
     let mut current = selected.clone();
+    let mut ancestry_edges = 0usize;
     loop {
         if !seen.insert(current.clone()) {
             return Err(ProfileLoadError::new(
-                ProfileLoadErrorKind::SourceIdentityMismatch,
+                ProfileLoadErrorKind::ProfileAncestryCycle,
                 "profile ancestry cycle",
-            ));
-        }
-        if reverse.len() == 32 {
-            return Err(ProfileLoadError::new(
-                ProfileLoadErrorKind::ProfileSourceLimitExceeded,
-                "profile ancestry exceeds 32",
             ));
         }
         let source = by_ref.get(&current).ok_or_else(|| {
@@ -599,6 +729,13 @@ pub fn layer_profile_sources(
         reverse.push(current.clone());
         match &source.parent_ref {
             Some(parent) => {
+                if ancestry_edges == 32 {
+                    return Err(ProfileLoadError::new(
+                        ProfileLoadErrorKind::ProfileAncestryDepthExceeded,
+                        "profile ancestry exceeds 32 edges",
+                    ));
+                }
+                ancestry_edges += 1;
                 let p = by_ref.get(parent).ok_or_else(|| {
                     ProfileLoadError::new(
                         ProfileLoadErrorKind::MissingSource,
@@ -607,7 +744,7 @@ pub fn layer_profile_sources(
                 })?;
                 if p.scope > source.scope {
                     return Err(ProfileLoadError::new(
-                        ProfileLoadErrorKind::SourceIdentityMismatch,
+                        ProfileLoadErrorKind::IllegalProfileScope,
                         "profile scope order is illegal",
                     ));
                 }
@@ -617,6 +754,24 @@ pub fn layer_profile_sources(
         }
     }
     reverse.reverse();
+    let repository_profiles = reverse
+        .iter()
+        .filter(|reference| by_ref[*reference].scope == ProfileScope::Repository)
+        .collect::<Vec<_>>();
+    if let Some(repository_ref) = repository_profiles.first() {
+        let repository = &by_ref[*repository_ref];
+        let valid_parent = repository
+            .parent_ref
+            .as_ref()
+            .and_then(|parent| by_ref.get(parent))
+            .is_some_and(|parent| parent.scope != ProfileScope::Repository);
+        if repository_profiles.len() != 1 || *repository_ref != selected || !valid_parent {
+            return Err(ProfileLoadError::new(
+                ProfileLoadErrorKind::IllegalProfileScope,
+                "repository profile must be the unique selected leaf over a shipped or named parent",
+            ));
+        }
+    }
     let mut fields = BTreeMap::new();
     let mut winners = BTreeMap::new();
     let mut decisions = Vec::new();
@@ -631,7 +786,7 @@ pub fn layer_profile_sources(
     }
     if fields.len() != 11 {
         return Err(ProfileLoadError::new(
-            ProfileLoadErrorKind::SourceIdentityMismatch,
+            ProfileLoadErrorKind::InvalidProfileRecord,
             "layered profile does not materialize all fields",
         ));
     }
@@ -655,11 +810,22 @@ pub fn layer_profile_sources(
         decisions,
     })
 }
-fn registry_profile_error(_: crate::definition_identity::RegistryLoadError) -> ProfileLoadError {
-    ProfileLoadError::new(
-        ProfileLoadErrorKind::SourceIdentityMismatch,
-        "profile source contains an invalid definition identity or fingerprint",
-    )
+fn registry_profile_error(
+    error: crate::definition_identity::RegistryLoadError,
+) -> ProfileLoadError {
+    let kind = match error.kind() {
+        RegistryLoadErrorKind::InvalidExactDefinitionRef => {
+            ProfileLoadErrorKind::InvalidProfileIdentity
+        }
+        RegistryLoadErrorKind::InvalidFingerprint => {
+            ProfileLoadErrorKind::InvalidProfileFingerprint
+        }
+        other => ProfileLoadErrorKind::Registry(other),
+    };
+    match error.location() {
+        Some(location) => ProfileLoadError::at(kind, location, error.detail()),
+        None => ProfileLoadError::new(kind, error.detail()),
+    }
 }
 
 #[allow(dead_code)] // Activated by the Task 16 resolver increment.
@@ -714,7 +880,7 @@ fn validate_normalized_repository_path(
         || path.ends_with('/')
         || path.contains('\\')
         || path.contains('\0')
-        || path.contains("://")
+        || has_uri_scheme_or_drive_prefix(path)
         || components
             .iter()
             .any(|component| component.is_empty() || *component == "." || *component == "..");
@@ -726,6 +892,22 @@ fn validate_normalized_repository_path(
         ));
     }
     Ok(())
+}
+
+pub(crate) fn has_uri_scheme_or_drive_prefix(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    if matches!(bytes, [drive, b':', ..] if drive.is_ascii_alphabetic()) {
+        return true;
+    }
+    let Some(colon) = path.find(':') else {
+        return false;
+    };
+    let scheme = &path[..colon];
+    !scheme.is_empty()
+        && scheme.as_bytes()[0].is_ascii_alphabetic()
+        && scheme
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
 }
 
 #[allow(dead_code)] // Activated by the Task 16 resolver increment.
@@ -766,6 +948,16 @@ mod request_admission_tests {
         DefinitionSourceBinding {
             definition_ref: exact_ref.clone(),
             source: DefinitionSource::BuiltIn(exact_ref),
+        }
+    }
+
+    fn repository_binding(repo: &std::path::Path, index: usize) -> DefinitionSourceBinding {
+        let path = format!("sources/{index}.yaml");
+        std::fs::create_dir_all(repo.join("sources")).unwrap();
+        std::fs::write(repo.join(&path), b"{}\n").unwrap();
+        DefinitionSourceBinding {
+            definition_ref: exact_ref(index),
+            source: DefinitionSource::RepositoryPath(path),
         }
     }
 
@@ -818,8 +1010,12 @@ mod request_admission_tests {
         let repo = tempfile::tempdir().unwrap();
 
         let mut admitted = empty_request();
-        admitted.profile_sources = (0..64).map(builtin_binding).collect();
-        admitted.stable_role_registry_sources = (64..512).map(builtin_binding).collect();
+        admitted.profile_sources = (0..64)
+            .map(|index| repository_binding(repo.path(), index))
+            .collect();
+        admitted.stable_role_registry_sources = (64..512)
+            .map(|index| repository_binding(repo.path(), index))
+            .collect();
         admitted.allowed_schema_roots = (0..32).map(|index| format!("schemas/{index}")).collect();
         admit_selection_request(repo.path(), admitted).expect("N boundaries admit");
 
@@ -908,6 +1104,9 @@ mod request_admission_tests {
             "a\\b.yaml",
             "/absolute.yaml",
             "file://source.yaml",
+            "file:source.yaml",
+            "data:text",
+            "C:/source.yaml",
         ] {
             let mut request = empty_request();
             request.profile_sources.push(DefinitionSourceBinding {
@@ -989,5 +1188,25 @@ mod request_admission_tests {
                 .kind(),
             ProfileLoadErrorKind::AggregateLimitExceeded
         );
+    }
+
+    #[test]
+    fn repository_source_bytes_are_retained_after_the_admission_read() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(repo.path().join("sources")).unwrap();
+        let path = "sources/profile.yaml";
+        std::fs::write(repo.path().join(path), b"original admitted bytes\n").unwrap();
+        let mut request = empty_request();
+        request.profile_sources.push(DefinitionSourceBinding {
+            definition_ref: exact_ref(0),
+            source: DefinitionSource::RepositoryPath(path.into()),
+        });
+
+        let admitted = admit_selection_request(repo.path(), request).unwrap();
+        std::fs::write(repo.path().join(path), b"substituted bytes\n").unwrap();
+        let (_, sources, _) = admitted.into_parts();
+
+        assert_eq!(sources.len(), 1);
+        assert_eq!(sources[0].bytes(), b"original admitted bytes\n");
     }
 }

@@ -5,7 +5,7 @@ use crate::definition_identity::{
 use crate::stable_role_registry::read_trusted_repo_source;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -30,6 +30,73 @@ pub struct ProjectConditionDefinition {
     exact_ref: ExactDefinitionRef,
     definition_fingerprint: DefinitionFingerprint,
 }
+
+#[derive(Clone, Debug, Default)]
+pub struct ProjectConditionRegistry {
+    definitions: BTreeMap<ExactDefinitionRef, ProjectConditionDefinition>,
+}
+
+impl ProjectConditionRegistry {
+    pub fn load(repo: impl AsRef<Path>, paths: &[String]) -> Result<Self, RegistryLoadError> {
+        let mut budget = SourceByteBudget::default();
+        let mut definitions = BTreeMap::new();
+        for path in paths {
+            let (_, bytes) = read_trusted_repo_source(repo.as_ref(), path, &mut budget)?;
+            let definition = ProjectConditionDefinition::load_bytes(&bytes)?;
+            Self::insert(&mut definitions, definition)?;
+        }
+        Ok(Self { definitions })
+    }
+
+    pub(crate) fn load_admitted(
+        sources: &[(&ExactDefinitionRef, &[u8])],
+    ) -> Result<Self, RegistryLoadError> {
+        let mut definitions = BTreeMap::new();
+        for (declared_ref, bytes) in sources {
+            let definition = ProjectConditionDefinition::load_bytes(bytes)?;
+            if definition.exact_ref() != *declared_ref {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::ConflictingIdentity,
+                    "project condition producer derived exact ref does not match its typed source binding",
+                ));
+            }
+            Self::insert(&mut definitions, definition)?;
+        }
+        Ok(Self { definitions })
+    }
+
+    fn insert(
+        definitions: &mut BTreeMap<ExactDefinitionRef, ProjectConditionDefinition>,
+        definition: ProjectConditionDefinition,
+    ) -> Result<(), RegistryLoadError> {
+        if definitions
+            .insert(definition.exact_ref().clone(), definition)
+            .is_some()
+        {
+            return Err(RegistryLoadError::new(
+                RegistryLoadErrorKind::DuplicateIdentity,
+                "project condition identity is duplicated",
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn definition(
+        &self,
+        exact_ref: &ExactDefinitionRef,
+    ) -> Option<&ProjectConditionDefinition> {
+        self.definitions.get(exact_ref)
+    }
+
+    pub fn refs(&self) -> BTreeSet<ExactDefinitionRef> {
+        self.definitions.keys().cloned().collect()
+    }
+
+    pub(crate) fn values(&self) -> impl Iterator<Item = &ProjectConditionDefinition> {
+        self.definitions.values()
+    }
+}
+
 impl ProjectConditionDefinition {
     pub fn exact_ref(&self) -> &ExactDefinitionRef {
         &self.exact_ref
@@ -40,7 +107,10 @@ impl ProjectConditionDefinition {
     pub fn load(repo: impl AsRef<Path>, path: &str) -> Result<Self, RegistryLoadError> {
         let mut budget = SourceByteBudget::default();
         let (_, bytes) = read_trusted_repo_source(repo.as_ref(), path, &mut budget)?;
-        let value = parse_definition_yaml(&bytes)?;
+        Self::load_bytes(&bytes)
+    }
+    pub(crate) fn load_bytes(bytes: &[u8]) -> Result<Self, RegistryLoadError> {
+        let value = parse_definition_yaml(bytes)?;
         let authored: AuthoredCondition = serde_json::from_value(value).map_err(|e| {
             RegistryLoadError::new(
                 if e.to_string().contains("unknown field") {
@@ -53,6 +123,30 @@ impl ProjectConditionDefinition {
         })?;
         authored.resolve()
     }
+}
+pub(crate) fn admitted_project_condition_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let value = parse_definition_yaml(bytes)?;
+    let authored: AuthoredCondition = serde_json::from_value(value).map_err(|error| {
+        RegistryLoadError::new(
+            if error.to_string().contains("unknown field") {
+                RegistryLoadErrorKind::UnknownField
+            } else {
+                RegistryLoadErrorKind::SyntaxError
+            },
+            "project condition does not match its closed record",
+        )
+    })?;
+    if authored.schema_id != "handbook.project-condition-definition"
+        || authored.schema_version != "1.0"
+    {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "unsupported project condition record",
+        ));
+    }
+    ExactDefinitionRef::new(&authored.condition_id, &authored.condition_version)
 }
 impl AuthoredCondition {
     fn resolve(self) -> Result<ProjectConditionDefinition, RegistryLoadError> {
@@ -106,5 +200,32 @@ impl AuthoredCondition {
             exact_ref,
             definition_fingerprint: computed,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const CONDITION_BYTES: &[u8] = include_bytes!(
+        "../definitions/project-conditions/handbook.condition.project.managed-operational-surface/1.0.0.yaml"
+    );
+
+    #[test]
+    fn admitted_registry_refuses_conflicting_typed_bindings_in_both_source_orders() {
+        let exact = ExactDefinitionRef::parse(
+            "handbook.condition.project.managed-operational-surface@1.0.0",
+        )
+        .unwrap();
+        let conflicting =
+            ExactDefinitionRef::parse("handbook.condition.project.other@1.0.0").unwrap();
+
+        for sources in [
+            vec![(&exact, CONDITION_BYTES), (&conflicting, CONDITION_BYTES)],
+            vec![(&conflicting, CONDITION_BYTES), (&exact, CONDITION_BYTES)],
+        ] {
+            let error = ProjectConditionRegistry::load_admitted(&sources).unwrap_err();
+            assert_eq!(error.kind(), RegistryLoadErrorKind::ConflictingIdentity);
+        }
     }
 }

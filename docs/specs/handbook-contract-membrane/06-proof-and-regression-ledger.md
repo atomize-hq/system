@@ -546,6 +546,74 @@ parent may close HCM-1.1:
   reviewed-slice commit, followed only by a separate completed v1.2 parent
   handoff/ledger closeout commit; HCM-1.2 is not started.
 
+## HCM-1.2 profile/default-definition boundary proof gate
+
+HCM-1.2 may promote only exact additive `handbook-engine` definition/profile
+metadata and selection. Current layout, canonical artifacts, setup, doctor,
+flow, compiler, CLI, SDK, Tauri, Substrate, materialization, condition
+evaluation, vocabulary application, Context Resolution execution, intake,
+renderer, lifecycle, and Projection paths remain unchanged. Before the parent
+may close HCM-1.2:
+
+- the engine admits only explicit typed source collections, exact refs,
+  compile-time-allowlisted built-ins, explicit schema roots, bounded
+  repository-relative no-follow sources, and the reviewed request-wide count,
+  path, document, reference-depth, per-source, and aggregate ceilings;
+- six closed Draft 2020-12 content schemas publish the exact Project Authority,
+  Project Context, Environment Context, Work Specification, Decision Record,
+  and Risk Record shapes, bounds, set-duplicate refusal, and package closures
+  without canonical-content normalization or fingerprinting;
+- the constitutional capability and its nine-rule declarative validator
+  metadata resolve validator -> capability -> kind without an executable
+  validator or back-edge, and Project Authority's nine JSON Pointers prove
+  exact object/string/array cardinality and non-empty compatibility through the
+  already admitted schema closure;
+- the exact six HCM-0.6 kinds pin roles core 1.1.0 and their exact content
+  schemas; only Project Authority advertises `constitutional_root`; every
+  lifecycle, intake, renderer, review-trigger, required-capability, Projection,
+  and extension selection remains empty or null;
+- the managed-operational-surface condition, empty shipped vocabulary, four-
+  level/six-domain Context Resolution stack, and matcher/escalation/promotion
+  records are exact typed fingerprint producers only and expose no evaluator,
+  selector, escalation, memory-promotion, label-application, setup, or doctor
+  behavior;
+- closed artifact descriptors validate exact kinds, roles, capabilities,
+  normalized unique paths, requiredness/condition truth, dependency namespace/
+  contract/cardinality, later-owned emptiness, and exactly one always-required
+  constitutional root;
+- profile sources materialize all eleven root fields, layer through one bounded
+  acyclic shipped -> named -> repository ancestry with omission/inheritance and
+  present/replace-whole semantics, emit eleven deterministic decisions, and
+  resolve one explicit leaf from exact typed sources into a closure fingerprint;
+- `handbook.profile.shipped-root@1.0.0` resolves the literal six-kind and three-
+  instance HCM-0.6 set, contains no Work Specification, Decision Record, Risk
+  Record, legacy, ambient, invocation override, or materialization authority,
+  and the repository replacement fixture remains source-order deterministic;
+- the literal package-definition manifest proves path, size, SHA-256, and byte
+  equality for every package-owned definition member rather than relying on a
+  count or recursive scan;
+- format, clippy, engine, full-workspace, Windows target, dependency-feature,
+  package, archive-boundary, handoff-validator, scoped-diff, secret, and staged
+  GitNexus proof passes, with no dependency or product-path change;
+- the only classification promotions are `BoundaryLanded` for the exact
+  additive kind/schema/capability, profile/descriptor selection, shipped data,
+  vocabulary metadata, and Context Resolution metadata boundaries;
+  `PG-PROFILE-01`, `PG-ARTIFACT-01`, `PG-KIND-01`, and `PG-KIND-02` all remain
+  open, as do every product-adoption, setup/doctor, intake, lifecycle, renderer,
+  Projection, publication, and downstream gate;
+- one fresh isolated read-only built-in `default` reviewer replays and reviews
+  every implementation, asset, fixture, packet status, bounded crosswalk/gate
+  evidence, package manifest, proof wall, and immutable dispatch byte; every
+  valid finding receives bounded remediation, full proof replay, and a
+  different fresh reviewer; and
+- the final clean subject replays byte-identically before its reviewed
+  implementation commit, followed only by the separate parent-owned completed
+  v1.2 handoff and deterministic ledger closeout commit; HCM-1.3 is not begun.
+
+`BoundaryLanded` is the ceiling. This section does not close
+`PG-PROFILE-01`, `PG-ARTIFACT-01`, `PG-KIND-01`, or `PG-KIND-02` and does not
+authorize any current product-path cutover.
+
 ## Control-pack orchestration-repair proof gate
 
 The immutable HCM-0.1 history remains evidence of the prior workflow and is not rewritten. At corrective slice HCM-0.8's completed closeout, the following conditions had to hold; the later HCM-0.6 decision resolves the shipped-default item that was intentionally open at that boundary:

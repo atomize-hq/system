@@ -108,11 +108,88 @@ impl ContextResolutionPolicyRegistry {
         }
         Ok(Self { policies })
     }
+    pub(crate) fn load_admitted(
+        sources: &[(&ExactDefinitionRef, &[u8])],
+    ) -> Result<Self, RegistryLoadError> {
+        let mut policies = BTreeMap::new();
+        for (declared_ref, bytes) in sources {
+            let value = parse_definition_yaml(bytes)?;
+            let schema = value.get("schema_id").and_then(Value::as_str).unwrap_or("");
+            let (reference, fingerprint) = match schema {
+                "handbook.mutation-matcher-definition" => resolve_matcher(decode(value)?)?,
+                "handbook.resolution-escalation-policy-definition" => {
+                    resolve_escalation(decode(value)?)?
+                }
+                "handbook.memory-promotion-policy-definition" => resolve_promotion(decode(value)?)?,
+                _ => {
+                    return Err(RegistryLoadError::new(
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "unsupported Context Resolution policy record",
+                    ))
+                }
+            };
+            if &reference != *declared_ref {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::ConflictingIdentity,
+                    "Context Resolution producer derived exact ref does not match its typed source binding",
+                ));
+            }
+            if policies.insert(reference, fingerprint).is_some() {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::DuplicateIdentity,
+                    "Context Resolution policy identity is duplicated",
+                ));
+            }
+        }
+        Ok(Self { policies })
+    }
     pub fn fingerprint(&self, r: &ExactDefinitionRef) -> Option<&DefinitionFingerprint> {
         self.policies.get(r)
     }
     pub fn refs(&self) -> BTreeSet<ExactDefinitionRef> {
         self.policies.keys().cloned().collect()
+    }
+}
+
+pub(crate) fn admitted_context_resolution_policy_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let value = parse_definition_yaml(bytes)?;
+    match value.get("schema_id").and_then(Value::as_str).unwrap_or("") {
+        "handbook.mutation-matcher-definition" => {
+            let authored: Matcher = decode(value)?;
+            if authored.schema_version != "1.0" {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedRecord,
+                    "unsupported Context Resolution matcher record",
+                ));
+            }
+            ExactDefinitionRef::new(&authored.matcher_id, &authored.matcher_version)
+        }
+        "handbook.resolution-escalation-policy-definition" => {
+            let authored: Escalation = decode(value)?;
+            if authored.schema_version != "1.0" {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedRecord,
+                    "unsupported Context Resolution escalation record",
+                ));
+            }
+            ExactDefinitionRef::new(&authored.policy_id, &authored.policy_version)
+        }
+        "handbook.memory-promotion-policy-definition" => {
+            let authored: Promotion = decode(value)?;
+            if authored.schema_version != "1.0" {
+                return Err(RegistryLoadError::new(
+                    RegistryLoadErrorKind::UnsupportedRecord,
+                    "unsupported Context Resolution promotion record",
+                ));
+            }
+            ExactDefinitionRef::new(&authored.policy_id, &authored.policy_version)
+        }
+        _ => Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "unsupported Context Resolution policy record",
+        )),
     }
 }
 fn decode<T: for<'de> Deserialize<'de>>(v: Value) -> Result<T, RegistryLoadError> {
@@ -269,10 +346,31 @@ impl ContextResolutionStackDefinition {
     ) -> Result<Self, RegistryLoadError> {
         let mut b = SourceByteBudget::default();
         let (_, bytes) = read_trusted_repo_source(repo.as_ref(), path, &mut b)?;
-        let value = parse_definition_yaml(&bytes)?;
+        Self::load_bytes(&bytes, policies)
+    }
+    pub(crate) fn load_bytes(
+        bytes: &[u8],
+        policies: &ContextResolutionPolicyRegistry,
+    ) -> Result<Self, RegistryLoadError> {
+        let value = parse_definition_yaml(bytes)?;
         let authored: AuthoredStack = decode(value)?;
         authored.resolve(policies)
     }
+}
+pub(crate) fn admitted_context_resolution_stack_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let value = parse_definition_yaml(bytes)?;
+    let authored: AuthoredStack = decode(value)?;
+    if authored.schema_id != "handbook.context-resolution-stack-definition"
+        || authored.schema_version != "1.0"
+    {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "unsupported Context Resolution stack record",
+        ));
+    }
+    ExactDefinitionRef::new(&authored.stack_id, &authored.stack_version)
 }
 impl AuthoredStack {
     fn resolve(

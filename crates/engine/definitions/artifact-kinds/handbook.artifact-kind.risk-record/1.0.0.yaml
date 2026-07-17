@@ -17,4 +17,4 @@ lifecycle_policy_ref: null
 review_triggers: []
 required_capabilities: []
 extensions: {}
-definition_fingerprint: sha256:947c8cc09cd74564cf6ce004435a6fe9ad8ed1d794176a057d75c57a4c24d28f
+definition_fingerprint: sha256:6e5b359bb5f8ae97f0b7675c20b82f9d8165f2b815dae29948d20f8202ae5a02

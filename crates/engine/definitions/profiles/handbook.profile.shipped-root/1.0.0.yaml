@@ -84,4 +84,4 @@ posture_evaluation_policy: null
 dock_requirement_refs: []
 adapter_overlay_refs: []
 extensions: {}
-profile_fingerprint: sha256:a808676c5d2fdc78fa6cc168686fde37bdf2e9368a5ce8d1ec871b243412e8d6
+profile_fingerprint: sha256:ee8f327c5a5a68faf3184bad268118b3014e96beea142b1f5959b701e857cdf6

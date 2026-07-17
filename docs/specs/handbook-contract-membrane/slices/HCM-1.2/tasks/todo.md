@@ -1,7 +1,10 @@
 # HCM-1.2 Task Ledger
 
-Future implementation checklist only. Packet approval leaves every item
-unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
+This ledger records the live HCM-1.2 execution. Completed subject-shaping work
+is checked before final review. Review, byte replay, commit, and closeout remain
+unchecked in this reviewed file because their later immutable evidence belongs
+in the final dispatch and parent v1.2 handoff rather than a post-`CLEAN` subject
+mutation. Canonical `07`/`08` own those mechanics.
 
 ## Entry
 
@@ -133,13 +136,15 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 18 — Full proof and review
 
-- [ ] Run every SPEC positive, boundary/N+1, negative, and security case.
-- [ ] Run format/clippy/engine/workspace/platform/dependency/package/archive/
+- [x] Run every SPEC positive, boundary/N+1, negative, and security case.
+- [x] Run format/clippy/engine/workspace/platform/dependency/package/archive/
   handoff/diff/scope proof and literal package member/size/hash equality.
-- [ ] Update only earned bounded evidence; keep all named gates open.
-- [ ] Preserve replayable proof, dispatch fresh complete-subject review, and
-  remediate with different fresh reviewers until exact-subject CLEAN.
-- [ ] Do not mutate reviewed bytes after CLEAN.
+- [x] Update only earned bounded evidence; keep all named gates open.
+- [x] Preserve a complete replayable HCM-1.2 proof wall.
+- [x] Assemble an immutable complete-subject review dispatch.
+- [x] Dispatch fresh complete-subject review and remediate with different fresh
+  reviewers after every valid finding.
+- [ ] Require exact-subject `CLEAN`; do not mutate reviewed bytes afterward.
 
 ## Implementation commit and closeout
 

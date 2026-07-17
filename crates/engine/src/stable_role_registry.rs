@@ -99,6 +99,21 @@ impl StableRoleRegistry {
     }
 }
 
+pub(crate) fn admitted_stable_role_registry_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let value = parse_definition_yaml(bytes)?;
+    let authored: AuthoredStableRoleRegistry =
+        serde_json::from_value(value).map_err(classify_typed_decode_error)?;
+    if authored.schema_id != "handbook.stable-role-registry" || authored.schema_version != "1.0" {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "stable-role registry must use handbook.stable-role-registry / 1.0",
+        ));
+    }
+    ExactDefinitionRef::new(&authored.registry_id, &authored.registry_version)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct AuthoredStableRoleRegistry {

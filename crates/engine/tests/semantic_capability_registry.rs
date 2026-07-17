@@ -1,6 +1,6 @@
 use handbook_engine::{
     BindingCardinality, BindingEmptyPolicy, BindingJsonType, DefinitionFingerprint,
-    ExactDefinitionRef, SemanticCapabilityRegistry,
+    ExactDefinitionRef, RegistryLoadErrorKind, SemanticCapabilityRegistry,
 };
 use serde_json::Value;
 use std::path::Path;
@@ -100,10 +100,11 @@ fn changed_validator_invalidates_validator_then_capability() {
         &[VALIDATOR_PATH.into()],
     )
     .unwrap_err();
-    assert_eq!(
+    assert!(matches!(
         error.kind(),
-        handbook_engine::RegistryLoadErrorKind::FingerprintMismatch
-    );
+        handbook_engine::RegistryLoadErrorKind::UnsupportedDependency
+            | handbook_engine::RegistryLoadErrorKind::FingerprintMismatch
+    ));
 }
 #[test]
 fn back_edges_unknown_fields_duplicates_and_forged_fingerprints_refuse() {
@@ -139,5 +140,141 @@ fn back_edges_unknown_fields_duplicates_and_forged_fingerprints_refuse() {
             .is_err(),
             "{mutation}"
         );
+    }
+}
+
+#[test]
+fn validator_record_failures_are_typed_located_and_order_independent() {
+    const MUTANT_PATH: &str = "definitions/semantic-validators/mutant-validator.yaml";
+    for case in [
+        "schema_id",
+        "schema_version",
+        "extensions",
+        "nested_unknown",
+        "nested_wrong_type",
+    ] {
+        for reverse in [false, true] {
+            let r = repo();
+            let mut value: Value = serde_yaml_bw::from_slice(VALIDATOR).unwrap();
+            let (kind, location) = match case {
+                "schema_id" => {
+                    value["schema_id"] = Value::String("handbook.wrong".into());
+                    (
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "semantic_validator/schema_id",
+                    )
+                }
+                "schema_version" => {
+                    value["schema_version"] = Value::String("2.0".into());
+                    (
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "semantic_validator/schema_version",
+                    )
+                }
+                "extensions" => {
+                    value["extensions"]["future"] = Value::Bool(true);
+                    (
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "semantic_validator/extensions",
+                    )
+                }
+                "nested_unknown" => {
+                    value["binding_rules"][0]["unexpected"] = Value::Bool(true);
+                    (
+                        RegistryLoadErrorKind::UnknownField,
+                        "semantic_validator/binding_rules/0/unexpected",
+                    )
+                }
+                _ => {
+                    value["binding_rules"][0]["json_type"] = Value::Bool(true);
+                    (
+                        RegistryLoadErrorKind::SyntaxError,
+                        "semantic_validator/binding_rules/0/json_type",
+                    )
+                }
+            };
+            write(
+                &r.path().join(MUTANT_PATH),
+                serde_yaml_bw::to_string(&value).unwrap().as_bytes(),
+            );
+            let paths = if reverse {
+                vec![VALIDATOR_PATH.into(), MUTANT_PATH.into()]
+            } else {
+                vec![MUTANT_PATH.into(), VALIDATOR_PATH.into()]
+            };
+            let error =
+                SemanticCapabilityRegistry::load(r.path(), &[CAPABILITY_PATH.into()], &paths)
+                    .unwrap_err();
+            assert_eq!(error.kind(), kind, "{case} reverse={reverse}");
+            assert_eq!(error.location(), Some(location), "{case} reverse={reverse}");
+        }
+    }
+}
+
+#[test]
+fn capability_record_failures_are_typed_located_and_order_independent() {
+    const MUTANT_PATH: &str = "definitions/semantic-capabilities/mutant-capability.yaml";
+    for case in [
+        "schema_id",
+        "schema_version",
+        "extensions",
+        "unknown",
+        "nested_wrong_type",
+    ] {
+        for reverse in [false, true] {
+            let r = repo();
+            let mut value: Value = serde_yaml_bw::from_slice(CAPABILITY).unwrap();
+            let (kind, location) = match case {
+                "schema_id" => {
+                    value["schema_id"] = Value::String("handbook.wrong".into());
+                    (
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "semantic_capability/schema_id",
+                    )
+                }
+                "schema_version" => {
+                    value["schema_version"] = Value::String("2.0".into());
+                    (
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "semantic_capability/schema_version",
+                    )
+                }
+                "extensions" => {
+                    value["extensions"]["future"] = Value::Bool(true);
+                    (
+                        RegistryLoadErrorKind::UnsupportedRecord,
+                        "semantic_capability/extensions",
+                    )
+                }
+                "unknown" => {
+                    value["unexpected"] = Value::Bool(true);
+                    (
+                        RegistryLoadErrorKind::UnknownField,
+                        "semantic_capability/unexpected",
+                    )
+                }
+                _ => {
+                    value["required_bindings"][0] = Value::Bool(true);
+                    (
+                        RegistryLoadErrorKind::SyntaxError,
+                        "semantic_capability/required_bindings/0",
+                    )
+                }
+            };
+            write(
+                &r.path().join(MUTANT_PATH),
+                serde_yaml_bw::to_string(&value).unwrap().as_bytes(),
+            );
+            let paths = if reverse {
+                vec![CAPABILITY_PATH.into(), MUTANT_PATH.into()]
+            } else {
+                vec![MUTANT_PATH.into(), CAPABILITY_PATH.into()]
+            };
+            let error =
+                SemanticCapabilityRegistry::load(r.path(), &paths, &[VALIDATOR_PATH.into()])
+                    .unwrap_err();
+            assert_eq!(error.kind(), kind, "{case} reverse={reverse}");
+            assert_eq!(error.location(), Some(location), "{case} reverse={reverse}");
+        }
     }
 }

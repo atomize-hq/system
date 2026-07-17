@@ -244,6 +244,63 @@ pub fn load_artifact_kind_registry(
     })
 }
 
+pub(crate) fn load_artifact_kind_registry_admitted(
+    stable_role_registry: StableRoleRegistry,
+    schema_registry: SchemaRegistry,
+    semantic_capability_registry: SemanticCapabilityRegistry,
+    sources: &[(&ExactDefinitionRef, &[u8])],
+) -> Result<ArtifactKindRegistry, RegistryLoadError> {
+    if sources.is_empty() {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "at least one artifact-kind definition source is required",
+        ));
+    }
+    let mut kinds = BTreeMap::new();
+    for (declared_ref, bytes) in sources {
+        let definition = AuthoredArtifactKindDefinition::parse(bytes)?.validate(
+            &stable_role_registry,
+            &schema_registry,
+            &semantic_capability_registry,
+        )?;
+        if definition.exact_ref() != *declared_ref {
+            return Err(RegistryLoadError::at(
+                RegistryLoadErrorKind::ConflictingIdentity,
+                "artifact_kind_source",
+                "artifact-kind derived exact ref does not match its typed source binding",
+            ));
+        }
+        if let Some(existing) = kinds.get(definition.exact_ref()) {
+            let kind = if existing == &definition {
+                RegistryLoadErrorKind::DuplicateIdentity
+            } else {
+                RegistryLoadErrorKind::ConflictingIdentity
+            };
+            return Err(RegistryLoadError::at(
+                kind,
+                "artifact_kind_definitions",
+                "artifact-kind exact identity appears more than once",
+            ));
+        }
+        kinds.insert(definition.exact_ref.clone(), definition);
+    }
+    let members = kinds
+        .values()
+        .map(|definition| ArtifactKindRegistryFingerprintMember {
+            kind_ref: definition.exact_ref.as_str(),
+            definition_fingerprint: definition.definition_fingerprint.as_str(),
+        })
+        .collect::<Vec<_>>();
+    let fingerprint = fingerprint_serializable(&members)?;
+    Ok(ArtifactKindRegistry {
+        stable_role_registry,
+        schema_registry,
+        semantic_capability_registry,
+        kinds,
+        fingerprint,
+    })
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct AuthoredArtifactKindDefinition {
@@ -255,7 +312,7 @@ struct AuthoredArtifactKindDefinition {
     stable_role_registry: AuthoredStableRoleRegistrySelection,
     canonical_schema_ref: String,
     supported_role_refs: Vec<String>,
-    semantic_capabilities: Vec<Value>,
+    semantic_capabilities: Vec<AuthoredKindCapability>,
     structural_validation_profile_ref: String,
     semantic_validation_profile_refs: Vec<String>,
     renderer_definition_refs: Vec<String>,
@@ -467,14 +524,7 @@ impl AuthoredArtifactKindDefinition {
             .resolved(canonical_schema_ref)
             .expect("schema entry resolved");
         let mut selected = BTreeMap::new();
-        for value in &self.semantic_capabilities {
-            let authored: AuthoredKindCapability =
-                serde_json::from_value(value.clone()).map_err(|_| {
-                    RegistryLoadError::new(
-                        RegistryLoadErrorKind::UnsupportedDependency,
-                        "kind semantic capability does not match its closed typed record",
-                    )
-                })?;
+        for authored in &self.semantic_capabilities {
             let capability_id = SymbolicId::parse(&authored.capability_id).map_err(|_| {
                 RegistryLoadError::new(
                     RegistryLoadErrorKind::InvalidExactDefinitionRef,
@@ -570,6 +620,19 @@ impl AuthoredArtifactKindDefinition {
         }
         Ok(selected)
     }
+}
+
+pub(crate) fn admitted_artifact_kind_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let authored = AuthoredArtifactKindDefinition::parse(bytes)?;
+    if authored.schema_id != KIND_SCHEMA_ID || authored.schema_version != KIND_SCHEMA_VERSION {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "artifact-kind definition must use handbook.artifact-kind-definition / 1.0",
+        ));
+    }
+    ExactDefinitionRef::new(&authored.kind_id, &authored.kind_version)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

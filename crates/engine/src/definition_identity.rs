@@ -48,6 +48,14 @@ pub enum RegistryLoadErrorKind {
     MissingSchema,
     ConflictingSchema,
     UnsupportedDependency,
+    InvalidRequiredness,
+    InvalidDependencyNamespace,
+    InvalidDependencyTarget,
+    InvalidDependencyContract,
+    InvalidDependencyCardinality,
+    InvalidDependencyProviderCount,
+    DependencyCycle,
+    InvalidConstitutionalRoot,
     StructuralValidationSetup,
 }
 

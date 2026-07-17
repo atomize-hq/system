@@ -32,6 +32,8 @@ struct AuthoredVocabulary {
 #[derive(Clone, Debug)]
 pub struct VocabularyDefinition {
     exact_ref: ExactDefinitionRef,
+    stable_role_registry_ref: ExactDefinitionRef,
+    stable_role_registry_fingerprint: DefinitionFingerprint,
     vocabulary_fingerprint: DefinitionFingerprint,
 }
 impl VocabularyDefinition {
@@ -41,10 +43,19 @@ impl VocabularyDefinition {
     pub fn vocabulary_fingerprint(&self) -> &DefinitionFingerprint {
         &self.vocabulary_fingerprint
     }
+    pub fn stable_role_registry_ref(&self) -> &ExactDefinitionRef {
+        &self.stable_role_registry_ref
+    }
+    pub fn stable_role_registry_fingerprint(&self) -> &DefinitionFingerprint {
+        &self.stable_role_registry_fingerprint
+    }
     pub fn load(repo: impl AsRef<Path>, path: &str) -> Result<Self, RegistryLoadError> {
         let mut b = SourceByteBudget::default();
         let (_, bytes) = read_trusted_repo_source(repo.as_ref(), path, &mut b)?;
-        let value = parse_definition_yaml(&bytes)?;
+        Self::load_bytes(&bytes)
+    }
+    pub(crate) fn load_bytes(bytes: &[u8]) -> Result<Self, RegistryLoadError> {
+        let value = parse_definition_yaml(bytes)?;
         let a: AuthoredVocabulary = serde_json::from_value(value).map_err(|e| {
             RegistryLoadError::new(
                 if e.to_string().contains("unknown field") {
@@ -57,6 +68,53 @@ impl VocabularyDefinition {
         })?;
         a.resolve()
     }
+}
+pub(crate) fn admitted_vocabulary_exact_ref(
+    bytes: &[u8],
+) -> Result<ExactDefinitionRef, RegistryLoadError> {
+    let value = parse_definition_yaml(bytes)?;
+    let authored: AuthoredVocabulary = serde_json::from_value(value).map_err(|error| {
+        RegistryLoadError::new(
+            if error.to_string().contains("unknown field") {
+                RegistryLoadErrorKind::UnknownField
+            } else {
+                RegistryLoadErrorKind::SyntaxError
+            },
+            "vocabulary does not match its closed record",
+        )
+    })?;
+    if authored.schema_id != "handbook.vocabulary-profile" || authored.schema_version != "1.0" {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "unsupported vocabulary record",
+        ));
+    }
+    ExactDefinitionRef::new(&authored.vocabulary_id, &authored.vocabulary_version)
+}
+pub(crate) fn admitted_vocabulary_stable_role_selection(
+    bytes: &[u8],
+) -> Result<(ExactDefinitionRef, DefinitionFingerprint), RegistryLoadError> {
+    let value = parse_definition_yaml(bytes)?;
+    let authored: AuthoredVocabulary = serde_json::from_value(value).map_err(|error| {
+        RegistryLoadError::new(
+            if error.to_string().contains("unknown field") {
+                RegistryLoadErrorKind::UnknownField
+            } else {
+                RegistryLoadErrorKind::SyntaxError
+            },
+            "vocabulary does not match its closed record",
+        )
+    })?;
+    if authored.schema_id != "handbook.vocabulary-profile" || authored.schema_version != "1.0" {
+        return Err(RegistryLoadError::new(
+            RegistryLoadErrorKind::UnsupportedRecord,
+            "unsupported vocabulary record",
+        ));
+    }
+    Ok((
+        ExactDefinitionRef::parse(&authored.stable_role_registry.reference)?,
+        DefinitionFingerprint::parse(&authored.stable_role_registry.fingerprint)?,
+    ))
 }
 impl AuthoredVocabulary {
     fn resolve(self) -> Result<VocabularyDefinition, RegistryLoadError> {
@@ -82,6 +140,10 @@ impl AuthoredVocabulary {
                 "unsupported vocabulary identity",
             ));
         }
+        let stable_role_registry_ref =
+            ExactDefinitionRef::parse(&self.stable_role_registry.reference)?;
+        let stable_role_registry_fingerprint =
+            DefinitionFingerprint::parse(&self.stable_role_registry.fingerprint)?;
         let supplied = DefinitionFingerprint::parse(&self.vocabulary_fingerprint)?;
         let computed = fingerprint_serializable(&self)?;
         if supplied != computed {
@@ -92,6 +154,8 @@ impl AuthoredVocabulary {
         }
         Ok(VocabularyDefinition {
             exact_ref,
+            stable_role_registry_ref,
+            stable_role_registry_fingerprint,
             vocabulary_fingerprint: computed,
         })
     }

@@ -12,6 +12,7 @@ pub mod context_resolution_registry;
 pub mod definition_identity;
 pub mod freshness;
 pub mod instance_profile;
+mod profile_builtins;
 pub mod profile_selection;
 pub mod project_condition_registry;
 pub mod schema_registry;
@@ -20,7 +21,8 @@ pub mod stable_role_registry;
 pub mod vocabulary_registry;
 
 pub use artifact_instance::{
-    shipped_root_artifact_instance_values, ArtifactInstanceDescriptor, ArtifactInstanceRegistry,
+    shipped_root_artifact_instance_values, ArtifactDependency, ArtifactInstanceDescriptor,
+    ArtifactInstanceRegistry, ArtifactRequiredness, DependencyCardinality, DependencyTargetKind,
     RequirednessMode,
 };
 pub use artifact_kind_registry::{
@@ -83,18 +85,19 @@ pub use freshness::{
 };
 pub use instance_profile::{
     layer_profile_sources, parse_profile_source, AuthoredProfileSource, DefinitionSource,
-    DefinitionSourceBinding, LayerDisposition, LayeredProfile, ProfileField, ProfileLayerDecision,
-    ProfileLoadError, ProfileLoadErrorKind, ProfileScope, ProfileSelectionRequest, SymbolicId,
+    DefinitionSourceBinding, InstanceProfileDefinition, LayerDisposition, LayeredProfile,
+    ProfileField, ProfileLayerDecision, ProfileLoadError, ProfileLoadErrorKind, ProfileScope,
+    ProfileSelectionRequest, SymbolicId,
 };
 pub use profile_selection::{resolve_profile_selection, ResolvedInstanceProfile};
-pub use project_condition_registry::ProjectConditionDefinition;
+pub use project_condition_registry::{ProjectConditionDefinition, ProjectConditionRegistry};
 pub use schema_registry::{
     ResolvedSchema, SchemaRegistry, SchemaRegistryEntry, StructuralValidationError,
 };
 pub use semantic_capability_registry::{
     AllowedInstanceCardinality, BindingCardinality, BindingEmptyPolicy, BindingJsonType,
-    SemanticBindingRule, SemanticCapabilityDefinition, SemanticCapabilityRegistry,
-    SemanticValidationProfileDefinition,
+    SemanticBindingRule, SemanticCapabilityContract, SemanticCapabilityDefinition,
+    SemanticCapabilityRegistry, SemanticValidationProfileDefinition,
 };
 pub use stable_role_registry::{StableRoleCategory, StableRoleDefinition, StableRoleRegistry};
 pub use vocabulary_registry::VocabularyDefinition;

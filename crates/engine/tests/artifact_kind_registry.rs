@@ -224,7 +224,11 @@ fn later_owned_and_wrong_record_fields_refuse_before_fingerprinting() {
             .expect_err(field);
         assert_eq!(
             error.kind(),
-            RegistryLoadErrorKind::UnsupportedDependency,
+            if field == "semantic_capabilities" {
+                RegistryLoadErrorKind::UnknownField
+            } else {
+                RegistryLoadErrorKind::UnsupportedDependency
+            },
             "{field}"
         );
     }
@@ -282,6 +286,31 @@ fn later_owned_and_wrong_record_fields_refuse_before_fingerprinting() {
     assert!(!error.detail().contains("SECRET_KIND_FIELD"));
     assert!(!error.to_string().contains("SECRET_KIND_FIELD"));
     assert!(error.detail().len() < 256);
+}
+
+#[test]
+fn nested_kind_capability_records_are_closed_during_outer_decode() {
+    let repo = tempfile::tempdir().unwrap();
+    let (entry_path, schema_ref, _) = write_schema_entry(repo.path(), "nested-capability");
+    let mut record = kind_record("example.artifact-kind.nested-capability", &schema_ref);
+    record["semantic_capabilities"] = json!([{
+        "capability_id": "constitutional_root",
+        "contract_ref": "handbook.capabilities.constitutional-root@1.0.0",
+        "bindings": {},
+        "unexpected": true
+    }]);
+    record["definition_fingerprint"] =
+        json!("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    let kind_path = "definitions/nested-capability.kind.yaml".to_string();
+    write(
+        &repo.path().join(&kind_path),
+        serde_yaml_bw::to_string(&record).unwrap(),
+    );
+
+    let failure =
+        load_artifact_kind_registry(repo.path(), request(vec![entry_path], vec![kind_path]))
+            .unwrap_err();
+    assert_eq!(failure.kind(), RegistryLoadErrorKind::UnknownField);
 }
 
 #[test]

@@ -99,6 +99,10 @@ fn project_context_is_exact_closed_and_set_bounded() {
     long["summary"] = json!("x".repeat(8193));
     assert!(schema.validate_json(&long).is_err());
     let mut refs = valid;
+    refs["authoritative_references"] = json!(["handbook.example.definition@1.2.3-alpha.1+build.7"]);
+    assert!(schema.validate_json(&refs).is_ok());
+    refs["authoritative_references"] = json!(["handbook.example.definition@01.2.3"]);
+    assert!(schema.validate_json(&refs).is_err());
     refs["authoritative_references"] = Value::Array(
         (0..128)
             .map(|i| json!(format!("example.reference.r{i}")))

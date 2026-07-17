@@ -64,7 +64,7 @@ fn ancestry_depth_32_and_source_count_64_are_exact_boundaries() {
     sources.push(
         parse_profile_source(&source("example.profile.p0", "shipped", None, all_fields())).unwrap(),
     );
-    for i in 1..32 {
+    for i in 1..=32 {
         sources.push(
             parse_profile_source(&source(
                 &format!("example.profile.p{i}"),
@@ -75,28 +75,32 @@ fn ancestry_depth_32_and_source_count_64_are_exact_boundaries() {
             .unwrap(),
         );
     }
-    let selected = ExactDefinitionRef::parse("example.profile.p31@1.0.0").unwrap();
+    let selected = ExactDefinitionRef::parse("example.profile.p32@1.0.0").unwrap();
     assert_eq!(
         layer_profile_sources(&selected, sources.clone())
             .unwrap()
             .ancestry()
             .len(),
-        32
+        33
     );
     sources.push(
         parse_profile_source(&source(
-            "example.profile.p32",
+            "example.profile.p33",
             "repository",
-            Some("example.profile.p31@1.0.0"),
+            Some("example.profile.p32@1.0.0"),
             serde_json::Map::new(),
         ))
         .unwrap(),
     );
-    assert!(layer_profile_sources(
-        &ExactDefinitionRef::parse("example.profile.p32@1.0.0").unwrap(),
-        sources
-    )
-    .is_err());
+    assert_eq!(
+        layer_profile_sources(
+            &ExactDefinitionRef::parse("example.profile.p33@1.0.0").unwrap(),
+            sources
+        )
+        .unwrap_err()
+        .kind(),
+        ProfileLoadErrorKind::ProfileAncestryDepthExceeded
+    );
     let root = parse_profile_source(&source(
         "example.profile.root",
         "shipped",
@@ -127,4 +131,94 @@ fn ancestry_depth_32_and_source_count_64_are_exact_boundaries() {
         .unwrap(),
     );
     assert!(layer_profile_sources(root.exact_ref(), sixty_four).is_err());
+}
+
+#[test]
+fn repository_scope_is_only_one_selected_leaf_over_non_repository_authority() {
+    let repository_root = parse_profile_source(&source(
+        "example.profile.repository-root",
+        "repository",
+        None,
+        all_fields(),
+    ))
+    .unwrap();
+    assert_eq!(
+        layer_profile_sources(repository_root.exact_ref(), vec![repository_root.clone()])
+            .unwrap_err()
+            .kind(),
+        ProfileLoadErrorKind::IllegalProfileScope
+    );
+
+    let shipped = parse_profile_source(&source(
+        "example.profile.shipped",
+        "shipped",
+        None,
+        all_fields(),
+    ))
+    .unwrap();
+    let first_repository = parse_profile_source(&source(
+        "example.profile.repository-one",
+        "repository",
+        Some("example.profile.shipped@1.0.0"),
+        serde_json::Map::new(),
+    ))
+    .unwrap();
+    let second_repository = parse_profile_source(&source(
+        "example.profile.repository-two",
+        "repository",
+        Some("example.profile.repository-one@1.0.0"),
+        serde_json::Map::new(),
+    ))
+    .unwrap();
+    let selected = second_repository.exact_ref().clone();
+    assert_eq!(
+        layer_profile_sources(
+            &selected,
+            vec![shipped, first_repository, second_repository]
+        )
+        .unwrap_err()
+        .kind(),
+        ProfileLoadErrorKind::IllegalProfileScope
+    );
+}
+
+#[test]
+fn profile_cycles_are_typed_and_win_before_fingerprint_validation() {
+    let left = parse_profile_source(&source(
+        "example.profile.left",
+        "named",
+        Some("example.profile.right@1.0.0"),
+        serde_json::Map::new(),
+    ))
+    .unwrap();
+    let right = parse_profile_source(&source(
+        "example.profile.right",
+        "named",
+        Some("example.profile.left@1.0.0"),
+        serde_json::Map::new(),
+    ))
+    .unwrap();
+    assert_eq!(
+        layer_profile_sources(left.exact_ref(), vec![left.clone(), right])
+            .unwrap_err()
+            .kind(),
+        ProfileLoadErrorKind::ProfileAncestryCycle
+    );
+}
+
+#[test]
+fn public_profile_parser_distinguishes_non_object_records_from_missing_sources() {
+    for (case, bytes) in [
+        ("null", b"null\n".as_slice()),
+        ("scalar", b"profile\n".as_slice()),
+        ("sequence", b"- profile\n".as_slice()),
+    ] {
+        let error = parse_profile_source(bytes).unwrap_err();
+        assert_eq!(
+            error.kind(),
+            ProfileLoadErrorKind::InvalidProfileRecord,
+            "{case}"
+        );
+        assert_eq!(error.location(), Some("profile_source"), "{case}");
+    }
 }
