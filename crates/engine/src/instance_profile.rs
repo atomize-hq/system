@@ -358,7 +358,7 @@ impl ProfileField {
         Self::AdapterOverlayRefs,
         Self::Extensions,
     ];
-    fn key(self) -> &'static str {
+    pub(crate) fn key(self) -> &'static str {
         match self {
             Self::StableRoleRegistry => "stable_role_registry",
             Self::SchemaRegistrySources => "schema_registry_sources",
@@ -395,6 +395,10 @@ impl AuthoredProfileSource {
     }
     pub fn profile_fingerprint(&self) -> &crate::definition_identity::DefinitionFingerprint {
         &self.profile_fingerprint
+    }
+
+    pub(crate) fn field(&self, field: ProfileField) -> Option<&Value> {
+        self.fields.get(&field)
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]

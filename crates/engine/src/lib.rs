@@ -12,6 +12,7 @@ pub mod context_resolution_registry;
 pub mod definition_identity;
 pub mod freshness;
 pub mod instance_profile;
+pub mod profile_selection;
 pub mod project_condition_registry;
 pub mod schema_registry;
 pub mod semantic_capability_registry;
@@ -85,6 +86,7 @@ pub use instance_profile::{
     DefinitionSourceBinding, LayerDisposition, LayeredProfile, ProfileField, ProfileLayerDecision,
     ProfileLoadError, ProfileLoadErrorKind, ProfileScope, ProfileSelectionRequest, SymbolicId,
 };
+pub use profile_selection::{resolve_profile_selection, ResolvedInstanceProfile};
 pub use project_condition_registry::ProjectConditionDefinition;
 pub use schema_registry::{
     ResolvedSchema, SchemaRegistry, SchemaRegistryEntry, StructuralValidationError,

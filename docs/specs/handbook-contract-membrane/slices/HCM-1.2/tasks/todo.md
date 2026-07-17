@@ -117,12 +117,12 @@ unchecked. Canonical `07`/`08` own review lineage and two-commit closeout.
 
 ## Task 16 — Selection/resolved fingerprint
 
-- [ ] RED exact leaf/source-graph/root/fingerprint cases.
-- [ ] Resolve only explicit typed sources and recomputed closure.
-- [ ] Refuse ambient/missing/wrong/range/latest/stale and genuinely unrelated
+- [x] RED exact leaf/source-graph/root/fingerprint cases.
+- [x] Resolve only explicit typed sources and recomputed closure.
+- [x] Refuse ambient/missing/wrong/range/latest/stale and genuinely unrelated
   sources; require/count dependencies of every selected-ancestry profile even
   when their field is later shadowed.
-- [ ] Prove repeated/permuted determinism; verify and commit green.
+- [x] Prove repeated/permuted determinism; verify and commit green.
 
 ## Task 17 — Shipped root/repository fixture
 
