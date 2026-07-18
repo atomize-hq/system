@@ -9,14 +9,14 @@ reviewed planning slice. A Rust implementation slice is authorized only when
 its own `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md` packet is present and
 review-clean.
 
-HCM-1.1 and HCM-1.2 have landed through their separately reviewed
+HCM-1.1 through HCM-1.3 have landed through their separately reviewed
 implementation and closeout commits. They are completed dependency evidence,
-not continuing implementation authority. HCM-1.3 packet approval is the next
-authorization boundary: only the exact `slices/HCM-1.3/` planning subject may
-authorize a later HCM-1.3 implementation run, and only after that subject is
+not continuing implementation authority. HCM-1.4 packet approval is the next
+authorization boundary: only the exact `slices/HCM-1.4/` planning subject may
+authorize a later HCM-1.4 implementation run, and only after that subject is
 review-clean and its planning closeout is selected by a separate top-level
-session. Packet approval is not execution. HCM-1.4 and every later slice remain
-unauthorized until their own packets are created and reviewed.
+session. Packet approval is not execution. Every later slice remains
+unauthorized until its own packet is created and reviewed.
 
 ## Sequencing rule
 
@@ -208,11 +208,36 @@ permutations, unchanged package-owned definitions, and no setup/doctor/flow or
 fixed-product adoption. HCM-1.4 remains unauthorized until a separate selected
 planning/implementation handoff.
 
+HCM-1.3 landed at reviewed implementation commit
+`8194f9f4534b2d27e1077ffab2c89d12da5ff456`; its selected v1.2 closeout is
+`20260717T183202Z--HCM-1-3--orchestration--artifact-registry-landed`. Those
+records are completed dependency evidence for HCM-1.4 and authorize no
+additional HCM-1.3 work.
+
 ### `HCM-1.4` — Profile-aware setup and doctor decisions
 
 - make setup/doctor use typed profile decisions;
 - keep CLI wording outside engine decisions;
 - expose machine-readable profile/capability truth.
+
+The planning packet is [`slices/HCM-1.4/`](slices/HCM-1.4/SPEC.md). Packet
+creation and review are documentation-only. The future implementation boundary
+is one engine-owned typed profile-decision and repository-inspection closure
+consumed identically by setup and doctor. It replaces their fixed artifact
+selection path. Conditional descriptors bind exact definitions but remain
+explicitly `unresolved`/`evidence_contract_unavailable` until a separate verified
+evidence/evaluator contract exists. The slice writes no canonical YAML,
+invents no compatibility profile, repairs no unrelated reset transaction,
+generates no command, and starts no Phase 2 content-authority work.
+Its machine-readable capability truth is exactly the instance/capability/
+contract-ref/contract-fingerprint identity projection; binding, cardinality,
+and semantic-validator metadata remain owned by the selected registry.
+The only production authoring exception is the exact behavior-preserving
+`author/mod.rs` cfg-selected local acquisition-operation portability hunk
+required to make the mandatory compiler Windows target build; existing helper
+signatures/bodies and the Unix `LOCK_UN` drop path remain byte-unchanged, lock
+semantics do not change, and fresh HIGH-risk impact plus complete author
+regressions must pass.
 
 ### Phase 1 exit gate
 

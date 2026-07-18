@@ -683,6 +683,105 @@ HCM-1.3:
 content, renderer, Projection, downstream, HCM-1.4, HCM-2, HCM-3, contract, or
 dock gates and does not authorize any current product-path cutover.
 
+## HCM-1.4 profile-aware setup and doctor decision proof gate
+
+HCM-1.4 may promote only profile-aware setup/doctor decision and structural-
+readiness adoption. The future implementation is authorized only by the exact
+review-clean HCM-1.4 packet and a separately selected planning closeout; this
+planning session starts no Rust or HCM-2 work. Before the parent may close the
+implementation slice:
+
+- one exact `ResolvedInstanceProfile` must construct one
+  `ResolvedArtifactRegistry` and one immutable `ResolvedProfileDecisions`
+  closure; setup and doctor must consume that same closure without rebuilding,
+  translating, or falling back to the fixed artifact enum, order, descriptor,
+  filename, or Markdown template universe;
+- every selected conditional descriptor must bind the exact managed-
+  operational-surface definition/fingerprint and produce only
+  `unresolved`/`evidence_contract_unavailable`/`indeterminate` with a null evidence
+  fingerprint; no observation/evidence/freshness/assertion/bare-boolean/
+  override input surface is permitted until a separate admitted-evidence and
+  evaluator contract owns the full verified fingerprint closure;
+- membership, path, requiredness, applicability, roles, and the exact four-field
+  capability identity projection must come only from the resolved profile/
+  registry/decision closure, including a
+  repository-source custom kind and custom instance that have no enum variant,
+  generated command, or compatibility mapping; required bindings, allowed
+  cardinality, instance binding maps, semantic validators, and binding rules
+  remain registry-owned and are neither copied into nor claimed by the report;
+- repository inspection must be descriptor-driven, bounded, no-follow,
+  duplicate-YAML-safe, and routed through the selected instance registry for
+  structural validation only; it must not write, semantically approve, render,
+  promote, or claim canonical content authority; every missing/success/
+  syntax/duplicate/non-object/schema/size/aggregate/symlink/non-regular/path/
+  platform/read result must map through the SPEC's one exact status/reason row;
+- setup must write no canonical artifact, return typed author-required/
+  indeterminate truth, refuse rewrite before any mutation, and invoke the
+  unchanged legacy runtime-state reset only after complete profile preflight;
+  HCM-1.4 must report reset failure honestly and claim no transactional
+  rollback or `route_state.rs` repair;
+- setup must expose the SPEC's exact serializable mode values, total request/
+  root/flag/rewrite/error precedence, root-action mapping, bounded reason codes,
+  and default/injected compiler APIs without leaving an implementation choice;
+  non-directory/symlink roots fail closed rather than taking the retired
+  pre-inspection repair path, and every error pair has the one exact optional
+  repo-relative path from the SPEC with no ungrounded instance/string parsing;
+  one private closed error code must derive those values, with exhaustive
+  13-row proof plus independent post-API `compile_fail,E0451` struct-literal
+  and `compile_fail,E0624` constructor doctests so either privacy regression
+  fails separately and arbitrary combinations or paths are unrepresentable;
+- the compiler and CLI authoring suites may replace only their setup-dependent
+  test helpers/imports with the exact retained legacy fixture writer; all
+  production authoring bytes/behavior and substantive 47/22 assertions remain
+  unchanged and green except the exact behavior-preserving `author/mod.rs`
+  portability hunk that cfg-selects one local acquisition operation as
+  `LOCK_EX` on Unix and ignored `0` on non-Unix before the unchanged helper call
+  so the compiler Windows target builds; helper signatures/bodies and the Unix
+  `LOCK_UN` drop path remain byte-unchanged; fresh HIGH-risk impact, Windows
+  compilation, and complete author suites must prove that bounded exception;
+- doctor must expose one closed typed machine-readable report with exact
+  profile, condition, applicability, role, four-field capability identity,
+  path, and structural inspection truth; capability identity is exactly
+  instance ID, capability ID, exact contract ref, and contract fingerprint,
+  while binding/cardinality/validator/rule metadata remains registry-owned;
+  its error is one closed two-variant enum whose ordered
+  `ALL` list derives only `ProfileResolution`/`ShippedProfileUnavailable` or
+  `ProfileDecision`/`SelectedProfileDecisionInvalid`, with exhaustive replay
+  and no independently constructible kind/reason fields; human wording,
+  argument parsing, repository discovery,
+  JSON selection, and exit mapping remain CLI-owned;
+- positive shipped/custom-profile proof, all condition rows, boundary/limit
+  proof, duplicate/path/symlink/substitution-race proof, determinism proof,
+  setup/doctor equality, no-write proof, format, focused, compiler, CLI,
+  workspace, clippy, Windows cross-check plus named runtime tests on an actual
+  Windows MSVC host, handoff-validator, staged GitNexus, diff, scope, secret,
+  and untracked-aware whitespace gates must pass;
+- the literal HCM-1.2 29-member package-definition manifest must remain exact
+  for both tree and engine package by member set, size, SHA-256, and byte
+  equality; extracted engine-package checks plus exact compiler source-tree/
+  workspace-metadata/tests/changed-path proof must reveal no fixture or
+  absolute-workspace-path leak and no Cargo or definition-asset byte may move;
+  no compiler package/publication claim is permitted with its path-only deps;
+- the only classification promotion is `BoundaryLanded` for profile-aware
+  setup/doctor decision/readiness adoption and the narrow supported subset of
+  `PG-PROFILE-01`, `PG-KIND-01`, `PG-KIND-02`, and `PG-ARTIFACT-01`; content
+  authority, condition evidence/evaluation, semantic validation,
+  materialization, intake, renderer-derived views, capitalized Projection,
+  publication, downstream, and all later gates remain open;
+- one fresh isolated read-only built-in `default` reviewer must return `CLEAN`
+  over the exact complete implementation subject; every valid finding requires
+  bounded remediation, full proof replay, a new immutable dispatch, and a
+  different fresh reviewer; and
+- the final clean implementation subject must be committed first, followed
+  only by a separate parent-owned completed v1.2 handoff and deterministic
+  ledger closeout commit that names HCM-2 as future work without starting it.
+
+`BoundaryLanded` is the ceiling. This gate authorizes no compatibility bridge,
+new profile/condition CLI grammar, canonical artifact write, content-semantic
+authority, condition evidence/evaluator work, transactional reset repair,
+compiler publication, renderer/Projection work, HCM-2 work, or adjacent
+cleanup.
+
 ## Control-pack orchestration-repair proof gate
 
 The immutable HCM-0.1 history remains evidence of the prior workflow and is not rewritten. At corrective slice HCM-0.8's completed closeout, the following conditions had to hold; the later HCM-0.6 decision resolves the shipped-default item that was intentionally open at that boundary:
