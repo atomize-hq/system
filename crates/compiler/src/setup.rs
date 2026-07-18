@@ -1,25 +1,27 @@
-use crate::canonical_artifacts::{
-    canonical_artifact_descriptors, setup_starter_template_bytes, CanonicalArtifactDescriptor,
-    CanonicalArtifacts, SystemRootStatus, CANONICAL_ARTIFACT_ORDER,
+use crate::profile_readiness::{
+    project_profile_readiness, ProfileArtifactRow, ProfileCapabilityRow, ProfileConditionRow,
+    RepositoryReadinessStatus,
 };
-use crate::layout::CanonicalLayout;
-use crate::repo_file_access::{resolve_repo_relative_write_path, write_repo_relative_bytes};
 use crate::route_state::{
     apply_runtime_state_reset, plan_runtime_state_reset, RuntimeStateResetPlan,
 };
-use crate::setup_shell::{self, SetupMutationRefusalCopy, SetupRequestRefusalCopy};
-use std::collections::BTreeSet;
+use handbook_engine::{
+    inspect_profile_repository, resolve_shipped_profile_decisions, ArtifactApplicability,
+    ArtifactInspectionStatus, ResolvedProfileDecisions, ShippedProfileDecisionError,
+};
+use serde::Serialize;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SetupMode {
     Auto,
     Init,
     Refresh,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SetupRequest {
     pub mode: SetupMode,
     pub rewrite: bool,
@@ -36,459 +38,532 @@ impl Default for SetupRequest {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SetupActionLabel {
-    Created,
-    Preserved,
-    Rewritten,
-    Reset,
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetupArtifactActionKind {
+    Preserve,
+    AuthorRequired,
+    OptionalAbsent,
+    ConditionIndeterminate,
+    Invalid,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SetupAction {
-    pub label: SetupActionLabel,
-    pub path: String,
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetupRootAction {
+    Preserve,
+    Create,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SetupArtifactAction {
+    pub artifact: ProfileArtifactRow,
+    pub action: SetupArtifactActionKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SetupPlan {
     pub requested_mode: SetupMode,
     pub resolved_mode: SetupMode,
-    pub actions: Vec<SetupAction>,
+    pub root_action: SetupRootAction,
+    pub profile_ref: String,
+    pub profile_fingerprint: String,
+    pub stable_role_registry_ref: String,
+    pub stable_role_registry_fingerprint: String,
+    pub conditions: Vec<ProfileConditionRow>,
+    pub capabilities: Vec<ProfileCapabilityRow>,
+    pub artifacts: Vec<SetupArtifactAction>,
+    pub reset_paths: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SetupOutcome {
     pub plan: SetupPlan,
-    pub disposition: SetupDisposition,
-    pub next_safe_action: String,
+    pub status: RepositoryReadinessStatus,
+    pub reset_applied: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SetupDisposition {
-    Ready,
-    Scaffolded,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SetupRefusalKind {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SetupErrorKind {
+    ProfileResolution,
+    ProfileDecision,
     AlreadyInitialized,
     MissingCanonicalRoot,
     InvalidCanonicalRoot,
     InvalidRequest,
-    MutationRefused,
+    MaterializerUnavailable,
+    RuntimeStatePlan,
+    RuntimeStateApply,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SetupRefusal {
-    pub kind: SetupRefusalKind,
-    pub summary: String,
-    pub broken_subject: String,
-    pub next_safe_action: String,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SetupErrorReasonCode {
+    ShippedProfileUnavailable,
+    SelectedProfileDecisionInvalid,
+    UnresolvedMode,
+    InitRejectsRefreshFlags,
+    RootAlreadyInitialized,
+    RefreshRootMissing,
+    RootNotDirectory,
+    RootSymlinkRefused,
+    CanonicalRootInspectFailed,
+    CanonicalRootCreateFailed,
+    RewriteHasNoMaterializer,
+    RuntimeStateTargetUnsafe,
+    RuntimeStateMutationFailed,
 }
 
-impl std::fmt::Display for SetupRefusal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.summary)
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SetupErrorCode {
+    ShippedProfileUnavailable,
+    SelectedProfileDecisionInvalid,
+    UnresolvedMode,
+    InitRejectsRefreshFlags,
+    RootAlreadyInitialized,
+    RefreshRootMissing,
+    RootNotDirectory,
+    RootSymlinkRefused,
+    CanonicalRootInspectFailed,
+    CanonicalRootCreateFailed,
+    RewriteHasNoMaterializer,
+    RuntimeStateTargetUnsafe,
+    RuntimeStateMutationFailed,
+}
+
+impl SetupErrorCode {
+    pub const ALL: [Self; 13] = [
+        Self::ShippedProfileUnavailable,
+        Self::SelectedProfileDecisionInvalid,
+        Self::UnresolvedMode,
+        Self::InitRejectsRefreshFlags,
+        Self::RootAlreadyInitialized,
+        Self::RefreshRootMissing,
+        Self::RootNotDirectory,
+        Self::RootSymlinkRefused,
+        Self::CanonicalRootInspectFailed,
+        Self::CanonicalRootCreateFailed,
+        Self::RewriteHasNoMaterializer,
+        Self::RuntimeStateTargetUnsafe,
+        Self::RuntimeStateMutationFailed,
+    ];
+}
+
+/// A closed setup failure whose code is compiler-owned.
+///
+/// ```compile_fail,E0451
+/// use handbook_compiler::{SetupError, SetupErrorCode};
+/// let _ = SetupError { code: SetupErrorCode::UnresolvedMode };
+/// ```
+///
+/// ```compile_fail,E0624
+/// use handbook_compiler::{SetupError, SetupErrorCode};
+/// let _ = SetupError::from_code(SetupErrorCode::UnresolvedMode);
+/// ```
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SetupError {
+    code: SetupErrorCode,
+}
+
+impl SetupError {
+    pub fn code(&self) -> SetupErrorCode {
+        self.code
+    }
+
+    pub fn kind(&self) -> SetupErrorKind {
+        match self.code {
+            SetupErrorCode::ShippedProfileUnavailable => SetupErrorKind::ProfileResolution,
+            SetupErrorCode::SelectedProfileDecisionInvalid => SetupErrorKind::ProfileDecision,
+            SetupErrorCode::RootAlreadyInitialized => SetupErrorKind::AlreadyInitialized,
+            SetupErrorCode::RefreshRootMissing => SetupErrorKind::MissingCanonicalRoot,
+            SetupErrorCode::RootNotDirectory
+            | SetupErrorCode::RootSymlinkRefused
+            | SetupErrorCode::CanonicalRootInspectFailed
+            | SetupErrorCode::CanonicalRootCreateFailed => SetupErrorKind::InvalidCanonicalRoot,
+            SetupErrorCode::UnresolvedMode | SetupErrorCode::InitRejectsRefreshFlags => {
+                SetupErrorKind::InvalidRequest
+            }
+            SetupErrorCode::RewriteHasNoMaterializer => SetupErrorKind::MaterializerUnavailable,
+            SetupErrorCode::RuntimeStateTargetUnsafe => SetupErrorKind::RuntimeStatePlan,
+            SetupErrorCode::RuntimeStateMutationFailed => SetupErrorKind::RuntimeStateApply,
+        }
+    }
+
+    pub fn reason_code(&self) -> SetupErrorReasonCode {
+        match self.code {
+            SetupErrorCode::ShippedProfileUnavailable => {
+                SetupErrorReasonCode::ShippedProfileUnavailable
+            }
+            SetupErrorCode::SelectedProfileDecisionInvalid => {
+                SetupErrorReasonCode::SelectedProfileDecisionInvalid
+            }
+            SetupErrorCode::UnresolvedMode => SetupErrorReasonCode::UnresolvedMode,
+            SetupErrorCode::InitRejectsRefreshFlags => {
+                SetupErrorReasonCode::InitRejectsRefreshFlags
+            }
+            SetupErrorCode::RootAlreadyInitialized => SetupErrorReasonCode::RootAlreadyInitialized,
+            SetupErrorCode::RefreshRootMissing => SetupErrorReasonCode::RefreshRootMissing,
+            SetupErrorCode::RootNotDirectory => SetupErrorReasonCode::RootNotDirectory,
+            SetupErrorCode::RootSymlinkRefused => SetupErrorReasonCode::RootSymlinkRefused,
+            SetupErrorCode::CanonicalRootInspectFailed => {
+                SetupErrorReasonCode::CanonicalRootInspectFailed
+            }
+            SetupErrorCode::CanonicalRootCreateFailed => {
+                SetupErrorReasonCode::CanonicalRootCreateFailed
+            }
+            SetupErrorCode::RewriteHasNoMaterializer => {
+                SetupErrorReasonCode::RewriteHasNoMaterializer
+            }
+            SetupErrorCode::RuntimeStateTargetUnsafe => {
+                SetupErrorReasonCode::RuntimeStateTargetUnsafe
+            }
+            SetupErrorCode::RuntimeStateMutationFailed => {
+                SetupErrorReasonCode::RuntimeStateMutationFailed
+            }
+        }
+    }
+
+    pub fn repo_relative_path(&self) -> Option<&'static str> {
+        match self.code {
+            SetupErrorCode::RootAlreadyInitialized
+            | SetupErrorCode::RefreshRootMissing
+            | SetupErrorCode::RootNotDirectory
+            | SetupErrorCode::RootSymlinkRefused
+            | SetupErrorCode::CanonicalRootInspectFailed
+            | SetupErrorCode::CanonicalRootCreateFailed => Some(".handbook"),
+            SetupErrorCode::RuntimeStateTargetUnsafe
+            | SetupErrorCode::RuntimeStateMutationFailed => Some(".handbook/state"),
+            SetupErrorCode::ShippedProfileUnavailable
+            | SetupErrorCode::SelectedProfileDecisionInvalid
+            | SetupErrorCode::UnresolvedMode
+            | SetupErrorCode::InitRejectsRefreshFlags
+            | SetupErrorCode::RewriteHasNoMaterializer => None,
+        }
+    }
+
+    pub(crate) fn from_code(code: SetupErrorCode) -> Self {
+        Self { code }
     }
 }
 
-impl std::error::Error for SetupRefusal {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PlannedMutation {
-    RepairInvalidSystemRoot,
-    Write {
-        path: &'static str,
-        bytes: &'static [u8],
-    },
+impl std::fmt::Display for SetupError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "setup refused: {:?}", self.code)
+    }
 }
 
-#[derive(Debug, Clone)]
+impl std::error::Error for SetupError {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RootState {
+    Missing,
+    Directory,
+    Symlink,
+    NonDirectory,
+}
+
+#[derive(Debug)]
 struct SetupExecutionPlan {
     plan: SetupPlan,
-    mutations: Vec<PlannedMutation>,
+    status: RepositoryReadinessStatus,
     reset_plan: Option<RuntimeStateResetPlan>,
 }
 
 pub fn plan_setup(
     repo_root: impl AsRef<Path>,
     request: &SetupRequest,
-) -> Result<SetupPlan, SetupRefusal> {
-    build_setup_execution_plan(repo_root.as_ref(), request).map(|planned| planned.plan)
+) -> Result<SetupPlan, SetupError> {
+    let repo_root = repo_root.as_ref();
+    let root = inspect_root(repo_root)?;
+    let (resolved_mode, root_action) = validate_root_and_request(root, request)?;
+    let decisions = resolve_shipped_profile_decisions(repo_root).map_err(map_profile_error)?;
+    build_setup_execution_plan(repo_root, request, resolved_mode, root_action, &decisions)
+        .map(|execution| execution.plan)
+}
+
+pub fn plan_setup_with_decisions(
+    repo_root: impl AsRef<Path>,
+    request: &SetupRequest,
+    decisions: &ResolvedProfileDecisions,
+) -> Result<SetupPlan, SetupError> {
+    let repo_root = repo_root.as_ref();
+    let root = inspect_root(repo_root)?;
+    let (resolved_mode, root_action) = validate_root_and_request(root, request)?;
+    build_setup_execution_plan(repo_root, request, resolved_mode, root_action, decisions)
+        .map(|execution| execution.plan)
 }
 
 pub fn run_setup(
     repo_root: impl AsRef<Path>,
     request: &SetupRequest,
-) -> Result<SetupOutcome, SetupRefusal> {
+) -> Result<SetupOutcome, SetupError> {
     let repo_root = repo_root.as_ref();
-    let planned = build_setup_execution_plan(repo_root, request)?;
+    let root = inspect_root(repo_root)?;
+    let (resolved_mode, root_action) = validate_root_and_request(root, request)?;
+    let decisions = resolve_shipped_profile_decisions(repo_root).map_err(map_profile_error)?;
+    let execution =
+        build_setup_execution_plan(repo_root, request, resolved_mode, root_action, &decisions)?;
+    apply_setup_execution(repo_root, execution)
+}
 
-    for mutation in planned.mutations {
-        apply_mutation(repo_root, planned.plan.resolved_mode, mutation)?;
+pub fn run_setup_with_decisions(
+    repo_root: impl AsRef<Path>,
+    request: &SetupRequest,
+    decisions: &ResolvedProfileDecisions,
+) -> Result<SetupOutcome, SetupError> {
+    let repo_root = repo_root.as_ref();
+    let root = inspect_root(repo_root)?;
+    let (resolved_mode, root_action) = validate_root_and_request(root, request)?;
+    let execution =
+        build_setup_execution_plan(repo_root, request, resolved_mode, root_action, decisions)?;
+    apply_setup_execution(repo_root, execution)
+}
+
+fn inspect_root(repo_root: &Path) -> Result<RootState, SetupError> {
+    match fs::symlink_metadata(repo_root.join(".handbook")) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Ok(RootState::Symlink),
+        Ok(metadata) if metadata.is_dir() => Ok(RootState::Directory),
+        Ok(_) => Ok(RootState::NonDirectory),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(RootState::Missing),
+        Err(_) => Err(SetupError::from_code(
+            SetupErrorCode::CanonicalRootInspectFailed,
+        )),
+    }
+}
+
+fn validate_root_and_request(
+    root: RootState,
+    request: &SetupRequest,
+) -> Result<(SetupMode, SetupRootAction), SetupError> {
+    let resolved_mode = match request.mode {
+        SetupMode::Auto => match root {
+            RootState::Missing | RootState::Symlink | RootState::NonDirectory => SetupMode::Init,
+            RootState::Directory => SetupMode::Refresh,
+        },
+        SetupMode::Init => SetupMode::Init,
+        SetupMode::Refresh => SetupMode::Refresh,
+    };
+    if resolved_mode == SetupMode::Auto {
+        return Err(SetupError::from_code(SetupErrorCode::UnresolvedMode));
+    }
+    if resolved_mode == SetupMode::Init && (request.rewrite || request.reset_state) {
+        return Err(SetupError::from_code(
+            SetupErrorCode::InitRejectsRefreshFlags,
+        ));
     }
 
-    if let Some(reset_plan) = &planned.reset_plan {
-        apply_runtime_state_reset(reset_plan).map_err(|reason| {
-            setup_shell::mutation_refusal(
-                request.mode,
-                SetupMutationRefusalCopy::RuntimeStateTarget { reason },
-            )
-        })?;
+    let root_action = match (resolved_mode, root) {
+        (SetupMode::Refresh, RootState::Directory) => SetupRootAction::Preserve,
+        (SetupMode::Init, RootState::Missing) => SetupRootAction::Create,
+        (SetupMode::Init, RootState::Directory) => {
+            return Err(SetupError::from_code(
+                SetupErrorCode::RootAlreadyInitialized,
+            ))
+        }
+        (SetupMode::Refresh, RootState::Missing) => {
+            return Err(SetupError::from_code(SetupErrorCode::RefreshRootMissing))
+        }
+        (_, RootState::NonDirectory) => {
+            return Err(SetupError::from_code(SetupErrorCode::RootNotDirectory))
+        }
+        (_, RootState::Symlink) => {
+            return Err(SetupError::from_code(SetupErrorCode::RootSymlinkRefused))
+        }
+        (SetupMode::Auto, _) => return Err(SetupError::from_code(SetupErrorCode::UnresolvedMode)),
+    };
+    if resolved_mode == SetupMode::Refresh && request.rewrite {
+        return Err(SetupError::from_code(
+            SetupErrorCode::RewriteHasNoMaterializer,
+        ));
     }
-
-    let post_setup_artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_shell::mutation_refusal(
-            request.mode,
-            SetupMutationRefusalCopy::CanonicalRootLoad {
-                error: err.to_string(),
-            },
-        )
-    })?;
-    let disposition = setup_disposition(&post_setup_artifacts);
-
-    Ok(SetupOutcome {
-        plan: planned.plan,
-        disposition,
-        next_safe_action: setup_shell::next_safe_action(disposition),
-    })
+    Ok((resolved_mode, root_action))
 }
 
 fn build_setup_execution_plan(
     repo_root: &Path,
     request: &SetupRequest,
-) -> Result<SetupExecutionPlan, SetupRefusal> {
-    let artifacts = CanonicalArtifacts::load(repo_root).map_err(|err| {
-        setup_shell::mutation_refusal(
-            request.mode,
-            SetupMutationRefusalCopy::CanonicalRootLoad {
-                error: err.to_string(),
-            },
-        )
-    })?;
-    let canonical_layout = CanonicalLayout::new(repo_root);
-    let resolved_mode = resolve_mode(request.mode, artifacts.system_root_status);
-    validate_request(&artifacts, request, resolved_mode)?;
-
-    let repair_invalid_root = resolved_mode == SetupMode::Init
-        && matches!(
-            artifacts.system_root_status,
-            SystemRootStatus::NotDir | SystemRootStatus::SymlinkNotAllowed
-        );
-    let ingest_issue_paths = artifacts
-        .ingest_issues
+    resolved_mode: SetupMode,
+    root_action: SetupRootAction,
+    decisions: &ResolvedProfileDecisions,
+) -> Result<SetupExecutionPlan, SetupError> {
+    let inspection = inspect_profile_repository(repo_root, decisions);
+    let projection = project_profile_readiness(decisions, &inspection);
+    let artifacts = projection
+        .artifacts
         .iter()
-        .map(|issue| issue.canonical_repo_relative_path)
-        .collect::<BTreeSet<_>>();
-    let planned_starter_actions = canonical_artifact_descriptors()
-        .iter()
-        .filter(|descriptor| descriptor.setup_scaffolded)
-        .map(|descriptor| {
-            plan_starter_action(
-                canonical_layout,
-                repo_root,
-                &artifacts,
-                &ingest_issue_paths,
-                descriptor,
-                resolved_mode,
-                request.rewrite,
-                repair_invalid_root,
-            )
+        .cloned()
+        .map(|artifact| SetupArtifactAction {
+            action: setup_action(&artifact),
+            artifact,
         })
-        .collect::<Result<Vec<_>, _>>()?;
-
+        .collect();
     let reset_plan = if request.reset_state {
-        Some(plan_runtime_state_reset(repo_root).map_err(|reason| {
-            setup_shell::mutation_refusal(
-                request.mode,
-                SetupMutationRefusalCopy::RuntimeStateTarget { reason },
-            )
-        })?)
+        Some(
+            plan_runtime_state_reset(repo_root)
+                .map_err(|_| SetupError::from_code(SetupErrorCode::RuntimeStateTargetUnsafe))?,
+        )
     } else {
         None
     };
-
-    let mut actions = planned_starter_actions
-        .iter()
-        .map(|planned| planned.action.clone())
-        .collect::<Vec<_>>();
-    if let Some(reset_plan) = &reset_plan {
-        actions.extend(reset_plan.paths().iter().cloned().map(|path| SetupAction {
-            label: SetupActionLabel::Reset,
-            path,
-        }));
-    }
-    actions.sort_by(|a, b| {
-        artifact_order_index_for_path(&a.path)
-            .cmp(&artifact_order_index_for_path(&b.path))
-            .then_with(|| action_rank(a).cmp(&action_rank(b)))
-            .then_with(|| a.path.cmp(&b.path))
-    });
-
-    let mut mutations = Vec::new();
-    if repair_invalid_root {
-        mutations.push(PlannedMutation::RepairInvalidSystemRoot);
-    }
-    mutations.extend(
-        planned_starter_actions
-            .into_iter()
-            .filter_map(|planned| planned.mutation),
-    );
-
+    let reset_paths = reset_plan
+        .as_ref()
+        .map(|plan| plan.paths().to_vec())
+        .unwrap_or_default();
     Ok(SetupExecutionPlan {
+        status: projection.status,
         plan: SetupPlan {
             requested_mode: request.mode,
             resolved_mode,
-            actions,
+            root_action,
+            profile_ref: projection.profile_ref,
+            profile_fingerprint: projection.profile_fingerprint,
+            stable_role_registry_ref: projection.stable_role_registry_ref,
+            stable_role_registry_fingerprint: projection.stable_role_registry_fingerprint,
+            conditions: projection.conditions,
+            capabilities: projection.capabilities,
+            artifacts,
+            reset_paths,
         },
-        mutations,
         reset_plan,
     })
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct PlannedStarterAction {
-    action: SetupAction,
-    mutation: Option<PlannedMutation>,
-}
-
-fn resolve_mode(requested: SetupMode, system_root_status: SystemRootStatus) -> SetupMode {
-    match requested {
-        SetupMode::Auto => match system_root_status {
-            SystemRootStatus::Ok => SetupMode::Refresh,
-            SystemRootStatus::Missing
-            | SystemRootStatus::NotDir
-            | SystemRootStatus::SymlinkNotAllowed => SetupMode::Init,
+fn setup_action(artifact: &ProfileArtifactRow) -> SetupArtifactActionKind {
+    if matches!(
+        artifact.inspection_status,
+        ArtifactInspectionStatus::StructurallyInvalid
+            | ArtifactInspectionStatus::UnsafePath
+            | ArtifactInspectionStatus::Unreadable
+    ) {
+        return SetupArtifactActionKind::Invalid;
+    }
+    match artifact.applicability {
+        ArtifactApplicability::Required => match artifact.inspection_status {
+            ArtifactInspectionStatus::StructurallyValid => SetupArtifactActionKind::Preserve,
+            ArtifactInspectionStatus::Missing => SetupArtifactActionKind::AuthorRequired,
+            _ => SetupArtifactActionKind::Invalid,
         },
-        SetupMode::Init | SetupMode::Refresh => requested,
+        ArtifactApplicability::Optional => match artifact.inspection_status {
+            ArtifactInspectionStatus::StructurallyValid => SetupArtifactActionKind::Preserve,
+            ArtifactInspectionStatus::Missing => SetupArtifactActionKind::OptionalAbsent,
+            _ => SetupArtifactActionKind::Invalid,
+        },
+        ArtifactApplicability::Indeterminate => SetupArtifactActionKind::ConditionIndeterminate,
     }
 }
 
-fn validate_request(
-    artifacts: &CanonicalArtifacts,
-    request: &SetupRequest,
-    resolved_mode: SetupMode,
-) -> Result<(), SetupRefusal> {
-    match resolved_mode {
-        SetupMode::Auto => {
-            return Err(setup_shell::request_refusal(
-                SetupRequestRefusalCopy::UnresolvedMode,
-            ));
-        }
-        SetupMode::Init => {
-            if request.rewrite || request.reset_state {
-                return Err(setup_shell::request_refusal(
-                    SetupRequestRefusalCopy::InitWithRefreshFlags,
-                ));
-            }
-            if artifacts.system_root_status == SystemRootStatus::Ok {
-                return Err(setup_shell::request_refusal(
-                    SetupRequestRefusalCopy::AlreadyInitialized,
-                ));
-            }
-        }
-        SetupMode::Refresh => match artifacts.system_root_status {
-            SystemRootStatus::Ok => {}
-            SystemRootStatus::Missing => {
-                return Err(setup_shell::request_refusal(
-                    SetupRequestRefusalCopy::MissingCanonicalRoot,
-                ));
-            }
-            SystemRootStatus::NotDir => {
-                return Err(setup_shell::request_refusal(
-                    SetupRequestRefusalCopy::InvalidCanonicalRoot,
-                ));
-            }
-            SystemRootStatus::SymlinkNotAllowed => {
-                return Err(setup_shell::request_refusal(
-                    SetupRequestRefusalCopy::SymlinkCanonicalRoot,
-                ));
-            }
-        },
-    }
-
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn plan_starter_action(
-    canonical_layout: CanonicalLayout<'_>,
+fn apply_setup_execution(
     repo_root: &Path,
-    artifacts: &CanonicalArtifacts,
-    ingest_issue_paths: &BTreeSet<&'static str>,
-    descriptor: &CanonicalArtifactDescriptor,
-    resolved_mode: SetupMode,
-    rewrite: bool,
-    repair_invalid_root: bool,
-) -> Result<PlannedStarterAction, SetupRefusal> {
-    let relative_path = canonical_layout.artifact_relative_path(descriptor.kind);
-    debug_assert_eq!(relative_path, descriptor.relative_path);
-    let artifact = match descriptor.kind {
-        crate::CanonicalArtifactKind::Charter => &artifacts.charter,
-        crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
-        crate::CanonicalArtifactKind::EnvironmentInventory => &artifacts.environment_inventory,
-        crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
-    };
-
-    if resolved_mode == SetupMode::Refresh
-        && !rewrite
-        && !matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
-    {
-        return Ok(PlannedStarterAction {
-            action: SetupAction {
-                label: SetupActionLabel::Preserved,
-                path: relative_path.to_string(),
-            },
-            mutation: None,
-        });
+    execution: SetupExecutionPlan,
+) -> Result<SetupOutcome, SetupError> {
+    let may_mutate = matches!(
+        execution.status,
+        RepositoryReadinessStatus::Ready | RepositoryReadinessStatus::ActionRequired
+    );
+    let mut reset_applied = false;
+    if may_mutate {
+        if execution.plan.root_action == SetupRootAction::Create {
+            fs::create_dir(repo_root.join(".handbook"))
+                .map_err(|_| SetupError::from_code(SetupErrorCode::CanonicalRootCreateFailed))?;
+        }
+        if let Some(reset_plan) = &execution.reset_plan {
+            apply_runtime_state_reset(reset_plan)
+                .map_err(|_| SetupError::from_code(SetupErrorCode::RuntimeStateMutationFailed))?;
+            reset_applied = true;
+        }
     }
-
-    if (ingest_issue_paths.contains(relative_path)
-        || matches!(artifact.identity.presence, crate::ArtifactPresence::Missing)
-        || rewrite
-        || resolved_mode == SetupMode::Init)
-        && !repair_invalid_root
-    {
-        validate_write_target(repo_root, relative_path, resolved_mode)?;
-    }
-
-    let label = if matches!(artifact.identity.presence, crate::ArtifactPresence::Missing) {
-        SetupActionLabel::Created
-    } else if rewrite {
-        SetupActionLabel::Rewritten
-    } else {
-        SetupActionLabel::Created
-    };
-
-    Ok(PlannedStarterAction {
-        action: SetupAction {
-            label,
-            path: relative_path.to_string(),
-        },
-        mutation: Some(PlannedMutation::Write {
-            path: relative_path,
-            bytes: setup_starter_template_bytes(descriptor.kind),
-        }),
+    Ok(SetupOutcome {
+        plan: execution.plan,
+        status: execution.status,
+        reset_applied,
     })
 }
 
-fn validate_write_target(
-    repo_root: &Path,
-    relative_path: &'static str,
-    mode: SetupMode,
-) -> Result<(), SetupRefusal> {
-    resolve_repo_relative_write_path(repo_root, relative_path)
-        .map(|_| ())
-        .map_err(|err| {
-            setup_shell::mutation_refusal(
-                mode,
-                SetupMutationRefusalCopy::StarterWriteTargetPath {
-                    path: relative_path,
-                    error: err,
-                },
-            )
-        })
-}
-
-fn apply_mutation(
-    repo_root: &Path,
-    mode: SetupMode,
-    mutation: PlannedMutation,
-) -> Result<(), SetupRefusal> {
-    match mutation {
-        PlannedMutation::RepairInvalidSystemRoot => repair_invalid_system_root(repo_root, mode),
-        PlannedMutation::Write { path, bytes } => write_repo_relative_bytes(repo_root, path, bytes)
-            .map_err(|err| {
-                setup_shell::mutation_refusal(
-                    mode,
-                    SetupMutationRefusalCopy::StarterWriteTargetMutation { path, error: err },
-                )
-            }),
-    }
-}
-
-fn repair_invalid_system_root(repo_root: &Path, mode: SetupMode) -> Result<(), SetupRefusal> {
-    let canonical_layout = CanonicalLayout::new(repo_root);
-    let system_root = repo_root.join(canonical_layout.system_root_relative());
-    let metadata = match fs::symlink_metadata(&system_root) {
-        Ok(metadata) => metadata,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(source) => {
-            return Err(setup_shell::mutation_refusal(
-                mode,
-                SetupMutationRefusalCopy::CanonicalRootInspect {
-                    path: system_root.clone(),
-                    error: source,
-                },
-            ));
-        }
-    };
-
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
-        return Ok(());
-    }
-
-    fs::remove_file(&system_root).map_err(|source| {
-        setup_shell::mutation_refusal(
-            mode,
-            SetupMutationRefusalCopy::CanonicalRootRepair {
-                path: system_root,
-                error: source,
-            },
-        )
+fn map_profile_error(error: ShippedProfileDecisionError) -> SetupError {
+    SetupError::from_code(match error {
+        ShippedProfileDecisionError::Profile(_) => SetupErrorCode::ShippedProfileUnavailable,
+        ShippedProfileDecisionError::Decision(_) => SetupErrorCode::SelectedProfileDecisionInvalid,
     })
 }
 
-fn setup_disposition(artifacts: &CanonicalArtifacts) -> SetupDisposition {
-    if has_scaffolded_starter_template(artifacts) {
-        SetupDisposition::Scaffolded
-    } else {
-        SetupDisposition::Ready
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn has_scaffolded_starter_template(artifacts: &CanonicalArtifacts) -> bool {
-    canonical_artifact_descriptors()
-        .iter()
-        .filter(|descriptor| descriptor.setup_scaffolded)
-        .any(|descriptor| {
-            artifact_for_kind(artifacts, descriptor.kind)
-                .identity
-                .matches_setup_starter_template
-        })
-}
-
-fn artifact_for_kind(
-    artifacts: &CanonicalArtifacts,
-    kind: crate::CanonicalArtifactKind,
-) -> &crate::CanonicalArtifact {
-    match kind {
-        crate::CanonicalArtifactKind::Charter => &artifacts.charter,
-        crate::CanonicalArtifactKind::ProjectContext => &artifacts.project_context,
-        crate::CanonicalArtifactKind::EnvironmentInventory => &artifacts.environment_inventory,
-        crate::CanonicalArtifactKind::FeatureSpec => &artifacts.feature_spec,
-    }
-}
-
-fn artifact_order_index_for_path(path: &str) -> usize {
-    CANONICAL_ARTIFACT_ORDER
-        .iter()
-        .position(|kind| {
-            canonical_artifact_descriptors()
-                .iter()
-                .find(|descriptor| descriptor.kind == *kind)
-                .map(|descriptor| descriptor.relative_path == path)
-                .unwrap_or(false)
-        })
-        .unwrap_or(usize::MAX)
-}
-
-fn action_rank(action: &SetupAction) -> usize {
-    match action.label {
-        SetupActionLabel::Created => 0,
-        SetupActionLabel::Preserved => 1,
-        SetupActionLabel::Rewritten => 2,
-        SetupActionLabel::Reset => 3,
+    #[test]
+    fn setup_error_projection_is_exhaustive() {
+        let expected = [
+            (
+                SetupErrorKind::ProfileResolution,
+                SetupErrorReasonCode::ShippedProfileUnavailable,
+                None,
+            ),
+            (
+                SetupErrorKind::ProfileDecision,
+                SetupErrorReasonCode::SelectedProfileDecisionInvalid,
+                None,
+            ),
+            (
+                SetupErrorKind::InvalidRequest,
+                SetupErrorReasonCode::UnresolvedMode,
+                None,
+            ),
+            (
+                SetupErrorKind::InvalidRequest,
+                SetupErrorReasonCode::InitRejectsRefreshFlags,
+                None,
+            ),
+            (
+                SetupErrorKind::AlreadyInitialized,
+                SetupErrorReasonCode::RootAlreadyInitialized,
+                Some(".handbook"),
+            ),
+            (
+                SetupErrorKind::MissingCanonicalRoot,
+                SetupErrorReasonCode::RefreshRootMissing,
+                Some(".handbook"),
+            ),
+            (
+                SetupErrorKind::InvalidCanonicalRoot,
+                SetupErrorReasonCode::RootNotDirectory,
+                Some(".handbook"),
+            ),
+            (
+                SetupErrorKind::InvalidCanonicalRoot,
+                SetupErrorReasonCode::RootSymlinkRefused,
+                Some(".handbook"),
+            ),
+            (
+                SetupErrorKind::InvalidCanonicalRoot,
+                SetupErrorReasonCode::CanonicalRootInspectFailed,
+                Some(".handbook"),
+            ),
+            (
+                SetupErrorKind::InvalidCanonicalRoot,
+                SetupErrorReasonCode::CanonicalRootCreateFailed,
+                Some(".handbook"),
+            ),
+            (
+                SetupErrorKind::MaterializerUnavailable,
+                SetupErrorReasonCode::RewriteHasNoMaterializer,
+                None,
+            ),
+            (
+                SetupErrorKind::RuntimeStatePlan,
+                SetupErrorReasonCode::RuntimeStateTargetUnsafe,
+                Some(".handbook/state"),
+            ),
+            (
+                SetupErrorKind::RuntimeStateApply,
+                SetupErrorReasonCode::RuntimeStateMutationFailed,
+                Some(".handbook/state"),
+            ),
+        ];
+        for (code, (kind, reason, path)) in SetupErrorCode::ALL.into_iter().zip(expected) {
+            let error = SetupError::from_code(code);
+            assert_eq!(error.code(), code);
+            assert_eq!(error.kind(), kind);
+            assert_eq!(error.reason_code(), reason);
+            assert_eq!(error.repo_relative_path(), path);
+        }
     }
 }

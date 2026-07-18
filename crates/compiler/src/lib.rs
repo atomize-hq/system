@@ -1,14 +1,19 @@
 pub mod author;
+// HCM-1.4 retires these setup/doctor consumers while sibling compatibility
+// surfaces remain until their separately owned migration slices.
+#[allow(dead_code)]
 mod baseline_validation;
+#[allow(dead_code)]
 pub mod blocker;
 mod canonical_artifacts;
 pub mod decision_log;
 mod doctor;
-mod doctor_shell;
 pub mod error;
 // Keep the initial layout-owner seam compiler-internal until later slices
 // prove the reviewed outward API surface we actually want to freeze.
+#[allow(dead_code)]
 mod layout;
+mod profile_readiness;
 pub mod refusal;
 pub mod rendering;
 // Keep the workspace seam compiler-internal until a downstream crate proves
@@ -17,7 +22,6 @@ mod repo_file_access;
 pub mod resolver;
 mod route_state;
 mod setup;
-mod setup_shell;
 
 // Slice 4.5 retained-seam posture: `handbook-compiler` remains a narrow
 // compatibility/support crate for the unresolved CLI-facing seams that still
@@ -67,21 +71,20 @@ pub use author::{
     DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use blocker::{blocker_category_priority, Blocker, BlockerCategory, C04_RESULT_VERSION};
-pub(crate) use canonical_artifacts::{
-    ArtifactIngestIssueKind, ArtifactPresence, CanonicalArtifact,
-};
+pub(crate) use canonical_artifacts::{ArtifactIngestIssueKind, ArtifactPresence};
 pub use decision_log::DecisionLog;
 pub use doctor::{
-    doctor, doctor_from_artifacts, DoctorArtifactStatus, DoctorBaselineStatus, DoctorChecklistItem,
-    DoctorReport,
+    doctor, doctor_with_decisions, DoctorError, DoctorErrorKind, DoctorErrorReasonCode,
+    DoctorReport, DOCTOR_REPORT_SCHEMA_ID, DOCTOR_REPORT_SCHEMA_VERSION,
 };
 pub use error::CompilerError;
-pub(crate) use handbook_engine::artifact_manifest::{
-    ArtifactManifest, ManifestError, ManifestInputs,
-};
+pub(crate) use handbook_engine::artifact_manifest::{ArtifactManifest, ManifestError};
 pub use handbook_engine::{ArtifactIngestError, CanonicalArtifactKind, SystemRootStatus};
 pub(crate) use handbook_flow::BudgetOutcome;
 pub(crate) use handbook_flow::PacketResult;
+pub use profile_readiness::{
+    ProfileArtifactRow, ProfileCapabilityRow, ProfileConditionRow, RepositoryReadinessStatus,
+};
 pub use refusal::{NextSafeAction, Refusal, RefusalCategory, SubjectRef};
 pub use rendering::{
     build_output_model, render_blocker_category, render_json, render_next_safe_action_value,
@@ -89,8 +92,9 @@ pub use rendering::{
 };
 pub use resolver::{resolve, ResolverResult};
 pub use setup::{
-    plan_setup, run_setup, SetupAction, SetupActionLabel, SetupDisposition, SetupMode,
-    SetupOutcome, SetupPlan, SetupRefusal, SetupRefusalKind, SetupRequest,
+    plan_setup, plan_setup_with_decisions, run_setup, run_setup_with_decisions,
+    SetupArtifactAction, SetupArtifactActionKind, SetupError, SetupErrorCode, SetupErrorKind,
+    SetupErrorReasonCode, SetupMode, SetupOutcome, SetupPlan, SetupRequest, SetupRootAction,
 };
 
 pub fn workspace_contract_version() -> &'static str {

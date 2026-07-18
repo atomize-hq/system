@@ -77,6 +77,8 @@ All implementation checkboxes remain unchecked in this planning session.
 - [ ] Run compiler setup/doctor and complete compiler suite.
 - [ ] Run CLI surface and complete workspace suites.
 - [ ] Run format, clippy, and Windows cross-compilation checks.
+- [ ] Append only `crates/engine/definitions/** text eol=lf` to `.gitattributes`; prove all 29 index blobs/fingerprints are unchanged and every member resolves to `text: set`, `eol: lf`.
+- [ ] In a fresh native-Windows clone with `core.autocrlf=true`, prove all 29 checked-out definition members are byte-equal to their index blobs.
 - [ ] Execute the named inspection/setup refusal tests on an actual Windows MSVC host; stop if unavailable.
 - [ ] Inventory every retired setup/doctor test and its named profile-aware replacement.
 - [ ] Keep author assertions unchanged except the two exact fixture helpers; keep manifest/freshness/flow/rendering tests unchanged and green.
@@ -112,7 +114,7 @@ All implementation checkboxes remain unchecked in this planning session.
 
 ## Permanent stop checks
 
-- [ ] Stop if broader authority or a file outside the allowlist is required.
+- [ ] Stop if broader authority or a file outside the allowlist, including any repository-root change other than the exact admitted definition-tree LF `.gitattributes` rule, is required.
 - [ ] Stop if a fixed-universe bridge, legacy profile, fallback, or dual path is required.
 - [ ] Stop if canonical content write/authority/intake/renderer/Projection work is required.
 - [ ] Stop if Cargo, definition assets, schemas, or new CLI input grammar is required.

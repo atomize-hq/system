@@ -137,6 +137,7 @@ fn copy_tree(source: &std::path::Path, target: &std::path::Path) {
     }
 }
 
+#[cfg(any())]
 fn tracked_workspace_checkout() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
     let checkout_root = dir.path().to_path_buf();
@@ -324,6 +325,7 @@ fn repair_to_ready(root: &std::path::Path) {
     );
 }
 
+#[cfg(any())]
 fn assert_doctor_empty_baseline_invalid(
     empty_path: &str,
     expected_next_safe_action: &str,
@@ -358,23 +360,9 @@ fn assert_doctor_empty_baseline_invalid(
     assert!(stdout.contains(expected_checklist_line), "{stdout}");
 }
 
+#[cfg(any())]
 fn starter_template_bytes_for_path(path: &str) -> &'static [u8] {
-    match path {
-        ".handbook/charter/CHARTER.md" => handbook_engine::setup_starter_template_bytes(
-            handbook_engine::CanonicalArtifactKind::Charter,
-        ),
-        ".handbook/project_context/PROJECT_CONTEXT.md" => {
-            handbook_engine::setup_starter_template_bytes(
-                handbook_engine::CanonicalArtifactKind::ProjectContext,
-            )
-        }
-        ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md" => {
-            handbook_engine::setup_starter_template_bytes(
-                handbook_engine::CanonicalArtifactKind::EnvironmentInventory,
-            )
-        }
-        _ => panic!("unexpected starter path: {path}"),
-    }
+    unreachable!("retired pre-membrane setup fixture: {path}")
 }
 
 fn partial_system_repo() -> tempfile::TempDir {
@@ -565,6 +553,7 @@ fn malformed_optional_project_context_repo() -> tempfile::TempDir {
     dir
 }
 
+#[cfg(any())]
 fn nested_git_repo_inside_managed_parent_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf)
 {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -4601,6 +4590,178 @@ fn author_environment_inventory_help_matches_snapshot() {
 }
 
 #[test]
+fn profile_setup_and_doctor_use_typed_rows_json_and_exit_policy() {
+    #[cfg(unix)]
+    let (outcome, reason, json_status) = (
+        "OUTCOME: INDETERMINATE",
+        "REASON: conditional_evidence_unavailable_path_missing",
+        "indeterminate",
+    );
+    #[cfg(not(unix))]
+    let (outcome, reason, json_status) = (
+        "OUTCOME: INVALID",
+        "REASON: unsupported_platform_strict_read",
+        "invalid",
+    );
+
+    let setup_repo = tempfile::tempdir().expect("tempdir");
+    let setup = run_in(setup_repo.path(), &["setup"]);
+    assert!(!setup.status.success());
+    let setup_stdout = String::from_utf8(setup.stdout).expect("setup stdout utf-8");
+    assert!(setup_stdout.contains(outcome), "{setup_stdout}");
+    assert!(setup_stdout.contains(reason), "{setup_stdout}");
+    assert!(!setup_repo.path().join(".handbook").exists());
+
+    let doctor_repo = tempfile::tempdir().expect("tempdir");
+    let text = run_in(doctor_repo.path(), &["doctor"]);
+    assert!(!text.status.success());
+    let text_stdout = String::from_utf8(text.stdout).expect("doctor stdout utf-8");
+    #[cfg(unix)]
+    assert!(text_stdout.contains("APPLICABILITY: indeterminate STATUS: not_inspected REASON: conditional_evidence_unavailable_path_missing"), "{text_stdout}");
+    #[cfg(not(unix))]
+    assert!(text_stdout.contains("APPLICABILITY: indeterminate STATUS: unsafe_path REASON: unsupported_platform_strict_read"), "{text_stdout}");
+
+    let json = run_in(doctor_repo.path(), &["doctor", "--json"]);
+    assert!(!json.status.success());
+    let json_stdout = String::from_utf8(json.stdout).expect("doctor json utf-8");
+    assert!(json_stdout.ends_with('\n'));
+    assert!(!json_stdout.ends_with("\n\n"));
+    let value: serde_json::Value = serde_json::from_str(&json_stdout).expect("doctor json");
+    assert_eq!(value["schema_id"], "handbook.repository-doctor-report");
+    assert_eq!(value["schema_version"], "1.0.0");
+    assert_eq!(value["status"], json_status);
+}
+
+#[cfg(unix)]
+#[test]
+fn profile_doctor_discovers_repository_root_from_nested_directory() {
+    let repo = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir(repo.path().join(".git")).expect("git root");
+    std::fs::create_dir_all(repo.path().join(".handbook/project/charter.yaml"))
+        .expect("non-regular selected path");
+    let nested = repo.path().join("nested/work");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+
+    let output = binary_in(&nested)
+        .arg("doctor")
+        .output()
+        .expect("doctor should run");
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout utf-8");
+    assert!(stdout.contains("OUTCOME: INVALID"), "{stdout}");
+    assert!(
+        stdout.contains("project_authority [.handbook/project/charter.yaml] APPLICABILITY: required STATUS: unsafe_path REASON: non_regular_file_refused"),
+        "{stdout}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn profile_doctor_does_not_cross_nested_git_repository_boundary() {
+    let outer = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir(outer.path().join(".git")).expect("outer git root");
+    std::fs::create_dir_all(outer.path().join(".handbook/project/charter.yaml"))
+        .expect("outer non-regular selected path");
+    let inner = outer.path().join("inner");
+    std::fs::create_dir_all(inner.join(".git")).expect("inner git root");
+    let nested = inner.join("nested/work");
+    std::fs::create_dir_all(&nested).expect("nested cwd");
+
+    let output = binary_in(&nested)
+        .arg("doctor")
+        .output()
+        .expect("doctor should run");
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout utf-8");
+    assert!(
+        stdout.contains("project_authority [.handbook/project/charter.yaml] APPLICABILITY: required STATUS: missing REASON: required_path_missing"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("non_regular_file_refused"), "{stdout}");
+}
+
+#[test]
+fn profile_setup_auto_refresh_preserves_existing_root_without_artifact_writes() {
+    let repo = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(repo.path().join(".handbook")).expect("handbook root");
+    std::fs::write(repo.path().join(".handbook/KEEP"), b"keep\n").expect("sentinel");
+
+    let output = run_in(repo.path(), &["setup"]);
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout utf-8");
+    #[cfg(unix)]
+    assert!(stdout.contains("OUTCOME: INDETERMINATE"), "{stdout}");
+    #[cfg(not(unix))]
+    assert!(stdout.contains("OUTCOME: INVALID"), "{stdout}");
+    assert!(stdout.contains("MODE: refresh"), "{stdout}");
+    assert!(stdout.contains("ROOT ACTION: preserve"), "{stdout}");
+    assert_eq!(
+        std::fs::read(repo.path().join(".handbook/KEEP")).expect("sentinel"),
+        b"keep\n"
+    );
+    for selected in [
+        ".handbook/project/charter.yaml",
+        ".handbook/project/context.yaml",
+        ".handbook/project/environment.yaml",
+    ] {
+        assert!(!repo.path().join(selected).exists(), "{selected}");
+    }
+}
+
+#[test]
+fn shipped_indeterminate_reset_request_mutates_no_runtime_state() {
+    let repo = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(repo.path().join(".handbook/state")).expect("state root");
+    std::fs::write(repo.path().join(".handbook/state/a.yaml"), b"a: 1\n").expect("state file");
+
+    let output = run_in(repo.path(), &["setup", "refresh", "--reset-state"]);
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout utf-8");
+    #[cfg(unix)]
+    assert!(stdout.contains("OUTCOME: INDETERMINATE"), "{stdout}");
+    #[cfg(not(unix))]
+    assert!(stdout.contains("OUTCOME: INVALID"), "{stdout}");
+    assert!(stdout.contains("RESET APPLIED: no"), "{stdout}");
+    assert_eq!(
+        std::fs::read(repo.path().join(".handbook/state/a.yaml")).expect("state file"),
+        b"a: 1\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn profile_reset_symlink_refusal_is_fail_safe() {
+    use std::os::unix::fs::symlink;
+
+    let repo = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(repo.path().join(".handbook/state")).expect("state root");
+    std::fs::write(repo.path().join(".handbook/state/a.yaml"), b"a: 1\n").expect("state file");
+    let outside = tempfile::tempdir().expect("outside");
+    symlink(outside.path(), repo.path().join(".handbook/state/z_link")).expect("state symlink");
+
+    let output = run_in(repo.path(), &["setup", "refresh", "--reset-state"]);
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout utf-8");
+    assert!(stdout.contains("OUTCOME: ERROR"), "{stdout}");
+    assert!(stdout.contains("CATEGORY: runtime_state_plan"), "{stdout}");
+    assert!(
+        stdout.contains("REASON: runtime_state_target_unsafe"),
+        "{stdout}"
+    );
+    assert_eq!(
+        std::fs::read(repo.path().join(".handbook/state/a.yaml")).expect("state file"),
+        b"a: 1\n"
+    );
+    assert!(repo.path().join(".handbook/state/z_link").exists());
+}
+
+#[test]
+#[cfg(any())]
 fn bare_setup_routes_to_init_on_uninitialized_repo() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -4641,6 +4802,7 @@ fn bare_setup_routes_to_init_on_uninitialized_repo() {
 }
 
 #[test]
+#[cfg(any())]
 fn bare_setup_repairs_file_backed_invalid_system_root() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -4672,6 +4834,7 @@ fn bare_setup_repairs_file_backed_invalid_system_root() {
 
 #[cfg(unix)]
 #[test]
+#[cfg(any())]
 fn bare_setup_repairs_symlinked_invalid_system_root() {
     use std::os::unix::fs::symlink;
 
@@ -4717,6 +4880,7 @@ fn bare_setup_repairs_symlinked_invalid_system_root() {
 }
 
 #[test]
+#[cfg(any())]
 fn bare_setup_routes_to_refresh_on_initialized_repo() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -4780,6 +4944,7 @@ fn bare_setup_routes_to_refresh_on_initialized_repo() {
 }
 
 #[test]
+#[cfg(any())]
 fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
     let dir = tempfile::tempdir().expect("tempdir");
 
@@ -4807,6 +4972,7 @@ fn setup_init_creates_scaffold_and_starter_files_and_ends_with_system_doctor() {
 }
 
 #[test]
+#[cfg(any())]
 fn setup_init_refuses_when_canonical_system_already_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -4843,6 +5009,7 @@ fn setup_init_refuses_when_canonical_system_already_exists() {
 }
 
 #[test]
+#[cfg(any())]
 fn setup_refresh_default_preserves_canonical_files_by_default() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -4888,6 +5055,7 @@ fn setup_refresh_default_preserves_canonical_files_by_default() {
 }
 
 #[test]
+#[cfg(any())]
 fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -4973,6 +5141,7 @@ fn setup_refresh_rewrite_rewrites_only_setup_owned_starter_files() {
 }
 
 #[test]
+#[cfg(any())]
 fn setup_refresh_reset_state_mutates_only_system_state() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -5061,6 +5230,7 @@ fn setup_refresh_reset_state_mutates_only_system_state() {
 
 #[cfg(unix)]
 #[test]
+#[cfg(any())]
 fn setup_refresh_reset_state_refusal_is_fail_safe() {
     use std::os::unix::fs::symlink;
 
@@ -5113,6 +5283,7 @@ fn setup_refresh_reset_state_refusal_is_fail_safe() {
 }
 
 #[test]
+#[cfg(any())]
 fn bare_setup_respects_nested_git_root_boundary() {
     let (_dir, nested) = nested_git_repo_inside_managed_parent_with_nested_cwd();
     let child_root = nested.join("../..");
@@ -5237,6 +5408,7 @@ fn inspect_retry_after_repair_clears_missing_root_refusal() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_retry_after_repair_reports_ready_after_repair() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -5290,6 +5462,7 @@ fn doctor_retry_after_repair_reports_ready_after_repair() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_rejects_legacy_placeholder_project_context_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -5324,6 +5497,7 @@ fn doctor_rejects_legacy_placeholder_project_context_truth() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_marks_empty_charter_as_invalid_baseline() {
     assert_doctor_empty_baseline_invalid(
         ".handbook/charter/CHARTER.md",
@@ -5333,6 +5507,7 @@ fn doctor_marks_empty_charter_as_invalid_baseline() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_marks_empty_project_context_as_invalid_baseline() {
     assert_doctor_empty_baseline_invalid(
         ".handbook/project_context/PROJECT_CONTEXT.md",
@@ -5342,6 +5517,7 @@ fn doctor_marks_empty_project_context_as_invalid_baseline() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_marks_empty_environment_inventory_as_invalid_baseline() {
     assert_doctor_empty_baseline_invalid(
         ".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md",
@@ -5454,6 +5630,7 @@ fn generate_blocks_invalid_required_charter_with_required_artifact_invalid() {
 }
 
 #[test]
+#[cfg(any())]
 fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() {
     let (_dir, root) = tracked_workspace_checkout();
 
@@ -5483,6 +5660,7 @@ fn workspace_root_does_not_ship_canonical_scaffold_and_doctor_points_to_setup() 
 }
 
 #[test]
+#[cfg(any())]
 fn setup_scaffold_does_not_satisfy_doctor_or_generate_until_required_truth_is_replaced() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -5673,6 +5851,7 @@ fn inspect_succeeds_when_feature_spec_is_missing_in_partial_system_tree() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_blocks_when_system_root_missing() {
     let dir = tempfile::tempdir().expect("tempdir");
     let output = binary_in(dir.path())
@@ -5702,6 +5881,7 @@ fn doctor_blocks_when_system_root_missing() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_reports_ready_when_feature_spec_is_missing_in_partial_system_tree() {
     let dir = partial_system_repo();
 
@@ -5767,6 +5947,7 @@ fn inspect_refuses_against_repo_root_when_nested_git_repo_has_invalid_system_roo
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root() {
     let (_dir, nested) = nested_git_repo_with_nested_cwd();
     write_file(&nested.join("../../.handbook"), b"not a directory");
@@ -5787,6 +5968,7 @@ fn doctor_blocks_against_repo_root_when_nested_git_repo_has_invalid_system_root(
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_does_not_cross_nested_git_repo_boundary_into_parent_system_root() {
     let (_dir, nested) = nested_git_repo_inside_managed_parent_with_nested_cwd();
 
@@ -5918,6 +6100,7 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_reports_ready_when_required_artifacts_present() {
     let dir = partial_system_repo();
     let root = dir.path();
@@ -5937,6 +6120,7 @@ fn doctor_reports_ready_when_required_artifacts_present() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_succeeds_from_nested_directory_inside_ready_repo() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
@@ -6667,6 +6851,7 @@ fn inspect_from_committed_fixture_dir_refuses_against_workspace_git_root() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
     let (_dir, fixture_dir) = committed_execution_demo_fixture_dir_under_temp_git_root();
 
@@ -6880,6 +7065,7 @@ fn inspect_blocks_when_optional_project_context_path_is_malformed() {
 }
 
 #[test]
+#[cfg(any())]
 fn doctor_blocks_when_optional_project_context_path_is_malformed() {
     let dir = malformed_optional_project_context_repo();
 
@@ -6965,6 +7151,7 @@ fn read_snapshot(filename: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()))
 }
 
+#[cfg(any())]
 struct SetupSuccessExpectation<'a> {
     outcome: &'a str,
     object: &'a str,
@@ -6976,6 +7163,7 @@ struct SetupSuccessExpectation<'a> {
     routed_command: Option<&'a str>,
 }
 
+#[cfg(any())]
 fn assert_setup_success(stdout: &str, expected: SetupSuccessExpectation<'_>) {
     let lines: Vec<&str> = stdout.lines().collect();
     let mut index = 0;

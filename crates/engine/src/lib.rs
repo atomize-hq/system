@@ -14,6 +14,8 @@ pub mod definition_identity;
 pub mod freshness;
 pub mod instance_profile;
 mod profile_builtins;
+pub mod profile_decision;
+pub mod profile_inspection;
 pub mod profile_selection;
 pub mod project_condition_registry;
 pub mod schema_registry;
@@ -93,6 +95,16 @@ pub use instance_profile::{
     DefinitionSourceBinding, InstanceProfileDefinition, LayerDisposition, LayeredProfile,
     ProfileField, ProfileLayerDecision, ProfileLoadError, ProfileLoadErrorKind, ProfileScope,
     ProfileSelectionRequest, SymbolicId,
+};
+pub use profile_decision::{
+    resolve_shipped_profile_decisions, ArtifactApplicability, ArtifactProfileDecision,
+    ProfileCapabilityTruth, ProfileDecisionError, ProjectConditionDecisionReason,
+    ProjectConditionEvaluation, ProjectConditionOutcome, ResolvedProfileDecisions,
+    ShippedProfileDecisionError,
+};
+pub use profile_inspection::{
+    inspect_profile_repository, ArtifactInspection, ArtifactInspectionReason,
+    ArtifactInspectionStatus, ProfileInspectionReport,
 };
 pub use profile_selection::{resolve_profile_selection, ResolvedInstanceProfile};
 pub use project_condition_registry::{ProjectConditionDefinition, ProjectConditionRegistry};

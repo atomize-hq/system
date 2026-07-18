@@ -169,7 +169,12 @@ fn acquire_authoring_lock(
             source,
         })?;
 
-    lock_authoring_file(&file, libc::LOCK_EX).map_err(|source| AuthoringLockError::Io {
+    #[cfg(unix)]
+    let lock_operation = libc::LOCK_EX;
+    #[cfg(not(unix))]
+    let lock_operation = 0;
+
+    lock_authoring_file(&file, lock_operation).map_err(|source| AuthoringLockError::Io {
         lock_path: lock_path.clone(),
         source,
     })?;

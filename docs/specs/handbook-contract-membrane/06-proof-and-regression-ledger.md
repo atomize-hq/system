@@ -125,11 +125,11 @@ No lower proof level implies a higher one.
 
 | Gate | Required proof | Current state |
 |---|---|---|
-| `PG-PROFILE-01` | selected profile resolves complete artifact/vocabulary/Resolution truth with deterministic fingerprint | open |
+| `PG-PROFILE-01` | selected profile resolves complete artifact/vocabulary/Resolution truth with deterministic fingerprint | open; HCM-1.4 proves deterministic selected-profile decision/readiness adoption in setup and doctor, while vocabulary/Resolution application, condition evaluation, and remaining consumers are open |
 | `PG-DEFAULT-01` | focused research plus a user brainstorming/decision session explicitly approve the shipped kind set, default instances, and requiredness; examples/current enums do not count | closed for the HCM-0.6 documentation decision by its exact approved record, final proof wall, clean independent review, and two-commit closeout; no runtime/profile publication proof |
-| `PG-KIND-01` | a versioned `ArtifactKindDefinition` resolves a safe canonical schema, validation, optional intake, lifecycle, and projections independently from repository instance state | open; HCM-1.1 proves the exact capability-free kind/schema resolution and structural-validation subset only, while lifecycle and Projection coverage remain unimplemented |
-| `PG-KIND-02` | repository-defined custom kind registers, passes meta-schema/structural validation, and exercises supplied intake coverage without a new Rust enum variant, executable hook, remote schema fetch, generated CLI command, or pre-Phase-3 generic projection engine | open; HCM-1.1 proves registration, local meta-schema/structural validation, and enum/remote-hook/CLI/Projection non-adoption for a two-kind custom fixture, while supplied intake coverage remains unimplemented |
-| `PG-ARTIFACT-01` | a profile-selected `ArtifactInstanceDescriptor` binds a kind to path/label/requiredness/dependencies and participates in validation/doctor/flow | open |
+| `PG-KIND-01` | a versioned `ArtifactKindDefinition` resolves a safe canonical schema, validation, optional intake, lifecycle, and projections independently from repository instance state | open; HCM-1.1 proves kind/schema resolution and HCM-1.4 proves selected-instance structural inspection through the bound kind in setup/doctor, while semantic validation, intake, lifecycle, and Projection coverage remain open |
+| `PG-KIND-02` | repository-defined custom kind registers, passes meta-schema/structural validation, and exercises supplied intake coverage without a new Rust enum variant, executable hook, remote schema fetch, generated CLI command, or pre-Phase-3 generic projection engine | open; HCM-1.1 proves registration/local structural validation and HCM-1.4 proves custom-kind setup/doctor-compatible decision/inspection without enum or command changes, while supplied intake coverage remains open |
+| `PG-ARTIFACT-01` | a profile-selected `ArtifactInstanceDescriptor` binds a kind to path/label/requiredness/dependencies and participates in validation/doctor/flow | open; HCM-1.4 proves descriptor-owned path/role/requiredness/applicability/capability identity plus structural validation and doctor/setup participation, while flow and content-authority participation remain open |
 | `PG-INTAKE-01` | guided-adaptive, express, and agent-assisted acquisition use one intake definition and produce the same candidate schema while exposing missing coverage | open |
 | `PG-INTAKE-02` | intake provenance distinguishes user declarations, evidenced inference, defaults, unknowns, contradictions, waivers, and approvals; normative fields cannot be silently inferred into authority | open |
 | `PG-CHARTER-01` | `CharterIntakeDefinition` covers approved questionnaire domains, promotes only an approved schema-valid candidate to canonical Charter YAML, and deterministically renders Markdown as a renderer-derived human-review view | open |
@@ -685,11 +685,10 @@ dock gates and does not authorize any current product-path cutover.
 
 ## HCM-1.4 profile-aware setup and doctor decision proof gate
 
-HCM-1.4 may promote only profile-aware setup/doctor decision and structural-
-readiness adoption. The future implementation is authorized only by the exact
-review-clean HCM-1.4 packet and a separately selected planning closeout; this
-planning session starts no Rust or HCM-2 work. Before the parent may close the
-implementation slice:
+HCM-1.4 promotes only profile-aware setup/doctor decision and structural-
+readiness adoption. The exact review-clean packet and separately selected
+planning closeout authorized the bounded implementation; the resulting proof
+below starts no HCM-2 work. The implementation subject proves:
 
 - one exact `ResolvedInstanceProfile` must construct one
   `ResolvedArtifactRegistry` and one immutable `ResolvedProfileDecisions`
@@ -755,8 +754,8 @@ implementation slice:
   setup/doctor equality, no-write proof, format, focused, compiler, CLI,
   workspace, clippy, Windows cross-check plus named runtime tests on an actual
   Windows MSVC host, handoff-validator, staged GitNexus, diff, scope, secret,
-  and untracked-aware whitespace gates must pass;
-- the literal HCM-1.2 29-member package-definition manifest must remain exact
+  and untracked-aware whitespace gates pass;
+- the literal HCM-1.2 29-member package-definition manifest remains exact
   for both tree and engine package by member set, size, SHA-256, and byte
   equality; extracted engine-package checks plus exact compiler source-tree/
   workspace-metadata/tests/changed-path proof must reveal no fixture or
@@ -768,11 +767,11 @@ implementation slice:
   authority, condition evidence/evaluation, semantic validation,
   materialization, intake, renderer-derived views, capitalized Projection,
   publication, downstream, and all later gates remain open;
-- one fresh isolated read-only built-in `default` reviewer must return `CLEAN`
+- closeout requires one fresh isolated read-only built-in `default` reviewer to return `CLEAN`
   over the exact complete implementation subject; every valid finding requires
   bounded remediation, full proof replay, a new immutable dispatch, and a
   different fresh reviewer; and
-- the final clean implementation subject must be committed first, followed
+- closeout commits the final clean implementation subject first, followed
   only by a separate parent-owned completed v1.2 handoff and deterministic
   ledger closeout commit that names HCM-2 as future work without starting it.
 

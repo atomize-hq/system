@@ -1,11 +1,11 @@
 # Handbook Contract Membrane Control Pack
 
-**Status:** active control pack; Phase 0 design/default authority is closed; HCM-1.1 through HCM-1.3 have landed through separately reviewed implementation and closeout commits; HCM-1.4 packet planning is the next authorization boundary
+**Status:** active control pack; Phase 0 design/default authority is closed; HCM-1.1 through HCM-1.3 have landed through separately reviewed implementation and closeout commits; HCM-1.4 has landed its bounded profile-aware setup/doctor decision boundary and awaits only its mechanical parent handoff/ledger closeout
 
 **Scope:** target architecture, artifact-kind/schema registry, adaptive intake, Charter authority, posture kernel, sequencing, Context Resolution, Snapshot Memory, crate ownership, SDK/use-case and machine-transport boundaries, contract definitions, claims, evidence, verdicts, gates, dock protocol, context assembly, handoff, escalation, and proof gates
 
-**Implementation authorization:** HCM-1.1 through HCM-1.3 are completed dependency evidence, not continuing authority; HCM-1.4 implementation remains unauthorized until its slice-local `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md` are review-clean and a separate explicit top-level implementation session selects the resulting planning closeout
-**Repo-truth snapshot:** 2026-07-17; re-check live code before every slice
+**Implementation authorization:** HCM-1.1 through HCM-1.4 are completed bounded dependency evidence, not continuing authority; HCM-2 remains unauthorized until its own review-clean packet and explicit top-level selection
+**Repo-truth snapshot:** 2026-07-18; re-check live code before every slice
 
 ## Purpose
 
@@ -195,17 +195,19 @@ The live repository contains published, reusable owner crates and several valuab
 
 The contract membrane and external docks therefore remain `TargetOnly`. `PG-CONTRACT-01`, `PG-DOCK-01`, and `PG-GATE-01` remain open, and the HCM-0.5 design freeze authorizes no Rust, schema publication, process execution, CLI, Tauri, Substrate, or SDK implementation.
 
-HCM-1.1 through HCM-1.3 have landed as reviewed dependency boundaries: kind/
-schema ownership, exact profile/descriptor selection, and the selected-profile
-artifact registry. The next boundary is the planning-only HCM-1.4 packet at
-[`slices/HCM-1.4/`](slices/HCM-1.4/SPEC.md). Creating and approving that packet
-starts no implementation: HCM-1.4 Rust remains unauthorized until its exact
-subject is review-clean, committed, closed through a parent v1.2 record, and
-selected by a separate explicit top-level session.
+HCM-1.1 through HCM-1.4 have landed as reviewed dependency boundaries: kind/
+schema ownership, exact profile/descriptor selection, the selected-profile
+artifact registry, and bounded profile-aware setup/doctor decision/readiness
+adoption. HCM-1.4 setup writes no canonical artifact and conditional truth
+remains explicitly indeterminate until a separately reviewed evidence/evaluator
+contract exists. Its parent v1.2 handoff and deterministic ledger update are
+mechanical closeout only; HCM-2 is future work and is not started here.
 
 The shipped default artifact set is approved in [`slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md`](slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md)
 and its exact kind, profile, descriptor, and selected-registry data now exist.
 It must not be inferred from current enums, templates, filenames, or
-illustrative examples. Setup/doctor adoption, condition evidence/evaluation,
-canonical content authority, intake, and renderer behavior remain separately
-gated rather than implied by those landed data owners.
+illustrative examples. Setup/doctor now consume the typed selected-profile
+decision and structural-inspection closure, but condition evidence/evaluation,
+canonical content authority, materialization, intake, semantic approval, and
+renderer behavior remain separately gated rather than implied by that bounded
+adoption.

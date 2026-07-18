@@ -73,14 +73,20 @@ fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T
     }
 }
 
-fn scaffold_repo() -> tempfile::TempDir {
+fn legacy_authoring_fixture_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
-    let output = run_in(dir.path(), &["setup"]);
-    assert!(
-        output.status.success(),
-        "setup failed: {}",
-        String::from_utf8_lossy(&output.stdout)
-    );
+    for descriptor in handbook_engine::canonical_artifact_descriptors()
+        .iter()
+        .filter(|descriptor| descriptor.setup_scaffolded)
+    {
+        let path = dir.path().join(descriptor.relative_path);
+        fs::create_dir_all(path.parent().expect("legacy artifact parent")).expect("mkdirs");
+        fs::write(
+            path,
+            handbook_engine::setup_starter_template_bytes(descriptor.kind),
+        )
+        .expect("write legacy authoring fixture");
+    }
     dir
 }
 
@@ -376,7 +382,7 @@ fn deterministic_authored_markdown() -> String {
 
 #[test]
 fn bare_charter_author_requires_structured_inputs() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
 
     let output = run_in(dir.path(), &["author", "charter"]);
 
@@ -390,7 +396,7 @@ fn bare_charter_author_requires_structured_inputs() {
 
 #[test]
 fn file_inputs_refuse_when_yaml_is_malformed() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, "project: [not valid");
 
@@ -416,7 +422,7 @@ fn file_inputs_refuse_when_yaml_is_malformed() {
 
 #[test]
 fn stdin_inputs_refuse_when_yaml_is_malformed() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
 
     let output = run_in_with_input(
         dir.path(),
@@ -437,7 +443,7 @@ fn stdin_inputs_refuse_when_yaml_is_malformed() {
 
 #[test]
 fn file_inputs_preserve_malformed_yaml_refusal_even_when_truth_exists() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         &deterministic_authored_markdown(),
@@ -467,7 +473,7 @@ fn file_inputs_preserve_malformed_yaml_refusal_even_when_truth_exists() {
 
 #[test]
 fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
     let expected_markdown = deterministic_authored_markdown();
@@ -500,7 +506,7 @@ fn file_inputs_author_charter_successfully_with_deterministic_rendering() {
 
 #[test]
 fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
@@ -531,7 +537,7 @@ fn file_inputs_author_charter_repairs_semantically_invalid_canonical_truth() {
 
 #[test]
 fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     let expected_markdown = deterministic_authored_markdown();
     let output = run_in_with_input(
         dir.path(),
@@ -558,7 +564,7 @@ fn stdin_inputs_author_charter_successfully_with_deterministic_rendering() {
 
 #[test]
 fn validate_from_inputs_succeeds_without_mutation() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     let inputs_path = dir.path().join("charter-inputs.yaml");
     write_file(&inputs_path, valid_structured_inputs_yaml());
     let before =
@@ -590,7 +596,7 @@ fn validate_from_inputs_succeeds_without_mutation() {
 
 #[test]
 fn validate_refuses_without_from_inputs() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
 
     let output = run_in(dir.path(), &["author", "charter", "--validate"]);
 
@@ -607,7 +613,7 @@ fn validate_refuses_without_from_inputs() {
 
 #[test]
 fn bare_project_context_author_requires_structured_inputs() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
 
     let output = run_in(dir.path(), &["author", "project-context"]);
 
@@ -625,7 +631,7 @@ fn bare_project_context_author_requires_structured_inputs() {
 #[test]
 fn project_context_validate_file_and_stdin_are_non_mutating() {
     for source in ["file", "stdin"] {
-        let dir = scaffold_repo();
+        let dir = legacy_authoring_fixture_repo();
         let canonical = dir
             .path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md");
@@ -670,7 +676,7 @@ fn project_context_validate_file_and_stdin_are_non_mutating() {
 
 #[test]
 fn project_context_file_inputs_refuse_when_yaml_is_malformed() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     let inputs_path = dir.path().join("project-context-inputs.yaml");
     write_file(&inputs_path, "project_summary: [not valid");
 
@@ -696,7 +702,7 @@ fn project_context_file_inputs_refuse_when_yaml_is_malformed() {
 
 #[test]
 fn project_context_stdin_inputs_refuse_when_yaml_is_malformed() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
 
     let output = run_in_with_input(
         dir.path(),
@@ -717,7 +723,7 @@ fn project_context_stdin_inputs_refuse_when_yaml_is_malformed() {
 
 #[test]
 fn project_context_file_inputs_succeed() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     let inputs_path = dir.path().join("project-context-inputs.yaml");
     write_file(&inputs_path, valid_project_context_inputs_yaml());
 
@@ -754,7 +760,7 @@ fn project_context_file_inputs_succeed() {
 
 #[test]
 fn project_context_stdin_inputs_succeed() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
 
     let output = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
         run_in_with_input(
@@ -785,7 +791,7 @@ fn project_context_stdin_inputs_succeed() {
 
 #[test]
 fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md"),
@@ -823,7 +829,7 @@ fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
 
 #[test]
 fn environment_inventory_file_inputs_author_deterministically_without_codex() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
@@ -872,7 +878,7 @@ fn environment_inventory_file_inputs_author_deterministically_without_codex() {
 
 #[test]
 fn environment_inventory_stdin_inputs_author_deterministically() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
@@ -892,7 +898,7 @@ fn environment_inventory_stdin_inputs_author_deterministically() {
 
 #[test]
 fn environment_inventory_validate_is_non_mutating() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
@@ -924,7 +930,7 @@ fn environment_inventory_validate_is_non_mutating() {
 
 #[test]
 fn bare_environment_inventory_command_requires_structured_inputs_without_codex() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
@@ -957,7 +963,7 @@ fn bare_environment_inventory_command_requires_structured_inputs_without_codex()
 
 #[test]
 fn environment_inventory_file_inputs_repair_semantically_invalid_canonical_truth() {
-    let dir = scaffold_repo();
+    let dir = legacy_authoring_fixture_repo();
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",

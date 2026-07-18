@@ -278,6 +278,13 @@ implementation:
 - `docs/specs/handbook-contract-membrane/handoffs/ledger.jsonl`, solely for the
   deterministic second-commit closeout rebuild.
 
+The repository-root `.gitattributes` may change solely to append the exact
+attribute `crates/engine/definitions/** text eol=lf`. The attribute is an
+exact-byte portability prerequisite for the already fingerprint-bound package
+definition set: it changes no definition asset or admitted fingerprint, grants
+no normalization inside an engine reader, and creates no second byte identity.
+No other attribute or repository-root file change is authorized.
+
 No Cargo manifest, lockfile, definition asset, content schema, fixed
 `canonical_artifacts`/`canonical_paths`/layout module, authoring file other than
 the exact `author/mod.rs` portability hunk above, flow,
@@ -308,6 +315,30 @@ directory through test-local helpers; they may not call setup, change
 production authoring behavior beyond the exact lock-call portability hunk,
 turn those bytes into selected-profile truth, or
 assert that HCM-1.4 setup owns the legacy files.
+
+### Checkout-stable package bytes
+
+The literal HCM-1.2 29-member package-definition manifest is byte authority on
+every supported source checkout. Git checkout conversion must not change those
+bytes before `include_bytes!` binds them into the engine. The repository-root
+attribute `crates/engine/definitions/** text eol=lf` therefore applies to the
+complete definition tree. It is a source-distribution boundary rule, not a
+runtime normalization rule: profile/source registries continue to validate the
+exact bytes they receive against the already pinned fingerprints, and a CRLF
+or otherwise changed byte stream still refuses with `FingerprintMismatch`.
+
+Proof must show all of the following without editing a definition asset:
+
+- all 29 index blobs are unchanged from the implementation entry and retain
+  their pinned set/size/SHA-256/byte identities;
+- `git check-attr text eol -- crates/engine/definitions/**` reports
+  `text: set` and `eol: lf` for every member;
+- a fresh native-Windows clone made with `core.autocrlf=true` checks out every
+  member byte-equal to its index blob; and
+- both mandatory named native-Windows runtime tests pass from that clone.
+
+Testing from a canonical-LF copy that bypasses Git checkout conversion cannot
+substitute for this fresh-clone proof.
 
 ## Reviewed owner APIs consumed unchanged
 

@@ -39,6 +39,7 @@ pub struct ResolvedInstanceProfile {
     stable_role_registry: StableRoleRegistry,
     artifact_kind_registry: ArtifactKindRegistry,
     artifact_instances: ArtifactInstanceRegistry,
+    project_condition_registry: ProjectConditionRegistry,
     vocabulary: VocabularyDefinition,
     context_resolution: ContextResolutionStackDefinition,
     resolved_profile_fingerprint: DefinitionFingerprint,
@@ -59,6 +60,9 @@ impl ResolvedInstanceProfile {
     }
     pub fn stable_role_registry(&self) -> &StableRoleRegistry {
         &self.stable_role_registry
+    }
+    pub fn project_condition_registry(&self) -> &ProjectConditionRegistry {
+        &self.project_condition_registry
     }
     pub fn vocabulary(&self) -> &VocabularyDefinition {
         &self.vocabulary
@@ -542,6 +546,7 @@ pub fn resolve_profile_selection(
         stable_role_registry,
         artifact_kind_registry: kind_registry,
         artifact_instances,
+        project_condition_registry: conditions,
         vocabulary,
         context_resolution,
         resolved_profile_fingerprint,
@@ -1059,4 +1064,156 @@ struct ResolvedClosure<'a> {
     vocabulary_fingerprint: &'a str,
     context_resolution_fingerprint: &'a str,
     condition_fingerprints: Vec<&'a str>,
+}
+
+#[cfg(test)]
+mod hcm_1_4_condition_cardinality_tests {
+    use super::*;
+    use crate::artifact_instance::{
+        shipped_root_artifact_instance_values, ArtifactInstanceRegistry,
+    };
+    use crate::instance_profile::{DefinitionSource, DefinitionSourceBinding};
+    use crate::profile_decision::{ProfileDecisionError, ResolvedProfileDecisions};
+    use serde_json::json;
+
+    #[test]
+    fn zero_one_and_shared_multiple_condition_instances_have_exact_evaluation_cardinality() {
+        for expected_conditionals in [0, 1, 2] {
+            let mut profile = shipped_profile();
+            let mut instances = shipped_root_artifact_instance_values();
+            let environment = instances
+                .iter_mut()
+                .find(|instance| instance["id"] == json!("environment_context"))
+                .expect("environment descriptor");
+
+            if expected_conditionals == 0 {
+                environment["requiredness"] = json!({"mode": "optional", "condition_ref": null});
+            } else if expected_conditionals == 2 {
+                let mut second = environment.clone();
+                second["id"] = json!("environment_context_secondary");
+                second["role_ref"] = serde_json::Value::Null;
+                second["label"] = json!("Secondary Environment Context");
+                second["canonical_path"] = json!(".handbook/project/environment-secondary.yaml");
+                instances.push(second);
+            }
+
+            replace_instances(&mut profile, &instances);
+            let decisions = ResolvedProfileDecisions::from_profile(&profile).unwrap();
+            let conditional_rows = decisions
+                .artifact_decisions()
+                .iter()
+                .filter(|decision| decision.condition_ref().is_some())
+                .collect::<Vec<_>>();
+
+            assert_eq!(conditional_rows.len(), expected_conditionals);
+            assert_eq!(
+                decisions.condition_evaluations().len(),
+                usize::from(expected_conditionals > 0)
+            );
+            for row in conditional_rows {
+                assert_eq!(
+                    row.condition_ref().map(|reference| reference.as_str()),
+                    Some("handbook.condition.project.managed-operational-surface@1.0.0")
+                );
+            }
+            if expected_conditionals > 0 {
+                assert_eq!(
+                    decisions.condition_evaluations()[0]
+                        .condition_ref()
+                        .as_str(),
+                    "handbook.condition.project.managed-operational-surface@1.0.0"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn missing_selected_condition_definition_refuses_before_decision_closure_construction() {
+        let mut profile = shipped_profile();
+        profile.project_condition_registry = ProjectConditionRegistry::default();
+
+        let error = ResolvedProfileDecisions::from_profile(&profile).unwrap_err();
+
+        assert_eq!(
+            error,
+            ProfileDecisionError::MissingConditionDefinition {
+                condition_ref: exact(
+                    "handbook.condition.project.managed-operational-surface@1.0.0",
+                ),
+            }
+        );
+    }
+
+    fn replace_instances(profile: &mut ResolvedInstanceProfile, values: &[Value]) {
+        let conditions = profile
+            .project_condition_registry
+            .values()
+            .collect::<Vec<_>>();
+        profile.artifact_instances =
+            ArtifactInstanceRegistry::resolve(values, &profile.artifact_kind_registry, &conditions)
+                .unwrap();
+    }
+
+    fn shipped_profile() -> ResolvedInstanceProfile {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        resolve_profile_selection(
+            root,
+            ProfileSelectionRequest {
+                selected_profile_ref: exact("handbook.profile.shipped-root@1.0.0"),
+                profile_sources: vec![builtin("handbook.profile.shipped-root@1.0.0")],
+                stable_role_registry_sources: vec![builtin("handbook.roles.core@1.1.0")],
+                schema_entry_sources: artifact_names()
+                    .iter()
+                    .map(|name| builtin(&format!("handbook.schemas.artifacts.{name}@1.0.0")))
+                    .collect(),
+                artifact_kind_sources: artifact_names()
+                    .iter()
+                    .map(|name| builtin(&format!("handbook.artifact-kind.{name}@1.0.0")))
+                    .collect(),
+                semantic_capability_sources: vec![builtin(
+                    "handbook.capabilities.constitutional-root@1.0.0",
+                )],
+                semantic_validator_sources: vec![builtin(
+                    "handbook.semantic-validation.constitutional-root@1.0.0",
+                )],
+                project_condition_sources: vec![builtin(
+                    "handbook.condition.project.managed-operational-surface@1.0.0",
+                )],
+                vocabulary_sources: vec![builtin("handbook.vocabulary.shipped-root@1.0.0")],
+                context_resolution_sources: vec![builtin(
+                    "handbook.context-resolution.shipped-root@1.0.0",
+                )],
+                context_resolution_policy_sources: vec![
+                    builtin("handbook.mutation-matcher.core@1.0.0"),
+                    builtin("handbook.resolution-escalation.core@1.0.0"),
+                    builtin("handbook.memory-promotion.core@1.0.0"),
+                ],
+                allowed_schema_roots: vec!["definitions/schemas".to_owned()],
+            },
+        )
+        .unwrap()
+    }
+
+    fn artifact_names() -> [&'static str; 6] {
+        [
+            "project-authority",
+            "project-context",
+            "environment-context",
+            "work-specification",
+            "decision-record",
+            "risk-record",
+        ]
+    }
+
+    fn exact(value: &str) -> ExactDefinitionRef {
+        ExactDefinitionRef::parse(value).unwrap()
+    }
+
+    fn builtin(value: &str) -> DefinitionSourceBinding {
+        let definition_ref = exact(value);
+        DefinitionSourceBinding {
+            definition_ref: definition_ref.clone(),
+            source: DefinitionSource::BuiltIn(definition_ref),
+        }
+    }
 }

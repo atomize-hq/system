@@ -4,18 +4,18 @@ use std::process::ExitCode;
 pub(super) fn run(args: DoctorArgs) -> ExitCode {
     let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
-        Err(err) => {
-            println!("BLOCKED: failed to determine repo root: {err}");
+        Err(_) => {
+            println!("OUTCOME: ERROR\nCATEGORY: repository_root_unavailable");
             return exit_policy::failure();
         }
     };
     let repo_root = discover_managed_repo_root(&cwd);
-
     let report = match handbook_compiler::doctor(&repo_root) {
         Ok(report) => report,
-        Err(err) => {
-            println!("INVALID_BASELINE");
-            println!("SUMMARY: failed to inspect baseline truth: {err}");
+        Err(error) => {
+            println!("OUTCOME: ERROR");
+            println!("CATEGORY: {}", doctor_error_kind_name(error.kind()));
+            println!("REASON: {}", doctor_error_reason_name(error.reason_code()));
             return exit_policy::failure();
         }
     };
@@ -23,15 +23,31 @@ pub(super) fn run(args: DoctorArgs) -> ExitCode {
     if args.json {
         match doctor_rendering::render_json(&report) {
             Ok(json) => print!("{json}"),
-            Err(err) => {
-                println!("INVALID_BASELINE");
-                println!("SUMMARY: {err}");
+            Err(error) => {
+                println!("OUTCOME: ERROR\nCATEGORY: serialization\nREASON: {error}");
                 return exit_policy::failure();
             }
         }
     } else {
         print!("{}", doctor_rendering::render_text(&report));
     }
+    exit_policy::repository_status(report.status)
+}
 
-    exit_policy::doctor_report(&report)
+fn doctor_error_kind_name(kind: handbook_compiler::DoctorErrorKind) -> &'static str {
+    match kind {
+        handbook_compiler::DoctorErrorKind::ProfileResolution => "profile_resolution",
+        handbook_compiler::DoctorErrorKind::ProfileDecision => "profile_decision",
+    }
+}
+
+fn doctor_error_reason_name(reason: handbook_compiler::DoctorErrorReasonCode) -> &'static str {
+    match reason {
+        handbook_compiler::DoctorErrorReasonCode::ShippedProfileUnavailable => {
+            "shipped_profile_unavailable"
+        }
+        handbook_compiler::DoctorErrorReasonCode::SelectedProfileDecisionInvalid => {
+            "selected_profile_decision_invalid"
+        }
+    }
 }

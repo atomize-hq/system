@@ -184,6 +184,18 @@ increments; `author_cli.rs` is test-helper-only.
   remains the existing no-op, and no other author byte/behavior moves; and
 - rerun compiler MSVC check plus all 47 compiler and 22 CLI author tests.
 
+### Task 8c — GREEN checkout-stable package-definition bytes
+
+- preserve every one of the 29 definition index blobs and pinned fingerprints;
+- append only `crates/engine/definitions/** text eol=lf` to the repository-root
+  `.gitattributes`;
+- prove every definition member resolves to `text: set` and `eol: lf`;
+- create a fresh native-Windows clone with `core.autocrlf=true`, prove every
+  checked-out definition byte equals its index blob, and run both mandatory
+  named Windows runtime tests there; and
+- retain exact-byte fingerprint refusal for any caller-supplied changed byte
+  stream; do not add reader normalization or a second byte identity.
+
 **Checkpoint:** compiler and CLI focused suites pass; CLI source owns wording;
 engine decisions contain no command/prose/exit fields.
 
@@ -194,6 +206,8 @@ engine decisions contain no command/prose/exit fields.
 - run format, focused HCM-1.2/HCM-1.3/HCM-1.4, compiler, CLI, workspace,
   clippy, actual Windows-host runtime, handoff, and engine-package commands
   from the SPEC;
+- prove the exact LF attribute and fresh native-Windows `core.autocrlf=true`
+  checkout boundary before accepting the Windows runtime results;
 - replay the literal 29-member definition manifest against tree and package;
 - extract/check the engine package and run the exact compiler source-tree/
   workspace-metadata boundary proof; do not claim compiler publication;
@@ -261,6 +275,7 @@ proof wall.
 | machine report becomes prose/API drift | transport-owned semantics | closed typed report; CLI-only wording; HCM-4 still owns final DTO/schema envelope |
 | path race or symlink escape | out-of-repo read | strict descriptor-based no-follow open, size ceilings, race proof, bounded errors |
 | compiler Windows build already fails in author lock call | mandatory platform proof impossible | exact behavior-preserving cfg portability hunk, HIGH-risk warning, compiler MSVC check, and full 47/22 author suites |
+| Windows checkout conversion changes fingerprint-bound definition bytes | shipped profile refuses before inspection | exact definition-tree `text eol=lf` attribute, unchanged index blobs/fingerprints, fresh `core.autocrlf=true` clone byte equality, and native runtime proof |
 | Windows fail-closed path is only compiled | unproved platform safety | execute named focused tests on an actual Windows MSVC host or stop |
 | compiler package is unpublishable with path-only deps | impossible proof gate | engine package proof plus exact compiler source-tree/workspace proof; publication stays separate |
 | author suites assume old setup scaffolding | unavoidable workspace failure | two allowlisted test-helper-only legacy fixture replacements; production authoring unchanged outside the exact portability hunk; assertions unchanged; full 47/22 suites required |
@@ -270,7 +285,8 @@ proof wall.
 
 - no code work in the planning session;
 - no packet execution without exact reviewed planning selector;
-- no Cargo, definition, schema, production authoring beyond the exact behavior-
+- no Cargo, definition, schema, repository-root change other than the exact
+  definition-tree LF `.gitattributes` rule, or production authoring beyond the exact behavior-
   preserving `author/mod.rs` portability hunk, flow, pipeline, SDK, or Phase 2
   file; only that hunk and the two exact author-test fixture helpers may move;
 - no condition observation/evidence/freshness/assertion/boolean/profile flag or

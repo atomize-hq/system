@@ -9,14 +9,11 @@ reviewed planning slice. A Rust implementation slice is authorized only when
 its own `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md` packet is present and
 review-clean.
 
-HCM-1.1 through HCM-1.3 have landed through their separately reviewed
-implementation and closeout commits. They are completed dependency evidence,
-not continuing implementation authority. HCM-1.4 packet approval is the next
-authorization boundary: only the exact `slices/HCM-1.4/` planning subject may
-authorize a later HCM-1.4 implementation run, and only after that subject is
-review-clean and its planning closeout is selected by a separate top-level
-session. Packet approval is not execution. Every later slice remains
-unauthorized until its own packet is created and reviewed.
+HCM-1.1 through HCM-1.4 have landed through separately reviewed implementation
+subjects. They are completed bounded dependency evidence, not continuing
+implementation authority. HCM-1.4's remaining parent handoff/ledger work is
+mechanical closeout only. HCM-2 and every later slice remain unauthorized until
+their own packets are created, reviewed, and explicitly selected.
 
 ## Sequencing rule
 
@@ -220,11 +217,11 @@ additional HCM-1.3 work.
 - keep CLI wording outside engine decisions;
 - expose machine-readable profile/capability truth.
 
-The planning packet is [`slices/HCM-1.4/`](slices/HCM-1.4/SPEC.md). Packet
-creation and review are documentation-only. The future implementation boundary
-is one engine-owned typed profile-decision and repository-inspection closure
-consumed identically by setup and doctor. It replaces their fixed artifact
-selection path. Conditional descriptors bind exact definitions but remain
+The reviewed implementation packet is
+[`slices/HCM-1.4/`](slices/HCM-1.4/SPEC.md). The landed boundary is one
+engine-owned typed profile-decision and repository-inspection closure consumed
+identically by setup and doctor. It replaces their fixed artifact-selection
+path. Conditional descriptors bind exact definitions but remain
 explicitly `unresolved`/`evidence_contract_unavailable` until a separate verified
 evidence/evaluator contract exists. The slice writes no canonical YAML,
 invents no compatibility profile, repairs no unrelated reset transaction,
@@ -237,7 +234,12 @@ The only production authoring exception is the exact behavior-preserving
 required to make the mandatory compiler Windows target build; existing helper
 signatures/bodies and the Unix `LOCK_UN` drop path remain byte-unchanged, lock
 semantics do not change, and fresh HIGH-risk impact plus complete author
-regressions must pass.
+regressions passed. Actual Windows MSVC runtime refusal tests, Unix workspace
+tests/clippy, the literal 29-member engine package replay, and compiler
+source-tree checks passed. The classification ceiling is `BoundaryLanded` for
+setup/doctor decision/readiness adoption only; content authority,
+materialization, semantic validation, condition evaluation, SDK transport,
+renderers/Projections, and HCM-2 remain open.
 
 ### Phase 1 exit gate
 

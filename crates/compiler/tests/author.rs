@@ -10,7 +10,7 @@ use handbook_compiler::{
     preflight_author_environment_inventory_from_input, preflight_author_project_context,
     render_charter_markdown, render_environment_inventory_markdown,
     render_project_context_markdown, resolve_shipped_template_library, resolve_template_library,
-    run_setup, validate_charter_structured_input, validate_environment_inventory_markdown,
+    validate_charter_structured_input, validate_environment_inventory_markdown,
     validate_environment_inventory_structured_input, validate_project_context_markdown,
     validate_project_context_structured_input, AuthorCharterRefusalKind,
     AuthorEnvironmentInventoryRefusalKind, AuthorProjectContextRefusalKind, CanonicalArtifactKind,
@@ -27,11 +27,11 @@ use handbook_compiler::{
     ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
     ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
     ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
-    SetupRequest, TemplateLibraryAsset, TemplateLibraryOverrideRequest, TemplateLibraryRequest,
+    TemplateLibraryAsset, TemplateLibraryOverrideRequest, TemplateLibraryRequest,
     TemplateLibraryResolveErrorKind, TemplateLibraryResolveRequest, TemplateLibrarySelection,
     CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
-use handbook_engine::setup_starter_template_bytes;
+use handbook_engine::{canonical_artifact_descriptors, setup_starter_template_bytes};
 
 const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 const AUTHOR_ENVIRONMENT_INVENTORY_NOW_UTC_ENV_VAR: &str =
@@ -452,8 +452,16 @@ fn required_headings() -> [&'static str; 12] {
     ]
 }
 
-fn scaffold_repo(root: &Path) {
-    run_setup(root, &SetupRequest::default()).expect("setup scaffold");
+fn legacy_authoring_fixture_repo(root: &Path) {
+    for descriptor in canonical_artifact_descriptors()
+        .iter()
+        .filter(|descriptor| descriptor.setup_scaffolded)
+    {
+        write_file(
+            &root.join(descriptor.relative_path),
+            setup_starter_template_bytes(descriptor.kind),
+        );
+    }
 }
 
 #[test]
@@ -585,7 +593,7 @@ fn render_charter_markdown_includes_required_headings_in_order() {
 #[test]
 fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     let expected_markdown = expected_charter_markdown();
     let result = author_charter(dir.path(), &valid_input()).expect("author charter");
 
@@ -617,7 +625,7 @@ fn author_charter_replaces_starter_template_and_writes_only_canonical_output() {
 #[test]
 fn preflight_author_charter_from_input_validates_without_mutation() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     let before = std::fs::read(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("starter charter bytes");
     preflight_author_charter_from_input(dir.path(), &valid_input())
@@ -637,7 +645,7 @@ fn preflight_author_charter_from_input_validates_without_mutation() {
 #[test]
 fn author_charter_is_deterministic_and_does_not_invoke_codex() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     let result = author_charter(dir.path(), &valid_input()).expect("author charter");
 
     assert_eq!(
@@ -931,7 +939,7 @@ fn template_library_resolver_refuses_override_family_and_asset_kind_mismatches()
 #[test]
 fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         expected_charter_markdown().as_bytes(),
@@ -950,7 +958,7 @@ fn author_charter_refuses_when_non_starter_canonical_truth_exists() {
 #[test]
 fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         expected_charter_markdown().as_bytes(),
@@ -968,7 +976,7 @@ fn preflight_author_charter_refuses_when_non_starter_canonical_truth_exists() {
 #[test]
 fn author_charter_repairs_semantically_invalid_canonical_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         b"custom charter truth\n",
@@ -991,7 +999,7 @@ fn author_charter_repairs_semantically_invalid_canonical_truth() {
 #[test]
 fn preflight_author_charter_routes_ingest_invalid_target_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     std::fs::remove_file(dir.path().join(".handbook/charter/CHARTER.md")).expect("remove charter");
     std::fs::create_dir_all(dir.path().join(".handbook/charter/CHARTER.md"))
         .expect("charter target directory");
@@ -1007,7 +1015,7 @@ fn preflight_author_charter_routes_ingest_invalid_target_to_setup_refresh() {
 #[test]
 fn starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
 
     assert_eq!(
         std::fs::read(dir.path().join(".handbook/charter/CHARTER.md")).expect("starter bytes"),
@@ -1091,7 +1099,7 @@ fn author_project_context_refuses_when_system_root_missing() {
 #[test]
 fn author_project_context_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     let expected_markdown = expected_project_context_markdown();
 
     let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
@@ -1133,7 +1141,7 @@ fn author_project_context_replaces_starter_template_and_writes_only_canonical_ou
 #[test]
 fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md"),
@@ -1162,7 +1170,7 @@ fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
 #[test]
 fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md"),
@@ -1184,7 +1192,7 @@ fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exi
 #[test]
 fn author_project_context_repairs_semantically_invalid_canonical_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md"),
@@ -1213,7 +1221,7 @@ fn author_project_context_repairs_semantically_invalid_canonical_truth() {
 #[test]
 fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     std::fs::remove_file(
         dir.path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md"),
@@ -1236,7 +1244,7 @@ fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refres
 #[test]
 fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
 
     assert_eq!(
         std::fs::read(
@@ -1261,7 +1269,7 @@ fn parse_environment_inventory_inputs_maps_malformed_yaml_refusal() {
 #[test]
 fn preflight_environment_inventory_from_input_is_non_mutating() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1287,7 +1295,7 @@ fn preflight_environment_inventory_from_input_is_non_mutating() {
 #[test]
 fn environment_inventory_input_refuses_missing_ref_when_project_context_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1314,7 +1322,7 @@ fn environment_inventory_input_refuses_missing_ref_when_project_context_exists()
 #[test]
 fn environment_inventory_input_refuses_ref_when_project_context_is_absent() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1337,7 +1345,7 @@ fn environment_inventory_input_refuses_ref_when_project_context_is_absent() {
 #[test]
 fn author_environment_inventory_from_input_writes_deterministically_without_prompt_capture() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1366,7 +1374,7 @@ fn author_environment_inventory_from_input_writes_deterministically_without_prom
 #[test]
 fn author_environment_inventory_from_input_repairs_semantically_invalid_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1418,7 +1426,7 @@ fn validate_environment_inventory_markdown_refuses_legacy_non_canonical_path_cla
 #[test]
 fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1446,7 +1454,7 @@ fn author_environment_inventory_refuses_when_non_starter_canonical_truth_exists(
 #[test]
 fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1471,7 +1479,7 @@ fn preflight_author_environment_inventory_refuses_when_non_starter_canonical_tru
 #[test]
 fn preflight_author_environment_inventory_routes_ingest_invalid_target_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
@@ -1495,7 +1503,7 @@ fn preflight_author_environment_inventory_routes_ingest_invalid_target_to_setup_
 #[test]
 fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_invalid() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         b"# Engineering Charter - Example\n\n## Rules\n\n- Keep secrets out of git.\n",
@@ -1521,7 +1529,7 @@ fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_in
 #[test]
 fn author_environment_inventory_refuses_when_optional_project_context_is_semantically_invalid() {
     let dir = tempfile::tempdir().expect("tempdir");
-    scaffold_repo(dir.path());
+    legacy_authoring_fixture_repo(dir.path());
     write_file(
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
