@@ -258,16 +258,19 @@ fn write_minimal_runner_and_profile(root: &std::path::Path) {
 }
 
 fn planning_ready_repo() -> (tempfile::TempDir, std::path::PathBuf) {
-    pipeline_proof_corpus_support::install_committed_fixture_repo(
+    let (dir, root) = pipeline_proof_corpus_support::install_committed_fixture_repo(
         "tests/fixtures/planning_ready_repo",
-    )
+    );
+    write_valid_selected_project_context(&root);
+    (dir, root)
 }
 
 fn planning_ready_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
-    let (dir, _root, nested) =
+    let (dir, root, nested) =
         pipeline_proof_corpus_support::install_committed_fixture_checkout_with_nested_cwd(
             "tests/fixtures/planning_ready_repo",
         );
+    write_valid_selected_project_context(&root);
     (dir, nested)
 }
 
@@ -283,12 +286,23 @@ fn nested_git_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) 
 }
 
 fn execution_demo_repo_with_nested_cwd() -> (tempfile::TempDir, std::path::PathBuf) {
-    let (dir, _root, nested) =
+    let (dir, root, nested) =
         pipeline_proof_corpus_support::install_committed_fixture_under_repo_with_nested_cwd(
             "tests/fixtures/execution_demo/basic",
             "tests/fixtures/execution_demo/basic",
         );
+    write_valid_selected_project_context(&root.join("tests/fixtures/execution_demo/basic"));
     (dir, nested)
+}
+
+fn execution_demo_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+    let (dir, root, _nested) =
+        pipeline_proof_corpus_support::install_committed_fixture_under_repo_with_nested_cwd(
+            "tests/fixtures/execution_demo/basic",
+            "tests/fixtures/execution_demo/basic",
+        );
+    write_valid_selected_project_context(&root.join("tests/fixtures/execution_demo/basic"));
+    (dir, root)
 }
 
 fn committed_execution_demo_fixture_dir_under_temp_git_root(
@@ -299,11 +313,8 @@ fn committed_execution_demo_fixture_dir_under_temp_git_root(
             "tests/fixtures/execution_demo/basic",
         );
     let fixture_dir = root.join("tests/fixtures/execution_demo/basic");
+    write_valid_selected_project_context(&fixture_dir);
     (dir, fixture_dir)
-}
-
-fn committed_execution_demo_fixture_dir() -> std::path::PathBuf {
-    workspace_root().join("tests/fixtures/execution_demo/basic")
 }
 
 fn repair_to_ready(root: &std::path::Path) {
@@ -311,10 +322,7 @@ fn repair_to_ready(root: &std::path::Path) {
         &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
-    write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        valid_project_context_markdown().as_bytes(),
-    );
+    write_valid_selected_project_context(root);
     write_file(
         &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         valid_environment_inventory_markdown().as_bytes(),
@@ -371,12 +379,7 @@ fn partial_system_repo() -> tempfile::TempDir {
         dir.path().join(".handbook/charter/CHARTER.md").as_path(),
         valid_charter_markdown().as_bytes(),
     );
-    write_file(
-        dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md")
-            .as_path(),
-        valid_project_context_markdown().as_bytes(),
-    );
+    write_valid_selected_project_context(dir.path());
     write_file(
         dir.path()
             .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md")
@@ -489,6 +492,74 @@ Use this document to ground planning in reality.
 "
 }
 
+fn valid_selected_project_context_yaml() -> &'static str {
+    concat!(
+        "schema_id: \"handbook.artifact.project-context\"\n",
+        "schema_version: \"1.0\"\n",
+        "record_id: \"handbook.project-context\"\n",
+        "summary: \"Project reality.\"\n",
+        "system_boundaries:\n",
+        "  - \"Canonical handbook truth\"\n",
+        "ownership:\n",
+        "  - \"handbook-team\"\n",
+        "authoritative_references:\n",
+        "  - \"handbook.charter@1.0.0\"\n",
+        "known_unknowns:\n",
+        "  - \"None\"\n",
+    )
+}
+
+fn write_valid_selected_project_context(root: &std::path::Path) {
+    write_file(
+        &root.join(".handbook/project/context.yaml"),
+        valid_selected_project_context_yaml().as_bytes(),
+    );
+}
+
+#[cfg(unix)]
+fn profile_ready_repo() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(dir.path().join(".git")).expect("git root");
+    write_file(
+        &dir.path().join(".handbook/project/charter.yaml"),
+        br#"{
+  "schema_id": "handbook.artifact.project-authority",
+  "schema_version": "1.0",
+  "record_id": "handbook.project-authority",
+  "policy": {"revision": "1", "authority_statement": "The project authority is explicit."},
+  "governance": {
+    "decision_authority": ["Owner"],
+    "required_approvals": ["Owner"],
+    "exception_policy": "Exceptions require explicit approval.",
+    "review_triggers": ["Authority changes"],
+    "reassessment_triggers": ["Scope changes"]
+  },
+  "engineering_posture": {
+    "dimensions": ["Reliability"],
+    "red_lines": ["No silent authority mutation"]
+  }
+}
+"#,
+    );
+    write_valid_selected_project_context(dir.path());
+    write_file(
+        &dir.path().join(".handbook/project/environment.yaml"),
+        br#"{
+  "schema_id": "handbook.artifact.environment-context",
+  "schema_version": "1.0",
+  "record_id": "handbook.environment-context",
+  "applicability_basis": ["handbook.project-context"],
+  "operational_surfaces": ["Production"],
+  "runtime_dependencies": ["Database"],
+  "safe_configuration_references": ["handbook.configuration.production"],
+  "authoritative_references": [],
+  "known_unknowns": []
+}
+"#,
+    );
+    dir
+}
+
 fn legacy_placeholder_project_context_markdown() -> String {
     valid_project_context_markdown()
         .replace("> **Owner:** project-owner", "> **Owner:** unknown-owner")
@@ -503,7 +574,7 @@ fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
 > **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
+> **Project Context Ref:** `.handbook/project/context.yaml`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -545,9 +616,9 @@ fn malformed_optional_project_context_repo() -> tempfile::TempDir {
     let root = dir.path();
 
     repair_to_ready(root);
-    std::fs::remove_file(root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
+    std::fs::remove_file(root.join(".handbook/project/context.yaml"))
         .expect("remove project_context file");
-    std::fs::create_dir_all(root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
+    std::fs::create_dir_all(root.join(".handbook/project/context.yaml"))
         .expect("project_context directory");
 
     dir
@@ -4628,7 +4699,7 @@ fn profile_setup_and_doctor_use_typed_rows_json_and_exit_policy() {
     assert!(!json_stdout.ends_with("\n\n"));
     let value: serde_json::Value = serde_json::from_str(&json_stdout).expect("doctor json");
     assert_eq!(value["schema_id"], "handbook.repository-doctor-report");
-    assert_eq!(value["schema_version"], "1.0.0");
+    assert_eq!(value["schema_version"], "1.1.0");
     assert_eq!(value["status"], json_status);
 }
 
@@ -5527,7 +5598,7 @@ fn doctor_marks_empty_environment_inventory_as_invalid_baseline() {
 }
 
 #[test]
-fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready() {
+fn generate_refuses_semantically_invalid_required_project_context() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
 
@@ -5536,7 +5607,7 @@ fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready(
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -5545,22 +5616,20 @@ fn generate_omits_semantically_invalid_optional_project_context_but_stays_ready(
     );
 
     let output = run_in(root, &["generate"]);
-    assert!(output.status.success(), "generate should succeed");
+    assert!(!output.status.success(), "generate should refuse");
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
     assert_first_three_lines(
         &stdout,
         [
-            "OUTCOME: READY",
+            "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `handbook inspect --packet planning.packet` for proof",
+            "NEXT SAFE ACTION: run `handbook author project-context --from-inputs <path|->`",
         ],
     );
-    assert!(stdout.contains(
-        "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
-    ));
-    assert!(!stdout.contains("### PROJECT_CONTEXT"));
-    assert!(!stdout.contains("ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]"));
+    assert!(stdout.contains("CATEGORY: RequiredArtifactInvalid"));
+    assert!(stdout.contains("required canonical artifact is invalid"));
+    assert!(!stdout.contains("## PACKET BODY"));
 }
 
 #[test]
@@ -5572,6 +5641,7 @@ fn inspect_omits_semantically_invalid_optional_environment_inventory_but_stays_r
         &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
+    write_valid_selected_project_context(root);
     write_file(
         &root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         b"# Environment Inventory\n\nlegacy repo/project root claim\n",
@@ -6100,22 +6170,53 @@ fn generate_succeeds_from_nested_directory_inside_ready_repo() {
 }
 
 #[test]
-#[cfg(any())]
+#[cfg(unix)]
 fn doctor_reports_ready_when_required_artifacts_present() {
-    let dir = partial_system_repo();
+    let dir = profile_ready_repo();
     let root = dir.path();
 
-    let output = binary_in(root)
-        .arg("doctor")
-        .output()
-        .expect("doctor should run");
+    let output = run_in(root, &["doctor"]);
 
-    assert!(output.status.success(), "doctor should succeed when ready");
+    // HCM-1.4 deliberately leaves the shipped conditional Environment Context
+    // indeterminate until the separately owned condition evaluator lands. This
+    // positive content proof must preserve that exit/status contract while
+    // proving the selected Project Context row is complete and non-null.
+    assert!(!output.status.success());
 
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf-8");
-    assert!(
-        stdout.contains("BASELINE_COMPLETE"),
-        "expected baseline header: {stdout}"
+    assert!(stdout.starts_with("OUTCOME: INDETERMINATE\n"), "{stdout}");
+    assert!(stdout.contains("## PROJECT CONTEXT\n"), "{stdout}");
+    assert!(stdout.contains("PATH: .handbook/project/context.yaml SOURCE FINGERPRINT: sha256:c8646d5821d80fe8e0eeade2713fc63f6e91b2cbb64f6832b5a1f178b810d02f RENDERED OUTPUT FINGERPRINT: sha256:9502d897dc9542a492fdc50ca9ebb2340ac59be25b37a615ea6cb842387641fd MEDIA TYPE: text/markdown\n"), "{stdout}");
+
+    let json_output = run_in(root, &["doctor", "--json"]);
+    assert!(!json_output.status.success());
+    let json_stdout = String::from_utf8(json_output.stdout).expect("doctor JSON is utf-8");
+    assert!(json_stdout.ends_with('\n'));
+    assert!(!json_stdout.ends_with("\n\n"));
+    let value: serde_json::Value = serde_json::from_str(&json_stdout).expect("doctor JSON");
+    assert_eq!(value["schema_id"], "handbook.repository-doctor-report");
+    assert_eq!(value["schema_version"], "1.1.0");
+    assert_eq!(value["status"], "indeterminate");
+    assert_eq!(value["project_context"]["instance_id"], "project_context");
+    assert_eq!(
+        value["project_context"]["kind_ref"],
+        "handbook.artifact-kind.project-context@1.0.0"
+    );
+    assert_eq!(
+        value["project_context"]["canonical_path"],
+        ".handbook/project/context.yaml"
+    );
+    assert_eq!(
+        value["project_context"]["source_fingerprint"],
+        "sha256:c8646d5821d80fe8e0eeade2713fc63f6e91b2cbb64f6832b5a1f178b810d02f"
+    );
+    assert_eq!(
+        value["project_context"]["rendered_output_fingerprint"],
+        "sha256:9502d897dc9542a492fdc50ca9ebb2340ac59be25b37a615ea6cb842387641fd"
+    );
+    assert_eq!(
+        value["project_context"]["rendered_media_type"],
+        "text/markdown"
     );
 }
 
@@ -6275,7 +6376,7 @@ fn inspect_blocks_when_demo_packet_selected_without_fixture_set() {
 
 #[test]
 fn generate_resolves_execution_demo_packet_from_fixture_set() {
-    let root = workspace_root();
+    let (_dir, root) = execution_demo_repo();
     assert!(
         root.join("tests/fixtures/execution_demo/basic/.handbook/charter/CHARTER.md")
             .is_file(),
@@ -6417,7 +6518,7 @@ fn generate_resolves_execution_demo_packet_from_nested_directory_inside_repo() {
 
 #[test]
 fn inspect_includes_fixture_section_for_execution_demo_packet() {
-    let root = workspace_root();
+    let (_dir, root) = execution_demo_repo();
     assert!(
         root.join("tests/fixtures/execution_demo/basic/.handbook/charter/CHARTER.md")
             .is_file(),
@@ -6536,8 +6637,8 @@ fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
-        valid_project_context_markdown().as_bytes(),
+        &fixture_root.join("project/context.yaml"),
+        valid_selected_project_context_yaml().as_bytes(),
     );
     write_file(
         &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
@@ -6569,7 +6670,7 @@ fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
         fixture_section,
         &[
             "1. Charter [.handbook/charter/CHARTER.md]",
-            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "2. ProjectContext [.handbook/project/context.yaml]",
             "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
             "4. FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]",
         ],
@@ -6580,7 +6681,7 @@ fn inspect_preserves_full_execution_demo_fixture_lineage_order() {
         json_section,
         &[
             "\"canonical_repo_relative_path\": \".handbook/charter/CHARTER.md\"",
-            "\"canonical_repo_relative_path\": \".handbook/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/project/context.yaml\"",
             "\"canonical_repo_relative_path\": \".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
             "\"canonical_repo_relative_path\": \".handbook/feature_spec/FEATURE_SPEC.md\"",
         ],
@@ -6595,8 +6696,8 @@ fn generate_non_ready_execution_demo_preserves_fixture_backed_labeling() {
 
     write_file(&fixture_root.join("charter/CHARTER.md"), b"");
     write_file(
-        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
-        valid_project_context_markdown().as_bytes(),
+        &fixture_root.join("project/context.yaml"),
+        valid_selected_project_context_yaml().as_bytes(),
     );
     write_file(
         &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
@@ -6648,7 +6749,7 @@ fn generate_non_ready_execution_demo_preserves_fixture_backed_labeling() {
         &stdout,
         &[
             "1. Charter [.handbook/charter/CHARTER.md]",
-            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "2. ProjectContext [.handbook/project/context.yaml]",
             "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
         ],
     );
@@ -6668,8 +6769,8 @@ fn inspect_non_ready_execution_demo_preserves_environment_inventory_in_fixture_l
 
     write_file(&fixture_root.join("charter/CHARTER.md"), b"");
     write_file(
-        &fixture_root.join("project_context/PROJECT_CONTEXT.md"),
-        valid_project_context_markdown().as_bytes(),
+        &fixture_root.join("project/context.yaml"),
+        valid_selected_project_context_yaml().as_bytes(),
     );
     write_file(
         &fixture_root.join("environment_inventory/ENVIRONMENT_INVENTORY.md"),
@@ -6718,7 +6819,7 @@ fn inspect_non_ready_execution_demo_preserves_environment_inventory_in_fixture_l
         &stdout,
         &[
             "1. Charter [.handbook/charter/CHARTER.md]",
-            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "2. ProjectContext [.handbook/project/context.yaml]",
             "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
         ],
     );
@@ -6876,7 +6977,7 @@ fn doctor_from_committed_fixture_dir_blocks_against_workspace_git_root() {
 
 #[test]
 fn generate_resolves_execution_demo_packet_from_committed_fixture_dir() {
-    let fixture_dir = committed_execution_demo_fixture_dir();
+    let (_dir, fixture_dir) = committed_execution_demo_fixture_dir_under_temp_git_root();
 
     let output = binary_in(&fixture_dir)
         .args([
@@ -6912,7 +7013,7 @@ fn generate_resolves_execution_demo_packet_from_committed_fixture_dir() {
 
 #[test]
 fn inspect_resolves_execution_demo_packet_from_committed_fixture_dir() {
-    let fixture_dir = committed_execution_demo_fixture_dir();
+    let (_dir, fixture_dir) = committed_execution_demo_fixture_dir_under_temp_git_root();
 
     let output = binary_in(&fixture_dir)
         .args([
@@ -6955,6 +7056,7 @@ fn generate_refuses_for_live_execution_packet_when_other_inputs_ok() {
         &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
+    write_valid_selected_project_context(root);
     write_file(
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
@@ -6995,6 +7097,7 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
         &root.join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
+    write_valid_selected_project_context(root);
     write_file(
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
@@ -7024,7 +7127,7 @@ fn inspect_redacts_packet_body_for_live_execution_refusal() {
 }
 
 #[test]
-fn generate_blocks_when_optional_project_context_path_is_malformed() {
+fn generate_refuses_when_required_project_context_path_is_malformed() {
     let dir = malformed_optional_project_context_repo();
 
     let output = run_in(dir.path(), &["generate"]);
@@ -7034,17 +7137,18 @@ fn generate_blocks_when_optional_project_context_path_is_malformed() {
     assert_first_three_lines(
         &stdout,
         [
-            "OUTCOME: BLOCKED",
+            "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `handbook setup refresh`",
+            "NEXT SAFE ACTION: run `handbook author project-context --from-inputs <path|->`",
         ],
     );
-    assert!(stdout.contains("CATEGORY: ArtifactReadError"));
+    assert!(stdout.contains("CATEGORY: RequiredArtifactInvalid"));
+    assert!(stdout.contains("non_regular_file_refused"));
     assert!(!stdout.contains("## PACKET BODY"));
 }
 
 #[test]
-fn inspect_blocks_when_optional_project_context_path_is_malformed() {
+fn inspect_refuses_when_required_project_context_path_is_malformed() {
     let dir = malformed_optional_project_context_repo();
 
     let output = run_in(dir.path(), &["inspect"]);
@@ -7054,12 +7158,13 @@ fn inspect_blocks_when_optional_project_context_path_is_malformed() {
     assert_first_three_lines(
         &stdout,
         [
-            "OUTCOME: BLOCKED",
+            "OUTCOME: REFUSED",
             "OBJECT: planning.packet",
-            "NEXT SAFE ACTION: run `handbook setup refresh`",
+            "NEXT SAFE ACTION: run `handbook author project-context --from-inputs <path|->`",
         ],
     );
-    assert!(stdout.contains("CATEGORY: ArtifactReadError"));
+    assert!(stdout.contains("CATEGORY: RequiredArtifactInvalid"));
+    assert!(stdout.contains("non_regular_file_refused"));
     assert!(stdout.contains("## JSON FALLBACK"));
     assert!(!stdout.contains("## PACKET BODY"));
 }

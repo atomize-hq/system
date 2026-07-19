@@ -82,12 +82,14 @@ impl ArtifactManifest {
 #[derive(Debug)]
 pub enum ManifestError {
     Ingest(ArtifactIngestError),
+    ProfileDecision(String),
 }
 
 impl std::fmt::Display for ManifestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ManifestError::Ingest(err) => write!(f, "{err}"),
+            ManifestError::ProfileDecision(err) => write!(f, "{err}"),
         }
     }
 }
@@ -96,6 +98,7 @@ impl std::error::Error for ManifestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ManifestError::Ingest(err) => Some(err),
+            ManifestError::ProfileDecision(_) => None,
         }
     }
 }

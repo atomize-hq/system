@@ -98,7 +98,25 @@ pub(crate) struct TrustedRepoFile {
     file: fs::File,
 }
 
+#[cfg(unix)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TrustedRepoFileIdentity {
+    device: u64,
+    inode: u64,
+}
+
 impl TrustedRepoFile {
+    #[cfg(unix)]
+    pub(crate) fn identity(&self) -> Result<TrustedRepoFileIdentity, std::io::Error> {
+        use std::os::unix::fs::MetadataExt;
+
+        let metadata = self.file.metadata()?;
+        Ok(TrustedRepoFileIdentity {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+        })
+    }
+
     pub(crate) fn read_bytes(&self) -> Result<Vec<u8>, std::io::Error> {
         let mut bytes = Vec::new();
         (&self.file).read_to_end(&mut bytes)?;

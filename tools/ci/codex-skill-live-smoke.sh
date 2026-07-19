@@ -96,7 +96,7 @@ assert_run_dir_file_set() {
   }
 }
 
-assert_baseline_complete() {
+assert_all_three_doctor_contract() {
   local doctor_json_path="$1"
 
   python3 - "$doctor_json_path" <<'PY'
@@ -105,12 +105,61 @@ import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     data = json.load(handle)
-if data.get("baseline_state") != "baseline_complete":
-    raise SystemExit(f"expected baseline_complete, got: {data.get('baseline_state')}")
-if data.get("status") != "baseline_complete":
-    raise SystemExit(f"expected complete status, got: {data.get('status')}")
-if data.get("blockers"):
-    raise SystemExit(f"expected no blockers, got: {data['blockers']}")
+if data.get("schema_id") != "handbook.repository-doctor-report":
+    raise SystemExit(f"unexpected Doctor schema: {data.get('schema_id')}")
+if data.get("schema_version") != "1.1.0":
+    raise SystemExit(f"unexpected Doctor schema version: {data.get('schema_version')}")
+if data.get("status") != "indeterminate":
+    raise SystemExit(f"expected indeterminate status, got: {data.get('status')}")
+project_context = data.get("project_context")
+if not project_context:
+    raise SystemExit("expected retained Project Context fingerprint row")
+if project_context.get("instance_id") != "project_context":
+    raise SystemExit(f"unexpected Project Context instance: {project_context.get('instance_id')}")
+if project_context.get("kind_ref") != "handbook.artifact-kind.project-context@1.0.0":
+    raise SystemExit(f"unexpected Project Context kind: {project_context.get('kind_ref')}")
+if project_context.get("canonical_path") != ".handbook/project/context.yaml":
+    raise SystemExit(f"unexpected Project Context path: {project_context.get('canonical_path')}")
+if not project_context.get("source_fingerprint", "").startswith("sha256:"):
+    raise SystemExit("expected Project Context source fingerprint")
+if not project_context.get("rendered_output_fingerprint", "").startswith("sha256:"):
+    raise SystemExit("expected Project Context rendered fingerprint")
+if project_context.get("rendered_media_type") != "text/markdown":
+    raise SystemExit("expected Project Context rendered media type")
+PY
+}
+
+assert_all_three_flow_contract() {
+  local inspect_output_path="$1"
+  local doctor_json_path="$2"
+
+  python3 - "$inspect_output_path" "$doctor_json_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    output = handle.read()
+with open(sys.argv[2], encoding="utf-8") as handle:
+    doctor = json.load(handle)
+
+project_context = doctor["project_context"]
+expected_fragments = (
+    "OUTCOME: READY",
+    "OBJECT: planning.packet",
+    "ProjectContext [.handbook/project/context.yaml]",
+    "### PROJECT_CONTEXT (.handbook/project/context.yaml)",
+    "MODE: rendered from selected canonical YAML",
+    f"SOURCE SHA256: {project_context['source_fingerprint']}",
+    f"RENDERED SHA256: {project_context['rendered_output_fingerprint']}",
+    "# Project Context",
+    "## Summary",
+    "CLI and compiler for canonical planning artifacts and workflow proofs\\.",
+)
+missing = [fragment for fragment in expected_fragments if fragment not in output]
+if missing:
+    raise SystemExit(f"installed flow output missing Project Context contract: {missing}")
+if ".handbook/project_context/PROJECT_CONTEXT.md" in output:
+    raise SystemExit("installed flow output selected the legacy Project Context path")
 PY
 }
 
@@ -304,6 +353,7 @@ run_leaf_skill() {
   local repo_root
   local run_dir
   local doctor_before_status
+  local setup_status
   local author_status
 
   LAST_RUN_DIR=""
@@ -322,10 +372,19 @@ run_leaf_skill() {
 
   doctor_before_status="$(capture_doctor_json "$repo_root" "$run_dir/doctor.before.json")"
   if [[ ! -d "$repo_root/.handbook" ]]; then
-    (
-      cd "$repo_root"
-      "$HANDBOOK_BINARY" setup >/dev/null
-    )
+    mkdir -p "$repo_root/.handbook/charter"
+    setup_status="$(
+      capture_in_repo \
+        "$repo_root" \
+        /dev/null \
+        /dev/null \
+        /dev/null \
+        "$HANDBOOK_BINARY" setup
+    )"
+    [[ "$setup_status" -eq 1 ]] || {
+      echo "expected setup indeterminate exit 1, got: $setup_status" >&2
+      return 1
+    }
     capture_doctor_json "$repo_root" "$run_dir/doctor.after_setup.json" >/dev/null
   fi
 
@@ -385,13 +444,26 @@ echo "==> all-three deterministic baseline smoke without Codex or credentials"
 all_three_repo="$tmp_root/all-three-repo"
 offline_path="$tmp_root/no-codex-path"
 all_three_doctor="$tmp_root/all-three-doctor.json"
+all_three_inspect="$tmp_root/all-three-inspect.txt"
 mkdir -p "$all_three_repo" "$offline_path"
 git -C "$all_three_repo" init -q
+mkdir -p "$all_three_repo/.handbook/charter"
+all_three_setup_status="$(
+  capture_in_repo \
+    "$all_three_repo" \
+    /dev/null \
+    /dev/null \
+    /dev/null \
+    env -u CODEX_API_KEY -u OPENAI_API_KEY \
+    PATH="$offline_path" \
+    "$HANDBOOK_BINARY" setup
+)"
+[[ "$all_three_setup_status" -eq 1 ]] || {
+  echo "expected all-three setup indeterminate exit 1, got: $all_three_setup_status"
+  exit 1
+}
 (
   cd "$all_three_repo"
-  env -u CODEX_API_KEY -u OPENAI_API_KEY \
-    PATH="$offline_path" \
-    "$HANDBOOK_BINARY" setup >/dev/null
   env -u CODEX_API_KEY -u OPENAI_API_KEY PATH="$offline_path" \
     "$HANDBOOK_BINARY" author charter --validate --from-inputs "$CHARTER_FIXTURE_INPUTS" >/dev/null
   env -u CODEX_API_KEY -u OPENAI_API_KEY PATH="$offline_path" \
@@ -406,21 +478,35 @@ git -C "$all_three_repo" init -q
     "$HANDBOOK_BINARY" author environment-inventory --validate --from-inputs "$ENVIRONMENT_INVENTORY_FIXTURE_INPUTS" >/dev/null
   env -u CODEX_API_KEY -u OPENAI_API_KEY PATH="$offline_path" \
     "$HANDBOOK_BINARY" author environment-inventory --from-inputs "$ENVIRONMENT_INVENTORY_FIXTURE_INPUTS" >/dev/null
-  env -u CODEX_API_KEY -u OPENAI_API_KEY PATH="$offline_path" \
-    "$HANDBOOK_BINARY" doctor --json >"$all_three_doctor"
 )
+all_three_doctor_status="$(capture_doctor_json "$all_three_repo" "$all_three_doctor")"
+[[ "$all_three_doctor_status" -eq 1 ]] || {
+  echo "expected all-three Doctor exit 1, got: $all_three_doctor_status"
+  exit 1
+}
 test -f "$all_three_repo/.handbook/charter/CHARTER.md"
-test -f "$all_three_repo/.handbook/project_context/PROJECT_CONTEXT.md"
+test -f "$all_three_repo/.handbook/project/context.yaml"
+test ! -e "$all_three_repo/.handbook/project_context/PROJECT_CONTEXT.md"
 test -f "$all_three_repo/.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
-assert_baseline_complete "$all_three_doctor"
+grep -F 'schema_id: "handbook.artifact.project-context"' \
+  "$all_three_repo/.handbook/project/context.yaml" >/dev/null
+grep -F '> **Project Context Ref:** `.handbook/project/context.yaml`' \
+  "$all_three_repo/.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md" >/dev/null
+assert_all_three_doctor_contract "$all_three_doctor"
+(
+  cd "$all_three_repo"
+  env -u CODEX_API_KEY -u OPENAI_API_KEY PATH="$offline_path" \
+    "$HANDBOOK_BINARY" inspect --packet planning.packet >"$all_three_inspect"
+)
+assert_all_three_flow_contract "$all_three_inspect" "$all_three_doctor"
 
 echo "==> existing charter refusal smoke"
 existing_repo="$tmp_root/existing-charter-repo"
 mkdir -p "$existing_repo"
 git -C "$existing_repo" init -q
+mkdir -p "$existing_repo/.handbook/charter"
 (
   cd "$existing_repo"
-  "$HANDBOOK_BINARY" setup >/dev/null
   "$HANDBOOK_BINARY" author charter --from-inputs "$CHARTER_FIXTURE_INPUTS" >/dev/null
 )
 before_existing_count="$(count_run_dirs)"

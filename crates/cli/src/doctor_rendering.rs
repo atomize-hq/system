@@ -26,6 +26,18 @@ pub(crate) fn render_text(report: &handbook_compiler::DoctorReport) -> String {
         )
         .expect("string write");
     }
+    if let Some(project_context) = &report.project_context {
+        writeln!(&mut output, "## PROJECT CONTEXT").expect("string write");
+        writeln!(
+            &mut output,
+            "PATH: {} SOURCE FINGERPRINT: {} RENDERED OUTPUT FINGERPRINT: {} MEDIA TYPE: {}",
+            project_context.canonical_path,
+            project_context.source_fingerprint,
+            project_context.rendered_output_fingerprint,
+            project_context.rendered_media_type,
+        )
+        .expect("string write");
+    }
     output
 }
 
@@ -82,6 +94,11 @@ fn inspection_reason_name(reason: handbook_engine::ArtifactInspectionReason) -> 
             "unsupported_platform_strict_read"
         }
         handbook_engine::ArtifactInspectionReason::RepositoryReadFailed => "repository_read_failed",
+        handbook_engine::ArtifactInspectionReason::TypedDecodeFailed => "typed_decode_failed",
+        handbook_engine::ArtifactInspectionReason::RenderedViewRefused => "rendered_view_refused",
+        handbook_engine::ArtifactInspectionReason::ObservationChangedDuringInspection => {
+            "observation_changed_during_inspection"
+        }
     }
 }
 
@@ -110,6 +127,7 @@ mod tests {
             conditions: vec![],
             capabilities: vec![],
             artifacts: vec![],
+            project_context: None,
             status: handbook_compiler::RepositoryReadinessStatus::Ready,
         };
 

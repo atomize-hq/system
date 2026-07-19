@@ -23,7 +23,7 @@ pub enum RefusalCategory {
 pub enum SubjectRef {
     CanonicalArtifact {
         kind: CanonicalArtifactKind,
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     InheritedDependency {
         dependency_id: String,
@@ -44,22 +44,22 @@ pub enum NextSafeAction {
     RunAuthorProjectContext,
     RunAuthorEnvironmentInventory,
     CreateSystemRoot {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     EnsureSystemRootIsDirectory {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     RemoveSystemRootSymlink {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     CreateCanonicalArtifact {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     FillCanonicalArtifact {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     ReduceCanonicalArtifactSize {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     RunGenerate {
         packet_id: &'static str,

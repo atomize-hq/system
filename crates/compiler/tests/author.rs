@@ -1,39 +1,40 @@
+#[cfg(unix)]
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::Path;
+#[cfg(unix)]
 use std::sync::{Mutex, OnceLock};
 
 use handbook_compiler::{
     author_charter, author_environment_inventory_from_input, author_project_context_from_input,
     parse_charter_structured_input_yaml, parse_environment_inventory_structured_input_yaml,
-    parse_project_context_structured_input_yaml, preflight_author_charter,
+    parse_project_context_input_yaml, preflight_author_charter,
     preflight_author_charter_from_input, preflight_author_environment_inventory,
-    preflight_author_environment_inventory_from_input, preflight_author_project_context,
-    render_charter_markdown, render_environment_inventory_markdown,
+    preflight_author_environment_inventory_from_input, render_charter_markdown,
     render_project_context_markdown, resolve_shipped_template_library, resolve_template_library,
     validate_charter_structured_input, validate_environment_inventory_markdown,
-    validate_environment_inventory_structured_input, validate_project_context_markdown,
-    validate_project_context_structured_input, AuthorCharterRefusalKind,
+    validate_project_context_input, AuthorCharterRefusalKind,
     AuthorEnvironmentInventoryRefusalKind, AuthorProjectContextRefusalKind, CanonicalArtifactKind,
-    CharterAudience, CharterBackwardCompatibility, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, CharterTemplateLibraryOverride,
-    EnvironmentInventoryStructuredInput, EnvironmentInventoryTemplateLibraryOverride,
-    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
-    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
-    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
-    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
-    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
-    TemplateLibraryAsset, TemplateLibraryOverrideRequest, TemplateLibraryRequest,
-    TemplateLibraryResolveErrorKind, TemplateLibraryResolveRequest, TemplateLibrarySelection,
+    CanonicalProjectContext, CharterAudience, CharterBackwardCompatibility,
+    CharterDebtTrackingInput, CharterDecisionRecordsInput, CharterDefaultImplicationsInput,
+    CharterDeprecationPolicy, CharterDimensionInput, CharterDimensionName, CharterDomainInput,
+    CharterExceptionsInput, CharterExpectedLifetime, CharterObservabilityThreshold,
+    CharterOperationalRealityInput, CharterPostureInput, CharterProjectClassification,
+    CharterProjectConstraintsInput, CharterProjectInput, CharterRequiredness,
+    CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput, CharterSurface,
+    CharterTemplateLibraryOverride, EnvironmentInventoryStructuredInput,
+    EnvironmentInventoryTemplateLibraryOverride, TemplateLibraryAsset,
+    TemplateLibraryOverrideRequest, TemplateLibraryRequest, TemplateLibraryResolveErrorKind,
+    TemplateLibraryResolveRequest, TemplateLibrarySelection,
     CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH, DEFAULT_EXCEPTION_RECORD_LOCATION,
+};
+#[cfg(unix)]
+use handbook_compiler::{
+    preflight_author_project_context, render_environment_inventory_markdown,
+    validate_environment_inventory_structured_input,
 };
 use handbook_engine::{canonical_artifact_descriptors, setup_starter_template_bytes};
 
-const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
+#[cfg(unix)]
 const AUTHOR_ENVIRONMENT_INVENTORY_NOW_UTC_ENV_VAR: &str =
     "HANDBOOK_AUTHOR_ENVIRONMENT_INVENTORY_NOW_UTC";
 
@@ -44,29 +45,13 @@ fn write_file(path: &Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+#[cfg(unix)]
 fn author_runtime_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
-    let _guard = author_runtime_lock().lock().expect("author runtime lock");
-    let previous = std::env::var_os(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR);
-    std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, value);
-
-    let result = catch_unwind(AssertUnwindSafe(action));
-
-    match previous {
-        Some(previous) => std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, previous),
-        None => std::env::remove_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR),
-    }
-
-    match result {
-        Ok(value) => value,
-        Err(payload) => resume_unwind(payload),
-    }
-}
-
+#[cfg(unix)]
 fn with_environment_inventory_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
     let _guard = author_runtime_lock().lock().expect("author runtime lock");
     let previous = std::env::var_os(AUTHOR_ENVIRONMENT_INVENTORY_NOW_UTC_ENV_VAR);
@@ -182,145 +167,38 @@ fn expected_charter_markdown() -> String {
     render_charter_markdown(&valid_input()).expect("render valid input")
 }
 
-fn valid_project_context_input() -> ProjectContextStructuredInput {
-    ProjectContextStructuredInput {
-        schema_version: "0.1.0".to_string(),
-        project_name: "Handbook".to_string(),
-        owner: "compiler-team".to_string(),
-        team: "Handbook".to_string(),
-        repo_or_project_ref: "handbook".to_string(),
-        charter_ref: ".handbook/charter/CHARTER.md".to_string(),
-        project_summary: ProjectContextSummaryInput {
-            what_this_project_is:
-                "CLI and compiler for canonical planning artifacts and workflow proofs".to_string(),
-            primary_surface: "CLI plus compiler library".to_string(),
-            primary_users: "internal operators and automation".to_string(),
-            key_workflows: vec![
-                "scaffold canonical .handbook state".to_string(),
-                "author baseline artifacts".to_string(),
-                "compile and inspect planning outputs".to_string(),
-            ],
-            non_goals: "End-user product delivery".to_string(),
-        },
-        operational_reality: ProjectContextOperationalRealityInput {
-            is_live_in_production_today: "no".to_string(),
-            users: "internal operators only".to_string(),
-            data_in_production: "none".to_string(),
-            uptime_expectations: "best effort during active development".to_string(),
-            incident_on_call_reality: "no formal on-call rotation today".to_string(),
-            primary_risk_flags_present:
-                "incorrect planning guidance and canonical write regressions".to_string(),
-        },
-        classification_implications: ProjectContextClassificationImplicationsInput {
-            project_type: "greenfield with an active brownfield codebase".to_string(),
-            backward_compatibility_required: "no".to_string(),
-            backward_compatibility_notes:
-                "no external customers depend on the current compiler API".to_string(),
-            migration_planning_required: "not applicable".to_string(),
-            migration_planning_notes: "no legacy production data to migrate".to_string(),
-            deprecation_policy_exists: "not yet".to_string(),
-            deprecation_policy_notes:
-                "internal interfaces can change with coordinated release notes".to_string(),
-            rollout_controls_required: "lightweight only".to_string(),
-            rollout_controls_notes: "feature branches and tests gate changes before merge"
-                .to_string(),
-        },
-        system_boundaries: ProjectContextSystemBoundariesInput {
-            owned_areas: vec![
-                "compiler and CLI crates in this repository".to_string(),
-                "canonical .handbook artifact formats and setup flow".to_string(),
-            ],
-            external_dependencies: vec![
-                "OpenAI Codex runtime used for charter synthesis".to_string(),
-                "local filesystem layout and git worktree state".to_string(),
-            ],
-        },
-        integrations: vec![
-            ProjectContextIntegrationInput {
-                name: "Codex exec".to_string(),
-                integration_type: "CLI runtime".to_string(),
-                contract_surface: "codex exec --output-last-message -".to_string(),
-                authentication_authorization:
-                    "inherits local operator credentials and API configuration".to_string(),
-                failure_mode_expectations:
-                    "auth or process failures must refuse without partial writes".to_string(),
-            },
-            ProjectContextIntegrationInput {
-                name: "Repo-local .handbook tree".to_string(),
-                integration_type: "filesystem".to_string(),
-                contract_surface: "canonical artifact paths under .handbook/**".to_string(),
-                authentication_authorization:
-                    "write guards reject symlinks and non-regular targets".to_string(),
-                failure_mode_expectations: "invalid paths block authoring until repaired"
-                    .to_string(),
-            },
-        ],
-        environments_and_delivery: ProjectContextEnvironmentsAndDeliveryInput {
-            environments_that_exist: "local development and CI".to_string(),
-            deployment_model: "cargo-driven local execution".to_string(),
-            ci_cd_reality: "basic CI with compiler and CLI test coverage".to_string(),
-            release_cadence: "repo-driven iterative releases".to_string(),
-            config_and_secrets: "standard local environment variables and git config".to_string(),
-            observability_stack: "test output and local command stderr".to_string(),
-        },
-        data_reality: ProjectContextDataRealityInput {
-            primary_data_stores: "repo-local markdown, yaml, and route-state files".to_string(),
-            data_classification: "source code and internal planning metadata".to_string(),
-            retention_requirements: "none beyond repository history".to_string(),
-            backups_disaster_recovery: "git history plus local worktree backups".to_string(),
-            existing_migrations_history: "none for production data".to_string(),
-        },
-        repo_codebase_reality: ProjectContextRepoCodebaseRealityInput {
-            codebase_exists_today: true,
-            current_maturity: "medium-sized active Rust workspace".to_string(),
-            key_modules_or_areas: vec![
-                "crates/compiler".to_string(),
-                "crates/cli".to_string(),
-                "core/library".to_string(),
-            ],
-            known_constraints_from_existing_code:
-                "lane ownership and canonical artifact ordering must be preserved".to_string(),
-        },
-        constraints: ProjectContextConstraintsInput {
-            deadline_time_constraints: "must fit the current milestone split".to_string(),
-            budget_constraints: "limited to local engineering time".to_string(),
-            must_use_or_prohibited_tech: "must stay in Rust and preserve existing canonical paths"
-                .to_string(),
-            compliance_legal_constraints: "none beyond repository policy".to_string(),
-            performance_constraints: "compiler authoring should stay fast and deterministic"
-                .to_string(),
-            security_constraints: "no writes outside canonical repo-owned targets".to_string(),
-        },
-        known_unknowns: vec![
-            ProjectContextKnownUnknownInput {
-                item: "final CLI interview wording for project-context authoring".to_string(),
-                owner: "Lane D".to_string(),
-                revisit_trigger: "when the CLI subcommand lands".to_string(),
-            },
-            ProjectContextKnownUnknownInput {
-                item: "doctor-side invalid baseline messaging for project context".to_string(),
-                owner: "Lane D".to_string(),
-                revisit_trigger: "when doctor baseline classification is wired".to_string(),
-            },
-        ],
+fn valid_project_context_input() -> CanonicalProjectContext {
+    CanonicalProjectContext {
+        schema_id: "handbook.artifact.project-context".to_owned(),
+        schema_version: "1.0".to_owned(),
+        record_id: "handbook.project-context".to_owned(),
+        summary: "Canonical planning context for Handbook".to_owned(),
+        system_boundaries: vec!["Compiler and CLI".to_owned()],
+        ownership: vec!["Handbook team".to_owned()],
+        authoritative_references: vec!["handbook.project-context@1.0.0".to_owned()],
+        known_unknowns: vec!["Future deployment topology".to_owned()],
     }
 }
 
+fn write_valid_selected_project_context(repo_root: &std::path::Path) {
+    let yaml = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &valid_project_context_input(),
+    )
+    .expect("serialize selected Project Context");
+    write_file(&repo_root.join(".handbook/project/context.yaml"), &yaml);
+}
+
 fn expected_project_context_markdown() -> String {
-    with_project_context_now_utc("2026-04-21T12:34:56Z", || {
+    String::from_utf8(
         render_project_context_markdown(&valid_project_context_input())
-            .expect("render valid project-context input")
-    })
+            .expect("render valid project-context input"),
+    )
+    .expect("UTF-8 Markdown")
 }
 
 fn legacy_placeholder_project_context_markdown() -> String {
-    expected_project_context_markdown()
-        .replace("> **Owner:** compiler-team", "> **Owner:** unknown-owner")
-        .replace("> **Team:** System", "> **Team:** project-team")
-        .replace(
-            "- **Is anything live in production today?** no",
-            "- **Is anything live in production today?** Unknown from local repo inspection; confirm before planning live changes.",
-        )
+    "legacy Project Context Markdown is not canonical YAML\n".to_owned()
 }
 
 fn valid_environment_inventory_input() -> EnvironmentInventoryStructuredInput {
@@ -332,7 +210,7 @@ owner: "compiler-team"
 team: "System"
 repo_or_project_ref: "handbook"
 charter_ref: ".handbook/charter/CHARTER.md"
-project_context_ref: null
+project_context_ref: ".handbook/project/context.yaml"
 environment_variables: []
 secret_handling:
   charter_posture: "never store real credentials in repository artifacts"
@@ -1024,9 +902,9 @@ fn starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring
 }
 
 #[test]
-fn parse_project_context_structured_input_refuses_on_malformed_yaml() {
-    let err = parse_project_context_structured_input_yaml("not: [valid")
-        .expect_err("malformed yaml should refuse");
+fn parse_project_context_input_refuses_on_malformed_yaml() {
+    let err =
+        parse_project_context_input_yaml("not: [valid").expect_err("malformed yaml should refuse");
     assert_eq!(
         err.kind,
         AuthorProjectContextRefusalKind::MalformedStructuredInput
@@ -1034,56 +912,60 @@ fn parse_project_context_structured_input_refuses_on_malformed_yaml() {
 }
 
 #[test]
-fn validate_project_context_structured_input_refuses_incomplete_fields() {
+fn validate_project_context_input_refuses_incomplete_fields() {
     let mut input = valid_project_context_input();
-    input.project_summary.key_workflows.clear();
-    input.known_unknowns[0].item = "tbd".to_string();
+    input.summary.clear();
 
-    let err = validate_project_context_structured_input(&input)
+    let err = validate_project_context_input(&input)
         .expect_err("incomplete project-context input should refuse");
 
     assert_eq!(
         err.kind,
         AuthorProjectContextRefusalKind::IncompleteStructuredInput
     );
-    assert!(err.summary.contains("project_summary.key_workflows"));
-    assert!(err.summary.contains("known_unknowns[0].item"));
+    assert!(err.summary.contains("failed selected-schema validation"));
 }
 
 #[test]
 fn render_project_context_markdown_includes_required_structure() {
     let markdown = expected_project_context_markdown();
 
-    assert!(markdown.starts_with("# Project Context — Handbook"));
-    assert!(markdown.contains("> **Created (UTC):** 2026-04-21T12:34:56Z"));
-    assert!(markdown.contains("## 3) System Boundaries (what we own vs integrate with)"));
-    assert!(markdown.contains("### What we own"));
-    assert!(markdown.contains("### What we do NOT own (but may depend on)"));
-    assert!(markdown.contains("## 10) Update Triggers"));
+    assert!(markdown.starts_with("# Project Context\n\n## Summary\n\n"));
+    assert!(markdown.contains("## System Boundaries"));
+    assert!(markdown.contains("## Authoritative References"));
+    assert!(!markdown.contains("Created (UTC)"));
 }
 
 #[test]
-fn validate_project_context_markdown_accepts_rendered_output() {
-    validate_project_context_markdown(&expected_project_context_markdown())
-        .expect("rendered project-context markdown should validate");
-}
-
-#[test]
-fn validate_project_context_markdown_refuses_known_placeholder_boilerplate() {
-    let err = validate_project_context_markdown(&legacy_placeholder_project_context_markdown())
-        .expect_err("legacy placeholder markdown should refuse");
-
-    assert!(err.summary.contains("known fabricated placeholder text"));
-}
-
-#[test]
-fn validate_project_context_markdown_refuses_missing_required_heading() {
-    let err = validate_project_context_markdown(
-        "# Project Context — Handbook\n\n> **File:** `PROJECT_CONTEXT.md`\n> **Created (UTC):** 2026-04-21T12:34:56Z\n> **Owner:** compiler-team\n> **Team:** Handbook\n> **Repo / Project:** handbook\n> **Charter Ref:** .handbook/charter/CHARTER.md\n",
+fn project_context_input_parser_accepts_closed_canonical_record() {
+    let yaml = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &valid_project_context_input(),
     )
-    .expect_err("missing sections should refuse");
+    .expect("closed YAML");
+    let parsed = parse_project_context_input_yaml(std::str::from_utf8(&yaml).unwrap())
+        .expect("canonical Project Context");
+    assert_eq!(parsed, valid_project_context_input());
+}
 
-    assert!(err.summary.contains("missing required heading"));
+#[test]
+fn project_context_input_parser_refuses_legacy_markdown() {
+    let err = parse_project_context_input_yaml(&legacy_placeholder_project_context_markdown())
+        .expect_err("legacy Markdown must refuse");
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::MalformedStructuredInput
+    );
+}
+
+#[test]
+fn project_context_input_parser_refuses_duplicate_keys() {
+    let yaml = "schema_id: handbook.artifact.project-context\nschema_id: handbook.artifact.project-context\n";
+    let err = parse_project_context_input_yaml(yaml).expect_err("duplicate key must refuse");
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::MalformedStructuredInput
+    );
 }
 
 #[test]
@@ -1092,90 +974,191 @@ fn author_project_context_refuses_when_system_root_missing() {
     let err = author_project_context_from_input(dir.path(), &valid_project_context_input())
         .expect_err("missing handbook root");
 
+    #[cfg(unix)]
     assert_eq!(err.kind, AuthorProjectContextRefusalKind::MissingSystemRoot);
-    assert_eq!(err.next_safe_action, "run `handbook setup`");
+    #[cfg(not(unix))]
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::UnsupportedPlatformStrictMutation
+    );
 }
 
+#[cfg(unix)]
 #[test]
 fn author_project_context_replaces_starter_template_and_writes_only_canonical_output() {
     let dir = tempfile::tempdir().expect("tempdir");
     legacy_authoring_fixture_repo(dir.path());
-    let expected_markdown = expected_project_context_markdown();
+    let legacy_path = dir
+        .path()
+        .join(".handbook/project_context/PROJECT_CONTEXT.md");
+    let legacy_before = std::fs::read(&legacy_path).expect("legacy Project Context starter");
+    let expected_yaml = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &valid_project_context_input(),
+    )
+    .expect("closed YAML");
 
-    let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
-        author_project_context_from_input(dir.path(), &valid_project_context_input())
-            .expect("author project context")
-    });
+    let result = author_project_context_from_input(dir.path(), &valid_project_context_input())
+        .expect("author project context");
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".handbook/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project/context.yaml"
     );
     assert_eq!(
-        std::fs::read_to_string(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
-        )
-        .expect("canonical project context"),
-        expected_markdown
+        std::fs::read(dir.path().join(".handbook/project/context.yaml"))
+            .expect("canonical project context"),
+        expected_yaml
     );
-    let mut entries = std::fs::read_dir(dir.path().join(".handbook/project_context"))
-        .expect("read project-context dir")
-        .map(|entry| {
-            entry
-                .expect("project-context dir entry")
-                .file_name()
-                .into_string()
-                .expect("utf8 project-context entry")
-        })
-        .collect::<Vec<_>>();
-    entries.sort();
-    assert_eq!(entries, vec!["PROJECT_CONTEXT.md"]);
-    assert!(!dir
-        .path()
-        .join("artifacts/project_context/PROJECT_CONTEXT.md")
-        .exists());
-    assert!(!dir.path().join("PROJECT_CONTEXT.md").exists());
+    assert_eq!(result.bytes_written, expected_yaml.len());
+    assert_eq!(
+        result.source_fingerprint,
+        handbook_engine::project_context_source_fingerprint(&expected_yaml)
+            .as_str()
+            .to_owned()
+    );
+    let rendered =
+        handbook_engine::render_project_context_markdown(&valid_project_context_input()).unwrap();
+    assert_eq!(
+        result.rendered_output_fingerprint,
+        handbook_engine::project_context_rendered_fingerprint(&rendered)
+            .as_str()
+            .to_owned()
+    );
+    assert_eq!(result.rendered_media_type, "text/markdown");
+    assert_eq!(
+        std::fs::read(&legacy_path).expect("legacy Project Context after authoring"),
+        legacy_before
+    );
 }
 
+#[cfg(unix)]
 #[test]
 fn author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     legacy_authoring_fixture_repo(dir.path());
-    write_file(
-        &dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        expected_project_context_markdown().as_bytes(),
-    );
+    let yaml = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &valid_project_context_input(),
+    )
+    .expect("closed YAML");
+    write_file(&dir.path().join(".handbook/project/context.yaml"), &yaml);
 
-    let err = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
-        author_project_context_from_input(dir.path(), &valid_project_context_input())
-            .expect_err("existing project context truth should refuse")
-    });
+    let err = author_project_context_from_input(dir.path(), &valid_project_context_input())
+        .expect_err("existing project context truth should refuse");
 
     assert_eq!(
         err.kind,
         AuthorProjectContextRefusalKind::ExistingCanonicalTruth
     );
     assert_eq!(
-        std::fs::read_to_string(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
-        )
-        .expect("existing project context"),
-        expected_project_context_markdown()
+        std::fs::read(dir.path().join(".handbook/project/context.yaml"))
+            .expect("existing project context"),
+        yaml
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn author_project_context_waits_for_lock_and_rechecks_existing_truth() {
+    use std::fs::OpenOptions;
+    use std::os::unix::io::AsRawFd;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    legacy_authoring_fixture_repo(dir.path());
+    let canonical = dir.path().join(".handbook/project/context.yaml");
+    assert!(!canonical.exists(), "selected truth must start absent");
+
+    let lock_path = dir
+        .path()
+        .join(".handbook/state/authoring/project_context.lock");
+    std::fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("mkdir lock parent");
+    let lock = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .expect("open authoring lock");
+    assert_eq!(
+        unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX) },
+        0,
+        "acquire authoring lock"
+    );
+
+    let (tx, rx) = mpsc::channel();
+    let repo_root = dir.path().to_path_buf();
+    thread::spawn(move || {
+        let outcome = author_project_context_from_input(&repo_root, &valid_project_context_input());
+        tx.send(outcome).expect("send authoring outcome");
+    });
+
+    match rx.recv_timeout(Duration::from_secs(2)) {
+        Err(mpsc::RecvTimeoutError::Timeout) => {}
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            panic!("authoring thread disconnected while its lock was held")
+        }
+        Ok(outcome) => panic!(
+            "authoring completed while its lock was held: {:?}",
+            outcome.map(|result| result.canonical_repo_relative_path)
+        ),
+    }
+    assert!(
+        !canonical.exists(),
+        "authoring must not mutate while its lock is held"
+    );
+
+    let mut existing_input = valid_project_context_input();
+    existing_input.summary = "Existing canonical truth must survive lock contention.".to_string();
+    let existing = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &existing_input,
+    )
+    .expect("closed YAML");
+    let candidate = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &valid_project_context_input(),
+    )
+    .expect("candidate YAML");
+    assert_ne!(
+        existing, candidate,
+        "installed truth must distinguish overwrite from preservation"
+    );
+    write_file(&canonical, &existing);
+    assert_eq!(
+        unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_UN) },
+        0,
+        "release authoring lock"
+    );
+
+    let err = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("authoring outcome after lock release")
+        .expect_err("under-lock preflight must refuse newly installed truth");
+    assert_eq!(
+        err.kind,
+        AuthorProjectContextRefusalKind::ExistingCanonicalTruth
+    );
+    assert_eq!(
+        std::fs::read(&canonical).expect("preserved existing truth"),
+        existing
+    );
+}
+
+#[cfg(unix)]
 #[test]
 fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
     legacy_authoring_fixture_repo(dir.path());
-    write_file(
-        &dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        expected_project_context_markdown().as_bytes(),
-    );
+    let yaml = handbook_engine::serialize_canonical_project_context(
+        &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+        &valid_project_context_input(),
+    )
+    .expect("closed YAML");
+    write_file(&dir.path().join(".handbook/project/context.yaml"), &yaml);
 
     let err = preflight_author_project_context(dir.path())
         .expect_err("existing project context truth should refuse during preflight");
@@ -1186,74 +1169,58 @@ fn preflight_author_project_context_refuses_when_non_starter_canonical_truth_exi
     );
     assert!(err
         .summary
-        .contains("canonical project context truth already exists"));
+        .contains("selected canonical Project Context truth already exists"));
 }
 
+#[cfg(unix)]
 #[test]
 fn author_project_context_repairs_semantically_invalid_canonical_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
     legacy_authoring_fixture_repo(dir.path());
     write_file(
-        &dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &dir.path().join(".handbook/project/context.yaml"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
 
-    let result = with_project_context_now_utc("2026-04-21T12:34:56Z", || {
-        author_project_context_from_input(dir.path(), &valid_project_context_input())
-            .expect("invalid project context should be repaired")
-    });
+    let result = author_project_context_from_input(dir.path(), &valid_project_context_input())
+        .expect("invalid project context should be repaired");
 
     assert_eq!(
         result.canonical_repo_relative_path,
-        ".handbook/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project/context.yaml"
     );
     assert_eq!(
-        std::fs::read_to_string(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
+        std::fs::read(dir.path().join(".handbook/project/context.yaml"))
+            .expect("repaired project context"),
+        handbook_engine::serialize_canonical_project_context(
+            &handbook_engine::resolve_shipped_profile_decisions(".").unwrap(),
+            &valid_project_context_input(),
         )
-        .expect("repaired project context"),
-        expected_project_context_markdown()
+        .unwrap()
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn preflight_author_project_context_routes_ingest_invalid_target_to_setup_refresh() {
     let dir = tempfile::tempdir().expect("tempdir");
     legacy_authoring_fixture_repo(dir.path());
-    std::fs::remove_file(
-        dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
-    )
-    .expect("remove project context");
-    std::fs::create_dir_all(
-        dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
-    )
-    .expect("project-context target directory");
+    std::fs::create_dir_all(dir.path().join(".handbook/project/context.yaml"))
+        .expect("project-context target directory");
 
     let err = preflight_author_project_context(dir.path())
         .expect_err("ingest-invalid project-context target should block authoring");
 
     assert_eq!(err.kind, AuthorProjectContextRefusalKind::MutationRefused);
-    assert_eq!(err.next_safe_action, "run `handbook setup refresh`");
-    assert!(err.summary.contains("handbook setup refresh"));
+    assert!(err.summary.contains("cannot be safely inspected"));
 }
 
 #[test]
-fn project_context_starter_template_fixture_remains_the_pre_write_state_for_scaffolded_authoring() {
+fn project_context_legacy_starter_is_not_selected_canonical_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
     legacy_authoring_fixture_repo(dir.path());
 
-    assert_eq!(
-        std::fs::read(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
-        )
-        .expect("starter project-context bytes"),
-        setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext)
-    );
+    assert!(!dir.path().join(".handbook/project/context.yaml").exists());
 }
 
 #[test]
@@ -1266,6 +1233,7 @@ fn parse_environment_inventory_inputs_maps_malformed_yaml_refusal() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn preflight_environment_inventory_from_input_is_non_mutating() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1274,6 +1242,7 @@ fn preflight_environment_inventory_from_input_is_non_mutating() {
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
+    write_valid_selected_project_context(dir.path());
     let canonical = dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH);
     let before = std::fs::read(&canonical).expect("starter inventory");
     let input = valid_environment_inventory_input();
@@ -1292,6 +1261,34 @@ fn preflight_environment_inventory_from_input_is_non_mutating() {
         .exists());
 }
 
+#[cfg(unix)]
+#[test]
+fn environment_inventory_preflight_ignores_retired_project_context_non_regular_sentinel() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    legacy_authoring_fixture_repo(dir.path());
+    let retired = dir
+        .path()
+        .join(".handbook/project_context/PROJECT_CONTEXT.md");
+    std::fs::remove_file(&retired).expect("remove retired starter");
+    std::fs::create_dir(&retired).expect("install non-regular retired sentinel");
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    write_valid_selected_project_context(dir.path());
+    let inventory = dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH);
+    let before = std::fs::read(&inventory).expect("inventory before preflight");
+
+    preflight_author_environment_inventory_from_input(
+        dir.path(),
+        &valid_environment_inventory_input(),
+    )
+    .expect("retired Project Context member is outside selected preflight reads");
+
+    assert_eq!(std::fs::read(&inventory).unwrap(), before);
+    assert!(retired.is_dir());
+}
+
 #[test]
 fn environment_inventory_input_refuses_missing_ref_when_project_context_exists() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1300,23 +1297,20 @@ fn environment_inventory_input_refuses_missing_ref_when_project_context_exists()
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
-    write_file(
-        &dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        expected_project_context_markdown().as_bytes(),
-    );
+    write_valid_selected_project_context(dir.path());
+    let mut input = valid_environment_inventory_input();
+    input.project_context_ref = None;
 
-    let err = preflight_author_environment_inventory_from_input(
-        dir.path(),
-        &valid_environment_inventory_input(),
-    )
-    .expect_err("project-context reference must match canonical truth");
+    let err = preflight_author_environment_inventory_from_input(dir.path(), &input)
+        .expect_err("project-context reference must match canonical truth");
 
     assert_eq!(
         err.kind,
         AuthorEnvironmentInventoryRefusalKind::IncompleteStructuredInput
     );
-    assert!(err.summary.contains("must set `project_context_ref`"));
+    assert!(err
+        .summary
+        .contains("project_context_ref must be exactly `.handbook/project/context.yaml`"));
 }
 
 #[test]
@@ -1339,9 +1333,10 @@ fn environment_inventory_input_refuses_ref_when_project_context_is_absent() {
     );
     assert!(err
         .summary
-        .contains("must set `project_context_ref` to null"));
+        .contains("project_context_ref must be exactly `.handbook/project/context.yaml`"));
 }
 
+#[cfg(unix)]
 #[test]
 fn author_environment_inventory_from_input_writes_deterministically_without_prompt_capture() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1350,6 +1345,7 @@ fn author_environment_inventory_from_input_writes_deterministically_without_prom
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
+    write_valid_selected_project_context(dir.path());
     let input = valid_environment_inventory_input();
     let expected = with_environment_inventory_now_utc("2026-07-10T12:34:56Z", || {
         render_environment_inventory_markdown(&input).expect("render expected inventory")
@@ -1371,6 +1367,7 @@ fn author_environment_inventory_from_input_writes_deterministically_without_prom
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn author_environment_inventory_from_input_repairs_semantically_invalid_truth() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1379,6 +1376,7 @@ fn author_environment_inventory_from_input_repairs_semantically_invalid_truth() 
         &dir.path().join(".handbook/charter/CHARTER.md"),
         valid_charter_markdown().as_bytes(),
     );
+    write_valid_selected_project_context(dir.path());
     write_file(
         &dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH),
         b"invalid environment inventory\n",
@@ -1526,6 +1524,7 @@ fn author_environment_inventory_refuses_when_upstream_charter_is_semantically_in
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn author_environment_inventory_refuses_when_optional_project_context_is_semantically_invalid() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1535,8 +1534,7 @@ fn author_environment_inventory_refuses_when_optional_project_context_is_semanti
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &dir.path().join(".handbook/project/context.yaml"),
         legacy_placeholder_project_context_markdown().as_bytes(),
     );
     let before = std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
@@ -1549,12 +1547,42 @@ fn author_environment_inventory_refuses_when_optional_project_context_is_semanti
         err.kind,
         AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
     );
-    assert!(err
-        .summary
-        .contains("canonical project context truth is invalid"));
+    assert_eq!(
+        err.summary,
+        "selected canonical Project Context is unavailable: DocumentNotObject"
+    );
+    assert_eq!(err.broken_subject, ".handbook/project/context.yaml");
     assert_eq!(
         std::fs::read(dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH))
             .expect("environment inventory after refusal"),
+        before
+    );
+}
+
+#[cfg(not(unix))]
+#[test]
+fn environment_inventory_author_refuses_before_mutation_without_strict_read_support() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    legacy_authoring_fixture_repo(dir.path());
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        valid_charter_markdown().as_bytes(),
+    );
+    let target = dir.path().join(CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH);
+    let before = std::fs::read(&target).expect("starter environment inventory bytes");
+
+    let err =
+        author_environment_inventory_from_input(dir.path(), &valid_environment_inventory_input())
+            .expect_err("strict selected Project Context read must refuse on this platform");
+
+    assert_eq!(
+        err.kind,
+        AuthorEnvironmentInventoryRefusalKind::InvalidUpstreamCanonicalTruth
+    );
+    assert_eq!(err.broken_subject, ".handbook/project/context.yaml");
+    assert!(err.summary.contains("UnsupportedPlatformStrictRead"));
+    assert_eq!(
+        std::fs::read(&target).expect("environment inventory after refusal"),
         before
     );
 }

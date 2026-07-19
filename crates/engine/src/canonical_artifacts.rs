@@ -3,6 +3,7 @@ use crate::canonical_paths::{
     CanonicalLayoutContract,
 };
 use crate::canonical_repo_support::{RepoRelativeFileAccessError, RepoRelativeMetadataReadError};
+use crate::project_context_artifact::SELECTED_PROJECT_CONTEXT_CANONICAL_PATH;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -182,7 +183,7 @@ pub enum ArtifactPresence {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalArtifactIdentity {
     pub kind: CanonicalArtifactKind,
-    pub relative_path: &'static str,
+    pub relative_path: String,
     pub packet_required: bool,
     pub baseline_required: bool,
     pub setup_scaffolded: bool,
@@ -213,9 +214,28 @@ impl CanonicalArtifacts {
         Self::load_with_contract(repo_root, *default_canonical_layout_contract())
     }
 
+    pub fn load_fixed_siblings(repo_root: impl AsRef<Path>) -> Result<Self, ArtifactIngestError> {
+        Self::load_fixed_siblings_with_contract(repo_root, *default_canonical_layout_contract())
+    }
+
     pub fn load_with_contract(
         repo_root: impl AsRef<Path>,
         contract: CanonicalLayoutContract,
+    ) -> Result<Self, ArtifactIngestError> {
+        Self::load_with_contract_selection(repo_root, contract, true)
+    }
+
+    pub fn load_fixed_siblings_with_contract(
+        repo_root: impl AsRef<Path>,
+        contract: CanonicalLayoutContract,
+    ) -> Result<Self, ArtifactIngestError> {
+        Self::load_with_contract_selection(repo_root, contract, false)
+    }
+
+    fn load_with_contract_selection(
+        repo_root: impl AsRef<Path>,
+        contract: CanonicalLayoutContract,
+        include_legacy_project_context: bool,
     ) -> Result<Self, ArtifactIngestError> {
         let repo_root = repo_root.as_ref();
         let layout = if contract == *default_canonical_layout_contract() {
@@ -232,7 +252,7 @@ impl CanonicalArtifacts {
                     SystemRootStatus::SymlinkNotAllowed
                 } else if !meta.is_dir() {
                     SystemRootStatus::NotDir
-                } else if canonical_root_scaffold_exists(layout)? {
+                } else if canonical_root_scaffold_exists(layout, include_legacy_project_context)? {
                     SystemRootStatus::Ok
                 } else {
                     SystemRootStatus::Missing
@@ -250,11 +270,15 @@ impl CanonicalArtifacts {
             match system_root_status {
                 SystemRootStatus::Ok => (
                     load_one(layout, CanonicalArtifactKind::Charter, &mut ingest_issues),
-                    load_one(
-                        layout,
-                        CanonicalArtifactKind::ProjectContext,
-                        &mut ingest_issues,
-                    ),
+                    if include_legacy_project_context {
+                        load_one(
+                            layout,
+                            CanonicalArtifactKind::ProjectContext,
+                            &mut ingest_issues,
+                        )
+                    } else {
+                        missing_one(layout, CanonicalArtifactKind::ProjectContext)
+                    },
                     load_one(
                         layout,
                         CanonicalArtifactKind::EnvironmentInventory,
@@ -298,9 +322,30 @@ impl CanonicalArtifacts {
 
 fn canonical_root_scaffold_exists(
     layout: CanonicalLayout<'_>,
+    include_legacy_project_context: bool,
 ) -> Result<bool, ArtifactIngestError> {
     let workspace = layout.workspace();
     for kind in CANONICAL_ARTIFACT_ORDER {
+        if kind == CanonicalArtifactKind::ProjectContext && !include_legacy_project_context {
+            let selected_namespace_path = Path::new(SELECTED_PROJECT_CONTEXT_CANONICAL_PATH)
+                .parent()
+                .expect("selected Project Context path has a namespace");
+            if selected_namespace_path.starts_with(Path::new(layout.system_root_relative())) {
+                let selected_namespace = workspace
+                    .normalize_repo_relative(
+                        selected_namespace_path
+                            .to_str()
+                            .expect("selected Project Context namespace is UTF-8"),
+                    )
+                    .expect("selected Project Context namespace stays repo-relative");
+                match workspace.metadata_no_follow(&selected_namespace) {
+                    Ok(Some(meta)) if meta.is_dir() => return Ok(true),
+                    Ok(Some(_)) | Ok(None) => {}
+                    Err(err) => return Err(artifact_ingest_read_failure(err)),
+                }
+            }
+            continue;
+        }
         let artifact_path = layout.artifact_path(kind);
         match workspace.metadata_no_follow(&artifact_path) {
             Ok(Some(_)) => return Ok(true),
@@ -395,7 +440,7 @@ pub enum ArtifactIngestIssueKind {
 pub struct ArtifactIngestIssue {
     pub kind: ArtifactIngestIssueKind,
     pub artifact_kind: CanonicalArtifactKind,
-    pub canonical_repo_relative_path: &'static str,
+    pub canonical_repo_relative_path: String,
     pub packet_required: bool,
 }
 
@@ -403,12 +448,12 @@ fn record_ingest_issue(
     issues: &mut Vec<ArtifactIngestIssue>,
     kind: ArtifactIngestIssueKind,
     artifact_kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
 ) {
     issues.push(ArtifactIngestIssue {
         kind,
         artifact_kind,
-        canonical_repo_relative_path,
+        canonical_repo_relative_path: canonical_repo_relative_path.to_owned(),
         packet_required: descriptor_for(artifact_kind).packet_required,
     });
 }
@@ -514,7 +559,7 @@ fn load_one(
     CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
             kind,
-            relative_path: descriptor.relative_path,
+            relative_path: descriptor.relative_path.to_owned(),
             packet_required: descriptor.packet_required,
             baseline_required: descriptor.baseline_required,
             setup_scaffolded: descriptor.setup_scaffolded,
@@ -532,7 +577,7 @@ fn missing_one(layout: CanonicalLayout<'_>, kind: CanonicalArtifactKind) -> Cano
     CanonicalArtifact {
         identity: CanonicalArtifactIdentity {
             kind,
-            relative_path: descriptor.relative_path,
+            relative_path: descriptor.relative_path.to_owned(),
             packet_required: descriptor.packet_required,
             baseline_required: descriptor.baseline_required,
             setup_scaffolded: descriptor.setup_scaffolded,

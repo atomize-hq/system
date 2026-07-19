@@ -5,7 +5,7 @@ pub mod environment_inventory;
 mod environment_inventory_core;
 mod environment_inventory_shell;
 pub mod project_context;
-mod project_context_core;
+#[cfg(unix)]
 mod project_context_shell;
 #[path = "../template_library.rs"]
 pub mod template_library;
@@ -37,17 +37,10 @@ pub use environment_inventory::{
     CANONICAL_ENVIRONMENT_INVENTORY_REPO_PATH,
 };
 pub use project_context::{
-    author_project_context, author_project_context_from_input,
-    parse_project_context_structured_input_yaml, preflight_author_project_context,
-    render_project_context_markdown, validate_project_context_markdown,
-    validate_project_context_structured_input, AuthorProjectContextRefusal,
-    AuthorProjectContextRefusalKind, AuthorProjectContextResult,
-    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
-    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
-    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
-    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
-    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
-    ProjectContextValidationError, CANONICAL_PROJECT_CONTEXT_REPO_PATH,
+    author_project_context, author_project_context_from_input, parse_project_context_input_yaml,
+    preflight_author_project_context, render_project_context_markdown,
+    validate_project_context_input, AuthorProjectContextRefusal, AuthorProjectContextRefusalKind,
+    AuthorProjectContextResult,
 };
 
 use crate::baseline_validation::{baseline_artifact_validation, BaselineArtifactVerdict};

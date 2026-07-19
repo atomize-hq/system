@@ -45,9 +45,9 @@ No lower proof level implies a higher one.
 
 ### `PR-002` — Structured baseline input parsing
 
-**Current evidence:** engine exposes typed YAML parse/validate models for Charter, Project Context, and Environment Inventory.
+**Current evidence:** HCM-2.1 makes the closed Project Context `1.0` YAML record selected canonical truth with schema-bound parsing and typed decode; Charter and Environment Inventory retain typed structured authoring inputs without canonical-YAML authority.
 
-**Classification:** `UsefulPrecursor`.
+**Classification:** `ContractCorrectAndProven` for the exact Project Context canonical-record pilot; `UsefulPrecursor` for the retained sibling input models.
 
 **Must preserve:** deterministic typed parsing/validation value, not Markdown authority.
 
@@ -55,9 +55,9 @@ No lower proof level implies a higher one.
 
 ### `PR-003` — Deterministic Markdown rendering
 
-**Current evidence:** engine exposes deterministic Markdown renderers for the three baseline authoring families.
+**Current evidence:** HCM-2.1 proves the Project Context renderer is a fixed, clock/environment/repository-free transform over only the typed canonical record, with literal boundary bytes and no persisted Markdown; sibling authoring renderers remain deterministic precursors.
 
-**Classification:** `UsefulPrecursor`.
+**Classification:** `ContractCorrectAndProven` for the exact Project Context renderer-derived view; `UsefulPrecursor` for sibling renderers.
 
 **Must preserve:** deterministic renderer-derived human-review views where still valuable.
 
@@ -65,9 +65,9 @@ No lower proof level implies a higher one.
 
 ### `PR-004` — Trusted repo-relative artifact access
 
-**Current evidence:** canonical loading/path contracts enforce bounded repo-relative access and reject unsafe states such as disallowed symlinks.
+**Current evidence:** canonical loading/path contracts enforce bounded repo-relative access and reject unsafe states such as disallowed symlinks. HCM-2.1 additionally loads selected Project Context through its descriptor-owned path with one retained no-follow observation and final identity/byte stability proof.
 
-**Classification:** `BoundaryLanded` for current fixed artifacts.
+**Classification:** `ContractCorrectAndProven` for the exact selected Project Context read boundary; `BoundaryLanded` for current fixed siblings.
 
 **Must preserve:** trusted path normalization and no-follow behavior when descriptors become dynamic.
 
@@ -127,14 +127,14 @@ No lower proof level implies a higher one.
 |---|---|---|
 | `PG-PROFILE-01` | selected profile resolves complete artifact/vocabulary/Resolution truth with deterministic fingerprint | open; HCM-1.4 proves deterministic selected-profile decision/readiness adoption in setup and doctor, while vocabulary/Resolution application, condition evaluation, and remaining consumers are open |
 | `PG-DEFAULT-01` | focused research plus a user brainstorming/decision session explicitly approve the shipped kind set, default instances, and requiredness; examples/current enums do not count | closed for the HCM-0.6 documentation decision by its exact approved record, final proof wall, clean independent review, and two-commit closeout; no runtime/profile publication proof |
-| `PG-KIND-01` | a versioned `ArtifactKindDefinition` resolves a safe canonical schema, validation, optional intake, lifecycle, and projections independently from repository instance state | open; HCM-1.1 proves kind/schema resolution and HCM-1.4 proves selected-instance structural inspection through the bound kind in setup/doctor, while semantic validation, intake, lifecycle, and Projection coverage remain open |
+| `PG-KIND-01` | a versioned `ArtifactKindDefinition` resolves a safe canonical schema, validation, optional intake, lifecycle, and projections independently from repository instance state | open; HCM-1.1 proves kind/schema resolution, HCM-1.4 proves selected-instance structural inspection through the bound kind in setup/doctor, and HCM-2.1 consumes the selected Project Context schema for canonical structural validation and deterministic rendering; semantic validation, intake, lifecycle, and Projection coverage remain open |
 | `PG-KIND-02` | repository-defined custom kind registers, passes meta-schema/structural validation, and exercises supplied intake coverage without a new Rust enum variant, executable hook, remote schema fetch, generated CLI command, or pre-Phase-3 generic projection engine | open; HCM-1.1 proves registration/local structural validation and HCM-1.4 proves custom-kind setup/doctor-compatible decision/inspection without enum or command changes, while supplied intake coverage remains open |
-| `PG-ARTIFACT-01` | a profile-selected `ArtifactInstanceDescriptor` binds a kind to path/label/requiredness/dependencies and participates in validation/doctor/flow | open; HCM-1.4 proves descriptor-owned path/role/requiredness/applicability/capability identity plus structural validation and doctor/setup participation, while flow and content-authority participation remain open |
+| `PG-ARTIFACT-01` | a profile-selected `ArtifactInstanceDescriptor` binds a kind to path/label/requiredness/dependencies and participates in validation/doctor/flow | open program-wide; HCM-1.4 proves descriptor-owned path/role/requiredness/applicability/capability identity plus structural validation and doctor/setup participation, and HCM-2.1 proves content-authority/author/doctor/flow participation for exact instance `project_context`; remaining families and generic participation remain open |
 | `PG-INTAKE-01` | guided-adaptive, express, and agent-assisted acquisition use one intake definition and produce the same candidate schema while exposing missing coverage | open |
 | `PG-INTAKE-02` | intake provenance distinguishes user declarations, evidenced inference, defaults, unknowns, contradictions, waivers, and approvals; normative fields cannot be silently inferred into authority | open |
 | `PG-CHARTER-01` | `CharterIntakeDefinition` covers approved questionnaire domains, promotes only an approved schema-valid candidate to canonical Charter YAML, and deterministically renders Markdown as a renderer-derived human-review view | open |
-| `PG-YAML-01` | one artifact family is canonically YAML, structurally validated, and deterministically rendered | open |
-| `PG-YAML-02` | no dual editable Markdown/YAML truth remains for converted families | open |
+| `PG-YAML-01` | one artifact family is canonically YAML, structurally validated, and deterministically rendered | closed for exact shipped instance `project_context` by HCM-2.1; no program-wide or sibling-family claim |
+| `PG-YAML-02` | no dual editable Markdown/YAML truth remains for converted families | open program-wide; HCM-2.1 proves no editable or selected legacy Project Context Markdown truth, while unconverted sibling and frozen pipeline surfaces remain |
 | `PG-VOCAB-01` | lexical and structural conflation render correctly without losing stable role resolution | open |
 | `PG-RES-01` | six-dimension envelope validates inheritance, authority, memory, and validation horizons | open |
 | `PG-PROJ-01` | same source truth yields multiple deterministic Resolution projections with provenance | open |
@@ -169,7 +169,7 @@ Temporary scaffolding may be introduced only when a row is added here first.
 | Bridge ID | Architectural purpose | Allowed lifetime | Deletion proof |
 |---|---|---|---|
 | `BR-SUB-CLI-01` | let Substrate consume the versioned Handbook JSON protocol before the permanent published-Rust boundary is available | may enter the normal path only in HCM-6.1 after `PG-JSON-01`; remains isolated and replaceable until HCM-6.3 | `PG-PUBLISH-01` and `PG-SUB-RUST-01` pass for the replacing exact API/seam; the normal Substrate path no longer spawns/parses the Handbook CLI; bridge-specific dependencies/config/tests are removed; standalone Handbook CLI remains unaffected |
-| `BR-HCM-2-PILOT-FLOW-01` | let the one-family HCM-2.1 flow cutover consume selected canonical Project Context YAML and its in-memory fixed renderer while unconverted Charter, Environment Inventory content authority, and Feature Spec sources remain on the frozen fixed family; Environment Inventory receives only the packet's selected-YAML reference cutover | may enter only after the exact HCM-2.1 packet receives immutable clean review, parent closeout, and separate selection; it may select only exact instance `project_context`, may not read or translate legacy Project Context Markdown, and survives no later than HCM-2.4 | all shipped families consumed by flow use profile-selected canonical structured truth; the mixed fixed/selected adapter, legacy Project Context output tag exception, and bridge-specific tests are removed; HCM-2.4 proof shows no fixed family/path selector or Project Context Markdown influence remains |
+| `BR-HCM-2-PILOT-FLOW-01` | let the one-family HCM-2.1 flow cutover consume selected canonical Project Context YAML and its in-memory fixed renderer while unconverted Charter, Environment Inventory content authority, and Feature Spec sources remain on the frozen fixed family; Environment Inventory receives only the packet's selected-YAML reference cutover | active only for exact selected instance `project_context`; it does not read or translate legacy Project Context Markdown and must be deleted no later than HCM-2.4 | all shipped families consumed by flow use profile-selected canonical structured truth; the mixed fixed/selected adapter, legacy Project Context output tag exception, and bridge-specific tests are removed; HCM-2.4 proof shows no fixed family/path selector or Project Context Markdown influence remains |
 
 There is no approved user migration tool, legacy importer, dual-read mode, or compatibility profile.
 
@@ -784,14 +784,16 @@ cleanup.
 
 ## HCM-2.1 Project Context canonical-YAML pilot proof gate
 
-The candidate planning-only packet at [`slices/HCM-2.1/`](slices/HCM-2.1/SPEC.md)
-freezes a proposed future implementation boundary. It grants no implementation
-authority unless an immutable fresh review returns `CLEAN` over the exact
-packet subject and the parent planning closeout records that result. The
-planning session itself changes no Rust, template, fixture, test, or runtime
-byte and cannot promote a seam. A later separately selected implementation may
-promote only the shipped `project_context` content-authority pilot and must
-prove:
+The completed packet at [`slices/HCM-2.1/`](slices/HCM-2.1/SPEC.md) lands only
+the shipped `project_context` content-authority pilot. Its immutable planning
+review, parent planning closeout, separate implementation selection, bounded
+review/remediation loop, [complete implementation proof wall](slices/HCM-2.1/proof/20260719T063046Z--implementation-proof-wall.md),
+[final-review lock-proof remediation](slices/HCM-2.1/proof/20260719T072749Z--final-review-1-remediation-proof-wall.md),
+[final-review ordering-proof remediation](slices/HCM-2.1/proof/20260719T075353Z--final-review-2-remediation-proof-wall.md),
+[final-review installed-flow remediation](slices/HCM-2.1/proof/20260719T083659Z--final-review-3-remediation-proof-wall.md),
+[final-review selected-root remediation](slices/HCM-2.1/proof/20260719T102236Z--final-review-4-remediation-proof-wall.md),
+and final fresh clean review are recorded under the slice proof directory and
+internal dispatch history. The implementation proves:
 
 - the selected source is exactly instance `project_context`, kind
   `handbook.artifact-kind.project-context@1.0.0`, schema
@@ -902,7 +904,7 @@ prove:
 - the literal HCM-1.2 29-member definition manifest remains exact in tree and
   engine package by path, size, SHA-256, and byte equality;
 - classifications promote only the exact Project Context pilot subset:
-  `PG-YAML-01` may close for one family, while `PG-ARTIFACT-01` and
+  `PG-YAML-01` is closed for one family, while `PG-ARTIFACT-01` and
   `PG-YAML-02` remain open program-wide for unconverted sibling/pipeline
   surfaces and `PG-KIND-01` remains open for semantic validation, intake,
   lifecycle, and Projection coverage;
@@ -914,13 +916,9 @@ prove:
   only by one separate parent-owned completed v1.2 handoff and deterministic
   ledger closeout commit. HCM-2.2 is not started.
 
-Planning-packet approval requires the exact `SPEC.md`, plan, todo, affected
-`00`/`04`/`06` rows, planning proof, and immutable dispatch to agree on the
-same schema/path/direct-cutover/bridge/classification ceiling; Markdown links,
-unchecked future tasks, docs-only scope, handoff validators, `git diff --check`,
-and staged GitNexus detection pass; and a fresh isolated built-in `default`
-reviewer returns `CLEAN` after any parent remediation and different-fresh
-re-review.
+The prerequisite planning approval is preserved by the immutable planning
+proof and dispatch history; it does not provide continuing authority beyond
+this completed bounded implementation. HCM-2.2 remains separately gated.
 
 ## Control-pack orchestration-repair proof gate
 

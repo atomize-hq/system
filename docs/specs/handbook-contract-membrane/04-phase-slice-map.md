@@ -9,14 +9,11 @@ reviewed planning slice. A Rust implementation slice is authorized only when
 its own `SPEC.md`, `tasks/plan.md`, and `tasks/todo.md` packet is present and
 review-clean.
 
-HCM-1.1 through HCM-1.4 have landed and closed through separately reviewed
-implementation and parent-handoff subjects. They are completed bounded
-dependency evidence, not continuing implementation authority. HCM-2.1 has a
-planning-only packet whose authority remains contingent on an immutable clean
-planning review and parent closeout; even then, implementation begins only in a
-separately selected top-level session. HCM-2.2 and every later slice remain
-unauthorized until their own packets are created, reviewed, and explicitly
-selected.
+HCM-1.1 through HCM-1.4 and HCM-2.1 have landed and closed through separately
+reviewed implementation and parent-handoff subjects. They are completed bounded
+evidence, not continuing implementation authority. HCM-2.2 and every later
+slice remain unauthorized until their own packets are created, reviewed, and
+explicitly selected.
 
 ## Sequencing rule
 
@@ -259,7 +256,7 @@ renderers/Projections, and HCM-2 remain open.
 
 ### `HCM-2.1` — Vertical pilot artifact
 
-Select one lower-risk artifact family after Phase 0 review. Project Context is the current leading implementation candidate because a structured input model and deterministic renderer already exist and HCM-0.6 includes its kind and one root instance; pilot selection does not amend the approved catalog, descriptor, or requiredness decisions.
+HCM-2.1 selects and lands Project Context as the one lower-risk vertical pilot. The cutover consumes the HCM-0.6 kind and root instance directly and does not amend the approved catalog, descriptor, or requiredness decisions.
 
 - canonical YAML load/validate/write;
 - renderer-derived Markdown human-review view produced by the existing fixed deterministic first-party renderer;
@@ -267,9 +264,9 @@ Select one lower-risk artifact family after Phase 0 review. Project Context is t
 - setup, authoring, doctor, and flow integration for the pilot;
 - direct cutover of tests and fixtures.
 
-The candidate planning-only implementation packet is
+The completed implementation packet is
 [`slices/HCM-2.1/`](slices/HCM-2.1/SPEC.md). It fixes the named Project Context
-candidate as the exact pilot and consumes the already admitted
+family as the exact pilot and consumes the already admitted
 `handbook.schemas.artifacts.project-context@1.0.0` schema plus the shipped
 `project_context` descriptor at `.handbook/project/context.yaml` without
 changing any definition byte. Authoring accepts that canonical record directly;
@@ -284,11 +281,10 @@ The fixed first-party Markdown renderer is an in-memory, clock-free human-
 review transformation. It writes no Markdown file and claims no Context
 Resolution or capitalized Projection provenance. The old rich Project Context
 input/timestamped Markdown model receives no mapper, importer, alias, or dual-
-read compatibility path. The packet becomes future implementation authority
-only after an immutable fresh review returns `CLEAN` over its exact bytes, the
-parent planning closeout records that result, and a separate explicit session
-selects it; this planning subject changes no Rust, runtime, template, test, or
-fixture byte and starts no HCM-2.2 work.
+read compatibility path. The immutable planning review, parent planning
+closeout, separate explicit implementation selection, bounded implementation
+review/remediation loop, native Windows proof, and final clean review gates are
+satisfied. The slice starts no HCM-2.2 work.
 
 The packet freezes one retained inspection observation for doctor, a closed
 YAML emitter and exhaustive Markdown transform with literal boundary goldens,

@@ -1,6 +1,6 @@
 use crate::budget::{
-    evaluate_budget, BudgetDisposition, BudgetOutcome, BudgetPolicy,
-    NextSafeAction as BudgetNextSafeAction,
+    evaluate_budget_with_effective_bytes, BudgetByteDomain, BudgetDisposition,
+    BudgetEffectiveBytes, BudgetOutcome, BudgetPolicy, NextSafeAction as BudgetNextSafeAction,
 };
 use crate::packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,
@@ -9,22 +9,172 @@ use crate::packet_result::{
 };
 use handbook_engine::{
     baseline_artifact_validation_for_path, default_canonical_layout_contract,
-    validate_charter_markdown, validate_environment_inventory_markdown,
-    validate_project_context_markdown, ArtifactIngestIssueKind, ArtifactManifest, ArtifactPresence,
-    BaselineArtifactValidation, BaselineArtifactVerdict, CanonicalArtifact, CanonicalArtifactKind,
-    CanonicalArtifacts, CanonicalLayoutContract, FreshnessIssueKind, FreshnessStatus,
-    ManifestError, ManifestInputs, SystemRootStatus,
+    load_selected_project_context, resolve_shipped_profile_decisions, validate_charter_markdown,
+    validate_environment_inventory_markdown, ArtifactIngestIssueKind, ArtifactInspectionReason,
+    ArtifactInspectionStatus, ArtifactManifest, ArtifactPresence, BaselineArtifactValidation,
+    BaselineArtifactVerdict, CanonicalArtifact, CanonicalArtifactIdentity, CanonicalArtifactKind,
+    CanonicalArtifacts, CanonicalLayoutContract, CanonicalProjectContextProjection,
+    FreshnessIssueKind, FreshnessStatus, ManifestError, ManifestInputs,
+    SelectedProjectContextLoadError, SystemRootStatus,
 };
 use std::cmp::Ordering;
 use std::path::Path;
 
-pub const C04_RESULT_VERSION: &str = "reduced-v1-m8.1";
+pub const C04_RESULT_VERSION: &str = "reduced-v1-m8.2";
+const PROJECT_CONTEXT_FLOW_BRIDGE_ID: &str = "BR-HCM-2-PILOT-FLOW-01";
+
+#[derive(Debug)]
+struct ProjectContextFlowBridge {
+    canonical_path: String,
+    projection: Option<CanonicalProjectContextProjection>,
+    failure: Option<SelectedProjectContextLoadError>,
+}
+
+impl ProjectContextFlowBridge {
+    fn load(repo_root: &Path) -> Result<Self, ManifestError> {
+        let decisions = resolve_shipped_profile_decisions(repo_root).map_err(|error| {
+            ManifestError::ProfileDecision(format!(
+                "failed to resolve shipped profile decisions for {PROJECT_CONTEXT_FLOW_BRIDGE_ID}: {error:?}"
+            ))
+        })?;
+        match load_selected_project_context(repo_root, &decisions) {
+            Ok(projection) => Ok(Self {
+                canonical_path: projection.canonical_path().to_owned(),
+                projection: Some(projection),
+                failure: None,
+            }),
+            Err(failure) => Ok(Self {
+                canonical_path: failure.canonical_path().to_owned(),
+                projection: None,
+                failure: Some(failure),
+            }),
+        }
+    }
+
+    fn canonical_artifact(&self) -> CanonicalArtifact {
+        let (presence, byte_len, content_sha256) = match self.projection.as_ref() {
+            Some(projection) => (
+                ArtifactPresence::PresentNonEmpty,
+                Some(projection.source_byte_length() as u64),
+                Some(fingerprint_hex(projection.source_fingerprint().as_str())),
+            ),
+            None => {
+                let presence = match self.failure.as_ref().map(|failure| failure.status()) {
+                    Some(ArtifactInspectionStatus::Missing) => ArtifactPresence::Missing,
+                    _ => ArtifactPresence::PresentNonEmpty,
+                };
+                (presence, None, None)
+            }
+        };
+
+        CanonicalArtifact {
+            identity: CanonicalArtifactIdentity {
+                kind: CanonicalArtifactKind::ProjectContext,
+                relative_path: self.canonical_path.clone(),
+                packet_required: true,
+                baseline_required: true,
+                setup_scaffolded: false,
+                presence,
+                byte_len,
+                content_sha256,
+                matches_setup_starter_template: false,
+            },
+            bytes: None,
+        }
+    }
+
+    fn projection_for_path(
+        &self,
+        canonical_repo_relative_path: &str,
+    ) -> Option<&CanonicalProjectContextProjection> {
+        if canonical_repo_relative_path != self.canonical_path {
+            return None;
+        }
+        self.projection.as_ref()
+    }
+
+    fn baseline_validation(&self) -> BaselineArtifactValidation {
+        let verdict = match self.projection.as_ref() {
+            Some(projection) => BaselineArtifactVerdict::ValidCanonicalTruth {
+                markdown: String::from_utf8(projection.rendered_bytes().to_vec())
+                    .expect("fixed Project Context renderer emits UTF-8"),
+            },
+            None => BaselineArtifactVerdict::SemanticallyInvalid {
+                summary: artifact_inspection_reason_name(
+                    self.failure
+                        .as_ref()
+                        .expect("failed bridge load retains the selected failure")
+                        .reason(),
+                )
+                .to_owned(),
+            },
+        };
+        BaselineArtifactValidation {
+            kind: CanonicalArtifactKind::ProjectContext,
+            canonical_repo_relative_path: self.canonical_path.clone(),
+            packet_required: true,
+            verdict,
+        }
+    }
+
+    fn budget_effective_bytes(&self) -> Vec<BudgetEffectiveBytes> {
+        self.projection
+            .as_ref()
+            .map(|projection| {
+                vec![BudgetEffectiveBytes {
+                    canonical_repo_relative_path: self.canonical_path.clone(),
+                    byte_len: projection.rendered_byte_length() as u64,
+                    byte_domain: BudgetByteDomain::RenderedOutput,
+                }]
+            })
+            .unwrap_or_default()
+    }
+}
+
+fn fingerprint_hex(fingerprint: &str) -> String {
+    fingerprint
+        .strip_prefix("sha256:")
+        .expect("definition fingerprints use the sha256 domain")
+        .to_owned()
+}
+
+fn artifact_inspection_reason_name(reason: ArtifactInspectionReason) -> &'static str {
+    match reason {
+        ArtifactInspectionReason::PresentAndStructurallyValid => "present_and_structurally_valid",
+        ArtifactInspectionReason::RequiredPathMissing => "required_path_missing",
+        ArtifactInspectionReason::OptionalPathMissing => "optional_path_missing",
+        ArtifactInspectionReason::ConditionalEvidenceUnavailablePathMissing => {
+            "conditional_evidence_unavailable_path_missing"
+        }
+        ArtifactInspectionReason::ConditionalEvidenceUnavailablePathPresent => {
+            "conditional_evidence_unavailable_path_present"
+        }
+        ArtifactInspectionReason::YamlSyntaxInvalid => "yaml_syntax_invalid",
+        ArtifactInspectionReason::DuplicateYamlKey => "duplicate_yaml_key",
+        ArtifactInspectionReason::DocumentNotObject => "document_not_object",
+        ArtifactInspectionReason::StructuralValidationFailed => "structural_validation_failed",
+        ArtifactInspectionReason::DocumentLimitExceeded => "document_limit_exceeded",
+        ArtifactInspectionReason::AggregateReadLimitExceeded => "aggregate_read_limit_exceeded",
+        ArtifactInspectionReason::SymlinkRefused => "symlink_refused",
+        ArtifactInspectionReason::NonRegularFileRefused => "non_regular_file_refused",
+        ArtifactInspectionReason::UnsafeRepositoryPath => "unsafe_repository_path",
+        ArtifactInspectionReason::UnsupportedPlatformStrictRead => {
+            "unsupported_platform_strict_read"
+        }
+        ArtifactInspectionReason::RepositoryReadFailed => "repository_read_failed",
+        ArtifactInspectionReason::TypedDecodeFailed => "typed_decode_failed",
+        ArtifactInspectionReason::RenderedViewRefused => "rendered_view_refused",
+        ArtifactInspectionReason::ObservationChangedDuringInspection => {
+            "observation_changed_during_inspection"
+        }
+    }
+}
 
 fn validate_artifact_markdown(kind: CanonicalArtifactKind, markdown: &str) -> Result<(), String> {
     match kind {
         CanonicalArtifactKind::Charter => validate_charter_markdown(markdown),
         CanonicalArtifactKind::ProjectContext => {
-            validate_project_context_markdown(markdown).map_err(|err| err.to_string())
+            Err("selected Project Context validation is owned by BR-HCM-2-PILOT-FLOW-01".to_owned())
         }
         CanonicalArtifactKind::EnvironmentInventory => {
             validate_environment_inventory_markdown(markdown)
@@ -37,11 +187,25 @@ fn validate_artifact_markdown(kind: CanonicalArtifactKind, markdown: &str) -> Re
 
 fn baseline_artifact_validations(
     artifacts: &CanonicalArtifacts,
+    project_context_bridge: &ProjectContextFlowBridge,
 ) -> Vec<BaselineArtifactValidation> {
-    handbook_engine::baseline_validation::baseline_artifact_validations(
+    let mut validations = Vec::new();
+    if let Some(validation) = handbook_engine::baseline_validation::baseline_artifact_validation(
         artifacts,
+        CanonicalArtifactKind::Charter,
         validate_artifact_markdown,
-    )
+    ) {
+        validations.push(validation);
+    }
+    validations.push(project_context_bridge.baseline_validation());
+    if let Some(validation) = handbook_engine::baseline_validation::baseline_artifact_validation(
+        artifacts,
+        CanonicalArtifactKind::EnvironmentInventory,
+        validate_artifact_markdown,
+    ) {
+        validations.push(validation);
+    }
+    validations
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,7 +228,7 @@ pub enum ResolverRefusalCategory {
 pub enum ResolverSubjectRef {
     CanonicalArtifact {
         kind: CanonicalArtifactKind,
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     InheritedDependency {
         dependency_id: String,
@@ -84,22 +248,22 @@ pub enum ResolverNextSafeAction {
     RunAuthorProjectContext,
     RunAuthorEnvironmentInventory,
     CreateSystemRoot {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     EnsureSystemRootIsDirectory {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     RemoveSystemRootSymlink {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     CreateCanonicalArtifact {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     FillCanonicalArtifact {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     ReduceCanonicalArtifactSize {
-        canonical_repo_relative_path: &'static str,
+        canonical_repo_relative_path: String,
     },
     RunGenerate {
         packet_id: &'static str,
@@ -156,7 +320,7 @@ fn blocker_category_priority(category: ResolverBlockerCategory) -> u8 {
 
 fn author_or_fill_next_safe_action(
     kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
 ) -> ResolverNextSafeAction {
     match kind {
         CanonicalArtifactKind::Charter => ResolverNextSafeAction::RunAuthorCharter,
@@ -165,7 +329,7 @@ fn author_or_fill_next_safe_action(
             ResolverNextSafeAction::RunAuthorEnvironmentInventory
         }
         CanonicalArtifactKind::FeatureSpec => ResolverNextSafeAction::FillCanonicalArtifact {
-            canonical_repo_relative_path,
+            canonical_repo_relative_path: canonical_repo_relative_path.to_owned(),
         },
     }
 }
@@ -174,14 +338,14 @@ fn required_artifact_blocker(
     category: ResolverBlockerCategory,
     summary: String,
     kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
     next_safe_action: ResolverNextSafeAction,
 ) -> ResolverBlocker {
     ResolverBlocker {
         category,
         subject: ResolverSubjectRef::CanonicalArtifact {
             kind,
-            canonical_repo_relative_path,
+            canonical_repo_relative_path: canonical_repo_relative_path.to_owned(),
         },
         summary,
         next_safe_action,
@@ -190,7 +354,7 @@ fn required_artifact_blocker(
 
 fn ingest_issue_for_path(
     manifest: &ArtifactManifest,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
 ) -> Option<ArtifactIngestIssueKind> {
     manifest
         .ingest_issues
@@ -225,7 +389,7 @@ fn build_baseline_blockers(
             category: ResolverBlockerCategory::ArtifactReadError,
             subject: ResolverSubjectRef::CanonicalArtifact {
                 kind: issue.artifact_kind,
-                canonical_repo_relative_path: issue.canonical_repo_relative_path,
+                canonical_repo_relative_path: issue.canonical_repo_relative_path.clone(),
             },
             summary: match issue.kind {
                 ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed => {
@@ -288,17 +452,17 @@ fn push_baseline_truth_blockers(
                 ResolverBlockerCategory::RequiredArtifactMissing,
                 "missing required canonical artifact".to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 ResolverNextSafeAction::RunSetupRefresh,
             )),
             BaselineArtifactVerdict::Empty => Some(required_artifact_blocker(
                 ResolverBlockerCategory::RequiredArtifactEmpty,
                 "required canonical artifact is empty".to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 author_or_fill_next_safe_action(
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                 ),
             )),
             BaselineArtifactVerdict::StarterOwned => Some(required_artifact_blocker(
@@ -306,10 +470,10 @@ fn push_baseline_truth_blockers(
                 "required canonical artifact still contains the shipped starter template"
                     .to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 author_or_fill_next_safe_action(
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                 ),
             )),
             BaselineArtifactVerdict::SemanticallyInvalid { summary } => {
@@ -317,10 +481,10 @@ fn push_baseline_truth_blockers(
                     ResolverBlockerCategory::RequiredArtifactInvalid,
                     format!("required canonical artifact is invalid: {summary}"),
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                     author_or_fill_next_safe_action(
                         validation.kind,
-                        validation.canonical_repo_relative_path,
+                        validation.canonical_repo_relative_path.as_str(),
                     ),
                 ))
             }
@@ -470,12 +634,16 @@ pub fn resolve_with_contract(
     contract: CanonicalLayoutContract,
 ) -> Result<ResolverResult, ManifestError> {
     let repo_root = repo_root.as_ref();
-    let canonical_artifacts = CanonicalArtifacts::load_with_contract(repo_root, contract)
-        .map_err(ManifestError::Ingest)?;
+    let mut canonical_artifacts =
+        CanonicalArtifacts::load_fixed_siblings_with_contract(repo_root, contract)
+            .map_err(ManifestError::Ingest)?;
+    let project_context_bridge = ProjectContextFlowBridge::load(repo_root)?;
+    canonical_artifacts.project_context = project_context_bridge.canonical_artifact();
 
     let manifest =
         ArtifactManifest::from_canonical_artifacts(&canonical_artifacts, ManifestInputs::default());
-    let baseline_validations = baseline_artifact_validations(&canonical_artifacts);
+    let baseline_validations =
+        baseline_artifact_validations(&canonical_artifacts, &project_context_bridge);
 
     let mut decision_log_entries = Vec::new();
 
@@ -501,6 +669,15 @@ pub fn resolve_with_contract(
             artifact.content_sha256.as_deref(),
             artifact.relative_path
         ));
+        if let Some(projection) =
+            project_context_bridge.projection_for_path(artifact.relative_path.as_str())
+        {
+            decision_log_entries.push(format!(
+                "hcm2.project_context rendered_byte_len={} rendered_sha256={} media_type=text/markdown",
+                projection.rendered_byte_length(),
+                projection.rendered_output_fingerprint().as_str()
+            ));
+        }
     }
 
     for issue in &manifest.ingest_issues {
@@ -532,12 +709,18 @@ pub fn resolve_with_contract(
         ));
     }
 
-    let budget_outcome = evaluate_budget(&manifest.artifacts, request.budget_policy);
+    let budget_effective_bytes = project_context_bridge.budget_effective_bytes();
+    let budget_outcome = evaluate_budget_with_effective_bytes(
+        &manifest.artifacts,
+        &budget_effective_bytes,
+        request.budget_policy,
+    );
     let packet_artifact_plans = packet_artifact_plans_for(
         &manifest,
         &canonical_artifacts,
         &baseline_validations,
         &budget_outcome,
+        &project_context_bridge,
     );
     decision_log_entries.push(format!(
         "budget disposition={:?} reason={:?} targets={} next_safe_action={}",
@@ -613,6 +796,7 @@ pub fn resolve_with_contract(
         refusal: refusal.as_ref(),
         blockers: &blockers,
         decision_log_entries: decision_log_entries.len(),
+        project_context_bridge: &project_context_bridge,
     });
 
     Ok(ResolverResult {
@@ -645,6 +829,7 @@ struct BuildPacketResultInput<'a> {
     refusal: Option<&'a ResolverRefusal>,
     blockers: &'a [ResolverBlocker],
     decision_log_entries: usize,
+    project_context_bridge: &'a ProjectContextFlowBridge,
 }
 
 fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
@@ -661,6 +846,7 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
         refusal,
         blockers,
         decision_log_entries,
+        project_context_bridge,
     } = input;
 
     let variant = packet_variant_for(request.packet_id);
@@ -685,6 +871,7 @@ fn build_packet_result(input: BuildPacketResultInput<'_>) -> PacketResult {
         artifacts,
         baseline_validations,
         contract,
+        project_context_bridge,
     );
 
     let summary_line = if selection_status == PacketSelectionStatus::Selected {
@@ -769,6 +956,7 @@ struct PacketArtifactPlan<'a> {
     artifact: &'a CanonicalArtifact,
     title: &'static str,
     disposition: PacketArtifactDisposition,
+    project_context_projection: Option<&'a CanonicalProjectContextProjection>,
 }
 
 fn packet_artifact_plans_for<'a>(
@@ -776,6 +964,7 @@ fn packet_artifact_plans_for<'a>(
     artifacts: &'a CanonicalArtifacts,
     baseline_validations: &[BaselineArtifactValidation],
     budget_outcome: &BudgetOutcome,
+    project_context_bridge: &'a ProjectContextFlowBridge,
 ) -> Vec<PacketArtifactPlan<'a>> {
     [
         (&artifacts.charter, "CHARTER"),
@@ -793,6 +982,8 @@ fn packet_artifact_plans_for<'a>(
             artifact,
             budget_outcome,
         ),
+        project_context_projection: project_context_bridge
+            .projection_for_path(artifact.identity.relative_path.as_str()),
     })
     .collect()
 }
@@ -803,9 +994,10 @@ fn packet_artifact_disposition_for(
     artifact: &CanonicalArtifact,
     budget_outcome: &BudgetOutcome,
 ) -> PacketArtifactDisposition {
-    if let Some(validation) =
-        baseline_artifact_validation_for_path(baseline_validations, artifact.identity.relative_path)
-    {
+    if let Some(validation) = baseline_artifact_validation_for_path(
+        baseline_validations,
+        artifact.identity.relative_path.as_str(),
+    ) {
         match &validation.verdict {
             BaselineArtifactVerdict::IngestInvalid => {
                 return PacketArtifactDisposition::BlockedIngest;
@@ -820,7 +1012,7 @@ fn packet_artifact_disposition_for(
         }
     }
 
-    if ingest_issue_for_path(manifest, artifact.identity.relative_path).is_some() {
+    if ingest_issue_for_path(manifest, artifact.identity.relative_path.as_str()).is_some() {
         return PacketArtifactDisposition::BlockedIngest;
     }
 
@@ -831,9 +1023,12 @@ fn packet_artifact_disposition_for(
             PacketArtifactDisposition::OmittedStarterTemplate
         }
         ArtifactPresence::PresentNonEmpty => {
-            if should_exclude_artifact(artifact.identity.relative_path, budget_outcome) {
+            if should_exclude_artifact(artifact.identity.relative_path.as_str(), budget_outcome) {
                 PacketArtifactDisposition::ExcludedDueToBudget
-            } else if should_summarize_artifact(artifact.identity.relative_path, budget_outcome) {
+            } else if should_summarize_artifact(
+                artifact.identity.relative_path.as_str(),
+                budget_outcome,
+            ) {
                 PacketArtifactDisposition::IncludedSummary
             } else {
                 PacketArtifactDisposition::IncludedVerbatim
@@ -854,13 +1049,19 @@ fn included_sources_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSourceSum
                 return None;
             }
 
+            let projection = plan.project_context_projection;
             Some(PacketSourceSummary {
                 kind: plan.artifact.identity.kind,
-                canonical_repo_relative_path: plan.artifact.identity.relative_path,
+                canonical_repo_relative_path: plan.artifact.identity.relative_path.clone(),
                 required: plan.artifact.identity.packet_required,
                 presence: plan.artifact.identity.presence,
                 byte_len: plan.artifact.identity.byte_len,
                 content_sha256: plan.artifact.identity.content_sha256.clone(),
+                rendered_output_byte_len: projection
+                    .map(|projection| projection.rendered_byte_length() as u64),
+                rendered_output_sha256: projection
+                    .map(|projection| projection.rendered_output_fingerprint().as_str().to_owned()),
+                rendered_media_type: projection.map(|_| "text/markdown".to_owned()),
             })
         })
         .collect()
@@ -869,6 +1070,7 @@ fn included_sources_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSourceSum
 fn present_fixture_sources_for(
     artifacts: &CanonicalArtifacts,
     baseline_validations: &[BaselineArtifactValidation],
+    project_context_bridge: &ProjectContextFlowBridge,
 ) -> Vec<PacketSourceSummary> {
     [
         &artifacts.charter.identity,
@@ -878,9 +1080,10 @@ fn present_fixture_sources_for(
     ]
     .into_iter()
     .filter_map(|identity| {
-        if let Some(validation) =
-            baseline_artifact_validation_for_path(baseline_validations, identity.relative_path)
-        {
+        if let Some(validation) = baseline_artifact_validation_for_path(
+            baseline_validations,
+            identity.relative_path.as_str(),
+        ) {
             if matches!(
                 validation.verdict,
                 BaselineArtifactVerdict::IngestInvalid
@@ -901,13 +1104,20 @@ fn present_fixture_sources_for(
             ArtifactPresence::PresentEmpty | ArtifactPresence::PresentNonEmpty => {}
         }
 
+        let projection =
+            project_context_bridge.projection_for_path(identity.relative_path.as_str());
         Some(PacketSourceSummary {
             kind: identity.kind,
-            canonical_repo_relative_path: identity.relative_path,
+            canonical_repo_relative_path: identity.relative_path.clone(),
             required: identity.packet_required,
             presence: identity.presence,
             byte_len: identity.byte_len,
             content_sha256: identity.content_sha256.clone(),
+            rendered_output_byte_len: projection
+                .map(|projection| projection.rendered_byte_length() as u64),
+            rendered_output_sha256: projection
+                .map(|projection| projection.rendered_output_fingerprint().as_str().to_owned()),
+            rendered_media_type: projection.map(|_| "text/markdown".to_owned()),
         })
     })
     .collect()
@@ -920,7 +1130,7 @@ fn packet_notes_for(
     packet_body_ready: bool,
 ) -> Vec<PacketBodyNote> {
     let mut notes = Vec::new();
-    push_packet_artifact_notes(&mut notes, plans);
+    push_packet_artifact_notes(&mut notes, plans, budget_outcome);
 
     if !packet_body_ready {
         notes.push(PacketBodyNote {
@@ -943,7 +1153,11 @@ fn packet_notes_for(
     notes
 }
 
-fn push_packet_artifact_notes(notes: &mut Vec<PacketBodyNote>, plans: &[PacketArtifactPlan<'_>]) {
+fn push_packet_artifact_notes(
+    notes: &mut Vec<PacketBodyNote>,
+    plans: &[PacketArtifactPlan<'_>],
+    budget_outcome: &BudgetOutcome,
+) {
     for plan in plans {
         if plan.artifact.identity.packet_required {
             continue;
@@ -967,12 +1181,20 @@ fn push_packet_artifact_notes(notes: &mut Vec<PacketBodyNote>, plans: &[PacketAr
                 plan.artifact.identity.relative_path
             )),
             PacketArtifactDisposition::IncludedSummary => Some(format!(
-                "optional source summarized due to budget: {}",
-                plan.artifact.identity.relative_path
+                "optional source summarized due to budget: {}{}",
+                plan.artifact.identity.relative_path,
+                budget_target_note_suffix(
+                    plan.artifact.identity.relative_path.as_str(),
+                    budget_outcome,
+                )
             )),
             PacketArtifactDisposition::ExcludedDueToBudget => Some(format!(
-                "optional source excluded due to budget: {}",
-                plan.artifact.identity.relative_path
+                "optional source excluded due to budget: {}{}",
+                plan.artifact.identity.relative_path,
+                budget_target_note_suffix(
+                    plan.artifact.identity.relative_path.as_str(),
+                    budget_outcome,
+                )
             )),
             PacketArtifactDisposition::BlockedIngest
             | PacketArtifactDisposition::IncludedVerbatim => None,
@@ -990,38 +1212,77 @@ fn push_packet_artifact_notes(notes: &mut Vec<PacketBodyNote>, plans: &[PacketAr
     }
 }
 
+fn budget_target_note_suffix(path: &str, budget_outcome: &BudgetOutcome) -> String {
+    budget_outcome
+        .targets
+        .iter()
+        .find(|target| target.canonical_repo_relative_path == path)
+        .map(|target| {
+            let domain = match target.byte_domain {
+                BudgetByteDomain::Source => "source",
+                BudgetByteDomain::RenderedOutput => "rendered_output",
+            };
+            format!(" ({} bytes [{domain}])", target.byte_len)
+        })
+        .unwrap_or_default()
+}
+
 fn packet_sections_for(plans: &[PacketArtifactPlan<'_>]) -> Vec<PacketSection> {
     plans
         .iter()
         .filter_map(|plan| {
-            let (mode, contents) = match plan.disposition {
-                PacketArtifactDisposition::IncludedVerbatim => {
-                    let contents = plan
-                        .artifact
-                        .bytes
-                        .as_ref()
-                        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
-                        .unwrap_or_default();
-                    (PacketSectionMode::Verbatim, contents)
+            let (mode, contents) = if let Some(projection) = plan.project_context_projection {
+                (
+                    PacketSectionMode::Rendered,
+                    String::from_utf8(projection.rendered_bytes().to_vec())
+                        .expect("fixed Project Context renderer emits UTF-8"),
+                )
+            } else {
+                match plan.disposition {
+                    PacketArtifactDisposition::IncludedVerbatim => {
+                        let contents = plan
+                            .artifact
+                            .bytes
+                            .as_ref()
+                            .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+                            .unwrap_or_default();
+                        (PacketSectionMode::Verbatim, contents)
+                    }
+                    PacketArtifactDisposition::IncludedSummary => (
+                        PacketSectionMode::Summary,
+                        summarize_artifact(plan.artifact),
+                    ),
+                    PacketArtifactDisposition::BlockedIngest
+                    | PacketArtifactDisposition::OmittedMissing
+                    | PacketArtifactDisposition::OmittedEmpty
+                    | PacketArtifactDisposition::OmittedStarterTemplate
+                    | PacketArtifactDisposition::OmittedInvalid
+                    | PacketArtifactDisposition::ExcludedDueToBudget => return None,
                 }
-                PacketArtifactDisposition::IncludedSummary => (
-                    PacketSectionMode::Summary,
-                    summarize_artifact(plan.artifact),
-                ),
-                PacketArtifactDisposition::BlockedIngest
-                | PacketArtifactDisposition::OmittedMissing
-                | PacketArtifactDisposition::OmittedEmpty
-                | PacketArtifactDisposition::OmittedStarterTemplate
-                | PacketArtifactDisposition::OmittedInvalid
-                | PacketArtifactDisposition::ExcludedDueToBudget => return None,
             };
+
+            let source_content_sha256 = plan
+                .project_context_projection
+                .map(|projection| projection.source_fingerprint().as_str().to_owned())
+                .or_else(|| {
+                    plan.artifact
+                        .identity
+                        .content_sha256
+                        .as_ref()
+                        .map(|hash| format!("sha256:{hash}"))
+                });
+            let rendered_output_sha256 = plan
+                .project_context_projection
+                .map(|projection| projection.rendered_output_fingerprint().as_str().to_owned());
 
             Some(PacketSection {
                 kind: plan.artifact.identity.kind,
-                canonical_repo_relative_path: plan.artifact.identity.relative_path,
+                canonical_repo_relative_path: plan.artifact.identity.relative_path.clone(),
                 title: plan.title.to_string(),
                 mode,
                 contents,
+                source_content_sha256,
+                rendered_output_sha256,
             })
         })
         .collect()
@@ -1080,6 +1341,7 @@ fn fixture_context_for(
     artifacts: &CanonicalArtifacts,
     baseline_validations: &[BaselineArtifactValidation],
     contract: CanonicalLayoutContract,
+    project_context_bridge: &ProjectContextFlowBridge,
 ) -> Option<PacketFixtureContext> {
     if packet_variant_for(packet_id) != PacketVariant::ExecutionDemo {
         return None;
@@ -1106,7 +1368,11 @@ fn fixture_context_for(
     Some(PacketFixtureContext {
         fixture_basis_root: fixture_basis_root_for(contract, fixture_set_id.as_str()),
         fixture_set_id,
-        fixture_lineage: present_fixture_sources_for(artifacts, baseline_validations),
+        fixture_lineage: present_fixture_sources_for(
+            artifacts,
+            baseline_validations,
+            project_context_bridge,
+        ),
     })
 }
 
@@ -1159,7 +1425,7 @@ fn required_artifact_refusal(
     category: ResolverRefusalCategory,
     summary: String,
     kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
     next_safe_action: ResolverNextSafeAction,
 ) -> ResolverRefusal {
     ResolverRefusal {
@@ -1167,7 +1433,7 @@ fn required_artifact_refusal(
         summary,
         broken_subject: ResolverSubjectRef::CanonicalArtifact {
             kind,
-            canonical_repo_relative_path,
+            canonical_repo_relative_path: canonical_repo_relative_path.to_owned(),
         },
         next_safe_action,
     }
@@ -1184,17 +1450,17 @@ fn refusal_for_required_baseline_truth(
                 ResolverRefusalCategory::RequiredArtifactMissing,
                 "missing required canonical artifact".to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 ResolverNextSafeAction::RunSetupRefresh,
             )),
             BaselineArtifactVerdict::Empty => Some(required_artifact_refusal(
                 ResolverRefusalCategory::RequiredArtifactEmpty,
                 "required canonical artifact is empty".to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 author_or_fill_next_safe_action(
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                 ),
             )),
             BaselineArtifactVerdict::StarterOwned => Some(required_artifact_refusal(
@@ -1202,10 +1468,10 @@ fn refusal_for_required_baseline_truth(
                 "required canonical artifact still contains the shipped starter template"
                     .to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 author_or_fill_next_safe_action(
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                 ),
             )),
             BaselineArtifactVerdict::SemanticallyInvalid { summary } => {
@@ -1213,10 +1479,10 @@ fn refusal_for_required_baseline_truth(
                     ResolverRefusalCategory::RequiredArtifactInvalid,
                     format!("required canonical artifact is invalid: {summary}"),
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                     author_or_fill_next_safe_action(
                         validation.kind,
-                        validation.canonical_repo_relative_path,
+                        validation.canonical_repo_relative_path.as_str(),
                     ),
                 ))
             }
@@ -1276,13 +1542,16 @@ fn compute_refusal(
 
     for artifact in &manifest.artifacts {
         if !artifact.packet_required
-            || baseline_artifact_validation_for_path(baseline_validations, artifact.relative_path)
-                .is_some()
+            || baseline_artifact_validation_for_path(
+                baseline_validations,
+                artifact.relative_path.as_str(),
+            )
+            .is_some()
         {
             continue;
         }
 
-        if ingest_issue_for_path(manifest, artifact.relative_path).is_some() {
+        if ingest_issue_for_path(manifest, artifact.relative_path.as_str()).is_some() {
             continue;
         }
 
@@ -1292,7 +1561,7 @@ fn compute_refusal(
                     ResolverRefusalCategory::RequiredArtifactMissing,
                     "missing required canonical artifact".to_string(),
                     artifact.kind,
-                    artifact.relative_path,
+                    artifact.relative_path.as_str(),
                     ResolverNextSafeAction::RunSetupRefresh,
                 ));
             }
@@ -1301,8 +1570,8 @@ fn compute_refusal(
                     ResolverRefusalCategory::RequiredArtifactEmpty,
                     "required canonical artifact is empty".to_string(),
                     artifact.kind,
-                    artifact.relative_path,
-                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                    artifact.relative_path.as_str(),
+                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path.as_str()),
                 ));
             }
             ArtifactPresence::PresentNonEmpty if artifact.matches_setup_starter_template => {
@@ -1311,8 +1580,8 @@ fn compute_refusal(
                     "required canonical artifact still contains the shipped starter template"
                         .to_string(),
                     artifact.kind,
-                    artifact.relative_path,
-                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                    artifact.relative_path.as_str(),
+                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path.as_str()),
                 ));
             }
             ArtifactPresence::PresentNonEmpty => {}
@@ -1343,8 +1612,8 @@ fn compute_refusal(
         let canonical_repo_relative_path = match budget_outcome.next_safe_action.as_ref() {
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
-            }) => *canonical_repo_relative_path,
-            None => contract.system_root_relative(),
+            }) => canonical_repo_relative_path.clone(),
+            None => contract.system_root_relative().to_owned(),
         };
 
         return Some(ResolverRefusal {
@@ -1396,7 +1665,7 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<ResolverRefu
 
     if let Some(issue) = first_symlink_issue {
         let kind = issue.artifact_kind;
-        let canonical_repo_relative_path = issue.canonical_repo_relative_path;
+        let canonical_repo_relative_path = issue.canonical_repo_relative_path.clone();
         return Some(ResolverRefusal {
             category: ResolverRefusalCategory::NonCanonicalInputAttempt,
             summary: "canonical artifact path must not be a symlink".to_string(),
@@ -1410,7 +1679,7 @@ fn refusal_for_ingest_issues(manifest: &ArtifactManifest) -> Option<ResolverRefu
 
     if let Some(issue) = first_required_read_issue {
         let kind = issue.artifact_kind;
-        let canonical_repo_relative_path = issue.canonical_repo_relative_path;
+        let canonical_repo_relative_path = issue.canonical_repo_relative_path.clone();
         return Some(ResolverRefusal {
             category: ResolverRefusalCategory::ArtifactReadError,
             summary: "failed to read canonical artifact".to_string(),
@@ -1439,14 +1708,14 @@ fn compute_blockers(
             if !artifact.packet_required
                 || baseline_artifact_validation_for_path(
                     baseline_validations,
-                    artifact.relative_path,
+                    artifact.relative_path.as_str(),
                 )
                 .is_some()
             {
                 continue;
             }
 
-            if ingest_issue_for_path(manifest, artifact.relative_path).is_some() {
+            if ingest_issue_for_path(manifest, artifact.relative_path.as_str()).is_some() {
                 continue;
             }
 
@@ -1455,15 +1724,15 @@ fn compute_blockers(
                     ResolverBlockerCategory::RequiredArtifactMissing,
                     "missing required canonical artifact".to_string(),
                     artifact.kind,
-                    artifact.relative_path,
+                    artifact.relative_path.as_str(),
                     ResolverNextSafeAction::RunSetupRefresh,
                 )),
                 ArtifactPresence::PresentEmpty => blockers.push(required_artifact_blocker(
                     ResolverBlockerCategory::RequiredArtifactEmpty,
                     "required canonical artifact is empty".to_string(),
                     artifact.kind,
-                    artifact.relative_path,
-                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                    artifact.relative_path.as_str(),
+                    author_or_fill_next_safe_action(artifact.kind, artifact.relative_path.as_str()),
                 )),
                 ArtifactPresence::PresentNonEmpty if artifact.matches_setup_starter_template => {
                     blockers.push(required_artifact_blocker(
@@ -1471,8 +1740,11 @@ fn compute_blockers(
                         "required canonical artifact still contains the shipped starter template"
                             .to_string(),
                         artifact.kind,
-                        artifact.relative_path,
-                        author_or_fill_next_safe_action(artifact.kind, artifact.relative_path),
+                        artifact.relative_path.as_str(),
+                        author_or_fill_next_safe_action(
+                            artifact.kind,
+                            artifact.relative_path.as_str(),
+                        ),
                     ));
                 }
                 ArtifactPresence::PresentNonEmpty => {}
@@ -1500,8 +1772,8 @@ fn compute_blockers(
         let canonical_repo_relative_path = match budget_outcome.next_safe_action.as_ref() {
             Some(BudgetNextSafeAction::ReduceCanonicalArtifactSize {
                 canonical_repo_relative_path,
-            }) => *canonical_repo_relative_path,
-            None => contract.system_root_relative(),
+            }) => canonical_repo_relative_path.clone(),
+            None => contract.system_root_relative().to_owned(),
         };
 
         blockers.push(ResolverBlocker {

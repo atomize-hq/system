@@ -167,7 +167,10 @@ frozen pipeline tests remain green.
 ## P6 — Run the full implementation proof wall
 
 1. Run focused engine, compiler author/setup/doctor/resolver, flow, CLI author/
-   doctor/setup, live-skill, install-smoke, and direct-cutover tests.
+   doctor/setup, live-skill, install-smoke, and direct-cutover tests. In the
+   inherited live-skill harness only, establish an empty `.handbook` fixture
+   root before authoring and assert setup remains non-authoring with exit `1`;
+   do not repair the smoke by changing production setup or installed skills.
 2. Run negative no-follow, retained-observation/ABA, duplicate YAML, bounds,
    deterministic golden, fingerprint-domain, non-Unix refusal, Environment
    Inventory selected-reference, no-persistent-Markdown, and legacy-
@@ -175,6 +178,10 @@ frozen pipeline tests remain green.
 3. Run all applicable HCM-1.1-HCM-1.4 tests, full workspace tests, formatting,
    Clippy, docs, Windows target, package-definition, package archive,
    handoff-validator, archive, scope, secret, whitespace, and diff gates.
+   If the first immutable HCM-2.1 review dispatch reaches the validator with its
+   executed locale order, admit only that exact filename/raw-SHA pair for path
+   ordering and prove changed/unknown bytes still refuse; do not reorder or edit
+   the executed dispatch or relax uniqueness/hash/aggregate validation.
 4. Record raw command/results in one immutable HCM-2.1 proof wall and bind an
    exact sorted path/SHA-256 subject manifest.
 

@@ -1,6 +1,5 @@
 pub mod charter_core;
 pub mod environment_inventory_core;
-pub mod project_context_core;
 
 pub use charter_core::{
     compiler_owned_charter_markdown, find_charter_template_scaffold_line,
@@ -31,16 +30,4 @@ pub use environment_inventory_core::{
     EnvironmentRuntimeAssumptionsInput, EnvironmentSecretHandlingInput, EnvironmentToolingInput,
     EnvironmentUpdateContractInput, EnvironmentVariableInput,
     REQUIRED_ENVIRONMENT_INVENTORY_HEADINGS,
-};
-pub use project_context_core::{
-    collect_render_safety_issues, normalize_project_context_text,
-    normalized_project_context_structured_input, parse_project_context_structured_input_yaml,
-    render_project_context_markdown, validate_known_fake_project_context_markers,
-    validate_project_context_markdown, validate_project_context_structured_input,
-    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
-    ProjectContextCoreError, ProjectContextCoreErrorKind, ProjectContextDataRealityInput,
-    ProjectContextEnvironmentsAndDeliveryInput, ProjectContextIntegrationInput,
-    ProjectContextKnownUnknownInput, ProjectContextOperationalRealityInput,
-    ProjectContextRepoCodebaseRealityInput, ProjectContextStructuredInput,
-    ProjectContextSummaryInput, ProjectContextSystemBoundariesInput, ProjectContextValidationError,
 };

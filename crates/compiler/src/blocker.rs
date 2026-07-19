@@ -6,7 +6,7 @@ use crate::{
 use serde::Serialize;
 use std::cmp::Ordering;
 
-pub const C04_RESULT_VERSION: &str = "reduced-v1-m8.1";
+pub const C04_RESULT_VERSION: &str = "reduced-v1-m8.2";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -50,7 +50,7 @@ pub fn blocker_category_priority(category: BlockerCategory) -> u8 {
 
 pub(crate) fn author_or_fill_next_safe_action(
     kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
 ) -> NextSafeAction {
     match kind {
         CanonicalArtifactKind::Charter => NextSafeAction::RunAuthorCharter,
@@ -59,7 +59,7 @@ pub(crate) fn author_or_fill_next_safe_action(
             NextSafeAction::RunAuthorEnvironmentInventory
         }
         CanonicalArtifactKind::FeatureSpec => NextSafeAction::FillCanonicalArtifact {
-            canonical_repo_relative_path,
+            canonical_repo_relative_path: canonical_repo_relative_path.to_owned(),
         },
     }
 }
@@ -68,14 +68,14 @@ pub(crate) fn required_artifact_blocker(
     category: BlockerCategory,
     summary: String,
     kind: CanonicalArtifactKind,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
     next_safe_action: NextSafeAction,
 ) -> Blocker {
     Blocker {
         category,
         subject: SubjectRef::CanonicalArtifact {
             kind,
-            canonical_repo_relative_path,
+            canonical_repo_relative_path: canonical_repo_relative_path.to_owned(),
         },
         summary,
         next_safe_action,
@@ -85,7 +85,7 @@ pub(crate) fn required_artifact_blocker(
 #[allow(dead_code)]
 pub(crate) fn ingest_issue_for_path(
     manifest: &ArtifactManifest,
-    canonical_repo_relative_path: &'static str,
+    canonical_repo_relative_path: &str,
 ) -> Option<ArtifactIngestIssueKind> {
     manifest
         .ingest_issues
@@ -129,7 +129,7 @@ fn build_baseline_blockers(
             category: BlockerCategory::ArtifactReadError,
             subject: SubjectRef::CanonicalArtifact {
                 kind: issue.artifact_kind,
-                canonical_repo_relative_path: issue.canonical_repo_relative_path,
+                canonical_repo_relative_path: issue.canonical_repo_relative_path.clone(),
             },
             summary: match issue.kind {
                 ArtifactIngestIssueKind::CanonicalArtifactSymlinkNotAllowed => {
@@ -192,17 +192,17 @@ fn push_baseline_truth_blockers(
                 BlockerCategory::RequiredArtifactMissing,
                 "missing required canonical artifact".to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 NextSafeAction::RunSetupRefresh,
             )),
             BaselineArtifactVerdict::Empty => Some(required_artifact_blocker(
                 BlockerCategory::RequiredArtifactEmpty,
                 "required canonical artifact is empty".to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 author_or_fill_next_safe_action(
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                 ),
             )),
             BaselineArtifactVerdict::StarterOwned => Some(required_artifact_blocker(
@@ -210,10 +210,10 @@ fn push_baseline_truth_blockers(
                 "required canonical artifact still contains the shipped starter template"
                     .to_string(),
                 validation.kind,
-                validation.canonical_repo_relative_path,
+                validation.canonical_repo_relative_path.as_str(),
                 author_or_fill_next_safe_action(
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                 ),
             )),
             BaselineArtifactVerdict::SemanticallyInvalid { summary } => {
@@ -221,10 +221,10 @@ fn push_baseline_truth_blockers(
                     BlockerCategory::RequiredArtifactInvalid,
                     format!("required canonical artifact is invalid: {summary}"),
                     validation.kind,
-                    validation.canonical_repo_relative_path,
+                    validation.canonical_repo_relative_path.as_str(),
                     author_or_fill_next_safe_action(
                         validation.kind,
-                        validation.canonical_repo_relative_path,
+                        validation.canonical_repo_relative_path.as_str(),
                     ),
                 ))
             }

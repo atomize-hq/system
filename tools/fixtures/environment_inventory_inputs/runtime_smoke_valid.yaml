@@ -4,7 +4,7 @@ owner: "compiler-team"
 team: "Handbook"
 repo_or_project_ref: "runtime-smoke"
 charter_ref: ".handbook/charter/CHARTER.md"
-project_context_ref: ".handbook/project_context/PROJECT_CONTEXT.md"
+project_context_ref: ".handbook/project/context.yaml"
 environment_variables: []
 secret_handling:
   charter_posture: "never store real credentials in repository artifacts"

@@ -1,4 +1,9 @@
 use handbook_compiler::{render_next_safe_action_value, resolve, BlockerCategory};
+#[cfg(unix)]
+use handbook_engine::{
+    parse_canonical_project_context, render_project_context_markdown,
+    resolve_shipped_profile_decisions,
+};
 use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
 use handbook_flow::{
     BudgetDisposition, BudgetPolicy, PacketSectionMode, PacketSelectionStatus, PacketVariant,
@@ -62,64 +67,27 @@ Review monthly.
 }
 
 fn valid_project_context_markdown() -> &'static str {
-    "# Project Context — Handbook
-
-> **File:** `PROJECT_CONTEXT.md`
-> **Created (UTC):** 2026-04-21T00:00:00Z
-> **Owner:** project-owner
-> **Team:** handbook-team
-> **Repo / Project:** /tmp/handbook
-> **Charter Ref:** .handbook/charter/CHARTER.md
-
-## What this is
-Project reality.
-
-## How to use this
-Use this document to ground planning in reality.
-
-## 0) Project Summary (factual, 3–6 bullets)
-- Summary.
-
-## 1) Operational Reality (the most important section)
-- Operations.
-
-## 2) Project Classification Implications (planning guardrails)
-- Guardrails.
-
-## 3) System Boundaries (what we own vs integrate with)
-### What we own
-- Canonical `.handbook/` truth.
-### What we do NOT own (but may depend on)
-- External delivery systems.
-
-## 4) Integrations & Contracts (top 1–5)
-- Integrations.
-
-## 5) Environments & Delivery
-- Delivery.
-
-## 6) Data Reality
-- Data.
-
-## 7) Repo / Codebase Reality (brownfield-friendly, but safe for greenfield)
-- Codebase.
-
-## 8) Constraints
-- Constraints.
-
-## 9) Known Unknowns (explicitly tracked)
-- Unknowns.
-
-## 10) Update Triggers
-- Update when reality changes.
-"
+    concat!(
+        "schema_id: \"handbook.artifact.project-context\"\n",
+        "schema_version: \"1.0\"\n",
+        "record_id: \"handbook.project-context\"\n",
+        "summary: \"Project reality.\"\n",
+        "system_boundaries:\n",
+        "  - \"Canonical handbook truth\"\n",
+        "ownership:\n",
+        "  - \"handbook-team\"\n",
+        "authoritative_references:\n",
+        "  - \"handbook.charter@1.0.0\"\n",
+        "known_unknowns:\n",
+        "  - \"None\"\n",
+    )
 }
 
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
 > **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
+> **Project Context Ref:** `.handbook/project/context.yaml`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -156,10 +124,6 @@ Canonical environment and runtime inventory.
 "
 }
 
-fn oversized_valid_project_context_markdown() -> String {
-    format!("{}\n{}", valid_project_context_markdown(), "x".repeat(256))
-}
-
 fn oversized_valid_environment_inventory_markdown() -> String {
     format!(
         "{}\n{}",
@@ -169,15 +133,35 @@ fn oversized_valid_environment_inventory_markdown() -> String {
 }
 
 fn invalid_optional_project_context_markdown() -> String {
-    valid_project_context_markdown()
-        .replace("> **Owner:** project-owner", "> **Owner:** unknown-owner")
-        .replace("> **Team:** handbook-team", "> **Team:** project-team")
+    format!(
+        "{}unexpected_field: true\n",
+        valid_project_context_markdown()
+    )
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
 
     format!("{:x}", Sha256::digest(bytes))
+}
+
+fn write_valid_project_context(repo_root: &std::path::Path) {
+    write_file(
+        &repo_root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
+    );
+}
+
+#[cfg(unix)]
+fn required_budget_bytes(repo_root: &std::path::Path) -> u64 {
+    let decisions = resolve_shipped_profile_decisions(repo_root).expect("shipped decisions");
+    let project_context =
+        parse_canonical_project_context(&decisions, valid_project_context_markdown().as_bytes())
+            .expect("canonical Project Context");
+    valid_charter_markdown().len() as u64
+        + render_project_context_markdown(&project_context)
+            .expect("rendered Project Context")
+            .len() as u64
 }
 
 #[test]
@@ -187,7 +171,7 @@ fn resolver_returns_typed_result_when_system_root_missing() {
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
-    assert_eq!(result.c04_result_version, "reduced-v1-m8.1");
+    assert_eq!(result.c04_result_version, "reduced-v1-m8.2");
     assert_eq!(result.c03_schema_version, "reduced-v1-m8");
     assert_eq!(result.c03_manifest_generation_version, 1);
     assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
@@ -204,6 +188,7 @@ fn resolver_returns_typed_result_when_system_root_missing() {
         .all(|c| c.is_ascii_hexdigit()));
 }
 
+#[cfg(unix)]
 #[test]
 fn optional_artifact_read_error_blocks_without_refusal() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -217,14 +202,15 @@ fn optional_artifact_read_error_blocks_without_refusal() {
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(repo_root);
     std::fs::create_dir_all(repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context dir");
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
-    assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
     assert!(result.refusal.is_none());
-    assert!(result.packet_result.sections.is_empty());
+    assert!(!result.packet_result.sections.is_empty());
     assert!(
         !result.packet_result.notes.iter().any(|note| {
             note.text == "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md"
@@ -232,24 +218,10 @@ fn optional_artifact_read_error_blocks_without_refusal() {
         "read errors must not be mislabeled as benign omissions: {:?}",
         result.packet_result.notes
     );
-    assert!(result
-        .packet_result
-        .notes
-        .iter()
-        .any(|note| { note.text == "packet body omitted because request is not ready" }));
-    assert!(result.blockers.iter().any(|blocker| blocker.category
-        == BlockerCategory::ArtifactReadError
-        && matches!(
-            blocker.subject,
-            handbook_compiler::SubjectRef::CanonicalArtifact {
-                canonical_repo_relative_path: ".handbook/project_context/PROJECT_CONTEXT.md",
-                ..
-            }
-        )
-        && render_next_safe_action_value(&blocker.next_safe_action)
-            == "run `handbook setup refresh`"));
+    assert!(result.blockers.is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn missing_optional_project_context_emits_omission_note() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -266,12 +238,18 @@ fn missing_optional_project_context_emits_omission_note() {
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
-    assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
-    assert!(result.packet_result.notes.iter().any(|note| {
-        note.text == "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md"
-    }));
+    assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    let refusal = result
+        .refusal
+        .expect("required selected Project Context refusal");
+    assert_eq!(
+        refusal.category,
+        handbook_compiler::RefusalCategory::RequiredArtifactInvalid
+    );
+    assert!(refusal.summary.contains("required_path_missing"));
 }
 
+#[cfg(unix)]
 #[test]
 fn missing_optional_environment_inventory_emits_omission_note() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -285,6 +263,7 @@ fn missing_optional_environment_inventory_emits_omission_note() {
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(repo_root);
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
@@ -295,6 +274,7 @@ fn missing_optional_environment_inventory_emits_omission_note() {
     }));
 }
 
+#[cfg(unix)]
 #[test]
 fn semantically_invalid_optional_project_context_is_omitted_from_ready_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -305,7 +285,7 @@ fn semantically_invalid_optional_project_context_is_omitted_from_ready_packet() 
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project/context.yaml"),
         invalid_optional_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -315,27 +295,17 @@ fn semantically_invalid_optional_project_context_is_omitted_from_ready_packet() 
 
     let result = resolve(repo_root, ResolveRequest::default()).expect("resolve");
 
-    assert_eq!(result.selection.status, PacketSelectionStatus::Selected);
-    assert!(result.refusal.is_none());
-    assert!(result
-        .packet_result
-        .included_sources
-        .iter()
-        .all(|source| source.canonical_repo_relative_path
-            != ".handbook/project_context/PROJECT_CONTEXT.md"));
-    assert!(result.packet_result.notes.iter().any(|note| {
-        note.text
-            == "optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md (invalid canonical truth)"
-    }));
-    assert!(result
-        .decision_log
-        .entries
-        .iter()
-        .any(|entry| entry.contains(
-            "packet.optional.invalid_omitted path=.handbook/project_context/PROJECT_CONTEXT.md"
-        )));
+    assert_eq!(result.selection.status, PacketSelectionStatus::Blocked);
+    let refusal = result
+        .refusal
+        .expect("invalid selected Project Context refusal");
+    assert_eq!(
+        refusal.category,
+        handbook_compiler::RefusalCategory::RequiredArtifactInvalid
+    );
 }
 
+#[cfg(unix)]
 #[test]
 fn semantically_invalid_required_charter_blocks_with_required_artifact_invalid() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -361,6 +331,7 @@ fn semantically_invalid_required_charter_blocks_with_required_artifact_invalid()
         .any(|blocker| blocker.category == BlockerCategory::RequiredArtifactInvalid));
 }
 
+#[cfg(unix)]
 #[test]
 fn required_starter_template_blocks_without_ready_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -375,7 +346,7 @@ fn required_starter_template_blocks_without_ready_packet() {
         b"feature",
     );
     write_file(
-        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &repo_root.join(".handbook/project/context.yaml"),
         setup_starter_template_bytes(CanonicalArtifactKind::ProjectContext),
     );
 
@@ -398,6 +369,7 @@ fn required_starter_template_blocks_without_ready_packet() {
     assert!(result.packet_result.sections.is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn resolver_is_deterministic_for_identical_inputs() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -409,8 +381,9 @@ fn resolver_is_deterministic_for_identical_inputs() {
     );
     write_file(
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
-        b"f",
+        "f".repeat(4096).as_bytes(),
     );
+    write_valid_project_context(repo_root);
 
     let req = ResolveRequest::default();
     let a = resolve(repo_root, req.clone()).expect("resolve a");
@@ -419,6 +392,7 @@ fn resolver_is_deterministic_for_identical_inputs() {
     assert_eq!(a, b);
 }
 
+#[cfg(unix)]
 #[test]
 fn budget_next_safe_action_is_only_present_on_refuse() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -430,11 +404,11 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     );
     write_file(
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
-        b"f",
+        "f".repeat(4096).as_bytes(),
     );
     write_file(
-        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        oversized_valid_project_context_markdown().as_bytes(),
+        &repo_root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
     );
 
     // Summarize optional.
@@ -455,7 +429,7 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     // Exclude optional.
     let exclude_req = ResolveRequest {
         budget_policy: BudgetPolicy {
-            max_total_bytes: Some(2),
+            max_total_bytes: Some(required_budget_bytes(repo_root)),
             max_per_artifact_bytes: None,
         },
         ..ResolveRequest::default()
@@ -480,6 +454,7 @@ fn budget_next_safe_action_is_only_present_on_refuse() {
     assert!(refuse.budget_outcome.next_safe_action.is_some());
 }
 
+#[cfg(unix)]
 #[test]
 fn budget_summarize_replaces_optional_body_with_summary() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -491,11 +466,11 @@ fn budget_summarize_replaces_optional_body_with_summary() {
     );
     write_file(
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
+        "feature".repeat(1024).as_bytes(),
     );
     write_file(
-        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        oversized_valid_project_context_markdown().as_bytes(),
+        &repo_root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
     );
 
     let summarize_req = ResolveRequest {
@@ -516,8 +491,8 @@ fn budget_summarize_replaces_optional_body_with_summary() {
         .packet_result
         .sections
         .iter()
-        .find(|section| section.title == "PROJECT_CONTEXT")
-        .expect("project context section");
+        .find(|section| section.title == "FEATURE_SPEC")
+        .expect("feature spec section");
     assert_eq!(summarized_section.mode, PacketSectionMode::Summary);
     assert!(
         summarized_section
@@ -529,12 +504,13 @@ fn budget_summarize_replaces_optional_body_with_summary() {
     assert!(
         !summarized_section
             .contents
-            .contains(valid_project_context_markdown()),
+            .contains("featurefeaturefeature"),
         "full optional contents should not leak once summarized: {:?}",
         summarized_section.contents
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn budget_summarize_replaces_environment_inventory_body_with_summary() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -548,6 +524,7 @@ fn budget_summarize_replaces_environment_inventory_body_with_summary() {
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(repo_root);
     write_file(
         &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         oversized_valid_environment_inventory_markdown().as_bytes(),
@@ -582,10 +559,14 @@ fn budget_summarize_replaces_environment_inventory_body_with_summary() {
     );
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
-            == "optional source summarized due to budget: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            == format!(
+                "optional source summarized due to budget: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md ({} bytes [source])",
+                oversized_valid_environment_inventory_markdown().len()
+            )
     }));
 }
 
+#[cfg(unix)]
 #[test]
 fn budget_exclude_removes_optional_body_from_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -600,13 +581,13 @@ fn budget_exclude_removes_optional_body_from_packet() {
         b"feature",
     );
     write_file(
-        &repo_root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        oversized_valid_project_context_markdown().as_bytes(),
+        &repo_root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
     );
 
     let exclude_req = ResolveRequest {
         budget_policy: BudgetPolicy {
-            max_total_bytes: Some((valid_charter_markdown().len() + "feature".len()) as u64),
+            max_total_bytes: Some(required_budget_bytes(repo_root)),
             max_per_artifact_bytes: None,
         },
         ..ResolveRequest::default()
@@ -624,7 +605,7 @@ fn budget_exclude_removes_optional_body_from_packet() {
             .included_sources
             .iter()
             .all(|source| source.canonical_repo_relative_path
-                != ".handbook/project_context/PROJECT_CONTEXT.md"),
+                != ".handbook/feature_spec/FEATURE_SPEC.md"),
         "excluded sources should not be listed as included: {:?}",
         result.packet_result.included_sources
     );
@@ -634,12 +615,13 @@ fn budget_exclude_removes_optional_body_from_packet() {
             .packet_result
             .sections
             .iter()
-            .all(|section| section.title != "PROJECT_CONTEXT"),
+            .all(|section| section.title != "FEATURE_SPEC"),
         "excluded optional section should be absent from packet body: {:?}",
         result.packet_result.sections
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn budget_exclude_removes_environment_inventory_from_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -653,6 +635,7 @@ fn budget_exclude_removes_environment_inventory_from_packet() {
         &repo_root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(repo_root);
     write_file(
         &repo_root.join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
         oversized_valid_environment_inventory_markdown().as_bytes(),
@@ -660,7 +643,7 @@ fn budget_exclude_removes_environment_inventory_from_packet() {
 
     let exclude_req = ResolveRequest {
         budget_policy: BudgetPolicy {
-            max_total_bytes: Some((valid_charter_markdown().len() + "feature".len()) as u64),
+            max_total_bytes: Some(required_budget_bytes(repo_root)),
             max_per_artifact_bytes: None,
         },
         ..ResolveRequest::default()
@@ -692,10 +675,14 @@ fn budget_exclude_removes_environment_inventory_from_packet() {
     );
     assert!(result.packet_result.notes.iter().any(|note| {
         note.text
-            == "optional source excluded due to budget: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"
+            == format!(
+                "optional source excluded due to budget: .handbook/environment_inventory/ENVIRONMENT_INVENTORY.md ({} bytes [source])",
+                oversized_valid_environment_inventory_markdown().len()
+            )
     }));
 }
 
+#[cfg(unix)]
 #[test]
 fn resolver_builds_typed_packet_body_for_planning_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -706,7 +693,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -724,6 +711,14 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     assert_eq!(result.packet_result.sections[0].title, "CHARTER");
     assert_eq!(result.packet_result.sections[1].title, "PROJECT_CONTEXT");
     assert_eq!(result.packet_result.sections[2].title, "FEATURE_SPEC");
+    assert_eq!(
+        result.packet_result.sections[1].canonical_repo_relative_path,
+        ".handbook/project/context.yaml"
+    );
+    assert_eq!(
+        result.packet_result.sections[1].mode,
+        PacketSectionMode::Rendered
+    );
     assert_eq!(
         result.packet_result.sections[0].mode,
         PacketSectionMode::Verbatim
@@ -747,6 +742,7 @@ fn resolver_builds_typed_packet_body_for_planning_packet() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn resolver_includes_environment_inventory_in_ready_planning_packets() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -757,7 +753,7 @@ fn resolver_includes_environment_inventory_in_ready_planning_packets() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -784,6 +780,7 @@ fn resolver_includes_environment_inventory_in_ready_planning_packets() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn ready_packet_sections_match_included_source_metadata() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -794,7 +791,7 @@ fn ready_packet_sections_match_included_source_metadata() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -828,6 +825,7 @@ fn ready_packet_sections_match_included_source_metadata() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn resolver_builds_fixture_context_for_execution_demo_packets() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -838,7 +836,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -876,7 +874,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     );
     assert_eq!(
         fixture_context.fixture_lineage[1].canonical_repo_relative_path,
-        ".handbook/project_context/PROJECT_CONTEXT.md"
+        ".handbook/project/context.yaml"
     );
     assert_eq!(
         fixture_context.fixture_lineage[2].canonical_repo_relative_path,
@@ -892,6 +890,7 @@ fn resolver_builds_fixture_context_for_execution_demo_packets() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn resolver_redacts_packet_body_for_unsupported_live_execution_requests() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -905,6 +904,7 @@ fn resolver_redacts_packet_body_for_unsupported_live_execution_requests() {
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature body",
     );
+    write_valid_project_context(root);
 
     let result = resolve(
         root,

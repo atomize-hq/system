@@ -85,6 +85,26 @@ pub fn render_packet_source_summary(summary: &PacketSourceSummary) -> String {
         crate::ArtifactPresence::PresentNonEmpty => "present",
     };
 
+    if let (
+        Some(source_byte_len),
+        Some(source_sha256),
+        Some(rendered_byte_len),
+        Some(rendered_sha256),
+        Some(media_type),
+    ) = (
+        summary.byte_len,
+        summary.content_sha256.as_deref(),
+        summary.rendered_output_byte_len,
+        summary.rendered_output_sha256.as_deref(),
+        summary.rendered_media_type.as_deref(),
+    ) {
+        return format!(
+            "{} [{}] ({presence}, {source_byte_len} source bytes, source_sha256=sha256:{source_sha256}, {rendered_byte_len} rendered bytes, rendered_sha256={rendered_sha256}, media_type={media_type})",
+            render_canonical_artifact_kind(summary.kind),
+            summary.canonical_repo_relative_path
+        );
+    }
+
     let bytes = match summary.byte_len {
         Some(len) => format!("{len} bytes"),
         None => "byte length unavailable".to_string(),
@@ -149,6 +169,28 @@ pub fn render_packet_section(output: &mut String, section: &PacketSection) {
     );
     if section.mode == PacketSectionMode::Summary {
         push_line(output, "MODE: summarized due to budget");
+    } else if section.mode == PacketSectionMode::Rendered {
+        push_line(output, "MODE: rendered from selected canonical YAML");
+        push_line(
+            output,
+            format!(
+                "SOURCE SHA256: {}",
+                section
+                    .source_content_sha256
+                    .as_deref()
+                    .expect("rendered section retains source fingerprint")
+            ),
+        );
+        push_line(
+            output,
+            format!(
+                "RENDERED SHA256: {}",
+                section
+                    .rendered_output_sha256
+                    .as_deref()
+                    .expect("rendered section retains output fingerprint")
+            ),
+        );
     }
     output.push_str("```text\n");
     output.push_str(&section.contents);

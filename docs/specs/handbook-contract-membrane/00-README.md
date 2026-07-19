@@ -1,11 +1,11 @@
 # Handbook Contract Membrane Control Pack
 
-**Status:** active control pack; Phase 0 design/default authority is closed; HCM-1.1 through HCM-1.4 have landed through separately reviewed implementation and closeout commits; HCM-2.1 has a planning-only Project Context canonical-YAML pilot packet whose implementation authority remains contingent on an immutable clean planning review and separate implementation selection
+**Status:** active control pack; Phase 0 design/default authority is closed; HCM-1.1 through HCM-1.4 and the bounded HCM-2.1 Project Context canonical-YAML pilot have landed through separately reviewed implementation and closeout commits
 
 **Scope:** target architecture, artifact-kind/schema registry, adaptive intake, Charter authority, posture kernel, sequencing, Context Resolution, Snapshot Memory, crate ownership, SDK/use-case and machine-transport boundaries, contract definitions, claims, evidence, verdicts, gates, dock protocol, context assembly, handoff, escalation, and proof gates
 
-**Implementation authorization:** HCM-1.1 through HCM-1.4 are completed bounded dependency evidence, not continuing authority; HCM-2.1 implementation is unauthorized unless its exact packet receives and records an immutable clean review and is then selected in a separate top-level session; HCM-2.2 and later slices remain unauthorized
-**Repo-truth snapshot:** 2026-07-18; re-check live code before every slice
+**Implementation authorization:** HCM-1.1 through HCM-1.4 and HCM-2.1 are completed bounded evidence, not continuing authority; HCM-2.2 and later slices remain unauthorized
+**Repo-truth snapshot:** 2026-07-19; re-check live code before every slice
 
 ## Purpose
 
@@ -203,13 +203,16 @@ remains explicitly indeterminate until a separately reviewed evidence/evaluator
 contract exists. Its parent v1.2 handoff and deterministic ledger update are
 complete.
 
-HCM-2.1 now has a planning-only packet for one exact Project Context canonical-
-YAML pilot. Its authority is outcome-neutral until an immutable fresh review
-returns `CLEAN` over the exact packet bytes and the parent closeout records that
-result. The packet selects no other canonical family, changes no HCM-1
-definition byte, starts no implementation in its planning session, and still
-requires a separate explicit top-level implementation selection. HCM-2.2 and
-all later slices remain future work.
+HCM-2.1 has landed the exact Project Context canonical-YAML pilot. The engine
+owns the closed canonical record, selected no-follow read, deterministic
+in-memory Markdown renderer, and distinct source/render fingerprints; author,
+setup, doctor `1.1.0`, Environment Inventory's reference-only dependency, and
+the bounded mixed-family flow path consume that owner without reading or
+persisting legacy Project Context Markdown. The implementation changed no
+HCM-1 definition/schema/profile/descriptor byte, leaves shipped readiness
+conditional and `INDETERMINATE`, closes `PG-YAML-01` only for this one family,
+and leaves the temporary flow bridge for deletion no later than HCM-2.4.
+HCM-2.2 and all later slices remain future work.
 
 The shipped default artifact set is approved in [`slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md`](slices/HCM-0.6/decision/shipped-default-artifact-set-decision.md)
 and its exact kind, profile, descriptor, and selected-registry data now exist.

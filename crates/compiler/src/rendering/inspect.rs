@@ -60,10 +60,14 @@ pub fn render_inspect(model: &RenderOutputModel) -> String {
             push_line(
                 &mut output,
                 format!(
-                    "TARGET {}: {} ({} bytes)",
+                    "TARGET {}: {} ({} bytes [{}])",
                     index + 1,
                     target.canonical_repo_relative_path,
-                    target.byte_len
+                    target.byte_len,
+                    match target.byte_domain {
+                        handbook_flow::BudgetByteDomain::Source => "source",
+                        handbook_flow::BudgetByteDomain::RenderedOutput => "rendered_output",
+                    }
                 ),
             );
         }

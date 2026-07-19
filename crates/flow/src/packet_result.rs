@@ -22,11 +22,14 @@ impl PacketVariant {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacketSourceSummary {
     pub kind: CanonicalArtifactKind,
-    pub canonical_repo_relative_path: &'static str,
+    pub canonical_repo_relative_path: String,
     pub required: bool,
     pub presence: ArtifactPresence,
     pub byte_len: Option<u64>,
     pub content_sha256: Option<String>,
+    pub rendered_output_byte_len: Option<u64>,
+    pub rendered_output_sha256: Option<String>,
+    pub rendered_media_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +43,7 @@ pub enum PacketBodyNoteKind {
 pub enum PacketSectionMode {
     Verbatim,
     Summary,
+    Rendered,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,10 +55,12 @@ pub struct PacketBodyNote {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacketSection {
     pub kind: CanonicalArtifactKind,
-    pub canonical_repo_relative_path: &'static str,
+    pub canonical_repo_relative_path: String,
     pub title: String,
     pub mode: PacketSectionMode,
     pub contents: String,
+    pub source_content_sha256: Option<String>,
+    pub rendered_output_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

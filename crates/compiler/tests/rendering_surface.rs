@@ -1,5 +1,10 @@
 use handbook_compiler::rendering::{render_inspect, render_markdown};
 use handbook_compiler::{build_output_model, render_json, resolve};
+#[cfg(unix)]
+use handbook_engine::{
+    parse_canonical_project_context, render_project_context_markdown,
+    resolve_shipped_profile_decisions,
+};
 use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
 use handbook_flow::{BudgetPolicy, ResolveRequest};
 
@@ -60,68 +65,27 @@ Review monthly.
 }
 
 fn valid_project_context_markdown() -> &'static str {
-    "# Project Context — Handbook
-
-> **File:** `PROJECT_CONTEXT.md`
-> **Created (UTC):** 2026-04-21T00:00:00Z
-> **Owner:** project-owner
-> **Team:** handbook-team
-> **Repo / Project:** /tmp/handbook
-> **Charter Ref:** .handbook/charter/CHARTER.md
-
-## What this is
-Project reality.
-
-## How to use this
-Use this document to ground planning in reality.
-
-## 0) Project Summary (factual, 3–6 bullets)
-- Summary.
-
-## 1) Operational Reality (the most important section)
-- Operations.
-
-## 2) Project Classification Implications (planning guardrails)
-- Guardrails.
-
-## 3) System Boundaries (what we own vs integrate with)
-### What we own
-- Canonical `.handbook/` truth.
-### What we do NOT own (but may depend on)
-- External delivery systems.
-
-## 4) Integrations & Contracts (top 1–5)
-- Integrations.
-
-## 5) Environments & Delivery
-- Delivery.
-
-## 6) Data Reality
-- Data.
-
-## 7) Repo / Codebase Reality (brownfield-friendly, but safe for greenfield)
-- Codebase.
-
-## 8) Constraints
-- Constraints.
-
-## 9) Known Unknowns (explicitly tracked)
-- Unknowns.
-
-## 10) Update Triggers
-- Update when reality changes.
-"
-}
-
-fn oversized_valid_project_context_markdown() -> String {
-    format!("{}\n{}", valid_project_context_markdown(), "x".repeat(256))
+    concat!(
+        "schema_id: \"handbook.artifact.project-context\"\n",
+        "schema_version: \"1.0\"\n",
+        "record_id: \"handbook.project-context\"\n",
+        "summary: \"Project reality.\"\n",
+        "system_boundaries:\n",
+        "  - \"Canonical handbook truth\"\n",
+        "ownership:\n",
+        "  - \"handbook-team\"\n",
+        "authoritative_references:\n",
+        "  - \"handbook.charter@1.0.0\"\n",
+        "known_unknowns:\n",
+        "  - \"None\"\n",
+    )
 }
 
 fn valid_environment_inventory_markdown() -> &'static str {
     "# Environment Inventory
 
 > **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`
-> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`
+> **Project Context Ref:** `.handbook/project/context.yaml`
 
 ## What this is
 Canonical environment and runtime inventory.
@@ -168,6 +132,14 @@ fn assert_in_order(haystack: &str, needles: &[&str]) {
     }
 }
 
+fn write_valid_project_context(root: &std::path::Path) {
+    write_file(
+        &root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
+    );
+}
+
+#[cfg(unix)]
 #[test]
 fn render_markdown_keeps_trust_header_first_for_ready_result() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -181,6 +153,7 @@ fn render_markdown_keeps_trust_header_first_for_ready_result() {
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(root);
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let model = build_output_model(&result).expect("model");
@@ -213,6 +186,7 @@ fn render_markdown_keeps_trust_header_first_for_ready_result() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn render_markdown_keeps_optional_project_context_in_order_when_present() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -223,7 +197,7 @@ fn render_markdown_keeps_optional_project_context_in_order_when_present() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -239,7 +213,7 @@ fn render_markdown_keeps_optional_project_context_in_order_when_present() {
         .find("### CHARTER (.handbook/charter/CHARTER.md)")
         .expect("charter section");
     let pos_context = rendered
-        .find("### PROJECT_CONTEXT (.handbook/project_context/PROJECT_CONTEXT.md)")
+        .find("### PROJECT_CONTEXT (.handbook/project/context.yaml)")
         .expect("project context section");
     let pos_feature = rendered
         .find("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)")
@@ -249,9 +223,13 @@ fn render_markdown_keeps_optional_project_context_in_order_when_present() {
         pos_charter < pos_context && pos_context < pos_feature,
         "expected section order charter -> project_context -> feature_spec: {rendered}"
     );
-    assert!(rendered.contains("ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]"));
+    assert!(rendered.contains("ProjectContext [.handbook/project/context.yaml]"));
+    assert!(rendered.contains("MODE: rendered from selected canonical YAML"));
+    assert!(rendered.contains("SOURCE SHA256: sha256:"));
+    assert!(rendered.contains("RENDERED SHA256: sha256:"));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_markdown_omits_optional_feature_spec_starter_template_from_ready_packet() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -265,6 +243,7 @@ fn render_markdown_omits_optional_feature_spec_starter_template_from_ready_packe
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         setup_starter_template_bytes(CanonicalArtifactKind::FeatureSpec),
     );
+    write_valid_project_context(root);
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let model = build_output_model(&result).expect("model");
@@ -308,6 +287,7 @@ fn render_markdown_keeps_trust_header_first_for_refusal_result() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn render_json_is_deterministic_for_identical_models() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -321,6 +301,7 @@ fn render_json_is_deterministic_for_identical_models() {
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(root);
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let model = build_output_model(&result).expect("model");
@@ -334,8 +315,11 @@ fn render_json_is_deterministic_for_identical_models() {
     assert!(first.contains("\"packet_result\""));
     assert!(first.contains("\"ready_next_safe_action\""));
     assert!(first.contains("\"sections\""));
+    assert!(first.contains("\"rendered_output_byte_len\""));
+    assert!(first.contains("\"source_content_sha256\""));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_json_redacts_packet_body_for_refused_live_execution_requests() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -349,6 +333,7 @@ fn render_json_redacts_packet_body_for_refused_live_execution_requests() {
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
+    write_valid_project_context(root);
 
     let result = resolve(
         root,
@@ -369,6 +354,7 @@ fn render_json_redacts_packet_body_for_refused_live_execution_requests() {
     assert!(!rendered.contains("\"contents\": \"feature-body\""));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_json_does_not_mislabel_optional_read_error_as_omission() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -382,6 +368,7 @@ fn render_json_does_not_mislabel_optional_read_error_as_omission() {
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature-body",
     );
+    write_valid_project_context(root);
     std::fs::create_dir_all(root.join(".handbook/project_context/PROJECT_CONTEXT.md"))
         .expect("project_context dir");
 
@@ -391,13 +378,14 @@ fn render_json_does_not_mislabel_optional_read_error_as_omission() {
     let rendered = render_json(&model);
 
     assert!(rendered.contains("\"packet_result\""));
-    assert!(rendered.contains("\"packet body omitted because request is not ready\""));
-    assert!(rendered.contains("\"category\": \"ArtifactReadError\""));
+    assert!(rendered.contains("\"sections\": ["));
+    assert!(!rendered.contains("\"category\": \"ArtifactReadError\""));
     assert!(!rendered.contains(
         "\"text\": \"optional source omitted: .handbook/project_context/PROJECT_CONTEXT.md\""
     ));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_inspect_is_deterministic_and_includes_json_fallback() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -411,6 +399,7 @@ fn render_inspect_is_deterministic_and_includes_json_fallback() {
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
     );
+    write_valid_project_context(root);
 
     let result = resolve(root, ResolveRequest::default()).expect("resolve");
     let model = build_output_model(&result).expect("model");
@@ -438,6 +427,7 @@ fn render_inspect_is_deterministic_and_includes_json_fallback() {
     assert!(first.contains("### CHARTER (.handbook/charter/CHARTER.md)"));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -447,7 +437,7 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -484,7 +474,7 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
         &rendered,
         &[
             "1. Charter [.handbook/charter/CHARTER.md]",
-            "2. ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]",
+            "2. ProjectContext [.handbook/project/context.yaml]",
             "3. EnvironmentInventory [.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md]",
             "4. FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]",
         ],
@@ -494,6 +484,7 @@ fn render_markdown_includes_execution_demo_fixture_context_and_ready_next_action
     assert!(rendered.contains("demo feature"));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_json_preserves_execution_demo_fixture_lineage_order() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -503,7 +494,7 @@ fn render_json_preserves_execution_demo_fixture_lineage_order() {
         valid_charter_markdown().as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &root.join(".handbook/project/context.yaml"),
         valid_project_context_markdown().as_bytes(),
     );
     write_file(
@@ -527,13 +518,14 @@ fn render_json_preserves_execution_demo_fixture_lineage_order() {
         &rendered,
         &[
             "\"canonical_repo_relative_path\": \".handbook/charter/CHARTER.md\"",
-            "\"canonical_repo_relative_path\": \".handbook/project_context/PROJECT_CONTEXT.md\"",
+            "\"canonical_repo_relative_path\": \".handbook/project/context.yaml\"",
             "\"canonical_repo_relative_path\": \".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md\"",
             "\"canonical_repo_relative_path\": \".handbook/feature_spec/FEATURE_SPEC.md\"",
         ],
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn render_markdown_marks_budget_summarized_sections_without_leaking_body() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -545,11 +537,11 @@ fn render_markdown_marks_budget_summarized_sections_without_leaking_body() {
     );
     write_file(
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
-        b"feature",
+        "feature".repeat(1024).as_bytes(),
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        oversized_valid_project_context_markdown().as_bytes(),
+        &root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
     );
 
     let result = resolve(
@@ -566,12 +558,13 @@ fn render_markdown_marks_budget_summarized_sections_without_leaking_body() {
     let model = build_output_model(&result).expect("model");
 
     let rendered = render_markdown(&model);
-    assert!(rendered.contains("### PROJECT_CONTEXT (.handbook/project_context/PROJECT_CONTEXT.md)"));
+    assert!(rendered.contains("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)"));
     assert!(rendered.contains("MODE: summarized due to budget"));
     assert!(rendered.contains("budget summary: full contents omitted"));
-    assert!(!rendered.contains(valid_project_context_markdown()));
+    assert!(!rendered.contains("featurefeaturefeature"));
 }
 
+#[cfg(unix)]
 #[test]
 fn render_markdown_omits_budget_excluded_optional_sections() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -586,15 +579,24 @@ fn render_markdown_omits_budget_excluded_optional_sections() {
         b"feature",
     );
     write_file(
-        &root.join(".handbook/project_context/PROJECT_CONTEXT.md"),
-        oversized_valid_project_context_markdown().as_bytes(),
+        &root.join(".handbook/project/context.yaml"),
+        valid_project_context_markdown().as_bytes(),
     );
+
+    let decisions = resolve_shipped_profile_decisions(root).expect("shipped decisions");
+    let project_context =
+        parse_canonical_project_context(&decisions, valid_project_context_markdown().as_bytes())
+            .expect("canonical Project Context");
+    let required_total = valid_charter_markdown().len()
+        + render_project_context_markdown(&project_context)
+            .expect("rendered Project Context")
+            .len();
 
     let result = resolve(
         root,
         ResolveRequest {
             budget_policy: BudgetPolicy {
-                max_total_bytes: Some((valid_charter_markdown().len() + "feature".len()) as u64),
+                max_total_bytes: Some(required_total as u64),
                 max_per_artifact_bytes: None,
             },
             ..ResolveRequest::default()
@@ -604,11 +606,9 @@ fn render_markdown_omits_budget_excluded_optional_sections() {
     let model = build_output_model(&result).expect("model");
 
     let rendered = render_markdown(&model);
-    assert!(!rendered.contains("ProjectContext [.handbook/project_context/PROJECT_CONTEXT.md]"));
-    assert!(
-        !rendered.contains("### PROJECT_CONTEXT (.handbook/project_context/PROJECT_CONTEXT.md)")
-    );
+    assert!(!rendered.contains("FeatureSpec [.handbook/feature_spec/FEATURE_SPEC.md]"));
+    assert!(!rendered.contains("### FEATURE_SPEC (.handbook/feature_spec/FEATURE_SPEC.md)"));
     assert!(rendered.contains(
-        "optional source excluded due to budget: .handbook/project_context/PROJECT_CONTEXT.md"
+        "optional source excluded due to budget: .handbook/feature_spec/FEATURE_SPEC.md"
     ));
 }

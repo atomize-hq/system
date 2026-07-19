@@ -151,9 +151,9 @@ fn render_packet_sources_json(sources: &[PacketSourceSummary]) -> String {
     for (index, source) in sources.iter().enumerate() {
         write!(
             &mut output,
-            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"required\": {},\n        \"presence\": {},\n        \"byte_len\": {},\n        \"content_sha256\": {}\n      }}{}\n",
+            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"required\": {},\n        \"presence\": {},\n        \"byte_len\": {},\n        \"content_sha256\": {},\n        \"rendered_output_byte_len\": {},\n        \"rendered_output_sha256\": {},\n        \"rendered_media_type\": {}\n      }}{}\n",
             json_string(render_canonical_artifact_kind(source.kind)),
-            json_string(source.canonical_repo_relative_path),
+            json_string(&source.canonical_repo_relative_path),
             source.required,
             json_string(match source.presence {
                 ArtifactPresence::Missing => "Missing",
@@ -165,6 +165,18 @@ fn render_packet_sources_json(sources: &[PacketSourceSummary]) -> String {
                 None => "null".to_string(),
             },
             match source.content_sha256.as_ref() {
+                Some(value) => json_string(value),
+                None => "null".to_string(),
+            },
+            match source.rendered_output_byte_len {
+                Some(value) => value.to_string(),
+                None => "null".to_string(),
+            },
+            match source.rendered_output_sha256.as_ref() {
+                Some(value) => json_string(value),
+                None => "null".to_string(),
+            },
+            match source.rendered_media_type.as_ref() {
                 Some(value) => json_string(value),
                 None => "null".to_string(),
             },
@@ -250,15 +262,24 @@ fn render_packet_sections_json(sections: &[PacketSection]) -> String {
     for (index, section) in sections.iter().enumerate() {
         write!(
             &mut output,
-            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"title\": {},\n        \"mode\": {},\n        \"contents\": {}\n      }}{}\n",
+            "      {{\n        \"kind\": {},\n        \"canonical_repo_relative_path\": {},\n        \"title\": {},\n        \"mode\": {},\n        \"contents\": {},\n        \"source_content_sha256\": {},\n        \"rendered_output_sha256\": {}\n      }}{}\n",
             json_string(render_canonical_artifact_kind(section.kind)),
-            json_string(section.canonical_repo_relative_path),
+            json_string(&section.canonical_repo_relative_path),
             json_string(&section.title),
             json_string(match section.mode {
                 PacketSectionMode::Verbatim => "Verbatim",
                 PacketSectionMode::Summary => "Summary",
+                PacketSectionMode::Rendered => "Rendered",
             }),
             json_string(&section.contents),
+            match section.source_content_sha256.as_ref() {
+                Some(value) => json_string(value),
+                None => "null".to_string(),
+            },
+            match section.rendered_output_sha256.as_ref() {
+                Some(value) => json_string(value),
+                None => "null".to_string(),
+            },
             if index + 1 == sections.len() { "" } else { "," }
         )
         .expect("packet sections json");
@@ -287,9 +308,13 @@ fn render_budget_outcome_json(model: &RenderOutputModel) -> String {
     for (index, target) in model.budget_outcome.targets.iter().enumerate() {
         write!(
             &mut output,
-            "      {{\n        \"canonical_repo_relative_path\": {},\n        \"byte_len\": {}\n      }}{}\n",
-            json_string(target.canonical_repo_relative_path),
+            "      {{\n        \"canonical_repo_relative_path\": {},\n        \"byte_len\": {},\n        \"byte_domain\": {}\n      }}{}\n",
+            json_string(&target.canonical_repo_relative_path),
             target.byte_len,
+            json_string(match target.byte_domain {
+                handbook_flow::BudgetByteDomain::Source => "Source",
+                handbook_flow::BudgetByteDomain::RenderedOutput => "RenderedOutput",
+            }),
             if index + 1 == model.budget_outcome.targets.len() {
                 ""
             } else {

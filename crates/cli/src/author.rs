@@ -266,7 +266,7 @@ where
     PreflightAuthoring: Fn(&Path) -> Result<(), handbook_compiler::AuthorProjectContextRefusal>,
     RunAuthor: Fn(
         &Path,
-        &handbook_engine::ProjectContextStructuredInput,
+        &handbook_engine::CanonicalProjectContext,
     ) -> Result<
         handbook_compiler::AuthorProjectContextResult,
         handbook_compiler::AuthorProjectContextRefusal,
@@ -317,7 +317,7 @@ where
             };
         }
     };
-    let input = match handbook_compiler::parse_project_context_structured_input_yaml(&yaml) {
+    let input = match handbook_compiler::parse_project_context_input_yaml(&yaml) {
         Ok(input) => input,
         Err(refusal) => {
             return RenderedCommand {
@@ -326,13 +326,6 @@ where
             };
         }
     };
-
-    if let Err(refusal) = preflight_authoring(&repo_root) {
-        return RenderedCommand {
-            output: render_project_context_refusal(&refusal),
-            exit_code: ExitCode::from(1),
-        };
-    }
 
     let input_mode = if path_or_dash == "-" {
         "structured_inputs_stdin"
@@ -343,6 +336,13 @@ where
         return RenderedCommand {
             output: render_author_project_context_validation_success(input_mode, path_or_dash),
             exit_code: ExitCode::SUCCESS,
+        };
+    }
+
+    if let Err(refusal) = preflight_authoring(&repo_root) {
+        return RenderedCommand {
+            output: render_project_context_refusal(&refusal),
+            exit_code: ExitCode::from(1),
         };
     }
 
@@ -416,6 +416,18 @@ fn render_author_project_context_success(
     out.push_str("## CANONICAL ARTIFACT\n");
     out.push_str(&format!("PATH: {}\n", result.canonical_repo_relative_path));
     out.push_str(&format!("BYTES WRITTEN: {}\n", result.bytes_written));
+    out.push_str(&format!(
+        "SOURCE FINGERPRINT: {}\n",
+        result.source_fingerprint
+    ));
+    out.push_str(&format!(
+        "RENDERED OUTPUT FINGERPRINT: {}\n",
+        result.rendered_output_fingerprint
+    ));
+    out.push_str(&format!(
+        "RENDERED MEDIA TYPE: {}\n",
+        result.rendered_media_type
+    ));
     out.push_str("## INPUT MODE\n");
     out.push_str(&format!("MODE: {input_mode}\n"));
     out.push_str(&format!("SOURCE: {input_source}\n"));
@@ -437,7 +449,7 @@ fn render_author_project_context_validation_success(
     out.push_str(&format!("SOURCE: {input_source}\n"));
     out.push_str("## SUMMARY\n");
     out.push_str(
-        "Structured project-context inputs and repo write preconditions validated without mutation.",
+        "Canonical Project Context YAML and its fixed Markdown view validated without mutation.",
     );
     out.trim_end().to_string()
 }
@@ -614,7 +626,10 @@ fn author_project_context_refusal_outcome_name(
         | handbook_compiler::AuthorProjectContextRefusalKind::MutationRefused => "BLOCKED",
         handbook_compiler::AuthorProjectContextRefusalKind::MalformedStructuredInput
         | handbook_compiler::AuthorProjectContextRefusalKind::IncompleteStructuredInput
-        | handbook_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth => "REFUSED",
+        | handbook_compiler::AuthorProjectContextRefusalKind::ExistingCanonicalTruth
+        | handbook_compiler::AuthorProjectContextRefusalKind::UnsupportedPlatformStrictMutation => {
+            "REFUSED"
+        }
     }
 }
 
@@ -638,6 +653,9 @@ fn author_project_context_refusal_kind_name(
             "ExistingCanonicalTruth"
         }
         handbook_compiler::AuthorProjectContextRefusalKind::MutationRefused => "MutationRefused",
+        handbook_compiler::AuthorProjectContextRefusalKind::UnsupportedPlatformStrictMutation => {
+            "UnsupportedPlatformStrictMutation"
+        }
     }
 }
 

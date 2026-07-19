@@ -18,6 +18,7 @@ pub mod profile_decision;
 pub mod profile_inspection;
 pub mod profile_selection;
 pub mod project_condition_registry;
+pub mod project_context_artifact;
 pub mod schema_registry;
 pub mod semantic_capability_registry;
 pub mod stable_role_registry;
@@ -41,30 +42,21 @@ pub use artifact_registry::{
 };
 pub use author::{
     parse_charter_structured_input_yaml, parse_environment_inventory_structured_input_yaml,
-    parse_project_context_structured_input_yaml, render_charter_markdown,
-    render_environment_inventory_markdown, render_project_context_markdown,
-    validate_charter_markdown, validate_charter_structured_input,
-    validate_environment_inventory_markdown, validate_environment_inventory_structured_input,
-    validate_project_context_markdown, validate_project_context_structured_input, CharterAudience,
-    CharterBackwardCompatibility, CharterCoreError, CharterCoreErrorKind, CharterDebtTrackingInput,
-    CharterDecisionRecordsInput, CharterDefaultImplicationsInput, CharterDeprecationPolicy,
-    CharterDimensionInput, CharterDimensionName, CharterDomainInput, CharterExceptionsInput,
-    CharterExpectedLifetime, CharterObservabilityThreshold, CharterOperationalRealityInput,
-    CharterPostureInput, CharterProjectClassification, CharterProjectConstraintsInput,
-    CharterProjectInput, CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment,
-    CharterStructuredInput, CharterSurface, EnvironmentCiInput, EnvironmentExternalServiceInput,
+    render_charter_markdown, render_environment_inventory_markdown, validate_charter_markdown,
+    validate_charter_structured_input, validate_environment_inventory_markdown,
+    validate_environment_inventory_structured_input, CharterAudience, CharterBackwardCompatibility,
+    CharterCoreError, CharterCoreErrorKind, CharterDebtTrackingInput, CharterDecisionRecordsInput,
+    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
+    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
+    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
+    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
+    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
+    CharterSurface, EnvironmentCiInput, EnvironmentExternalServiceInput,
     EnvironmentInventoryCoreError, EnvironmentInventoryCoreErrorKind,
     EnvironmentInventoryStructuredInput, EnvironmentKnownUnknownInput,
     EnvironmentLocalDevelopmentInput, EnvironmentProductionInput,
     EnvironmentRuntimeAssumptionsInput, EnvironmentSecretHandlingInput, EnvironmentToolingInput,
-    EnvironmentUpdateContractInput, EnvironmentVariableInput,
-    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
-    ProjectContextCoreError, ProjectContextCoreErrorKind, ProjectContextDataRealityInput,
-    ProjectContextEnvironmentsAndDeliveryInput, ProjectContextIntegrationInput,
-    ProjectContextKnownUnknownInput, ProjectContextOperationalRealityInput,
-    ProjectContextRepoCodebaseRealityInput, ProjectContextStructuredInput,
-    ProjectContextSummaryInput, ProjectContextSystemBoundariesInput, ProjectContextValidationError,
-    DEFAULT_EXCEPTION_RECORD_LOCATION,
+    EnvironmentUpdateContractInput, EnvironmentVariableInput, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 pub use baseline_validation::{
     baseline_artifact_validation, baseline_artifact_validation_for_path,
@@ -103,11 +95,19 @@ pub use profile_decision::{
     ShippedProfileDecisionError,
 };
 pub use profile_inspection::{
-    inspect_profile_repository, ArtifactInspection, ArtifactInspectionReason,
-    ArtifactInspectionStatus, ProfileInspectionReport,
+    inspect_profile_repository, inspect_profile_repository_with_stability_hook,
+    load_selected_project_context, ArtifactInspection, ArtifactInspectionReason,
+    ArtifactInspectionStatus, CanonicalProjectContextProjection, ProfileInspectionReport,
+    SelectedProjectContextLoadError,
 };
 pub use profile_selection::{resolve_profile_selection, ResolvedInstanceProfile};
 pub use project_condition_registry::{ProjectConditionDefinition, ProjectConditionRegistry};
+pub use project_context_artifact::{
+    parse_canonical_project_context, project_context_rendered_fingerprint,
+    project_context_source_fingerprint, render_project_context_markdown,
+    serialize_canonical_project_context, CanonicalProjectContext, ProjectContextArtifactError,
+    ProjectContextArtifactErrorKind,
+};
 pub use schema_registry::{
     ResolvedSchema, SchemaRegistry, SchemaRegistryEntry, StructuralValidationError,
 };

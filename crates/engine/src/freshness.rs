@@ -104,8 +104,14 @@ pub fn compute_freshness(
 ) -> FreshnessTruth {
     let mut sorted_artifacts: Vec<&CanonicalArtifactIdentity> = artifacts.iter().collect();
     sorted_artifacts.sort_by(|a, b| {
-        (canonical_artifact_kind_sort_key(a.kind), a.relative_path)
-            .cmp(&(canonical_artifact_kind_sort_key(b.kind), b.relative_path))
+        (
+            canonical_artifact_kind_sort_key(a.kind),
+            a.relative_path.as_str(),
+        )
+            .cmp(&(
+                canonical_artifact_kind_sort_key(b.kind),
+                b.relative_path.as_str(),
+            ))
     });
 
     let mut sorted_deps = inherited_dependencies.to_vec();
@@ -204,7 +210,7 @@ fn fingerprint_bytes(
     enc.u32(artifacts.len() as u32);
     for artifact in artifacts {
         enc.u8(canonical_artifact_kind_sort_key(artifact.kind));
-        enc.str(artifact.relative_path);
+        enc.str(&artifact.relative_path);
         enc.bool(artifact.packet_required);
         enc.u8(artifact_presence_sort_key(artifact.presence));
         enc.opt_str(artifact.content_sha256.as_deref());

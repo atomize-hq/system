@@ -5,8 +5,8 @@ pub mod packet_result;
 pub mod resolver;
 
 pub use budget::{
-    evaluate_budget, BudgetDisposition, BudgetOutcome, BudgetPolicy, BudgetReason, BudgetTarget,
-    NextSafeAction,
+    evaluate_budget, evaluate_budget_with_effective_bytes, BudgetByteDomain, BudgetDisposition,
+    BudgetEffectiveBytes, BudgetOutcome, BudgetPolicy, BudgetReason, BudgetTarget, NextSafeAction,
 };
 pub use packet_result::{
     PacketBodyNote, PacketBodyNoteKind, PacketDecisionSummary, PacketFixtureContext, PacketResult,

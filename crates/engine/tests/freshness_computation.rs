@@ -27,7 +27,7 @@ fn identity(
 
     CanonicalArtifactIdentity {
         kind,
-        relative_path,
+        relative_path: relative_path.to_owned(),
         packet_required,
         baseline_required,
         setup_scaffolded,

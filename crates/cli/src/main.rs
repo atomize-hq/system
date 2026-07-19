@@ -111,7 +111,7 @@ struct AuthorArgs {
 enum AuthorCommand {
     /// Deterministically author canonical `.handbook/charter/CHARTER.md`.
     Charter(AuthorCharterArgs),
-    /// Deterministically author canonical `.handbook/project_context/PROJECT_CONTEXT.md`.
+    /// Deterministically author canonical `.handbook/project/context.yaml`.
     ProjectContext(AuthorProjectContextArgs),
     /// Deterministically author canonical `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`.
     EnvironmentInventory(AuthorEnvironmentInventoryArgs),
@@ -132,7 +132,7 @@ struct AuthorProjectContextArgs {
     /// Read normalized structured inputs from a YAML file or `-` for stdin.
     #[arg(long = "from-inputs", value_name = "path|-")]
     from_inputs: Option<String>,
-    /// Validate normalized structured inputs and repo write preconditions without mutation.
+    /// Validate canonical YAML input and fixed-view rendering without mutation.
     #[arg(long)]
     validate: bool,
 }

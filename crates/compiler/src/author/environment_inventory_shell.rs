@@ -41,20 +41,20 @@ pub(super) fn render_environment_inventory_markdown(
 
 pub(super) fn preflight_author_environment_inventory(
     repo_root: &Path,
-) -> Result<bool, AuthorEnvironmentInventoryRefusal> {
-    let artifacts =
-        CanonicalArtifacts::load(repo_root).map_err(|err| AuthorEnvironmentInventoryRefusal {
+) -> Result<String, AuthorEnvironmentInventoryRefusal> {
+    let artifacts = CanonicalArtifacts::load_fixed_siblings(repo_root).map_err(|err| {
+        AuthorEnvironmentInventoryRefusal {
             kind: AuthorEnvironmentInventoryRefusalKind::InvalidSystemRoot,
             summary: format!("failed to inspect canonical `.handbook` root: {err}"),
             broken_subject: "canonical `.handbook` root".to_string(),
             next_safe_action: "repair the canonical `.handbook` root and rerun `handbook setup`"
                 .to_string(),
-        })?;
+        }
+    })?;
 
     validate_environment_inventory_authoring_preconditions(repo_root, &artifacts)?;
     required_charter_markdown(&artifacts)?;
-    let has_project_context = optional_project_context_markdown(&artifacts)?.is_some();
-    Ok(has_project_context)
+    required_project_context_path(repo_root)
 }
 
 pub(super) fn with_environment_inventory_authoring_lock<T, F>(
@@ -250,38 +250,29 @@ fn required_charter_markdown(
     }
 }
 
-fn optional_project_context_markdown(
-    artifacts: &CanonicalArtifacts,
-) -> Result<Option<String>, AuthorEnvironmentInventoryRefusal> {
-    let validation = baseline_artifact_validation(artifacts, CanonicalArtifactKind::ProjectContext)
-        .expect("project context must be part of baseline validation");
-
-    match validation.verdict {
-        BaselineArtifactVerdict::Missing
-        | BaselineArtifactVerdict::Empty
-        | BaselineArtifactVerdict::StarterOwned => Ok(None),
-        BaselineArtifactVerdict::IngestInvalid => Err(invalid_upstream_canonical_truth_refusal(
-            ".handbook/project_context/PROJECT_CONTEXT.md",
-            "canonical project context truth is unreadable or non-canonical; repair it or remove it before environment inventory authoring"
-                .to_string(),
-            "run `handbook setup refresh`".to_string(),
-        )),
-        BaselineArtifactVerdict::SemanticallyInvalid { summary } => {
-            Err(invalid_upstream_canonical_truth_refusal(
-                ".handbook/project_context/PROJECT_CONTEXT.md",
-                format!("canonical project context truth is invalid: {summary}"),
-                "run `handbook author project-context --from-inputs <path|->`".to_string(),
-            ))
-        }
-        BaselineArtifactVerdict::ValidCanonicalTruth { markdown } => {
-            let trimmed = markdown.trim();
-            if trimmed.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(trimmed.to_string()))
-            }
-        }
-    }
+fn required_project_context_path(
+    repo_root: &Path,
+) -> Result<String, AuthorEnvironmentInventoryRefusal> {
+    let decisions =
+        handbook_engine::resolve_shipped_profile_decisions(repo_root).map_err(|_| {
+            invalid_upstream_canonical_truth_refusal(
+                ".handbook/project/context.yaml",
+                "failed to resolve the selected Project Context contract".to_owned(),
+                "repair the installed Handbook definition package and retry".to_owned(),
+            )
+        })?;
+    handbook_engine::load_selected_project_context(repo_root, &decisions)
+        .map(|observation| observation.canonical_path().to_owned())
+        .map_err(|error| {
+            invalid_upstream_canonical_truth_refusal(
+                error.canonical_path(),
+                format!(
+                    "selected canonical Project Context is unavailable: {:?}",
+                    error.reason()
+                ),
+                "repair or author `.handbook/project/context.yaml`, then retry".to_owned(),
+            )
+        })
 }
 
 fn invalid_upstream_canonical_truth_refusal(

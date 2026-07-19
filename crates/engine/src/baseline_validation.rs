@@ -16,7 +16,7 @@ pub enum BaselineArtifactVerdict {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaselineArtifactValidation {
     pub kind: CanonicalArtifactKind,
-    pub canonical_repo_relative_path: &'static str,
+    pub canonical_repo_relative_path: String,
     pub packet_required: bool,
     pub verdict: BaselineArtifactVerdict,
 }
@@ -73,7 +73,7 @@ where
     let artifact = canonical_artifact(artifacts, descriptor.kind);
     BaselineArtifactValidation {
         kind: descriptor.kind,
-        canonical_repo_relative_path: artifact.identity.relative_path,
+        canonical_repo_relative_path: artifact.identity.relative_path.clone(),
         packet_required: artifact.identity.packet_required,
         verdict: verdict_for_descriptor(artifacts, descriptor, validate_artifact_markdown),
     }

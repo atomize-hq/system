@@ -593,6 +593,57 @@ mod unix {
     }
 
     #[test]
+    fn failed_project_context_reads_charge_aggregate_budget_before_later_rows() {
+        for (project_context_bytes, expected_reason) in [
+            (
+                vec![b'x'; MAX_SOURCE_DOCUMENT_BYTES],
+                ArtifactInspectionReason::DocumentNotObject,
+            ),
+            (
+                vec![b'x'; MAX_SOURCE_DOCUMENT_BYTES + 1],
+                ArtifactInspectionReason::DocumentLimitExceeded,
+            ),
+        ] {
+            let repo = tempdir().unwrap();
+            let decisions =
+                custom_decisions_with_project_context(repo.path(), 8, RequirednessMode::Always);
+            assert_eq!(
+                decisions.artifact_decisions()[0].instance_id().as_str(),
+                "project_context"
+            );
+            write(
+                &repo.path().join(".handbook/project/context.yaml"),
+                project_context_bytes,
+            );
+            for decision in decisions
+                .artifact_decisions()
+                .iter()
+                .filter(|decision| decision.instance_id().as_str().starts_with("zz_bulk_"))
+            {
+                write(
+                    &repo.path().join(decision.canonical_path()),
+                    vec![b'x'; MAX_SOURCE_DOCUMENT_BYTES],
+                );
+            }
+
+            let report = inspect_profile_repository(repo.path(), &decisions);
+            assert_eq!(row(&report, "project_context").reason(), expected_reason);
+            assert_eq!(
+                row(&report, "zz_bulk_06").reason(),
+                ArtifactInspectionReason::DocumentNotObject
+            );
+            assert_eq!(
+                row(&report, "zz_bulk_07").reason(),
+                ArtifactInspectionReason::AggregateReadLimitExceeded
+            );
+            assert_eq!(
+                row(&report, "zz_project_authority").reason(),
+                ArtifactInspectionReason::AggregateReadLimitExceeded
+            );
+        }
+    }
+
+    #[test]
     fn optional_unreadable_and_intermediate_symlink_rows_are_typed() {
         let optional = tempdir().unwrap();
         let optional_decisions = custom_decisions(optional.path(), 1, RequirednessMode::Optional);
@@ -697,12 +748,35 @@ mod unix {
         count: usize,
         requiredness: RequirednessMode,
     ) -> ResolvedProfileDecisions {
+        custom_decisions_inner(repo, count, requiredness, false)
+    }
+
+    fn custom_decisions_with_project_context(
+        repo: &Path,
+        count: usize,
+        requiredness: RequirednessMode,
+    ) -> ResolvedProfileDecisions {
+        custom_decisions_inner(repo, count, requiredness, true)
+    }
+
+    fn custom_decisions_inner(
+        repo: &Path,
+        count: usize,
+        requiredness: RequirednessMode,
+        include_project_context: bool,
+    ) -> ResolvedProfileDecisions {
         let schema_entry_path =
             "definitions/schemas/handbook.schemas.artifacts.project-authority/1.0.0.entry.yaml";
         let schema_document_path =
             "definitions/schemas/handbook.schemas.artifacts.project-authority/1.0.0.schema.json";
+        let project_context_schema_entry_path =
+            "definitions/schemas/handbook.schemas.artifacts.project-context/1.0.0.entry.yaml";
+        let project_context_schema_document_path =
+            "definitions/schemas/handbook.schemas.artifacts.project-context/1.0.0.schema.json";
         let authority_kind_path =
             "definitions/artifact-kinds/handbook.artifact-kind.project-authority/1.0.0.yaml";
+        let project_context_kind_path =
+            "definitions/artifact-kinds/handbook.artifact-kind.project-context/1.0.0.yaml";
         let capability_path = "definitions/semantic-capabilities/handbook.capabilities.constitutional-root/1.0.0.yaml";
         let validator_path = "definitions/semantic-validators/handbook.semantic-validation.constitutional-root/1.0.0.yaml";
         copy_crate_file(repo, schema_entry_path);
@@ -710,12 +784,22 @@ mod unix {
         copy_crate_file(repo, authority_kind_path);
         copy_crate_file(repo, capability_path);
         copy_crate_file(repo, validator_path);
+        if include_project_context {
+            copy_crate_file(repo, project_context_schema_entry_path);
+            copy_crate_file(repo, project_context_schema_document_path);
+            copy_crate_file(repo, project_context_kind_path);
+        }
 
         let baseline = shipped_selection();
         let schema_ref = exact("handbook.schemas.artifacts.project-authority@1.0.0");
+        let project_context_schema_ref = exact("handbook.schemas.artifacts.project-context@1.0.0");
+        let mut schema_entry_paths = vec![schema_entry_path.to_owned()];
+        if include_project_context {
+            schema_entry_paths.push(project_context_schema_entry_path.to_owned());
+        }
         let schema_registry = SchemaRegistry::load(
             repo,
-            &[schema_entry_path.to_owned()],
+            &schema_entry_paths,
             &["definitions/schemas".to_owned()],
         )
         .unwrap();
@@ -757,13 +841,17 @@ mod unix {
             serde_yaml_bw::to_string(&kind).unwrap(),
         );
 
+        let mut artifact_kind_paths = vec![authority_kind_path.to_owned(), kind_path.to_owned()];
+        if include_project_context {
+            artifact_kind_paths.push(project_context_kind_path.to_owned());
+        }
         let kind_registry = load_artifact_kind_registry(
             repo,
             ArtifactKindRegistryLoadRequest::new(
                 exact(ROLE_REGISTRY_REF),
-                vec![schema_entry_path.to_owned()],
+                schema_entry_paths,
                 vec!["definitions/schemas".to_owned()],
-                vec![authority_kind_path.to_owned(), kind_path.to_owned()],
+                artifact_kind_paths,
             )
             .with_semantic_sources(
                 vec![capability_path.to_owned()],
@@ -779,17 +867,31 @@ mod unix {
         };
         let mut instances = (0..count)
             .map(|index| {
+                let instance_id = if include_project_context {
+                    format!("zz_bulk_{index:02}")
+                } else {
+                    format!("bulk_{index:02}")
+                };
                 json!({
                     "schema_id": "handbook.artifact-instance-descriptor",
                     "schema_version": "1.0",
-                    "id": format!("bulk_{index:02}"),
+                    "id": instance_id,
                     "kind_ref": kind_ref,
                     "role_ref": "project_context",
                     "capability_refs": [],
                     "label": format!("Bulk Record {index:02}"),
                     "canonical_path": format!(".handbook/project/bulk-{index:02}.yaml"),
                     "requiredness": requiredness,
-                    "depends_on": [],
+                    "depends_on": if include_project_context {
+                        vec![json!({
+                            "target_kind": "instance",
+                            "target_ref": "project_context",
+                            "target_contract_ref": null,
+                            "cardinality": "exactly_one"
+                        })]
+                    } else {
+                        Vec::<Value>::new()
+                    },
                     "lifecycle_policy_ref": null,
                     "intake_definition_ref": null,
                     "renderer_definition_refs": [],
@@ -799,15 +901,37 @@ mod unix {
                 })
             })
             .collect::<Vec<_>>();
-        instances.push(
-            shipped_root_artifact_instance_values()
-                .into_iter()
-                .find(|value| value["id"] == json!("project_authority"))
-                .unwrap(),
-        );
+        if include_project_context {
+            instances.insert(
+                0,
+                shipped_root_artifact_instance_values()
+                    .into_iter()
+                    .find(|value| value["id"] == json!("project_context"))
+                    .unwrap(),
+            );
+        }
+        let mut authority_instance = shipped_root_artifact_instance_values()
+            .into_iter()
+            .find(|value| value["id"] == json!("project_authority"))
+            .unwrap();
+        if include_project_context {
+            authority_instance["id"] = json!("zz_project_authority");
+            authority_instance["canonical_path"] =
+                json!(".handbook/project/zz-project-authority.yaml");
+        }
+        instances.push(authority_instance);
         let instance_registry =
             ArtifactInstanceRegistry::resolve(&instances, &kind_registry, &[]).unwrap();
 
+        let mut profile_schema_refs = vec![schema_ref.as_str().to_owned()];
+        let mut profile_kind_refs = vec![
+            "handbook.artifact-kind.project-authority@1.0.0".to_owned(),
+            kind_ref.to_owned(),
+        ];
+        if include_project_context {
+            profile_schema_refs.push(project_context_schema_ref.as_str().to_owned());
+            profile_kind_refs.push("handbook.artifact-kind.project-context@1.0.0".to_owned());
+        }
         let mut profile = json!({
             "schema_id": "handbook.instance-profile",
             "schema_version": "1.0",
@@ -819,11 +943,8 @@ mod unix {
                 "ref": ROLE_REGISTRY_REF,
                 "fingerprint": ROLE_REGISTRY_FINGERPRINT,
             },
-            "schema_registry_sources": [schema_ref.as_str()],
-            "artifact_kind_sources": [
-                "handbook.artifact-kind.project-authority@1.0.0",
-                kind_ref
-            ],
+            "schema_registry_sources": profile_schema_refs,
+            "artifact_kind_sources": profile_kind_refs,
             "artifact_instances": instances,
             "vocabulary_ref": baseline.vocabulary().exact_ref().as_str(),
             "context_resolution_ref": baseline.context_resolution().exact_ref().as_str(),
@@ -876,6 +997,26 @@ mod unix {
                 "fingerprint": baseline.context_resolution().definition_fingerprint().as_str(),
             }),
         ];
+        if include_project_context {
+            let project_context_schema_entry = schema_registry
+                .entry(&project_context_schema_ref)
+                .expect("Project Context schema entry");
+            dependencies.push(json!({
+                "definition_class": "schema_entry",
+                "reference": project_context_schema_ref.as_str(),
+                "fingerprint": project_context_schema_entry.entry_fingerprint().as_str(),
+            }));
+            dependencies.push(json!({
+                "definition_class": "artifact_kind",
+                "reference": "handbook.artifact-kind.project-context@1.0.0",
+                "fingerprint": baseline
+                    .artifact_kind_registry()
+                    .kind(&exact("handbook.artifact-kind.project-context@1.0.0"))
+                    .unwrap()
+                    .definition_fingerprint()
+                    .as_str(),
+            }));
+        }
         dependencies.sort_by(|left, right| {
             (
                 left["definition_class"].as_str(),
@@ -901,17 +1042,23 @@ mod unix {
             serde_yaml_bw::to_string(&profile).unwrap(),
         );
 
+        let mut selected_schema_sources = vec![builtin(schema_ref.as_str())];
+        let mut selected_kind_sources = vec![
+            builtin("handbook.artifact-kind.project-authority@1.0.0"),
+            repository(kind_ref, kind_path),
+        ];
+        if include_project_context {
+            selected_schema_sources.push(builtin(project_context_schema_ref.as_str()));
+            selected_kind_sources.push(builtin("handbook.artifact-kind.project-context@1.0.0"));
+        }
         let selected = resolve_profile_selection(
             repo,
             ProfileSelectionRequest {
                 selected_profile_ref: exact("example.profile.bulk-root@1.0.0"),
                 profile_sources: vec![repository("example.profile.bulk-root@1.0.0", profile_path)],
                 stable_role_registry_sources: vec![builtin(ROLE_REGISTRY_REF)],
-                schema_entry_sources: vec![builtin(schema_ref.as_str())],
-                artifact_kind_sources: vec![
-                    builtin("handbook.artifact-kind.project-authority@1.0.0"),
-                    repository(kind_ref, kind_path),
-                ],
+                schema_entry_sources: selected_schema_sources,
+                artifact_kind_sources: selected_kind_sources,
                 semantic_capability_sources: vec![builtin(
                     "handbook.capabilities.constitutional-root@1.0.0",
                 )],

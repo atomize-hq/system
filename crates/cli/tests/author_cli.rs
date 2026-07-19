@@ -1,8 +1,10 @@
 use std::fs;
 use std::io::Write;
+#[cfg(unix)]
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
+#[cfg(unix)]
 const AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR: &str = "HANDBOOK_AUTHOR_PROJECT_CONTEXT_NOW_UTC";
 
 fn binary() -> Command {
@@ -56,6 +58,7 @@ fn write_file(path: &Path, contents: &str) {
     fs::write(path, contents).expect("write");
 }
 
+#[cfg(unix)]
 fn with_project_context_now_utc<T>(value: &str, action: impl FnOnce() -> T) -> T {
     let previous = std::env::var_os(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR);
     std::env::set_var(AUTHOR_PROJECT_CONTEXT_NOW_UTC_ENV_VAR, value);
@@ -105,7 +108,7 @@ owner: "compiler-team"
 team: "Handbook"
 repo_or_project_ref: "handbook"
 charter_ref: ".handbook/charter/CHARTER.md"
-project_context_ref: null
+project_context_ref: ".handbook/project/context.yaml"
 environment_variables: []
 secret_handling:
   charter_posture: "never store real credentials in repository artifacts"
@@ -150,96 +153,43 @@ known_unknowns:
 }
 
 fn valid_project_context_inputs_yaml() -> &'static str {
-    r#"schema_version: "0.1.0"
-project_name: "Handbook"
-owner: "compiler-team"
-team: "Handbook"
-repo_or_project_ref: "handbook"
-charter_ref: ".handbook/charter/CHARTER.md"
-project_summary:
-  what_this_project_is: "CLI and compiler for canonical planning artifacts and workflow proofs"
-  primary_surface: "CLI plus compiler library"
-  primary_users: "internal operators and automation"
-  key_workflows:
-    - "scaffold canonical .handbook state"
-    - "author baseline artifacts"
-    - "compile and inspect planning outputs"
-  non_goals: "End-user product delivery"
-operational_reality:
-  is_live_in_production_today: "no"
-  users: "internal operators only"
-  data_in_production: "none"
-  uptime_expectations: "best effort during active development"
-  incident_on_call_reality: "no formal on-call rotation today"
-  primary_risk_flags_present: "incorrect planning guidance and canonical write regressions"
-classification_implications:
-  project_type: "greenfield with an active brownfield codebase"
-  backward_compatibility_required: "no"
-  backward_compatibility_notes: "no external customers depend on the current compiler API"
-  migration_planning_required: "not applicable"
-  migration_planning_notes: "no legacy production data to migrate"
-  deprecation_policy_exists: "not yet"
-  deprecation_policy_notes: "internal interfaces can change with coordinated release notes"
-  rollout_controls_required: "lightweight only"
-  rollout_controls_notes: "feature branches and tests gate changes before merge"
+    r#"schema_id: "handbook.artifact.project-context"
+schema_version: "1.0"
+record_id: "handbook.project-context"
+summary: "CLI and compiler for canonical planning artifacts and workflow proofs."
 system_boundaries:
-  owned_areas:
-    - "compiler and CLI crates in this repository"
-    - "canonical .handbook artifact formats and setup flow"
-  external_dependencies:
-    - "OpenAI Codex runtime used for charter synthesis"
-    - "local filesystem layout and git worktree state"
-integrations:
-  - name: "Codex exec"
-    integration_type: "CLI runtime"
-    contract_surface: "codex exec --output-last-message -"
-    authentication_authorization: "inherits local operator credentials and API configuration"
-    failure_mode_expectations: "auth or process failures must refuse without partial writes"
-environments_and_delivery:
-  environments_that_exist: "local development and CI"
-  deployment_model: "cargo-driven local execution"
-  ci_cd_reality: "basic CI with compiler and CLI test coverage"
-  release_cadence: "repo-driven iterative releases"
-  config_and_secrets: "standard local environment variables and git config"
-  observability_stack: "test output and local command stderr"
-data_reality:
-  primary_data_stores: "repo-local markdown, yaml, and route-state files"
-  data_classification: "source code and internal planning metadata"
-  retention_requirements: "none beyond repository history"
-  backups_disaster_recovery: "git history plus local worktree backups"
-  existing_migrations_history: "none for production data"
-repo_codebase_reality:
-  codebase_exists_today: true
-  current_maturity: "medium-sized active Rust workspace"
-  key_modules_or_areas:
-    - "crates/compiler"
-    - "crates/cli"
-    - "core/library"
-  known_constraints_from_existing_code: "lane ownership and canonical artifact ordering must be preserved"
-constraints:
-  deadline_time_constraints: "must fit the current milestone split"
-  budget_constraints: "limited to local engineering time"
-  must_use_or_prohibited_tech: "must stay in Rust and preserve existing canonical paths"
-  compliance_legal_constraints: "none beyond repository policy"
-  performance_constraints: "compiler authoring should stay fast and deterministic"
-  security_constraints: "no writes outside canonical repo-owned targets"
+  - "Compiler and CLI crates in this repository"
+ownership:
+  - "compiler-team"
+authoritative_references:
+  - "handbook.charter@1.0.0"
 known_unknowns:
-  - item: "final CLI interview wording for project-context authoring"
-    owner: "Lane D"
-    revisit_trigger: "when the CLI subcommand lands"
+  - "Future external integration requirements"
 "#
 }
 
-fn expected_project_context_markdown_from_yaml() -> String {
-    let input = handbook_engine::parse_project_context_structured_input_yaml(
+#[cfg(unix)]
+fn write_valid_selected_project_context(repo_root: &Path) {
+    write_file(
+        &repo_root.join(".handbook/project/context.yaml"),
         valid_project_context_inputs_yaml(),
-    )
-    .expect("parse project-context yaml");
+    );
+}
 
-    with_project_context_now_utc("2026-04-21T12:34:56Z", || {
-        handbook_engine::render_project_context_markdown(&input, "2026-04-21T12:34:56Z")
-            .expect("render project-context markdown")
-    })
+#[cfg(unix)]
+fn expected_project_context_markdown_from_yaml() -> String {
+    let input =
+        handbook_compiler::parse_project_context_input_yaml(valid_project_context_inputs_yaml())
+            .expect("parse project-context yaml");
+    String::from_utf8(
+        handbook_engine::serialize_canonical_project_context(
+            &handbook_engine::resolve_shipped_profile_decisions(".")
+                .expect("selected Project Context decisions"),
+            &input,
+        )
+        .expect("serialize canonical Project Context"),
+    )
+    .expect("canonical Project Context UTF-8")
 }
 
 fn valid_structured_inputs_yaml() -> &'static str {
@@ -632,10 +582,12 @@ fn bare_project_context_author_requires_structured_inputs() {
 fn project_context_validate_file_and_stdin_are_non_mutating() {
     for source in ["file", "stdin"] {
         let dir = legacy_authoring_fixture_repo();
-        let canonical = dir
+        let legacy = dir
             .path()
             .join(".handbook/project_context/PROJECT_CONTEXT.md");
-        let before = fs::read(&canonical).expect("starter project context");
+        let selected = dir.path().join(".handbook/project/context.yaml");
+        let before = fs::read(&legacy).expect("legacy starter project context");
+        assert!(!selected.exists());
 
         let output = if source == "file" {
             let inputs_path = dir.path().join("project-context-inputs.yaml");
@@ -668,10 +620,49 @@ fn project_context_validate_file_and_stdin_are_non_mutating() {
         let out = stdout(&output);
         assert!(out.contains("OUTCOME: VALIDATED"), "{out}");
         assert_eq!(
-            fs::read(&canonical).expect("project context after validation"),
+            fs::read(&legacy).expect("legacy project context after validation"),
             before
         );
+        assert!(!selected.exists());
     }
+}
+
+#[cfg(not(unix))]
+#[test]
+fn project_context_author_refuses_before_mutation_without_strict_platform_support() {
+    let dir = legacy_authoring_fixture_repo();
+    let inputs_path = dir.path().join("project-context-inputs.yaml");
+    write_file(&inputs_path, valid_project_context_inputs_yaml());
+    let legacy_path = dir
+        .path()
+        .join(".handbook/project_context/PROJECT_CONTEXT.md");
+    let legacy_before = fs::read(&legacy_path).expect("legacy starter bytes");
+    let selected_path = dir.path().join(".handbook/project/context.yaml");
+    assert!(!selected_path.exists());
+
+    let output = run_in(
+        dir.path(),
+        &[
+            "author",
+            "project-context",
+            "--from-inputs",
+            inputs_path.to_str().expect("UTF-8 inputs path"),
+        ],
+    );
+
+    assert!(!output.status.success());
+    let out = stdout(&output);
+    assert!(out.contains("OUTCOME: REFUSED"), "{out}");
+    assert!(
+        out.contains("CATEGORY: UnsupportedPlatformStrictMutation"),
+        "{out}"
+    );
+    assert!(out.contains(".handbook/project/context.yaml"), "{out}");
+    assert_eq!(
+        fs::read(&legacy_path).expect("legacy bytes after refusal"),
+        legacy_before
+    );
+    assert!(!selected_path.exists());
 }
 
 #[test]
@@ -721,6 +712,7 @@ fn project_context_stdin_inputs_refuse_when_yaml_is_malformed() {
     assert!(out.contains("OBJECT: author project-context"));
 }
 
+#[cfg(unix)]
 #[test]
 fn project_context_file_inputs_succeed() {
     let dir = legacy_authoring_fixture_repo();
@@ -748,16 +740,38 @@ fn project_context_file_inputs_succeed() {
     assert!(out.contains("OUTCOME: AUTHORED"), "{out}");
     assert!(out.contains("MODE: structured_inputs_file"), "{out}");
     assert!(out.contains("SOURCE: "), "{out}");
+    let expected_yaml = expected_project_context_markdown_from_yaml();
+    let record =
+        handbook_compiler::parse_project_context_input_yaml(valid_project_context_inputs_yaml())
+            .unwrap();
+    let rendered = handbook_engine::render_project_context_markdown(&record).unwrap();
+    assert!(
+        out.contains(&format!("BYTES WRITTEN: {}", expected_yaml.len())),
+        "{out}"
+    );
+    assert!(
+        out.contains(&format!(
+            "SOURCE FINGERPRINT: {}",
+            handbook_engine::project_context_source_fingerprint(expected_yaml.as_bytes()).as_str()
+        )),
+        "{out}"
+    );
+    assert!(
+        out.contains(&format!(
+            "RENDERED OUTPUT FINGERPRINT: {}",
+            handbook_engine::project_context_rendered_fingerprint(&rendered).as_str()
+        )),
+        "{out}"
+    );
+    assert!(out.contains("RENDERED MEDIA TYPE: text/markdown"), "{out}");
     assert_eq!(
-        fs::read_to_string(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
-        )
-        .expect("project context"),
-        expected_project_context_markdown_from_yaml()
+        fs::read_to_string(dir.path().join(".handbook/project/context.yaml"))
+            .expect("project context"),
+        expected_yaml
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn project_context_stdin_inputs_succeed() {
     let dir = legacy_authoring_fixture_repo();
@@ -780,21 +794,18 @@ fn project_context_stdin_inputs_succeed() {
     assert!(out.contains("MODE: structured_inputs_stdin"), "{out}");
     assert!(out.contains("SOURCE: -"), "{out}");
     assert_eq!(
-        fs::read_to_string(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
-        )
-        .expect("project context"),
+        fs::read_to_string(dir.path().join(".handbook/project/context.yaml"))
+            .expect("project context"),
         expected_project_context_markdown_from_yaml()
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
     let dir = legacy_authoring_fixture_repo();
     write_file(
-        &dir.path()
-            .join(".handbook/project_context/PROJECT_CONTEXT.md"),
+        &dir.path().join(".handbook/project/context.yaml"),
         "custom project context truth\n",
     );
     let inputs_path = dir.path().join("project-context-inputs.yaml");
@@ -818,15 +829,13 @@ fn project_context_file_inputs_repair_semantically_invalid_canonical_truth() {
         stdout(&output)
     );
     assert_eq!(
-        fs::read_to_string(
-            dir.path()
-                .join(".handbook/project_context/PROJECT_CONTEXT.md")
-        )
-        .expect("project context"),
+        fs::read_to_string(dir.path().join(".handbook/project/context.yaml"))
+            .expect("project context"),
         expected_project_context_markdown_from_yaml()
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn environment_inventory_file_inputs_author_deterministically_without_codex() {
     let dir = legacy_authoring_fixture_repo();
@@ -834,6 +843,7 @@ fn environment_inventory_file_inputs_author_deterministically_without_codex() {
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
     );
+    write_valid_selected_project_context(dir.path());
     let inputs_path = dir.path().join("environment-inventory-inputs.yaml");
     write_file(&inputs_path, valid_environment_inventory_inputs_yaml());
     let output = run_in(
@@ -876,6 +886,7 @@ fn environment_inventory_file_inputs_author_deterministically_without_codex() {
         .exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn environment_inventory_stdin_inputs_author_deterministically() {
     let dir = legacy_authoring_fixture_repo();
@@ -883,6 +894,7 @@ fn environment_inventory_stdin_inputs_author_deterministically() {
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
     );
+    write_valid_selected_project_context(dir.path());
 
     let output = run_in_with_input(
         dir.path(),
@@ -896,6 +908,7 @@ fn environment_inventory_stdin_inputs_author_deterministically() {
     assert!(out.contains("MODE: structured_inputs_stdin"), "{out}");
 }
 
+#[cfg(unix)]
 #[test]
 fn environment_inventory_validate_is_non_mutating() {
     let dir = legacy_authoring_fixture_repo();
@@ -903,6 +916,7 @@ fn environment_inventory_validate_is_non_mutating() {
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
     );
+    write_valid_selected_project_context(dir.path());
     let canonical = dir
         .path()
         .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md");
@@ -961,6 +975,7 @@ fn bare_environment_inventory_command_requires_structured_inputs_without_codex()
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn environment_inventory_file_inputs_repair_semantically_invalid_canonical_truth() {
     let dir = legacy_authoring_fixture_repo();
@@ -968,6 +983,7 @@ fn environment_inventory_file_inputs_repair_semantically_invalid_canonical_truth
         &dir.path().join(".handbook/charter/CHARTER.md"),
         "# Engineering Charter — Example\n\n## What this is\nExample charter truth for environment inventory authoring.\n\n## How to use this charter\nUse it to validate upstream charter requirements.\n\n## Rubric: 1–5 rigor levels\n- Keep secrets out of git.\n\n## Project baseline posture\nBaseline defined.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nKeep trust boundaries intact.\n\n## Cross-cutting red lines (global non-negotiables)\n- Do not commit secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack follow-up work.\n\n## Decision Records (ADRs): how to use this charter\nNot required.\n\n## Review & updates\nReview when runtime assumptions change.\n",
     );
+    write_valid_selected_project_context(dir.path());
     write_file(
         &dir.path()
             .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md"),
@@ -996,6 +1012,42 @@ fn environment_inventory_file_inputs_repair_semantically_invalid_canonical_truth
     )
     .expect("environment inventory");
     assert!(markdown.starts_with("# Environment Inventory — Handbook"));
+}
+
+#[cfg(not(unix))]
+#[test]
+fn environment_inventory_author_refuses_before_mutation_without_strict_read_support() {
+    let dir = legacy_authoring_fixture_repo();
+    write_file(
+        &dir.path().join(".handbook/charter/CHARTER.md"),
+        "# Engineering Charter — Example\n\n## What this is\nExample.\n\n## How to use this charter\nUse it.\n\n## Rubric: 1–5 rigor levels\nLevels.\n\n## Project baseline posture\nBaseline.\n\n## Domains / areas (optional overrides)\nNone.\n\n## Posture at a glance (quick scan)\nStable.\n\n## Dimensions (details + guardrails)\nDetails.\n\n## Cross-cutting red lines (global non-negotiables)\n- No secrets.\n\n## Exceptions / overrides process\n- **Approvers:** engineering\n- **Record location:** docs/exceptions.md\n- **Minimum required fields:**\n  - what\n  - why\n  - scope\n  - risk\n  - owner\n  - expiry_or_revisit_date\n\n## Debt tracking expectations\nTrack debt.\n\n## Decision Records (ADRs): how to use this charter\nUse ADRs.\n\n## Review & updates\nReview changes.\n",
+    );
+    let target = dir
+        .path()
+        .join(".handbook/environment_inventory/ENVIRONMENT_INVENTORY.md");
+    let before = fs::read(&target).expect("starter environment inventory bytes");
+
+    let output = run_in_with_input(
+        dir.path(),
+        &["author", "environment-inventory", "--from-inputs", "-"],
+        valid_environment_inventory_inputs_yaml(),
+    );
+
+    assert!(!output.status.success());
+    let out = stdout(&output);
+    assert!(
+        out.contains("CATEGORY: InvalidUpstreamCanonicalTruth"),
+        "{out}"
+    );
+    assert!(out.contains("UnsupportedPlatformStrictRead"), "{out}");
+    assert!(
+        out.contains("BROKEN SUBJECT: .handbook/project/context.yaml"),
+        "{out}"
+    );
+    assert_eq!(
+        fs::read(&target).expect("environment inventory after refusal"),
+        before
+    );
 }
 
 #[test]

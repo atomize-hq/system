@@ -1,6 +1,8 @@
 use handbook_compiler::{render_next_safe_action_value, resolve, RefusalCategory, SubjectRef};
 use handbook_engine::{setup_starter_template_bytes, CanonicalArtifactKind};
-use handbook_flow::{BudgetDisposition, BudgetPolicy, ResolveRequest};
+use handbook_flow::ResolveRequest;
+#[cfg(unix)]
+use handbook_flow::{BudgetDisposition, BudgetPolicy};
 
 fn write_file(path: &std::path::Path, contents: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -9,6 +11,7 @@ fn write_file(path: &std::path::Path, contents: &[u8]) {
     std::fs::write(path, contents).expect("write");
 }
 
+#[cfg(unix)]
 fn valid_charter_markdown() -> &'static str {
     "# Engineering Charter — Handbook
 
@@ -108,7 +111,7 @@ fn refusal_non_canonical_input_attempt_is_selected_for_symlinked_canonical_artif
         refusal.broken_subject,
         SubjectRef::CanonicalArtifact {
             kind: CanonicalArtifactKind::Charter,
-            canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
+            canonical_repo_relative_path: ".handbook/charter/CHARTER.md".to_owned(),
         }
     );
     assert_eq!(
@@ -157,7 +160,7 @@ fn refusal_required_artifact_starter_template() {
         refusal.broken_subject,
         SubjectRef::CanonicalArtifact {
             kind: CanonicalArtifactKind::Charter,
-            canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
+            canonical_repo_relative_path: ".handbook/charter/CHARTER.md".to_owned(),
         }
     );
     assert_eq!(
@@ -184,7 +187,7 @@ fn refusal_required_artifact_invalid() {
         refusal.broken_subject,
         SubjectRef::CanonicalArtifact {
             kind: CanonicalArtifactKind::Charter,
-            canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
+            canonical_repo_relative_path: ".handbook/charter/CHARTER.md".to_owned(),
         }
     );
     assert_eq!(
@@ -211,7 +214,7 @@ fn refusal_required_artifact_read_error_is_selected_for_malformed_required_path(
         refusal.broken_subject,
         SubjectRef::CanonicalArtifact {
             kind: CanonicalArtifactKind::Charter,
-            canonical_repo_relative_path: ".handbook/charter/CHARTER.md",
+            canonical_repo_relative_path: ".handbook/charter/CHARTER.md".to_owned(),
         }
     );
     assert_eq!(
@@ -220,6 +223,7 @@ fn refusal_required_artifact_read_error_is_selected_for_malformed_required_path(
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn refusal_budget_refused_is_selected_when_other_inputs_ok() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -232,6 +236,10 @@ fn refusal_budget_refused_is_selected_when_other_inputs_ok() {
     write_file(
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature spec that is longer than one byte",
+    );
+    write_file(
+        &root.join(".handbook/project/context.yaml"),
+        include_bytes!("../../../tools/fixtures/project_context_inputs/runtime_smoke_valid.yaml"),
     );
 
     let request = ResolveRequest {
@@ -248,6 +256,7 @@ fn refusal_budget_refused_is_selected_when_other_inputs_ok() {
     assert_eq!(refusal.category, RefusalCategory::BudgetRefused);
 }
 
+#[cfg(unix)]
 #[test]
 fn refusal_unsupported_request_is_selected_for_live_execution_packet_when_other_inputs_ok() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -260,6 +269,10 @@ fn refusal_unsupported_request_is_selected_for_live_execution_packet_when_other_
     write_file(
         &root.join(".handbook/feature_spec/FEATURE_SPEC.md"),
         b"feature",
+    );
+    write_file(
+        &root.join(".handbook/project/context.yaml"),
+        include_bytes!("../../../tools/fixtures/project_context_inputs/runtime_smoke_valid.yaml"),
     );
 
     let request = ResolveRequest {

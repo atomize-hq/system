@@ -1,21 +1,14 @@
 use handbook_engine::{
     parse_environment_inventory_structured_input_yaml, render_charter_markdown,
-    render_environment_inventory_markdown, render_project_context_markdown,
-    validate_charter_structured_input, validate_environment_inventory_markdown,
-    validate_project_context_markdown, validate_project_context_structured_input, CharterAudience,
-    CharterBackwardCompatibility, CharterDebtTrackingInput, CharterDecisionRecordsInput,
-    CharterDefaultImplicationsInput, CharterDeprecationPolicy, CharterDimensionInput,
-    CharterDimensionName, CharterDomainInput, CharterExceptionsInput, CharterExpectedLifetime,
-    CharterObservabilityThreshold, CharterOperationalRealityInput, CharterPostureInput,
-    CharterProjectClassification, CharterProjectConstraintsInput, CharterProjectInput,
-    CharterRequiredness, CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput,
-    CharterSurface, EnvironmentInventoryCoreErrorKind,
-    ProjectContextClassificationImplicationsInput, ProjectContextConstraintsInput,
-    ProjectContextDataRealityInput, ProjectContextEnvironmentsAndDeliveryInput,
-    ProjectContextIntegrationInput, ProjectContextKnownUnknownInput,
-    ProjectContextOperationalRealityInput, ProjectContextRepoCodebaseRealityInput,
-    ProjectContextStructuredInput, ProjectContextSummaryInput, ProjectContextSystemBoundariesInput,
-    DEFAULT_EXCEPTION_RECORD_LOCATION,
+    render_environment_inventory_markdown, validate_charter_structured_input,
+    validate_environment_inventory_markdown, CharterAudience, CharterBackwardCompatibility,
+    CharterDebtTrackingInput, CharterDecisionRecordsInput, CharterDefaultImplicationsInput,
+    CharterDeprecationPolicy, CharterDimensionInput, CharterDimensionName, CharterDomainInput,
+    CharterExceptionsInput, CharterExpectedLifetime, CharterObservabilityThreshold,
+    CharterOperationalRealityInput, CharterPostureInput, CharterProjectClassification,
+    CharterProjectConstraintsInput, CharterProjectInput, CharterRequiredness,
+    CharterRolloutControls, CharterRuntimeEnvironment, CharterStructuredInput, CharterSurface,
+    EnvironmentInventoryCoreErrorKind, DEFAULT_EXCEPTION_RECORD_LOCATION,
 };
 
 const VALID_ENVIRONMENT_INVENTORY_INPUTS: &str = r#"
@@ -25,7 +18,7 @@ owner: "compiler-team"
 team: "Handbook"
 repo_or_project_ref: "handbook"
 charter_ref: ".handbook/charter/CHARTER.md"
-project_context_ref: ".handbook/project_context/PROJECT_CONTEXT.md"
+project_context_ref: ".handbook/project/context.yaml"
 environment_variables:
   - name: "HANDBOOK_HOME"
     required: false
@@ -195,130 +188,6 @@ fn charter_dimension(name: CharterDimensionName) -> CharterDimensionInput {
     }
 }
 
-fn valid_project_context_input() -> ProjectContextStructuredInput {
-    ProjectContextStructuredInput {
-        schema_version: "0.1.0".to_string(),
-        project_name: "Handbook".to_string(),
-        owner: "compiler-team".to_string(),
-        team: "Handbook".to_string(),
-        repo_or_project_ref: "handbook".to_string(),
-        charter_ref: ".handbook/charter/CHARTER.md".to_string(),
-        project_summary: ProjectContextSummaryInput {
-            what_this_project_is:
-                "CLI and compiler for canonical planning artifacts and workflow proofs".to_string(),
-            primary_surface: "CLI plus compiler library".to_string(),
-            primary_users: "internal operators and automation".to_string(),
-            key_workflows: vec![
-                "scaffold canonical .handbook state".to_string(),
-                "author baseline artifacts".to_string(),
-                "compile and inspect planning outputs".to_string(),
-            ],
-            non_goals: "End-user product delivery".to_string(),
-        },
-        operational_reality: ProjectContextOperationalRealityInput {
-            is_live_in_production_today: "no".to_string(),
-            users: "internal operators only".to_string(),
-            data_in_production: "none".to_string(),
-            uptime_expectations: "best effort during active development".to_string(),
-            incident_on_call_reality: "no formal on-call rotation today".to_string(),
-            primary_risk_flags_present:
-                "incorrect planning guidance and canonical write regressions".to_string(),
-        },
-        classification_implications: ProjectContextClassificationImplicationsInput {
-            project_type: "greenfield with an active brownfield codebase".to_string(),
-            backward_compatibility_required: "no".to_string(),
-            backward_compatibility_notes:
-                "no external customers depend on the current compiler API".to_string(),
-            migration_planning_required: "not applicable".to_string(),
-            migration_planning_notes: "no legacy production data to migrate".to_string(),
-            deprecation_policy_exists: "not yet".to_string(),
-            deprecation_policy_notes:
-                "internal interfaces can change with coordinated release notes".to_string(),
-            rollout_controls_required: "lightweight only".to_string(),
-            rollout_controls_notes: "feature branches and tests gate changes before merge"
-                .to_string(),
-        },
-        system_boundaries: ProjectContextSystemBoundariesInput {
-            owned_areas: vec![
-                "compiler and CLI crates in this repository".to_string(),
-                "canonical .handbook artifact formats and setup flow".to_string(),
-            ],
-            external_dependencies: vec![
-                "OpenAI Codex runtime used for charter synthesis".to_string(),
-                "local filesystem layout and git worktree state".to_string(),
-            ],
-        },
-        integrations: vec![
-            ProjectContextIntegrationInput {
-                name: "Codex exec".to_string(),
-                integration_type: "CLI runtime".to_string(),
-                contract_surface: "codex exec --output-last-message -".to_string(),
-                authentication_authorization:
-                    "inherits local operator credentials and API configuration".to_string(),
-                failure_mode_expectations:
-                    "auth or process failures must refuse without partial writes".to_string(),
-            },
-            ProjectContextIntegrationInput {
-                name: "Repo-local .handbook tree".to_string(),
-                integration_type: "filesystem".to_string(),
-                contract_surface: "canonical artifact paths under .handbook/**".to_string(),
-                authentication_authorization:
-                    "write guards reject symlinks and non-regular targets".to_string(),
-                failure_mode_expectations: "invalid paths block authoring until repaired"
-                    .to_string(),
-            },
-        ],
-        environments_and_delivery: ProjectContextEnvironmentsAndDeliveryInput {
-            environments_that_exist: "local development and CI".to_string(),
-            deployment_model: "cargo-driven local execution".to_string(),
-            ci_cd_reality: "basic CI with compiler and CLI test coverage".to_string(),
-            release_cadence: "repo-driven iterative releases".to_string(),
-            config_and_secrets: "standard local environment variables and git config".to_string(),
-            observability_stack: "test output and local command stderr".to_string(),
-        },
-        data_reality: ProjectContextDataRealityInput {
-            primary_data_stores: "repo-local markdown, yaml, and route-state files".to_string(),
-            data_classification: "source code and internal planning metadata".to_string(),
-            retention_requirements: "none beyond repository history".to_string(),
-            backups_disaster_recovery: "git history plus local worktree backups".to_string(),
-            existing_migrations_history: "none for production data".to_string(),
-        },
-        repo_codebase_reality: ProjectContextRepoCodebaseRealityInput {
-            codebase_exists_today: true,
-            current_maturity: "medium-sized active Rust workspace".to_string(),
-            key_modules_or_areas: vec![
-                "crates/compiler".to_string(),
-                "crates/cli".to_string(),
-                "core/library".to_string(),
-            ],
-            known_constraints_from_existing_code:
-                "lane ownership and canonical artifact ordering must be preserved".to_string(),
-        },
-        constraints: ProjectContextConstraintsInput {
-            deadline_time_constraints: "must fit the current milestone split".to_string(),
-            budget_constraints: "limited to local engineering time".to_string(),
-            must_use_or_prohibited_tech: "must stay in Rust and preserve existing canonical paths"
-                .to_string(),
-            compliance_legal_constraints: "none beyond repository policy".to_string(),
-            performance_constraints: "compiler authoring should stay fast and deterministic"
-                .to_string(),
-            security_constraints: "no writes outside canonical repo-owned targets".to_string(),
-        },
-        known_unknowns: vec![
-            ProjectContextKnownUnknownInput {
-                item: "final CLI interview wording for project-context authoring".to_string(),
-                owner: "Lane D".to_string(),
-                revisit_trigger: "when the CLI subcommand lands".to_string(),
-            },
-            ProjectContextKnownUnknownInput {
-                item: "doctor-side invalid baseline messaging for project context".to_string(),
-                owner: "Lane D".to_string(),
-                revisit_trigger: "when doctor baseline classification is wired".to_string(),
-            },
-        ],
-    }
-}
-
 fn expected_environment_inventory_markdown(project_context_ref: &str) -> String {
     format!(
         "# Environment Inventory - Handbook\n\n> **Canonical File:** `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md`\n> **Project Context Ref:** {project_context_ref}\n\n## What this is\nCanonical environment and runtime inventory.\n\n## How to use\n- Update this file when runtime assumptions change.\n\n## 1) Environment Variables (Inventory)\n- None yet.\n\n## 2) External Services / Infrastructure Dependencies\n- None yet.\n\n## 3) Runtime Assumptions (Ports, Paths, Storage, Limits)\n- None yet.\n\n## 4) Local Development Requirements\n- None yet.\n\n## 5) CI Requirements\n- None yet.\n\n## 6) Production / Deployment Requirements (even if not live yet)\n- None yet.\n\n## 7) Dependency & Tooling Inventory (project-specific)\n- None yet.\n\n## 8) Update Contract (non-negotiable)\n- Update `.handbook/environment_inventory/ENVIRONMENT_INVENTORY.md` in the same change.\n\n## 9) Known Unknowns\n- None yet.\n"
@@ -339,18 +208,6 @@ fn charter_core_renders_required_sections_from_engine() {
 }
 
 #[test]
-fn project_context_core_renders_with_explicit_timestamp_from_engine() {
-    let input = valid_project_context_input();
-    validate_project_context_structured_input(&input).expect("valid project-context input");
-
-    let markdown = render_project_context_markdown(&input, "2026-04-21T12:34:56Z")
-        .expect("render project-context markdown");
-    assert!(markdown.contains("> **Created (UTC):** 2026-04-21T12:34:56Z"));
-    assert!(markdown.contains("## 3) System Boundaries (what we own vs integrate with)"));
-    validate_project_context_markdown(&markdown).expect("rendered markdown should validate");
-}
-
-#[test]
 fn environment_inventory_validation_is_engine_owned() {
     validate_environment_inventory_markdown(&expected_environment_inventory_markdown("None"))
         .expect("canonical environment inventory markdown should validate");
@@ -368,23 +225,16 @@ fn handbook_product_exception_record_default_remains_explicitly_bounded() {
 #[test]
 fn deprecated_environment_inventory_validation_api_remains_source_compatible() {
     let with_project_context =
-        expected_environment_inventory_markdown("`.handbook/project_context/PROJECT_CONTEXT.md`");
-    handbook_engine::author::validate_synthesized_environment_inventory_markdown(
-        &with_project_context,
-        handbook_engine::author::EnvironmentInventoryValidationExpectations::for_optional_project_context(
-            true,
-        ),
-    )
-    .expect("compatibility validator should accept the expected project-context reference");
-
-    let error = handbook_engine::author::validate_synthesized_environment_inventory_markdown(
-        &with_project_context,
-        handbook_engine::author::EnvironmentInventoryValidationExpectations::for_optional_project_context(
-            false,
-        ),
-    )
-    .expect_err("compatibility validator should preserve reference-expectation behavior");
-    assert!(error.contains("exact project context reference line"));
+        expected_environment_inventory_markdown("`.handbook/project/context.yaml`");
+    for legacy_presence_argument in [true, false] {
+        handbook_engine::author::validate_synthesized_environment_inventory_markdown(
+            &with_project_context,
+            handbook_engine::author::EnvironmentInventoryValidationExpectations::for_optional_project_context(
+                legacy_presence_argument,
+            ),
+        )
+        .expect("compatibility validator should accept the selected project-context reference");
+    }
 }
 
 #[test]
@@ -401,9 +251,7 @@ fn environment_inventory_core_parses_and_renders_deterministically() {
     assert_eq!(first, second);
     assert!(first.starts_with("# Environment Inventory — Handbook"));
     assert!(first.contains("> **Created (UTC):** 2026-07-10T12:34:56Z"));
-    assert!(
-        first.contains("> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`")
-    );
+    assert!(first.contains("> **Project Context Ref:** `.handbook/project/context.yaml`"));
     assert!(first.contains("| `HANDBOOK_HOME` | No | No |"));
     assert!(first.contains("| `OPENAI_API_KEY` | No | Yes | None |"));
     assert!(first.contains("Unknown for future hosted use"));

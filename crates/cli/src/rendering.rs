@@ -66,6 +66,26 @@ fn render_packet_source_summary(source: &handbook_flow::PacketSourceSummary) -> 
         handbook_engine::ArtifactPresence::PresentNonEmpty => "present",
     };
 
+    if let (
+        Some(source_byte_len),
+        Some(source_sha256),
+        Some(rendered_byte_len),
+        Some(rendered_sha256),
+        Some(media_type),
+    ) = (
+        source.byte_len,
+        source.content_sha256.as_deref(),
+        source.rendered_output_byte_len,
+        source.rendered_output_sha256.as_deref(),
+        source.rendered_media_type.as_deref(),
+    ) {
+        return format!(
+            "{} [{}] ({presence}, {source_byte_len} source bytes, source_sha256=sha256:{source_sha256}, {rendered_byte_len} rendered bytes, rendered_sha256={rendered_sha256}, media_type={media_type})",
+            render_canonical_artifact_kind(source.kind),
+            source.canonical_repo_relative_path
+        );
+    }
+
     let bytes = match source.byte_len {
         Some(len) => format!("{len} bytes"),
         None => "byte length unavailable".to_string(),
@@ -211,10 +231,14 @@ fn render_inspect_output(model: &handbook_compiler::RenderOutputModel) -> String
             push_line(
                 &mut output,
                 format!(
-                    "TARGET {}: {} ({} bytes)",
+                    "TARGET {}: {} ({} bytes [{}])",
                     index + 1,
                     target.canonical_repo_relative_path,
-                    target.byte_len
+                    target.byte_len,
+                    match target.byte_domain {
+                        handbook_flow::BudgetByteDomain::Source => "source",
+                        handbook_flow::BudgetByteDomain::RenderedOutput => "rendered_output",
+                    }
                 ),
             );
         }
@@ -476,6 +500,28 @@ fn render_packet_section(output: &mut String, section: &handbook_flow::PacketSec
     );
     if section.mode == handbook_flow::PacketSectionMode::Summary {
         push_line(output, "MODE: summarized due to budget");
+    } else if section.mode == handbook_flow::PacketSectionMode::Rendered {
+        push_line(output, "MODE: rendered from selected canonical YAML");
+        push_line(
+            output,
+            format!(
+                "SOURCE SHA256: {}",
+                section
+                    .source_content_sha256
+                    .as_deref()
+                    .expect("rendered section retains source fingerprint")
+            ),
+        );
+        push_line(
+            output,
+            format!(
+                "RENDERED SHA256: {}",
+                section
+                    .rendered_output_sha256
+                    .as_deref()
+                    .expect("rendered section retains output fingerprint")
+            ),
+        );
     }
     output.push_str("```text\n");
     output.push_str(&section.contents);

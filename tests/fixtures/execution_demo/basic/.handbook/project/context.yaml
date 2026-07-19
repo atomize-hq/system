@@ -1,0 +1,12 @@
+schema_id: "handbook.artifact.project-context"
+schema_version: "1.0"
+record_id: "handbook.project-context"
+summary: "Fixture-backed Project Context for deterministic CLI proof."
+system_boundaries:
+  - "Committed Handbook test fixtures"
+ownership:
+  - "handbook-test-suite"
+authoritative_references:
+  - "handbook.charter@1.0.0"
+known_unknowns:
+  - "None"

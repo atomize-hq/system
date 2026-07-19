@@ -12,8 +12,7 @@ const LEGACY_NON_CANONICAL_PATH_CLAIMS: [&str; 3] = [
     "repo/project root",
 ];
 const PROJECT_CONTEXT_REF_PRESENT_LINE: &str =
-    "> **Project Context Ref:** `.handbook/project_context/PROJECT_CONTEXT.md`";
-const PROJECT_CONTEXT_REF_ABSENT_LINE: &str = "> **Project Context Ref:** None";
+    "> **Project Context Ref:** `.handbook/project/context.yaml`";
 const ENVIRONMENT_INVENTORY_INPUTS_SCHEMA_VERSION: &str = "0.1.0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -179,13 +178,9 @@ pub struct EnvironmentInventoryValidationExpectations {
 
 #[allow(deprecated)]
 impl EnvironmentInventoryValidationExpectations {
-    pub fn for_optional_project_context(has_project_context: bool) -> Self {
+    pub fn for_optional_project_context(_has_project_context: bool) -> Self {
         Self {
-            expected_project_context_ref_line: if has_project_context {
-                PROJECT_CONTEXT_REF_PRESENT_LINE
-            } else {
-                PROJECT_CONTEXT_REF_ABSENT_LINE
-            },
+            expected_project_context_ref_line: PROJECT_CONTEXT_REF_PRESENT_LINE,
         }
     }
 
@@ -227,14 +222,19 @@ pub fn validate_environment_inventory_structured_input(
         &mut issues,
     );
     require_environment_text("charter_ref", &input.charter_ref, &mut issues);
-    if let Some(project_context_ref) = &input.project_context_ref {
-        require_environment_text("project_context_ref", project_context_ref, &mut issues);
-        if project_context_ref.trim() != ".handbook/project_context/PROJECT_CONTEXT.md" {
-            issues.push(
-                "project_context_ref must be `.handbook/project_context/PROJECT_CONTEXT.md` or null"
-                    .to_string(),
-            );
+    match &input.project_context_ref {
+        Some(project_context_ref) => {
+            require_environment_text("project_context_ref", project_context_ref, &mut issues);
+            if project_context_ref.trim() != ".handbook/project/context.yaml" {
+                issues.push(
+                    "project_context_ref must be exactly `.handbook/project/context.yaml`"
+                        .to_string(),
+                );
+            }
         }
+        None => issues.push(
+            "project_context_ref must be exactly `.handbook/project/context.yaml`".to_string(),
+        ),
     }
 
     for (index, variable) in input.environment_variables.iter().enumerate() {
@@ -470,11 +470,7 @@ pub fn render_environment_inventory_markdown(
     )
     .unwrap();
     writeln!(out, "> **Charter Ref:** {}  ", input.charter_ref.trim()).unwrap();
-    match &input.project_context_ref {
-        Some(reference) => writeln!(out, "> **Project Context Ref:** `{}`", reference.trim()),
-        None => writeln!(out, "{PROJECT_CONTEXT_REF_ABSENT_LINE}"),
-    }
-    .unwrap();
+    writeln!(out, "{PROJECT_CONTEXT_REF_PRESENT_LINE}").unwrap();
 
     writeln!(out).unwrap();
     writeln!(out, "## What this is").unwrap();

@@ -135,7 +135,7 @@ fn baseline_validation_uses_loaded_custom_paths_and_custom_ingest_issue_paths() 
     assert_eq!(
         validations
             .iter()
-            .map(|validation| validation.canonical_repo_relative_path)
+            .map(|validation| validation.canonical_repo_relative_path.as_str())
             .collect::<Vec<_>>(),
         vec![
             ".custom_handbook/charter/CHARTER.md",

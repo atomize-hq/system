@@ -90,29 +90,27 @@ pub fn preflight_author_environment_inventory_from_input(
     input: &EnvironmentInventoryStructuredInput,
 ) -> Result<(), AuthorEnvironmentInventoryRefusal> {
     validate_environment_inventory_structured_input(input)?;
-    let has_project_context = preflight_author_environment_inventory_shell(repo_root.as_ref())?;
-    validate_project_context_reference(input, has_project_context)
+    let selected_project_context_path =
+        preflight_author_environment_inventory_shell(repo_root.as_ref())?;
+    validate_project_context_reference(input, &selected_project_context_path)
 }
 
 fn validate_project_context_reference(
     input: &EnvironmentInventoryStructuredInput,
-    has_project_context: bool,
+    selected_project_context_path: &str,
 ) -> Result<(), AuthorEnvironmentInventoryRefusal> {
-    if input.project_context_ref.is_some() == has_project_context {
+    if input.project_context_ref.as_deref() == Some(selected_project_context_path) {
         return Ok(());
     }
 
-    let summary = if has_project_context {
-        "structured environment-inventory input must set `project_context_ref` to `.handbook/project_context/PROJECT_CONTEXT.md` because valid canonical project context truth exists"
-    } else {
-        "structured environment-inventory input must set `project_context_ref` to null because valid canonical project context truth does not exist"
-    };
     Err(AuthorEnvironmentInventoryRefusal {
         kind: AuthorEnvironmentInventoryRefusalKind::IncompleteStructuredInput,
-        summary: summary.to_string(),
+        summary: format!(
+            "structured environment-inventory input must set `project_context_ref` exactly to `{selected_project_context_path}`"
+        ),
         broken_subject: "structured environment-inventory input project_context_ref".to_string(),
         next_safe_action:
-            "align `project_context_ref` with canonical project-context truth and retry `handbook author environment-inventory --from-inputs <path|->`"
+            "set `project_context_ref` to the selected canonical Project Context YAML path and retry `handbook author environment-inventory --from-inputs <path|->`"
                 .to_string(),
     })
 }

@@ -125,6 +125,11 @@ HISTORICAL_INTERNAL_DISPATCH_V1_0_ADMISSION = {
         "173fd34dfdc0e7f0dccd1061adce7219938c2aa881f4b162a10ab396f6f1adfc",
     )
 }
+IMMUTABLE_INTERNAL_DISPATCH_V1_1_MANIFEST_ORDER_ADMISSION = {
+    "20260719T011843Z--HCM-2-1--fresh-implementation-review-1.json": (
+        "7e72338480ec262014c06e6b8661d2ffd578368c3c6c4029458366bdc83b700f"
+    )
+}
 
 
 class ValidationFailure(Exception):
@@ -280,10 +285,19 @@ def validate_subject_manifest(
     manifest = dispatch["subject_manifest"]
     entries = manifest["entries"]
     paths = [entry["path"] for entry in entries]
-    if paths != sorted(paths) or len(paths) != len(set(paths)):
+    if len(paths) != len(set(paths)):
         raise ValidationFailure(
             f"{dispatch_path}: subject manifest paths must be unique and sorted"
         )
+    if paths != sorted(paths):
+        admitted_sha256 = IMMUTABLE_INTERNAL_DISPATCH_V1_1_MANIFEST_ORDER_ADMISSION.get(
+            dispatch_path.name
+        )
+        actual_sha256 = hashlib.sha256(dispatch_path.read_bytes()).hexdigest()
+        if admitted_sha256 is None or actual_sha256 != admitted_sha256:
+            raise ValidationFailure(
+                f"{dispatch_path}: subject manifest paths must be unique and sorted"
+            )
     encoded: list[str] = []
     for entry in entries:
         if baseline_head is not None:

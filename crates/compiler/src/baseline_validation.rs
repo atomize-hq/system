@@ -2,10 +2,7 @@ pub use handbook_engine::baseline_validation::{
     BaselineArtifactValidation, BaselineArtifactVerdict,
 };
 
-use crate::author::{
-    validate_charter_markdown, validate_environment_inventory_markdown,
-    validate_project_context_markdown,
-};
+use crate::author::{validate_charter_markdown, validate_environment_inventory_markdown};
 use crate::canonical_artifacts::{CanonicalArtifactKind, CanonicalArtifacts};
 
 pub fn baseline_artifact_validations(
@@ -32,7 +29,7 @@ fn validate_artifact_markdown(kind: CanonicalArtifactKind, markdown: &str) -> Re
     match kind {
         CanonicalArtifactKind::Charter => validate_charter_markdown(markdown),
         CanonicalArtifactKind::ProjectContext => {
-            validate_project_context_markdown(markdown).map_err(|err| err.to_string())
+            Err("selected Project Context YAML is validated through profile inspection".to_owned())
         }
         CanonicalArtifactKind::EnvironmentInventory => {
             validate_environment_inventory_markdown(markdown).map_err(|err| err.summary)

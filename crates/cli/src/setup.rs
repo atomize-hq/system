@@ -176,6 +176,11 @@ fn inspection_reason_name(reason: handbook_engine::ArtifactInspectionReason) -> 
             "unsupported_platform_strict_read"
         }
         handbook_engine::ArtifactInspectionReason::RepositoryReadFailed => "repository_read_failed",
+        handbook_engine::ArtifactInspectionReason::TypedDecodeFailed => "typed_decode_failed",
+        handbook_engine::ArtifactInspectionReason::RenderedViewRefused => "rendered_view_refused",
+        handbook_engine::ArtifactInspectionReason::ObservationChangedDuringInspection => {
+            "observation_changed_during_inspection"
+        }
     }
 }
 

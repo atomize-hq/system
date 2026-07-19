@@ -738,7 +738,17 @@ The future implementation may change:
 - `tools/fixtures/environment_inventory_inputs/runtime_smoke_valid.yaml`, only
   for its exact Project Context reference;
 - `tools/ci/codex-skill-live-smoke.sh`, solely for Project Context canonical-
-  path/content/fingerprint and Environment Inventory reference assertions; and
+  path/content/fingerprint and Environment Inventory reference assertions, plus
+  harness-owned creation of an empty `.handbook` root and an explicit setup
+  exit-`1` assertion where the inherited smoke still assumes pre-HCM-1.4 setup
+  scaffolding. This fixture repair must not make setup author/materialize, change
+  installed skill instructions, or weaken the all-three assertions; and
+- `docs/specs/handbook-contract-membrane/handoffs/validate_handoffs.py`, only to
+  admit the exact immutable bytes of the first executed HCM-2.1 review dispatch
+  after its locale-sorted manifest was found non-ordinal. The admission may
+  bypass only ordering for that one filename/SHA-256 pair; path uniqueness,
+  entry hashes, aggregate recomputation, schema, and every other dispatch remain
+  strict, and changed or unknown bytes must still refuse; and
 - HCM-2.1 proof, internal dispatches, affected control-pack rows, and one
   parent closeout under the existing orchestration paths.
 
